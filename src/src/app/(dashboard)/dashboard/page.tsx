@@ -253,8 +253,15 @@ function SelfServiceKpis() {
         }
         sub={
           balances.length > 0
-            ? // Null once the leave type has been deleted.
-              (balances[0].type ?? t("dashboard.leave", "Leave"))
+            ? // Null once the leave type has been deleted. The Amharic name
+              // travels with it, so an Amharic reader sees ዓመታዊ ፈቃድ, not
+              // "Annual Leave" (dashboard review, 2026-11-03, PR 10).
+              balances[0].type
+              ? localizedName(
+                  { name: balances[0].type, name_am: balances[0].type_am },
+                  locale,
+                )
+              : t("dashboard.leave", "Leave")
             : t("dashboard.no_leave_configured", "No leave configured")
         }
       />
