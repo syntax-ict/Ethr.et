@@ -11202,6 +11202,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "type_am": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "entitled": {
                                                         "type": "number"
                                                     },
@@ -11214,6 +11220,7 @@
                                                 },
                                                 "required": [
                                                     "type",
+                                                    "type_am",
                                                     "entitled",
                                                     "used",
                                                     "remaining"
