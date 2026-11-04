@@ -2140,6 +2140,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The section exists for a reader whose role reaches one department or
+         *     team. Everyone else has a view already: the organisation one, or the
+         *     direct-reports one
+         */
+        get: operations["dashboard.department"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/executive": {
         parameters: {
             query?: never;
@@ -17259,6 +17280,7 @@ export interface operations {
                             email: string | null;
                             phone: string | null;
                             role: components["schemas"]["UserRole"];
+                            org_scope: string;
                             status: string;
                             mfa_enabled: boolean;
                             locale: string;
@@ -18818,6 +18840,59 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "dashboard.department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        scope: string;
+                        unit: {
+                            name: string;
+                            name_am: string | null;
+                        } | null;
+                        headcount: number;
+                        attendance: {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        } | {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        };
+                        on_leave_today: number;
+                        pending_approvals: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "executiveDashboard.overview": {

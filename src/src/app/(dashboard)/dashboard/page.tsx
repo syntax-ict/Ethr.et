@@ -50,6 +50,7 @@ import {
   AnnouncementsWidget,
   CalendarWidget,
   TeamOverview,
+  DepartmentOverview,
   LeaveOverview,
   OrganisationSnapshot,
   LinkEmployeeCallout,
@@ -77,7 +78,7 @@ import { ErrorState } from "@/components/shared/error-state";
  * absent and three approvals are waiting" sat below a week-over-week graph.
  */
 export default function DashboardPage() {
-  const { isSupervisor, isSuperAdmin, can } = usePermissions();
+  const { isSupervisor, isSuperAdmin, can, orgScope } = usePermissions();
   const { t } = useT();
   const { data: user } = useCurrentUser();
   const router = useRouter();
@@ -93,6 +94,7 @@ export default function DashboardPage() {
   // Only an explicit null means "no employee record": while /auth/me loads,
   // or from an older payload without the field, the tiles show as before.
   const hasNoEmployee = user?.employee_public_id === null;
+  const unitScoped = orgScope === "department" || orgScope === "team";
 
   if (isSuperAdmin) return null;
 
@@ -106,11 +108,16 @@ export default function DashboardPage() {
 
       {can.viewExecutiveDashboard && <OrganisationSnapshot />}
 
+      {/* A department head or team lead: the people their role reaches,
+          counted today. They have no organisation tiles and usually no direct
+          reports, so without this the page told them "No direct reports". */}
+      {unitScoped && <DepartmentOverview />}
+
       {/* Section headings turn what was a run of seven undifferentiated tiles
           into two labelled groups of four. Chunking gives the eye an entry
           point per group instead of asking it to infer where one metric family
           ends and the next begins. */}
-      {isSupervisor && <TeamOverview />}
+      {isSupervisor && <TeamOverview emptyState={!unitScoped} />}
 
       <DashboardSection
         id="my-day-heading"
