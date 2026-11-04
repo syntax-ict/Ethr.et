@@ -78,7 +78,7 @@ export function ComplianceCard({
                 </span>
                 <Badge
                   variant="outline"
-                  className="ml-auto shrink-0 text-[10px] capitalize"
+                  className="ml-auto shrink-0 text-caption capitalize"
                 >
                   {a.severity}
                 </Badge>
