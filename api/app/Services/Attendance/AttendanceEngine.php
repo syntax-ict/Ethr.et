@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
@@ -22,10 +23,14 @@ use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\IpUtils;
 
 final class AttendanceEngine
 {
     use DispatchesWebhooks;
+
+    /** The live self-service check-ins a required geofence refuses outside the place. */
+    private const GEOFENCED = [AttendanceSource::MOBILE, AttendanceSource::QR, AttendanceSource::WEB];
 
     public function __construct(
         private readonly ConfidenceScorer $scorer,
@@ -254,7 +259,14 @@ final class AttendanceEngine
         // every phone punch at the branch the moment the switch was turned
         // on. It is recorded and flagged `geofence_unconfigured` instead
         // (IntegrityInspector).
-        if ($settings?->geofence_required && $input->source->value === 'mobile') {
+        //
+        // Every live self-service channel, not the phone alone: a forwarded
+        // QR code or the web button pressed at home checked in from anywhere
+        // (A-Z review D-01). A web check-in from the office network is the
+        // office PC and needs no location. A punch an offline phone syncs
+        // later is kept and flagged: refusing it then would lose it unseen.
+        if ($settings?->geofence_required && in_array($input->source, self::GEOFENCED, true)
+            && ! ($input->source === AttendanceSource::WEB && $this->onOfficeNetwork($input, $settings))) {
             if ($input->latitude === null || $input->longitude === null) {
                 throw new AttendanceRefused(__('attendance.geofence_location_required'));
             }
@@ -471,5 +483,13 @@ final class AttendanceEngine
         [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return $record->check_out->lt($shiftEnd->subMinutes($record->shift->early_departure_minutes));
+    }
+
+    /** The same office networks the device gate reads (AttendanceDeviceGate). */
+    private function onOfficeNetwork(AttendanceInput $input, AttendanceSetting $settings): bool
+    {
+        $networks = array_filter((array) ($settings->office_networks ?? []), 'is_string');
+
+        return $networks !== [] && $input->ipAddress !== null && IpUtils::checkIp($input->ipAddress, $networks);
     }
 }
