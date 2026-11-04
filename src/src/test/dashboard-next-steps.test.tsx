@@ -204,6 +204,42 @@ describe("<NextStepsCard>", () => {
     ).toHaveAttribute("href", "/profile/personal");
   });
 
+  // jsdom lays nothing out, so a phone-width row is pinned by the classes
+  // that make it: the controls wrap below the text and are 44 px tall there,
+  // and go back to one line and the desktop size from `sm`.
+  it("puts a row's controls under the text on a phone, 44 px tall, and beside it from sm", async () => {
+    me("employee");
+    serve([
+      step({
+        id: "complete_profile",
+        group: "profile",
+        severity: "info",
+        count: 1,
+        total: 6,
+        items: ["bank"],
+        href: "/profile/personal",
+      }),
+    ]);
+    renderCard();
+
+    await screen.findByText("Finish your profile");
+    const controls = screen.getByTestId("next-step-controls");
+    expect(controls).toHaveClass("basis-full", "sm:basis-auto");
+    expect(screen.getByRole("link", { name: "Update profile" })).toHaveClass(
+      "h-touch",
+      "sm:h-8",
+    );
+    expect(screen.getByRole("button", { name: /^Put away/ })).toHaveClass(
+      "h-touch",
+      "w-touch",
+      "sm:h-8",
+      "sm:w-8",
+    );
+    expect(
+      screen.getByRole("link", { name: "Add your bank account" }),
+    ).toHaveClass("min-h-touch", "sm:min-h-0");
+  });
+
   it("tells HR which records are incomplete, in the singular too, and opens the filtered list", async () => {
     me("hr_admin");
     serve([
