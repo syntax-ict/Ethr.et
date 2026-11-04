@@ -589,6 +589,7 @@
   "analytics_page.payroll_by_department": "Kaffaltii Mindaa Muummeedhaan",
   "analytics_page.payroll_net": "Kaffaltii Mindaa (Qulqulluu)",
   "analytics_page.punches": "galmeewwan argamaa",
+  "analytics_page.punches_count": "galmeewwan argamaa :count",
   "analytics_page.punches_by_hour": "Galmeewwan argamaa guyyaa fi sa'aatiin",
   "analytics_page.punches_by_hour_desc": "Yeroo namoonni itti galanii fi bahan, yeroo kana keessatti.",
   "analytics_page.hour": "Sa'aatii",

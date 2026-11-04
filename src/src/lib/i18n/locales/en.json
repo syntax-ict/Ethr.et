@@ -589,6 +589,7 @@
   "analytics_page.payroll_by_department": "Payroll by Department",
   "analytics_page.payroll_net": "Payroll (Net)",
   "analytics_page.punches": "punches",
+  "analytics_page.punches_count": ":count punches",
   "analytics_page.punches_by_hour": "Punches by day and hour",
   "analytics_page.punches_by_hour_desc": "When people check in and out, over the period.",
   "analytics_page.hour": "Hour",

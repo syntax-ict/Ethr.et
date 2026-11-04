@@ -589,6 +589,7 @@
   "analytics_page.payroll_by_department": "ደመወዝ በዲፓርትመንት",
   "analytics_page.payroll_net": "ደመወዝ (ተጣራ)",
   "analytics_page.punches": "ምዝገባዎች",
+  "analytics_page.punches_count": ":count ምዝገባዎች",
   "analytics_page.punches_by_hour": "ምዝገባዎች በቀን እና በሰዓት",
   "analytics_page.punches_by_hour_desc": "በወቅቱ ውስጥ ሰዎች መቼ እንደገቡ እና እንደወጡ።",
   "analytics_page.hour": "ሰዓት",

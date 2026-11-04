@@ -124,7 +124,7 @@ export function AttendanceTab({
         const punchesAt = (weekday: string, hour: string) =>
           punchCounts.get(`${weekday}|${hour}`);
         const sayPunches = (value: number) =>
-          `${value} ${t("analytics_page.punches", "punches")}`;
+          t("analytics_page.punches_count", ":count punches", { count: value });
         const punchesTitle = t(
           "analytics_page.punches_by_hour",
           "Punches by day and hour",

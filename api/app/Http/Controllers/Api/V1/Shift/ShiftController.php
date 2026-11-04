@@ -26,6 +26,7 @@ use App\Services\Shift\ShiftCoverage;
 use App\Support\CopyName;
 use App\Support\ShiftAssignables;
 use App\Support\TenantTime;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -358,6 +359,7 @@ class ShiftController extends Controller
         $current = app(CurrentTenant::class);
         $tenantId = $current->requireId();
 
+        /** @var Collection<int, Employee> $employees */
         $employees = $request->user()
             ->scopeAccessibleEmployees(Employee::query())
             ->whereNotIn('status', EmployeeStatus::leaving())
