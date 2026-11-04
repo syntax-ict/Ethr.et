@@ -679,7 +679,7 @@ test('a change to the platform settings is audited with what changed', function 
         ->assertOk();
 
     $entry = AuditLog::withoutGlobalScopes()->where('action', 'platform.settings.updated')->latest('id')->firstOrFail();
-    expect($entry->payload['changes']['bank_account_number'] ?? null)->toBe(['from' => '1000111122223', 'to' => '1000999988887']);
+    expect($entry->payload['changes']['bank_account_number'] ?? null)->toEqual(['from' => '1000111122223', 'to' => '1000999988887']);
 });
 
 test('the tenant list ignores a sort it does not offer', function () {
