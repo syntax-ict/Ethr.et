@@ -72,13 +72,17 @@ class LeaveRequestController extends Controller
         $startDate = Carbon::parse($request->validated('start_date'));
         $endDate = Carbon::parse($request->validated('end_date'));
 
-        $days = $this->dayCalculator->calculateDays(
-            $startDate,
-            $endDate,
-            $employee->tenant_id,
-            $employee->branch_id,
-            $employee,
-        );
+        // A type counted in consecutive calendar days (maternity, Art. 88)
+        // takes the whole span; every other type the person's own working days.
+        $days = $leaveType->counts_calendar_days
+            ? (float) ((int) $startDate->diffInDays($endDate) + 1)
+            : $this->dayCalculator->calculateDays(
+                $startDate,
+                $endDate,
+                $employee->tenant_id,
+                $employee->branch_id,
+                $employee,
+            );
 
         if ($days <= 0) {
             return response()->json([
