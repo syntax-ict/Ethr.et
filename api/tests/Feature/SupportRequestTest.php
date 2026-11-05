@@ -388,3 +388,20 @@ it('stores an in-app notice that follows the reader\'s language', function () {
         'url' => "/support?request={$id}",
     ]);
 });
+
+// A-Z review G-04 (2026-11-04). Support handlers were chosen by permission
+// alone, so a deactivated HR user, and a deactivated ETHR operator, went on
+// receiving requests, with the person's words in them.
+it('does not tell a deactivated handler about a request', function () {
+    Notification::fake();
+    $tenant = createTenant();
+    $employee = supportPerson($tenant);
+    $active = supportPerson($tenant, UserRole::HR_ADMIN);
+    $gone = supportPerson($tenant, UserRole::HR_ADMIN);
+    $gone->update(['status' => 'inactive']);
+
+    askForHelp($tenant, $employee);
+
+    Notification::assertSentTo($active, SupportRequestNotification::class);
+    Notification::assertNotSentTo($gone, SupportRequestNotification::class);
+});
