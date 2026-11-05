@@ -211,6 +211,11 @@ final class ExecutiveDashboardService
      * about half the real one. "Today" is the organisation's date, not UTC's.
      *
      * Null when nobody was expected: no one to attend is not 0% attendance.
+     *
+     * `today_present` of `today_expected` is the dashboard's "112 of 140 in":
+     * before the first check-in a bare 0% read like an empty office.
+     *
+     * @return array{today: float|null, period: float|null, today_present: int, today_expected: int}
      */
     private function attendanceRate(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
@@ -220,9 +225,13 @@ final class ExecutiveDashboardService
         $today = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->format('Y-m-d'));
         $last = $to->lessThan($today) ? $to->copy()->startOfDay() : $today->copy();
 
+        $todayCounts = $this->attendedByDay($tenantId, $employees, $today, $today)[$today->toDateString()];
+
         return [
-            'today' => $this->attendedShare($tenantId, $employees, $today, $today),
+            'today' => self::share($todayCounts['present'], $todayCounts['expected']),
             'period' => $this->attendedShare($tenantId, $employees, $from->copy()->startOfDay(), $last),
+            'today_present' => $todayCounts['present'],
+            'today_expected' => $todayCounts['expected'],
         ];
     }
 
@@ -234,8 +243,42 @@ final class ExecutiveDashboardService
      */
     private function attendedShare(int $tenantId, Collection $employees, Carbon $first, Carbon $last): ?float
     {
-        if ($employees->isEmpty() || $first->greaterThan($last)) {
+        if ($first->greaterThan($last)) {
             return null;
+        }
+
+        $present = 0;
+        $expected = 0;
+        foreach ($this->attendedByDay($tenantId, $employees, $first, $last) as $counts) {
+            $present += $counts['present'];
+            $expected += $counts['expected'];
+        }
+
+        return self::share($present, $expected);
+    }
+
+    private static function share(int $present, int $expected): ?float
+    {
+        return $expected > 0 ? round(($present / $expected) * 100, 1) : null;
+    }
+
+    /**
+     * Each day in [$first, $last], oldest first: how many people were expected
+     * at work, and how many of them checked in. Every day is listed, at 0 of 0
+     * when no one was expected.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<string, array{present: int, expected: int}>
+     */
+    private function attendedByDay(int $tenantId, Collection $employees, Carbon $first, Carbon $last): array
+    {
+        $days = [];
+        foreach ($first->daysUntil($last) as $day) {
+            $days[$day->toDateString()] = ['present' => 0, 'expected' => 0];
+        }
+
+        if ($employees->isEmpty()) {
+            return $days;
         }
 
         $attended = [];
@@ -255,23 +298,20 @@ final class ExecutiveDashboardService
             $attended[substr((string) $record->date, 0, 10)][(int) $record->employee_id] = true;
         }
 
-        $expected = 0;
-        $present = 0;
-
         foreach ($this->expectedDays->between($employees, $first, $last) as $day => $kinds) {
             foreach ($kinds as $id => $kind) {
-                if ($kind !== ExpectedDay::WORKDAY) {
+                if ($kind !== ExpectedDay::WORKDAY || ! isset($days[$day])) {
                     continue;
                 }
 
-                $expected++;
+                $days[$day]['expected']++;
                 if (isset($attended[$day][$id])) {
-                    $present++;
+                    $days[$day]['present']++;
                 }
             }
         }
 
-        return $expected > 0 ? round(($present / $expected) * 100, 1) : null;
+        return $days;
     }
 
     /**
@@ -432,7 +472,8 @@ final class ExecutiveDashboardService
     private function workforceGrowth(int $tenantId, ?int $branchId): array
     {
         $calendar = OrganisationMonth::forTenant(Tenant::query()->find($tenantId));
-        ['year' => $year, 'month' => $month] = $calendar->monthOf($calendar->today());
+        $today = $calendar->today();
+        ['year' => $year, 'month' => $month] = $calendar->monthOf($today);
 
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -442,9 +483,16 @@ final class ExecutiveDashboardService
                 ->whereDate('hire_date', '<=', $calendar->end($y, $m)->toDateString())
                 ->count();
 
+            // On the books at the month's end, or today for the month still
+            // running: the dashboard's headcount line, which plotted hires
+            // beside the headcount figure until 2026-11-05.
+            $end = $i === 0 ? $today : $calendar->end($y, $m);
+            $headcount = $this->employedOn($this->scopedEmployees($tenantId, $branchId), $end)->count();
+
             $months[] = [
                 'month' => $calendar->key($y, $m),
                 'hires' => $hires,
+                'headcount' => $headcount,
             ];
         }
 

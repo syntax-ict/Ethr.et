@@ -11614,11 +11614,19 @@
                                                         "number",
                                                         "null"
                                                     ]
+                                                },
+                                                "today_present": {
+                                                    "type": "integer"
+                                                },
+                                                "today_expected": {
+                                                    "type": "integer"
                                                 }
                                             },
                                             "required": [
                                                 "today",
-                                                "period"
+                                                "period",
+                                                "today_present",
+                                                "today_expected"
                                             ]
                                         },
                                         "payroll_summary": {
@@ -11675,11 +11683,16 @@
                                                     "hires": {
                                                         "type": "integer",
                                                         "minimum": 0
+                                                    },
+                                                    "headcount": {
+                                                        "type": "integer",
+                                                        "minimum": 0
                                                     }
                                                 },
                                                 "required": [
                                                     "month",
-                                                    "hires"
+                                                    "hires",
+                                                    "headcount"
                                                 ]
                                             }
                                         },
