@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Billing;
 
 use App\Enums\SubscriptionStatus;
+use App\Enums\TenantStatus;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 final class BillingService
 {
@@ -133,7 +135,17 @@ final class BillingService
             $attributes['current_period_end'] = Carbon::now()->addMonth();
         }
 
-        $subscription->update($attributes);
+        DB::transaction(function () use ($subscription, $attributes, $tenant, $isTrialConversion): void {
+            $subscription->update($attributes);
+
+            // The organisation leaves the trial with its subscription. Left on
+            // `trial`, isActive() still read trial_ends_at and refused a paying
+            // customer from that date, and plan limits never applied to it
+            // (A-Z review, 2026-11-03).
+            if ($isTrialConversion && $tenant->status === TenantStatus::TRIAL) {
+                $tenant->update(['status' => TenantStatus::ACTIVE]);
+            }
+        });
 
         return [
             'old_plan' => $oldPlan->name ?? 'Unknown',
