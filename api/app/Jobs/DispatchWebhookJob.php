@@ -92,8 +92,19 @@ class DispatchWebhookJob implements ShouldQueue
         // `release`). A fresh copy is queued rather than this one released,
         // because a release spends one of the six tries, and a switch left off
         // for an hour would use them all and fail deliveries nobody refused.
+        //
+        // Held for a day at most. Queued again every ten minutes up to the
+        // 30-day cleanup, a delivery went out weeks late with a fresh
+        // timestamp once the switch came back on (A-Z review G-08). Expired
+        // is recorded on the delivery and counts nothing against the webhook.
         $tenant = Tenant::query()->find($this->tenantId);
         if ($tenant !== null && ! app(FeatureGate::class)->allows($tenant, Feature::WebhooksOutbound)) {
+            if ($delivery->created_at !== null && $delivery->created_at->lt(now()->subDay())) {
+                $this->markFailed($delivery, null, 'Not sent: expired after a day held while webhook delivery was switched off', 0);
+
+                return;
+            }
+
             self::dispatch($this->webhookId, $this->event, $this->payload, $this->deliveryId, $this->tenantId)
                 ->onQueue('default')
                 ->delay(now()->addSeconds(FeatureUnavailable::RETRY_AFTER_SECONDS));
