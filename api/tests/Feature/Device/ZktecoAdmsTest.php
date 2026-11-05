@@ -16,6 +16,8 @@ use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\DeviceManager;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -302,4 +304,41 @@ describe('on the organisation\'s own address', function () {
             ->assertOk()
             ->assertJsonPath('adms.server', "{$tenant->subdomain}.ethr.test");
     });
+});
+
+// A-Z review D-07 (2026-11-04). Every failure to store a punch was swallowed
+// and the terminal told "OK", so it deleted punches nobody had stored. A
+// database failure is now answered 503, which the terminal retries (punches
+// already stored dedupe on their key); a refusal is still acknowledged, and
+// any other error is reported and skipped so one bad punch cannot block the
+// terminal's queue for good.
+it('asks the terminal to resend punches the database failed to store', function () {
+    [, , $employee] = admsSetup();
+    AttendanceRecord::creating(function () {
+        throw new QueryException('mysql', 'insert into attendance_records', [], new PDOException('Lost connection'));
+    });
+
+    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertStatus(503)
+        ->assertHeader('Retry-After');
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
+it('acknowledges a punch it refuses, and reports and skips one that fails otherwise', function () {
+    Exceptions::fake();
+    [, , $employee] = admsSetup();
+
+    // Dated ahead of the server's clock: refused, never stored, never retried.
+    adms('POST', 'cdata', "1042\t2026-10-14 19:30:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
+
+    AttendanceRecord::creating(function () {
+        throw new RuntimeException('Unexpected');
+    });
+    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
+
+    Exceptions::assertReported(RuntimeException::class);
+    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
 });
