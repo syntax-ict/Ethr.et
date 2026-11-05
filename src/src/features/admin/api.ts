@@ -105,6 +105,24 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   } | null;
   /** The organisation's active administrators: who ownership can pass to. */
   admins: Array<{ public_id: string; name: string; email: string | null }>;
+  /** Everyone who can administer it: the admin roles and custom roles. */
+  administrators: Array<{
+    public_id: string;
+    name: string;
+    email: string | null;
+    role: string;
+    custom_role: string | null;
+    mfa_enabled: boolean;
+    status: string;
+    last_login_at: string | null;
+    is_owner: boolean;
+  }>;
+  /** Recent actions that change who may do what, or move money, and who did them. */
+  privileged_actions: Array<{
+    action: string;
+    actor: string | null;
+    created_at: string;
+  }>;
   /** The registration, then every change of owner, newest first. */
   ownership_history: Array<{
     action: string;

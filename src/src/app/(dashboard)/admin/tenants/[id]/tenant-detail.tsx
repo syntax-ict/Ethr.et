@@ -703,6 +703,94 @@ function TenantDetail({ id }: { id: string }) {
           onOpenChange={setOwnerOpen}
         />
 
+        {/* Who can administer it, and what was done with that power */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.administrators", "Administrators")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "admin_tenant_detail_page.accountability_summary",
+                ":count administrators, :mfa with two-factor sign-in. Owner phone: :phone.",
+                {
+                  count: (tenant.administrators ?? []).length,
+                  mfa: (tenant.administrators ?? []).filter(
+                    (a) => a.mfa_enabled,
+                  ).length,
+                  phone: tenant.owner?.phone
+                    ? tenant.owner.phone_verified
+                      ? t("admin_tenant_detail_page.phone_verified", "verified")
+                      : t(
+                          "admin_tenant_detail_page.phone_unverified",
+                          "Unverified",
+                        )
+                    : t(
+                        "admin_tenant_detail_page.phone_missing",
+                        "No phone given",
+                      ),
+                },
+              )}
+            </p>
+            <SimpleTable
+              caption={t(
+                "admin_tenant_detail_page.administrators",
+                "Administrators",
+              )}
+              headers={[
+                t("common.name", "Name"),
+                t("admin_tenant_detail_page.role", "Role"),
+                t("admin_tenant_detail_page.mfa", "Two-factor"),
+                t("common.status"),
+                t("admin_tenant_detail_page.last_sign_in", "Last sign-in"),
+              ]}
+              rows={(tenant.administrators ?? []).map((a) => ({
+                key: a.public_id,
+                cells: [
+                  <span key="name">
+                    {a.name}
+                    {a.is_owner &&
+                      ` (${t("admin_tenant_detail_page.owner", "Owner")})`}
+                  </span>,
+                  <span key="role">
+                    {a.custom_role ?? t(`role.${a.role}`, a.role)}
+                  </span>,
+                  <span key="mfa">
+                    {a.mfa_enabled
+                      ? t("admin_tenant_detail_page.mfa_on", "On")
+                      : t("admin_tenant_detail_page.mfa_off", "Off")}
+                  </span>,
+                  <StatusBadge key="status" status={a.status} />,
+                  <span key="login">
+                    {a.last_login_at ? formatDateTime(a.last_login_at) : ""}
+                  </span>,
+                ],
+              }))}
+            />
+            {(tenant.privileged_actions ?? []).length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-foreground">
+                  {t(
+                    "admin_tenant_detail_page.privileged_actions",
+                    "Recent privileged actions",
+                  )}
+                </p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {tenant.privileged_actions.map((p, i) => (
+                    <li key={`${p.action}-${p.created_at}-${i}`}>
+                      {formatDateTime(p.created_at)}{" "}
+                      <span className="font-mono text-xs">{p.action}</span>
+                      {p.actor && ` (${p.actor})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <Card>
           <CardHeader>

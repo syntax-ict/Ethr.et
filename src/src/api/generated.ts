@@ -30329,6 +30329,23 @@ export interface operations {
                             /** Format: date-time */
                             created_at: string;
                         }[];
+                        administrators: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                            role: string;
+                            custom_role: string | null;
+                            mfa_enabled: boolean;
+                            status: string;
+                            last_login_at: string | null;
+                            is_owner: boolean;
+                        }[];
+                        privileged_actions: {
+                            action: string;
+                            actor: string | null;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
                     };
                 };
             };

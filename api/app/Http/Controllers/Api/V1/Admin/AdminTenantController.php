@@ -24,6 +24,7 @@ use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
 use App\Jobs\BackupTenantJob;
 use App\Models\AuditLog;
+use App\Models\CustomRole;
 use App\Models\Device;
 use App\Models\Invoice;
 use App\Models\Subscription;
@@ -33,6 +34,7 @@ use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
+use App\Services\CurrentTenant;
 use App\Services\CustomDomainVerifier;
 use App\Services\Features\FeatureControls;
 use App\Services\Features\FeatureGate;
@@ -165,6 +167,14 @@ class AdminTenantController extends Controller
                 ];
             });
 
+        // Everyone who can administer the organisation, for the console's
+        // administrators panel: the three admin roles and anyone on a custom
+        // role, which can grant as much.
+        $administrators = $this->administratorsOf($tenant);
+
+        // What was done with that power, most recent first, and by whom.
+        $privileged = $this->privilegedActionsOf($tenant);
+
         // The administrators ownership can pass to.
         $admins = $this->usersOf($tenant)
             ->where('role', UserRole::TENANT_ADMIN)
@@ -215,7 +225,85 @@ class AdminTenantController extends Controller
             ],
             'admins' => $admins,
             'ownership_history' => $ownershipHistory,
+            'administrators' => $administrators,
+            'privileged_actions' => $privileged,
         ]);
+    }
+
+    /**
+     * The organisation's administrators: role (with the custom role's name),
+     * MFA, account status and last sign-in. Custom roles are tenant-scoped,
+     * so their names are read with the organisation set, not by dropping
+     * the scope.
+     *
+     * @return list<array{public_id: string, name: string, email: ?string, role: string, custom_role: ?string, mfa_enabled: bool, status: string, last_login_at: ?string, is_owner: bool}>
+     */
+    private function administratorsOf(Tenant $tenant): array
+    {
+        $people = $this->usersOf($tenant)
+            ->where(fn (Builder $q) => $q
+                ->whereIn('role', [UserRole::TENANT_ADMIN->value, UserRole::HR_ADMIN->value, UserRole::FINANCE_ADMIN->value])
+                ->orWhereNotNull('custom_role_id'))
+            ->orderBy('id')
+            ->get();
+
+        $current = app(CurrentTenant::class);
+        $previous = $current->get();
+        $current->set($tenant);
+        try {
+            $roleNames = CustomRole::query()->whereIn('id', $people->pluck('custom_role_id')->filter()->all())->pluck('name', 'id');
+        } finally {
+            $previous === null ? $current->forget() : $current->set($previous);
+        }
+
+        return $people->map(fn (User $u): array => [
+            'public_id' => $u->public_id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'role' => $u->role->value,
+            'custom_role' => $u->custom_role_id !== null ? ($roleNames[$u->custom_role_id] ?? null) : null,
+            'mfa_enabled' => (bool) $u->mfa_enabled,
+            'status' => (string) $u->status,
+            'last_login_at' => $u->last_login_at?->toIso8601String(),
+            'is_owner' => $tenant->owner_user_id === $u->id,
+        ])->values()->all();
+    }
+
+    /** Audit actions that change who may do what, or move money. */
+    private const PRIVILEGED_ACTIONS = [
+        'user.%', 'role.%', 'custom_role.%', 'permission.%', 'tenant.%', 'settings.%',
+        'api_key.%', 'webhook.%', 'sso.%', 'scim.%', 'payroll.approved', 'payroll.voided',
+        'payroll.bank_export', 'billing.%', 'admin.tenant.%',
+    ];
+
+    /**
+     * The organisation's last 20 privileged actions, with who did them, named
+     * from the organisation's own users (ETHR's operators read as ETHR).
+     *
+     * @return list<array{action: string, actor: ?string, created_at: mixed}>
+     */
+    private function privilegedActionsOf(Tenant $tenant): array
+    {
+        $entries = $this->auditOf($tenant)
+            ->where(function (Builder $q): void {
+                foreach (self::PRIVILEGED_ACTIONS as $pattern) {
+                    $q->orWhere('action', 'like', $pattern);
+                }
+            })
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+
+        $actors = $this->usersOf($tenant)
+            ->whereIn('id', $entries->pluck('user_id')->filter()->unique()->all())
+            ->get()
+            ->keyBy('id');
+
+        return $entries->map(fn (AuditLog $l): array => [
+            'action' => $l->action,
+            'actor' => $l->user_id === null ? null : ($actors->has($l->user_id) ? $actors->get($l->user_id)->name : 'ETHR'),
+            'created_at' => $l->created_at,
+        ])->values()->all();
     }
 
     /**
