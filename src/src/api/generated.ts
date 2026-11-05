@@ -4263,6 +4263,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leave/{leaveRequest}/recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cancel approved leave, or end it early: HR only, with a reason. The
+         *     days it no longer takes go back to the balance, and the employee is
+         *     told. Without `end_date` the leave is cancelled
+         */
+        put: operations["leaveRequest.recall"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/{leaveRequest}": {
         parameters: {
             query?: never;
@@ -10725,6 +10746,12 @@ export interface components {
                 };
             };
         };
+        /** RecallLeaveRequest */
+        RecallLeaveRequest: {
+            /** Format: date */
+            end_date?: string | null;
+            reason: string;
+        };
         /**
          * RecordApplicationEventRequest
          * @description A note, or an interview: when it is or was, and the panel's assessment out
@@ -11870,7 +11897,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
         };
         /** SupportMessageRequest */
         SupportMessageRequest: {
@@ -12791,7 +12818,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
         };
         /**
@@ -24776,6 +24803,43 @@ export interface operations {
             };
         };
     };
+    "leaveRequest.recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The leave request public id */
+                leaveRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecallLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description `LeaveRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "leaveRequest.show": {
         parameters: {
             query?: never;
@@ -25924,6 +25988,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -25984,6 +26049,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -33306,7 +33372,7 @@ export interface operations {
                     "application/json": {
                         templates: {
                             /** @enum {string} */
-                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "payslip_available" | "missing_punch" | "trial_expiring";
+                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "payslip_available" | "missing_punch" | "trial_expiring";
                             subject_en: string;
                             subject_am: string;
                             body_en: string;

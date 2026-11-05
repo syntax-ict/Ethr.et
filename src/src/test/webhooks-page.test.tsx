@@ -33,6 +33,7 @@ const DISPATCHED = [
   "leave.requested",
   "leave.approved",
   "leave.rejected",
+  "leave.changed",
   "payroll.processed",
   "payroll.approved",
   "payroll.voided",

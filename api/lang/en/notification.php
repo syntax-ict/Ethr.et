@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'Your attendance phone was revoked: :reason. Register the phone you use now.',
         'device_offline' => 'Device ":name" has gone offline.',
         'leave_approved' => 'Your leave request was approved.',
+        'leave_changed' => 'Your approved leave was changed by HR.',
         'leave_rejected' => 'Your leave request was rejected.',
         'leave_requested' => ':name asked for leave.',
         'missing_check_in' => ':name did not check in on :date.',

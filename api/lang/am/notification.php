@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'የሚመዘገቡበት ስልክ ተሰርዟል፦ :reason። አሁን የሚጠቀሙበትን ስልክ ያስመዝግቡ።',
         'device_offline' => '":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
         'leave_approved' => 'የፈቃድ ጥያቄዎ ጸድቋል።',
+        'leave_changed' => 'የጸደቀ ፈቃድዎ በሰው ሀብት ተቀይሯል።',
         'leave_rejected' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
         'leave_requested' => ':name ፈቃድ ጠይቀዋል።',
         'missing_check_in' => ':name በ:date አልገቡም።',

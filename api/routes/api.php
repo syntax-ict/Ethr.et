@@ -687,6 +687,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::put('/{leaveRequest}/approve', [LeaveRequestController::class, 'approve']);
         Route::put('/{leaveRequest}/reject', [LeaveRequestController::class, 'reject']);
         Route::put('/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel']);
+        Route::put('/{leaveRequest}/recall', [LeaveRequestController::class, 'recall']);
         // Kept last so the literal GET routes above are matched first.
         Route::get('/{leaveRequest}', [LeaveRequestController::class, 'show']);
     });
