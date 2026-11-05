@@ -259,13 +259,15 @@ final class SupportDesk
     }
 
     /**
-     * The organisation's support people, less whoever is acting.
+     * The organisation's support people, less whoever is acting. Active
+     * ones only: a deactivated HR user went on receiving requests, with the
+     * person's words in them (A-Z review G-04).
      *
      * @return Collection<int, User>
      */
     public function organisationHandlers(?User $except = null): Collection
     {
-        return User::query()->get()
+        return User::query()->where('status', 'active')->get()
             ->filter(fn (User $u): bool => $u->id !== $except?->id && $u->hasPermission('support.manage'))
             ->values();
     }

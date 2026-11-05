@@ -29,6 +29,7 @@ return [
     'errors' => [
         'role_not_assignable' => 'ይህ ሚና ሊመደብ አይችልም።',
         'role_above_your_level' => 'ከራስዎ ከፍ ያለ ሚና መመደብ አይችሉም።',
+        'custom_role_inactive' => 'ይህ ሚና ጠፍቷል። መጀመሪያ በሚናዎች ውስጥ ያብሩት።',
         'role_beside_your_own' => 'በእርስዎ ደረጃ ያለ ሌላ ሚና መመደብ የሚችለው የድርጅቱ አስተዳዳሪ ብቻ ነው።',
         'account_at_your_level' => 'በእርስዎ ደረጃ ያለን መለያ መቀየር የሚችለው የድርጅቱ አስተዳዳሪ ብቻ ነው።',
         'cannot_modify_higher' => 'ከእርስዎ ከፍ ያለ ሚና ያለውን ተጠቃሚ ማስተካከል አይችሉም።',

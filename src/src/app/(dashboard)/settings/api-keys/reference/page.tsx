@@ -182,7 +182,8 @@ X-ETHR-Signature: sha256=<hex>
   "event": "employee.created",
   "timestamp": "2026-10-14T09:00:00+00:00",
   "tenant_id": "01J…",
-  "data": { "public_id": "01J…", "name": "…" }
+  "data": { "public_id": "01J…", "name": "…" },
+  "delivery_id": "01J…"
 }`}</Code>
         <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
           <li>{t("api_reference.webhooks_verify")}</li>

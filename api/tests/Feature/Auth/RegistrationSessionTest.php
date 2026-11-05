@@ -28,6 +28,7 @@ function p2Register(): void
             'subdomain' => 'acme-corp',
             'admin_name' => 'Admin User',
             'admin_email' => 'admin@acme.com',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
             'organization_type' => 'general',

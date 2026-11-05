@@ -363,7 +363,7 @@ function parityPull(array $ctx): void
     app()->instance(MockAdapter::class, $fake);
 
     parityAfterwards($ctx);
-    (new PullDeviceEventsJob($device, 'manual'))->handle(
+    (new PullDeviceEventsJob($device->id, $device->tenant_id, 'manual'))->handle(
         app(DeviceManager::class),
         app(AttendanceEngine::class),
         app(IdentityResolver::class),

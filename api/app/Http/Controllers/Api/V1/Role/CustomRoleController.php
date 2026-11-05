@@ -80,20 +80,32 @@ class CustomRoleController extends Controller
     {
         Gate::authorize('settings.manage');
 
+        // What changed, for the audit trail: a bare "updated" said nothing
+        // about which permissions were granted or taken away (A-Z review C-06).
+        $before = $customRole->permissions()->pluck('name')->sort()->values()->all();
+
         $customRole->update($request->safe()->except('permissions'));
+        $changed = $customRole->getChanges();
 
         if ($request->has('permissions')) {
             $permissionIds = Permission::whereIn('name', $request->validated('permissions'))
                 ->pluck('id');
             $customRole->permissions()->sync($permissionIds);
-
-            Permission::clearCacheForCustomRole($customRole->id);
         }
+
+        // Also when only is_active or org_scope changed: both decide what the
+        // role grants.
+        Permission::clearCacheForCustomRole($customRole->id);
 
         $customRole->load('permissions');
         $customRole->loadCount('users');
 
-        AuditLog::record('custom_role.updated', $customRole);
+        $after = $customRole->permissions->pluck('name')->sort()->values()->all();
+        AuditLog::record('custom_role.updated', $customRole, [
+            'changes' => array_diff_key($changed, ['updated_at' => true]),
+            'permissions_added' => array_values(array_diff($after, $before)),
+            'permissions_removed' => array_values(array_diff($before, $after)),
+        ]);
 
         return new CustomRoleResource($customRole);
     }

@@ -113,6 +113,7 @@ final class PlatformSupportInbox
             ->withoutGlobalScopes()
             ->whereNull('tenant_id')
             ->where('role', UserRole::SUPER_ADMIN->value)
+            ->where('status', 'active')
             ->get();
     }
 

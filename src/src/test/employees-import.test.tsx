@@ -72,6 +72,27 @@ describe("Employee CSV import (S08)", () => {
     expect(screen.getByText(/2\s+errors/i)).toBeInTheDocument();
   });
 
+  it("sends the calendar the file's dates are written in", async () => {
+    let body = "";
+    server.use(
+      http.post(PREVIEW_URL, async ({ request }) => {
+        body = await request.text();
+        return HttpResponse.json(PREVIEW);
+      }),
+    );
+
+    const { container } = renderPage();
+    await screen.findByText("Upload CSV File");
+    fireEvent.click(screen.getByRole("button", { name: "Ethiopian (E.C.)" }));
+    expect(
+      screen.getByRole("button", { name: "Ethiopian (E.C.)" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    uploadCsv(container);
+
+    await screen.findByText("Total rows");
+    expect(body).toMatch(/name="calendar"\s+ethiopian/);
+  });
+
   it("commits the valid rows and shows the result", async () => {
     server.use(
       http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
