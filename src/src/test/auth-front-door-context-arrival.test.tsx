@@ -43,6 +43,7 @@ const arriving: HostCtx = {
   tenantLanding: null,
   tenantSignIn: null,
   tenantDefaultLocale: null,
+  tenantBillingOnly: false,
   onLanding: true,
   carryOrganisation: null,
   tenantRequest: null,
@@ -69,6 +70,7 @@ const arrived: HostCtx = {
   },
   tenantSignIn: { sso: false, otp: false },
   tenantDefaultLocale: "en",
+  tenantBillingOnly: false,
   carryOrganisation: "acme",
   tenantContextLoading: false,
 };

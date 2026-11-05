@@ -17477,6 +17477,7 @@ export interface operations {
                         paused_features: string[];
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
+                        billing_only: boolean;
                     };
                 };
             };
@@ -35523,6 +35524,7 @@ export interface operations {
                                 email_code: boolean;
                             };
                             default_locale: string;
+                            billing_only: boolean;
                         } | null;
                     };
                 };

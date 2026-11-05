@@ -90,6 +90,7 @@ export function LoginForm() {
     tenantLookupError,
     tenantFieldVisible,
     tenantSignIn,
+    tenantBillingOnly,
     onLanding,
     carryOrganisation,
   } = useAuthHostContext();
@@ -413,6 +414,21 @@ export function LoginForm() {
             {t(
               "auth.canonical_handoff",
               ":name signs in at this address. Enter your password again to continue.",
+              { name: tenantName ?? subdomainFromHost ?? "ETHR" },
+            )}
+          </p>
+        </div>
+      )}
+
+      {tenantBillingOnly && (
+        <div
+          role="status"
+          className="mb-5 rounded-lg border border-warning-edge bg-warning-soft p-3"
+        >
+          <p className="text-sm text-warning-on-soft">
+            {t(
+              "auth.billing_only_notice",
+              ":name's subscription has ended. Administrators can still sign in to see and pay the bill.",
               { name: tenantName ?? subdomainFromHost ?? "ETHR" },
             )}
           </p>

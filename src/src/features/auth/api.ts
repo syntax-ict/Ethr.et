@@ -33,6 +33,11 @@ export interface MeResponse {
   features?: Record<string, { on: boolean; reason: string }> | null;
   /** The largest upload the server accepts, in bytes (PHP's own limits). */
   upload_limit_bytes?: number;
+  /**
+   * The organisation is locked out for money (trial ended, or suspended with
+   * a bill unpaid): only sign-in and billing answer (`Tenant::billingOnly()`).
+   */
+  billing_only?: boolean;
   tenant: {
     public_id: string;
     name: string;
@@ -257,6 +262,15 @@ export function useUpdateOwnPhone() {
       queryClient.invalidateQueries({ queryKey: ["dashboard", "next-steps"] });
     },
   });
+}
+
+/** True when only billing answers for this organisation (`billing_only`). */
+export function useBillingOnly(): boolean {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) => me.billing_only === true,
+  });
+  return data === true;
 }
 
 export function useLogout() {

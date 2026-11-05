@@ -4096,6 +4096,8 @@ line per figure; the story of why it moved belongs in this section.
 
 ### 25b. Tenant-scope bypasses: the count, and the audits behind it
 
+**2026-11-05, A-Z review H-09: 184/72.** `Models/Tenant.php` gained one. An organisation locked out for money (a trial that has ended, or a suspension with a bill unpaid) may now sign in and see and pay its bills, and nothing else. `ResolveTenant` asks `Tenant::billingOnly()` before any tenant is set for the request, so the unpaid-invoice check drops the scope and states `tenant_id` from the tenant in hand; it returns only whether a row exists.
+
 **2026-11-04, A-Z review H-02: 183/72.** `AdminTenantController` gained one. Marking an organisation's last overdue invoice paid in the console now puts its past-due subscription back to active; nothing did, and the monthly run bills active subscriptions only. The console resolves no tenant, so the statement drops the scope and states `tenant_id` from the organisation in the route on the subscription and on its overdue-invoice subquery.
 **2026-11-04, A-Z review D-06: 182/72.** `Services/Attendance/AttendanceEngine` gained one. A device's break button is now noted on the day's record instead of closing it and opening another, and a terminal resends batches, so `processBreak()` first finds a resent break by its key among the person's records for that day and the one before. Device ingestion may resolve no tenant, so the lookup drops the scope and states `tenant_id` and `employee_id` from the punch's own input, as `findOpenRecord()` beside it does.
 
