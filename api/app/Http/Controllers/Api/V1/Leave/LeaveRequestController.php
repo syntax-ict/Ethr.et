@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class LeaveRequestController extends Controller
 {
@@ -325,7 +326,30 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $leaveRequest->update(['status' => LeaveStatus::CANCELLED]);
+        // Only from pending, read again under a lock: an approval landing at
+        // the same moment wins or loses as a whole (A-Z review E-01). Through
+        // the model, so its approval is closed as before.
+        $cancelled = DB::transaction(function () use ($leaveRequest): bool {
+            $locked = LeaveRequest::query()->whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== LeaveStatus::PENDING) {
+                return false;
+            }
+
+            $locked->update(['status' => LeaveStatus::CANCELLED]);
+
+            return true;
+        });
+
+        if (! $cancelled) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_pending'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $leaveRequest->refresh();
 
         $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
