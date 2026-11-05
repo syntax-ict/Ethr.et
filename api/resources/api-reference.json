@@ -10648,8 +10648,10 @@
                                             ]
                                         },
                                         "permissions": {
-                                            "type": "object",
-                                            "additionalProperties": []
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
                                         },
                                         "plan_features": {
                                             "type": [
