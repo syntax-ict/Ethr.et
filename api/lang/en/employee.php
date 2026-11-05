@@ -7,6 +7,7 @@ return [
     'updated' => 'Employee profile updated.',
     'deleted' => 'Employee record deleted.',
     'supervisor_self' => 'An employee cannot be their own supervisor.',
+    'supervisor_loop' => 'That would make a loop: this person already supervises, directly or further down, the one chosen.',
     'import_relation_not_found' => 'Row :row: :field ":value" was not found. Use its code or its name as it appears in ETHR.',
     'import_relation_ambiguous' => 'Row :row: more than one :field is called ":value". Use its code instead.',
     'import_duplicate_in_file' => 'Row :row: :field ":value" is already used on row :first of this file.',

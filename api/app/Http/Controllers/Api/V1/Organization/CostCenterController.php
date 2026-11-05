@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Organization;
 
+use App\Http\Controllers\Api\V1\Organization\Concerns\RefusesDeletingStaffedUnit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreCostCenterRequest;
 use App\Http\Requests\Organization\UpdateCostCenterRequest;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Gate;
 
 class CostCenterController extends Controller
 {
+    use RefusesDeletingStaffedUnit;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('org.viewAny');
@@ -78,6 +81,10 @@ class CostCenterController extends Controller
     public function destroy(CostCenter $costCenter): JsonResponse
     {
         Gate::authorize('org.delete');
+
+        if ($refusal = $this->refuseIfStaffed('cost_center_id', $costCenter->id, 'cost centre')) {
+            return $refusal;
+        }
 
         $costCenter->delete();
 

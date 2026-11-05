@@ -7,6 +7,7 @@ return [
     'updated' => 'Piroofaayiliin hojjetaa haaromfameera.',
     'deleted' => 'Galmeen hojjetaa haqameera.',
     'supervisor_self' => 'Hojjetaan tokko hoogganaa ofii ta\'uu hin danda\'u.',
+    'supervisor_loop' => 'Kun marsaa uuma: namni kun nama filatame kallattiin ykn gadi fagaatee ni to\'ata.',
     'import_relation_not_found' => 'Toora :row: :field ":value" hin argamne. Koodii isaa ykn maqaa isaa akkuma ETHR keessatti mul\'atutti fayyadamaa.',
     'import_relation_ambiguous' => 'Toora :row: :field tokkoo ol ":value" jedhama. Qooda kanaa koodii isaa fayyadamaa.',
     'import_duplicate_in_file' => 'Toora :row: :field ":value" duraan faayilii kana keessatti toora :first irratti itti fayyadamameera.',
