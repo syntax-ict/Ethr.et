@@ -61,3 +61,14 @@ export function withOrganisation(path: string, slug: string | null): string {
 export function signInHref(slug: string | null): string {
   return slug ? `/${slug}` : "/login";
 }
+
+/**
+ * The organisation's front door: its `/login` on its own host, or its entry
+ * address `ethr.et/{slug}`. There the sign-in form sits in the portal's hero
+ * card, which already carries the organisation's mark, name and headline;
+ * every other auth page keeps the two-panel layout. Decided by the path alone,
+ * never by whether the context has arrived (see AuthLayoutClient).
+ */
+export function isFrontDoor(pathname: string | null): boolean {
+  return pathname === "/login" || entryOrganisation(pathname) !== null;
+}

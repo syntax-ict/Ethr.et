@@ -177,7 +177,7 @@ describe("<AccountingSettingsPage>", () => {
     await user.click(await screen.findByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: /Period 1/ }));
     await screen.findByText(/PAYROLL-RUN1/);
-    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
 
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(opened).toHaveLength(0);
@@ -245,7 +245,7 @@ describe("<AccountingSettingsPage>", () => {
     renderPage();
 
     const code = await screen.findByRole("textbox", {
-      name: /Income Tax Payable.*Account code/i,
+      name: /Account code for Income tax payable/i,
     });
     await user.clear(code);
     await user.type(code, "2105");

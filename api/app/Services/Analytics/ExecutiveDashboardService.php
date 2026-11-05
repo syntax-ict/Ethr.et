@@ -15,6 +15,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\Attendance\ExpectedDays;
+use App\Services\Calendar\OrganisationMonth;
 use App\Services\Leave\LeaveYear;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -55,6 +56,7 @@ final class ExecutiveDashboardService
             'daily_trend' => $this->dailyAttendanceTrend($tenantId, $from, $to, $branchId),
             'by_department' => $this->attendanceByDepartment($tenantId, $from, $to, $branchId),
             'by_source' => $this->attendanceBySource($tenantId, $from, $to, $branchId),
+            'by_hour' => $this->punchesByHour($tenantId, $from, $to, $branchId),
             'top_late' => $this->topLateEmployees($tenantId, $from, $to, $branchId),
         ];
     }
@@ -420,20 +422,28 @@ final class ExecutiveDashboardService
         ];
     }
 
+    /**
+     * Hires in each of the last six months of the organisation's calendar,
+     * this month last. The buckets were Gregorian months whatever calendar
+     * the organisation kept, so the dashboard's "hired this month" counted
+     * October while its other tiles meant Tikimt; an Ethiopian bucket's key
+     * names its calendar (`2019-02-EC`) so the chart labels it as Tikimt.
+     */
     private function workforceGrowth(int $tenantId, ?int $branchId): array
     {
+        $calendar = OrganisationMonth::forTenant(Tenant::query()->find($tenantId));
+        ['year' => $year, 'month' => $month] = $calendar->monthOf($calendar->today());
+
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
-            // From the 1st: on the 31st, now() minus one month is the 1st of
-            // this month, and the chart showed it twice and skipped the last.
-            $month = Carbon::now()->startOfMonth()->subMonths($i);
+            ['year' => $y, 'month' => $m] = $calendar->shift($year, $month, -$i);
             $hires = $this->scopedEmployees($tenantId, $branchId)
-                ->whereYear('hire_date', $month->year)
-                ->whereMonth('hire_date', $month->month)
+                ->whereDate('hire_date', '>=', $calendar->start($y, $m)->toDateString())
+                ->whereDate('hire_date', '<=', $calendar->end($y, $m)->toDateString())
                 ->count();
 
             $months[] = [
-                'month' => $month->format('Y-m'),
+                'month' => $calendar->key($y, $m),
                 'hires' => $hires,
             ];
         }
@@ -535,6 +545,53 @@ final class ExecutiveDashboardService
                 'count' => (int) $r->getAttribute('count'),
             ])
             ->all();
+    }
+
+    /**
+     * Punches (check-ins and check-outs) by weekday and hour of the day, in
+     * the organisation's zone, for the attendance heatmap (charts upgrade,
+     * 2026-11-04). Bucketed in PHP rather than SQL: the records hold UTC
+     * instants, and MariaDB and SQLite spell a zone conversion differently.
+     * Only buckets with a punch are returned; weekday is ISO (1 = Monday).
+     *
+     * Read through the scope with the tenant stated on the same chain: this
+     * is only reached from the controller, where the tenant is resolved.
+     *
+     * @return list<array{weekday: int, hour: int, count: int}>
+     */
+    private function punchesByHour(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
+    {
+        $zone = TenantTime::zone(Tenant::query()->find($tenantId));
+
+        $query = AttendanceRecord::query()
+            ->where('attendance_records.tenant_id', $tenantId)
+            ->whereDate('attendance_records.date', '>=', $from)
+            ->whereDate('attendance_records.date', '<=', $to)
+            ->where('attendance_records.status', '!=', AttendanceStatus::VOIDED);
+        $this->joinBranch($query, $branchId);
+
+        $buckets = [];
+        foreach ($query->get(['attendance_records.check_in', 'attendance_records.check_out']) as $record) {
+            foreach ([$record->check_in, $record->check_out] as $punch) {
+                if ($punch === null) {
+                    continue;
+                }
+
+                $local = $punch->copy()->setTimezone($zone);
+                $key = $local->dayOfWeekIso.'-'.$local->hour;
+                $buckets[$key] = ($buckets[$key] ?? 0) + 1;
+            }
+        }
+
+        ksort($buckets, SORT_NATURAL);
+
+        $rows = [];
+        foreach ($buckets as $key => $count) {
+            [$weekday, $hour] = explode('-', (string) $key);
+            $rows[] = ['weekday' => (int) $weekday, 'hour' => (int) $hour, 'count' => (int) $count];
+        }
+
+        return $rows;
     }
 
     private function topLateEmployees(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array

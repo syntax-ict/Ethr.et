@@ -30,6 +30,13 @@ describe("analytics axis labels", () => {
     expect(monthKeyLabel("2026-09", "en", "short")).toBe("Sep 2026");
   });
 
+  it("names an Ethiopian month bucket in its own calendar", () => {
+    // The hires buckets follow the organisation's calendar; `-EC` marks one.
+    expect(monthKeyLabel("2019-02-EC")).toBe("Tikimt 2019");
+    expect(monthKeyLabel("2018-13-EC", "en", "short")).toBe("Pagume 2018");
+    expect(monthKeyLabel("2019-02-EC", "am")).toBe("ጥቅምት 2019");
+  });
+
   it("passes through a label that is not a month key", () => {
     // Payroll period labels are already names; forecasts of them too.
     expect(monthKeyLabel("July 2026")).toBe("July 2026");

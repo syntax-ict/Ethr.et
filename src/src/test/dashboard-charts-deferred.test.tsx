@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -19,6 +19,7 @@ const session = vi.hoisted(() => ({
   isSupervisor: false,
   can: {} as Record<string, boolean>,
   chartsMounted: 0,
+  teamSize: 8,
 }));
 
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -74,8 +75,17 @@ vi.mock("@/features/dashboard/components", async (importOriginal) => {
 const observers: Array<{
   callback: IntersectionObserverCallback;
   root: Element | Document | null | undefined;
+  margin: string | undefined;
   disconnected: boolean;
 }> = [];
+
+/**
+ * The charts' own observer: the side column's light widgets wait too, with a
+ * 200 px margin (PR 11), and the charts keep their 600 px one.
+ */
+function chartObservers() {
+  return observers.filter((o) => o.margin === "600px");
+}
 
 class FakeIntersectionObserver {
   private entry: (typeof observers)[number];
@@ -83,7 +93,12 @@ class FakeIntersectionObserver {
     callback: IntersectionObserverCallback,
     options?: IntersectionObserverInit,
   ) {
-    this.entry = { callback, root: options?.root, disconnected: false };
+    this.entry = {
+      callback,
+      root: options?.root,
+      margin: options?.rootMargin,
+      disconnected: false,
+    };
     observers.push(this.entry);
   }
   observe() {}
@@ -112,6 +127,7 @@ beforeEach(() => {
   session.isSupervisor = false;
   session.can = {};
   session.chartsMounted = 0;
+  session.teamSize = 8;
   observers.length = 0;
   vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
   server.use(
@@ -122,6 +138,11 @@ beforeEach(() => {
         latest_payslip: null,
         upcoming_holidays: [],
       }),
+    ),
+    // Eight direct reports: the figure that decides whether a supervisor is
+    // offered the team chart at all.
+    http.get("*/api/v1/dashboard/manager", () =>
+      HttpResponse.json({ team_size: session.teamSize }),
     ),
     http.get("*/api/v1/auth/me", () =>
       HttpResponse.json({
@@ -159,7 +180,7 @@ describe("Dashboard charts", () => {
     scrollChartsNear();
 
     expect(session.chartsMounted).toBe(0);
-    expect(observers).toHaveLength(0);
+    expect(chartObservers()).toHaveLength(0);
   });
 
   it("wait for a supervisor to come near them, keeping their height", () => {
@@ -172,7 +193,7 @@ describe("Dashboard charts", () => {
     scrollChartsNear();
 
     expect(screen.getByTestId("charts")).toBeInTheDocument();
-    expect(observers.every((o) => o.disconnected)).toBe(true);
+    expect(chartObservers().every((o) => o.disconnected)).toBe(true);
   });
 
   /**
@@ -184,8 +205,8 @@ describe("Dashboard charts", () => {
     session.isSupervisor = true;
     renderPage();
 
-    expect(observers).toHaveLength(1);
-    expect(observers[0].root).toBe(screen.getByTestId("scroller"));
+    expect(chartObservers()).toHaveLength(1);
+    expect(chartObservers()[0].root).toBe(screen.getByTestId("scroller"));
   });
 
   it("wait the same way for the executive view", () => {
@@ -195,6 +216,20 @@ describe("Dashboard charts", () => {
     expect(session.chartsMounted).toBe(0);
     scrollChartsNear();
     expect(screen.getByTestId("charts")).toBeInTheDocument();
+  });
+
+  // A department head is "at least supervisor" and usually has no direct
+  // reports; their chart card could only say the team recorded nothing.
+  it("are not offered to a supervisor with no direct reports", async () => {
+    session.isSupervisor = true;
+    session.teamSize = 0;
+    const { container } = renderPage();
+
+    await waitFor(() =>
+      expect(container.querySelector(".h-\\[360px\\]")).toBeNull(),
+    );
+    scrollChartsNear();
+    expect(session.chartsMounted).toBe(0);
   });
 
   it("load straight away in a browser without IntersectionObserver", async () => {

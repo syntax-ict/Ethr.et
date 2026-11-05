@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Dashboard;
 
+use App\Services\Calendar\OrganisationMonth;
+use App\Services\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -15,6 +17,10 @@ use Illuminate\Validation\Validator;
  * 500 and a range of decades was accepted. The dates must now be real days,
  * in order, and at most MAX_DAYS apart, which covers the Analytics page's
  * longest choice (twelve months, in either calendar) with room to spare.
+ *
+ * "This month" is a month of the organisation's calendar (OrganisationMonth):
+ * until 2026-11-03 it was the Gregorian month in UTC, so the dashboard tiles
+ * and the Analytics page disagreed about the same organisation's attendance.
  *
  * Who may read the figures is the controller's check: it depends on which of
  * two permissions the caller holds, and decides their branch scope too.
@@ -67,13 +73,15 @@ class ExecutiveDashboardPeriodRequest extends FormRequest
     /** @return array{Carbon, Carbon} */
     public function period(): array
     {
+        [$monthStart, $monthEnd] = OrganisationMonth::forTenant(app(CurrentTenant::class)->get())->current();
+
         $from = $this->filled('from')
             ? Carbon::parse($this->string('from')->toString())->startOfDay()
-            : Carbon::now()->startOfMonth();
+            : $monthStart;
 
         $to = $this->filled('to')
             ? Carbon::parse($this->string('to')->toString())->endOfDay()
-            : Carbon::now()->endOfMonth();
+            : $monthEnd;
 
         return [$from, $to];
     }

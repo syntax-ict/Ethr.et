@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\Feature;
 use App\Enums\FeatureState;
+use App\Enums\UserRole;
+use App\Models\CustomRole;
+use App\Models\Permission;
 use App\Models\PlatformFeatureState;
 use App\Models\Tenant;
 use App\Models\User;
@@ -41,6 +44,30 @@ function createUser(array $attributes = [], ?Tenant $tenant = null): User
 function actingAsUser(array $attributes = [], ?Tenant $tenant = null): User
 {
     $user = createUser($attributes, $tenant);
+    test()->actingAs($user);
+
+    return $user;
+}
+
+/**
+ * A user whose custom role holds `$permissions` over `$scope` (an OrgScope
+ * value). The regional dashboard needs one scoped to a branch: no built-in
+ * role reaches a branch.
+ *
+ * @param  list<string>  $permissions
+ */
+function createScopedUser(Tenant $tenant, ?int $employeeId, string $scope, array $permissions): User
+{
+    $role = CustomRole::create(['tenant_id' => $tenant->id, 'name' => "Scoped {$scope} ".uniqid(), 'org_scope' => $scope]);
+    $role->permissions()->sync(Permission::whereIn('name', $permissions)->pluck('id'));
+
+    return createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employeeId, 'custom_role_id' => $role->id], $tenant);
+}
+
+/** Signs in a branch-scoped holder of `dashboard.regional`. */
+function actingAsRegional(Tenant $tenant, ?int $employeeId): User
+{
+    $user = createScopedUser($tenant, $employeeId, 'branch', ['dashboard.regional']);
     test()->actingAs($user);
 
     return $user;

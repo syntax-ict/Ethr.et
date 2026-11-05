@@ -180,6 +180,9 @@ const TRANSLATIONS = {
     "employee.education.degree_placeholder", // BSc, MSc, MBA...
     "webhooks_page.url", // URL
     "shifts_page.name_english_placeholder", // the English-name field's example
+    "settings.landing_field_lang", // ":label (:language)" — a format
+    "settings.landing_list_field_lang", // ":label :n (:language)" — a format
+    "audit_logs_page.action_placeholder", // employee.created — an action code
   ],
   // Oromo is written in the Latin script, so it shares more with English
   // than Amharic does: formats made only of placeholders, and loan words.
@@ -209,6 +212,10 @@ const TRANSLATIONS = {
     "notification_prefs_page.channel_sms", // SMS
     "webhooks_page.url", // URL
     "work_sites.radius_short", // ":m m" — metres
+    "settings.landing_field_lang", // ":label (:language)" — a format
+    "settings.landing_list_field_lang", // ":label :n (:language)" — a format
+    "settings.oromo", // Afaan Oromoo: a language is named in its own language
+    "audit_logs_page.action_placeholder", // employee.created — an action code
     // Plan names are brands: billing and invoices print them as stored.
     "marketing.pricing_page.starter", // Starter
     "marketing.pricing_page.professional", // Professional

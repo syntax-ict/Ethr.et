@@ -76,6 +76,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { MyExceptionsCard } from "@/features/attendance/components/my-exceptions-card";
+import { PrintAction } from "@/components/shared/print-action";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -119,17 +120,20 @@ export default function AttendancePage() {
   const [manualOpen, setManualOpen] = useState(false);
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  const { data: user } = useCurrentUser();
+  const hasEmployee = Boolean(user?.employee_public_id);
   // The registered phone signs a web punch too: on a phone directly, on a
-  // computer through the phone's prompt.
-  const { data: deviceState } = useAttendanceDevice();
+  // computer through the phone's prompt. Only someone with an employee
+  // record has a phone to ask about: for an administrator without one the
+  // request answered 404 on every visit (dashboard review, 2026-11-03).
+  const { data: deviceState } = useAttendanceDevice(hasEmployee);
   const signPunch = usePunchSigner(deviceState);
   const { can } = usePermissions();
   const { data: granted } = useCurrentPermissions();
   // The punch the day is waiting for, as the phone screen shows it: one
   // checked in on the phone sees Check out here, not Check in again. Both
   // buttons stay when there is no answer (no employee record, loading).
-  const { data: user } = useCurrentUser();
-  const { data: shift } = useMyShift(Boolean(user?.employee_public_id));
+  const { data: shift } = useMyShift(hasEmployee);
   const next = nextPunch(shift);
   const offerIn = next === null || next === "check_in";
   const offerOut = next === null || next === "check_out";
@@ -275,6 +279,7 @@ export default function AttendancePage() {
                 {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
+            <PrintAction />
           </div>
         }
       />

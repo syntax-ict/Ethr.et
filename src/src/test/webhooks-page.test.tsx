@@ -78,12 +78,13 @@ describe("<WebhooksPage>", () => {
     renderPage();
 
     await user.click(
-      await screen.findByRole("button", { name: /Add Webhook/ }),
+      await screen.findByRole("button", { name: /Add webhook/ }),
     );
     const events = await screen.findByRole("group", { name: "Events" });
     const offered = within(events)
       .getAllByRole("checkbox")
-      .map((box) => box.closest("label")!.textContent);
+      // Each checkbox sits beside its <Label>, inside one row.
+      .map((box) => box.parentElement!.textContent);
 
     expect(offered).toEqual(DISPATCHED);
   });
@@ -135,7 +136,7 @@ describe("<WebhooksPage>", () => {
     renderPage();
 
     await user.click(
-      await screen.findByRole("button", { name: /Add Webhook/ }),
+      await screen.findByRole("button", { name: /Add webhook/ }),
     );
     await user.type(
       await screen.findByRole("textbox", { name: /URL/ }),

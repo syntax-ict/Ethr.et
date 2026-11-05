@@ -18,6 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { RoleGate } from "@/components/shared/role-gate";
+import { EmptyState } from "@/components/shared/empty-state";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   useNotificationTemplates,
@@ -47,9 +48,9 @@ function useTypeLabel() {
       case "payslip_available":
         return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
-        return t("settings.template_type_missing_punch", "Missing Punch");
+        return t("settings.template_type_missing_punch", "Missing punch");
       case "trial_expiring":
-        return t("settings.template_type_trial_expiring", "Trial Expiring");
+        return t("settings.template_type_trial_expiring", "Trial expiring");
       default:
         return type;
     }
@@ -61,7 +62,7 @@ function VariableList({ variables }: { variables: string[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {variables.map((v) => (
-        <Badge key={v} variant="secondary" className="font-mono text-[10px]">
+        <Badge key={v} variant="secondary" className="font-mono text-caption">
           {`{${v}}`}
         </Badge>
       ))}
@@ -69,8 +70,10 @@ function VariableList({ variables }: { variables: string[] }) {
   );
 }
 
+const BODY_MAX = 2000;
+
 export default function NotificationTemplatesPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [editing, setEditing] = useState<NotificationTemplate | null>(null);
   const [form, setForm] = useState<Record<TemplateField, string>>({
     subject_en: "",
@@ -114,7 +117,10 @@ export default function NotificationTemplatesPage() {
           setErrors(fieldErrors(err));
           toastError(
             err,
-            t("settings.template_update_failed", "Failed to update template"),
+            t(
+              "settings.template_update_failed",
+              "The template could not be saved.",
+            ),
             { skipValidation: true },
           );
         },
@@ -126,23 +132,39 @@ export default function NotificationTemplatesPage() {
   function field(name: TemplateField, label: string, multiline: boolean) {
     const id = `template-${name.replace("_", "-")}`;
     const error = errors[name];
+    const counterId = multiline ? `${id}-count` : undefined;
+    const describedBy =
+      [counterId, error ? `${id}-error` : undefined]
+        .filter(Boolean)
+        .join(" ") || undefined;
     const common = {
       id,
       value: form[name],
       "aria-invalid": error ? true : undefined,
-      "aria-describedby": error ? `${id}-error` : undefined,
+      "aria-describedby": describedBy,
     };
 
     return (
       <div className="space-y-2">
         <Label htmlFor={id}>{label}</Label>
         {multiline ? (
-          <Textarea
-            {...common}
-            maxLength={2000}
-            rows={4}
-            onChange={(e) => setField(name, e.target.value)}
-          />
+          <>
+            <Textarea
+              {...common}
+              maxLength={BODY_MAX}
+              rows={8}
+              onChange={(e) => setField(name, e.target.value)}
+            />
+            <p
+              id={counterId}
+              className="text-right text-caption text-muted-foreground"
+            >
+              {t("settings.template_char_count", ":count of :max characters", {
+                count: form[name].length,
+                max: BODY_MAX,
+              })}
+            </p>
+          </>
         ) : (
           <Input
             {...common}
@@ -171,6 +193,12 @@ export default function NotificationTemplatesPage() {
               ))}
             </div>
           }
+          empty={
+            <EmptyState
+              icon={Mail}
+              title={t("settings.no_templates", "No templates yet")}
+            />
+          }
         >
           {(templates) => (
             <div className="space-y-3">
@@ -178,23 +206,31 @@ export default function NotificationTemplatesPage() {
                 <Card key={template.type}>
                   <CardContent className="flex items-start justify-between gap-4 p-5">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Mail
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-hidden="true"
+                        />
                         <p className="font-medium">
                           {typeLabel(template.type)}
                         </p>
                         {template.is_customized && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] text-status-success"
-                          >
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            {t("settings.template_customized", "Customized")}
+                          <Badge variant="success" className="text-caption">
+                            <CheckCircle2
+                              className="mr-1 h-3 w-3"
+                              aria-hidden="true"
+                            />
+                            {t("settings.template_customized", "Customised")}
                           </Badge>
                         )}
                       </div>
+                      {/* The preview follows the reader's language; an
+                          Amharic reader saw the English subject even when an
+                          Amharic one was set. */}
                       <p className="mt-1 text-sm text-muted-foreground truncate">
-                        {template.subject_en}
+                        {locale === "am" && template.subject_am
+                          ? template.subject_am
+                          : template.subject_en}
                       </p>
                       {template.variables.length > 0 && (
                         <div className="mt-2">

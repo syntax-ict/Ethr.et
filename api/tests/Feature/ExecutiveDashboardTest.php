@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
@@ -112,8 +113,41 @@ test('attendance deep-dive returns structured data', function () {
             'daily_trend',
             'by_department',
             'by_source',
+            'by_hour',
             'top_late',
         ]);
+});
+
+test('attendance deep-dive buckets punches by weekday and hour in the organisation zone', function () {
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    // Monday 2026-11-02: 05:30 UTC is 08:30 in Addis, 14:10 UTC is 17:10.
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => '2026-11-02',
+        'check_in' => Carbon::parse('2026-11-02 05:30:00', 'UTC'),
+        'check_out' => Carbon::parse('2026-11-02 14:10:00', 'UTC'),
+    ]);
+    // Tuesday, a check-in only, at the same local hour as Monday's.
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => '2026-11-03',
+        'check_in' => Carbon::parse('2026-11-03 05:45:00', 'UTC'),
+        'check_out' => null,
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/attendance?from=2026-11-01&to=2026-11-30");
+
+    $response->assertOk();
+    expect($response->json('by_hour'))->toBe([
+        ['weekday' => 1, 'hour' => 8, 'count' => 1],
+        ['weekday' => 1, 'hour' => 17, 'count' => 1],
+        ['weekday' => 2, 'hour' => 8, 'count' => 1],
+    ]);
 });
 
 // ── Payroll Deep-dive ──
@@ -269,7 +303,8 @@ test('overtime trend excludes draft payroll runs', function () {
 });
 
 test('payroll by cost center sums gross pay per center and buckets unassigned employees', function () {
-    $tenant = createTenant();
+    // Gregorian: the factory's run covers the Gregorian month, and so must the default period.
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     // Completed, not the factory's draft: a draft run counts in no payroll figure.

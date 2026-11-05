@@ -6,6 +6,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { toast } from "sonner";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
+import { DEFAULT_TIMEZONE, todayIn } from "@/lib/utils/date";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
 
 vi.mock("sonner", () => ({
@@ -127,7 +128,9 @@ describe("<BulkActionsBar>", () => {
     expect(requestBody).toEqual({
       employee_ids: ["emp-1", "emp-2"],
       status: "retired",
-      effective_date: new Date().toISOString().split("T")[0],
+      // Today where the organisation is: the bar dates the change in the
+      // tenant zone, and the UTC date is a day behind Addis Ababa until 03:00.
+      effective_date: todayIn(DEFAULT_TIMEZONE),
       reason: "Reached retirement age",
     });
     expect(toast.success).toHaveBeenCalledWith("Updated 2 employees");

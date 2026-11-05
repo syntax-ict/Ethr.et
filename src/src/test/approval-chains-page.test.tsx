@@ -85,9 +85,7 @@ describe("<ApprovalChainsPage>", () => {
     expect(await screen.findByText("Supervisor then HR")).toBeInTheDocument();
     expect(screen.getByText("Leave requests")).toBeInTheDocument();
     expect(screen.getByText("Their supervisor")).toBeInTheDocument();
-    expect(
-      screen.getByText("Anyone with a role: HR admin"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Anyone who is HR admin")).toBeInTheDocument();
     expect(await screen.findByText("Applies to: Finance")).toBeInTheDocument();
   });
 

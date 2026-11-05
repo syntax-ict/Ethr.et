@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -24,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
@@ -32,7 +34,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules as rulesLib, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
-import { etbToCents, formatETB } from "@/lib/utils/currency";
+import { centsToETB, etbToCents, formatETB } from "@/lib/utils/currency";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import {
@@ -103,6 +105,7 @@ export function AllowanceRulesCard() {
   const createRule = useCreateAllowanceRule();
   const updateRule = useUpdateAllowanceRule();
   const deleteRule = useDeleteAllowanceRule();
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -135,7 +138,7 @@ export function AllowanceRulesCard() {
       type: rule.type,
       value:
         rule.type === "fixed"
-          ? String((rule.formula.amount_cents ?? 0) / 100)
+          ? String(centsToETB(rule.formula.amount_cents ?? 0))
           : String(rule.formula.percent ?? 0),
       is_taxable: rule.is_taxable,
       is_active: rule.is_active,
@@ -172,7 +175,19 @@ export function AllowanceRulesCard() {
     setEditingId(null);
   }
 
-  function handleDelete(rule: AllowanceRule) {
+  async function handleDelete(rule: AllowanceRule) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "payroll_config.delete_allowance_confirm",
+          "Remove the allowance :name?",
+          { name: rule.name },
+        ),
+        confirmLabel: t("common.delete", "Delete"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteRule.mutate(rule.public_id, {
       onSuccess: () =>
         toast.success(
@@ -244,10 +259,11 @@ export function AllowanceRulesCard() {
                   <span key="a" className="font-mono text-muted-foreground">
                     {rule.type === "fixed"
                       ? formatETB(rule.formula.amount_cents ?? 0)
-                      : `${rule.formula.percent ?? 0}% ${t(
-                          "payroll_config.of_basic",
-                          "of basic",
-                        )}`}
+                      : t(
+                          "payroll_config.percent_of_basic_value",
+                          ":percent% of basic salary",
+                          { percent: rule.formula.percent ?? 0 },
+                        )}
                   </span>,
                   <span key="t" className="text-muted-foreground">
                     {rule.is_taxable
@@ -272,7 +288,13 @@ export function AllowanceRulesCard() {
                       variant="ghost"
                       size="sm"
                       onClick={() => openEdit(rule)}
-                      aria-label={t("common.edit", "Edit")}
+                      aria-label={t(
+                        "payroll_config.edit_allowance_named",
+                        "Edit :name",
+                        {
+                          name: rule.name,
+                        },
+                      )}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -282,7 +304,11 @@ export function AllowanceRulesCard() {
                       className="text-destructive-on-soft hover:bg-destructive-soft"
                       onClick={() => handleDelete(rule)}
                       disabled={deleteRule.isPending}
-                      aria-label={t("common.delete", "Delete")}
+                      aria-label={t(
+                        "payroll_config.delete_allowance_named",
+                        "Delete :name",
+                        { name: rule.name },
+                      )}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -293,6 +319,7 @@ export function AllowanceRulesCard() {
           )}
         </QueryBoundary>
       </CardContent>
+      {confirmDialog}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -302,6 +329,12 @@ export function AllowanceRulesCard() {
                 ? t("payroll_config.edit_allowance", "Edit allowance")
                 : t("payroll_config.add_allowance", "Add allowance")}
             </DialogTitle>
+            <DialogDescription>
+              {t(
+                "payroll_config.allowances_desc",
+                "Earnings added to gross salary on every payroll run.",
+              )}
+            </DialogDescription>
           </DialogHeader>
 
           <form
@@ -327,7 +360,7 @@ export function AllowanceRulesCard() {
                 {...register("name")}
                 placeholder={t(
                   "payroll_config.allowance_name_placeholder",
-                  "Transport Allowance",
+                  "Transport allowance",
                 )}
                 className="mt-1"
               />
@@ -392,7 +425,7 @@ export function AllowanceRulesCard() {
                 <p className="text-xs text-muted-foreground">
                   {t(
                     "payroll_config.taxable_hint",
-                    "Non-taxable allowances are excluded from taxable income.",
+                    "When off, this allowance is paid without income tax deducted.",
                   )}
                 </p>
               </div>
@@ -410,9 +443,17 @@ export function AllowanceRulesCard() {
             </div>
 
             <div className="flex items-center justify-between rounded-md border p-3">
-              <Label htmlFor="allowance_active">
-                {t("common.active", "Active")}
-              </Label>
+              <div>
+                <Label htmlFor="allowance_active">
+                  {t("common.active", "Active")}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "payroll_config.active_hint",
+                    "Inactive allowances are kept but not paid.",
+                  )}
+                </p>
+              </div>
               <Controller
                 name="is_active"
                 control={control}

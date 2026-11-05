@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { useT } from "@/lib/i18n/useT";
+import { localizedName } from "@/lib/i18n/localizedName";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { WidgetError } from "./widget-error";
 
 export function LeaveOverview() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { can } = usePermissions();
   const { data, isLoading, isError, refetch } = useEmployeeDashboard();
 
@@ -95,8 +96,11 @@ export function LeaveOverview() {
           <div className="space-y-4">
             {balances.map((b, i) => {
               const { entitled, used, remaining } = b;
-              // Null once the leave type has been deleted.
-              const type = b.type ?? t("dashboard.leave", "Leave");
+              // Null once the leave type has been deleted. The Amharic name
+              // travels with it (dashboard review, 2026-11-03, PR 10).
+              const type = b.type
+                ? localizedName({ name: b.type, name_am: b.type_am }, locale)
+                : t("dashboard.leave", "Leave");
               const pct =
                 entitled > 0 ? Math.round((used / entitled) * 100) : 0;
               const isLow = remaining <= 3 && entitled > 0;
@@ -112,7 +116,7 @@ export function LeaveOverview() {
                     </span>
                     <div className="flex items-center gap-2">
                       {isLow && (
-                        <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-on-soft">
+                        <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-caption font-semibold text-warning-on-soft">
                           {t("dashboard.low", "Low")}
                         </span>
                       )}
@@ -136,7 +140,7 @@ export function LeaveOverview() {
                       { type, pct },
                     )}
                   />
-                  <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
+                  <div className="mt-1.5 flex justify-between text-caption text-muted-foreground">
                     <span>
                       {t("dashboard.used_count", ":count used", {
                         count: used,

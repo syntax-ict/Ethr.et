@@ -68,6 +68,43 @@ export function AnnouncementsWidget() {
   // GET /announcements already returns only published, unexpired ones.
   const announcements = (data?.data ?? []).slice(0, 3);
 
+  // One line when there is nothing (two when the column is narrow; the
+  // status wraps under the title rather than being cut off, which the
+  // Amharic layout gate flags): an empty-state illustration on every
+  // dashboard made the card as tall as a full one (dashboard review,
+  // 2026-11-03, PR 7). The link stays, for whoever posts the first one.
+  if (announcements.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-between gap-3 py-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+            <Megaphone
+              className="h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span className="text-sm font-semibold text-foreground">
+              {t("nav.announcements", "Announcements")}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t("dashboard.no_announcements", "No announcements")}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 text-xs"
+            asChild
+          >
+            <Link href="/announcements">
+              {t("common.view_all", "View all")}
+              <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="transition-shadow duration-300 hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -85,64 +122,47 @@ export function AnnouncementsWidget() {
         </Button>
       </CardHeader>
       <CardContent>
-        {announcements.length === 0 ? (
-          <div className="flex flex-col items-center py-6 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/80">
-              <Megaphone className="h-6 w-6 text-muted-foreground/60" />
-            </div>
-            <p className="mt-3 text-sm font-medium text-foreground">
-              {t("dashboard.no_announcements", "No announcements")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                "dashboard.announcements_will_appear",
-                "Company announcements will appear here",
-              )}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {announcements.map((ann) => {
-              // "low" (and anything new) falls back to the normal styling.
-              const config =
-                priorityConfig[ann.priority as keyof typeof priorityConfig] ??
-                priorityConfig.normal;
-              const postedAt = ann.published_at ?? ann.created_at;
-              return (
-                <Link
-                  key={ann.public_id}
-                  href="/announcements"
-                  className={cn(
-                    "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-all duration-200 hover:border-border hover:shadow-sm",
-                    config.border,
-                    config.bg,
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {ann.title}
-                        </p>
-                        {ann.priority !== "normal" && (
-                          <Badge variant={config.badge} className="text-[10px]">
-                            {t(`common.${ann.priority}`, ann.priority)}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {ann.body}
+        <div className="space-y-2">
+          {announcements.map((ann) => {
+            // "low" (and anything new) falls back to the normal styling.
+            const config =
+              priorityConfig[ann.priority as keyof typeof priorityConfig] ??
+              priorityConfig.normal;
+            const postedAt = ann.published_at ?? ann.created_at;
+            return (
+              <Link
+                key={ann.public_id}
+                href="/announcements"
+                className={cn(
+                  "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-all duration-200 hover:border-border hover:shadow-sm",
+                  config.border,
+                  config.bg,
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {ann.title}
                       </p>
+                      {ann.priority !== "normal" && (
+                        <Badge variant={config.badge} className="text-caption">
+                          {t(`common.${ann.priority}`, ann.priority)}
+                        </Badge>
+                      )}
                     </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                      {ann.body}
+                    </p>
                   </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground/70">
-                    {postedAt ? timeAgo(postedAt) : null}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                </div>
+                <p className="mt-2 text-caption text-muted-foreground/70">
+                  {postedAt ? timeAgo(postedAt) : null}
+                </p>
+              </Link>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

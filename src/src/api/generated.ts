@@ -2140,6 +2140,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The section exists for a reader whose role reaches one department or
+         *     team. Everyone else has a view already: the organisation one, or the
+         *     direct-reports one
+         */
+        get: operations["dashboard.department"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/executive": {
         parameters: {
             query?: never;
@@ -7310,6 +7331,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many entries the trail holds per day and per action over a range
+         *     (the last 30 days by default), for the charts above the list. Days are
+         *     the organisation's own: the stored UTC instant is shifted by the zone's
+         *     offset before it is dated, which `(tenant_id, created_at)` can still
+         *     serve as a range scan. Charts upgrade, 2026-11-04
+         */
+        get: operations["auditLog.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assign": {
         parameters: {
             query?: never;
@@ -7336,6 +7380,28 @@ export interface paths {
         };
         /** Schedule shifts */
         get: operations["shift.schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each shift's staffing over a range of days, this week by default: the
+         *     people scheduled and attending per day, and the hours planned against
+         *     the hours covered. Over the employees the caller reaches, as the
+         *     employee screens are (charts upgrade, 2026-11-04)
+         */
+        get: operations["shift.coverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -17259,6 +17325,7 @@ export interface operations {
                             email: string | null;
                             phone: string | null;
                             role: components["schemas"]["UserRole"];
+                            org_scope: string;
                             status: string;
                             mfa_enabled: boolean;
                             locale: string;
@@ -18744,12 +18811,15 @@ export interface operations {
                         } | null;
                         leave_balances: {
                             type: string | null;
+                            type_am: string | null;
                             entitled: number;
                             used: number;
                             remaining: number;
                         }[];
                         latest_payslip: {
                             period: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             net_cents: number;
                             gross_cents: number;
                         } | null;
@@ -18816,6 +18886,59 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "dashboard.department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        scope: string;
+                        unit: {
+                            name: string;
+                            name_am: string | null;
+                        } | null;
+                        headcount: number;
+                        attendance: {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        } | {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        };
+                        on_leave_today: number;
+                        pending_approvals: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "executiveDashboard.overview": {
@@ -18904,6 +19027,11 @@ export interface operations {
                         }[];
                         by_source: {
                             source: string;
+                            count: number;
+                        }[];
+                        by_hour: {
+                            weekday: number;
+                            hour: number;
                             count: number;
                         }[];
                         top_late: {
@@ -24810,6 +24938,12 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            leave_type: {
+                                name: string;
+                                name_am: string;
+                            } | null;
+                            from: string;
+                            to: string;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24820,6 +24954,7 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string | null;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24830,6 +24965,8 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string;
+                            hours: number;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -33033,6 +33170,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "auditLog.stats": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string | null;
+                "filter[from]"?: string | null;
+                "filter[to]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        by_day: {
+                            date: string;
+                            count: number;
+                        }[];
+                        by_action: {
+                            action: string;
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shift.assign": {
         parameters: {
             query?: never;
@@ -33112,6 +33286,51 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.coverage": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        days: string[];
+                        shifts: {
+                            public_id: string;
+                            name: string;
+                            name_am: string;
+                            start_time: string;
+                            end_time: string;
+                            planned_minutes: number;
+                            covered_minutes: number;
+                            scheduled_people: number;
+                            attended_people: number;
+                            by_day: {
+                                date: string;
+                                scheduled: number;
+                                attended: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shiftAssignment.destroy": {

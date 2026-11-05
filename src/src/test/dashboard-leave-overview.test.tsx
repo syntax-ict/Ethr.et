@@ -16,7 +16,13 @@ import { LeaveOverview } from "@/features/dashboard/components/leave-overview";
 const DASHBOARD = {
   attendance_today: null,
   leave_balances: [
-    { type: "Annual", entitled: 16, used: 4.5, remaining: 11.5 },
+    {
+      type: "Annual",
+      type_am: "ዓመታዊ",
+      entitled: 16,
+      used: 4.5,
+      remaining: 11.5,
+    },
     { type: null, entitled: 5, used: 0, remaining: 5 },
   ],
   latest_payslip: null,
@@ -40,6 +46,20 @@ function renderWidget() {
 }
 
 describe("Dashboard leave balances", () => {
+  // The type's Amharic name travels with it now; an Amharic reader saw
+  // "Annual Leave" beside Amharic everything else (dashboard review,
+  // 2026-11-03, PR 10).
+  it("names the leave type in Amharic for an Amharic reader", async () => {
+    localStorage.setItem("locale", "am");
+    try {
+      renderWidget();
+      expect(await screen.findByText("ዓመታዊ")).toBeInTheDocument();
+      expect(screen.queryByText("Annual")).toBeNull();
+    } finally {
+      localStorage.setItem("locale", "en");
+    }
+  });
+
   it("shows day counts as numbers, not the decimal casts' strings", async () => {
     renderWidget();
 

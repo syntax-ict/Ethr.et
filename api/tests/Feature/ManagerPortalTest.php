@@ -97,13 +97,15 @@ test('supervisor can view pending approvals', function () {
         'supervisor_id' => $supervisor->id,
     ]);
 
-    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual', 'name_am' => 'ዓመታዊ']);
 
     LeaveRequest::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $subordinate->id,
         'leave_type_id' => $leaveType->id,
         'status' => LeaveStatus::PENDING,
+        'start_date' => '2026-11-09',
+        'end_date' => '2026-11-12',
     ]);
 
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending");
@@ -111,6 +113,11 @@ test('supervisor can view pending approvals', function () {
     $response->assertOk();
     expect($response->json('total'))->toBe(1);
     expect($response->json('items.0.type'))->toBe('leave');
+    // The dates and the type's two names travel beside the summary, so the
+    // queue names them in the reader's calendar and language (PR 12).
+    expect($response->json('items.0.from'))->toBe('2026-11-09')
+        ->and($response->json('items.0.to'))->toBe('2026-11-12')
+        ->and($response->json('items.0.leave_type'))->toBe(['name' => 'Annual', 'name_am' => 'ዓመታዊ']);
 });
 
 // Summaries were English strings shown as-is on the Amharic screen, and the

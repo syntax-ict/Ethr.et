@@ -30,7 +30,21 @@ import {
   seriesColor,
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
-import { ChartCard } from "@/components/dashboard/chart-card";
+import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
+import { Heatmap, HeatmapTable } from "@/components/dashboard/heatmap";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+
+/** A date on each ISO weekday, Monday first, for naming the heatmap rows. */
+const WEEKDAY_DATES = [
+  "2024-01-01",
+  "2024-01-02",
+  "2024-01-03",
+  "2024-01-04",
+  "2024-01-05",
+  "2024-01-06",
+  "2024-01-07",
+];
 
 export function AttendanceTab({
   branchPublicId,
@@ -41,6 +55,9 @@ export function AttendanceTab({
 }) {
   const { t, locale } = useT();
   const { calendar } = useCalendar();
+  const { formatWeekday } = useDateFormatters();
+  // Under 480 px only every fourth hour is labelled over the heatmap.
+  const narrow = useMediaQuery("(max-width: 479px)");
   const query = useExecutiveAttendance({ branchPublicId, ...range });
 
   // Every section below hides itself when it has no rows, so with no
@@ -61,6 +78,7 @@ export function AttendanceTab({
       isEmpty={(data) =>
         !data.daily_trend?.length &&
         !data.by_source?.length &&
+        !data.by_hour?.length &&
         !data.top_late?.length
       }
       empty={
@@ -83,110 +101,228 @@ export function AttendanceTab({
         const late = (data.top_late ?? []).slice(0, 8);
         const lateMax = Math.max(1, ...late.map((e) => e.late_count));
 
+        // Day by hour: the hours between the first and last punch of the
+        // period, so a day organisation is not drawn against an empty night.
+        const punches = data.by_hour ?? [];
+        const hourLow = Math.min(24, ...punches.map((p) => p.hour));
+        const hourHigh = Math.max(-1, ...punches.map((p) => p.hour));
+        const hourColumns = Array.from(
+          { length: Math.max(0, hourHigh - hourLow + 1) },
+          (_, i) => {
+            const hour = hourLow + i;
+            return { key: String(hour), label: String(hour).padStart(2, "0") };
+          },
+        );
+        const weekdayRows = WEEKDAY_DATES.map((date, i) => ({
+          key: String(i + 1),
+          label: formatWeekday(date),
+          name: formatWeekday(date, "long"),
+        }));
+        const punchCounts = new Map(
+          punches.map((p) => [`${p.weekday}|${p.hour}`, p.count]),
+        );
+        const punchesAt = (weekday: string, hour: string) =>
+          punchCounts.get(`${weekday}|${hour}`);
+        const sayPunches = (value: number) =>
+          t("analytics_page.punches_count", ":count punches", { count: value });
+        const punchesTitle = t(
+          "analytics_page.punches_by_hour",
+          "Punches by day and hour",
+        );
+
         return (
           <div className="space-y-6">
             {data.daily_trend && data.daily_trend.length > 0 && (
               <ChartCard title={t("analytics_page.daily_attendance_trend")}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart
-                    data={data.daily_trend}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="analytics-present"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
+                {(view) =>
+                  view === "table" ? (
+                    <ChartTable
+                      caption={t("analytics_page.daily_attendance_trend")}
+                      columns={[
+                        { key: "date", label: t("common.date", "Date") },
+                        {
+                          key: "present",
+                          label: t("dashboard.present", "Present"),
+                          numeric: true,
+                        },
+                      ]}
+                      rows={data.daily_trend.map((d) => ({
+                        date: dayKeyLabel(d.date, calendar, locale),
+                        present: d.present,
+                      }))}
+                    />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart
+                        data={data.daily_trend}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                       >
-                        <stop
-                          offset="0%"
-                          stopColor={STATUS_SERIES.present}
-                          stopOpacity={0.28}
+                        <defs>
+                          <linearGradient
+                            id="analytics-present"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor={STATUS_SERIES.present}
+                              stopOpacity={0.28}
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor={STATUS_SERIES.present}
+                              stopOpacity={0}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid {...gridProps} />
+                        <XAxis
+                          dataKey="date"
+                          {...axisProps}
+                          minTickGap={16}
+                          tickFormatter={(value) =>
+                            dayKeyLabel(value, calendar, locale)
+                          }
                         />
-                        <stop
-                          offset="100%"
-                          stopColor={STATUS_SERIES.present}
-                          stopOpacity={0}
+                        <YAxis
+                          {...axisProps}
+                          allowDecimals={false}
+                          width={44}
                         />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis
-                      dataKey="date"
-                      {...axisProps}
-                      minTickGap={16}
-                      tickFormatter={(value) =>
-                        dayKeyLabel(value, calendar, locale)
+                        <Tooltip
+                          {...lineTooltipProps}
+                          labelFormatter={(label) =>
+                            dayKeyLabel(label, calendar, locale)
+                          }
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="present"
+                          name={t("dashboard.present", "Present")}
+                          stroke={STATUS_SERIES.present}
+                          strokeWidth={2}
+                          fill="url(#analytics-present)"
+                          activeDot={{ r: 4, strokeWidth: 0 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )
+                }
+              </ChartCard>
+            )}
+
+            {punches.length > 0 && (
+              <ChartCard
+                title={punchesTitle}
+                description={t(
+                  "analytics_page.punches_by_hour_desc",
+                  "When people check in and out, over the period.",
+                )}
+              >
+                {(view) =>
+                  view === "table" ? (
+                    <HeatmapTable
+                      caption={punchesTitle}
+                      rowHeading={t("common.day", "Day")}
+                      rows={weekdayRows}
+                      columns={hourColumns}
+                      value={punchesAt}
+                    />
+                  ) : (
+                    <Heatmap
+                      rows={weekdayRows}
+                      columns={hourColumns}
+                      value={punchesAt}
+                      format={sayPunches}
+                      color={STATUS_SERIES.present}
+                      columnLabelEvery={
+                        narrow ? 4 : hourColumns.length > 12 ? 2 : 1
                       }
                     />
-                    <YAxis {...axisProps} allowDecimals={false} width={44} />
-                    <Tooltip
-                      {...lineTooltipProps}
-                      labelFormatter={(label) =>
-                        dayKeyLabel(label, calendar, locale)
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="present"
-                      name={t("dashboard.present", "Present")}
-                      stroke={STATUS_SERIES.present}
-                      strokeWidth={2}
-                      fill="url(#analytics-present)"
-                      activeDot={{ r: 4, strokeWidth: 0 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                  )
+                }
               </ChartCard>
             )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               {sources.length > 0 && (
                 <ChartCard title={t("analytics_page.by_source")}>
-                  <div className="flex flex-col items-center gap-6 sm:flex-row">
-                    <div className="relative h-52 w-52 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={sources}
-                            dataKey="count"
-                            nameKey="source"
-                            innerRadius={62}
-                            outerRadius={90}
-                            paddingAngle={2}
-                            strokeWidth={0}
-                          >
-                            {sources.map((_, i) => (
-                              <Cell key={i} fill={seriesColor(i)} />
-                            ))}
-                          </Pie>
-                          <Tooltip {...tooltipProps} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-semibold tabular-nums text-foreground">
-                          {sourceTotal}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {t("analytics_page.punches", "punches")}
-                        </span>
+                  {(view) =>
+                    view === "table" ? (
+                      <ChartTable
+                        caption={t("analytics_page.by_source")}
+                        columns={[
+                          {
+                            key: "source",
+                            label: t("analytics_page.by_source"),
+                          },
+                          {
+                            key: "count",
+                            label: t("analytics_page.punches", "punches"),
+                            numeric: true,
+                          },
+                          { key: "share", label: "%", numeric: true },
+                        ]}
+                        rows={sources.map((s) => ({
+                          source: (
+                            <span className="capitalize">
+                              {t(`attendance.source_${s.source}`, s.source)}
+                            </span>
+                          ),
+                          count: s.count,
+                          share:
+                            sourceTotal > 0
+                              ? Math.round((s.count / sourceTotal) * 100)
+                              : 0,
+                        }))}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-6 sm:flex-row">
+                        <div className="relative h-52 w-52 shrink-0">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={sources}
+                                dataKey="count"
+                                nameKey="source"
+                                innerRadius={62}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                strokeWidth={0}
+                              >
+                                {sources.map((_, i) => (
+                                  <Cell key={i} fill={seriesColor(i)} />
+                                ))}
+                              </Pie>
+                              <Tooltip {...tooltipProps} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-semibold tabular-nums text-foreground">
+                              {sourceTotal}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {t("analytics_page.punches", "punches")}
+                            </span>
+                          </div>
+                        </div>
+                        <ChartLegend
+                          stacked
+                          items={sources.map((s, i) => ({
+                            label: (
+                              <span className="capitalize">
+                                {t(`attendance.source_${s.source}`, s.source)}
+                              </span>
+                            ),
+                            color: seriesColor(i),
+                            value: `${sourceTotal > 0 ? Math.round((s.count / sourceTotal) * 100) : 0}%`,
+                          }))}
+                        />
                       </div>
-                    </div>
-                    <ChartLegend
-                      stacked
-                      items={sources.map((s, i) => ({
-                        label: (
-                          <span className="capitalize">
-                            {t(`attendance.source_${s.source}`, s.source)}
-                          </span>
-                        ),
-                        color: seriesColor(i),
-                        value: `${sourceTotal > 0 ? Math.round((s.count / sourceTotal) * 100) : 0}%`,
-                      }))}
-                    />
-                  </div>
+                    )
+                  }
                 </ChartCard>
               )}
 
