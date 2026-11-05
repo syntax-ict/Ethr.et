@@ -52,6 +52,17 @@ class EmployeeImportController extends Controller
     {
         Gate::authorize('employee.create');
 
+        // Salary and TIN are pay data, as on the add-employee form: a file
+        // that sets either needs the permission that edits them (A-Z review B-03).
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $request->validated('rows');
+        foreach ($rows as $row) {
+            if (EmployeeImportRow::salaryCents($row) !== null || (isset($row['tin']) && $row['tin'] !== '')) {
+                Gate::authorize('employee.updateFinancial');
+                break;
+            }
+        }
+
         // Enforced on the whole batch up front, not per row: a partial commit
         // that silently stops mid-import would leave the tenant guessing which
         // rows landed, and the importer's row-skip logic (bad code lookups,

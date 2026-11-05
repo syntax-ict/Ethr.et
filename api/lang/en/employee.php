@@ -20,6 +20,7 @@ return [
     'number_format_invalid' => 'Use one {SEQ:n} token, n from 1 to 8, with letters, digits, - _ . or / around it. For example EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Someone else in your organisation must change your own pay or bank details.',
     'cannot_review_own_profile' => 'You cannot review a change to your own profile.',
+    'cannot_review_pay_field' => 'Deciding a change to a TIN or bank account needs permission to edit pay data.',
     'cannot_review_filed_profile' => 'You filed this change, so someone else must review it.',
     'invalid_transition' => 'Cannot change status from :from to :to.',
     'bulk_update_failed' => 'This employee could not be updated. Try again, or change them from their profile.',
