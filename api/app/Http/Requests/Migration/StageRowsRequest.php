@@ -27,7 +27,7 @@ class StageRowsRequest extends FormRequest
             'rows.*.name' => ['nullable', 'string', 'max:255'],
             'rows.*.email' => ['nullable', 'email', 'max:255', 'distinct:ignore_case'],
             'rows.*.phone' => ['nullable', 'string', 'max:50'],
-            'rows.*.employee_code' => ['nullable', 'string', 'max:50', 'distinct:ignore_case'],
+            'rows.*.employee_code' => ['nullable', 'string', 'max:30', 'distinct:ignore_case'],
             'rows.*.hire_date' => ['nullable', 'date_format:Y-m-d'],
             'rows.*.department' => ['nullable', 'string', 'max:255'],
         ];
