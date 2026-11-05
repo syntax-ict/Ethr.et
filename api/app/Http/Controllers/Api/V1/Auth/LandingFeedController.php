@@ -46,6 +46,13 @@ class LandingFeedController extends Controller
 
     private const RELATED = 3;
 
+    // The feed and the news list are cached briefly in the browser: the
+    // portal is read far more often than news is published. Private, because
+    // the stateful API can set cookies on these responses and a shared cache
+    // must not keep those; Vary still separates one tenant's feed from
+    // another's (A-Z review I-07).
+    private const CACHE = 'private, max-age=120';
+
     public function index(CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
@@ -113,16 +120,13 @@ class LandingFeedController extends Controller
                 ->all()
             : [];
 
-        // Cached briefly, like tenant-context: the portal is public and read
-        // far more often than news is published, and Vary keeps one tenant's
-        // feed from being served as another's through a shared cache.
         return response()->json([
             'announcements' => $announcements,
             'vacancies' => $vacancies,
             'holidays' => $holidays,
             'branches' => $branches,
             'branch_count' => $branchCount,
-        ])->withHeaders(['Cache-Control' => 'public, max-age=120', 'Vary' => 'Host, X-Tenant']);
+        ])->withHeaders(['Cache-Control' => self::CACHE, 'Vary' => 'Host, X-Tenant']);
     }
 
     /**
@@ -173,7 +177,7 @@ class LandingFeedController extends Controller
                 'total' => $page->total(),
             ],
             'categories' => array_values(array_filter($categories, 'is_string')),
-        ])->withHeaders(['Cache-Control' => 'public, max-age=120', 'Vary' => 'Host, X-Tenant']);
+        ])->withHeaders(['Cache-Control' => self::CACHE, 'Vary' => 'Host, X-Tenant']);
     }
 
     /**
