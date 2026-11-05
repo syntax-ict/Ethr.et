@@ -63,4 +63,10 @@ return [
         'trial_expiring' => 'Yaaliin bilisaa keessan guyyaa :days keessatti xumurama. ETHR fayyadamuu itti fufuuf karoora filadhaa.|Yaaliin bilisaa keessan guyyoota :days keessatti xumurama. ETHR fayyadamuu itti fufuuf karoora filadhaa.',
     ],
     'push_unavailable' => 'Beeksisni bilbilaa ammallee sarvara kana irratti hin qindoofne.',
+    'approval_reminder_line' => 'Gaaffiiwwan raggaasisaa :count isin eegaa jiru.',
+    'approval_reminder_oldest' => 'Inni hunda caalaa turee sa\'aatii :hours eegaa ture.',
+    'approval_reminder_action' => 'Raggaasisoota ilaali',
+    'device_offline_line' => 'Meeshaan ":name" :location jiru toora ala ta\'eera.',
+    'device_offline_action' => 'Haala meeshaa ilaali',
+    'unknown_location' => 'bakka maqaa hin qabne',
 ];

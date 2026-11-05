@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, Loader2, Upload } from "lucide-react";
+import { Download, Loader2, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RoleGate } from "@/components/shared/role-gate";
+import { SimpleTable } from "@/components/shared/simple-table";
 import {
   fetchBalanceTemplate,
   useCommitBalances,
@@ -25,13 +27,22 @@ import { toast } from "sonner";
  */
 export default function OpeningBalancesPage() {
   const { hasPermission } = usePermissions();
+  const canLeave = hasPermission("leave.adjustBalance");
+  const canLoans = hasPermission("payroll.manageLoan");
 
-  return (
+  const content = (
     <div className="space-y-6">
-      {hasPermission("leave.adjustBalance") && <BalanceCard kind="leave" />}
-      {hasPermission("payroll.manageLoan") && <BalanceCard kind="loans" />}
+      {canLeave && <BalanceCard kind="leave" />}
+      {canLoans && <BalanceCard kind="loans" />}
     </div>
   );
+
+  // `RoleGate` gates on `can.*` flags, and no flag maps `leave.adjustBalance`.
+  // Someone who may adjust leave sees the page; anyone else is gated on the
+  // loans flag, so a person with neither ability sees the denial screen
+  // instead of an empty page.
+  if (canLeave) return content;
+  return <RoleGate anyPermission={["manageLoans"]}>{content}</RoleGate>;
 }
 
 const COLUMNS: Record<BalanceKind, string[]> = {
@@ -74,6 +85,11 @@ function BalanceCard({ kind }: { kind: BalanceKind }) {
     });
   }
 
+  function clearPreview() {
+    setPreview(null);
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
   function commit() {
     if (!preview) return;
     commitMut.mutate(preview.rows, {
@@ -85,8 +101,7 @@ function BalanceCard({ kind }: { kind: BalanceKind }) {
             skipped: result.skipped,
           }),
         );
-        setPreview(null);
-        if (fileInput.current) fileInput.current.value = "";
+        clearPreview();
       },
       onError: (err: unknown) =>
         toast.error(apiErrorDetail(err) || t("opening_balances.failed")),
@@ -128,17 +143,36 @@ function BalanceCard({ kind }: { kind: BalanceKind }) {
             accept=".csv,text/csv"
             className="hidden"
             aria-label={t(`opening_balances.${kind}.file_label`)}
-            onChange={(e) => onFile(e.target.files?.[0])}
+            onChange={(e) => {
+              onFile(e.target.files?.[0]);
+              // A file input only fires change when the chosen path changes,
+              // so a corrected file saved under the same name could not be
+              // picked again until the page was reloaded.
+              e.target.value = "";
+            }}
           />
+          {preview && (
+            <Button variant="ghost" size="sm" onClick={clearPreview}>
+              <X className="mr-1 h-4 w-4" />
+              {t("opening_balances.clear", "Clear")}
+            </Button>
+          )}
         </div>
 
         {preview && (
           <div className="space-y-3">
-            {preview.errors.map((error) => (
-              <p key={error} className="text-sm text-status-error">
-                {error}
-              </p>
-            ))}
+            {preview.errors.length > 0 && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive-edge bg-destructive-soft p-3 text-sm text-destructive-on-soft"
+              >
+                <ul className="space-y-1">
+                  {preview.errors.map((error) => (
+                    <li key={error}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {preview.rows.length > 0 && (
               <>
                 <p className="text-sm">
@@ -147,54 +181,60 @@ function BalanceCard({ kind }: { kind: BalanceKind }) {
                     invalid: preview.invalid,
                   })}
                 </p>
-                <div className="overflow-x-auto rounded border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-left">
-                      <tr>
-                        <th className="p-2">{t("opening_balances.line")}</th>
-                        <th className="p-2">
-                          {t("opening_balances.employee")}
-                        </th>
-                        {COLUMNS[kind].map((column) => (
-                          <th key={column} className="p-2 font-mono text-xs">
-                            {column}
-                          </th>
-                        ))}
-                        <th className="p-2">
-                          {t("opening_balances.problems")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.rows.map((row) => (
-                        <tr key={row.line} className="border-t align-top">
-                          <td className="p-2">{row.line}</td>
-                          <td className="p-2">
-                            {row.employee_name ?? row.employee_code}
-                          </td>
-                          {COLUMNS[kind].map((column) => (
-                            <td key={column} className="p-2">
-                              {String(row[column] ?? "")}
-                            </td>
-                          ))}
-                          <td className="p-2">
-                            {row.valid ? (
-                              <Badge variant="secondary">
-                                {t("opening_balances.ok")}
-                              </Badge>
-                            ) : (
-                              <ul className="text-status-error">
-                                {row.errors.map((error) => (
-                                  <li key={error}>{error}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <SimpleTable
+                  mobileCards
+                  caption={t(
+                    "opening_balances.preview_caption",
+                    "Preview of :kind",
+                    {
+                      kind: t(`opening_balances.${kind}.title`),
+                    },
+                  )}
+                  headers={[
+                    t("opening_balances.line"),
+                    t("opening_balances.employee"),
+                    ...COLUMNS[kind].map((column) => (
+                      <span key={column} className="font-mono text-caption">
+                        {column}
+                      </span>
+                    )),
+                    t("opening_balances.problems"),
+                  ]}
+                  rows={preview.rows.map((row) => ({
+                    key: String(row.line),
+                    className: row.valid ? undefined : "bg-destructive-soft/40",
+                    cells: [
+                      <span key="line" className="tabular-nums">
+                        {row.line}
+                      </span>,
+                      <span key="emp">
+                        {row.employee_name ?? row.employee_code}
+                      </span>,
+                      ...COLUMNS[kind].map((column) => (
+                        <span key={column} className="tabular-nums">
+                          {String(row[column] ?? "")}
+                        </span>
+                      )),
+                      row.valid ? (
+                        <Badge key="ok" variant="success">
+                          {t("opening_balances.ok")}
+                        </Badge>
+                      ) : (
+                        <div
+                          key="errors"
+                          role="alert"
+                          className="rounded-md border border-destructive-edge bg-destructive-soft p-2 text-destructive-on-soft"
+                        >
+                          <ul className="space-y-0.5">
+                            {row.errors.map((error) => (
+                              <li key={error}>{error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ),
+                    ],
+                  }))}
+                />
                 <Button
                   onClick={commit}
                   disabled={preview.invalid > 0 || commitMut.isPending}

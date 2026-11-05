@@ -201,6 +201,74 @@ final class ShiftMatcher
     }
 
     /**
+     * The shift each employee works on each date in [$from, $to], by the same
+     * precedence as match(): the governing assignment's shift, a rotation's
+     * shift for the day, else the default rotation or shift. A rest day, a day
+     * with no shift at all (the organisation's working week alone), or an
+     * inactive shift is null. Loaded once for everyone, resolved in memory and
+     * shared between employees with the same assignments, as workingBetween().
+     *
+     * Shift coverage asks this for a week of an organisation (charts upgrade,
+     * 2026-11-04).
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, array<string, ?Shift>> employee id => Y-m-d => shift
+     */
+    public function shiftsBetween(Collection $employees, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $candidates = $this->candidates($employees->values()->all(), $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $default = $this->defaults($first);
+        $end = Carbon::parse($to->format('Y-m-d'));
+
+        $bySet = [];
+        $shifts = [];
+        foreach ($employees as $employee) {
+            $owned = $this->ownedBy($candidates, $employee);
+            $set = $owned->pluck('id')->implode(',');
+
+            if (! isset($bySet[$set])) {
+                $bySet[$set] = [];
+                for ($day = Carbon::parse($from->format('Y-m-d')); $day->lessThanOrEqualTo($end); $day = $day->addDay()) {
+                    $bySet[$set][$day->format('Y-m-d')] = $this->shiftOn($owned, $day, $default);
+                }
+            }
+
+            $shifts[$employee->id] = $bySet[$set];
+        }
+
+        return $shifts;
+    }
+
+    /**
+     * @param  Collection<int, ShiftAssignment>  $owned  the employee's own candidates
+     * @param  array{rotation: ?ShiftRotation, shift: ?Shift}  $default
+     */
+    private function shiftOn(Collection $owned, CarbonInterface $date, array $default): ?Shift
+    {
+        $assignment = $this->governing($owned, $date->format('Y-m-d'));
+
+        if ($assignment === null) {
+            $shift = $this->defaultOn($default, $date);
+
+            return $shift !== null && $shift->isWorkingDay($date) ? $shift : null;
+        }
+
+        if ($assignment->isRotation()) {
+            return $this->rotationShift($assignment, $date);
+        }
+
+        $shift = $assignment->shift;
+
+        return $shift !== null && $shift->isWorkingDay($date) ? $shift : null;
+    }
+
+    /**
      * The candidates on the employee, their department or their branch.
      *
      * @param  Collection<int, ShiftAssignment>  $candidates

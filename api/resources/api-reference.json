@@ -10376,6 +10376,124 @@
                 }
             }
         },
+        "/audit-logs/stats": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "auditLog.stats",
+                "summary": "How many entries the trail holds per day and per action over a range\n(the last 30 days by default), for the charts above the list. Days are\nthe organisation's own: the stored UTC instant is shifted by the zone's\noffset before it is dated, which `(tenant_id, created_at)` can still\nserve as a range scan. Charts upgrade, 2026-11-04",
+                "tags": [
+                    "Settings"
+                ],
+                "parameters": [
+                    {
+                        "name": "filter[action]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "filter[from]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "filter[to]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {
+                                            "type": "string"
+                                        },
+                                        "to": {
+                                            "type": "string"
+                                        },
+                                        "by_day": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "date": {
+                                                        "type": "string"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "date",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
+                                        "by_action": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "action": {
+                                                        "type": "string"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "action",
+                                                    "count"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "from",
+                                        "to",
+                                        "by_day",
+                                        "by_action"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/auth/me": {
             "get": {
                 "x-abilities": [
@@ -11694,6 +11812,28 @@
                                                 ]
                                             }
                                         },
+                                        "by_hour": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "weekday": {
+                                                        "type": "integer"
+                                                    },
+                                                    "hour": {
+                                                        "type": "integer"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "weekday",
+                                                    "hour",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
                                         "top_late": {
                                             "type": "array",
                                             "items": {
@@ -11721,6 +11861,7 @@
                                         "daily_trend",
                                         "by_department",
                                         "by_source",
+                                        "by_hour",
                                         "top_late"
                                     ]
                                 }
@@ -14233,66 +14374,6 @@
                                     "required": [
                                         "message",
                                         "device_public_id"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/devices/{device}/regenerate-token": {
-            "post": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "device.regenerateToken",
-                "summary": "Regenerate token devices",
-                "tags": [
-                    "Devices"
-                ],
-                "parameters": [
-                    {
-                        "name": "device",
-                        "in": "path",
-                        "required": true,
-                        "description": "The device public id",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "webhook_token": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Webhook token regenerated"
-                                        }
-                                    },
-                                    "required": [
-                                        "webhook_token",
-                                        "message"
                                     ]
                                 }
                             }
@@ -16945,106 +17026,6 @@
                         "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
-            },
-            "post": {
-                "x-abilities": [
-                    "write",
-                    "employees"
-                ],
-                "operationId": "activationCode.store",
-                "description": "HR does this in person, after checking the employee's identity. The code\nis returned once, as typed characters and as a link for a QR, and cannot\nbe read back; issuing another withdraws it. The employee redeems it on\ntheir own device and chooses their own password.",
-                "summary": "Issue a one-time activation code for an employee with no email or phone",
-                "tags": [
-                    "Activation Code"
-                ],
-                "parameters": [
-                    {
-                        "name": "employee",
-                        "in": "path",
-                        "required": true,
-                        "description": "The employee public id",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/IssueActivationCodeRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    }
-                }
-            },
-            "delete": {
-                "x-abilities": [
-                    "write",
-                    "employees"
-                ],
-                "operationId": "activationCode.destroy",
-                "summary": "Withdraw the employee's live activation code",
-                "tags": [
-                    "Activation Code"
-                ],
-                "parameters": [
-                    {
-                        "name": "employee",
-                        "in": "path",
-                        "required": true,
-                        "description": "The employee public id",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
             }
         },
         "/employees/{employee}/attendance-device-exemption": {
@@ -19361,77 +19342,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    }
-                }
-            }
-        },
-        "/employees/{employee}/kiosk-pin": {
-            "put": {
-                "x-abilities": [
-                    "write",
-                    "employees"
-                ],
-                "operationId": "attendance.employeeKioskPin",
-                "description": "Needed whenever the organisation turns on \"Require PIN\" for kiosk\ncheck-in. `null` removes it. The PIN is stored hashed and never\nreturned; the answer says only whether one is set.",
-                "summary": "Set or remove the PIN an employee enters at a kiosk",
-                "tags": [
-                    "Employees"
-                ],
-                "parameters": [
-                    {
-                        "name": "employee",
-                        "in": "path",
-                        "required": true,
-                        "description": "The employee public id",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateKioskPinRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "public_id": {
-                                            "type": "string"
-                                        },
-                                        "has_kiosk_pin": {
-                                            "type": "boolean"
-                                        }
-                                    },
-                                    "required": [
-                                        "public_id",
-                                        "has_kiosk_pin"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -21998,74 +21908,6 @@
                         "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
-            },
-            "post": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "kioskSession.store",
-                "summary": "Create kiosk session",
-                "tags": [
-                    "Attendance"
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/RegisterKioskRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "`KioskSessionResource`",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/KioskSessionResource"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "branch": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "public_id": {
-                                                            "type": "string"
-                                                        },
-                                                        "name": {
-                                                            "type": "string"
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "public_id",
-                                                        "name"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "branch"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    }
-                }
             }
         },
         "/kiosk-sessions/{publicId}": {
@@ -22121,183 +21963,6 @@
                                                 "branch"
                                             ]
                                         }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            },
-            "delete": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "kioskSession.destroy",
-                "summary": "Delete kiosk session",
-                "tags": [
-                    "Attendance"
-                ],
-                "parameters": [
-                    {
-                        "name": "publicId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No content"
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/kiosk-sessions/{publicId}/activate": {
-            "post": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "kioskSession.activate",
-                "summary": "Activate kiosk sessions",
-                "tags": [
-                    "Attendance"
-                ],
-                "parameters": [
-                    {
-                        "name": "publicId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "activated"
-                                        }
-                                    },
-                                    "required": [
-                                        "status"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/kiosk-sessions/{publicId}/deactivate": {
-            "post": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "kioskSession.deactivate",
-                "summary": "Deactivate kiosk sessions",
-                "tags": [
-                    "Attendance"
-                ],
-                "parameters": [
-                    {
-                        "name": "publicId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "deactivated"
-                                        }
-                                    },
-                                    "required": [
-                                        "status"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/kiosk-sessions/{publicId}/regenerate-token": {
-            "post": {
-                "x-abilities": [
-                    "write"
-                ],
-                "operationId": "kioskSession.regenerateToken",
-                "summary": "Regenerate token kiosk sessions",
-                "tags": [
-                    "Attendance"
-                ],
-                "parameters": [
-                    {
-                        "name": "publicId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "token": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "token"
                                     ]
                                 }
                             }
@@ -23566,30 +23231,61 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {
-                                            "type": "string",
-                                            "const": "https://ethr.et/errors/invalid-state"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/payroll-period-closed"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Payroll period closed"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 422
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
                                         },
-                                        "title": {
-                                            "type": "string",
-                                            "const": "Invalid State"
-                                        },
-                                        "status": {
-                                            "type": "integer",
-                                            "const": 422
-                                        },
-                                        "detail": {
-                                            "type": "string",
-                                            "const": "This leave request is no longer pending."
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/invalid-state"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Invalid State"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 422
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "This leave request is no longer pending."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
                                         }
-                                    },
-                                    "required": [
-                                        "type",
-                                        "title",
-                                        "status",
-                                        "detail"
                                     ]
                                 }
                             }
@@ -26833,8 +26529,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No content"
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -27739,8 +27442,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No content"
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -28828,8 +28538,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No content"
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -37054,6 +36771,146 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/shifts/coverage": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "shift.coverage",
+                "summary": "Each shift's staffing over a range of days, this week by default: the\npeople scheduled and attending per day, and the hours planned against\nthe hours covered. Over the employees the caller reaches, as the\nemployee screens are (charts upgrade, 2026-11-04)",
+                "tags": [
+                    "Shifts & Schedules"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {
+                                            "type": "string"
+                                        },
+                                        "to": {
+                                            "type": "string"
+                                        },
+                                        "days": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "shifts": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "name_am": {
+                                                        "type": "string"
+                                                    },
+                                                    "start_time": {
+                                                        "type": "string"
+                                                    },
+                                                    "end_time": {
+                                                        "type": "string"
+                                                    },
+                                                    "planned_minutes": {
+                                                        "type": "integer"
+                                                    },
+                                                    "covered_minutes": {
+                                                        "type": "integer"
+                                                    },
+                                                    "scheduled_people": {
+                                                        "type": "integer"
+                                                    },
+                                                    "attended_people": {
+                                                        "type": "integer"
+                                                    },
+                                                    "by_day": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "date": {
+                                                                    "type": "string"
+                                                                },
+                                                                "scheduled": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "attended": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "date",
+                                                                "scheduled",
+                                                                "attended"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name",
+                                                    "name_am",
+                                                    "start_time",
+                                                    "end_time",
+                                                    "planned_minutes",
+                                                    "covered_minutes",
+                                                    "scheduled_people",
+                                                    "attended_people",
+                                                    "by_day"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "from",
+                                        "to",
+                                        "days",
+                                        "shifts"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -46422,8 +46279,6 @@
                 "required": [
                     "public_id",
                     "name",
-                    "min_salary_cents",
-                    "max_salary_cents",
                     "sort_order",
                     "created_at",
                     "updated_at"
@@ -46453,7 +46308,6 @@
                 "required": [
                     "public_id",
                     "step",
-                    "salary_cents",
                     "created_at"
                 ],
                 "title": "GradeSalaryStepResource"
@@ -46806,61 +46660,23 @@
                         "format": "binary",
                         "contentMediaType": "application/octet-stream",
                         "description": "Maximum file size: 5120 kilobytes."
+                    },
+                    "calendar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "gregorian",
+                            "ethiopian",
+                            null
+                        ]
                     }
                 },
                 "required": [
                     "file"
                 ],
                 "title": "ImportPreviewRequest"
-            },
-            "IssueActivationCodeRequest": {
-                "type": "object",
-                "description": "HR attests they checked the person's identity face to face, names the\ndocument (never its number), and proves it is really them at the keyboard:\ntheir password, and their authenticator code when they have one.\n\nThe step-up lives in `withValidator()` so a wrong password and a wrong code\nread as the same 422 as any other field, and `rules()` stays plain for the\ngenerated API contract.",
-                "properties": {
-                    "attested": {
-                        "enum": [
-                            "yes",
-                            "on",
-                            "1",
-                            1,
-                            "true",
-                            true
-                        ]
-                    },
-                    "document_type": {
-                        "type": "string",
-                        "enum": [
-                            "national_id",
-                            "kebele_id",
-                            "passport",
-                            "driving_licence",
-                            "employer_id"
-                        ]
-                    },
-                    "note": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 255
-                    },
-                    "current_password": {
-                        "type": "string"
-                    },
-                    "mfa_code": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 12
-                    }
-                },
-                "required": [
-                    "attested",
-                    "document_type",
-                    "current_password"
-                ],
-                "title": "IssueActivationCodeRequest"
             },
             "JobApplicationEventResource": {
                 "type": "object",
@@ -48061,6 +47877,7 @@
                     "payroll_failed",
                     "setup_admin_present",
                     "setup_admin_active",
+                    "owner_phone",
                     "integrity",
                     "payroll_approve",
                     "approvals",
@@ -49663,37 +49480,6 @@
                 ],
                 "title": "RegisterAttendanceDeviceRequest"
             },
-            "RegisterKioskRequest": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "maxLength": 100
-                    },
-                    "branch_public_id": {
-                        "type": "string"
-                    },
-                    "admin_pin": {
-                        "type": "string",
-                        "pattern": "^\\d+$",
-                        "minLength": 4,
-                        "maxLength": 8
-                    },
-                    "device_identifier": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 100
-                    }
-                },
-                "required": [
-                    "name",
-                    "branch_public_id",
-                    "admin_pin"
-                ],
-                "title": "RegisterKioskRequest"
-            },
             "RejectCorrectionRequest": {
                 "type": "object",
                 "properties": {
@@ -50535,7 +50321,7 @@
                                         "string",
                                         "null"
                                     ],
-                                    "maxLength": 50
+                                    "maxLength": 30
                                 },
                                 "hire_date": {
                                     "type": [
@@ -50609,7 +50395,8 @@
                         "maxLength": 255
                     },
                     "body": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 10000
                     },
                     "priority": {
                         "type": "string",
@@ -53043,7 +52830,8 @@
                         "maxLength": 255
                     },
                     "body": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 10000
                     },
                     "priority": {
                         "type": "string",
@@ -53489,7 +53277,9 @@
                                         "tax_payable",
                                         "pension_payable_employee",
                                         "pension_payable_employer",
-                                        "net_salary_payable"
+                                        "net_salary_payable",
+                                        "loans_receivable",
+                                        "cost_sharing_payable"
                                     ]
                                 },
                                 "account_code": {
@@ -53997,23 +53787,6 @@
                     }
                 },
                 "title": "UpdateHolidayRequest"
-            },
-            "UpdateKioskPinRequest": {
-                "type": "object",
-                "description": "Four to six digits, or `null` to remove the employee's PIN. The field is\nrequired, so an empty body cannot remove a PIN by accident.",
-                "properties": {
-                    "pin": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "pattern": "^\\d{4,6}$"
-                    }
-                },
-                "required": [
-                    "pin"
-                ],
-                "title": "UpdateKioskPinRequest"
             },
             "UpdateLeaveTypeRequest": {
                 "type": "object",

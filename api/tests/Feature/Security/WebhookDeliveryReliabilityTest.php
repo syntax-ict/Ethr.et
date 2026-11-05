@@ -196,3 +196,20 @@ test('the payload names the tenant by public id', function () {
 
     expect($delivery->payload['tenant_id'])->toBe($tenant->public_id);
 });
+
+// A-Z review G-07 (2026-11-04). Receivers are told to de-duplicate on the
+// delivery id, but it travelled only in a header the signature does not cover.
+// It is now in the signed body too, the same on every retry.
+test('the delivery id is inside the signed body, the same on every retry', function () {
+    Http::fake(['*' => Http::response('ok', 200)]);
+    $tenant = createTenant();
+    [$job, $delivery] = reliableJob($tenant, reliableWebhook($tenant));
+    $publicId = WebhookDelivery::withoutGlobalScopes()->whereKey($delivery->id)->value('public_id');
+
+    $job->handle();
+    $job->handle();
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn (ClientRequest $request): bool => json_decode($request->body(), true)['delivery_id'] === $publicId
+        && $request->header('X-ETHR-Signature-V2')[0] === 'sha256='.hash_hmac('sha256', $request->header('X-ETHR-Timestamp')[0].'.'.$request->body(), 'shh'));
+});

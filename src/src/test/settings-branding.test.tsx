@@ -31,9 +31,9 @@ describe("<BrandingCard>", () => {
     expect(
       screen.getByText("Your uploaded logo is in use"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Primary color")).toHaveValue("#123456");
+    expect(screen.getByLabelText("Primary colour")).toHaveValue("#123456");
     // Unset colors fall back to the ETHR defaults rather than empty inputs.
-    expect(screen.getByLabelText("Accent color")).toHaveValue("#E8A838");
+    expect(screen.getByLabelText("Accent colour")).toHaveValue("#E8A838");
   });
 
   it("sends the three colors, and no logo link, to PUT /settings/branding", async () => {
@@ -49,14 +49,14 @@ describe("<BrandingCard>", () => {
 
     // The typed logo link was retired on 2026-10-15: images are uploads.
     expect(screen.queryByLabelText(/link to a logo/i)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Primary color"), {
-      target: { value: "#0f4c75" },
+    fireEvent.change(screen.getByLabelText("Primary colour"), {
+      target: { value: "#123456" },
     });
     fireEvent.click(screen.getByRole("button", { name: /save branding/i }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toEqual({
-      primary_color: "#0f4c75",
+      primary_color: "#123456",
       secondary_color: "#3282B8",
       accent_color: "#E8A838",
     });
@@ -69,12 +69,12 @@ describe("<BrandingCard>", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Primary color")).toHaveValue("#ff0000");
+    expect(screen.getByLabelText("Primary colour")).toHaveValue("#ff0000");
 
     fireEvent.click(screen.getByRole("button", { name: /reset to defaults/i }));
 
-    expect(screen.getByLabelText("Primary color")).toHaveValue("#0F4C75");
-    expect(screen.getByLabelText("Accent color")).toHaveValue("#E8A838");
+    expect(screen.getByLabelText("Primary colour")).toHaveValue("#0F4C75");
+    expect(screen.getByLabelText("Accent colour")).toHaveValue("#E8A838");
   });
 });
 
@@ -90,10 +90,10 @@ describe("<OrganizationCard>", () => {
   it("keeps save disabled until something actually changes", () => {
     renderWithClient(<OrganizationCard organization={org} />);
 
-    const save = screen.getByRole("button", { name: /save organization/i });
+    const save = screen.getByRole("button", { name: /save organisation/i });
     expect(save).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText("Organization Name"), {
+    fireEvent.change(screen.getByLabelText("Organisation name"), {
       target: { value: "Acme Ethiopia PLC" },
     });
 
@@ -103,7 +103,7 @@ describe("<OrganizationCard>", () => {
   it("leaves the subdomain read-only — it is the tenant's routing identity", () => {
     renderWithClient(<OrganizationCard organization={org} />);
 
-    expect(screen.getByLabelText("Subdomain")).toBeDisabled();
+    expect(screen.getByLabelText("Address name")).toHaveAttribute("readonly");
   });
 
   it("posts the edited name to PUT /settings/organization", async () => {
@@ -117,10 +117,10 @@ describe("<OrganizationCard>", () => {
 
     renderWithClient(<OrganizationCard organization={org} />);
 
-    fireEvent.change(screen.getByLabelText("Organization Name"), {
+    fireEvent.change(screen.getByLabelText("Organisation name"), {
       target: { value: "Acme Ethiopia PLC" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /save organization/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save organisation/i }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toEqual({

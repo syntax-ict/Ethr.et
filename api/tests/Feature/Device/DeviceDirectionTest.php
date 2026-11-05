@@ -161,7 +161,7 @@ describe('ZKTeco push', function () {
     it('maps the six ZKTeco punch states and leaves anything else to the engine', function (mixed $state, string $direction) {
         expect(ZktecoAdapter::directionFor($state))->toBe($direction);
     })->with([
-        [0, 'check_in'], [1, 'check_out'], [2, 'check_out'], [3, 'check_in'], [4, 'check_in'], [5, 'check_out'],
+        [0, 'check_in'], [1, 'check_out'], [2, 'break_out'], [3, 'break_in'], [4, 'check_in'], [5, 'check_out'],
         [255, 'auto'], [null, 'auto'], ['', 'auto'],
     ]);
 });

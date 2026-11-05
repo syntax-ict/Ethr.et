@@ -46,6 +46,7 @@ describe('sign-up', function () {
             'subdomain' => 'abay-trading',
             'admin_name' => 'Hanna Girma',
             'admin_email' => 'hanna@abay.et',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
             'organization_type' => 'bank',
@@ -166,6 +167,7 @@ describe('readiness', function () {
             'subdomain' => 'day-one',
             'admin_name' => 'Day One Admin',
             'admin_email' => 'admin@dayone.et',
+            'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
         ])->assertCreated();

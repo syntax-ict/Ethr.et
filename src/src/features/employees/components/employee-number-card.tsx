@@ -43,7 +43,7 @@ export function EmployeeNumberCard({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid) return;
+    if (!valid || !isDirty) return;
     save.mutate(
       { employee_number_format: format },
       {
@@ -59,7 +59,7 @@ export function EmployeeNumberCard({
               err,
               t(
                 "settings.employee_number_save_failed",
-                "Couldn't save the employee number format",
+                "Could not save the employee number format",
               ),
             ),
           ),
@@ -68,6 +68,8 @@ export function EmployeeNumberCard({
   }
 
   const example = sample(format, 1);
+  // How many digits the number is padded to, from the format itself.
+  const digits = Number(SHAPE.exec(format)?.[2] ?? 4);
 
   return (
     <Card>
@@ -94,21 +96,23 @@ export function EmployeeNumberCard({
             id="employee_number_format"
             label={t("settings.employee_number_format", "Format")}
             hint={
-              valid
-                ? t(
-                    "settings.employee_number_hint",
-                    "{SEQ:4} is the number, at least 4 digits. Next code: :next. Codes look like :example.",
-                    {
-                      next: isDirty
-                        ? t(
-                            "settings.employee_number_after_save",
-                            "after you save",
-                          )
-                        : employees.next_code,
-                      example: example ?? "",
-                    },
-                  )
-                : undefined
+              !valid
+                ? undefined
+                : isDirty
+                  ? t(
+                      "settings.employee_number_hint_dirty",
+                      "The number replaces {SEQ:n}, padded to at least :digits digits. After you save, codes will look like :example.",
+                      { digits, example: example ?? "" },
+                    )
+                  : t(
+                      "settings.employee_number_hint",
+                      "The number replaces {SEQ:n}, padded to at least :digits digits. Next code: :next. Codes look like :example.",
+                      {
+                        digits,
+                        next: employees.next_code,
+                        example: example ?? "",
+                      },
+                    )
             }
             error={
               valid

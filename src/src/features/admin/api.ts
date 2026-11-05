@@ -89,6 +89,17 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   audit_log: Array<{ action: string; created_at: string }>;
   /** When the organisation was deleted; null while it exists. */
   deleted_at: string | null;
+  /**
+   * Its first active administrator, whom support calls. The phone is
+   * unverified until a code confirms it; null when none was given.
+   */
+  owner: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    phone_verified: boolean;
+    last_login_at: string | null;
+  } | null;
 }
 
 export function useAdminTenants(params?: {

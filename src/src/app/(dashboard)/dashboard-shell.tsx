@@ -24,6 +24,7 @@ import { PunchReminders } from "@/features/attendance/components/punch-reminders
 import { useT } from "@/lib/i18n/useT";
 import { getLocale, preloadLocale } from "@/lib/i18n/translations";
 import { AppLoadingScreen } from "@/components/shared/app-loading-screen";
+import { PrintHeader } from "@/components/layouts/print-header";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
@@ -53,7 +54,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <ImpersonationBanner />
           <OfflineBanner />
           <PausedFeaturesBanner />
-          <div className="flex h-screen overflow-hidden bg-background">
+          <div className="print-shell flex h-screen overflow-hidden bg-background">
             <AppSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
@@ -69,6 +70,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 role="main"
               >
                 <PageActionsSlotProvider>
+                  <PrintHeader />
                   <PageTitleBar />
                   <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
                     <ErrorBoundary>{children}</ErrorBoundary>

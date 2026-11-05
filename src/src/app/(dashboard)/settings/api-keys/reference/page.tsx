@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ function Section({
   return (
     <Card>
       <CardContent className="space-y-3 p-4 text-sm">
-        <h2 id={id} className="text-base font-semibold text-foreground">
+        <h2 id={id} className="scroll-mt-20 text-heading">
           {title}
         </h2>
         {children}
@@ -81,6 +82,15 @@ function Section({
 function Guide({ reference }: { reference: ApiReference }) {
   const { t } = useT();
   const base = reference.servers?.[0]?.url ?? "/api/v1";
+
+  // A link such as /settings/api-keys/reference#webhooks arrives while the
+  // skeleton is on screen, so the browser's own anchor jump lands nowhere.
+  // Once the sections exist, scroll to the one the hash names.
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ block: "start" });
+  }, []);
   const abilityText: Record<(typeof ABILITIES)[number], string> = {
     read: t("api_reference.ability_read"),
     write: t("api_reference.ability_write"),
@@ -94,7 +104,12 @@ function Guide({ reference }: { reference: ApiReference }) {
   return (
     <div className="space-y-4">
       <Section id="getting-started" title={t("api_reference.start_title")}>
-        <p className="text-muted-foreground">{t("api_reference.start_body")}</p>
+        <p className="text-muted-foreground">
+          {t(
+            "api_reference.start_body",
+            "Create a key under Settings, API keys, then send it as a Bearer token on every request. Responses are JSON.",
+          )}
+        </p>
         <Code>{`curl ${base}/employees?per_page=1 \\
   -H "Authorization: Bearer ethr_…" \\
   -H "Accept: application/json"`}</Code>
@@ -141,7 +156,10 @@ function Guide({ reference }: { reference: ApiReference }) {
 
       <Section id="webhooks" title={t("api_reference.webhooks_title")}>
         <p className="text-muted-foreground">
-          {t("api_reference.webhooks_body")}
+          {t(
+            "api_reference.webhooks_body",
+            "Under Settings, Webhooks, ETHR can POST to your URL when one of these events happens. The URL must be public; payloads carry public ids and names, not personal details.",
+          )}
         </p>
         <div className="flex flex-wrap gap-1">
           {reference["x-webhook-events"].map((e) => (
@@ -164,7 +182,8 @@ X-ETHR-Signature: sha256=<hex>
   "event": "employee.created",
   "timestamp": "2026-10-14T09:00:00+00:00",
   "tenant_id": "01J…",
-  "data": { "public_id": "01J…", "name": "…" }
+  "data": { "public_id": "01J…", "name": "…" },
+  "delivery_id": "01J…"
 }`}</Code>
         <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
           <li>{t("api_reference.webhooks_verify")}</li>
@@ -196,7 +215,7 @@ export default function ApiReferencePage() {
             <Button variant="outline" asChild>
               <Link href="/settings/api-keys">
                 <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
-                {t("api_keys_page.title")}
+                {t("api_keys_page.title", "API keys")}
               </Link>
             </Button>
           }
@@ -211,9 +230,14 @@ export default function ApiReferencePage() {
             </div>
           }
           isEmpty={(reference) => Object.keys(reference.paths).length === 0}
+          // "No endpoint matches" is the search's message; a reference with
+          // no operations at all is the server's problem, not the reader's.
           empty={
             <p className="text-sm text-muted-foreground">
-              {t("api_reference.no_match")}
+              {t(
+                "api_reference.unavailable",
+                "The reference is not available right now.",
+              )}
             </p>
           }
         >

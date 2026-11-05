@@ -23,6 +23,12 @@ use Throwable;
  *
  * Idempotent: a record under review is not announced again, and a record
  * whose photos are gone no longer has any to delete.
+ *
+ * Every organisation, in use or not: retention is a duty to the people in the
+ * photos, whatever the subscription. The sweep took only organisations in
+ * use, so a suspended, cancelled, lapsed or closed one kept every selfie for
+ * good (A-Z review D-11). The review still runs there; only the notice is
+ * skipped, since nobody is using the organisation to read it.
  */
 class AttendancePhotoRetentionCommand extends Command
 {
@@ -36,7 +42,7 @@ class AttendancePhotoRetentionCommand extends Command
         $deleted = 0;
         $announced = 0;
 
-        Tenant::operational()->each(function (Tenant $tenant) use ($currentTenant, $retention, $now, &$deleted, &$announced): void {
+        Tenant::withTrashed()->each(function (Tenant $tenant) use ($currentTenant, $retention, $now, &$deleted, &$announced): void {
             $currentTenant->set($tenant);
 
             try {
@@ -48,6 +54,10 @@ class AttendancePhotoRetentionCommand extends Command
                     return;
                 }
                 $announced += $due->count();
+
+                if ($tenant->trashed() || ! $tenant->isActive()) {
+                    return;
+                }
 
                 $deleteAfter = $now->copy()->addHours(PhotoRetention::REVIEW_HOURS);
                 foreach ($retention->reviewers($due) as ['user' => $user, 'count' => $count]) {

@@ -371,17 +371,12 @@ test('maternity leave spanning 120 calendar days across four months is approved 
 
     $response->assertStatus(201);
 
-    // LeaveDayCalculator counts working days (excludes weekends/holidays), so
-    // a 120-calendar-day span pins to fewer than 120 "days" here — this is
-    // the system's current, uniformly-applied behavior for every leave type.
-    // Ethiopian law (Labour Proclamation 1156/2019 Art. 88) grants maternity
-    // leave as 120 *consecutive* days, which reads as calendar days, not
-    // working days — worth verifying against the actual proclamation text
-    // and reconsidering whether maternity/one-time leave types should count
-    // calendar days instead. Not changed here; this test pins current
-    // behavior so a future change is a deliberate, visible diff.
+    // Labour Proclamation 1156/2019 Art. 88 grants maternity leave as 120
+    // consecutive days. It was counted in working days like every other type,
+    // about 85 here, so a 120-day balance covered some 170 calendar days
+    // (A-Z review E-10). A maternity type counts calendar days.
     $days = (float) $response->json('days');
-    expect($days)->toBeGreaterThan(0)->toBeLessThan(120);
+    expect($days)->toBe(120.0);
 
     $leaveRequest = LeaveRequest::where('employee_id', $employee->id)->firstOrFail();
 

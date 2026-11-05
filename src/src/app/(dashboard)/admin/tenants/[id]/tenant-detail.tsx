@@ -595,6 +595,64 @@ function TenantDetail({ id }: { id: string }) {
           />
         </div>
 
+        {/* The owner, whom support calls */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.owner", "Owner")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {tenant.owner ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                <span className="font-medium text-foreground">
+                  {tenant.owner.name}
+                </span>
+                {tenant.owner.email && (
+                  <a
+                    href={`mailto:${tenant.owner.email}`}
+                    className="text-muted-foreground underline underline-offset-2"
+                  >
+                    {tenant.owner.email}
+                  </a>
+                )}
+                {tenant.owner.phone ? (
+                  <span className="flex items-center gap-2">
+                    <a
+                      href={`tel:${tenant.owner.phone}`}
+                      className="font-medium underline underline-offset-2"
+                    >
+                      {tenant.owner.phone}
+                    </a>
+                    {!tenant.owner.phone_verified && (
+                      <Badge variant="outline">
+                        {t(
+                          "admin_tenant_detail_page.phone_unverified",
+                          "Unverified",
+                        )}
+                      </Badge>
+                    )}
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="text-status-warning">
+                    {t(
+                      "admin_tenant_detail_page.phone_missing",
+                      "No phone given",
+                    )}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "admin_tenant_detail_page.no_owner",
+                  "No active administrator",
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <Card>
           <CardHeader>

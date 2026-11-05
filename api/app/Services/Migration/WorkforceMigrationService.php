@@ -9,11 +9,14 @@ use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\DeviceManager;
+use App\Services\EmployeeNumbering;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
 use App\Support\EthiopianPhone;
 use Illuminate\Support\Collection;
@@ -33,6 +36,8 @@ final class WorkforceMigrationService
     public function __construct(
         private readonly IdentityResolver $resolver,
         private readonly DeviceManager $devices,
+        private readonly EmployeeNumbering $numbering,
+        private readonly PlanLimitService $planLimits,
     ) {}
 
     /**
@@ -122,11 +127,32 @@ final class WorkforceMigrationService
             return $batch->totals ?? [];
         }
 
+        $tenant = Tenant::query()->findOrFail($batch->tenant_id);
+
+        // The plan's limit, as every other way of adding people applies it
+        // (A-Z review A-02). Checked on the whole batch before anything is
+        // written, as the file import does.
+        $this->planLimits->assertCanAdd(
+            $tenant,
+            'employees',
+            $batch->rows()->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
+        );
+
         $totals = ['created' => 0, 'merged' => 0, 'skipped' => 0, 'deferred' => 0];
 
         $departments = DepartmentMatch::forTenant($batch->tenant_id);
 
-        DB::transaction(function () use ($batch, $departments, &$totals): void {
+        DB::transaction(function () use ($batch, $tenant, $departments, &$totals): void {
+            // Two commits of one batch (a second tab, a retry) both passed the
+            // check above and created everyone twice. The second now waits
+            // here and finds the batch committed.
+            $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->isCommitted()) {
+                $totals = $locked->totals ?? [];
+
+                return;
+            }
+
             foreach ($batch->rows()->get() as $row) {
                 // Read via getAttribute so the array-cast's loose static type does
                 // not defeat the guard (the value is an array at runtime).
@@ -136,7 +162,7 @@ final class WorkforceMigrationService
 
                 switch ($row->action) {
                     case MigrationStagingRow::ACTION_CREATE:
-                        $employee = $this->createEmployee($raw, $batch->tenant_id, $departments);
+                        $employee = $this->createEmployee($raw, $tenant, $departments);
                         $this->resolver->link($employee, $signals, 1.0, verified: true);
                         $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                         $totals['created']++;
@@ -330,10 +356,12 @@ final class WorkforceMigrationService
      *
      * @param  array<string, mixed>  $raw
      */
-    private function createEmployee(array $raw, int $tenantId, DepartmentMatch $departments): Employee
+    private function createEmployee(array $raw, Tenant $tenant, DepartmentMatch $departments): Employee
     {
-        return Employee::create([
-            'tenant_id' => $tenantId,
+        // EmployeeNumbering gives the next number when the row brings none,
+        // as adding one person or importing a file does.
+        return $this->numbering->create($tenant, [
+            'tenant_id' => $tenant->id,
             'name' => $this->nameOf($raw),
             'email' => isset($raw['email']) ? (string) $raw['email'] : null,
             'phone' => EthiopianPhone::canonicalOrRaw(isset($raw['phone']) ? (string) $raw['phone'] : null),

@@ -201,6 +201,9 @@ export function useCheckIn() {
       payload: {
         idempotency_key: string;
         source?: string;
+        latitude?: number;
+        longitude?: number;
+        accuracy?: number;
       } & Partial<PunchSignals>,
     ): Promise<PunchResult> =>
       (

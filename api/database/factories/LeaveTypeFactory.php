@@ -50,6 +50,7 @@ class LeaveTypeFactory extends Factory
             'accrual_type' => AccrualType::ONE_TIME,
             'gender_restriction' => 'female',
             'min_notice_days' => 30,
+            'counts_calendar_days' => true,
         ]);
     }
 

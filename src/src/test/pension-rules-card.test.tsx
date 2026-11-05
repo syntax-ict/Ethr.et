@@ -92,10 +92,23 @@ describe("<PensionRulesCard>", () => {
     await user.type(screen.getByLabelText("Employee %"), "8");
     await user.type(screen.getByLabelText("Employer %"), "12");
     const save = screen.getByRole("button", { name: /save rule/i });
-    expect(save).toBeDisabled();
+    await user.click(save);
+
+    // Without its legal source the rule is refused, with the reason beside
+    // the field, and nothing is sent.
+    expect(
+      await screen.findByText(
+        "Name the proclamation or directive this rate comes from",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Law or source")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(posted).toHaveLength(0);
 
     await user.type(
-      screen.getByLabelText("Law or source (required)"),
+      screen.getByLabelText("Law or source"),
       "Proclamation No. 9999/2027, Art. 10",
     );
     await user.click(save);

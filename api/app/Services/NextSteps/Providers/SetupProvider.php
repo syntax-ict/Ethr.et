@@ -7,6 +7,7 @@ namespace App\Services\NextSteps\Providers;
 use App\Enums\Feature;
 use App\Enums\NextStepId;
 use App\Enums\OnboardingStep;
+use App\Enums\UserRole;
 use App\Models\OnboardingProgress;
 use App\Models\Tenant;
 use App\Models\User;
@@ -51,6 +52,18 @@ final class SetupProvider implements StepProvider
         }
 
         $steps = [];
+
+        // ETHR's support calls an organisation's owner, its first active
+        // administrator, and could not when sign-up left the phone optional.
+        // Required, so a blocker: it cannot be dismissed, only done.
+        $ownerId = User::query()
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->value('id');
+        if ($ownerId === $user->id && blank($user->phone)) {
+            $steps[] = new NextStep(NextStepId::OwnerPhone, '/profile/security#phone', 'owner_phone');
+        }
         $attendanceOn = $this->features->allows($tenant, Feature::Attendance);
         $blockers = $attendanceOn && $user->hasPermission('attendance.manage')
             ? array_values(array_filter(

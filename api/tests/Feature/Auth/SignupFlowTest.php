@@ -43,6 +43,7 @@ describe('registration provisions tenant', function () {
             'subdomain' => 'trialcorp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@trial.com',
+            'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -60,6 +61,7 @@ describe('registration provisions tenant', function () {
             'subdomain' => 'settingscorp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@settings.com',
+            'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -77,6 +79,7 @@ describe('registration provisions tenant', function () {
             'subdomain' => 'firstcorp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@shared.com',
+            'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -86,6 +89,7 @@ describe('registration provisions tenant', function () {
             'subdomain' => 'firstcorp',
             'admin_name' => 'Admin',
             'admin_email' => 'admin@shared.com',
+            'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);

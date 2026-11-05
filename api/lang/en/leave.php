@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'not_pending' => 'This leave request is no longer pending.',
+    'payroll_period_closed' => 'This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.',
     'not_own_request' => 'You can only modify your own leave requests.',
     'overlap' => 'You already have an approved leave request that overlaps with these dates.',
     'no_working_days' => 'The selected dates do not include any working days.',
@@ -14,4 +15,6 @@ return [
     'cancelled' => 'Leave request cancelled.',
     'cannot_approve_own' => 'You cannot approve your own leave request.',
     'cannot_approve_filed' => 'You filed this request, so someone else must approve it.',
+    'min_notice' => 'This leave type needs :days days\' notice. Choose a start date at least :days days from today.',
+    'max_consecutive' => 'This leave type allows at most :days days in one request.',
 ];

@@ -112,11 +112,13 @@ describe("<LeaveTypesPage>", () => {
     renderPage();
 
     const row = (await screen.findByText("Bereavement Leave")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(
+      within(row).getByRole("button", { name: "Edit Bereavement Leave" }),
+    );
     await user.click(
       await screen.findByRole("switch", { name: "Offered to employees" }),
     );
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(sent).toMatchObject({ code: "bereavement", is_active: false });
@@ -151,10 +153,21 @@ describe("<LeaveTypesPage>", () => {
     renderPage();
 
     const row = (await screen.findByText("Annual Leave")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "Duplicate" }));
+    await user.click(
+      within(row).getByRole("button", {
+        name: "Duplicate Annual Leave",
+      }),
+    );
     await waitFor(() => expect(duplicated).toBe(true));
 
-    await user.click(within(row).getByRole("button", { name: "Delete" }));
+    await user.click(
+      within(row).getByRole("button", { name: "Delete Annual Leave" }),
+    );
+    // Deleting asks first; the 409 detail is what explains the refusal.
+    const confirm = await screen.findByRole("dialog", {
+      name: "Delete the leave type Annual Leave?",
+    });
+    await user.click(within(confirm).getByRole("button", { name: "Delete" }));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         expect.stringContaining("3 leave requests use it"),
@@ -178,11 +191,13 @@ describe("<LeaveTypesPage>", () => {
     renderPage();
 
     const row = (await screen.findByText("Annual Leave")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(
+      within(row).getByRole("button", { name: "Edit Annual Leave" }),
+    );
     const name = await screen.findByRole("textbox", { name: /Name/ });
     await user.clear(name);
     await user.type(name, "Annual Leave (2027)");
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(sent).toMatchObject({
@@ -212,7 +227,9 @@ describe("<LeaveTypesPage>", () => {
     renderPage();
 
     const row = (await screen.findByText("Annual Leave")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(
+      within(row).getByRole("button", { name: "Edit Annual Leave" }),
+    );
     const every = await screen.findByRole("spinbutton", {
       name: /Add days every/,
     });
@@ -220,7 +237,7 @@ describe("<LeaveTypesPage>", () => {
 
     // One half alone is refused on the form.
     await user.clear(every);
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(
       await screen.findByText("Fill in both, or leave both empty."),
     ).toBeInTheDocument();
@@ -229,7 +246,7 @@ describe("<LeaveTypesPage>", () => {
     await user.clear(
       screen.getByRole("spinbutton", { name: /Days added each time/ }),
     );
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(sent).toMatchObject({

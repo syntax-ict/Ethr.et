@@ -17,16 +17,19 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Notifications\LeaveRequestedNotification;
 use App\Services\Approval\ApprovalEngine;
+use App\Services\CurrentTenant;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Leave\LeaveYear;
+use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class LeaveRequestController extends Controller
 {
@@ -69,12 +72,17 @@ class LeaveRequestController extends Controller
         $startDate = Carbon::parse($request->validated('start_date'));
         $endDate = Carbon::parse($request->validated('end_date'));
 
-        $days = $this->dayCalculator->calculateDays(
-            $startDate,
-            $endDate,
-            $employee->tenant_id,
-            $employee->branch_id,
-        );
+        // A type counted in consecutive calendar days (maternity, Art. 88)
+        // takes the whole span; every other type the person's own working days.
+        $days = $leaveType->counts_calendar_days
+            ? (float) ((int) $startDate->diffInDays($endDate) + 1)
+            : $this->dayCalculator->calculateDays(
+                $startDate,
+                $endDate,
+                $employee->tenant_id,
+                $employee->branch_id,
+                $employee,
+            );
 
         if ($days <= 0) {
             return response()->json([
@@ -85,9 +93,13 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
+        // Whole days from the organisation's today: measured from the
+        // server's current instant, a request made at 10:00 for a day exactly
+        // the notice period ahead counted 6.6 days and was refused, and near
+        // midnight the UTC day was the wrong one (A-Z review E-05).
         if ($leaveType->min_notice_days > 0 && ! $onBehalf) {
-            $noticeDays = now()->diffInDays($startDate, false);
-            if ($noticeDays < $leaveType->min_notice_days) {
+            $earliest = TenantTime::today(app(CurrentTenant::class)->get())->addDays($leaveType->min_notice_days);
+            if ($startDate->format('Y-m-d') < $earliest->format('Y-m-d')) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/notice-period',
                     'title' => 'Insufficient Notice',
@@ -325,7 +337,30 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $leaveRequest->update(['status' => LeaveStatus::CANCELLED]);
+        // Only from pending, read again under a lock: an approval landing at
+        // the same moment wins or loses as a whole (A-Z review E-01). Through
+        // the model, so its approval is closed as before.
+        $cancelled = DB::transaction(function () use ($leaveRequest): bool {
+            $locked = LeaveRequest::query()->whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== LeaveStatus::PENDING) {
+                return false;
+            }
+
+            $locked->update(['status' => LeaveStatus::CANCELLED]);
+
+            return true;
+        });
+
+        if (! $cancelled) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_pending'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $leaveRequest->refresh();
 
         $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
