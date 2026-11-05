@@ -91,8 +91,25 @@ class Permission extends Model
         }
     }
 
+    /**
+     * Whether a custom role is switched on. An inactive role grants nothing,
+     * and its holders are back on their base role (A-Z review C-05: the
+     * Roles page showed "Inactive" while the role kept granting everything).
+     * Read without the tenant scope, like the permission rows above, because
+     * a queued job asks with no tenant resolved; the id comes from the user's
+     * own row.
+     */
+    public static function customRoleIsActive(int $customRoleId): bool
+    {
+        return Cache::remember("custom_role_active:{$customRoleId}", 3600, fn (): bool => (bool) DB::table('custom_roles')
+            ->where('id', $customRoleId)
+            ->whereNull('deleted_at')
+            ->value('is_active'));
+    }
+
     public static function clearCacheForCustomRole(int $customRoleId): void
     {
         Cache::forget("custom_role_permissions:{$customRoleId}");
+        Cache::forget("custom_role_active:{$customRoleId}");
     }
 }
