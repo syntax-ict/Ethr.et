@@ -11812,6 +11812,28 @@
                                                 ]
                                             }
                                         },
+                                        "by_hour": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "weekday": {
+                                                        "type": "integer"
+                                                    },
+                                                    "hour": {
+                                                        "type": "integer"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "weekday",
+                                                    "hour",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
                                         "top_late": {
                                             "type": "array",
                                             "items": {
@@ -11839,6 +11861,7 @@
                                         "daily_trend",
                                         "by_department",
                                         "by_source",
+                                        "by_hour",
                                         "top_late"
                                     ]
                                 }
@@ -37172,6 +37195,146 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/shifts/coverage": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "shift.coverage",
+                "summary": "Each shift's staffing over a range of days, this week by default: the\npeople scheduled and attending per day, and the hours planned against\nthe hours covered. Over the employees the caller reaches, as the\nemployee screens are (charts upgrade, 2026-11-04)",
+                "tags": [
+                    "Shifts & Schedules"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {
+                                            "type": "string"
+                                        },
+                                        "to": {
+                                            "type": "string"
+                                        },
+                                        "days": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "shifts": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "name_am": {
+                                                        "type": "string"
+                                                    },
+                                                    "start_time": {
+                                                        "type": "string"
+                                                    },
+                                                    "end_time": {
+                                                        "type": "string"
+                                                    },
+                                                    "planned_minutes": {
+                                                        "type": "integer"
+                                                    },
+                                                    "covered_minutes": {
+                                                        "type": "integer"
+                                                    },
+                                                    "scheduled_people": {
+                                                        "type": "integer"
+                                                    },
+                                                    "attended_people": {
+                                                        "type": "integer"
+                                                    },
+                                                    "by_day": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "date": {
+                                                                    "type": "string"
+                                                                },
+                                                                "scheduled": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "attended": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "date",
+                                                                "scheduled",
+                                                                "attended"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name",
+                                                    "name_am",
+                                                    "start_time",
+                                                    "end_time",
+                                                    "planned_minutes",
+                                                    "covered_minutes",
+                                                    "scheduled_people",
+                                                    "attended_people",
+                                                    "by_day"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "from",
+                                        "to",
+                                        "days",
+                                        "shifts"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
