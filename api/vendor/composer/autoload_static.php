@@ -1831,6 +1831,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\ReaderDates' => __DIR__ . '/../..' . '/app/Support/ReaderDates.php',
         'App\\Support\\ReleaseStamp' => __DIR__ . '/../..' . '/app/Support/ReleaseStamp.php',
         'App\\Support\\ScheduleSlot' => __DIR__ . '/../..' . '/app/Support/ScheduleSlot.php',
+        'App\\Support\\SchemaStatus' => __DIR__ . '/../..' . '/app/Support/SchemaStatus.php',
         'App\\Support\\Scramble\\DescribeApiDocument' => __DIR__ . '/../..' . '/app/Support/Scramble/DescribeApiDocument.php',
         'App\\Support\\Scramble\\GroupOperationsByDomain' => __DIR__ . '/../..' . '/app/Support/Scramble/GroupOperationsByDomain.php',
         'App\\Support\\Scramble\\TypeLoadedRelationOverlays' => __DIR__ . '/../..' . '/app/Support/Scramble/TypeLoadedRelationOverlays.php',

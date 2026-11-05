@@ -1097,6 +1097,7 @@ return array(
     'App\\Support\\ReaderDates' => $baseDir . '/app/Support/ReaderDates.php',
     'App\\Support\\ReleaseStamp' => $baseDir . '/app/Support/ReleaseStamp.php',
     'App\\Support\\ScheduleSlot' => $baseDir . '/app/Support/ScheduleSlot.php',
+    'App\\Support\\SchemaStatus' => $baseDir . '/app/Support/SchemaStatus.php',
     'App\\Support\\Scramble\\DescribeApiDocument' => $baseDir . '/app/Support/Scramble/DescribeApiDocument.php',
     'App\\Support\\Scramble\\GroupOperationsByDomain' => $baseDir . '/app/Support/Scramble/GroupOperationsByDomain.php',
     'App\\Support\\Scramble\\TypeLoadedRelationOverlays' => $baseDir . '/app/Support/Scramble/TypeLoadedRelationOverlays.php',
