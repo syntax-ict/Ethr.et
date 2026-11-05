@@ -19,7 +19,7 @@ use Illuminate\Http\JsonResponse;
 trait RefusesDeletingStaffedUnit
 {
     /**
-     * @param  'department_id'|'branch_id'|'position_id'  $column
+     * @param  'department_id'|'branch_id'|'position_id'|'team_id'|'grade_id'|'cost_center_id'  $column
      */
     protected function refuseIfStaffed(string $column, int $unitId, string $unit): ?JsonResponse
     {

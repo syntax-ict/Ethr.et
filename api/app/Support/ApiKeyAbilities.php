@@ -49,6 +49,21 @@ final class ApiKeyAbilities
         'permissions', 'profile', 'roles', 'scim', 'sso', 'users', 'webhooks',
     ];
 
+    /**
+     * Routes under prefixes a key may otherwise use that create a sign-in or
+     * device credential (A-Z review G-01). Patterns over the path after
+     * /api/v1/, refused to every key; the second element says whether only
+     * writes are refused.
+     *
+     * @var list<array{0: string, 1: bool}>
+     */
+    private const CREDENTIAL_ROUTES = [
+        ['#^employees/[^/]+/activation-code$#', true],
+        ['#^employees/[^/]+/kiosk-pin$#', false],
+        ['#^kiosk-sessions(/.*)?$#', true],
+        ['#^devices/[^/]+/regenerate-token$#', false],
+    ];
+
     /** @var list<string> */
     private const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
@@ -86,8 +101,18 @@ final class ApiKeyAbilities
 
         $prefix = self::prefixOf($request);
 
-        return in_array($prefix, self::SESSION_ONLY, true)
-            || ($prefix === 'settings' && ! self::isRead($request));
+        if (in_array($prefix, self::SESSION_ONLY, true) || ($prefix === 'settings' && ! self::isRead($request))) {
+            return true;
+        }
+
+        $path = (string) preg_replace('#^api/v1/#', '', trim($request->path(), '/'));
+        foreach (self::CREDENTIAL_ROUTES as [$pattern, $writesOnly]) {
+            if (preg_match($pattern, $path) === 1 && (! $writesOnly || ! self::isRead($request))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** The module prefix the request lives under, or null outside the five. */

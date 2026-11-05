@@ -41,6 +41,21 @@ final class PayrollPeriodLock
             ->exists();
     }
 
+    /**
+     * Whether any day from $from to $to is closed for the employee: one
+     * question for a span, such as a leave request.
+     */
+    public function anyClosed(int $employeeId, CarbonInterface|string $from, CarbonInterface|string $to): bool
+    {
+        return PayrollEntry::query()
+            ->where('employee_id', $employeeId)
+            ->whereHas('payrollRun', fn ($run) => $run
+                ->whereIn('status', PayrollRun::RELEASED_STATUSES)
+                ->whereDate('period_start', '<=', Carbon::parse($to)->toDateString())
+                ->whereDate('period_end', '>=', Carbon::parse($from)->toDateString()))
+            ->exists();
+    }
+
     public function refusal(int $employeeId, CarbonInterface|string $date): ?ApprovalRefusal
     {
         return $this->isClosed($employeeId, $date)

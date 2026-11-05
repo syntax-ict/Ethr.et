@@ -469,7 +469,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.5',
+            'version' => '1.6',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -634,9 +634,13 @@ final class PayrollEngine
         $overtimeAmount = 0;
         $overtimeMinutes = 0;
         $overtimeBreakdown = [];
+        // The hourly rate is the contract's: proration, unpaid leave and
+        // lateness change how many days are paid, not what an hour is worth
+        // (Art. 68). Until 2026-11-03 this read the prorated basic, so a
+        // mid-month hire's overtime was paid at a fraction of the law's rate.
         foreach ($overtimeByType as $type => $minutes) {
             $amount = $this->overtimeCalculator->calculate(
-                $proratedBasic,
+                $basicSalary,
                 $workingDaysPerMonth,
                 $hoursPerDay,
                 $minutes,
@@ -655,6 +659,8 @@ final class PayrollEngine
 
         $log['steps'][] = [
             'step' => 'overtime',
+            // Since 1.6: the monthly basic the hourly rate is taken from.
+            'hourly_rate_base_cents' => $basicSalary,
             'overtime_minutes' => $overtimeMinutes,
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
@@ -662,7 +668,7 @@ final class PayrollEngine
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
         ];
 
-        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
+        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
         $allowances = $allowanceResult['items'];
         $totalAllowances = $allowanceResult['total_cents'];
         $nonTaxableAllowances = $allowanceResult['non_taxable_cents'];
@@ -854,7 +860,7 @@ final class PayrollEngine
                 $days += (float) $request->days;
             } else {
                 $days += $this->leaveDayCalculator->calculateDays(
-                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id,
+                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id, $employee,
                 );
             }
         }

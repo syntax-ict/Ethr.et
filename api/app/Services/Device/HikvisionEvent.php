@@ -24,9 +24,9 @@ namespace App\Services\Device;
  */
 final class HikvisionEvent
 {
-    private const IN = ['checkin', 'breakin', 'overtimein'];
+    private const IN = ['checkin', 'overtimein'];
 
-    private const OUT = ['checkout', 'breakout', 'overtimeout'];
+    private const OUT = ['checkout', 'overtimeout'];
 
     /** The enrolled person's device user id, or null when the event names nobody. */
     public static function badge(array $event): ?string
@@ -42,14 +42,18 @@ final class HikvisionEvent
         return $badge === '' ? null : $badge;
     }
 
-    /** `check_in`, `check_out`, or `auto` when the terminal does not say. */
+    /** `check_in`, `check_out`, `break_out`, `break_in`, or `auto` when the terminal does not say. */
     public static function direction(array $event): string
     {
         $status = strtolower((string) ($event['attendanceStatus'] ?? ''));
 
+        // A break is noted on the day's record, never ends it or opens
+        // another (A-Z review D-06).
         return match (true) {
             in_array($status, self::IN, true) => 'check_in',
             in_array($status, self::OUT, true) => 'check_out',
+            $status === 'breakout' => 'break_out',
+            $status === 'breakin' => 'break_in',
             default => 'auto',
         };
     }

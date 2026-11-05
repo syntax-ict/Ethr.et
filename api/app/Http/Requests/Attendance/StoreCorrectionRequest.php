@@ -98,9 +98,39 @@ class StoreCorrectionRequest extends FormRequest
             match ($this->kind()) {
                 CorrectionKind::MISSED_PUNCH => $this->checkMissedPunch($validator),
                 CorrectionKind::LATENESS => $this->checkLateness($validator),
-                CorrectionKind::CORRECTION => null,
+                CorrectionKind::CORRECTION => $this->checkPunchOrder($validator),
             };
         });
+    }
+
+    /**
+     * The record as it would stand once approved must still close after it
+     * opens. A correction may name one punch and keep the other, so the
+     * comparison is with the record's own punch for whichever was left out:
+     * a night worker asking for a 06:00 check-out against a 22:00 check-in
+     * was saved as that same morning (A-Z review D-04).
+     */
+    private function checkPunchOrder(Validator $validator): void
+    {
+        $proposedIn = $this->input('proposed_check_in');
+        $proposedOut = $this->input('proposed_check_out');
+        $hasIn = is_string($proposedIn) && $proposedIn !== '';
+        $hasOut = is_string($proposedOut) && $proposedOut !== '';
+
+        if (! $hasIn && ! $hasOut) {
+            return;
+        }
+
+        $record = AttendanceRecord::query()
+            ->where('public_id', (string) $this->input('attendance_record_public_id'))
+            ->first();
+
+        $checkIn = $hasIn ? Carbon::parse($proposedIn) : $record?->check_in;
+        $checkOut = $hasOut ? Carbon::parse($proposedOut) : $record?->check_out;
+
+        if ($checkIn !== null && $checkOut !== null && $checkOut->lte($checkIn)) {
+            $validator->errors()->add($hasOut ? 'proposed_check_out' : 'proposed_check_in', __('correction.check_out_before_check_in'));
+        }
     }
 
     private function checkMissedPunch(Validator $validator): void

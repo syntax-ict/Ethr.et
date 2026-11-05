@@ -37,6 +37,15 @@ class RequirePlatformMfa
     /** @var list<string> */
     private const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
+    /**
+     * Reads that return people's details across every organisation, which
+     * need MFA even outside strict mode: open behind a password alone, they
+     * listed names, emails and phones on every tenant (A-Z review H-11).
+     *
+     * @var list<string>
+     */
+    private const PERSONAL_DATA_READS = ['api/v1/admin/users/search', 'api/v1/admin/audit'];
+
     // Ending an impersonation used to be exempted here by path, because it was
     // registered under /admin while its caller is the impersonated tenant user.
     // It moved to `POST /auth/impersonation/exit` (audit N19) — under /admin it
@@ -53,7 +62,8 @@ class RequirePlatformMfa
 
         $strict = config('auth.platform_mfa_enforcement') === 'strict';
 
-        if (! $strict && in_array($request->method(), self::READ_METHODS, true)) {
+        if (! $strict && in_array($request->method(), self::READ_METHODS, true)
+            && ! in_array(trim($request->path(), '/'), self::PERSONAL_DATA_READS, true)) {
             return $next($request);
         }
 

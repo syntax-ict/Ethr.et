@@ -168,9 +168,13 @@ final class ZktecoAdapter implements DeviceAdapter
             return 'auto';
         }
 
+        // A break is noted on the day's record, never ends it or opens
+        // another (A-Z review D-06).
         return match ((int) $state) {
-            0, 3, 4 => 'check_in',
-            1, 2, 5 => 'check_out',
+            0, 4 => 'check_in',
+            1, 5 => 'check_out',
+            2 => 'break_out',
+            3 => 'break_in',
             default => 'auto',
         };
     }

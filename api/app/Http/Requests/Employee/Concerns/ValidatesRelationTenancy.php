@@ -137,6 +137,24 @@ trait ValidatesRelationTenancy
                 && ! $validator->errors()->has('supervisor_id')) {
                 $validator->errors()->add('supervisor_id', __('employee.supervisor_self'));
             }
+
+            // Nor, further up, by someone they supervise: A over B and B over
+            // A took both out of the reporting tree and made each the other's
+            // approver (A-Z review C-08). The chain is walked from the new
+            // supervisor upwards; it is bounded, as a chain already broken
+            // must not hang the request.
+            if ($employee instanceof Employee
+                && is_string($this->input('supervisor_id'))
+                && ! $validator->errors()->has('supervisor_id')) {
+                $next = Employee::query()->where('public_id', $this->input('supervisor_id'))->value('supervisor_id');
+                for ($depth = 0; $next !== null && $depth < 100; $depth++) {
+                    if ((int) $next === $employee->id) {
+                        $validator->errors()->add('supervisor_id', __('employee.supervisor_loop'));
+                        break;
+                    }
+                    $next = Employee::query()->whereKey($next)->value('supervisor_id');
+                }
+            }
         });
     }
 }

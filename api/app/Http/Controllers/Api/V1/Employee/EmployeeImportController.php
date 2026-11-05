@@ -40,7 +40,10 @@ class EmployeeImportController extends Controller
     {
         Gate::authorize('employee.create');
 
-        $result = $this->importer->preview($request->file('file'));
+        $result = $this->importer->preview(
+            $request->file('file'),
+            $request->validated('calendar') === 'ethiopian' ? 'ethiopian' : 'gregorian',
+        );
 
         return response()->json($result);
     }
@@ -48,6 +51,17 @@ class EmployeeImportController extends Controller
     public function commit(ImportCommitRequest $request, PlanLimitService $planLimits): JsonResponse
     {
         Gate::authorize('employee.create');
+
+        // Salary and TIN are pay data, as on the add-employee form: a file
+        // that sets either needs the permission that edits them (A-Z review B-03).
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $request->validated('rows');
+        foreach ($rows as $row) {
+            if (EmployeeImportRow::salaryCents($row) !== null || (isset($row['tin']) && $row['tin'] !== '')) {
+                Gate::authorize('employee.updateFinancial');
+                break;
+            }
+        }
 
         // Enforced on the whole batch up front, not per row: a partial commit
         // that silently stops mid-import would leave the tenant guessing which
