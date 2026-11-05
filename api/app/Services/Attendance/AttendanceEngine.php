@@ -153,6 +153,10 @@ final class AttendanceEngine
             return $this->processAuto($input, $employee, $zone, $settings);
         }
 
+        if ($input->type === 'break_out' || $input->type === 'break_in') {
+            return $this->processBreak($input, $employee, $zone, $settings);
+        }
+
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee, $zone, $settings);
         }
@@ -209,6 +213,58 @@ final class AttendanceEngine
         }
 
         return $this->processCheckOut($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * A terminal's break button. The break-out and break-in were sent as a
+     * check-out and a check-in, so the break-out closed the morning's record
+     * as an early leave and the break-in opened a second one, rated late
+     * against the shift's start and logged as a conflict (A-Z review D-06).
+     * A break is noted on the open record instead, which it never opens or
+     * closes; the shift's `break_minutes` still decide what is paid. With no
+     * record open there is nothing to note it on, and it is kept as an
+     * ordinary punch rather than lost.
+     */
+    private function processBreak(AttendanceInput $input, Employee $employee, string $zone, AttendanceSetting $settings): AttendanceResult
+    {
+        $now = $this->resolveMoment($input);
+
+        // A resent break is found by its key on whichever of the person's
+        // records took it, before looking for an open one: the record may
+        // have closed since, and the resend would otherwise open another.
+        if ($input->idempotencyKey !== null) {
+            $local = $now->copy()->setTimezone($zone);
+            $noted = AttendanceRecord::withoutGlobalScope('tenant')
+                ->where('tenant_id', $input->tenantId)
+                ->where('employee_id', $input->employeeId)
+                ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
+                ->whereDate('date', '<=', $local->format('Y-m-d'))
+                ->get()
+                ->first(fn (AttendanceRecord $r) => collect((array) ($r->metadata['breaks'] ?? []))->contains('key', $input->idempotencyKey));
+            if ($noted !== null) {
+                return new AttendanceResult($noted, wasDuplicate: true, punch: $input->type === 'break_out' ? 'check_out' : 'check_in');
+            }
+        }
+
+        $open = $this->findOpenRecord($input, $now, $zone);
+
+        if ($open === null) {
+            return $this->processAuto($input, $employee, $zone, $settings);
+        }
+
+        // The published punch stays in or out: only devices send breaks, and
+        // they read nothing back.
+        $punch = $input->type === 'break_out' ? 'check_out' : 'check_in';
+
+        $breaks = (array) ($open->metadata['breaks'] ?? []);
+        $breaks[] = array_filter([
+            'type' => $input->type === 'break_out' ? 'out' : 'in',
+            'at' => $now->toIso8601String(),
+            'key' => $input->idempotencyKey,
+        ], fn ($value) => $value !== null);
+        $open->update(['metadata' => array_merge($open->metadata ?? [], ['breaks' => $breaks])]);
+
+        return new AttendanceResult($open, punch: $punch);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\DeviceCommandStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceConflict;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
@@ -341,4 +342,34 @@ it('acknowledges a punch it refuses, and reports and skips one that fails otherw
 
     Exceptions::assertReported(RuntimeException::class);
     expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+// A-Z review D-06 (2026-11-04). The break buttons were sent as a check-out and
+// a check-in: the break-out closed the morning's record as an early leave,
+// and the break-in opened a second record, rated late against the shift's
+// start and logged as a conflict. A break is now noted on the day's record,
+// which it never opens or closes.
+it('notes a break on the day\'s record instead of closing it and opening another', function () {
+    [, , $employee] = admsSetup();
+    $day = "1042\t2026-10-14 08:25:00\t0\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 12:30:00\t2\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 13:30:00\t3\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 17:35:00\t1\t1\t0\t0\t0\n";
+
+    adms('POST', 'cdata', $day, ['table' => 'ATTLOG'])->assertOk();
+    // A terminal resends a batch it was not sure we took.
+    adms('POST', 'cdata', $day, ['table' => 'ATTLOG'])->assertOk();
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->check_in->setTimezone('Africa/Addis_Ababa')->format('H:i'))->toBe('08:25')
+        ->and($record->check_out->setTimezone('Africa/Addis_Ababa')->format('H:i'))->toBe('17:35')
+        ->and(collect($record->metadata['breaks'] ?? [])->pluck('type')->all())->toBe(['out', 'in'])
+        ->and(AttendanceConflict::withoutGlobalScopes()->where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
+it('keeps a break punch made with no record open as an ordinary punch', function () {
+    [, , $employee] = admsSetup();
+
+    adms('POST', 'cdata', "1042\t2026-10-14 13:30:00\t3\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])->assertOk();
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->sole()->check_in->setTimezone('Africa/Addis_Ababa')->format('H:i'))
+        ->toBe('13:30');
 });
