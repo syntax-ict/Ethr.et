@@ -47087,6 +47087,17 @@
                         "format": "binary",
                         "contentMediaType": "application/octet-stream",
                         "description": "Maximum file size: 5120 kilobytes."
+                    },
+                    "calendar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "gregorian",
+                            "ethiopian",
+                            null
+                        ]
                     }
                 },
                 "required": [

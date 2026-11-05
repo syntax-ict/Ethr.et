@@ -9777,6 +9777,8 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
         };
         /**
          * IssueActivationCodeRequest

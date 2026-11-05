@@ -40,7 +40,10 @@ class EmployeeImportController extends Controller
     {
         Gate::authorize('employee.create');
 
-        $result = $this->importer->preview($request->file('file'));
+        $result = $this->importer->preview(
+            $request->file('file'),
+            $request->validated('calendar') === 'ethiopian' ? 'ethiopian' : 'gregorian',
+        );
 
         return response()->json($result);
     }
