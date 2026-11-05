@@ -11,6 +11,11 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-05, A-Z review H-09: one more, in `Models/Tenant.php`.
+ * `billingOnly()` asks whether a suspended organisation still owes a bill,
+ * from `ResolveTenant` before any tenant is set for the request. It states
+ * `tenant_id` from the tenant in hand and returns only whether a row exists.
+ * 184/72.)
  * (2026-11-04, A-Z review H-02: one more, in `AdminTenantController::
  * markInvoicePaid()`. Marking the last overdue invoice paid puts a past-due
  * subscription back to active, on the platform host where no tenant is
@@ -302,7 +307,7 @@ return [
     // kiosk terminal has no login to name the tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
-    'Models/Tenant.php' => 4,
+    'Models/Tenant.php' => 5,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,

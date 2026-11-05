@@ -10703,6 +10703,9 @@
                                         },
                                         "upload_limit_bytes": {
                                             "type": "integer"
+                                        },
+                                        "billing_only": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": [
@@ -10712,7 +10715,8 @@
                                         "features",
                                         "paused_features",
                                         "tenant",
-                                        "upload_limit_bytes"
+                                        "upload_limit_bytes",
+                                        "billing_only"
                                     ]
                                 }
                             }

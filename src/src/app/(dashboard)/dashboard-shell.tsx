@@ -26,6 +26,7 @@ import { getLocale, preloadLocale } from "@/lib/i18n/translations";
 import { AppLoadingScreen } from "@/components/shared/app-loading-screen";
 import { PrintHeader } from "@/components/layouts/print-header";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
+import { BillingOnlyGate } from "@/features/billing/components/billing-only-gate";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -150,7 +151,9 @@ export function DashboardShell({
   return (
     <AuthGuard>
       <TenantBrandingProvider>
-        <DashboardInner>{children}</DashboardInner>
+        <BillingOnlyGate>
+          <DashboardInner>{children}</DashboardInner>
+        </BillingOnlyGate>
       </TenantBrandingProvider>
     </AuthGuard>
   );

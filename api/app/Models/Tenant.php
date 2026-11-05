@@ -152,6 +152,9 @@ class Tenant extends Model
      */
     public const PUBLIC_MIN_EMPLOYEES = 5;
 
+    /** Invoice statuses that owe nothing: every other one is a bill still to pay. */
+    public const SETTLED_INVOICE_STATUSES = ['paid', 'void', 'cancelled', 'draft'];
+
     /**
      * Organisations ETHR names on its public site: established ones
      * (scopeEstablished) that have not switched it off, and that the platform
@@ -524,6 +527,30 @@ class Tenant extends Model
         $segment = str_replace('_', '-', $kind).($variant === null ? '' : '-'.$variant);
 
         return route('organisation.asset', [$this->public_id, $segment, $asset['version']], absolute: false);
+    }
+
+    /**
+     * Locked out for money, not for cause: a trial that has ended, or a
+     * suspension with a bill still unpaid (the overdue-invoice job suspends
+     * at sixty days and records no reason, so the unpaid bill is the mark).
+     * Such an organisation may still sign in and see and pay its bills, and
+     * nothing else (`ResolveTenant`, A-Z review H-09). A cancelled one may not.
+     */
+    public function billingOnly(): bool
+    {
+        if ($this->isActive()) {
+            return false;
+        }
+
+        if ($this->status === TenantStatus::TRIAL) {
+            return true;
+        }
+
+        return $this->status === TenantStatus::SUSPENDED
+            && Invoice::withoutGlobalScope('tenant')
+                ->where('tenant_id', $this->id)
+                ->whereNotIn('status', self::SETTLED_INVOICE_STATUSES)
+                ->exists();
     }
 
     public function isActive(): bool

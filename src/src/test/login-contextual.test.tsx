@@ -51,6 +51,7 @@ const base: HostCtx = {
   tenantLanding: null,
   tenantSignIn: null,
   tenantDefaultLocale: null,
+  tenantBillingOnly: false,
   onLanding: false,
   carryOrganisation: null,
   tenantRequest: null,

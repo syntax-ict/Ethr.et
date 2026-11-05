@@ -87,6 +87,7 @@ it('returns the host-resolved tenant display info', function () {
                     'email_code' => app(OtpService::class)->isAvailable(OtpService::CHANNEL_EMAIL),
                 ],
                 'default_locale' => 'en',
+                'billing_only' => false,
             ],
         ]);
 });
