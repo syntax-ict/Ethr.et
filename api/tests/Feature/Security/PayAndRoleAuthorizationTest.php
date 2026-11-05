@@ -8,6 +8,7 @@ use App\Jobs\RunScheduledReportsJob;
 use App\Models\CustomRole;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
+use App\Models\Grade;
 use App\Models\Permission;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
@@ -308,5 +309,28 @@ describe('pay data on the other paths that write it', function () {
             'import_key' => 'no-pay',
             'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01']],
         ])->assertCreated();
+describe('grade salary bands', function () {
+    it('show the band only to someone who may see pay', function () {
+        $tenant = createTenant();
+        $grade = Grade::factory()->create(['tenant_id' => $tenant->id, 'min_salary_cents' => 800000, 'max_salary_cents' => 1200000]);
+        $grade->salarySteps()->create(['tenant_id' => $tenant->id, 'step' => 1, 'salary_cents' => 900000]);
+
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+        test()->getJson(payAuthzUrl($tenant, 'organization/grades'))
+            ->assertOk()
+            ->assertJsonPath('data.0.name', $grade->name)
+            ->assertJsonMissingPath('data.0.min_salary_cents')
+            ->assertJsonMissingPath('data.0.max_salary_cents');
+        test()->getJson(payAuthzUrl($tenant, "organization/grades/{$grade->public_id}/salary-steps"))
+            ->assertOk()
+            ->assertJsonPath('0.step', 1)
+            ->assertJsonMissingPath('0.salary_cents');
+
+        app('auth')->forgetGuards();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        test()->getJson(payAuthzUrl($tenant, 'organization/grades'))
+            ->assertJsonPath('data.0.min_salary_cents', 800000);
+        test()->getJson(payAuthzUrl($tenant, "organization/grades/{$grade->public_id}/salary-steps"))
+            ->assertJsonPath('0.salary_cents', 900000);
     });
 });

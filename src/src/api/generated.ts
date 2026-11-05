@@ -9654,8 +9654,8 @@ export interface components {
         GradeResource: {
             public_id: string;
             name: string;
-            min_salary_cents: number;
-            max_salary_cents: number;
+            min_salary_cents?: number;
+            max_salary_cents?: number;
             sort_order: number;
             employees_count?: number;
             /** Format: date-time */
@@ -9667,7 +9667,7 @@ export interface components {
         GradeSalaryStepResource: {
             public_id: string;
             step: number;
-            salary_cents: number;
+            salary_cents?: number;
             /** Format: date-time */
             created_at: string | null;
         };
