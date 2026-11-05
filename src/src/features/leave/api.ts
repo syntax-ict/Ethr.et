@@ -207,6 +207,36 @@ export function useRejectLeave() {
   });
 }
 
+/**
+ * HR cancelling approved leave (`endDate` null) or ending it early. The days
+ * go back to the balance and the employee is notified.
+ */
+export function useRecallLeave() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      endDate,
+      reason,
+    }: {
+      publicId: string;
+      endDate: string | null;
+      reason: string;
+    }) => {
+      const { data } = await apiClient.put(`/leave/${publicId}/recall`, {
+        end_date: endDate,
+        reason,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
 export function useCancelLeave() {
   const queryClient = useQueryClient();
 

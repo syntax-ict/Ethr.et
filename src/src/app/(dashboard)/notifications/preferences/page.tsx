@@ -37,6 +37,10 @@ const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
       labelKey: "notification_prefs_page.type_leave_rejected",
       descKey: "notification_prefs_page.desc_leave_rejected",
     },
+    leave_changed: {
+      labelKey: "notification_prefs_page.type_leave_changed",
+      descKey: "notification_prefs_page.desc_leave_changed",
+    },
     attendance_correction: {
       labelKey: "notification_prefs_page.type_correction_request",
       descKey: "notification_prefs_page.desc_correction_request",

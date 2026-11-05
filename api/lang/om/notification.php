@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'Bilbilli argamaa keessan haqameera: :reason. Bilbila amma fayyadamtan galmeessaa.',
         'device_offline' => 'Meeshaan ":name" toora ala ta\'eera.',
         'leave_approved' => 'Gaaffiin boqonnaa keessan raggaasifameera.',
+        'leave_changed' => 'Boqonnaan keessan raggaasifame HR\'n jijjiirameera.',
         'leave_rejected' => 'Gaaffiin boqonnaa keessan didameera.',
         'leave_requested' => ':name boqonnaa gaafateera.',
         'missing_check_in' => ':name guyyaa :date seensa hin galmeessine.',

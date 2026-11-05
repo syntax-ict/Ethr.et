@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string }> = {
   leave_approved: { icon: CalendarDays, color: "text-status-success" },
   leave_rejected: { icon: CalendarDays, color: "text-status-error" },
+  leave_changed: { icon: CalendarDays, color: "text-status-warning" },
   leave_requested: { icon: CalendarDays, color: "text-status-warning" },
   attendance_marked: { icon: Clock, color: "text-status-info" },
   payslip_generated: { icon: Wallet, color: "text-interactive-primary" },

@@ -32,7 +32,7 @@ import { useT } from "@/lib/i18n/useT";
 type TemplateField = "subject_en" | "subject_am" | "body_en" | "body_am";
 
 /**
- * Template type → label. Four reuse the notification-preference labels.
+ * Template type → label. Five reuse the notification-preference labels.
  */
 function useTypeLabel() {
   const { t } = useT();
@@ -45,6 +45,8 @@ function useTypeLabel() {
         return t("notification_prefs_page.type_leave_approved");
       case "leave_rejected":
         return t("notification_prefs_page.type_leave_rejected");
+      case "leave_changed":
+        return t("notification_prefs_page.type_leave_changed");
       case "payslip_available":
         return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
