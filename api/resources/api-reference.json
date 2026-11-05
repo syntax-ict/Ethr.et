@@ -11620,35 +11620,13 @@
                                                 },
                                                 "today_expected": {
                                                     "type": "integer"
-                                                },
-                                                "recent": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "date": {
-                                                                "type": "string"
-                                                            },
-                                                            "rate": {
-                                                                "type": [
-                                                                    "number",
-                                                                    "null"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "date",
-                                                            "rate"
-                                                        ]
-                                                    }
                                                 }
                                             },
                                             "required": [
                                                 "today",
                                                 "period",
                                                 "today_present",
-                                                "today_expected",
-                                                "recent"
+                                                "today_expected"
                                             ]
                                         },
                                         "payroll_summary": {

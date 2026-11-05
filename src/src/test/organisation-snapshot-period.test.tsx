@@ -53,7 +53,6 @@ beforeEach(() => {
         period: 84.7,
         today_present: 37,
         today_expected: 40,
-        recent: [],
       },
       payroll_summary: { gross_cents: 0, previous_gross_cents: 0 },
       turnover: { rate: 0, exits: 0 },

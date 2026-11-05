@@ -35,8 +35,9 @@ import { WidgetError } from "./widget-error";
  * attendance line plotted head counts beside a percentage and ended on the
  * half-filled day, a morning read "0%" as if the office were empty, a small
  * fall in payroll drew in red, and approvals, the one figure asking for
- * action, looked like the rest. Attendance is now people ("112 of 140 in"),
- * and each line names its span. The greeting above carries today's date.
+ * action, looked like the rest. Attendance is now people ("112 of 140 in")
+ * with a ring for the share; its trend is on Analytics, one click away.
+ * The greeting above carries today's date.
  *
  * "This month" is the reader's current month, the same window the Analytics
  * page asks for, so the two screens agree about it.
@@ -159,20 +160,16 @@ export function OrganisationSnapshot() {
             suffix={t("dashboard.of_expected_in", "of :expected in", {
               expected,
             })}
-            meter={{
+            ring={{
               value: (present / expected) * 100,
               label: t("dashboard.checked_in_today", "Checked in today"),
+              color: "var(--status-success)",
             }}
             hint={
               present === 0
                 ? t("dashboard.no_checkins_yet", "No one has checked in yet")
                 : periodHint
             }
-            spark={{
-              values: (rate?.recent ?? []).map((d) => d.rate),
-              caption: t("dashboard.span_fourteen_days", "14 days"),
-              color: "var(--status-success)",
-            }}
             href="/attendance"
           />
         )}

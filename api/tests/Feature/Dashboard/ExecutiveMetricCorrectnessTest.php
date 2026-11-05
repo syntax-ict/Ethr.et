@@ -201,31 +201,25 @@ test('attendance rate counts only the days people were expected, up to today', f
         ->toMatchArray(['today' => 50, 'period' => 50, 'today_present' => 1, 'today_expected' => 2]);
 });
 
-test('the attendance rate counts today in people and lists the days before it', function () {
+test('the attendance rate counts today in people', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
-    // Wednesday 14 October. Three people; two came in on Tuesday the 13th,
-    // nobody has checked in yet today.
+    // Wednesday 14 October, 07:00. Three people expected; two came in
+    // yesterday, nobody has checked in yet today.
     $this->travelTo(Carbon::parse('2026-10-14 07:00', 'Africa/Addis_Ababa'));
     [$first, $second] = Employee::factory()->count(3)->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01'])->all();
     metricFixAttend($first, '2026-10-13');
     metricFixAttend($second, '2026-10-13');
 
     $rate = test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('attendance_rate');
-    $recent = collect($rate['recent'])->keyBy('date');
 
     // 0 of 3 in is a count, not an empty office; the rate still says 0.
     expect($rate['today_present'])->toBe(0)
         ->and($rate['today_expected'])->toBe(3)
         ->and($rate['today'])->toBe(0)
-        // Fourteen days before today, oldest first, today left out.
-        ->and($recent->keys()->first())->toBe('2026-09-30')
-        ->and($recent->keys()->last())->toBe('2026-10-13')
-        ->and($recent)->toHaveCount(14)
-        ->and($recent['2026-10-13']['rate'])->toBe(66.7)
-        // Sunday the 11th: no one expected, so no rate rather than 0.
-        ->and($recent['2026-10-11']['rate'])->toBeNull();
+        // Yesterday's check-ins count in the period, not today.
+        ->and($rate['period'])->toBe(22.2);
 });
 
 test('attendance rate is null on a day no one is expected', function () {

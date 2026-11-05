@@ -3,9 +3,9 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ProgressRing } from "./progress-ring";
 import { Sparkline } from "./sparkline";
 import { DeltaBadge, type StatDelta } from "./stat-card";
 
@@ -53,8 +53,11 @@ export interface SummaryCellProps {
    * left out; it needs two points to draw.
    */
   spark?: { values: (number | null)[]; caption: string; color: string };
-  /** A bar under the figure, 0 to 100, with its accessible name. */
-  meter?: { value: number; label: string };
+  /**
+   * A share of a whole, 0 to 100, as a ring beside the figure, in place of
+   * a trend line. `label` is its accessible name.
+   */
+  ring?: { value: number; label: string; color: string };
   /** Something is waiting on the reader: a coloured edge and `action`. */
   attention?: boolean;
   /** Words on the button-like cue at the foot, shown with `attention`. */
@@ -72,7 +75,7 @@ export function SummaryCell({
   hint,
   delta,
   spark,
-  meter,
+  ring,
   attention,
   action,
   href,
@@ -89,7 +92,7 @@ export function SummaryCell({
   }
 
   const points = (spark?.values ?? []).filter((v): v is number => v !== null);
-  const hasSpark = spark !== undefined && points.length > 1;
+  const hasSpark = !ring && spark !== undefined && points.length > 1;
   const showAction = attention && action;
 
   return (
@@ -120,7 +123,12 @@ export function SummaryCell({
       {/* The figure keeps its width and the line gives way: an Amharic
           dashboard at 1280 px once broke "33.3%" onto two lines (production
           QA 2026-10-28, F-04). The suffix may wrap under it. */}
-      <div className="mt-3 flex items-end justify-between gap-3">
+      <div
+        className={cn(
+          "mt-3 flex justify-between gap-3",
+          ring ? "items-center" : "items-end",
+        )}
+      >
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
           <span
             className={cn(
@@ -150,15 +158,14 @@ export function SummaryCell({
             </span>
           </div>
         )}
+        {ring && (
+          <ProgressRing
+            value={ring.value}
+            label={ring.label}
+            color={ring.color}
+          />
+        )}
       </div>
-
-      {meter && (
-        <Progress
-          value={Math.max(0, Math.min(100, meter.value))}
-          label={meter.label}
-          className="mt-3 h-1.5 bg-border"
-        />
-      )}
 
       <div className="mt-auto flex min-w-0 items-end justify-between gap-3 pt-3">
         {(delta || hint) && (

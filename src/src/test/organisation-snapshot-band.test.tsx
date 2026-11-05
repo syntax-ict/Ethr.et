@@ -55,11 +55,6 @@ function serve({
           period: 84.7,
           today_present,
           today_expected,
-          recent: [
-            { date: "2026-10-31", rate: 80 },
-            { date: "2026-11-01", rate: null },
-            { date: "2026-11-02", rate: 90 },
-          ],
         },
         payroll_summary: {
           gross_cents: gross,
@@ -111,17 +106,18 @@ function cell(name: RegExp) {
 }
 
 describe("<OrganisationSnapshot> band", () => {
-  it("counts today's attendance in people, with a bar", async () => {
+  it("counts today's attendance in people, with a ring for the share", async () => {
     serve();
     renderBand();
 
     expect(await screen.findByText("of 40 in")).toBeInTheDocument();
     const present = cell(/Present Today/);
     expect(within(present).getByText("37")).toBeInTheDocument();
-    expect(
-      within(present).getByRole("progressbar", { name: "Checked in today" }),
-    ).toHaveAttribute("aria-valuenow", "92.5");
-    expect(within(present).getByText("14 days")).toBeInTheDocument();
+    const ring = within(present).getByRole("progressbar", {
+      name: "Checked in today",
+    });
+    expect(ring).toHaveAttribute("aria-valuenow", "92.5");
+    expect(ring).toHaveTextContent("93%");
   });
 
   it("says nobody has checked in yet rather than 0%", async () => {
@@ -131,10 +127,14 @@ describe("<OrganisationSnapshot> band", () => {
     expect(
       await screen.findByText("No one has checked in yet"),
     ).toBeInTheDocument();
+    // The ring is an empty track: no "0%" in it, and no red.
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "Checked in today" }),
+    ).toHaveAttribute("aria-valuetext", "0%");
   });
 
-  it("names a day with no one expected instead of drawing an empty bar", async () => {
+  it("names a day with no one expected instead of drawing an empty ring", async () => {
     serve({ today_present: 0, today_expected: 0 });
     renderBand();
 

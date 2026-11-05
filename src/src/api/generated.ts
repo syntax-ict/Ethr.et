@@ -19061,10 +19061,6 @@ export interface operations {
                             period: number | null;
                             today_present: number;
                             today_expected: number;
-                            recent: {
-                                date: string;
-                                rate: number | null;
-                            }[];
                         };
                         payroll_summary: {
                             gross_cents: number;

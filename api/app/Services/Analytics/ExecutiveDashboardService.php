@@ -202,9 +202,6 @@ final class ExecutiveDashboardService
         ];
     }
 
-    /** Days before today in the attendance rate's `recent` series. */
-    private const RECENT_DAYS = 14;
-
     /**
      * Check-ins against the days people were expected at work, by the rule the
      * attendance screen uses (`ExpectedDays`): leavers, approved leave,
@@ -216,12 +213,9 @@ final class ExecutiveDashboardService
      * Null when nobody was expected: no one to attend is not 0% attendance.
      *
      * `today_present` of `today_expected` is the dashboard's "112 of 140 in":
-     * before the first check-in a bare 0% read like an empty office. `recent`
-     * is the rate of each of the days before today, for the trend line beside
-     * it; today is left out because it is still filling up, and a rest day is
-     * null rather than 0.
+     * before the first check-in a bare 0% read like an empty office.
      *
-     * @return array{today: float|null, period: float|null, today_present: int, today_expected: int, recent: list<array{date: string, rate: float|null}>}
+     * @return array{today: float|null, period: float|null, today_present: int, today_expected: int}
      */
     private function attendanceRate(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
@@ -231,22 +225,13 @@ final class ExecutiveDashboardService
         $today = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->format('Y-m-d'));
         $last = $to->lessThan($today) ? $to->copy()->startOfDay() : $today->copy();
 
-        $days = $this->attendedByDay($tenantId, $employees, $today->copy()->subDays(self::RECENT_DAYS), $today);
-        $todayCounts = $days[$today->toDateString()];
-
-        $recent = [];
-        foreach ($days as $date => $counts) {
-            if ($date !== $today->toDateString()) {
-                $recent[] = ['date' => $date, 'rate' => self::share($counts['present'], $counts['expected'])];
-            }
-        }
+        $todayCounts = $this->attendedByDay($tenantId, $employees, $today, $today)[$today->toDateString()];
 
         return [
             'today' => self::share($todayCounts['present'], $todayCounts['expected']),
             'period' => $this->attendedShare($tenantId, $employees, $from->copy()->startOfDay(), $last),
             'today_present' => $todayCounts['present'],
             'today_expected' => $todayCounts['expected'],
-            'recent' => $recent,
         ];
     }
 

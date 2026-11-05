@@ -1,5 +1,6 @@
 export { StatCard, DeltaBadge } from "./stat-card";
 export type { StatCardProps, StatDelta, StatTone } from "./stat-card";
+export { ProgressRing } from "./progress-ring";
 export { Sparkline } from "./sparkline";
 export { SummaryBand, SummaryCell } from "./summary-band";
 export type { SummaryCellProps } from "./summary-band";
