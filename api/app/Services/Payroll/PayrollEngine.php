@@ -23,6 +23,7 @@ use App\Models\Tenant;
 use App\Services\Attendance\ExpectedDays;
 use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
+use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Support\Cents;
@@ -884,7 +885,7 @@ final class PayrollEngine
      */
     public function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
-        $yesterday = TenantTime::today(Tenant::query()->find($employee->tenant_id))->subDay()->format('Y-m-d');
+        $yesterday = TenantTime::today(app(CurrentTenant::class)->tenantFor($employee->tenant_id))->subDay()->format('Y-m-d');
         $first = $periodStart->format('Y-m-d');
         $last = min($periodEnd->format('Y-m-d'), $yesterday);
 
@@ -934,7 +935,7 @@ final class PayrollEngine
         }
 
         $tenantId = $first->tenant_id;
-        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $yesterday = TenantTime::today(app(CurrentTenant::class)->tenantFor($tenantId))->subDay()->format('Y-m-d');
         $from = $periodStart->format('Y-m-d');
         $last = min($periodEnd->format('Y-m-d'), $yesterday);
 
@@ -1032,7 +1033,7 @@ final class PayrollEngine
         // A record with no shift rests on the organisation's own week, not on
         // Sunday: a Saturday at a Monday-Friday organisation was paid as a
         // normal day, and a Sunday at a six-day one as a rest day.
-        $workingWeek = WorkingWeek::of(Tenant::query()->find($employee->tenant_id));
+        $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
