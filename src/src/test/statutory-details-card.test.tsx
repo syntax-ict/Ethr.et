@@ -54,7 +54,9 @@ describe("<StatutoryDetailsCard>", () => {
     await user.type(screen.getByLabelText("Tax centre"), "Bole Medium");
     await user.click(screen.getByRole("combobox", { name: /pension scheme/i }));
     await user.click(
-      await screen.findByRole("option", { name: "Public (PSSSA)" }),
+      await screen.findByRole("option", {
+        name: "Public: civil service (PSSSA)",
+      }),
     );
     await user.click(screen.getByRole("button", { name: /save/i }));
 

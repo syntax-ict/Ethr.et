@@ -112,7 +112,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!organisation || !tenantName || news) return;
     const previous = document.title;
-    document.title = `${t("auth.sign_in", "Sign In")} · ${tenantName}`;
+    document.title = `${t("auth.sign_in", "Sign in")} · ${tenantName}`;
     return () => {
       document.title = previous;
     };

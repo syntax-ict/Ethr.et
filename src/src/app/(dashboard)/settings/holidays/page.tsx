@@ -14,11 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -45,7 +47,6 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
-import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -103,7 +104,7 @@ export default function HolidaysPage() {
       toast.success(t("holidays_page.updated", "Holiday updated"));
     } else {
       await createHoliday.mutateAsync(values);
-      toast.success(t("holidays_page.added"));
+      toast.success(t("holidays_page.added", "Holiday added"));
     }
     closeDialog();
   }
@@ -135,50 +136,63 @@ export default function HolidaysPage() {
   function confirmDelete() {
     if (!deleting) return;
     deleteHoliday.mutate(deleting.public_id, {
-      onSuccess: () => toast.success(t("holidays_page.deleted")),
+      onSuccess: () =>
+        toast.success(t("holidays_page.deleted", "Holiday deleted")),
       onError: (err) =>
-        toast.error(apiErrorMessage(err, t("holidays_page.delete_failed"))),
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("holidays_page.delete_failed", "Could not delete the holiday"),
+          ),
+        ),
       onSettled: () => setDeleting(null),
     });
   }
 
   function runAutoDetect() {
     autoDetect.mutate(undefined, {
-      onSuccess: () => toast.success(t("holidays_page.auto_detected")),
+      onSuccess: () =>
+        toast.success(
+          t("holidays_page.auto_detected", "Ethiopian public holidays added"),
+        ),
       onError: (err) =>
         toast.error(
-          apiErrorMessage(err, t("holidays_page.auto_detect_failed")),
+          apiErrorMessage(
+            err,
+            t(
+              "holidays_page.auto_detect_failed",
+              "Could not add the Ethiopian holidays",
+            ),
+          ),
         ),
     });
   }
 
+  const addButtons = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={runAutoDetect}
+        disabled={autoDetect.isPending}
+      >
+        {autoDetect.isPending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Wand2 className="mr-2 h-4 w-4" />
+        )}
+        {t("holidays_page.auto_detect", "Add Ethiopian public holidays")}
+      </Button>
+      <Button onClick={openAdd}>
+        <Plus className="mr-2 h-4 w-4" />
+        {t("holidays_page.add_holiday", "Add holiday")}
+      </Button>
+    </div>
+  );
+
   return (
     <RoleGate anyPermission={["manageHolidays"]}>
       <div className="space-y-6">
-        <PageActions
-          actions={
-            canCreate && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={runAutoDetect}
-                  disabled={autoDetect.isPending}
-                >
-                  {autoDetect.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="mr-2 h-4 w-4" />
-                  )}
-                  {t("holidays_page.auto_detect")}
-                </Button>
-                <Button onClick={openAdd}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("holidays_page.add_holiday")}
-                </Button>
-              </div>
-            )
-          }
-        />
+        <PageActions actions={canCreate && addButtons} />
 
         <QueryBoundary
           query={holidaysQuery}
@@ -192,8 +206,12 @@ export default function HolidaysPage() {
           empty={
             <EmptyState
               icon={CalendarDays}
-              title={t("holidays_page.no_holidays")}
-              description={t("holidays_page.no_holidays_desc")}
+              title={t("holidays_page.no_holidays", "No holidays configured")}
+              description={t(
+                "holidays_page.no_holidays_desc",
+                "Add the Ethiopian public holidays in one step, or add your own.",
+              )}
+              action={canCreate ? addButtons : undefined}
             />
           }
         >
@@ -201,17 +219,17 @@ export default function HolidaysPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("holidays_page.title")}
+                  {t("holidays_page.title", "Holidays")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <SimpleTable
                   mobileCards
-                  caption={t("holidays_page.title")}
+                  caption={t("holidays_page.title", "Holidays")}
                   headers={[
                     t("common.name"),
                     t("common.date"),
-                    t("holidays_page.recurring"),
+                    t("holidays_page.recurring", "Recurring"),
                   ]}
                   rows={holidays.map((holiday) => ({
                     key: holiday.public_id,
@@ -222,23 +240,16 @@ export default function HolidaysPage() {
                       <span key="d" className="text-muted-foreground">
                         {formatDate(holiday.date)}
                       </span>,
-                      holiday.recurring ? (
-                        <Badge
-                          key="r"
-                          variant="outline"
-                          className={statusBadgeClass("active")}
-                        >
-                          {t("holidays_page.recurring")}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          key="r"
-                          variant="outline"
-                          className={statusBadgeClass("offline")}
-                        >
-                          {t("holidays_page.one_time")}
-                        </Badge>
-                      ),
+                      // A kind, not a state: both read in the same neutral tint.
+                      <Badge
+                        key="r"
+                        variant="outline"
+                        className="border-neutral-edge bg-neutral-soft text-neutral-on-soft"
+                      >
+                        {holiday.recurring
+                          ? t("holidays_page.recurring", "Recurring")
+                          : t("holidays_page.one_time", "One-time")}
+                      </Badge>,
                     ],
                     actions:
                       canUpdate || canDelete ? (
@@ -251,7 +262,9 @@ export default function HolidaysPage() {
                             >
                               <Pencil className="h-4 w-4" />
                               <span className="sr-only">
-                                {t("common.edit", "Edit")} {holiday.name}
+                                {t("holidays_page.edit_named", "Edit :name", {
+                                  name: holiday.name,
+                                })}
                               </span>
                             </Button>
                           )}
@@ -265,7 +278,11 @@ export default function HolidaysPage() {
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">
-                                {t("common.delete", "Delete")} {holiday.name}
+                                {t(
+                                  "holidays_page.delete_named",
+                                  "Delete :name",
+                                  { name: holiday.name },
+                                )}
                               </span>
                             </Button>
                           )}
@@ -287,8 +304,14 @@ export default function HolidaysPage() {
               <DialogTitle>
                 {editing
                   ? t("holidays_page.edit_holiday", "Edit holiday")
-                  : t("holidays_page.add_holiday")}
+                  : t("holidays_page.add_holiday", "Add holiday")}
               </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "holidays_page.dialog_desc",
+                  "Leave requests do not count this day, and attendance does not expect anyone at work.",
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form
               onSubmit={submit(
@@ -298,7 +321,7 @@ export default function HolidaysPage() {
                       "holidays_page.update_failed",
                       "Couldn't update the holiday",
                     )
-                  : t("holidays_page.add_failed"),
+                  : t("holidays_page.add_failed", "Could not add the holiday"),
               )}
               className="space-y-4"
               noValidate
@@ -313,7 +336,10 @@ export default function HolidaysPage() {
               >
                 <Input
                   {...register("name")}
-                  placeholder={t("holidays_page.name_placeholder")}
+                  placeholder={t(
+                    "holidays_page.name_placeholder",
+                    "Ethiopian New Year",
+                  )}
                   className="mt-1"
                 />
               </FormField>
@@ -345,14 +371,26 @@ export default function HolidaysPage() {
               </FormField>
 
               <div className="flex items-center gap-2">
-                <input
-                  {...register("recurring")}
-                  id="holiday_recurring"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input"
+                <Controller
+                  name="recurring"
+                  control={control}
+                  render={({ field }) => (
+                    <Checkbox
+                      id="holiday_recurring"
+                      ref={field.ref}
+                      checked={field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
                 <Label htmlFor="holiday_recurring" className="cursor-pointer">
-                  {t("holidays_page.recurring_every_year")}
+                  {t(
+                    "holidays_page.recurring_every_year",
+                    "Recurring every year",
+                  )}
                 </Label>
               </div>
 
@@ -366,7 +404,7 @@ export default function HolidaysPage() {
                   )}
                   {editing
                     ? t("common.save", "Save")
-                    : t("holidays_page.add_holiday")}
+                    : t("holidays_page.add_holiday", "Add holiday")}
                 </Button>
               </DialogFooter>
             </form>

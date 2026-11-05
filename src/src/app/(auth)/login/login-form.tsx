@@ -575,7 +575,7 @@ export function LoginForm() {
               {t("auth.signing_in", "Signing in...")}
             </>
           ) : (
-            t("auth.sign_in", "Sign In")
+            t("auth.sign_in", "Sign in")
           )}
         </Button>
 

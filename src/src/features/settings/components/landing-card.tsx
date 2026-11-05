@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   ArrowDown,
@@ -357,7 +357,7 @@ export function LandingCard({
     setFieldErrors({});
     updateLanding.mutate(toUpdate(form), {
       onSuccess: () =>
-        toast.success(t("settings.landing_saved", "Sign-in page saved")),
+        toast.success(t("settings.landing_saved", "Public website saved")),
       onError: (error: unknown) => {
         const errors = (
           error as {
@@ -410,7 +410,10 @@ export function LandingCard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field
           id={`landing-${key}`}
-          label={`${label} (English)`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES[""],
+          })}
           error={fieldErrors[key]}
           counter={`${form[key].length}/${max}`}
         >
@@ -425,7 +428,10 @@ export function LandingCard({
         </Field>
         <Field
           id={`landing-${amKey}`}
-          label={`${label} (አማርኛ)`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES._am,
+          })}
           error={fieldErrors[amKey]}
           counter={`${form[amKey].length}/${max}`}
         >
@@ -440,7 +446,10 @@ export function LandingCard({
         </Field>
         <Field
           id={`landing-${omKey}`}
-          label={`${label} (Afaan Oromoo)`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES._om,
+          })}
           error={fieldErrors[omKey]}
           counter={`${form[omKey].length}/${max}`}
         >
@@ -463,7 +472,7 @@ export function LandingCard({
         <div className="flex items-center gap-2">
           <LogIn className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base">
-            {t("settings.landing_title", "Sign-in page")}
+            {t("settings.landing_title", "Public website")}
           </CardTitle>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -475,7 +484,7 @@ export function LandingCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs defaultValue="words">
-          <TabsList className="flex w-full flex-wrap">
+          <TabsList>
             <TabsTrigger value="words">
               {t("settings.landing_tab_words", "Words")}
             </TabsTrigger>
@@ -576,6 +585,7 @@ export function LandingCard({
                 id="landing-founded"
                 label={t("settings.landing_founded", "Founded in")}
                 error={fieldErrors.founded_year}
+                help={t("settings.landing_founded_help", "Gregorian year.")}
               >
                 <Input
                   id="landing-founded"
@@ -642,7 +652,7 @@ export function LandingCard({
               id="landing-branch-count"
               label={t(
                 "settings.landing_show_branch_count",
-                "Show how many places we have",
+                "Show how many branches we have",
               )}
               help={t(
                 "settings.landing_show_branch_count_help",
@@ -669,7 +679,7 @@ export function LandingCard({
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 id="landing-email"
-                label={t("settings.landing_support_email", "HR help e-mail")}
+                label={t("settings.landing_support_email", "HR help email")}
                 error={fieldErrors.support_email}
               >
                 <Input
@@ -728,7 +738,7 @@ export function LandingCard({
             </div>
             <SwitchRow
               id="landing-branches"
-              label={t("settings.landing_show_branches", "List our places")}
+              label={t("settings.landing_show_branches", "List our branches")}
               help={t(
                 "settings.landing_show_branches_help",
                 "Your active branches with their city, address and phone, from the branches you already keep.",
@@ -799,7 +809,7 @@ export function LandingCard({
               add={t("settings.landing_services_add", "Add a service")}
               full={t(
                 "settings.landing_services_full",
-                "Eight services is the most",
+                "Up to eight services.",
               )}
               errors={fieldErrors}
             />
@@ -834,10 +844,7 @@ export function LandingCard({
               )}
               empty={t("settings.landing_faq_empty", "No questions yet.")}
               add={t("settings.landing_faq_add", "Add a question")}
-              full={t(
-                "settings.landing_faq_full",
-                "Twelve questions is the most",
-              )}
+              full={t("settings.landing_faq_full", "Up to twelve questions.")}
               errors={fieldErrors}
             />
           </TabsContent>
@@ -933,7 +940,7 @@ export function LandingCard({
           />
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm font-medium">
-              {t("settings.landing_share", "Share your sign-in page")}
+              {t("settings.landing_share", "Share your public website")}
             </p>
             <code
               className="block break-all rounded-md bg-muted px-2 py-1 font-mono text-sm"
@@ -970,7 +977,7 @@ export function LandingCard({
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {t("settings.landing_save", "Save sign-in page")}
+            {t("settings.landing_save", "Save public website")}
           </Button>
         </div>
       </CardContent>
@@ -1155,7 +1162,15 @@ function BilingualList({
                         <Field
                           key={key}
                           id={inputId}
-                          label={`${field.label} ${n} (${LANGUAGE_NAMES[suffix]})`}
+                          label={t(
+                            "settings.landing_list_field_lang",
+                            ":label :n (:language)",
+                            {
+                              label: field.label,
+                              n,
+                              language: LANGUAGE_NAMES[suffix],
+                            },
+                          )}
                           error={
                             suffix
                               ? undefined
@@ -1181,16 +1196,24 @@ function BilingualList({
           })}
         </ol>
       )}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={items.length >= max}
-        onClick={() => onChange([...items, blank()])}
-      >
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        {items.length >= max ? full : add}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={items.length >= max}
+          aria-describedby={items.length >= max ? `${id}-full` : undefined}
+          onClick={() => onChange([...items, blank()])}
+        >
+          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+          {add}
+        </Button>
+        {items.length >= max && (
+          <p id={`${id}-full`} className="text-xs text-muted-foreground">
+            {full}
+          </p>
+        )}
+      </div>
     </>
   );
 }
@@ -1234,23 +1257,50 @@ function Field({
   counter?: string;
   children: React.ReactNode;
 }) {
+  const describedBy =
+    [
+      error ? `${id}-error` : help ? `${id}-help` : null,
+      counter ? `${id}-counter` : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  const control = React.isValidElement(children)
+    ? React.cloneElement(
+        children as React.ReactElement<Record<string, unknown>>,
+        {
+          "aria-invalid": error ? true : undefined,
+          "aria-describedby": describedBy,
+        },
+      )
+    : children;
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         {counter && (
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span
+            id={`${id}-counter`}
+            className="text-xs tabular-nums text-muted-foreground"
+          >
             {counter}
           </span>
         )}
       </div>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1">{control}</div>
       {error ? (
-        <p className="mt-1 text-xs text-destructive" role="alert">
+        <p
+          id={`${id}-error`}
+          className="mt-1 text-xs text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       ) : (
-        help && <p className="mt-1 text-xs text-muted-foreground">{help}</p>
+        help && (
+          <p id={`${id}-help`} className="mt-1 text-xs text-muted-foreground">
+            {help}
+          </p>
+        )
       )}
     </div>
   );
