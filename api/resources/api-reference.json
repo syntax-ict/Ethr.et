@@ -23707,30 +23707,61 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {
-                                            "type": "string",
-                                            "const": "https://ethr.et/errors/invalid-state"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/payroll-period-closed"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Payroll period closed"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 422
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
                                         },
-                                        "title": {
-                                            "type": "string",
-                                            "const": "Invalid State"
-                                        },
-                                        "status": {
-                                            "type": "integer",
-                                            "const": 422
-                                        },
-                                        "detail": {
-                                            "type": "string",
-                                            "const": "This leave request is no longer pending."
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/invalid-state"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Invalid State"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 422
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "This leave request is no longer pending."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
                                         }
-                                    },
-                                    "required": [
-                                        "type",
-                                        "title",
-                                        "status",
-                                        "detail"
                                     ]
                                 }
                             }

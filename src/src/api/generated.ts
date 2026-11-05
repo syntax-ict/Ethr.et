@@ -24569,6 +24569,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
+                        type: "https://ethr.et/errors/payroll-period-closed";
+                        /** @constant */
+                        title: "Payroll period closed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.";
+                    } | {
+                        /** @constant */
                         type: "https://ethr.et/errors/invalid-state";
                         /** @constant */
                         title: "Invalid State";

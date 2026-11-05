@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'not_pending' => 'Gaaffiin boqonnaa kun amma eegamaa hin jiru.',
+    'payroll_period_closed' => 'Boqonnaan kaffaltii malee kun yeroo kaffaltii mindaa duraan raggaafame keessa jira. Hir\'isni akka itti herregamuuf dura kaffaltii sana haqaatii irra deebi\'aa hojjechiisaa.',
     'not_own_request' => 'Gaaffiiwwan boqonnaa keessan qofa jijjiiruu dandeessu.',
     'overlap' => 'Gaaffii boqonnaa raggaasifame kan guyyoota kana waliin walitti bu\'u duraan qabdu.',
     'no_working_days' => 'Guyyoonni filataman guyyaa hojii tokkollee hin qabatan.',

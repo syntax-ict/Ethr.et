@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'not_pending' => 'This leave request is no longer pending.',
+    'payroll_period_closed' => 'This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.',
     'not_own_request' => 'You can only modify your own leave requests.',
     'overlap' => 'You already have an approved leave request that overlaps with these dates.',
     'no_working_days' => 'The selected dates do not include any working days.',
