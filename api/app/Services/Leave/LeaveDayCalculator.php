@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\Tenant;
 use App\Services\Attendance\ShiftMatcher;
+use App\Services\CurrentTenant;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -45,7 +46,7 @@ final class LeaveDayCalculator
             ->toArray();
 
         // `Tenant` is global (no tenant scope), so this needs no bypass.
-        $workingDays = WorkingWeek::of(Tenant::query()->find($tenantId));
+        $workingDays = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($tenantId));
         $scheduled = $employee === null
             ? null
             : app(ShiftMatcher::class)->workingDays($employee, $startDate, $endDate, $workingDays);

@@ -36,6 +36,9 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable implements HasLocalePreference
 {
+    /** @var array{key: string, names: list<string>}|null */
+    private ?array $resolvedPermissions = null;
+
     use BelongsToTenant, HasApiTokens, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
     protected $fillable = [
@@ -232,6 +235,20 @@ class User extends Authenticatable implements HasLocalePreference
      * @return list<string>
      */
     public function permissionNames(): array
+    {
+        // Once per user per request, for the role and custom role it was
+        // resolved for: a list of 100 employees asked for each row, and each
+        // ask read the cache, a database table on shared hosting (A-Z review I).
+        $key = $this->role->value.'|'.$this->custom_role_id;
+        if ($this->resolvedPermissions === null || $this->resolvedPermissions['key'] !== $key) {
+            $this->resolvedPermissions = ['key' => $key, 'names' => $this->resolvePermissionNames()];
+        }
+
+        return $this->resolvedPermissions['names'];
+    }
+
+    /** @return list<string> */
+    private function resolvePermissionNames(): array
     {
         if ($this->role === UserRole::SUPER_ADMIN) {
             return Permission::allNames();

@@ -33,6 +33,13 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
+            // Signed links are served from this path. Laravel's default,
+            // /storage, is refused by the production Apache rules, which send
+            // only /api, /sanctum and /iclock to Laravel, so every photo and
+            // document link answered 403 there (A-Z review I-06). Outside
+            // /api/v1, which is the published API: this route is the
+            // framework's own, signed, and documented nowhere.
+            'url' => rtrim((string) env('APP_URL', 'http://localhost'), '/').'/api/files',
             'serve' => true,
             'throw' => false,
             'report' => false,

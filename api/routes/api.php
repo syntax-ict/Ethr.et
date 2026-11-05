@@ -143,6 +143,7 @@ use App\Http\Controllers\Api\V1\Search\GlobalSearchController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\DataExportController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
+use App\Http\Controllers\Api\V1\Settings\OwnershipController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\Settings\TenantBrandAssetController;
 use App\Http\Controllers\Api\V1\Settings\TenantLogoController;
@@ -993,6 +994,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/tenants/{publicId}/domain/verify', [AdminTenantController::class, 'verifyDomain']);
             Route::put('/tenants/{publicId}/address-mode', [AdminTenantController::class, 'updateAddressMode']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
+            Route::post('/tenants/{publicId}/ownership', [AdminTenantController::class, 'transferOwnership']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
             Route::post('/tenants/{publicId}/delete', [AdminTenantController::class, 'destroy']);
@@ -1112,6 +1114,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
+    Route::get('/settings/ownership', [OwnershipController::class, 'show']);
+    Route::post('/settings/ownership/transfer', [OwnershipController::class, 'transfer']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::get('/settings/address/subdomain/check', [SettingsController::class, 'checkSubdomain']);
     Route::put('/settings/address/subdomain', [SettingsController::class, 'updateSubdomain'])->middleware('throttle:address-rename');
