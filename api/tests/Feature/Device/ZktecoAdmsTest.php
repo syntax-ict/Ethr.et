@@ -342,6 +342,8 @@ it('acknowledges a punch it refuses, and reports and skips one that fails otherw
 
     Exceptions::assertReported(RuntimeException::class);
     expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
 // A-Z review D-06 (2026-11-04). The break buttons were sent as a check-out and
 // a check-in: the break-out closed the morning's record as an early leave,
 // and the break-in opened a second record, rated late against the shift's

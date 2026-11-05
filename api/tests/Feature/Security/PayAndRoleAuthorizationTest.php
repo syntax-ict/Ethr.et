@@ -309,6 +309,9 @@ describe('pay data on the other paths that write it', function () {
             'import_key' => 'no-pay',
             'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01']],
         ])->assertCreated();
+    });
+});
+
 describe('grade salary bands', function () {
     it('show the band only to someone who may see pay', function () {
         $tenant = createTenant();

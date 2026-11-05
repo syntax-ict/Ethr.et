@@ -699,6 +699,8 @@ test('the subscription stays past due while another invoice is still 30 days ove
         ->assertOk();
 
     expect($subscription->fresh()->status)->toBe(SubscriptionStatus::PAST_DUE);
+});
+
 // A-Z review H-06 (2026-11-04). The export wrote each row in its readable
 // form, so a field the database keeps encrypted was written out readable.
 // Rows are now written as stored: an encrypted field stays encrypted, as it
@@ -745,4 +747,32 @@ test('BackupTenantJob keeps only as many exports as the full backups', function 
 
     expect(Storage::disk(config('filesystems.default'))->files("backups/{$tenant->subdomain}"))
         ->toBe(["backups/{$tenant->subdomain}/2026-11-02_080000.json", "backups/{$tenant->subdomain}/2026-11-03_080000.json"]);
+});
+
+// A-Z review H-05 (2026-11-04). Extending added the days to the old end date,
+// so a trial that ended 60 days ago "extended" by 30 was still over, and the
+// console said it was done. It also rewrote the trial date of an organisation
+// that was not on a trial at all.
+test('extending a trial that has ended counts the days from today', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant));
+    $target = Tenant::factory()->create(['status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDays(60)]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/extend-trial", ['days' => 30])
+        ->assertOk();
+
+    expect($target->fresh()->trial_ends_at->toDateString())->toBe(now()->addDays(30)->toDateString())
+        ->and($target->fresh()->isTrialExpired())->toBeFalse();
+});
+
+test('a trial is extended only for an organisation on a trial', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant));
+    $target = Tenant::factory()->create(['status' => TenantStatus::ACTIVE, 'trial_ends_at' => now()->subYear()]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/extend-trial", ['days' => 30])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['days' => __('billing.trial_not_running')]);
+
+    expect($target->fresh()->trial_ends_at->isPast())->toBeTrue();
 });

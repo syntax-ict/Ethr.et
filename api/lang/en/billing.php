@@ -38,4 +38,5 @@ return [
         'public_news' => 'the public news page',
         'public_vacancies' => 'the public vacancies',
     ],
+    'trial_not_running' => 'Only an organisation on a trial can have its trial extended.',
 ];
