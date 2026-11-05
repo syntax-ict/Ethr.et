@@ -11,6 +11,9 @@ use Carbon\Carbon;
 
 final class HolidayService
 {
+    /** @var array<string, array<string, bool>> */
+    private array $datesAsked = [];
+
     public function __construct(
         private readonly EthiopianCalendar $calendar,
     ) {}
@@ -24,6 +27,16 @@ final class HolidayService
      * @return array<string, bool>
      */
     public function getHolidayDates(int $tenantId, Carbon $from, Carbon $to, ?int $branchId = null): array
+    {
+        // Once per instance for the same question: a payroll run of 500 asked
+        // it 1,000 times (A-Z review I).
+        $key = $tenantId.'|'.$branchId.'|'.$from->format('Y-m-d').'|'.$to->format('Y-m-d');
+
+        return $this->datesAsked[$key] ??= $this->readHolidayDates($tenantId, $from, $to, $branchId);
+    }
+
+    /** @return array<string, bool> */
+    private function readHolidayDates(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
     {
         return Holiday::query()
             ->withoutGlobalScope('tenant')

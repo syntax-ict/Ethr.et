@@ -5485,6 +5485,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ownership settings */
+        get: operations["ownership.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ownership/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer ownership */
+        post: operations["ownership.transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -6259,6 +6293,29 @@ export interface paths {
         put?: never;
         /** Extend trial tenants */
         post: operations["adminTenant.extendTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand an organisation to another of its active administrators: for an
+         *     owner who has left, or cannot be reached. The organisation's own owner
+         *     transfers from Settings; this is ETHR's, with a reason, behind
+         *     admin.manage and the console's MFA for writes. Recorded in the audit
+         *     log, which is the ownership history
+         */
+        post: operations["adminTenant.transferOwnership"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11888,6 +11945,16 @@ export interface components {
             code: string;
             body?: string;
         };
+        /** TransferOwnershipByPlatformRequest */
+        TransferOwnershipByPlatformRequest: {
+            user_public_id: string;
+            reason: string;
+        };
+        /** TransferOwnershipRequest */
+        TransferOwnershipRequest: {
+            user_public_id: string;
+            password: string;
+        };
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
             to_status: components["schemas"]["EmployeeStatus"];
@@ -17371,9 +17438,7 @@ export interface operations {
                             employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
-                        permissions: {
-                            [key: string]: unknown;
-                        };
+                        permissions: string[];
                         plan_features: unknown[] | null;
                         features: {
                             [key: string]: {
@@ -28497,6 +28562,63 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "ownership.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string | null;
+                        owner_name: string | null;
+                        is_owner: string;
+                        candidates: {
+                            public_id: string;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "ownership.transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.process": {
         parameters: {
             query?: never;
@@ -30252,7 +30374,40 @@ export interface operations {
                             phone: string | null;
                             phone_verified: boolean;
                             last_login_at: string | null;
+                            public_id: string;
+                            status: string;
                         } | null;
+                        admins: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                        }[];
+                        ownership_history: {
+                            action: string;
+                            from: string | null;
+                            to: string | null;
+                            reason: string | null;
+                            by_platform: boolean;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
+                        administrators: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                            role: string;
+                            custom_role: string | null;
+                            mfa_enabled: boolean;
+                            status: string;
+                            last_login_at: string | null;
+                            is_owner: boolean;
+                        }[];
+                        privileged_actions: {
+                            action: string;
+                            actor: string | null;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
                     };
                 };
             };
@@ -30452,6 +30607,36 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         trial_ends_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.transferOwnership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipByPlatformRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
                     };
                 };
             };
@@ -35641,6 +35826,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This person owns the organisation. Hand ownership to another administrator first.";
+                    } | {
                         /** @constant */
                         type: "https://ethr.et/errors/business-rule";
                         /** @constant */

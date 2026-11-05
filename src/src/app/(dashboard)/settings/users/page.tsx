@@ -56,6 +56,7 @@ import {
 import { SearchInput } from "@/components/shared/search-input";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { OwnershipCard } from "@/features/settings/components/ownership-card";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
@@ -258,6 +259,7 @@ export default function UsersSettingsPage() {
   return (
     <RoleGate anyPermission={["viewUsers"]}>
       <div className="space-y-6">
+        <OwnershipCard />
         <PageActions
           actions={
             <>

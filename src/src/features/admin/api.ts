@@ -94,12 +94,44 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
    * unverified until a code confirms it; null when none was given.
    */
   owner: {
+    public_id: string;
     name: string;
     email: string | null;
     phone: string | null;
     phone_verified: boolean;
     last_login_at: string | null;
+    /** `active` unless the owner has been switched off. */
+    status: string;
   } | null;
+  /** The organisation's active administrators: who ownership can pass to. */
+  admins: Array<{ public_id: string; name: string; email: string | null }>;
+  /** Everyone who can administer it: the admin roles and custom roles. */
+  administrators: Array<{
+    public_id: string;
+    name: string;
+    email: string | null;
+    role: string;
+    custom_role: string | null;
+    mfa_enabled: boolean;
+    status: string;
+    last_login_at: string | null;
+    is_owner: boolean;
+  }>;
+  /** Recent actions that change who may do what, or move money, and who did them. */
+  privileged_actions: Array<{
+    action: string;
+    actor: string | null;
+    created_at: string;
+  }>;
+  /** The registration, then every change of owner, newest first. */
+  ownership_history: Array<{
+    action: string;
+    from: string | null;
+    to: string | null;
+    reason: string | null;
+    by_platform: boolean;
+    created_at: string;
+  }>;
 }
 
 export function useAdminTenants(params?: {
@@ -232,6 +264,29 @@ export function useUpdateTenantShowcase() {
       const { data } = await apiClient.put(
         `/admin/tenants/${publicId}/showcase`,
         { hidden },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
+/** ETHR hands an organisation to another of its active administrators, with a reason. */
+export function useTransferTenantOwnership() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      userPublicId,
+      reason,
+    }: {
+      publicId: string;
+      userPublicId: string;
+      reason: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/ownership`,
+        { user_public_id: userPublicId, reason },
       );
       return data;
     },

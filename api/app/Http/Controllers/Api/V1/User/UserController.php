@@ -13,7 +13,9 @@ use App\Models\AuditLog;
 use App\Models\CustomRole;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\CurrentTenant;
 use App\Services\MfaService;
+use App\Services\Tenancy\OrganisationOwnership;
 use App\Services\UserProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -175,6 +177,10 @@ class UserController extends Controller
         }
 
         $this->guardTargetLevel($request->user(), $user);
+
+        if (OrganisationOwnership::owns($user, app(CurrentTenant::class)->get())) {
+            return $this->problem(422, __('user.errors.owner_transfer_first'));
+        }
 
         $user->update(['status' => 'inactive']);
         $user->tokens()->delete();

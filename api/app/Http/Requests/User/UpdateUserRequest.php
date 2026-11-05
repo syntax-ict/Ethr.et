@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Tenancy\OrganisationOwnership;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -65,6 +66,17 @@ class UpdateUserRequest extends FormRequest
             // a narrow one locks them out as surely as a status change does.
             $changesCustomRole = $target instanceof User && $this->has('custom_role_id')
                 && $this->input('custom_role_id') !== $target->customRole?->public_id;
+
+            // The owner stays an active administrator until ownership is
+            // handed on: ETHR's support calls them, and only they may give
+            // it away (OrganisationOwnership). A custom role replaces their
+            // permissions, so it is refused the same way.
+            if (($changesRole || $changesCustomRole || ($changesStatus && $this->input('status') !== 'active'))
+                && OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
+                $v->errors()->add($changesRole ? 'role' : ($changesCustomRole ? 'custom_role_id' : 'status'), __('user.errors.owner_transfer_first'));
+
+                return;
+            }
 
             if (($changesRole || $changesStatus || $changesCustomRole) && $actor !== null
                 && ! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
