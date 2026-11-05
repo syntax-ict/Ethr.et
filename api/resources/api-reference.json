@@ -23473,6 +23473,112 @@
                 }
             }
         },
+        "/leave/{leaveRequest}/recall": {
+            "put": {
+                "x-abilities": [
+                    "write",
+                    "leave"
+                ],
+                "operationId": "leaveRequest.recall",
+                "summary": "Cancel approved leave, or end it early: HR only, with a reason. The\ndays it no longer takes go back to the balance, and the employee is\ntold. Without `end_date` the leave is cancelled",
+                "tags": [
+                    "Leave"
+                ],
+                "parameters": [
+                    {
+                        "name": "leaveRequest",
+                        "in": "path",
+                        "required": true,
+                        "description": "The leave request public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecallLeaveRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`LeaveRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/LeaveRequestResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "employee": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "leave_type": {
+                                                    "$ref": "#/components/schemas/LeaveTypeResource"
+                                                },
+                                                "approval": {
+                                                    "allOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/ApprovalSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "history": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "$ref": "#/components/schemas/ApprovalActionResource"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "history"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "employee",
+                                                "leave_type",
+                                                "approval"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/leave/{leaveRequest}/reject": {
             "put": {
                 "x-abilities": [
@@ -23878,6 +23984,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "leave_changed"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "attendance_correction"
                                                 },
                                                 {
@@ -23917,8 +24027,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 13,
-                                            "maxItems": 13,
+                                            "minItems": 14,
+                                            "maxItems": 14,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -24030,6 +24140,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "leave_changed"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "attendance_correction"
                                                 },
                                                 {
@@ -24069,8 +24183,8 @@
                                                     "const": "employee_voice"
                                                 }
                                             ],
-                                            "minItems": 13,
-                                            "maxItems": 13,
+                                            "minItems": 14,
+                                            "maxItems": 14,
                                             "additionalItems": false
                                         },
                                         "channels": {
@@ -35641,6 +35755,7 @@
                                                             "leave_requested",
                                                             "leave_approved",
                                                             "leave_rejected",
+                                                            "leave_changed",
                                                             "payslip_available",
                                                             "missing_punch",
                                                             "trial_expiring"
@@ -49374,6 +49489,26 @@
                 ],
                 "title": "QrAttendanceRequest"
             },
+            "RecallLeaveRequest": {
+                "type": "object",
+                "properties": {
+                    "end_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "RecallLeaveRequest"
+            },
             "RecordApplicationEventRequest": {
                 "type": "object",
                 "description": "A note, or an interview: when it is or was, and the panel's assessment out\nof 100 if they gave one.",
@@ -54544,6 +54679,7 @@
         "leave.requested",
         "leave.approved",
         "leave.rejected",
+        "leave.changed",
         "payroll.processed",
         "payroll.approved",
         "payroll.voided",

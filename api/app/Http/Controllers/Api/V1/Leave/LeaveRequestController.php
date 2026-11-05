@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Leave;
 
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Leave\RecallLeaveRequest;
 use App\Http\Requests\Leave\RejectLeaveRequest;
 use App\Http\Requests\Leave\StoreLeaveRequestRequest;
 use App\Http\Resources\LeaveBalanceResource;
@@ -21,7 +22,10 @@ use App\Services\CurrentTenant;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
+use App\Services\Leave\LeaveRecallService;
 use App\Services\Leave\LeaveYear;
+use App\Services\Payroll\PayrollPeriodLock;
+use App\Support\ApprovalRefusal;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
@@ -30,6 +34,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
 {
@@ -373,6 +378,68 @@ class LeaveRequestController extends Controller
         }
 
         AuditLog::record('leave.cancelled', $leaveRequest);
+
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
+
+        return response()->json(new LeaveRequestResource($leaveRequest));
+    }
+
+    /**
+     * Cancel approved leave, or end it early: HR only, with a reason. The
+     * days it no longer takes go back to the balance, and the employee is
+     * told. Without `end_date` the leave is cancelled.
+     */
+    public function recall(RecallLeaveRequest $request, LeaveRequest $leaveRequest, LeaveRecallService $recalls): JsonResponse
+    {
+        $this->authorize('recall', $leaveRequest);
+
+        $user = $request->user();
+
+        // Not one's own: the days go back to the balance of whoever does it.
+        if ($user->employee_id !== null && $user->employee_id === $leaveRequest->employee_id) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/forbidden',
+                'title' => 'Forbidden',
+                'status' => 403,
+                'detail' => __('leave.cannot_recall_own'),
+            ], 403)->header('Content-Type', 'application/problem+json');
+        }
+
+        if ($leaveRequest->status !== LeaveStatus::APPROVED) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_approved'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $start = $leaveRequest->start_date->copy()->startOfDay();
+        $end = $request->validated('end_date') !== null ? Carbon::parse((string) $request->validated('end_date'))->startOfDay() : null;
+
+        if ($end !== null && ($end->lt($start) || $end->gte($leaveRequest->end_date->copy()->startOfDay()))) {
+            throw ValidationException::withMessages(['end_date' => [__('leave.recall_end_date')]]);
+        }
+
+        if ($end !== null && $recalls->daysUntil($leaveRequest, $end) <= 0) {
+            throw ValidationException::withMessages(['end_date' => [__('leave.recall_no_days')]]);
+        }
+
+        // The days given back must not fall in a period an approved run has
+        // paid, whatever the type: the run would no longer match the record.
+        $freedFrom = $end === null ? $start : $end->copy()->addDay();
+        if (app(PayrollPeriodLock::class)->anyClosed($leaveRequest->employee_id, $freedFrom, $leaveRequest->end_date)) {
+            return ApprovalRefusal::payrollPeriodClosed(__('leave.recall_period_closed'))->toResponse();
+        }
+
+        if (! $recalls->recall($leaveRequest, $user, $end, (string) $request->validated('reason'))) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_approved'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
 
         $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
