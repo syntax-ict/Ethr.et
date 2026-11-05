@@ -7,12 +7,15 @@ use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Jobs\BackupTenantJob;
 use App\Models\Employee;
+use App\Models\EmployeeBankDetail;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\Webhook;
 use App\Notifications\SystemAlertNotification;
 use App\Services\Admin\SystemHealthService;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -696,4 +699,50 @@ test('the subscription stays past due while another invoice is still 30 days ove
         ->assertOk();
 
     expect($subscription->fresh()->status)->toBe(SubscriptionStatus::PAST_DUE);
+// A-Z review H-06 (2026-11-04). The export wrote each row in its readable
+// form, so a field the database keeps encrypted was written out readable.
+// Rows are now written as stored: an encrypted field stays encrypted, as it
+// is in the database dump, and hidden fields stay out.
+test('BackupTenantJob keeps encrypted fields encrypted', function () {
+    Notification::fake();
+    Storage::fake(config('filesystems.default'));
+
+    $tenant = createTenant();
+    $admin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    EmployeeBankDetail::query()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+        'bank_name' => 'Awash Bank', 'account_number' => '0131234567890', 'is_primary' => true,
+    ]);
+    Webhook::query()->create([
+        'tenant_id' => $tenant->id, 'url' => 'https://hooks.example.et/x',
+        'secret' => 'whsec-plain-value-for-test', 'events' => ['employee.created'], 'is_active' => true,
+    ]);
+
+    (new BackupTenantJob($tenant->id, $admin->id))->handle();
+
+    $disk = Storage::disk(config('filesystems.default'));
+    $json = $disk->get($disk->allFiles("backups/{$tenant->subdomain}")[0]);
+
+    expect($json)->not->toContain('0131234567890')
+        ->not->toContain('whsec-plain-value-for-test');
+    $payload = json_decode($json, true);
+    expect($payload['tables']['users'][0])->not->toHaveKey('password')
+        ->and(Crypt::decryptString($payload['tables']['employee_bank_details'][0]['account_number']))->toBe('0131234567890');
+});
+
+test('BackupTenantJob keeps only as many exports as the full backups', function () {
+    Notification::fake();
+    Storage::fake(config('filesystems.default'));
+    config(['backup.keep' => 2]);
+    $tenant = createTenant();
+    $admin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+
+    foreach (['2026-11-01 08:00', '2026-11-02 08:00', '2026-11-03 08:00'] as $at) {
+        $this->travelTo($at);
+        (new BackupTenantJob($tenant->id, $admin->id))->handle();
+    }
+
+    expect(Storage::disk(config('filesystems.default'))->files("backups/{$tenant->subdomain}"))
+        ->toBe(["backups/{$tenant->subdomain}/2026-11-02_080000.json", "backups/{$tenant->subdomain}/2026-11-03_080000.json"]);
 });
