@@ -24221,11 +24221,6 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /**
-             * @description Cached briefly, like tenant-context: the portal is public and read
-             *     far more often than news is published, and Vary keeps one tenant's
-             *     feed from being served as another's through a shared cache.
-             */
             200: {
                 headers: {
                     [name: string]: unknown;
