@@ -241,7 +241,7 @@ it('delivers waiting commands when a sync finds the device online', function () 
     $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
     $device = commandDevice($tenant, $branch, ['adapter_type' => 'mock', 'connection_config' => []]);
 
-    PullDeviceEventsJob::dispatchSync($device);
+    PullDeviceEventsJob::dispatchSync($device->id, $device->tenant_id);
 
     expect($device->commands()->where('type', DeviceCommandType::SET_TIME->value)->value('status'))
         ->toBe(DeviceCommandStatus::DONE);

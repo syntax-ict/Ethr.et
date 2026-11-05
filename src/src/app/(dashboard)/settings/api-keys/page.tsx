@@ -26,10 +26,13 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
@@ -112,6 +115,26 @@ export default function ApiKeysPage() {
 
   const selectedAbilities = watch("abilities");
   const expiry = watch("expiry");
+  // The ability codes were shown raw ("read", "employees"); each now has a
+  // label, and the reference's one-line meaning as its help.
+  const abilityLabel: Record<ApiKeyAbility, string> = {
+    read: t("api_keys_page.ability_read", "Read"),
+    write: t("api_keys_page.ability_write", "Write"),
+    employees: t("api_keys_page.ability_employees", "Employees"),
+    attendance: t("api_keys_page.ability_attendance", "Attendance"),
+    leave: t("api_keys_page.ability_leave", "Leave"),
+    payroll: t("api_keys_page.ability_payroll", "Payroll"),
+    reports: t("api_keys_page.ability_reports", "Reports"),
+  };
+  const abilityHelp: Record<ApiKeyAbility, string> = {
+    read: t("api_reference.ability_read"),
+    write: t("api_reference.ability_write"),
+    employees: t("api_reference.ability_employees"),
+    attendance: t("api_reference.ability_attendance"),
+    leave: t("api_reference.ability_leave"),
+    payroll: t("api_reference.ability_payroll"),
+    reports: t("api_reference.ability_reports"),
+  };
   const expiryLabel: Record<Expiry, string> = {
     "30": t("api_keys_page.expiry_30"),
     "90": t("api_keys_page.expiry_90"),
@@ -175,7 +198,7 @@ export default function ApiKeysPage() {
       <div className="space-y-6">
         <PageActions
           actions={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
                 <Link href="/settings/api-keys/reference">
                   <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
@@ -196,14 +219,14 @@ export default function ApiKeysPage() {
                       every visit fire a pointless call to the docs endpoint. */}
                   <a href="/api/docs" target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
-                    {t("api_keys_page.api_docs")}
+                    {t("api_keys_page.api_docs", "API docs")}
                   </a>
                 </Button>
               )}
               {hasApiAccess && (
                 <Button onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />{" "}
-                  {t("api_keys_page.create_key")}
+                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                  {t("api_keys_page.create_key", "Create key")}
                 </Button>
               )}
             </div>
@@ -213,13 +236,13 @@ export default function ApiKeysPage() {
         {!hasApiAccess && <PlanFeatureNotice feature="api_access" />}
 
         {newKey && (
-          <Card className="border-2 border-status-warning/40 bg-status-warning/5">
+          <Card className="border-warning-edge bg-warning-soft">
             <CardContent className="p-4">
-              <p className="mb-2 text-sm font-semibold text-foreground">
+              <p className="mb-2 text-sm font-semibold text-warning-on-soft">
                 {t("api_keys_page.save_now_hint")}
               </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <code className="block min-w-0 flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
                   {newKey}
                 </code>
                 <Button
@@ -255,7 +278,18 @@ export default function ApiKeysPage() {
             <EmptyState
               icon={KeyRound}
               title={t("api_keys_page.no_keys")}
-              description={t("api_keys_page.no_keys_desc")}
+              description={t(
+                "api_keys_page.no_keys_desc",
+                "Create a key to let another system read or update your ETHR data.",
+              )}
+              action={
+                hasApiAccess ? (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                    {t("api_keys_page.create_key", "Create key")}
+                  </Button>
+                ) : undefined
+              }
             />
           }
         >
@@ -264,12 +298,12 @@ export default function ApiKeysPage() {
               <CardContent className="p-0">
                 <SimpleTable
                   mobileCards
-                  caption={t("api_keys_page.title", "API Keys")}
+                  caption={t("api_keys_page.title", "API keys")}
                   headers={[
                     t("common.name"),
                     t("api_keys_page.prefix"),
                     t("api_keys_page.abilities"),
-                    t("attendance.kiosks_page.created"),
+                    t("api_keys_page.created", "Created"),
                     t("api_keys_page.expires"),
                   ]}
                   colClassName={[
@@ -287,7 +321,7 @@ export default function ApiKeysPage() {
                         {/* An expired key is still listed (only revoked ones
                           are not) but no longer authenticates. */}
                         {!k.is_active && (
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-caption">
                             {t("common.inactive")}
                           </Badge>
                         )}
@@ -300,9 +334,16 @@ export default function ApiKeysPage() {
                           <Badge
                             key={a}
                             variant="outline"
-                            className="text-[10px]"
+                            className="text-caption"
+                            title={
+                              (abilityHelp as Partial<Record<string, string>>)[
+                                a
+                              ]
+                            }
                           >
-                            {a}
+                            {(abilityLabel as Partial<Record<string, string>>)[
+                              a
+                            ] ?? a}
                           </Badge>
                         ))}
                       </div>,
@@ -320,11 +361,16 @@ export default function ApiKeysPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setRevoking(k)}
+                        aria-label={t(
+                          "api_keys_page.revoke_named",
+                          "Revoke :name",
+                          { name: k.name },
+                        )}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                        <span className="sr-only">
-                          {t("api_keys_page.revoke", "Revoke")}
-                        </span>
+                        <Trash2
+                          className="h-4 w-4 text-destructive"
+                          aria-hidden="true"
+                        />
                       </Button>
                     ),
                   }))}
@@ -337,8 +383,13 @@ export default function ApiKeysPage() {
         <ConfirmDialog
           open={!!revoking}
           onOpenChange={(open) => !open && setRevoking(null)}
-          title={`${t("api_keys_page.revoke")}: ${revoking?.name ?? ""}`}
-          description={t("devices_page.delete_confirm_suffix")}
+          title={t("api_keys_page.revoke_confirm_title", "Revoke :name?", {
+            name: revoking?.name ?? "",
+          })}
+          description={t(
+            "api_keys_page.revoke_confirm_desc",
+            "Every integration using this key stops working immediately. This cannot be undone.",
+          )}
           confirmLabel={t("api_keys_page.revoke")}
           variant="destructive"
           loading={revokeKey.isPending}
@@ -348,10 +399,24 @@ export default function ApiKeysPage() {
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("api_keys_page.create_key")}</DialogTitle>
+              <DialogTitle>
+                {t("api_keys_page.create_key", "Create key")}
+              </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "api_keys_page.create_desc",
+                  "A key acts as you, limited to the abilities you tick. It is shown once, after you create it.",
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form
-              onSubmit={submit(create, t("api_keys_page.create_failed"))}
+              onSubmit={submit(
+                create,
+                t(
+                  "api_keys_page.create_failed",
+                  "The key could not be created.",
+                ),
+              )}
               className="space-y-4"
               noValidate
             >
@@ -359,13 +424,16 @@ export default function ApiKeysPage() {
 
               <FormField
                 id="api-key-name"
-                label={t("api_keys_page.key_name")}
+                label={t("api_keys_page.key_name", "Key name")}
                 required
                 error={fieldMessage(t, errors.name?.message)}
               >
                 <Input
                   {...register("name")}
-                  placeholder={t("api_keys_page.key_name_placeholder")}
+                  placeholder={t(
+                    "api_keys_page.key_name_placeholder",
+                    "Mobile app integration",
+                  )}
                   className="mt-1"
                 />
               </FormField>
@@ -384,18 +452,32 @@ export default function ApiKeysPage() {
                     className="mt-2 grid grid-cols-2 gap-2"
                   >
                     {ABILITIES.map((a) => (
-                      <label
+                      <div
                         key={a}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border p-2 hover:bg-muted/50"
+                        className="flex items-start gap-2 rounded-lg border p-2 hover:bg-muted/50"
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
+                          id={`api-key-ability-${a}`}
                           checked={selectedAbilities.includes(a)}
-                          onChange={() => toggleAbility(a)}
-                          className="h-4 w-4 rounded"
+                          onCheckedChange={() => toggleAbility(a)}
+                          aria-describedby={`api-key-ability-${a}-help`}
+                          className="mt-0.5"
                         />
-                        <span className="text-sm capitalize">{a}</span>
-                      </label>
+                        <div className="min-w-0 space-y-0.5">
+                          <Label
+                            htmlFor={`api-key-ability-${a}`}
+                            className="cursor-pointer text-sm"
+                          >
+                            {abilityLabel[a]}
+                          </Label>
+                          <p
+                            id={`api-key-ability-${a}-help`}
+                            className="text-caption text-muted-foreground"
+                          >
+                            {abilityHelp[a]}
+                          </p>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}

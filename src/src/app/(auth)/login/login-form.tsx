@@ -1,9 +1,9 @@
 "use client";
 
-import { withOrganisation } from "@/lib/auth/entry-organisation";
+import { isFrontDoor, withOrganisation } from "@/lib/auth/entry-organisation";
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,9 +28,8 @@ import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
-import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
-import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
+import { cn } from "@/lib/utils";
 
 const loginSchema = z.object({
   // Deliberately optional, and the server decides.
@@ -46,8 +45,11 @@ const loginSchema = z.object({
   // required. Provide your subdomain.", which surfaces as a field error just
   // as the client-side rule did.
   tenant: z.string().optional(),
-  email: z.string().email("auth.invalid_credentials"),
-  password: z.string().min(1, "auth.invalid_credentials"),
+  // Each message is a key: the form translates it where it is shown. A
+  // malformed address used to be told "Invalid credentials", which sent
+  // people to reset a password that was never checked.
+  email: z.string().email("auth.email_invalid"),
+  password: z.string().min(1, "auth.password_required"),
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
@@ -68,9 +70,17 @@ function organisationFromEntryUrl(): string | null {
   return org && /^[a-z0-9][a-z0-9-]{0,62}$/.test(org) ? org : null;
 }
 
+/**
+ * The shared sign-in form. One form for every organisation and for ETHR's
+ * own sign-in: on an organisation's front door it sits in the portal's hero
+ * card, elsewhere in the two-panel layout, and the surface around it already
+ * says whose page this is. So the form itself stays short: a heading, the
+ * fields, the button, and the other ways in that this organisation offers.
+ */
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const pathname = usePathname();
   const { t, locale } = useT();
   const {
     context: hostAppContext,
@@ -79,12 +89,12 @@ export function LoginForm() {
     tenantContextLoading,
     tenantLookupError,
     tenantFieldVisible,
-    tenantBrand,
     tenantSignIn,
     onLanding,
     carryOrganisation,
   } = useAuthHostContext();
   const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
   const [serverError, setServerError] = useState("");
   const [ssoLoading, setSsoLoading] = useState(false);
   const [arrivedByHandoff, setArrivedByHandoff] = useState(false);
@@ -292,18 +302,30 @@ export function LoginForm() {
     }
   }
 
+  /**
+   * Caps Lock, read off the key events the password field receives: the one
+   * state a masked field cannot show, and the usual reason a right password
+   * is refused.
+   */
+  function readCapsLock(event: React.KeyboardEvent<HTMLInputElement>) {
+    setCapsLock(event.getModifierState("CapsLock"));
+  }
+
   if (tenantLookupError) {
     return <TenantLookupErrorState kind={tenantLookupError} />;
   }
 
+  const organisation = hostAppContext === "tenant";
+  const organisationLabel = tenantContextLoading
+    ? "…"
+    : (tenantName ?? subdomainFromHost ?? "ETHR");
+
   const heading =
     hostAppContext === "platform"
       ? t("auth.sign_in_to_platform", "Sign in to ETHR Platform")
-      : hostAppContext === "tenant"
+      : organisation
         ? t("auth.sign_in_to_org", "Sign in to :name", {
-            name: tenantContextLoading
-              ? "…"
-              : (tenantName ?? subdomainFromHost ?? "ETHR"),
+            name: organisationLabel,
           })
         : t("auth.sign_in_to", "Sign in to ETHR");
 
@@ -315,49 +337,79 @@ export function LoginForm() {
         )
       : t(
           "auth.enter_credentials",
-          "Enter your credentials to access your account",
+          "Enter your email and password to continue.",
         );
+
+  // The surface around the form already carries the mark: the portal's hero,
+  // the two-panel layout's brand panel, and on a phone its organisation band.
+  // Only ETHR's own sign-in has nothing above the form on a phone, so only
+  // there the tile is drawn, and only below the breakpoint where the brand
+  // panel appears.
+  const showMark = !organisation;
+  // The address line matters where the organisation came from the path and
+  // someone may have followed the wrong link: it names the address and offers
+  // a way out. On the organisation's own host the hero and the heading
+  // already say whose page this is, and there is nothing to change.
+  const showAddress = organisation && onLanding && subdomainFromHost;
+  const inPortal = organisation && isFrontDoor(pathname);
 
   // An organisation's page offers only the ways in it actually has: SSO once
   // it is configured, text-message codes once a gateway exists. Elsewhere the
   // organisation is not known yet, so both stay on offer.
-  const offerSso =
-    hostAppContext === "tenant" && tenantSignIn ? tenantSignIn.sso : true;
+  const offerSso = organisation && tenantSignIn ? tenantSignIn.sso : true;
   // A one-time code by email or by text message, whichever this organisation
   // can deliver: email wherever mail works, SMS once a gateway is configured.
   const offerOtp =
-    hostAppContext === "tenant" && tenantSignIn
+    organisation && tenantSignIn
       ? tenantSignIn.otp || Boolean(tenantSignIn.email_code)
       : true;
   // Not on an organisation's own address: the people there are its
   // employees, and a trial would start a new organisation.
-  const offerTrial = hostAppContext !== "tenant";
+  const offerTrial = !organisation && hostAppContext !== "platform";
+  const alternatives = hostAppContext !== "platform" && (offerSso || offerOtp);
+
+  const fieldError = "text-caption text-destructive";
+
   return (
-    <div className="w-full max-w-sm mx-auto">
-      <div className="mb-8">
-        {hostAppContext === "tenant" ? (
-          <OrgMark
-            name={tenantName}
-            logoUrl={tenantBrand?.logo_url}
-            className="h-11 w-11"
-            initialClassName="text-base"
-          />
-        ) : (
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
+    <div className={cn("mx-auto w-full", inPortal ? "max-w-md" : "max-w-sm")}>
+      <div className={inPortal ? "mb-6" : "mb-8"}>
+        {showMark && (
+          <div
+            className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm lg:hidden"
+            aria-hidden="true"
+          >
             <span className="text-base font-bold text-primary-foreground">
               E
             </span>
           </div>
         )}
-        <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
-          {heading}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+        <h1 className="text-title text-balance text-foreground">{heading}</h1>
+        <p className="mt-1.5 text-body text-muted-foreground">{subtitle}</p>
+        {showAddress && (
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
+            <span className="truncate">
+              {t("auth.signing_in_at", "Signing in at :address", {
+                address: `${window.location.host}/${subdomainFromHost}`,
+              })}
+            </span>
+            <span aria-hidden="true">·</span>
+            <Link
+              prefetch={false}
+              href="/login"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {t("auth.not_your_org", "Not yours?")}
+            </Link>
+          </p>
+        )}
       </div>
 
       {arrivedByHandoff && (
-        <div role="status" className="mb-5 rounded-lg bg-primary/10 p-3">
-          <p className="text-sm text-foreground">
+        <div
+          role="status"
+          className="mb-5 rounded-lg border border-info-edge bg-info-soft p-3"
+        >
+          <p className="text-sm text-info-on-soft">
             {t(
               "auth.canonical_handoff",
               ":name signs in at this address. Enter your password again to continue.",
@@ -367,49 +419,36 @@ export function LoginForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {hostAppContext === "tenant" && subdomainFromHost && (
-          <TenantHostIndicator
-            name={tenantName}
-            slug={subdomainFromHost}
-            loading={tenantContextLoading}
-            logoUrl={tenantBrand?.logo_url}
-            // On the landing the organisation is in the path, not the host;
-            // and someone who followed the wrong link can still choose.
-            address={
-              onLanding
-                ? `${window.location.host}/${subdomainFromHost}`
-                : undefined
-            }
-            changeHref={onLanding ? "/login" : undefined}
-          />
-        )}
-
+      {/* noValidate: the browser's own bubble for a malformed email would
+          speak over the form's translated message. */}
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
         {tenantFieldVisible && (
           <div className="space-y-2">
             <Label htmlFor="tenant">
               {t("auth.org_subdomain", "Organization subdomain")}
             </Label>
-            <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+            <div className="flex h-11 items-center rounded-md border border-input shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
               <TenantAddressAffix side="prefix" bordered />
               <Input
                 id="tenant"
                 {...register("tenant")}
                 placeholder="acme"
                 autoComplete="organization"
-                className="border-0 focus-visible:ring-0"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="h-full border-0 shadow-none focus-visible:ring-0"
               />
               <TenantAddressAffix side="suffix" bordered />
             </div>
             {errors.tenant && (
-              <p className="text-xs text-destructive">
+              <p className={fieldError}>
                 {t(
                   errors.tenant.message!,
                   "Please enter your organization subdomain.",
                 )}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               {t(
                 "auth.subdomain_hint",
                 "Don't know your subdomain? Check the invitation email or ask your administrator.",
@@ -430,18 +469,24 @@ export function LoginForm() {
           <Input
             id="email"
             type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             {...register("email")}
             autoComplete="email"
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            className="h-11"
           />
           {errors.email && (
-            <p className="text-xs text-destructive">
-              {t(errors.email.message!, "Please enter a valid email.")}
+            <p id="email-error" className={fieldError}>
+              {t(errors.email.message!, "Enter a valid email address.")}
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <Label htmlFor="password">{t("auth.password", "Password")}</Label>
             {/* Password reset is per organisation; a platform super admin has
                 none, so the link could only fail there (production QA
@@ -451,7 +496,7 @@ export function LoginForm() {
               <Link
                 prefetch={false}
                 href={withOrganisation("/login/forgot", carryOrganisation)}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-caption font-medium text-primary underline-offset-4 hover:underline"
               >
                 {t("auth.forgot_password", "Forgot password?")}
               </Link>
@@ -463,7 +508,18 @@ export function LoginForm() {
               type={showPassword ? "text" : "password"}
               {...register("password")}
               autoComplete="current-password"
-              className="pr-10"
+              onKeyDown={readCapsLock}
+              onKeyUp={readCapsLock}
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={
+                [
+                  errors.password ? "password-error" : null,
+                  capsLock ? "caps-lock-note" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+              className="h-11 pr-11"
             />
             <button
               type="button"
@@ -473,54 +529,71 @@ export function LoginForm() {
                   ? t("auth.hide_password", "Hide password")
                   : t("auth.show_password", "Show password")
               }
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground"
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-4 w-4" aria-hidden="true" />
               )}
             </button>
           </div>
+          {capsLock && (
+            <p
+              id="caps-lock-note"
+              role="status"
+              className="text-caption text-warning-on-soft"
+            >
+              {t("auth.caps_lock_on", "Caps Lock is on.")}
+            </p>
+          )}
           {errors.password && (
-            <p className="text-xs text-destructive">
-              {t(errors.password.message!, "Password is required.")}
+            <p id="password-error" className={fieldError}>
+              {t(errors.password.message!, "Enter your password.")}
             </p>
           )}
         </div>
 
         {serverError && (
-          <div role="alert" className="rounded-lg bg-destructive/10 p-3">
-            <p className="text-sm text-destructive">{serverError}</p>
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive-edge bg-destructive-soft p-3"
+          >
+            <p className="text-sm text-destructive-on-soft">{serverError}</p>
           </div>
         )}
 
         <Button
           type="submit"
-          className="h-11 w-full shadow-sm"
+          className="h-11 w-full text-base shadow-sm"
           disabled={isSubmitting}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               {t("auth.signing_in", "Signing in...")}
             </>
           ) : (
-            t("auth.sign_in", "Sign In")
+            t("auth.sign_in", "Sign in")
           )}
         </Button>
 
-        {hostAppContext !== "platform" &&
-          (offerSso || offerOtp || offerTrial) && (
-            <>
-              <div className="relative flex items-center py-1">
-                <div className="flex-1 border-t border-border" />
-                <span className="px-3 text-xs text-muted-foreground">
-                  {t("auth.or", "or")}
-                </span>
-                <div className="flex-1 border-t border-border" />
-              </div>
-
+        {alternatives && (
+          <div className="space-y-3 pt-1">
+            <p className="flex items-center gap-3 text-caption text-muted-foreground">
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              {t("auth.other_ways", "Other ways to sign in")}
+              <span className="h-px flex-1 bg-border" aria-hidden="true" />
+            </p>
+            {/* Side by side where both are offered and there is room; each
+                keeps a full-height target on a phone. */}
+            <div
+              className={cn(
+                "grid gap-3",
+                offerSso && offerOtp && "sm:grid-cols-2",
+              )}
+            >
               {offerSso && (
                 <Button
                   type="button"
@@ -530,9 +603,12 @@ export function LoginForm() {
                   disabled={ssoLoading}
                 >
                   {ssoLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2
+                      className="mr-2 h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
-                    <KeyRound className="mr-2 h-4 w-4" />
+                    <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
                   )}
                   {t("auth.sign_in_sso", "Sign in with SSO")}
                 </Button>
@@ -549,26 +625,32 @@ export function LoginForm() {
                     prefetch={false}
                     href={withOrganisation("/login/otp", carryOrganisation)}
                   >
-                    <MessageSquareText className="mr-2 h-4 w-4" />
-                    {t("auth.sign_in_code", "Sign in with a one-time code")}
+                    <MessageSquareText
+                      className="mr-2 h-4 w-4"
+                      aria-hidden="true"
+                    />
+                    {offerSso
+                      ? t("auth.sign_in_code_short", "Use a one-time code")
+                      : t("auth.sign_in_code", "Sign in with a one-time code")}
                   </Link>
                 </Button>
               )}
+            </div>
+          </div>
+        )}
 
-              {offerTrial && (
-                <p className="text-center text-sm text-muted-foreground">
-                  {t("auth.no_account", "Don't have an account?")}{" "}
-                  <Link
-                    prefetch={false}
-                    href="/register"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {t("auth.start_trial", "Start free trial")}
-                  </Link>
-                </p>
-              )}
-            </>
-          )}
+        {offerTrial && (
+          <p className="pt-1 text-center text-sm text-muted-foreground">
+            {t("auth.no_account", "Don't have an account?")}{" "}
+            <Link
+              prefetch={false}
+              href="/register"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {t("auth.start_trial", "Start free trial")}
+            </Link>
+          </p>
+        )}
       </form>
 
       {/* Most people arrive here from a poster or a link on their phone;

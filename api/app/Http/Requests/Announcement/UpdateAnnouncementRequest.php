@@ -22,7 +22,7 @@ class UpdateAnnouncementRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'string', 'max:255'],
-            'body' => ['sometimes', 'string'],
+            'body' => ['sometimes', 'string', 'max:10000'],
             'priority' => ['sometimes', 'string', 'in:low,normal,high,urgent'],
             'target_type' => ['sometimes', 'string', 'in:all,department,branch'],
             'target_id' => ['nullable', 'string', 'required_if:target_type,department,branch'],

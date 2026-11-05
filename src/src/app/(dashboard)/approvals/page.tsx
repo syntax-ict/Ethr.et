@@ -28,6 +28,8 @@ import { useDecideApprovals } from "@/features/approvals/use-decide";
 import { approvalSummary } from "@/features/approvals/summary";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { PageActions } from "@/components/shared/page-actions";
+import { PrintAction } from "@/components/shared/print-action";
 
 /** The kinds of request the queue holds (`BatchApprovalRequest`). */
 const TYPES = ["leave", "correction", "profile_update", "overtime"] as const;
@@ -92,6 +94,7 @@ export default function ApprovalsPage() {
   return (
     <RoleGate anyPermission={["viewTeamLeave"]}>
       <div className="space-y-6">
+        <PageActions actions={<PrintAction />} />
         <FilterBar
           activeCount={filters.activeCount}
           onClear={() => {

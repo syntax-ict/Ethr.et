@@ -48,6 +48,8 @@ final class LeaveTypeCatalog
             'name_am' => 'የወሊድ ፈቃድ',
             'default_days' => 120,
             'accrual_type' => 'one_time',
+            // Art. 88: 120 consecutive days, so calendar days, not working days.
+            'counts_calendar_days' => true,
             'is_paid' => true,
             'requires_attachment' => true,
             'gender_restriction' => 'female',

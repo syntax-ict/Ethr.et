@@ -76,17 +76,19 @@ beforeEach(function () {
     $this->user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $this->tenant);
 });
 
-it('C1: a hire on the 13th who worked two hours late (upgrade 5 changes the overtime base)', function () {
+// Upgrade 5 (2026-11-03) moved C1 and C2: overtime is paid at the contract's
+// hourly rate, not one derived from the prorated or leave-reduced basic.
+it('C1: a hire on the 13th who worked two hours late (upgrade 5 changed the overtime base)', function () {
     $employee = characterEmployee($this->tenant, 777777, '2026-06-13');
     workedLate($this->tenant, $employee, '2026-06-15', '19:30');
 
     expect(figures(characterise($this->tenant, $this->user->id, '2026-06-01', '2026-06-30')))->toBe([
-        'basic' => 466666, 'gross' => 474621, 'tax' => 44924, 'employee_pension' => 32667,
-        'employer_pension' => 51333, 'other' => 0, 'net' => 397030,
+        'basic' => 466666, 'gross' => 479924, 'tax' => 45985, 'employee_pension' => 32667,
+        'employer_pension' => 51333, 'other' => 0, 'net' => 401272,
     ]);
 });
 
-it('C2: a day and a half of unpaid leave and ninety minutes late (upgrade 5 changes the overtime base)', function () {
+it('C2: a day and a half of unpaid leave and ninety minutes late (upgrade 5 changed the overtime base)', function () {
     $employee = characterEmployee($this->tenant, 912345);
     $unpaid = LeaveType::factory()->create([
         'tenant_id' => $this->tenant->id, 'code' => 'unpaid', 'name' => 'Unpaid Leave', 'is_paid' => false, 'default_days' => 0,
@@ -98,8 +100,8 @@ it('C2: a day and a half of unpaid leave and ninety minutes late (upgrade 5 chan
     workedLate($this->tenant, $employee, '2026-06-15', '19:00');
 
     expect(figures(characterise($this->tenant, $this->user->id, '2026-06-01', '2026-06-30')))->toBe([
-        'basic' => 850140, 'gross' => 861008, 'tax' => 130252, 'employee_pension' => 59510,
-        'employer_pension' => 93515, 'other' => 0, 'net' => 671246,
+        'basic' => 850140, 'gross' => 861804, 'tax' => 130451, 'employee_pension' => 59510,
+        'employer_pension' => 93515, 'other' => 0, 'net' => 671843,
     ]);
 });
 

@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/select";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { FormField } from "@/components/patterns/FormField";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useT } from "@/lib/i18n/useT";
@@ -59,6 +61,8 @@ import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
 import { InvitationRemindersSetting } from "@/features/users/components/invitation-reminders-setting";
+import { rules, fieldMessage } from "@/lib/forms/rules";
+import { statusBadgeClass, statusTone } from "@/lib/utils/status-colors";
 
 const ROLES = [
   "tenant_admin",
@@ -74,17 +78,12 @@ type EditableStatus = NonNullable<UpdateUserPayload["status"]>;
 
 const STATUSES: EditableStatus[] = ["active", "inactive", "suspended"];
 
-function statusTone(status: UserStatus | string): string {
-  switch (status) {
-    case "active":
-      return "var(--color-status-success, #047857)";
-    case "invited":
-      return "var(--color-status-info, #0369A1)";
-    case "suspended":
-      return "var(--color-status-error, #B91C1C)";
-    default:
-      return "var(--color-text-secondary, #64748B)";
-  }
+// The shared registry has no `invited` (it would fall to neutral); an account
+// waiting on its invitation reads as information, as it did before.
+function userStatusClass(status: UserStatus | string): string {
+  return status === "invited"
+    ? `${statusTone("info").badge} border-0`
+    : statusBadgeClass(status);
 }
 
 /** What became of an invited person's last invitation, in a few words. */
@@ -108,6 +107,15 @@ function invitationLine(
     default:
       return t("users_page.invitation.none", "No invitation sent yet");
   }
+}
+
+/** How a row names its person: employee name, display name, then email. */
+function personName(u: {
+  employee?: { name?: string | null } | null;
+  display_name?: string | null;
+  email?: string | null;
+}): string {
+  return u.employee?.name ?? u.display_name ?? u.email ?? "";
 }
 
 export default function UsersSettingsPage() {
@@ -164,6 +172,9 @@ export default function UsersSettingsPage() {
     username: "",
     role: "employee" as UserRole,
   });
+  // Shown under the address on submit. The send button used to be disabled
+  // until something was typed, which said nothing about why.
+  const [emailError, setEmailError] = useState<string | undefined>();
   // `status` is null for an invitee until the admin picks one: the form used
   // to open them as `active` and send it back, so any edit activated the
   // account and took the Resend invite action with it.
@@ -187,13 +198,25 @@ export default function UsersSettingsPage() {
   // appended to it (production QA 2026-10-11, P14).
   function openInvite() {
     setForm({ email: "", username: "", role: "employee" });
+    setEmailError(undefined);
     setInviteOpen(true);
   }
 
   async function submitInvite() {
+    const parsed = rules.email().safeParse(form.email);
+    if (!parsed.success) {
+      const code = parsed.error.issues[0]?.message;
+      setEmailError(
+        code === "validation.required"
+          ? t("users_page.email_required", "Enter an email address")
+          : fieldMessage(t, code),
+      );
+      return;
+    }
+    setEmailError(undefined);
     try {
       await invite.mutateAsync({
-        email: form.email,
+        email: parsed.data,
         username: form.username || undefined,
         role: form.role,
       });
@@ -226,6 +249,12 @@ export default function UsersSettingsPage() {
   }
 
   const users = usersQuery.data?.data ?? [];
+  const filtered = filters.activeCount > 0;
+
+  function clearFilters() {
+    filters.clear();
+    setPage(1);
+  }
 
   return (
     <RoleGate anyPermission={["viewUsers"]}>
@@ -259,13 +288,7 @@ export default function UsersSettingsPage() {
 
         <InvitationRemindersSetting />
 
-        <FilterBar
-          activeCount={filters.activeCount}
-          onClear={() => {
-            filters.clear();
-            setPage(1);
-          }}
-        >
+        <FilterBar activeCount={filters.activeCount} onClear={clearFilters}>
           <div className="w-full max-w-sm">
             <SearchInput
               value={search}
@@ -296,9 +319,22 @@ export default function UsersSettingsPage() {
             ))}
           </div>
         ) : usersQuery.isError ? (
-          <EmptyState
+          <ErrorState
             title={t("users_page.load_failed", "Could not load users")}
-            description={t("common.try_again", "Try again")}
+            onRetry={() => usersQuery.refetch()}
+          />
+        ) : users.length === 0 && filtered ? (
+          <EmptyState
+            title={t("users_page.no_matches", "No users match")}
+            description={t(
+              "users_page.no_matches_desc",
+              "Change the search or clear the filter.",
+            )}
+            action={
+              <Button variant="outline" onClick={clearFilters}>
+                {t("common.clear_filters", "Clear filters")}
+              </Button>
+            }
           />
         ) : users.length === 0 ? (
           <EmptyState
@@ -313,7 +349,7 @@ export default function UsersSettingsPage() {
             <CardContent className="p-0">
               <SimpleTable
                 mobileCards
-                caption={t("users_page.title", "Users & Access")}
+                caption={t("users_page.title", "Users & access")}
                 headers={[
                   t("users_page.user", "User"),
                   t("users_page.username", "Username"),
@@ -330,7 +366,10 @@ export default function UsersSettingsPage() {
                       <span className="block text-xs text-muted-foreground">
                         {u.email}
                         {u.mfa_enabled && (
-                          <Badge variant="outline" className="ml-2 text-[10px]">
+                          <Badge
+                            variant="outline"
+                            className="ml-2 text-caption"
+                          >
                             {t("users_page.mfa_on", "2FA")}
                           </Badge>
                         )}
@@ -351,7 +390,7 @@ export default function UsersSettingsPage() {
                     <div key="s">
                       <Badge
                         variant="outline"
-                        style={{ color: statusTone(u.status) }}
+                        className={userStatusClass(u.status)}
                       >
                         {t(`status.${u.status}`, u.status)}
                       </Badge>
@@ -370,7 +409,11 @@ export default function UsersSettingsPage() {
                           size="icon"
                           className="h-8 w-8"
                           title={t("users_page.resend", "Resend invite")}
-                          aria-label={t("users_page.resend", "Resend invite")}
+                          aria-label={t(
+                            "users_page.resend_named",
+                            "Resend the invitation to :name",
+                            { name: personName(u) },
+                          )}
                           onClick={async () => {
                             try {
                               await resend.mutateAsync(u.public_id);
@@ -398,8 +441,9 @@ export default function UsersSettingsPage() {
                             "Reset two-factor authentication",
                           )}
                           aria-label={t(
-                            "users_page.reset_mfa",
-                            "Reset two-factor authentication",
+                            "users_page.reset_mfa_named",
+                            "Reset two-factor authentication for :name",
+                            { name: personName(u) },
                           )}
                           onClick={() => setMfaUser(u)}
                         >
@@ -411,7 +455,9 @@ export default function UsersSettingsPage() {
                         size="icon"
                         className="h-8 w-8"
                         title={t("common.edit", "Edit")}
-                        aria-label={t("common.edit", "Edit")}
+                        aria-label={t("users_page.edit_named", "Edit :name", {
+                          name: personName(u),
+                        })}
                         onClick={() => openEdit(u)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -421,7 +467,11 @@ export default function UsersSettingsPage() {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         title={t("common.delete", "Delete")}
-                        aria-label={t("common.delete", "Delete")}
+                        aria-label={t(
+                          "users_page.delete_named",
+                          "Remove :name",
+                          { name: personName(u) },
+                        )}
                         onClick={() => setDeleteUser(u)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -454,19 +504,23 @@ export default function UsersSettingsPage() {
             </DialogHeader>
 
             <div className="space-y-3">
-              <div>
-                <Label htmlFor="invite-email">
-                  {t("common.email", "Email")}
-                </Label>
+              <FormField
+                id="invite-email"
+                label={t("common.email", "Email")}
+                required
+                error={emailError}
+              >
                 <Input
-                  id="invite-email"
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, email: e.target.value });
+                    if (emailError) setEmailError(undefined);
+                  }}
                   className="mt-1"
                   placeholder="name@company.et"
                 />
-              </div>
+              </FormField>
               <div>
                 <Label htmlFor="invite-username">
                   {t("users_page.username", "Username")}{" "}
@@ -487,19 +541,19 @@ export default function UsersSettingsPage() {
                   <AtSign className="h-3 w-3" />
                   {t(
                     "users_page.username_hint",
-                    "Letters, numbers, dot, dash, underscore. Usable once Username login is enabled.",
+                    "Letters, numbers, dot, dash, underscore. Works once sign-in with a username is turned on.",
                   )}
                 </p>
               </div>
               <div>
-                <Label>{t("common.role", "Role")}</Label>
+                <Label htmlFor="invite-role">{t("common.role", "Role")}</Label>
                 <Select
                   value={form.role}
                   onValueChange={(v) =>
                     setForm({ ...form, role: v as UserRole })
                   }
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="invite-role" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -517,10 +571,7 @@ export default function UsersSettingsPage() {
               <Button variant="outline" onClick={() => setInviteOpen(false)}>
                 {t("common.cancel", "Cancel")}
               </Button>
-              <Button
-                onClick={submitInvite}
-                disabled={invite.isPending || !form.email}
-              >
+              <Button onClick={submitInvite} disabled={invite.isPending}>
                 {invite.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -554,14 +605,14 @@ export default function UsersSettingsPage() {
                 />
               </div>
               <div>
-                <Label>{t("common.role", "Role")}</Label>
+                <Label htmlFor="edit-role">{t("common.role", "Role")}</Label>
                 <Select
                   value={editForm.role}
                   onValueChange={(v) =>
                     setEditForm({ ...editForm, role: v as UserRole })
                   }
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="edit-role" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -574,14 +625,16 @@ export default function UsersSettingsPage() {
                 </Select>
               </div>
               <div>
-                <Label>{t("common.status", "Status")}</Label>
+                <Label htmlFor="edit-status">
+                  {t("common.status", "Status")}
+                </Label>
                 <Select
                   value={editForm.status ?? ""}
                   onValueChange={(v) =>
                     setEditForm({ ...editForm, status: v as EditableStatus })
                   }
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="edit-status" className="mt-1">
                     <SelectValue placeholder={t("status.invited", "Invited")} />
                   </SelectTrigger>
                   <SelectContent>

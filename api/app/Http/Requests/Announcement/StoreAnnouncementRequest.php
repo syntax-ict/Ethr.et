@@ -22,7 +22,7 @@ class StoreAnnouncementRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'body' => ['required', 'string'],
+            'body' => ['required', 'string', 'max:10000'],
             'priority' => ['sometimes', 'string', 'in:low,normal,high,urgent'],
             'target_type' => ['sometimes', 'string', 'in:all,department,branch'],
             'target_id' => ['nullable', 'string', 'required_if:target_type,department,branch'],

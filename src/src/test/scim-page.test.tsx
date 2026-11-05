@@ -53,7 +53,7 @@ describe("<ScimSettingsPage>", () => {
     renderPage();
 
     await user.type(
-      await screen.findByPlaceholderText(/Token name/),
+      await screen.findByRole("textbox", { name: "Token name" }),
       "  Okta SCIM ",
     );
     await user.click(screen.getByRole("button", { name: /Generate/ }));
@@ -67,7 +67,7 @@ describe("<ScimSettingsPage>", () => {
     renderPage();
 
     expect(
-      await screen.findByPlaceholderText(/Token name/),
+      await screen.findByRole("textbox", { name: "Token name" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
   });

@@ -743,9 +743,11 @@
 
   nav,
   aside,
+  header,
+  button,
   [data-sidebar],
+  [data-sonner-toaster],
   .mobile-bottom-nav,
-  button[aria-label],
   .no-print {
     display: none !important;
   }
@@ -757,6 +759,117 @@
 
   * {
     box-shadow: none !important;
+  }
+
+  /* --- The page, not the screen ---------------------------------------------
+     The app shell is one screen tall and scrolls inside <main>, so a print
+     was one page cut off wherever the screen ended. On paper the shell has
+     no height of its own and nothing scrolls: the document is as long as
+     its content. A4 with office margins; the browser adds its own date and
+     URL header unless the reader turns it off. */
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+
+  html,
+  body,
+  .print-shell,
+  #main-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #main-content > * {
+    padding: 0 !important;
+  }
+
+  /* The organisation, the page and the date, once at the top of the paper. */
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin: 0 0 0.75rem;
+    padding: 0 0 0.5rem;
+    border-bottom: 1px solid #0f172a;
+    font-size: 11pt;
+  }
+
+  .print-header strong {
+    font-weight: 600;
+  }
+
+  /* Side-by-side columns are for a screen; paper reads top to bottom. */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * + * {
+    margin-top: 0.75rem;
+  }
+
+  /* Tables carry across pages with their header on each, and a row is never
+     split in two. A card or a figure keeps to one page where it can. */
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  li,
+  figure,
+  .rounded-xl,
+  .rounded-lg {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 3pt 6pt;
+  }
+
+  /* Links are ink, not blue, and their address is not printed after them:
+     the reader has the page, not a browser. */
+  a,
+  a:visited {
+    color: inherit !important;
+    text-decoration: none;
+  }
+
+  a[href]::after {
+    content: none !important;
+  }
+
+  /* Sticky and fixed things sit where they were; on paper nothing scrolls. */
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+
+  /* A chart is a picture. Where the page offers it as a table, that view is
+     what prints; a scrolling table box shows every row on paper. */
+  .max-h-64,
+  .max-h-72,
+  .max-h-56 {
+    max-height: none !important;
+    overflow: visible !important;
   }
 }
 

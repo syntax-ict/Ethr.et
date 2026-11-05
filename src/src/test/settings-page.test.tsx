@@ -163,7 +163,7 @@ describe("<SettingsPage> security tab", () => {
 
     const timeout = await screen.findByRole("spinbutton");
     await user.clear(timeout);
-    await user.type(timeout, "3");
+    await user.type(timeout, "60");
     await user.click(screen.getByRole("button", { name: /Save/ }));
 
     expect(
@@ -176,6 +176,33 @@ describe("<SettingsPage> security tab", () => {
       "The session timeout field must be between 5 and 480.",
     );
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("says what is wrong with a timeout out of range, and does not send it", async () => {
+    // It used to be dropped from the request while "Settings saved" was
+    // toasted and the field reverted.
+    let sent = false;
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+      http.put("*/api/v1/settings", () => {
+        sent = true;
+        return HttpResponse.json({ message: "ok" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const timeout = await screen.findByRole("spinbutton");
+    await user.clear(timeout);
+    await user.type(timeout, "3");
+
+    expect(
+      screen.getByText("Enter a whole number from 5 to 480."),
+    ).toBeInTheDocument();
+    expect(timeout).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: /Save/ })).toBeDisabled();
+    expect(sent).toBe(false);
   });
 
   it("admits a custom role holding settings.manage", async () => {
@@ -191,7 +218,7 @@ describe("<SettingsPage> security tab", () => {
 });
 
 describe("<SettingsPage> general tab — organisation calendar", () => {
-  // Audit N33: "Calendar System" read as an organisation setting but called
+  // Audit N33: "Calendar system" read as an organisation setting but called
   // the browser-local setCalendar() and nothing else — it showed this
   // browser's calendar, and saving it reached nobody else.
   beforeEach(() => {
@@ -206,8 +233,8 @@ describe("<SettingsPage> general tab — organisation calendar", () => {
     );
     renderPage();
 
-    expect(await screen.findByLabelText("Calendar System")).toHaveTextContent(
-      "Gregorian Calendar (GC)",
+    expect(await screen.findByLabelText("Calendar system")).toHaveTextContent(
+      "Gregorian calendar (GC)",
     );
   });
 
@@ -224,9 +251,9 @@ describe("<SettingsPage> general tab — organisation calendar", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByLabelText("Calendar System"));
+    await user.click(await screen.findByLabelText("Calendar system"));
     await user.click(
-      await screen.findByRole("option", { name: "Ethiopian Calendar (EC)" }),
+      await screen.findByRole("option", { name: "Ethiopian calendar (EC)" }),
     );
 
     await waitFor(() =>
