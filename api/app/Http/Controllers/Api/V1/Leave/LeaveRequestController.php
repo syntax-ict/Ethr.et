@@ -17,10 +17,12 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Notifications\LeaveRequestedNotification;
 use App\Services\Approval\ApprovalEngine;
+use App\Services\CurrentTenant;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Leave\LeaveYear;
+use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
@@ -86,9 +88,13 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
+        // Whole days from the organisation's today: measured from the
+        // server's current instant, a request made at 10:00 for a day exactly
+        // the notice period ahead counted 6.6 days and was refused, and near
+        // midnight the UTC day was the wrong one (A-Z review E-05).
         if ($leaveType->min_notice_days > 0 && ! $onBehalf) {
-            $noticeDays = now()->diffInDays($startDate, false);
-            if ($noticeDays < $leaveType->min_notice_days) {
+            $earliest = TenantTime::today(app(CurrentTenant::class)->get())->addDays($leaveType->min_notice_days);
+            if ($startDate->format('Y-m-d') < $earliest->format('Y-m-d')) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/notice-period',
                     'title' => 'Insufficient Notice',

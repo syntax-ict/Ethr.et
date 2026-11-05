@@ -15,4 +15,6 @@ return [
     'cancelled' => 'Gaaffiin boqonnaa haqameera.',
     'cannot_approve_own' => 'Gaaffii boqonnaa keessanii raggaasisuu hin dandeessan.',
     'cannot_approve_filed' => 'Gaaffii kana isin galchitaniittu, kanaaf nama biraatu raggaasisuu qaba.',
+    'min_notice' => 'Gosti boqonnaa kun beeksisa guyyaa :days barbaada. Guyyaa jalqabaa har\'a irraa yoo xiqqaate guyyaa :days booda filadhu.',
+    'max_consecutive' => 'Gosti boqonnaa kun gaaffii tokkoon guyyaa :days ol hin hayyamu.',
 ];
