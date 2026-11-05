@@ -19059,6 +19059,8 @@ export interface operations {
                         attendance_rate: {
                             today: number | null;
                             period: number | null;
+                            today_present: number;
+                            today_expected: number;
                         };
                         payroll_summary: {
                             gross_cents: number;
@@ -19074,6 +19076,7 @@ export interface operations {
                         workforce_growth: {
                             month: string;
                             hires: number;
+                            headcount: number;
                         }[];
                         leave_utilization: {
                             entitled_days: number;
