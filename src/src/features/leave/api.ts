@@ -56,6 +56,22 @@ export function useMyLeaveRequests(params?: { page?: number }) {
   });
 }
 
+/**
+ * Every approved request of the caller's, not the first page: the leave
+ * charts spread them over the months they cover (charts upgrade,
+ * 2026-11-04).
+ */
+export function useMyApprovedLeave() {
+  return useQuery<LeaveRequest[]>({
+    queryKey: ["leave", "my", "approved", "all"],
+    queryFn: () =>
+      fetchAllPages<LeaveRequest>("/leave/my", {
+        "filter[status]": "approved",
+      }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useTeamLeaveRequests(params?: { page?: number }) {
   return useQuery<PaginatedResponse<LeaveRequest>>({
     queryKey: ["leave", "team", params],

@@ -65,6 +65,7 @@ import {
 import { useConfirm } from "@/components/shared/use-confirm";
 import { ReasonDialog } from "@/components/shared/reason-dialog";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
+import { LeaveCharts } from "@/features/leave/components/leave-charts";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
@@ -315,6 +316,10 @@ function MyLeaveTab() {
           })
         ) : null}
       </div>
+
+      {balances && Array.isArray(balances) && (
+        <LeaveCharts balances={balances} />
+      )}
 
       <Card>
         <CardHeader>

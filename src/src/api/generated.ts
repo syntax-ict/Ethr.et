@@ -7331,6 +7331,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many entries the trail holds per day and per action over a range
+         *     (the last 30 days by default), for the charts above the list. Days are
+         *     the organisation's own: the stored UTC instant is shifted by the zone's
+         *     offset before it is dated, which `(tenant_id, created_at)` can still
+         *     serve as a range scan. Charts upgrade, 2026-11-04
+         */
+        get: operations["auditLog.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assign": {
         parameters: {
             query?: never;
@@ -33145,6 +33168,43 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "auditLog.stats": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string | null;
+                "filter[from]"?: string | null;
+                "filter[to]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        by_day: {
+                            date: string;
+                            count: number;
+                        }[];
+                        by_action: {
+                            action: string;
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shift.assign": {
