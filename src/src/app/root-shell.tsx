@@ -4,6 +4,8 @@ import "@/styles/globals.css";
 import { Providers } from "./providers";
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { SITE_URL } from "@/lib/site-url";
+import { IS_STATIC_EXPORT } from "@/lib/build-target";
+import { FRAME_GUARD_SCRIPT, STATIC_EXPORT_CSP } from "@/lib/static-page-guard";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -140,6 +142,15 @@ export function RootShell({
       className={`${inter.variable} ${notoEthiopic.variable}`}
       suppressHydrationWarning
     >
+      {IS_STATIC_EXPORT && (
+        <head>
+          <meta
+            httpEquiv="Content-Security-Policy"
+            content={STATIC_EXPORT_CSP}
+          />
+          <script dangerouslySetInnerHTML={{ __html: FRAME_GUARD_SCRIPT }} />
+        </head>
+      )}
       <body className="font-sans">
         {routeLocale ? (
           <RouteLocaleProvider locale={routeLocale}>{tree}</RouteLocaleProvider>

@@ -67,3 +67,48 @@ describe("apiClient and the XSRF cookie", () => {
     expect(calls).toEqual(["get"]);
   });
 });
+
+/**
+ * A-Z review I-13 (2026-11-05). A cookie that is present but stale (its
+ * session ended in another tab, or expired) is not fetched again before the
+ * write, so Sanctum answers 419 and the person saw the save fail once. The
+ * client now fetches a fresh cookie and sends the write again, once.
+ */
+describe("apiClient and a stale XSRF cookie", () => {
+  function answerWith(statuses: number[]) {
+    server.use(
+      http.post("*/api/v1/kiosk/authenticate", ({ request }) => {
+        calls.push("post");
+        xsrfSent = request.headers.get("X-XSRF-TOKEN");
+        const status = statuses.shift() ?? 200;
+        return status === 200
+          ? HttpResponse.json({
+              session: { branch: null },
+              tenant: { name: "Acme", subdomain: "acme", logo_path: null },
+              settings: { pin_required: false, auto_reset_seconds: 4 },
+            })
+          : HttpResponse.json({ message: "CSRF token mismatch." }, { status });
+      }),
+    );
+  }
+
+  it("fetches a fresh cookie after a 419 and sends the write again", async () => {
+    document.cookie = "XSRF-TOKEN=stale; path=/";
+    answerWith([419]);
+
+    await authenticateKiosk("kiosk-token");
+
+    expect(calls).toEqual(["post", "csrf", "post"]);
+    expect(xsrfSent).toBe("from-sanctum");
+  });
+
+  it("tries again only once", async () => {
+    document.cookie = "XSRF-TOKEN=stale; path=/";
+    answerWith([419, 419]);
+
+    await expect(authenticateKiosk("kiosk-token")).rejects.toMatchObject({
+      response: { status: 419 },
+    });
+    expect(calls).toEqual(["post", "csrf", "post"]);
+  });
+});
