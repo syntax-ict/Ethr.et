@@ -41,6 +41,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -89,6 +90,13 @@ class AdminTenantController extends Controller
         $sort = $request->input('sort', '-created_at');
         $dir = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
+
+        // Only columns the list offers: anything else reached orderBy() and
+        // answered 500 (A-Z review H-14).
+        if (! in_array($field, ['created_at', 'name', 'subdomain', 'status', 'trial_ends_at'], true)) {
+            $field = 'created_at';
+            $dir = 'desc';
+        }
         $query->orderBy($field, $dir);
 
         return AdminTenantResource::collection(
@@ -121,6 +129,10 @@ class AdminTenantController extends Controller
                 'due_date' => $i->due_date?->format('Y-m-d'),
                 'paid_at' => $i->paid_at,
             ]);
+
+        // Support calls the owner on this number; a person's contact details,
+        // so shown here only, in the console behind admin.manage.
+        $owner = $this->ownerOf($tenant);
 
         $deviceCount = class_exists(Device::class)
             ? Device::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count()
@@ -167,7 +179,30 @@ class AdminTenantController extends Controller
             ] : null,
             'invoices' => $invoices,
             'audit_log' => $auditLogs,
+            'owner' => $owner === null ? null : [
+                'name' => $owner->name,
+                'email' => $owner->email,
+                'phone' => $owner->phone,
+                'phone_verified' => $owner->phone_verified_at !== null,
+                'last_login_at' => $owner->last_login_at?->toIso8601String(),
+            ],
         ]);
+    }
+
+    /**
+     * The organisation's owner: its first active administrator, the person
+     * who registered it unless they have left. There is no owner field yet,
+     * so this is the rule; impersonation acts as the same person. The console
+     * resolves no tenant, so the scope is dropped and the tenant stated.
+     */
+    private function ownerOf(Tenant $tenant): ?User
+    {
+        return User::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first();
     }
 
     public function updateStatus(UpdateTenantStatusRequest $request, string $publicId): JsonResponse
@@ -485,7 +520,10 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $newEnd = ($tenant->trial_ends_at ?? now())->addDays($request->integer('days'));
+        // From today when the trial has already ended: added to an end date
+        // 60 days gone, 30 more days left it still over (A-Z review H-05).
+        $ends = $tenant->trial_ends_at !== null ? Carbon::parse($tenant->trial_ends_at) : null;
+        $newEnd = ($ends !== null && $ends->isFuture() ? $ends : Carbon::now())->addDays($request->integer('days'));
         $tenant->update(['trial_ends_at' => $newEnd]);
 
         // A trialing subscription's period is the trial: registration sets both
@@ -555,10 +593,7 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $adminUser = User::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('role', UserRole::TENANT_ADMIN)
-            ->first();
+        $adminUser = $this->ownerOf($tenant);
 
         if (! $adminUser) {
             return response()->json([
@@ -754,15 +789,36 @@ class AdminTenantController extends Controller
 
         $tenant = Tenant::where('public_id', $publicId)->firstOrFail();
 
-        $invoice = Invoice::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('public_id', $invoicePublicId)
-            ->firstOrFail();
+        // Locked, so a double click records one payment. Once nothing is 30
+        // days overdue any more, a subscription that was moved to past_due goes
+        // back to active: nothing did, and the monthly run, which bills active
+        // subscriptions only, never invoiced the organisation again (A-Z review
+        // H-02). A suspension for non-payment stays for the operator to lift.
+        $invoice = DB::transaction(function () use ($tenant, $invoicePublicId): Invoice {
+            $invoice = Invoice::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('public_id', $invoicePublicId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($invoice->status !== 'paid') {
+            if ($invoice->status === 'paid') {
+                return $invoice;
+            }
+
             $invoice->update(['status' => 'paid', 'paid_at' => now()]);
             AuditLog::record('billing.invoice_paid', $invoice);
-        }
+
+            Subscription::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('status', SubscriptionStatus::PAST_DUE)
+                ->whereNotExists(fn ($overdue) => $overdue->from('invoices')
+                    ->where('invoices.tenant_id', $tenant->id)
+                    ->whereIn('invoices.status', ['sent', 'overdue', 'past_due'])
+                    ->where('invoices.due_date', '<=', now()->subDays(30)))
+                ->update(['status' => SubscriptionStatus::ACTIVE]);
+
+            return $invoice;
+        });
 
         return response()->json([
             'public_id' => $invoice->public_id,

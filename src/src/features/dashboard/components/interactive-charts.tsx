@@ -405,14 +405,17 @@ function TeamAttendanceTrend({ view }: { view: ChartView }) {
             <XAxis dataKey="name" {...axisProps} />
             <YAxis {...axisProps} allowDecimals={false} />
             <Tooltip {...tooltipProps} />
-            {series.map((s) => (
+            {/* One stacked bar per day: its height is the people accounted
+                for, its split who was present, late or absent. */}
+            {series.map((s, index) => (
               <Bar
                 key={s.key}
                 dataKey={s.key}
                 name={s.label}
+                stackId="day"
                 fill={s.color}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={18}
+                radius={index === series.length - 1 ? [4, 4, 0, 0] : 0}
+                maxBarSize={28}
               />
             ))}
           </BarChart>

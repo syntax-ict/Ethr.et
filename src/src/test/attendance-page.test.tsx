@@ -323,6 +323,60 @@ describe("<AttendancePage> punch buttons", () => {
     expect(screen.queryByRole("button", { name: /check out/i })).toBeNull();
   });
 
+  it("sends the location with a web check-in when the geofence is required", async () => {
+    // A-Z review D-01: a required geofence now refuses a web check-in with
+    // no location (unless it comes from the office network), so the button
+    // asks for one.
+    let body: Record<string, unknown> | null = null;
+    let policyServed = false;
+    const geolocation = {
+      getCurrentPosition: vi.fn((ok: PositionCallback) =>
+        ok({
+          coords: { latitude: 9.0108, longitude: 38.7613, accuracy: 12 },
+          timestamp: Date.now(),
+        } as GeolocationPosition),
+      ),
+    };
+    Object.defineProperty(navigator, "geolocation", {
+      value: geolocation,
+      configurable: true,
+    });
+    server.use(
+      http.get("*/api/v1/attendance/my-shift", () => {
+        policyServed = true;
+        return HttpResponse.json({
+          attendance: { status: "not_checked_in" },
+          policy: { geofence_required: true },
+        });
+      }),
+      http.post("*/api/v1/attendance/check-in", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ data: {} }, { status: 201 });
+      }),
+      ...employee("not_checked_in"),
+    );
+    const user = userEvent.setup();
+    try {
+      renderPage();
+      await waitFor(() => expect(policyServed).toBe(true));
+      expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+      const button = await screen.findByRole("button", {
+        name: /^\s*check in$/i,
+      });
+      await waitFor(() => expect(button).toBeEnabled());
+      await user.click(button);
+
+      await waitFor(() => expect(body).not.toBeNull());
+      expect(body).toMatchObject({
+        latitude: 9.0108,
+        longitude: 38.7613,
+        accuracy: 12,
+      });
+    } finally {
+      Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
+
   it("offers both when there is no employee record to read", async () => {
     server.use(
       me(["attendance.viewOwn", "attendance.checkIn"]),
@@ -336,5 +390,68 @@ describe("<AttendancePage> punch buttons", () => {
     expect(
       screen.getByRole("button", { name: /^\s*check in$/i }),
     ).toBeInTheDocument();
+  });
+  // An administrator without an employee record has no phone to ask about:
+  // the page asked anyway, and the API answered 404 on every visit
+  // (dashboard review, 2026-11-03, PR 12).
+  describe("the registered phone", () => {
+    function meWith(employeePublicId: string | null) {
+      return http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: {
+            public_id: "U1",
+            name: "Test User",
+            role: "employee",
+            employee_public_id: employeePublicId,
+          },
+          tenant: {
+            public_id: "T1",
+            name: "Demo",
+            timezone: "Africa/Addis_Ababa",
+          },
+          permissions: ["attendance.viewOwn", "attendance.checkIn"],
+        }),
+      );
+    }
+
+    function serveRecords() {
+      server.use(
+        http.get("*/api/v1/attendance", forbidden),
+        http.get("*/api/v1/attendance/my", () =>
+          HttpResponse.json(page([RECORD])),
+        ),
+      );
+    }
+
+    function countDeviceRequests() {
+      const hits: string[] = [];
+      server.use(
+        http.get("*/api/v1/attendance/device", ({ request }) => {
+          hits.push(request.url);
+          return HttpResponse.json({ registered: false });
+        }),
+      );
+      return hits;
+    }
+
+    it("is not asked about for a reader with no employee record", async () => {
+      server.use(meWith(null));
+      serveRecords();
+      const hits = countDeviceRequests();
+      renderPage();
+
+      await screen.findByText("September 29, 2026");
+      await new Promise((r) => setTimeout(r, 200));
+      expect(hits).toEqual([]);
+    });
+
+    it("is asked about for a reader with one", async () => {
+      server.use(meWith("01HZEMP0000000000000000001"));
+      serveRecords();
+      const hits = countDeviceRequests();
+      renderPage();
+
+      await waitFor(() => expect(hits).toHaveLength(1));
+    });
   });
 });

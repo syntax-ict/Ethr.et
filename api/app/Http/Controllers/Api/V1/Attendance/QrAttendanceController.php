@@ -135,11 +135,16 @@ class QrAttendanceController extends Controller
             // Rendered by bootstrap/app.php, so a device refusal keeps its own type.
             throw $e;
         } catch (\RuntimeException $e) {
+            // Not a refusal, so its text was never written for the person
+            // punching (A-Z review D-10). Reported, and answered with a
+            // sentence.
+            report($e);
+
             return response()->json([
                 'type' => 'https://ethr.et/errors/validation',
                 'title' => 'Validation Failed',
                 'status' => 422,
-                'detail' => $e->getMessage(),
+                'detail' => __('attendance.punch_failed'),
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 

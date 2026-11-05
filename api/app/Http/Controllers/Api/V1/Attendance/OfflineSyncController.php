@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceBindingRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\OfflineSyncRequest;
@@ -159,10 +160,17 @@ class OfflineSyncController extends Controller
                     'public_id' => $result->record->public_id,
                 ];
             } catch (\Throwable $e) {
+                // A refusal is written for the person punching; anything
+                // else is reported and answered with a sentence, never its
+                // own text (A-Z review D-10).
+                if (! $e instanceof AttendanceRefused) {
+                    report($e);
+                }
+
                 $results[] = array_filter([
                     'idempotency_key' => $record['idempotency_key'],
                     'status' => 'error',
-                    'detail' => $e->getMessage(),
+                    'detail' => $e instanceof AttendanceRefused ? $e->getMessage() : __('attendance.punch_failed'),
                     'code' => $e instanceof DeviceBindingRefused ? $e->type : null,
                 ], fn ($v) => $v !== null);
             }

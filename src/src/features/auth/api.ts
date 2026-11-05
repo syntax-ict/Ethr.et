@@ -237,6 +237,28 @@ export function useChangePassword() {
   });
 }
 
+/**
+ * The signed-in person's own phone, on their account (`PUT /auth/me/phone`):
+ * the number ETHR support calls an organisation's owner on. Stored as typed
+ * in either local or +251 form, normalised by the server, and unverified
+ * until a code confirms it.
+ */
+export function useUpdateOwnPhone() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (phone: string) =>
+      (await apiClient.put("/auth/me/phone", { phone })).data as {
+        phone: string;
+        phone_verified: boolean;
+      },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "next-steps"] });
+    },
+  });
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
 

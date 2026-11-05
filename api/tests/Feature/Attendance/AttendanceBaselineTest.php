@@ -35,6 +35,7 @@ function baselineRegister(string $subdomain, string $type): Tenant
         'subdomain' => $subdomain,
         'admin_name' => 'Baseline Admin',
         'admin_email' => "admin@{$subdomain}.test",
+        'admin_phone' => '0912345678',
         'password' => 'SecurePass123!',
         'password_confirmation' => 'SecurePass123!',
         'organization_type' => $type,

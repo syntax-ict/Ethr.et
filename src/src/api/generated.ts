@@ -5468,6 +5468,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Phone me */
+        put: operations["auth.ownPhone"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -7331,6 +7348,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many entries the trail holds per day and per action over a range
+         *     (the last 30 days by default), for the charts above the list. Days are
+         *     the organisation's own: the stored UTC instant is shifted by the zone's
+         *     offset before it is dated, which `(tenant_id, created_at)` can still
+         *     serve as a range scan. Charts upgrade, 2026-11-04
+         */
+        get: operations["auditLog.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assign": {
         parameters: {
             query?: never;
@@ -7357,6 +7397,28 @@ export interface paths {
         };
         /** Schedule shifts */
         get: operations["shift.schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each shift's staffing over a range of days, this week by default: the
+         *     people scheduled and attending per day, and the hours planned against
+         *     the hours covered. Over the employees the caller reaches, as the
+         *     employee screens are (charts upgrade, 2026-11-04)
+         */
+        get: operations["shift.coverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9609,8 +9671,8 @@ export interface components {
         GradeResource: {
             public_id: string;
             name: string;
-            min_salary_cents: number;
-            max_salary_cents: number;
+            min_salary_cents?: number;
+            max_salary_cents?: number;
             sort_order: number;
             employees_count?: number;
             /** Format: date-time */
@@ -9622,7 +9684,7 @@ export interface components {
         GradeSalaryStepResource: {
             public_id: string;
             step: number;
-            salary_cents: number;
+            salary_cents?: number;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -9732,6 +9794,8 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
         };
         /**
          * IssueActivationCodeRequest
@@ -10146,7 +10210,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -10683,7 +10747,7 @@ export interface components {
             admin_name: string;
             /** Format: email */
             admin_email: string;
-            admin_phone?: string | null;
+            admin_phone: string;
             /**
              * @description The tenant does not exist yet, so this falls through to
              *     PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
@@ -12020,7 +12084,7 @@ export interface components {
         UpdateChartOfAccountsRequest: {
             accounts: {
                 /** @enum {string} */
-                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable" | "loans_receivable" | "cost_sharing_payable";
                 account_code: string;
                 account_name: string;
             }[];
@@ -12362,6 +12426,10 @@ export interface components {
             rest_day?: number;
             holiday: number;
             holiday_night: number;
+        };
+        /** UpdateOwnPhoneRequest */
+        UpdateOwnPhoneRequest: {
+            phone: string;
         };
         /**
          * UpdatePayrollRuleRequest
@@ -18984,6 +19052,11 @@ export interface operations {
                             source: string;
                             count: number;
                         }[];
+                        by_hour: {
+                            weekday: number;
+                            hour: number;
+                            count: number;
+                        }[];
                         top_late: {
                             employee_name: string;
                             employee_public_id: string;
@@ -24517,6 +24590,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
+                        type: "https://ethr.et/errors/payroll-period-closed";
+                        /** @constant */
+                        title: "Payroll period closed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.";
+                    } | {
+                        /** @constant */
                         type: "https://ethr.et/errors/invalid-state";
                         /** @constant */
                         title: "Invalid State";
@@ -24888,6 +24970,12 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            leave_type: {
+                                name: string;
+                                name_am: string;
+                            } | null;
+                            from: string;
+                            to: string;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24898,6 +24986,7 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string | null;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24908,6 +24997,8 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string;
+                            hours: number;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -27361,12 +27452,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27683,12 +27775,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27844,12 +27937,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -28373,6 +28467,34 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "auth.ownPhone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOwnPhoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        phone: string | null;
+                        phone_verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "payroll.process": {
@@ -30124,6 +30246,13 @@ export interface operations {
                             /** Format: date-time */
                             created_at: string;
                         }[];
+                        owner: {
+                            name: string;
+                            email: string | null;
+                            phone: string | null;
+                            phone_verified: boolean;
+                            last_login_at: string | null;
+                        } | null;
                     };
                 };
             };
@@ -33111,6 +33240,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "auditLog.stats": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string | null;
+                "filter[from]"?: string | null;
+                "filter[to]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        by_day: {
+                            date: string;
+                            count: number;
+                        }[];
+                        by_action: {
+                            action: string;
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shift.assign": {
         parameters: {
             query?: never;
@@ -33190,6 +33356,51 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.coverage": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        days: string[];
+                        shifts: {
+                            public_id: string;
+                            name: string;
+                            name_am: string;
+                            start_time: string;
+                            end_time: string;
+                            planned_minutes: number;
+                            covered_minutes: number;
+                            scheduled_people: number;
+                            attended_people: number;
+                            by_day: {
+                                date: string;
+                                scheduled: number;
+                                attended: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shiftAssignment.destroy": {

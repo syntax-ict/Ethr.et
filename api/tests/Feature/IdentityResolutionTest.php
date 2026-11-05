@@ -204,7 +204,7 @@ describe('device sync uses identity resolution', function () {
             'status' => 'online',
         ]);
 
-        (new PullDeviceEventsJob($device))->handle(
+        (new PullDeviceEventsJob($device->id, $device->tenant_id))->handle(
             app(DeviceManager::class),
             app(AttendanceEngine::class),
             app(IdentityResolver::class),
@@ -234,7 +234,7 @@ describe('device sync uses identity resolution', function () {
         ]);
 
         foreach (range(1, 2) as $_) {
-            (new PullDeviceEventsJob($device))->handle(
+            (new PullDeviceEventsJob($device->id, $device->tenant_id))->handle(
                 app(DeviceManager::class),
                 app(AttendanceEngine::class),
                 app(IdentityResolver::class),

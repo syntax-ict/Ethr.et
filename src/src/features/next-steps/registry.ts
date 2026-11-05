@@ -53,6 +53,7 @@ export const STEP_DEFS: Record<NextStepId, StepDef> = {
   payroll_failed: { icon: Wallet, subject: "payroll_period" },
   setup_admin_present: { icon: ShieldCheck },
   setup_admin_active: { icon: ShieldCheck },
+  owner_phone: { icon: Phone },
 
   // Work waiting for a decision, and setup that is unfinished.
   integrity: { icon: ShieldAlert, plural: true },

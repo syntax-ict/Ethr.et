@@ -343,7 +343,7 @@ describe('a failed event read is not an empty one', function () {
             '10.0.0.5/ISAPI/AccessControl/*' => Http::response(null, 500),
         ]);
 
-        expect(fn () => (new PullDeviceEventsJob($device))->handle(
+        expect(fn () => (new PullDeviceEventsJob($device->id, $device->tenant_id))->handle(
             app(DeviceManager::class),
             app(AttendanceEngine::class),
             app(IdentityResolver::class),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\DeviceCommandStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceConflict;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
@@ -16,6 +17,8 @@ use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\DeviceManager;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -302,4 +305,73 @@ describe('on the organisation\'s own address', function () {
             ->assertOk()
             ->assertJsonPath('adms.server', "{$tenant->subdomain}.ethr.test");
     });
+});
+
+// A-Z review D-07 (2026-11-04). Every failure to store a punch was swallowed
+// and the terminal told "OK", so it deleted punches nobody had stored. A
+// database failure is now answered 503, which the terminal retries (punches
+// already stored dedupe on their key); a refusal is still acknowledged, and
+// any other error is reported and skipped so one bad punch cannot block the
+// terminal's queue for good.
+it('asks the terminal to resend punches the database failed to store', function () {
+    [, , $employee] = admsSetup();
+    AttendanceRecord::creating(function () {
+        throw new QueryException('mysql', 'insert into attendance_records', [], new PDOException('Lost connection'));
+    });
+
+    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertStatus(503)
+        ->assertHeader('Retry-After');
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
+it('acknowledges a punch it refuses, and reports and skips one that fails otherwise', function () {
+    Exceptions::fake();
+    [, , $employee] = admsSetup();
+
+    // Dated ahead of the server's clock: refused, never stored, never retried.
+    adms('POST', 'cdata', "1042\t2026-10-14 19:30:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
+
+    AttendanceRecord::creating(function () {
+        throw new RuntimeException('Unexpected');
+    });
+    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
+
+    Exceptions::assertReported(RuntimeException::class);
+    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
+// A-Z review D-06 (2026-11-04). The break buttons were sent as a check-out and
+// a check-in: the break-out closed the morning's record as an early leave,
+// and the break-in opened a second record, rated late against the shift's
+// start and logged as a conflict. A break is now noted on the day's record,
+// which it never opens or closes.
+it('notes a break on the day\'s record instead of closing it and opening another', function () {
+    [, , $employee] = admsSetup();
+    $day = "1042\t2026-10-14 08:25:00\t0\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 12:30:00\t2\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 13:30:00\t3\t1\t0\t0\t0\n"
+        ."1042\t2026-10-14 17:35:00\t1\t1\t0\t0\t0\n";
+
+    adms('POST', 'cdata', $day, ['table' => 'ATTLOG'])->assertOk();
+    // A terminal resends a batch it was not sure we took.
+    adms('POST', 'cdata', $day, ['table' => 'ATTLOG'])->assertOk();
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->sole();
+    expect($record->check_in->setTimezone('Africa/Addis_Ababa')->format('H:i'))->toBe('08:25')
+        ->and($record->check_out->setTimezone('Africa/Addis_Ababa')->format('H:i'))->toBe('17:35')
+        ->and(collect($record->metadata['breaks'] ?? [])->pluck('type')->all())->toBe(['out', 'in'])
+        ->and(AttendanceConflict::withoutGlobalScopes()->where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
+it('keeps a break punch made with no record open as an ordinary punch', function () {
+    [, , $employee] = admsSetup();
+
+    adms('POST', 'cdata', "1042\t2026-10-14 13:30:00\t3\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])->assertOk();
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->sole()->check_in->setTimezone('Africa/Addis_Ababa')->format('H:i'))
+        ->toBe('13:30');
 });

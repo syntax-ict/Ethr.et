@@ -38,4 +38,5 @@ return [
         'public_news' => 'fuula oduu ummataa',
         'public_vacancies' => 'iddoowwan hojii banaa ummataaf',
     ],
+    'trial_not_running' => 'Yeroo yaalii dheereessuun kan danda\'amu dhaabbata yaalii irra jiruuf qofa.',
 ];

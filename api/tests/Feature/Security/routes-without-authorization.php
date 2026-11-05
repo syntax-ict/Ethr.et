@@ -30,6 +30,7 @@ return [
         'App\Http\Controllers\Api\V1\Auth\LogoutController@__invoke' => 'Revokes the caller\'s own token: logout($request->user()).',
         'App\Http\Controllers\Api\V1\Auth\RefreshController@__invoke' => 'Re-issues the caller\'s own token: refreshToken($request->user()).',
         'App\Http\Controllers\Api\V1\Auth\MeController@__invoke' => 'Reads $request->user() and its own employee record. Nothing is addressable.',
+        'App\Http\Controllers\Api\V1\Auth\OwnPhoneController@__invoke' => 'Writes the phone of $request->user() only. Nothing is addressable.',
         'App\Http\Controllers\Api\V1\Auth\MfaSetupController@setup' => 'Generates a TOTP secret for $request->user(). Refuses at 409 if already enabled.',
         'App\Http\Controllers\Api\V1\Auth\MfaSetupController@enable' => 'Enables MFA on $request->user() after verifying a code against the secret it just issued them.',
         'App\Http\Controllers\Api\V1\Auth\MfaSetupController@disable' => 'Disables MFA on $request->user(); the request carries their own current code.',

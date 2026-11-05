@@ -23,8 +23,11 @@ final class AllowanceService
      * Compute the active allowances for an employee against a basic salary.
      *
      * Percentage allowances are computed on the (already prorated) basic so
-     * they scale with mid-period proration; fixed allowances are flat amounts.
-     * Non-positive amounts are skipped.
+     * they scale with mid-period proration. Fixed allowances are monthly
+     * amounts paid for the days of the period the person was employed,
+     * $employedDays of $periodDays, as basic is (owner decision 2026-11-04;
+     * a hire on the 25th was paid a whole month's transport). Unpaid leave
+     * does not reduce them. Non-positive amounts are skipped.
      *
      * @return array{
      *   items: list<array{name: string, type: string, amount_cents: int, taxable: bool}>,
@@ -33,7 +36,7 @@ final class AllowanceService
      *   non_taxable_cents: int,
      * }
      */
-    public function resolve(Employee $employee, int $basicSalaryCents): array
+    public function resolve(Employee $employee, int $basicSalaryCents, int $employedDays = 1, int $periodDays = 1): array
     {
         // The organisation's allowance rules, read once per instance (one
         // payroll job): a run of 500 read them 500 times (A-Z review I).
@@ -53,6 +56,9 @@ final class AllowanceService
 
         foreach ($rules as $rule) {
             $amount = $this->amountFor($rule, $basicSalaryCents);
+            if ($rule->type !== 'percentage' && $employedDays < $periodDays) {
+                $amount = Cents::mulDiv($amount, max(0, $employedDays), $periodDays);
+            }
             if ($amount <= 0) {
                 continue;
             }

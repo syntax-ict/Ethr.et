@@ -19,6 +19,7 @@ import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { useT } from "@/lib/i18n/useT";
 import { todayIn } from "@/lib/utils/date";
+import { PrintAction } from "@/components/shared/print-action";
 
 /** `Y-m-d`, `days` after another, in date arithmetic with no zone in it. */
 function shiftDate(dateStr: string, days: number) {
@@ -97,6 +98,7 @@ export default function TeamAttendancePage() {
                   {t("attendance.team_page.today")}
                 </Button>
               )}
+              <PrintAction />
             </div>
           }
         />
