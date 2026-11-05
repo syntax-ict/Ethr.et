@@ -19,6 +19,7 @@ export default function AuditLogsPage() {
           endpoint="/audit-logs"
           queryKey="audit-logs"
           title={t("audit_logs_page.title")}
+          charts
         />
       ) : (
         <div className="space-y-6">

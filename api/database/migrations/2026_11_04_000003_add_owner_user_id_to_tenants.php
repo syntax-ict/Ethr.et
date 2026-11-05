@@ -19,7 +19,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tenants', function (Blueprint $table): void {
-            $table->foreignId('owner_user_id')->nullable()->constrained('users')->nullOnDelete();
+            // Indexed, not a database foreign key: users.tenant_id already
+            // points here, and a key in both directions leaves a backup
+            // restore no order to replay the two tables in. Users are only
+            // ever soft-deleted, so the owner row stays.
+            $table->unsignedBigInteger('owner_user_id')->nullable()->index();
         });
 
         foreach (DB::table('tenants')->pluck('id') as $tenantId) {
@@ -40,7 +44,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('owner_user_id');
+            $table->dropIndex(['owner_user_id']);
+            $table->dropColumn('owner_user_id');
         });
     }
 };

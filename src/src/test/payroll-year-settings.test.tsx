@@ -84,7 +84,7 @@ describe("working week", () => {
     renderWith(<WorkingWeekCard />);
     const user = userEvent.setup();
 
-    const saturday = await screen.findByRole("button", { name: "Sat" });
+    const saturday = await screen.findByRole("button", { name: "Saturday" });
     expect(saturday).toHaveAttribute("aria-pressed", "false");
     await waitFor(() => expect(saturday).toBeEnabled());
     await user.click(saturday);
@@ -103,7 +103,9 @@ describe("working week", () => {
     ).toBeInTheDocument();
     // Awaited: the note shows once permissions are known, the days once the
     // settings arrive. A spare re-render in `useT` used to hide the gap.
-    expect(await screen.findByRole("button", { name: "Mon" })).toBeDisabled();
+    expect(
+      await screen.findByRole("button", { name: "Monday" }),
+    ).toBeDisabled();
   });
 });
 

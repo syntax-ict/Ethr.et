@@ -18,6 +18,7 @@ class ImportPreviewRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'calendar' => ['nullable', 'string', 'in:gregorian,ethiopian'],
         ];
     }
 }

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/patterns/DataTable";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
+import { HeadcountCharts } from "@/features/employees/components/headcount-charts";
 import { exportEmployees, useEmployees } from "@/features/employees/api";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
@@ -344,6 +345,8 @@ export default function EmployeesPage() {
             </>
           }
         />
+
+        <HeadcountCharts />
 
         {(reviewCount > 0 || reviewOnly) && (
           <div className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft sm:flex-row sm:items-center sm:justify-between">

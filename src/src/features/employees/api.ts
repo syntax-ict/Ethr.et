@@ -279,9 +279,17 @@ export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTempl
 /** Parses and validates a CSV server-side; nothing is written. */
 export function usePreviewEmployeeImport() {
   return useMutation({
-    mutationFn: async (file: File): Promise<EmployeeImportPreview> => {
+    mutationFn: async ({
+      file,
+      calendar,
+    }: {
+      file: File;
+      /** The calendar the file's dates are written in; the server returns Gregorian. */
+      calendar: "gregorian" | "ethiopian";
+    }): Promise<EmployeeImportPreview> => {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("calendar", calendar);
       const { data } = await apiClient.post<EmployeeImportPreview>(
         "/employees/import/preview",
         fd,

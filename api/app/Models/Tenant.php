@@ -613,6 +613,12 @@ class Tenant extends Model
         foreach (array_filter([$this->getOriginal('custom_domain'), $this->custom_domain]) as $domain) {
             Cache::forget('tenant-domain:'.$domain);
         }
+        // A retired address still resolves to the organisation, through the
+        // same cache (ResolveTenant), so a suspension reached it only when
+        // that entry expired (A-Z review H-08).
+        foreach ($this->retiredSubdomains() as $alias) {
+            Cache::forget("tenant:{$alias}");
+        }
     }
 
     /**

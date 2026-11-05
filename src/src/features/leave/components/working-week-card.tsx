@@ -15,13 +15,13 @@ import { ErrorState } from "@/components/shared/error-state";
 
 /** ISO weekdays, Monday = 1 … Sunday = 7, the encoding the API stores. */
 const DAYS = [
-  [1, "weekday.mon", "Mon"],
-  [2, "weekday.tue", "Tue"],
-  [3, "weekday.wed", "Wed"],
-  [4, "weekday.thu", "Thu"],
-  [5, "weekday.fri", "Fri"],
-  [6, "weekday.sat", "Sat"],
-  [7, "weekday.sun", "Sun"],
+  [1, "weekday.mon", "Mon", "weekday.monday", "Monday"],
+  [2, "weekday.tue", "Tue", "weekday.tuesday", "Tuesday"],
+  [3, "weekday.wed", "Wed", "weekday.wednesday", "Wednesday"],
+  [4, "weekday.thu", "Thu", "weekday.thursday", "Thursday"],
+  [5, "weekday.fri", "Fri", "weekday.friday", "Friday"],
+  [6, "weekday.sat", "Sat", "weekday.saturday", "Saturday"],
+  [7, "weekday.sun", "Sun", "weekday.sunday", "Sunday"],
 ] as const;
 
 /**
@@ -114,10 +114,11 @@ export function WorkingWeekCard() {
             role="group"
             aria-label={t("leave_types_page.working_week", "Working week")}
           >
-            {DAYS.map(([day, key, fallback]) => (
+            {DAYS.map(([day, key, fallback, fullKey, fullFallback]) => (
               <button
                 key={day}
                 type="button"
+                aria-label={t(fullKey, fullFallback)}
                 aria-pressed={days.includes(day)}
                 disabled={!can.manageSettings}
                 onClick={() => toggle(day)}

@@ -78,6 +78,38 @@ describe('outbound webhooks', function () {
 
         Http::assertSentCount(1);
     });
+
+    // A-Z review G-08 (2026-11-04). A held delivery was queued again every ten
+    // minutes for as long as the switch stayed off, up to the 30-day cleanup,
+    // and switching back on sent month-old events with fresh timestamps.
+    // Held for a day at most; then it is marked as expired, which counts
+    // nothing against the webhook.
+    test('a delivery held for more than a day expires instead of being sent late', function () {
+        Http::fake(['*' => Http::response('ok', 200)]);
+        $tenant = createTenant();
+        $webhook = Webhook::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id, 'url' => 'https://93.184.216.34/hooks',
+            'events' => ['payroll.processed'], 'secret' => 'shh', 'is_active' => true,
+        ]);
+        $delivery = WebhookDelivery::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id, 'webhook_id' => $webhook->id,
+            'event' => 'payroll.processed', 'payload' => ['event' => 'payroll.processed'], 'attempt' => 0,
+        ]);
+        app(CurrentTenant::class)->forget();
+        $job = new DispatchWebhookJob($webhook->id, 'payroll.processed', ['event' => 'payroll.processed'], $delivery->id, $tenant->id);
+
+        switchFeature(Feature::WebhooksOutbound);
+        Queue::fake();
+        $this->travel(25)->hours();
+        $job->handle();
+
+        Queue::assertNotPushed(DispatchWebhookJob::class);
+        expect(WebhookDelivery::withoutGlobalScopes()->find($delivery->id)->response_body)->toContain('expired')
+            ->and(Webhook::withoutGlobalScopes()->find($webhook->id)->is_active)->toBeTrue();
+
+        switchFeature(Feature::WebhooksOutbound, FeatureState::Enabled);
+        Http::assertNothingSent();
+    });
 });
 
 describe('phone notifications', function () {

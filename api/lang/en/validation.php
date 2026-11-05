@@ -183,6 +183,9 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'bank_account_number' => [
+            'digits' => 'The account number may contain only digits, spaces and hyphens, and must start and end with a digit.',
+        ],
     ],
 
     /*

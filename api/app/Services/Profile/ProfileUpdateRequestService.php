@@ -114,6 +114,11 @@ class ProfileUpdateRequestService
             return ApprovalRefusal::selfApproval(__('employee.cannot_review_filed_profile'));
         }
 
+        if (in_array($request->field_name, ProfileUpdateRequest::PAY_FIELDS, true)
+            && ! $reviewer->hasPermission('employee.updateFinancial')) {
+            return ApprovalRefusal::missingPermission(__('employee.cannot_review_pay_field'));
+        }
+
         if (! $this->approvals->isCurrentApprover($request, $reviewer, $approving)) {
             return ApprovalRefusal::notCurrentApprover(__('approval.not_current_approver'));
         }

@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\SessionCookie;
 use Carbon\Carbon;
+use Laravel\Sanctum\PersonalAccessToken;
 use PragmaRX\Google2FA\Google2FA;
 
 /**
@@ -293,4 +294,19 @@ test('a normal (non-impersonation) session cannot exit impersonation', function 
 
     // Refused before anything happened: the caller's own session survives.
     expect($user->tokens()->count())->toBe(1);
+});
+
+// A-Z review H-13 (2026-11-04): an organisation with a deactivated admin
+// listed first impersonated that one, and the session was revoked at once.
+test('impersonation acts as an active admin of the organisation', function () {
+    [$tenant, , $code, $token] = superAdminWithMfaToken();
+    $target = Tenant::factory()->create();
+    User::factory()->create(['tenant_id' => $target->id, 'role' => UserRole::TENANT_ADMIN, 'status' => 'inactive']);
+    $active = User::factory()->create(['tenant_id' => $target->id, 'role' => UserRole::TENANT_ADMIN, 'status' => 'active']);
+
+    test()->withToken($token)
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/impersonate", ['code' => $code])
+        ->assertOk();
+
+    expect(PersonalAccessToken::query()->latest('id')->firstOrFail()->tokenable_id)->toBe($active->id);
 });

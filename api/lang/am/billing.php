@@ -38,4 +38,5 @@ return [
         'public_news' => 'የሕዝብ ዜና ገጽ',
         'public_vacancies' => 'የሕዝብ ክፍት የሥራ ቦታዎች',
     ],
+    'trial_not_running' => 'የሙከራ ጊዜ ማራዘም የሚቻለው በሙከራ ላይ ላለ ድርጅት ብቻ ነው።',
 ];

@@ -110,7 +110,11 @@ export function StatutoryDetailsCard() {
         ) : isError ? (
           // Never show the form over a failed load: its empty defaults would
           // be saved over the organisation's real statutory details.
-          <ErrorState compact onRetry={() => refetch()} />
+          <ErrorState
+            compact
+            className="sm:col-span-3"
+            onRetry={() => refetch()}
+          />
         ) : (
           <>
             <div>
@@ -155,7 +159,11 @@ export function StatutoryDetailsCard() {
                   )
                 }
               >
-                <SelectTrigger id="pension_scheme" className="mt-1">
+                <SelectTrigger
+                  id="pension_scheme"
+                  className="mt-1"
+                  aria-describedby="pension_scheme-hint"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -170,6 +178,15 @@ export function StatutoryDetailsCard() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <p
+                id="pension_scheme-hint"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {t(
+                  "statutory.pension_scheme_hint",
+                  "Payroll uses the pension rule for this scheme from the card below.",
+                )}
+              </p>
             </div>
           </>
         )}

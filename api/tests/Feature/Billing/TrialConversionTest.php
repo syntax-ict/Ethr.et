@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\SubscriptionStatus;
+use App\Enums\TenantStatus;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Models\Invoice;
 use App\Models\Plan;
@@ -163,4 +164,38 @@ it('still refuses a cancelled subscription', function () {
     $plan = Plan::factory()->create(['price_cents' => 99900]);
 
     expect(app(BillingService::class)->changePlan($subscription->tenant, $plan))->toHaveKey('error');
+});
+
+// The organisation, not only its subscription, leaves the trial. A paying
+// customer left on `trial` was refused at its old trial end date (isActive()
+// reads trial_ends_at) and never held to its plan's limits.
+it('makes the converted organisation active, so it is not cut off at its trial end date', function () {
+    $subscription = trialingTenant();
+    $tenant = $subscription->tenant;
+    $tenant->update(['status' => TenantStatus::TRIAL, 'trial_ends_at' => Carbon::now()->addMonth()]);
+    $professional = Plan::factory()->create(['price_cents' => 99900]);
+
+    app(BillingService::class)->changePlan($tenant, $professional);
+
+    Carbon::setTestNow(Carbon::now()->addMonths(2));
+
+    $tenant->refresh();
+    expect($tenant->status)->toBe(TenantStatus::ACTIVE)
+        ->and($tenant->isActive())->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+it('activates organisations that converted before the fix, and leaves trials alone', function () {
+    $converted = trialingTenant();
+    $converted->update(['status' => SubscriptionStatus::ACTIVE]);
+    $converted->tenant->update(['status' => TenantStatus::TRIAL]);
+
+    $stillTrialling = trialingTenant();
+    $stillTrialling->tenant->update(['status' => TenantStatus::TRIAL]);
+
+    (require database_path('migrations/2026_11_03_000003_activate_organisations_that_left_their_trial.php'))->up();
+
+    expect($converted->tenant->refresh()->status)->toBe(TenantStatus::ACTIVE)
+        ->and($stillTrialling->tenant->refresh()->status)->toBe(TenantStatus::TRIAL);
 });

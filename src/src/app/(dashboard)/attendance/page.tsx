@@ -1,7 +1,7 @@
 "use client";
 
 import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
-import { punchSignals } from "@/lib/attendance/punch-signals";
+import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -76,6 +76,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { MyExceptionsCard } from "@/features/attendance/components/my-exceptions-card";
+import { PrintAction } from "@/components/shared/print-action";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -193,11 +194,21 @@ export default function AttendancePage() {
   async function handleCheckIn() {
     const signed = await signedOrStop();
     if (signed.stop) return;
+    // A required geofence refuses a web check-in with no location unless it
+    // comes from the office network, so the location is asked for only then.
+    const fix = shift?.policy?.geofence_required ? await currentFix() : null;
     checkIn.mutate(
       {
         idempotency_key: crypto.randomUUID(),
         source: "web",
-        ...punchSignals(null),
+        ...(fix
+          ? {
+              latitude: fix.latitude,
+              longitude: fix.longitude,
+              accuracy: fix.accuracy,
+            }
+          : {}),
+        ...punchSignals(fix),
         ...(signed.proof ? { device_proof: signed.proof } : {}),
       },
       {
@@ -278,6 +289,7 @@ export default function AttendancePage() {
                 {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
+            <PrintAction />
           </div>
         }
       />
