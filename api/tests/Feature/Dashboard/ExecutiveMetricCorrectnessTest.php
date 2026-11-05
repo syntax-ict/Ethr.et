@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
@@ -110,6 +111,26 @@ test('the hires chart counts Ethiopian months for an organisation on the Ethiopi
         ->and(collect($growth)->pluck('hires')->all())->toBe([0, 0, 0, 1, 1, 1]);
 });
 
+test('the hires chart carries the headcount at the end of each month', function () {
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->travelTo(Carbon::parse('2026-10-20 10:00'));
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-08-15']);
+    // Hired in September, left in October: counted at September's end only.
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'hire_date' => '2026-09-01',
+        'termination_date' => '2026-10-05',
+        'status' => EmployeeStatus::RESIGNED,
+    ]);
+
+    $growth = test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('workforce_growth');
+
+    expect(collect($growth)->pluck('headcount')->all())->toBe([1, 1, 1, 2, 3, 2]);
+});
+
 test('the default period is the current month of the organisation calendar', function () {
     // 3 November 2026 is Tikimt 23, 2019: Tikimt runs 11 October to 9 November.
     $this->travelTo(Carbon::parse('2026-11-03 12:00', 'Africa/Addis_Ababa'));
@@ -177,7 +198,34 @@ test('attendance rate counts only the days people were expected, up to today', f
     // Ten workdays from the 1st to the 14th, two people expected on each:
     // half. Counting all 22 weekdays of October gave 22.7.
     expect(test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('attendance_rate'))
-        ->toBe(['today' => 50, 'period' => 50]);
+        ->toMatchArray(['today' => 50, 'period' => 50, 'today_present' => 1, 'today_expected' => 2]);
+});
+
+test('the attendance rate counts today in people and lists the days before it', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Wednesday 14 October. Three people; two came in on Tuesday the 13th,
+    // nobody has checked in yet today.
+    $this->travelTo(Carbon::parse('2026-10-14 07:00', 'Africa/Addis_Ababa'));
+    [$first, $second] = Employee::factory()->count(3)->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01'])->all();
+    metricFixAttend($first, '2026-10-13');
+    metricFixAttend($second, '2026-10-13');
+
+    $rate = test()->getJson(metricFixUrl($tenant->subdomain))->assertOk()->json('attendance_rate');
+    $recent = collect($rate['recent'])->keyBy('date');
+
+    // 0 of 3 in is a count, not an empty office; the rate still says 0.
+    expect($rate['today_present'])->toBe(0)
+        ->and($rate['today_expected'])->toBe(3)
+        ->and($rate['today'])->toBe(0)
+        // Fourteen days before today, oldest first, today left out.
+        ->and($recent->keys()->first())->toBe('2026-09-30')
+        ->and($recent->keys()->last())->toBe('2026-10-13')
+        ->and($recent)->toHaveCount(14)
+        ->and($recent['2026-10-13']['rate'])->toBe(66.7)
+        // Sunday the 11th: no one expected, so no rate rather than 0.
+        ->and($recent['2026-10-11']['rate'])->toBeNull();
 });
 
 test('attendance rate is null on a day no one is expected', function () {

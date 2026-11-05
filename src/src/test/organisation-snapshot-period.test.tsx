@@ -48,21 +48,26 @@ beforeEach(() => {
     ),
     recording("/dashboard/executive", {
       headcount: { active: 40, total: 46, by_department: [] },
-      attendance_rate: { today: 92, period: 84.7 },
+      attendance_rate: {
+        today: 92,
+        period: 84.7,
+        today_present: 37,
+        today_expected: 40,
+        recent: [],
+      },
       payroll_summary: { gross_cents: 0, previous_gross_cents: 0 },
       turnover: { rate: 0, exits: 0 },
-      workforce_growth: [{ month: "2019-02-EC", hires: 2 }],
+      workforce_growth: [{ month: "2019-02-EC", hires: 2, headcount: 40 }],
       leave_utilization: null,
-    }),
-    recording("/dashboard/executive/attendance", {
-      daily_trend: [],
-      by_department: [],
-      by_source: [],
-      top_late: [],
     }),
     http.get("*/api/v1/dashboard/manager", () =>
       HttpResponse.json({
-        pending_approvals: { leave: 1, correction: 2, total: 3 },
+        pending_approvals: {
+          leave: 1,
+          correction: 2,
+          profile_update: 0,
+          total: 3,
+        },
       }),
     ),
   );
@@ -91,14 +96,10 @@ describe("<OrganisationSnapshot> period", () => {
     renderSnapshot();
 
     expect(await screen.findByText("84.7% this month")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(asked["/dashboard/executive/attendance"]).toBeDefined(),
-    );
 
     // Tikimt 2019 runs 11 October to 9 November 2026.
     const tikimt = { from: "2026-10-11", to: "2026-11-09" };
     expect(asked["/dashboard/executive"]).toEqual(tikimt);
-    expect(asked["/dashboard/executive/attendance"]).toEqual(tikimt);
     expect(screen.getByText("2 hired this month")).toBeInTheDocument();
   });
 
@@ -106,12 +107,9 @@ describe("<OrganisationSnapshot> period", () => {
     localStorage.setItem("ethr.calendar", "gregorian");
     renderSnapshot();
 
-    await waitFor(() =>
-      expect(asked["/dashboard/executive/attendance"]).toBeDefined(),
-    );
+    await waitFor(() => expect(asked["/dashboard/executive"]).toBeDefined());
 
     const november = { from: "2026-11-01", to: "2026-11-30" };
     expect(asked["/dashboard/executive"]).toEqual(november);
-    expect(asked["/dashboard/executive/attendance"]).toEqual(november);
   });
 });

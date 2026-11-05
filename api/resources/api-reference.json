@@ -11614,11 +11614,41 @@
                                                         "number",
                                                         "null"
                                                     ]
+                                                },
+                                                "today_present": {
+                                                    "type": "integer"
+                                                },
+                                                "today_expected": {
+                                                    "type": "integer"
+                                                },
+                                                "recent": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "date": {
+                                                                "type": "string"
+                                                            },
+                                                            "rate": {
+                                                                "type": [
+                                                                    "number",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "date",
+                                                            "rate"
+                                                        ]
+                                                    }
                                                 }
                                             },
                                             "required": [
                                                 "today",
-                                                "period"
+                                                "period",
+                                                "today_present",
+                                                "today_expected",
+                                                "recent"
                                             ]
                                         },
                                         "payroll_summary": {
@@ -11675,11 +11705,16 @@
                                                     "hires": {
                                                         "type": "integer",
                                                         "minimum": 0
+                                                    },
+                                                    "headcount": {
+                                                        "type": "integer",
+                                                        "minimum": 0
                                                     }
                                                 },
                                                 "required": [
                                                     "month",
-                                                    "hires"
+                                                    "hires",
+                                                    "headcount"
                                                 ]
                                             }
                                         },
