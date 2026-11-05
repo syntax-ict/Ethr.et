@@ -40,7 +40,7 @@ entry's `calculation_log` and shown on the run page, calculator icon on each row
 3. Unpaid leave: monthly basic ÷ 22 working days × unpaid days, deducted from basic.
 4. Overtime: hourly rate = the contract's monthly basic ÷ 22 ÷ 8, before proration, unpaid leave and lateness, times the rate for the kind of hour (minimums
    1.5 normal, 1.75 night, 2.0 rest day, 2.5 public holiday — a tenant may set higher).
-5. Allowances: fixed amounts or a percentage of basic; each marked taxable or not.
+5. Allowances: fixed amounts, prorated for a mid-period hire or termination as basic is, or a percentage of basic; each marked taxable or not.
 6. Gross = basic + overtime + allowances.
 7. Taxable income = gross − non-taxable allowances. Income tax on that.
 8. Pension on basic (step 3's figure).
