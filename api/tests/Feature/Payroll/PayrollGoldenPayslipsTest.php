@@ -6,6 +6,8 @@ use App\Enums\LeaveStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\EmployeeCostSharing;
+use App\Models\EmployeeLoan;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\PayrollEntry;
@@ -231,6 +233,34 @@ it('produces a register whose totals tie to the run and to the accounting journa
     expect($credit('2200'))->toBe($totals['employee_pension_cents']);
     expect($credit('2201'))->toBe($totals['employer_pension_cents']);
     expect($credit('2300'))->toBe($totals['net_cents']);
+});
+
+it('credits net pay with what employees are paid, and loans and cost sharing to their own accounts', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    $employee = goldenEmployee($tenant->id, 'J1', 2000000);
+    EmployeeLoan::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'amount_cents' => 1000000,
+        'remaining_cents' => 1000000, 'monthly_deduction_cents' => 150000, 'status' => 'active',
+    ]);
+    EmployeeCostSharing::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'total_obligation_cents' => 5000000,
+        'outstanding_cents' => 5000000, 'deduction_rate_percent' => '10.00', 'status' => 'active',
+    ]);
+    $run = goldenRun($tenant->id, $user->id);
+
+    // Gross 20,000. Tax 35% - 2,050 = 4,950. Pension 1,400 / 2,200.
+    // Loan 1,500; cost sharing 10% of gross = 2,000.
+    // Net 20,000 - 4,950 - 1,400 - 1,500 - 2,000 = 10,150, which the bank pays.
+    $journal = app(AccountingExportService::class)->journalEntries($run->refresh());
+    $credit = fn (string $code): int => (int) collect($journal['entries'])->firstWhere('account_code', $code)['credit_cents'];
+
+    expect($run->net_total_cents)->toBe(1015000)
+        ->and($credit('2300'))->toBe(1015000)
+        ->and($credit('1400'))->toBe(150000)
+        ->and($credit('2400'))->toBe(200000)
+        ->and($journal['total_debits_cents'])->toBe(2220000)
+        ->and($journal['is_balanced'])->toBeTrue();
 });
 
 it('serves the register as JSON and as a formula-safe CSV to finance, not to employees', function () {

@@ -15,6 +15,8 @@
   "accounting_page.download_csv": "CSV buusi",
   "accounting_page.journal_export": "Galmeewwan jornaalii",
   "accounting_page.journal_export_desc": "Galmeewwan jornaalii isaa ilaaluuf raawwii kaffaltii mindaa filadhaa, sooftiweerii herregaa keessaniif CSV-n buusaa.",
+  "accounting_page.key_loans_receivable": "Liqaa Hojjettootaa Sassaabamuu Qabu",
+  "accounting_page.key_cost_sharing_payable": "Qooddii Baasii Kaffalamuu Qabu",
   "accounting_page.key_net_salary_payable": "Mindaa Qulqulluu Kaffalamuu Qabu",
   "accounting_page.key_pension_expense": "Baasii Soorama (Dhaabbata)",
   "accounting_page.key_pension_payable_employee": "Soorama Kaffalamuu Qabu (Hojjetaa)",

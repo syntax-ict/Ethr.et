@@ -15,6 +15,8 @@
   "accounting_page.download_csv": "CSV አውርድ",
   "accounting_page.journal_export": "የሂሳብ መዝገብ ግቤቶች",
   "accounting_page.journal_export_desc": "የመዝገብ ግቤቶቹን ለማየት የደመወዝ ስሌት ይምረጡ፣ ለሂሳብ ሶፍትዌርዎ በCSV ያውርዷቸው።",
+  "accounting_page.key_loans_receivable": "ከሠራተኞች የሚሰበሰብ ብድር",
+  "accounting_page.key_cost_sharing_payable": "የሚከፈል የወጪ መጋራት",
   "accounting_page.key_net_salary_payable": "የሚከፈል ተጣራ ደመወዝ",
   "accounting_page.key_pension_expense": "የጡረታ ወጪ (አሰሪ)",
   "accounting_page.key_pension_payable_employee": "የሚከፈል ጡረታ (ሰራተኛ)",

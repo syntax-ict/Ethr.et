@@ -24,6 +24,8 @@
   "accounting_page.no_runs": "No payroll runs yet. Run payroll first, then export its journal.",
   "accounting_page.payroll_component": "Payroll component",
   "accounting_page.payroll_run": "Payroll run",
+  "accounting_page.key_loans_receivable": "Employee loans receivable",
+  "accounting_page.key_cost_sharing_payable": "Cost sharing payable",
   "accounting_page.reference": "Reference",
   "accounting_page.select_run": "Choose a payroll run",
   "accounting_page.title": "Accounting Integration",

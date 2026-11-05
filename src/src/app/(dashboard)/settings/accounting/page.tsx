@@ -127,6 +127,14 @@ function ChartOfAccountsSection() {
       "accounting_page.key_net_salary_payable",
       "Net salary payable",
     ),
+    loans_receivable: t(
+      "accounting_page.key_loans_receivable",
+      "Employee loans receivable",
+    ),
+    cost_sharing_payable: t(
+      "accounting_page.key_cost_sharing_payable",
+      "Cost sharing payable",
+    ),
   };
 
   return (
