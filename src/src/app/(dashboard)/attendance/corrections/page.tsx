@@ -618,15 +618,19 @@ function RequestDialog({
     const proposedIn = form.check_in
       ? zonedWallTimeToUtcIso(form.date, form.check_in, timeZone)
       : null;
-    // A check-out earlier than the check-in belongs to the next day — a night
-    // shift — rather than to an impossible negative shift.
-    const outDate =
-      form.check_in && form.check_out && form.check_out < form.check_in
-        ? nextDay(form.date)
-        : form.date;
-    const proposedOut = form.check_out
-      ? zonedWallTimeToUtcIso(outDate, form.check_out, timeZone)
+    // A check-out at or before the check-in belongs to the next day (a night
+    // shift) rather than to an impossible negative shift. With no check-in
+    // typed, the check-in is the one the record already has: a night worker
+    // who only forgot to check out types just the check-out.
+    const record = records.find((r) => r.public_id === recordId);
+    const checkIn = proposedIn ?? record?.check_in ?? null;
+    const sameDayOut = form.check_out
+      ? zonedWallTimeToUtcIso(form.date, form.check_out, timeZone)
       : null;
+    const proposedOut =
+      sameDayOut && checkIn && Date.parse(sameDayOut) <= Date.parse(checkIn)
+        ? zonedWallTimeToUtcIso(nextDay(form.date), form.check_out, timeZone)
+        : sameDayOut;
 
     submit.mutate(
       noRecord

@@ -62,7 +62,9 @@ describe("<ApiKeysPage>", () => {
     renderPage();
 
     const row = (await screen.findByText("Payroll export")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "Revoke" }));
+    await user.click(
+      within(row).getByRole("button", { name: "Revoke Payroll export" }),
+    );
 
     const dialog = await screen.findByRole("dialog");
     expect(deletes).toBe(0);
@@ -95,7 +97,7 @@ describe("<ApiKeysPage>", () => {
 
     expect(await screen.findByText("Payroll export")).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /API Docs/ }),
+      screen.queryByRole("link", { name: /API docs/ }),
     ).not.toBeInTheDocument();
     unmount();
 
@@ -103,7 +105,7 @@ describe("<ApiKeysPage>", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("link", { name: /API Docs/ }),
+      await screen.findByRole("link", { name: /API docs/ }),
     ).toHaveAttribute("href", "/api/docs");
   });
 
@@ -141,9 +143,13 @@ describe("<ApiKeysPage>", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", { name: /Create Key/ }));
+    // The header and the empty state both offer "Create key"; either opens
+    // the same dialog.
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Create key" }))[0],
+    );
     await user.type(
-      await screen.findByRole("textbox", { name: /Key Name/ }),
+      await screen.findByRole("textbox", { name: /Key name/ }),
       "Reporting",
     );
     await user.click(screen.getByRole("button", { name: "Create" }));

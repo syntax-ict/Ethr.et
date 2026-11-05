@@ -6,7 +6,10 @@ use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Models\ApiKey;
+use App\Models\Branch;
+use App\Models\Device;
 use App\Models\Employee;
+use App\Models\KioskSession;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
@@ -274,4 +277,39 @@ it('gives each key a rate budget of its own, apart from its creator\'s', functio
 
     expect($limiter($byKey)->key)->toBe('api-key:'.$apiKey->id)
         ->and($limiter($bySession)->key)->toBe($admin->id);
+});
+
+// A-Z review G-01 (2026-11-04). An integration key never creates a
+// credential: the refusal above covered whole route prefixes, and a few
+// credential routes live under prefixes keys may otherwise use.
+it('keeps every key out of the credential routes inside the modules it may use', function (string $method, Closure $uri) {
+    [$tenant, $admin] = keyTenant();
+    app(CurrentTenant::class)->set($tenant);
+    $employee = Employee::query()->where('tenant_id', $tenant->id)->firstOrFail();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $kiosk = KioskSession::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $key = consoleKey($tenant, $admin, ['read', 'write', 'employees', 'attendance', 'leave', 'payroll', 'reports']);
+
+    withKey($key)->json($method, $uri($employee, $device, $kiosk), ['pin' => '4821'])
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/api-key-session-only');
+})->with([
+    'issue an activation code' => ['POST', fn ($e) => "/api/v1/employees/{$e->public_id}/activation-code"],
+    'set a kiosk PIN' => ['PUT', fn ($e) => "/api/v1/employees/{$e->public_id}/kiosk-pin"],
+    'register a kiosk' => ['POST', fn () => '/api/v1/kiosk-sessions'],
+    'renew a kiosk token' => ['POST', fn ($e, $d, $k) => "/api/v1/kiosk-sessions/{$k->public_id}/regenerate-token"],
+    'renew a device token' => ['POST', fn ($e, $d) => "/api/v1/devices/{$d->public_id}/regenerate-token"],
+]);
+
+it('shows a key no device webhook token', function () {
+    [$tenant, $admin] = keyTenant();
+    app(CurrentTenant::class)->set($tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'webhook_token' => Device::generateWebhookToken()]);
+    $key = consoleKey($tenant, $admin, ['read']);
+
+    $body = withKey($key)->getJson("/api/v1/devices/{$device->public_id}")->assertOk()->getContent();
+
+    expect($body)->not->toContain($device->webhook_token);
 });

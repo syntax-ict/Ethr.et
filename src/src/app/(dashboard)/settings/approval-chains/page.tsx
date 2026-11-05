@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,8 +33,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useConfirm } from "@/components/shared/use-confirm";
@@ -183,26 +186,48 @@ interface Option {
   label: string;
 }
 
-/** A short list of ticks; nothing ticked means "every one". */
+/**
+ * A short list of ticks; nothing ticked means "every one". While its list is
+ * loading or has failed it says so, rather than "None set up yet.", which
+ * read as if the organisation had no departments.
+ */
 function CheckList({
   id,
+  labelId,
   options,
   value,
   onChange,
   emptyText,
+  isLoading = false,
+  isError = false,
+  onRetry,
 }: {
   id: string;
+  labelId: string;
   options: Option[];
   value: string[];
   onChange: (next: string[]) => void;
   emptyText: string;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }) {
+  if (isLoading) {
+    return <Skeleton className="h-20 w-full" />;
+  }
+  if (isError) {
+    return <ErrorState compact onRetry={onRetry} />;
+  }
   if (options.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
-    <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3">
+    <div
+      role="group"
+      aria-labelledby={labelId}
+      className="max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3"
+    >
       {options.map((o) => {
         const checkboxId = `${id}-${o.value}`;
         const checked = value.includes(o.value);
@@ -336,7 +361,11 @@ export default function ApprovalChainsPage() {
   const roleLabel = (role: string): string => t(`role.${role}`, role);
 
   const stepLabel = (kind: string, ref: string | null | undefined): string => {
-    if (kind === "role" && ref) return `${kindLabel(kind)}: ${roleLabel(ref)}`;
+    if (kind === "role" && ref) {
+      return t("approval_chains.kind_role_named", "Anyone who is :role", {
+        role: roleLabel(ref),
+      });
+    }
     if (kind === "user" && ref) {
       const name = userOptions.find((o) => o.value === ref)?.label;
       return name ?? kindLabel(kind);
@@ -444,7 +473,7 @@ export default function ApprovalChainsPage() {
             <p>
               {t(
                 "approval_chains.how_default",
-                "Without a chain, a leave request, attendance correction or profile change is decided in one step by anyone who may approve it for that employee.",
+                "Without a chain, a leave request, attendance correction, profile change or overtime request is decided in one step by anyone who may approve it for that employee.",
               )}
             </p>
             <p>
@@ -567,6 +596,12 @@ export default function ApprovalChainsPage() {
                   ? t("approval_chains.edit", "Edit approval chain")
                   : t("approval_chains.add", "New chain")}
               </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "approval_chains.dialog_desc",
+                  "Choose who decides each step, in order, and which requests the chain covers.",
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form
               onSubmit={submit(
@@ -592,7 +627,7 @@ export default function ApprovalChainsPage() {
                     {...register("name")}
                     placeholder={t(
                       "approval_chains.name_placeholder",
-                      "e.g. Supervisor, then HR",
+                      "Supervisor, then HR",
                     )}
                     className="mt-1"
                   />
@@ -697,6 +732,7 @@ export default function ApprovalChainsPage() {
                             if (kind !== "role" && kind !== "user") {
                               return <span />;
                             }
+                            const refErrorId = `chain_step_${index}_ref_error`;
                             const options =
                               kind === "role"
                                 ? ROLES.map((r) => ({
@@ -725,6 +761,9 @@ export default function ApprovalChainsPage() {
                                           )
                                     }
                                     aria-invalid={refError ? true : undefined}
+                                    aria-describedby={
+                                      refError ? refErrorId : undefined
+                                    }
                                   >
                                     <SelectValue
                                       placeholder={t(
@@ -742,7 +781,11 @@ export default function ApprovalChainsPage() {
                                   </SelectContent>
                                 </Select>
                                 {refError && (
-                                  <p className="mt-1 text-sm text-destructive">
+                                  <p
+                                    id={refErrorId}
+                                    role="alert"
+                                    className="mt-1 text-sm text-destructive"
+                                  >
                                     {refError}
                                   </p>
                                 )}
@@ -831,11 +874,15 @@ export default function ApprovalChainsPage() {
                     control={control}
                     render={({ field }) => (
                       <div className="space-y-1">
-                        <p className="text-sm">
+                        <p id="chain_departments_label" className="text-sm">
                           {t("approval_chains.departments", "Departments")}
                         </p>
                         <CheckList
                           id="chain_departments"
+                          labelId="chain_departments_label"
+                          isLoading={departments.isLoading}
+                          isError={departments.isError}
+                          onRetry={() => departments.refetch()}
                           options={departmentOptions}
                           value={field.value}
                           onChange={field.onChange}
@@ -852,11 +899,15 @@ export default function ApprovalChainsPage() {
                     control={control}
                     render={({ field }) => (
                       <div className="space-y-1">
-                        <p className="text-sm">
+                        <p id="chain_branches_label" className="text-sm">
                           {t("approval_chains.branches", "Branches")}
                         </p>
                         <CheckList
                           id="chain_branches"
+                          labelId="chain_branches_label"
+                          isLoading={branches.isLoading}
+                          isError={branches.isError}
+                          onRetry={() => branches.refetch()}
                           options={branchOptions}
                           value={field.value}
                           onChange={field.onChange}
@@ -874,11 +925,15 @@ export default function ApprovalChainsPage() {
                       control={control}
                       render={({ field }) => (
                         <div className="space-y-1">
-                          <p className="text-sm">
+                          <p id="chain_leave_types_label" className="text-sm">
                             {t("approval_chains.leave_types", "Leave types")}
                           </p>
                           <CheckList
                             id="chain_leave_types"
+                            labelId="chain_leave_types_label"
+                            isLoading={leaveTypes.isLoading}
+                            isError={leaveTypes.isError}
+                            onRetry={() => leaveTypes.refetch()}
                             options={leaveTypeOptions}
                             value={field.value}
                             onChange={field.onChange}

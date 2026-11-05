@@ -139,3 +139,33 @@ it('survives a change of display preferences, which never touch it', function ()
 
     expect(PhotoConsent::given($user->refresh()))->toBeTrue();
 });
+
+// A-Z review D-03 (2026-11-04). The check-out took a selfie from anyone, and
+// up to 8 MB: only the check-in asked for consent and held the 1.5 MB limit.
+it('refuses a check-out selfie from someone who has not agreed, and takes it once they have', function () {
+    [$tenant, $employee, $user] = consentEmployee();
+    selfieCheckIn($tenant)->assertCreated();
+    $checkOut = fn () => test()->postJson(consentUrl($tenant, '/attendance/mobile/check-out'), [
+        'idempotency_key' => (string) Str::uuid(),
+        'photo' => selfieDataUrl(),
+    ]);
+
+    $checkOut()->assertUnprocessable()
+        ->assertJsonValidationErrors(['photo' => __('attendance.photo_consent_required')]);
+    expect(Storage::disk('local')->allFiles())->toBe([]);
+
+    PhotoConsent::give($user);
+    $checkOut()->assertOk();
+    expect(AttendanceRecord::query()->where('employee_id', $employee->id)->sole()->metadata['checkout_photo_path'] ?? null)->toBeString();
+});
+
+it('holds a check-out selfie to the same size limit as a check-in one', function () {
+    [$tenant, , $user] = consentEmployee();
+    PhotoConsent::give($user);
+    selfieCheckIn($tenant)->assertCreated();
+
+    test()->postJson(consentUrl($tenant, '/attendance/mobile/check-out'), [
+        'idempotency_key' => (string) Str::uuid(),
+        'photo' => selfieDataUrl(1400, 1400),
+    ])->assertUnprocessable()->assertJsonValidationErrors('photo');
+});

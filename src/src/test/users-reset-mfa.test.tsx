@@ -86,7 +86,9 @@ describe("Users — resetting two-factor authentication", () => {
 
     expect(await screen.findByText("2FA")).toBeInTheDocument();
     await ui.click(
-      screen.getByRole("button", { name: "Reset two-factor authentication" }),
+      screen.getByRole("button", {
+        name: "Reset two-factor authentication for abebe@acme.et",
+      }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("abebe@acme.et")).toBeInTheDocument();
@@ -105,7 +107,9 @@ describe("Users — resetting two-factor authentication", () => {
     // No employee name, so the row shows the email twice.
     await screen.findAllByText("abebe@acme.et");
     expect(
-      screen.queryByRole("button", { name: "Reset two-factor authentication" }),
+      screen.queryByRole("button", {
+        name: /reset two-factor authentication/i,
+      }),
     ).not.toBeInTheDocument();
   });
 
@@ -117,7 +121,9 @@ describe("Users — resetting two-factor authentication", () => {
     // No employee name, so the row shows the email twice.
     await screen.findAllByText("abebe@acme.et");
     expect(
-      screen.queryByRole("button", { name: "Reset two-factor authentication" }),
+      screen.queryByRole("button", {
+        name: /reset two-factor authentication/i,
+      }),
     ).not.toBeInTheDocument();
   });
 });

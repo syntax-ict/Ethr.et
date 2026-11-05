@@ -147,7 +147,15 @@ export function AddressCard({ address }: AddressCardProps) {
   }
 
   const currentUrl = address.canonical_url ?? address.entry_url;
-  const chosenNotInUse = address.mode !== address.effective_mode;
+  // A chosen domain still awaiting verification is one reason the shared
+  // address is in use; a subdomain this installation does not serve is
+  // another. The box used to give the second reason for both.
+  const awaitingVerification =
+    address.mode === "custom_domain" &&
+    address.mode !== address.effective_mode &&
+    address.custom_domain_status !== "verified";
+  const chosenNotInUse =
+    address.mode !== address.effective_mode && !awaitingVerification;
 
   return (
     <Card>
@@ -174,6 +182,14 @@ export function AddressCard({ address }: AddressCardProps) {
           <code className="break-all font-mono" data-testid="current-address">
             {currentUrl}
           </code>
+          {awaitingVerification && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "settings.address_awaiting_verification",
+                "Used once the domain is verified; the shared address is used until then.",
+              )}
+            </p>
+          )}
           {chosenNotInUse && (
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
@@ -242,7 +258,7 @@ export function AddressCard({ address }: AddressCardProps) {
                     {modeHelp[option]}
                   </span>
                   {subdomainUnavailable && (
-                    <span className="block text-xs text-warning">
+                    <span className="block text-xs text-warning-on-soft">
                       {t(
                         "settings.address_not_served",
                         "Not available on this installation yet; the shared address is used until it is.",
@@ -315,7 +331,10 @@ export function AddressCard({ address }: AddressCardProps) {
                 <DnsRecord
                   type="CNAME"
                   name={address.custom_domain_dns.cname_name ?? ""}
-                  value={address.custom_domain_dns.cname_target ?? "—"}
+                  value={
+                    address.custom_domain_dns.cname_target ??
+                    t("common.not_set", "Not set")
+                  }
                   nameLabel={t("settings.address_record_name", "Name")}
                   valueLabel={t("settings.address_record_value", "Value")}
                 />
@@ -325,8 +344,8 @@ export function AddressCard({ address }: AddressCardProps) {
                   role="alert"
                   className="list-disc space-y-1 pl-5 text-sm text-destructive"
                 >
-                  {verifyErrors.map((message) => (
-                    <li key={message} className="break-words">
+                  {verifyErrors.map((message, i) => (
+                    <li key={i} className="break-words">
                       {message}
                     </li>
                   ))}
@@ -350,7 +369,7 @@ export function AddressCard({ address }: AddressCardProps) {
             {updateAddress.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            {t("common.save", "Save Changes")}
+            {t("settings.save_address", "Save address")}
           </Button>
         </div>
       </CardContent>

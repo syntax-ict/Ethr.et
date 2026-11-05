@@ -101,6 +101,25 @@ else
       todo "running an older release than production: press Deploy in Plesk Git, then do the release steps (docs/deployment/PLESK-GO-LIVE.md)"
     fi
   fi
+
+  # The schema the live code runs on. A deploy and its `migrate` are two steps
+  # on the host, and on 2026-11-04 a release served code ahead of its schema for
+  # five hours because the second was skipped: release.json alone said "in
+  # step". /health counts the migrations not yet run (no -f: it answers 503 when
+  # a service is degraded, and the count is still in the body).
+  HEALTH="$(curl -sSL --max-redirs 3 --max-time 20 -H 'Accept: application/json' "$URL/api/v1/health" 2>/dev/null)"
+  PENDING_MIGRATIONS="$(printf '%s' "$HEALTH" | sed -n 's/.*"pending_migrations":\([0-9][0-9]*\).*/\1/p')"
+  if [ -z "$PENDING_MIGRATIONS" ]; then
+    if printf '%s' "$HEALTH" | grep -q '"pending_migrations":null'; then
+      unk "the live site could not read its own migration table"
+    else
+      unk "the live site does not report pending migrations (a release from before the check, or /health did not answer)"
+    fi
+  elif [ "$PENDING_MIGRATIONS" = 0 ]; then
+    ok "schema current: no migration waiting"
+  else
+    todo "$PENDING_MIGRATIONS migration(s) not run on the live site: the code is ahead of its schema. Run the release steps now (backup, migrate, seed, clear, optimize; docs/deployment/PLESK-GO-LIVE.md Part 5)"
+  fi
 fi
 
 echo

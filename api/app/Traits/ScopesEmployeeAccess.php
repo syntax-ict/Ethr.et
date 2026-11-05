@@ -7,6 +7,7 @@ namespace App\Traits;
 use App\Enums\OrgScope;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Permission;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -27,7 +28,7 @@ trait ScopesEmployeeAccess
 
     public function orgScope(): OrgScope
     {
-        if ($this->custom_role_id) {
+        if ($this->custom_role_id && Permission::customRoleIsActive($this->custom_role_id)) {
             $customRole = $this->customRole;
             if ($customRole && $customRole->org_scope) {
                 return OrgScope::from($customRole->org_scope);

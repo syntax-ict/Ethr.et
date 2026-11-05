@@ -31,6 +31,7 @@ import {
   useDisableMfa,
   useEnableMfa,
   useStartMfaSetup,
+  useUpdateOwnPhone,
   type MfaSetup,
 } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
@@ -59,6 +60,73 @@ function useEnrolmentRequired(): boolean {
     subscribeToNothing,
     () => new URLSearchParams(window.location.search).get("mfa") === "required",
     () => false,
+  );
+}
+
+/**
+ * The person's own phone, on their account rather than an employee record:
+ * the administrator who registered an organisation has none, and ETHR's
+ * support calls the owner on this number. The Next Steps item for an owner
+ * with no phone links here (`#phone`).
+ */
+function OwnPhoneCard({ current }: { current: string | null | undefined }) {
+  const { t } = useT();
+  const update = useUpdateOwnPhone();
+  const [phone, setPhone] = useState(current ?? "");
+
+  function save() {
+    update.mutate(phone, {
+      onSuccess: () =>
+        toast.success(t("profile_security.phone_saved", "Phone saved")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("profile_security.phone_hint", "Enter an Ethiopian number."),
+          ),
+        ),
+    });
+  }
+
+  return (
+    <Card id="phone">
+      <CardHeader>
+        <CardTitle className="text-base">
+          {t("profile_security.phone_title", "Your phone")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Label htmlFor="own-phone">
+          {t("profile_security.phone_title", "Your phone")}
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            id="own-phone"
+            className="max-w-xs"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="0912345678"
+          />
+          <Button
+            onClick={save}
+            disabled={update.isPending || phone.trim() === ""}
+          >
+            {t("profile_security.phone_save", "Save phone")}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "profile_security.phone_hint",
+            "The number ETHR support calls you on.",
+          )}
+        </p>
+        {current && (
+          <Badge variant="outline">
+            {t("profile_security.phone_unverified", "Not yet verified")}
+          </Badge>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -235,6 +303,7 @@ export default function SecurityPage() {
           </AlertDescription>
         </Alert>
       )}
+      {user && <OwnPhoneCard key={user.phone ?? ""} current={user.phone} />}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">

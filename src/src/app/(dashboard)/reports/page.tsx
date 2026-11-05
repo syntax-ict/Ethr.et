@@ -10,6 +10,8 @@ import { BuilderTab } from "@/features/reports/components/builder-tab";
 import { QuickTab } from "@/features/reports/components/quick-tab";
 import { SavedTab } from "@/features/reports/components/saved-tab";
 import { ScheduledTab } from "@/features/reports/components/scheduled-tab";
+import { PageActions } from "@/components/shared/page-actions";
+import { PrintAction } from "@/components/shared/print-action";
 
 const REPORT_TABS = ["builder", "quick", "saved", "scheduled"] as const;
 
@@ -26,6 +28,7 @@ export default function ReportsPage() {
   return (
     <RoleGate anyPermission={["viewReports"]}>
       <div className="space-y-6">
+        <PageActions actions={<PrintAction />} />
         {!plan.has("reports") ? (
           <PlanFeatureNotice feature="reports" />
         ) : (

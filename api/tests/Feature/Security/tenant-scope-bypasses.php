@@ -11,6 +11,16 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-04, A-Z review H-02: one more, in `AdminTenantController::
+ * markInvoicePaid()`. Marking the last overdue invoice paid puts a past-due
+ * subscription back to active, on the platform host where no tenant is
+ * resolved. One statement, stating `tenant_id` from the organisation in the
+ * route on the subscription and on its overdue-invoice subquery. 183/72.)
+ * (2026-11-04, A-Z review D-06: one more, in `AttendanceEngine::processBreak()`.
+ * A resent break is found by its key among the person's records for the day
+ * before any open record is looked for, from device ingestion where no
+ * tenant may be resolved. The query states `tenant_id` and `employee_id` from
+ * the punch's own input, as `findOpenRecord()` beside it does. 182/72.)
  * (2026-10-30, onboarding review: two more, both in `Models/Tenant.php`. A
  * trial organisation is named in public (Trusted by, the portals sitemap,
  * `index` on its portal) only once it holds `PUBLIC_MIN_EMPLOYEES` people, and
@@ -232,7 +242,7 @@ return [
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
-    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
+    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 17,
     // Pre-authentication: the phone lookup and, since email sign-in codes, the
     // email lookup. Each states tenant_id from the resolved tenant on its own
     // chain, as AuthIdentifierResolver does for password sign-in.
@@ -299,7 +309,7 @@ return [
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 2,
+    'Services/Attendance/AttendanceEngine.php' => 3,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,

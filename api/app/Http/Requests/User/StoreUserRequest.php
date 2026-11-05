@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
+use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -68,27 +69,9 @@ class StoreUserRequest extends FormRequest
                 return;
             }
 
-            // super_admin is a platform-level role and is never assignable
-            // through tenant user management.
-            if ($role === UserRole::SUPER_ADMIN) {
-                $v->errors()->add('role', __('user.errors.role_not_assignable'));
-
-                return;
-            }
-
-            // No privilege escalation: you cannot grant a role above your own.
-            if (! $actor->isSuperAdmin() && $role->level() > $actor->role->level()) {
-                $v->errors()->add('role', __('user.errors.role_above_your_level'));
-            }
-
-            // Two roles share level 70 with different jobs (audit N95): whoever
-            // processes payroll must not also change the accounts it pays into.
-            // Below the organisation admin, the other role at your level is
-            // not yours to hand out, or an HR admin could open a Finance admin
-            // account for themselves.
-            if (! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
-                && $role->level() === $actor->role->level() && $role !== $actor->role) {
-                $v->errors()->add('role', __('user.errors.role_beside_your_own'));
+            $refusal = RoleAssignment::refusal($actor, $role);
+            if ($refusal !== null) {
+                $v->errors()->add('role', __($refusal));
             }
         });
     }

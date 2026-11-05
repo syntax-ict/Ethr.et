@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Models\Device;
 use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
@@ -34,11 +35,11 @@ class DeviceResource extends JsonResource
                 fn () => $this->webhook_ip_allowlist ?? [],
             ),
             'webhook_token' => $this->when(
-                $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
+                $this->showsToken($request),
                 $this->webhook_token,
             ),
             'webhook_url' => $this->when(
-                $request->user()?->isAtLeast(UserRole::TENANT_ADMIN) && $this->webhook_token,
+                $this->showsToken($request) && $this->webhook_token,
                 fn () => $this->buildWebhookUrl(),
             ),
             'last_sync_at' => $this->last_sync_at?->toIso8601String(),
@@ -59,6 +60,16 @@ class DeviceResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * The device's token is shown to an admin signed in, never through an
+     * integration key, which creates or reads no credential (A-Z review G-01).
+     */
+    private function showsToken(Request $request): bool
+    {
+        return $request->user()?->isAtLeast(UserRole::TENANT_ADMIN) === true
+            && ! $request->attributes->has(AuthenticateApiKey::ATTRIBUTE);
     }
 
     private function buildWebhookUrl(): ?string

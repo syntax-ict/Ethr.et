@@ -9,7 +9,7 @@ import { server } from "./msw/server";
 import { PayrollRunDetail } from "@/app/(dashboard)/payroll/[id]/payroll-run-detail";
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
 /** Shaped like PayrollRunResource with its entries loaded. */
@@ -201,6 +201,59 @@ describe("<PayrollRunDetail> exports", () => {
       "Employee Name,Employee Code,Bank,Branch,Account Number,Net Amount (ETB)",
       "Abebe Kebede,E001,Commercial Bank of Ethiopia,Bole,1000123456789,12345.67",
     ]);
+  });
+
+  it("names the people the bank file cannot pay", async () => {
+    // A-Z review F-02: a run where some employees have no account number
+    // downloaded with "Bank transfer file downloaded" and nothing else; the
+    // audit run's file had 25 blank account numbers.
+    const row = {
+      bank_name: "",
+      branch_name: "",
+      account_number: "",
+      net_amount_cents: 100000,
+    };
+    server.use(
+      me("finance_admin", ["payroll.viewAll"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({ ...RUN, status: "approved" }),
+      ),
+      http.get("*/api/v1/payroll/runs/RUN1/export/bank", () =>
+        HttpResponse.json({
+          period: "Meskerem 2019",
+          total_entries: 3,
+          total_amount_cents: 300000,
+          rows: [
+            { ...row, employee_name: "Abebe Kebede", employee_code: "E001" },
+            {
+              ...row,
+              employee_name: "Sara Alemu",
+              employee_code: "E002",
+              bank_name: "Awash Bank",
+              account_number: "0123456789",
+            },
+            { ...row, employee_name: "Hana Tesfaye", employee_code: "E003" },
+          ],
+        }),
+      ),
+    );
+    const { toast } = await import("sonner");
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /Export/ }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Bank Transfer/i }),
+    );
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(toast.success).not.toHaveBeenCalledWith(
+      "Bank transfer file downloaded",
+    );
+    expect(toast.warning).toHaveBeenCalledWith(
+      "Bank transfer file downloaded. 2 people have no account number and cannot be paid from it: Abebe Kebede (E001), Hana Tesfaye (E003).",
+      expect.anything(),
+    );
   });
 
   it("writes the same journal file as the Accounting page", async () => {

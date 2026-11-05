@@ -181,7 +181,10 @@ class RecruitmentService
                 throw ValidationException::withMessages(['stage' => [__('recruitment.offer_not_approved')]]);
             }
 
-            $vacancy = $application->vacancy;
+            // Locked for the count: with only the application locked, two
+            // hires for the last position at the same moment both got
+            // through (A-Z review G-06).
+            $vacancy = Vacancy::query()->lockForUpdate()->find($application->vacancy_id);
             $hired = JobApplication::query()
                 ->where('vacancy_id', $application->vacancy_id)
                 ->where('stage', ApplicationStage::HIRED->value)

@@ -25,7 +25,10 @@ TENANT_HOST="${TENANT_HOST:-acme.localhost:8081}"
 # Path tenancy (section 7b) needs a REAL organisation in the rehearsal database:
 # DemoTenantSeeder creates `demo`. A missing one fails the 302 check, loudly.
 ORG_SLUG="${ORG_SLUG:-demo}"
-RESERVED_SLUG="${RESERVED_SLUG:-support}"
+# A reserved name with no page of its own. It was `support`, until Get Help
+# (#471) made /support a real page that rightly answers 200 (A-Z review,
+# 2026-11-04).
+RESERVED_SLUG="${RESERVED_SLUG:-ftp}"
 UNKNOWN_SLUG="${UNKNOWN_SLUG:-no-such-org-zz9}"
 
 pass=0; fail=0

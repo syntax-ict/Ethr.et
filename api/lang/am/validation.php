@@ -177,6 +177,9 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'bank_account_number' => [
+            'digits' => 'የሂሳብ ቁጥሩ አሃዞች፣ ክፍተቶች እና ሰረዞች ብቻ ሊይዝ ይችላል፤ በአሃዝ መጀመርና ማለቅ አለበት።',
+        ],
     ],
 
     'attributes' => [],

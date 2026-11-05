@@ -18,11 +18,13 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -112,6 +114,7 @@ export default function LeaveTypesPage() {
   const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const {
     register,
@@ -200,11 +203,33 @@ export default function LeaveTypesPage() {
 
   // A type that requests or balances use is refused with a 409 whose detail
   // says why and what to do instead; that sentence is the useful message.
-  function deleteType(publicId: string) {
-    deleteLeaveType.mutate(publicId, {
-      onSuccess: () => toast.success(t("leave_types_page.deleted")),
+  async function deleteType(lt: LeaveType) {
+    const ok = await requestConfirm({
+      title: t(
+        "leave_types_page.delete_title",
+        "Delete the leave type :name?",
+        {
+          name: lt.name,
+        },
+      ),
+      description: t(
+        "leave_types_page.delete_desc",
+        "Employees can no longer request it. A type that already has requests or balances cannot be deleted.",
+      ),
+      confirmLabel: t("common.delete", "Delete"),
+      variant: "destructive",
+    });
+    if (!ok) return;
+    deleteLeaveType.mutate(lt.public_id, {
+      onSuccess: () =>
+        toast.success(t("leave_types_page.deleted", "Leave type deleted")),
       onError: (err) =>
-        toast.error(apiErrorMessage(err, t("leave_types_page.delete_failed"))),
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("leave_types_page.delete_failed", "Failed to delete leave type"),
+          ),
+        ),
     });
   }
 
@@ -230,7 +255,7 @@ export default function LeaveTypesPage() {
           actions={
             <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" />
-              {t("leave_types_page.add")}
+              {t("leave_types_page.add", "Add leave type")}
             </Button>
           }
         />
@@ -251,8 +276,20 @@ export default function LeaveTypesPage() {
           empty={
             <EmptyState
               icon={FileText}
-              title={t("leave_types_page.no_leave_types")}
-              description={t("leave_types_page.no_leave_types_desc")}
+              title={t(
+                "leave_types_page.no_leave_types",
+                "No leave types configured",
+              )}
+              description={t(
+                "leave_types_page.no_leave_types_desc",
+                "Add a leave type before employees can request leave.",
+              )}
+              action={
+                <Button onClick={openNew}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("leave_types_page.add", "Add leave type")}
+                </Button>
+              }
             />
           }
         >
@@ -260,18 +297,18 @@ export default function LeaveTypesPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("leave_types_page.title")}
+                  {t("leave_types_page.title", "Leave types")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <SimpleTable
                   mobileCards
-                  caption={t("leave_types_page.title")}
+                  caption={t("leave_types_page.title", "Leave types")}
                   headers={[
                     t("common.name"),
                     t("leave_types_page.code"),
-                    t("leave_types_page.default_days"),
-                    t("leave_types_page.accrual_type"),
+                    t("leave_types_page.default_days", "Days per year"),
+                    t("leave_types_page.accrual_type", "How days accrue"),
                     t("common.status"),
                   ]}
                   align={["left", "left", "right", "left", "left"]}
@@ -298,7 +335,7 @@ export default function LeaveTypesPage() {
                           variant="outline"
                           className={statusBadgeClass("active")}
                         >
-                          {t("webhooks_page.active")}
+                          {t("common.active", "Active")}
                         </Badge>
                       ) : (
                         <Badge
@@ -306,7 +343,7 @@ export default function LeaveTypesPage() {
                           variant="outline"
                           className={statusBadgeClass("offline")}
                         >
-                          {t("roles_page.inactive")}
+                          {t("common.inactive", "Inactive")}
                         </Badge>
                       ),
                     ],
@@ -319,7 +356,9 @@ export default function LeaveTypesPage() {
                         >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">
-                            {t("common.edit", "Edit")}
+                            {t("leave_types_page.edit_named", "Edit :name", {
+                              name: lt.name,
+                            })}
                           </span>
                         </Button>
                         <Button
@@ -330,19 +369,29 @@ export default function LeaveTypesPage() {
                         >
                           <Copy className="h-4 w-4" />
                           <span className="sr-only">
-                            {t("common.duplicate", "Duplicate")}
+                            {t(
+                              "leave_types_page.duplicate_named",
+                              "Duplicate :name",
+                              { name: lt.name },
+                            )}
                           </span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-destructive-on-soft hover:bg-destructive-soft"
-                          onClick={() => deleteType(lt.public_id)}
+                          onClick={() => deleteType(lt)}
                           disabled={deleteLeaveType.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">
-                            {t("common.delete", "Delete")}
+                            {t(
+                              "leave_types_page.delete_named",
+                              "Delete :name",
+                              {
+                                name: lt.name,
+                              },
+                            )}
                           </span>
                         </Button>
                       </div>
@@ -359,9 +408,15 @@ export default function LeaveTypesPage() {
             <DialogHeader>
               <DialogTitle>
                 {editingId
-                  ? t("leave_types_page.edit")
-                  : t("leave_types_page.add")}
+                  ? t("leave_types_page.edit", "Edit leave type")
+                  : t("leave_types_page.add", "Add leave type")}
               </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "leave_types_page.dialog_desc",
+                  "The name and days employees see when they request leave.",
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form
               onSubmit={submit(
@@ -383,7 +438,10 @@ export default function LeaveTypesPage() {
               >
                 <Input
                   {...register("name")}
-                  placeholder={t("leave_types_page.name_placeholder")}
+                  placeholder={t(
+                    "leave_types_page.name_placeholder",
+                    "Annual leave",
+                  )}
                   className="mt-1"
                 />
               </FormField>
@@ -396,14 +454,14 @@ export default function LeaveTypesPage() {
               >
                 <Input
                   {...register("code")}
-                  placeholder={t("leave_types_page.code_placeholder")}
+                  placeholder={t("leave_types_page.code_placeholder", "annual")}
                   className="mt-1"
                 />
               </FormField>
 
               <FormField
                 id="lt_days"
-                label={t("leave_types_page.default_days")}
+                label={t("leave_types_page.default_days", "Days per year")}
                 required
                 error={fieldMessage(t, errors.default_days?.message)}
               >
@@ -411,7 +469,7 @@ export default function LeaveTypesPage() {
                   {...register("default_days")}
                   type="number"
                   min="0"
-                  placeholder={t("leave_types_page.days_placeholder")}
+                  placeholder={t("leave_types_page.days_placeholder", "20")}
                   className="mt-1"
                 />
               </FormField>
@@ -448,7 +506,7 @@ export default function LeaveTypesPage() {
 
               <FormField
                 id="lt_accrual"
-                label={t("leave_types_page.accrual_type")}
+                label={t("leave_types_page.accrual_type", "How days accrue")}
                 required
                 error={fieldMessage(t, errors.accrual_type?.message)}
               >
@@ -479,7 +537,7 @@ export default function LeaveTypesPage() {
                             {t("leave_types_page.immediate")}
                           </SelectItem>
                           <SelectItem value="one_time">
-                            {t("leave_types_page.one_time")}
+                            {t("leave_types_page.one_time", "Once")}
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -542,13 +600,15 @@ export default function LeaveTypesPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {editingId
-                    ? t("leave_types_page.save_changes")
-                    : t("leave_types_page.add")}
+                    ? t("leave_types_page.save_changes", "Save changes")
+                    : t("leave_types_page.add", "Add leave type")}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
+
+        {confirmDialog}
       </div>
     </RoleGate>
   );

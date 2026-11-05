@@ -38,7 +38,9 @@ it. The page is **Attendance, Photos** (`/attendance/photos`).
 ## How it runs
 
 `attendance:photo-retention`, hourly (`routes/console.php`), for every
-operational organisation. Each run first deletes photos whose review ended,
+organisation, in use or not: a suspended, cancelled, lapsed or closed
+organisation's photos are deleted on the same schedule, and only the
+notice to HR and managers is skipped there. Each run first deletes photos whose review ended,
 then opens the review for photos past the retention period, so a photo is
 never deleted in the run that announced it. It is idempotent: a record under
 review is not announced twice, and a record with no photo has nothing to

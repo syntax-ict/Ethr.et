@@ -115,7 +115,7 @@ describe("<HolidaysPage>", () => {
 
     await screen.findByText("Genna");
     expect(
-      screen.getByRole("button", { name: /Add Holiday/ }),
+      screen.getByRole("button", { name: "Add holiday" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^Delete/ }),

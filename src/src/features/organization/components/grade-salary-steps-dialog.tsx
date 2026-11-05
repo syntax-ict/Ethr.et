@@ -64,9 +64,16 @@ export function GradeSalaryStepsDialog({
     () =>
       z.object({
         step: rules.integer({ min: 1, max: 100 }),
+        // No band when the reader may not see it: the server still checks.
         salary: rules.etb({
-          min: grade.min_salary_cents / 100,
-          max: grade.max_salary_cents / 100,
+          min:
+            grade.min_salary_cents === undefined
+              ? undefined
+              : grade.min_salary_cents / 100,
+          max:
+            grade.max_salary_cents === undefined
+              ? undefined
+              : grade.max_salary_cents / 100,
         }),
       }),
     [grade.min_salary_cents, grade.max_salary_cents],
@@ -92,7 +99,8 @@ export function GradeSalaryStepsDialog({
     setEditing(s);
     resetForm({
       step: s.step.toString(),
-      salary: (s.salary_cents / 100).toString(),
+      salary:
+        s.salary_cents === undefined ? "" : (s.salary_cents / 100).toString(),
     });
   }
 
@@ -139,16 +147,19 @@ export function GradeSalaryStepsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "org.grade.step.range_hint",
-            "Each step's salary must fall within the grade band (:min – :max) and rise with the step number.",
-            {
-              min: (grade.min_salary_cents / 100).toLocaleString(),
-              max: (grade.max_salary_cents / 100).toLocaleString(),
-            },
+        {grade.min_salary_cents !== undefined &&
+          grade.max_salary_cents !== undefined && (
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "org.grade.step.range_hint",
+                "Each step's salary must fall within the grade band (:min – :max) and rise with the step number.",
+                {
+                  min: (grade.min_salary_cents / 100).toLocaleString(),
+                  max: (grade.max_salary_cents / 100).toLocaleString(),
+                },
+              )}
+            </p>
           )}
-        </p>
 
         <QueryBoundary
           query={query}

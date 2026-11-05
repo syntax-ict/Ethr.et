@@ -185,6 +185,9 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'bank_account_number' => [
+            'digits' => 'Lakkoofsi herregaa lakkoofsota, iddoo duwwaa fi sararoota qofa qabaachuu danda\'a; lakkoofsaan jalqabee lakkoofsaan xumuramuu qaba.',
+        ],
     ],
 
     /*

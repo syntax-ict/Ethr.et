@@ -2,17 +2,21 @@
 
 declare(strict_types=1);
 
+use App\Enums\ProfileUpdateStatus;
 use App\Enums\UserRole;
 use App\Jobs\RunScheduledReportsJob;
 use App\Models\CustomRole;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
+use App\Models\Grade;
 use App\Models\Permission;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
+use App\Services\Profile\ProfileUpdateRequestService;
 use App\Services\Report\ReportEngine;
 use Illuminate\Support\Facades\Notification;
 
@@ -166,6 +170,33 @@ describe('roles at the same level', function () {
         expect($finance->fresh()->status)->toBe('active');
     });
 
+    it('an HR admin cannot open a Finance admin account from the add-employee form either', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->postJson(payAuthzUrl($tenant, 'employees'), [
+            'name' => 'Second account',
+            'email' => 'second@example.com',
+            'hire_date' => '2026-01-01',
+            'create_login' => true,
+            'user_role' => UserRole::FINANCE_ADMIN->value,
+        ])->assertCreated();
+
+        expect(User::where('email', 'second@example.com')->sole()->role)->toBe(UserRole::EMPLOYEE);
+    });
+
+    it('an HR admin cannot narrow a Finance admin with a custom role', function () {
+        $tenant = createTenant();
+        $finance = createUser(['role' => UserRole::FINANCE_ADMIN, 'status' => 'active'], $tenant);
+        $narrow = payAuthzRole($tenant, ['profile.view']);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->patchJson(payAuthzUrl($tenant, "users/{$finance->public_id}"), ['custom_role_id' => $narrow->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+
+        expect($finance->fresh()->custom_role_id)->toBeNull();
+    });
+
     it('an HR admin still manages the people below them', function () {
         $tenant = createTenant();
         $supervisor = createUser(['role' => UserRole::SUPERVISOR, 'status' => 'active'], $tenant);
@@ -230,4 +261,79 @@ test('a scheduled report is delivered when the worker has no tenant set', functi
     );
 
     Notification::assertSentOnDemand(ScheduledReportNotification::class);
+});
+
+describe('pay data on the other paths that write it', function () {
+    it('a change to a bank account is decided only by someone who may edit pay data', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $requester = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+        test()->actingAs($requester);
+        $request = app(ProfileUpdateRequestService::class)
+            ->stage($employee, $requester, ['bank_account_number' => '1000123456789'])
+            ->firstOrFail();
+
+        $editor = createUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.update', 'employee.viewAny'])->id], $tenant);
+        app('auth')->forgetGuards();
+        test()->actingAs($editor)
+            ->postJson(payAuthzUrl($tenant, "profile-update-requests/{$request->public_id}/review"), ['action' => 'approve'])
+            ->assertForbidden();
+
+        expect($request->fresh()->status)->toBe(ProfileUpdateStatus::PENDING);
+    });
+
+    it('a change to a name is still decided with employee.update alone', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $requester = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+        test()->actingAs($requester);
+        $request = app(ProfileUpdateRequestService::class)->stage($employee, $requester, ['name' => 'New Name'])->firstOrFail();
+
+        $editor = createUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.update', 'employee.viewAny'])->id], $tenant);
+        app('auth')->forgetGuards();
+        test()->actingAs($editor)
+            ->postJson(payAuthzUrl($tenant, "profile-update-requests/{$request->public_id}/review"), ['action' => 'approve'])
+            ->assertOk();
+    });
+
+    it('an import that sets salary needs the permission that edits pay data', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN, 'custom_role_id' => payAuthzRole($tenant, ['employee.create', 'employee.viewAny'])->id], $tenant);
+
+        test()->postJson(payAuthzUrl($tenant, 'employees/import/commit'), [
+            'import_key' => 'pay',
+            'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01', 'salary' => '12000']],
+        ])->assertForbidden();
+
+        test()->postJson(payAuthzUrl($tenant, 'employees/import/commit'), [
+            'import_key' => 'no-pay',
+            'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2026-01-01']],
+        ])->assertCreated();
+    });
+});
+
+describe('grade salary bands', function () {
+    it('show the band only to someone who may see pay', function () {
+        $tenant = createTenant();
+        $grade = Grade::factory()->create(['tenant_id' => $tenant->id, 'min_salary_cents' => 800000, 'max_salary_cents' => 1200000]);
+        $grade->salarySteps()->create(['tenant_id' => $tenant->id, 'step' => 1, 'salary_cents' => 900000]);
+
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+        test()->getJson(payAuthzUrl($tenant, 'organization/grades'))
+            ->assertOk()
+            ->assertJsonPath('data.0.name', $grade->name)
+            ->assertJsonMissingPath('data.0.min_salary_cents')
+            ->assertJsonMissingPath('data.0.max_salary_cents');
+        test()->getJson(payAuthzUrl($tenant, "organization/grades/{$grade->public_id}/salary-steps"))
+            ->assertOk()
+            ->assertJsonPath('0.step', 1)
+            ->assertJsonMissingPath('0.salary_cents');
+
+        app('auth')->forgetGuards();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        test()->getJson(payAuthzUrl($tenant, 'organization/grades'))
+            ->assertJsonPath('data.0.min_salary_cents', 800000);
+        test()->getJson(payAuthzUrl($tenant, "organization/grades/{$grade->public_id}/salary-steps"))
+            ->assertJsonPath('0.salary_cents', 900000);
+    });
 });

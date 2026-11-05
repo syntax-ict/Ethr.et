@@ -97,6 +97,7 @@ class User extends Authenticatable implements HasLocalePreference
             'invited_at' => 'datetime',
             'activated_at' => 'datetime',
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
         ];
     }
 
@@ -253,7 +254,7 @@ class User extends Authenticatable implements HasLocalePreference
             return Permission::allNames();
         }
 
-        if ($this->custom_role_id) {
+        if ($this->custom_role_id && Permission::customRoleIsActive($this->custom_role_id)) {
             return Permission::permissionsForCustomRole($this->custom_role_id);
         }
 

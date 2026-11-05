@@ -94,17 +94,30 @@ class BackupTenantJob implements ShouldQueue
             $instance = new $class;
             $table = $instance->getTable();
 
+            // As stored, not as read: an encrypted field stays encrypted, as
+            // it is in the database dump, and hidden fields stay out. The
+            // readable form wrote encrypted fields out readable (A-Z review
+            // H-06).
             $payload['tables'][$table] = $class::withoutGlobalScopes()
                 ->where('tenant_id', $tenant->id)
                 ->get()
-                ->map(fn (Model $row) => $row->toArray())
+                ->map(fn (Model $row) => array_diff_key($row->getAttributes(), array_flip($row->getHidden())))
                 ->all();
         }
 
         $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $filename = sprintf('backups/%s/%s.json', $tenant->subdomain, now()->format('Y-m-d_His'));
 
-        Storage::disk(config('filesystems.default'))->put($filename, $json);
+        $disk = Storage::disk(config('filesystems.default'));
+        $disk->put($filename, $json);
+
+        // Kept as many as the full backups (backup.keep), newest first; they
+        // were never pruned and piled up on the host.
+        $exports = collect($disk->files("backups/{$tenant->subdomain}"))
+            ->filter(fn (string $file) => str_ends_with($file, '.json'))
+            ->sortDesc()
+            ->values();
+        $exports->slice(max(1, (int) config('backup.keep')))->each(fn (string $file) => $disk->delete($file));
 
         return $filename;
     }
