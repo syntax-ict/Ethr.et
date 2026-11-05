@@ -743,7 +743,7 @@
   "api_reference.start_title": "Jalqabuu",
   "api_reference.unavailable": "Wabiin amma hin argamu.",
   "api_reference.webhooks_body": "Qindaa'ina keessatti, Webhooks jalatti, taateewwan kana keessaa tokko yeroo uumamu ETHR gara URL keessaniitti POST gochuu danda'a. URL-n ummataaf banaa ta'uu qaba; qabiyyeen isaa public id fi maqaalee qaba, odeeffannoo dhuunfaa miti.",
-  "api_reference.webhooks_replay": "X-ETHR-Timestamp yaalii hunda irratti haaraa dha, kanaaf ergaan qabame tokko yeroo dulloomu mirkanaa'uu dhaba. X-ETHR-Delivery irra deebi'ee yaalii ergaa tokkoo hunda irratti akkuma jirutti tura: kuusaatii ergaa duraan hojjettan tuffadhaa.",
+  "api_reference.webhooks_replay": "X-ETHR-Timestamp yaalii hunda irratti haaraa dha, kanaaf ergaan qabame tokko yeroo dulloomu mirkanaa'uu dhaba. delivery_id qaama keessa jiru, gatii X-ETHR-Delivery wajjin tokko ta'ee mallattoon kan haguugamu, irra deebi'ee yaalii ergaa tokkoo hunda irratti akkuma jirutti tura: kuusaatii ergaa duraan hojjettan tuffadhaa.",
   "api_reference.webhooks_retry": "2xx kamiinuu deebisaa. Yeroon darbuu, 408, 425, 429 ykn 5xx daqiiqaa 1, daqiiqaa 5, daqiiqaa 30, sa'aatii 2 fi sa'aatii 24 booda irra deebi'amee yaalama; deebiiwwan biroo irra deebi'amanii hin yaalaman, gara biraatti qajeelchuunis hin hordofamu.",
   "api_reference.webhooks_title": "Webhookoota",
   "api_reference.webhooks_verify": "Ergaa tokko amanachuu dura X-ETHR-Signature-V2 mirkaneessaa: inni sha256= kan HMAC-SHA256 hordofu dha, icciitii webhook sanaatiin, X-ETHR-Timestamp, tuqaa fi qaama dheedhii irratti kan shallagame. Mallattoo yeroo daqiiqaa shan caalaa dulloome didaa. X-ETHR-Signature, qaama qofa irratti kan shallagame, fudhattoota dulloomaniif kuufamee jira.",
