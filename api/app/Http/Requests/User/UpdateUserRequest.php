@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Tenancy\OrganisationOwnership;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -60,6 +61,16 @@ class UpdateUserRequest extends FormRequest
                 && $this->input('role') !== $target->role->value;
             $changesStatus = $target instanceof User && $this->has('status')
                 && $this->input('status') !== $target->status;
+
+            // The owner stays an active administrator until ownership is
+            // handed on: ETHR's support calls them, and only they may give
+            // it away (OrganisationOwnership).
+            if (($changesRole || ($changesStatus && $this->input('status') !== 'active'))
+                && OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
+                $v->errors()->add($changesRole ? 'role' : 'status', __('user.errors.owner_transfer_first'));
+
+                return;
+            }
 
             if (($changesRole || $changesStatus) && $actor !== null
                 && ! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()

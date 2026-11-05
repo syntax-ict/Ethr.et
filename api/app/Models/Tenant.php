@@ -92,6 +92,7 @@ class Tenant extends Model
     protected $fillable = [
         'public_id',
         'name',
+        'owner_user_id',
         'subdomain',
         'custom_domain',
         'address_mode',

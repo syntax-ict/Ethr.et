@@ -27,6 +27,10 @@ return [
         'batch_not_found' => 'እንደዚህ ያለ የግብዣ ስብስብ የለም።',
     ],
     'errors' => [
+        'owner_transfer_first' => 'ይህ ሰው የድርጅቱ ባለቤት ነው። መጀመሪያ ባለቤትነቱን ለሌላ አስተዳዳሪ ያስተላልፉ።',
+        'owner_must_be_active_admin' => 'ባለቤትነት ሊተላለፍ የሚችለው ለሌላ ንቁ የድርጅቱ አስተዳዳሪ ብቻ ነው።',
+        'only_owner_transfers' => 'ባለቤትነትን ማስተላለፍ የሚችለው የድርጅቱ ባለቤት ብቻ ነው።',
+        'password_incorrect' => 'የይለፍ ቃሉ ትክክል አይደለም።',
         'role_not_assignable' => 'ይህ ሚና ሊመደብ አይችልም።',
         'role_above_your_level' => 'ከራስዎ ከፍ ያለ ሚና መመደብ አይችሉም።',
         'role_beside_your_own' => 'በእርስዎ ደረጃ ያለ ሌላ ሚና መመደብ የሚችለው የድርጅቱ አስተዳዳሪ ብቻ ነው።',
