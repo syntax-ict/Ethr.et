@@ -130,6 +130,10 @@ class AdminTenantController extends Controller
                 'paid_at' => $i->paid_at,
             ]);
 
+        // Support calls the owner on this number; a person's contact details,
+        // so shown here only, in the console behind admin.manage.
+        $owner = $this->ownerOf($tenant);
+
         $deviceCount = class_exists(Device::class)
             ? Device::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count()
             : 0;
@@ -175,7 +179,30 @@ class AdminTenantController extends Controller
             ] : null,
             'invoices' => $invoices,
             'audit_log' => $auditLogs,
+            'owner' => $owner === null ? null : [
+                'name' => $owner->name,
+                'email' => $owner->email,
+                'phone' => $owner->phone,
+                'phone_verified' => $owner->phone_verified_at !== null,
+                'last_login_at' => $owner->last_login_at?->toIso8601String(),
+            ],
         ]);
+    }
+
+    /**
+     * The organisation's owner: its first active administrator, the person
+     * who registered it unless they have left. There is no owner field yet,
+     * so this is the rule; impersonation acts as the same person. The console
+     * resolves no tenant, so the scope is dropped and the tenant stated.
+     */
+    private function ownerOf(Tenant $tenant): ?User
+    {
+        return User::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first();
     }
 
     public function updateStatus(UpdateTenantStatusRequest $request, string $publicId): JsonResponse
@@ -566,15 +593,7 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        // An active admin, the same one every time: an unordered first() could
-        // pick a deactivated one, whose session is revoked at once (A-Z
-        // review H-13).
-        $adminUser = User::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('role', UserRole::TENANT_ADMIN)
-            ->where('status', 'active')
-            ->orderBy('id')
-            ->first();
+        $adminUser = $this->ownerOf($tenant);
 
         if (! $adminUser) {
             return response()->json([
