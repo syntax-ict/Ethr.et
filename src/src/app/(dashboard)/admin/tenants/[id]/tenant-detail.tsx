@@ -73,6 +73,7 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
+import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { TenantFeaturesCard } from "./tenant-features-card";
 
 /** The shared host an organisation on the shared address is reached through. */
@@ -204,6 +205,7 @@ function TenantDetail({ id }: { id: string }) {
   const [mountedAt] = useState(() => Date.now());
 
   const [extendOpen, setExtendOpen] = useState(false);
+  const [ownerOpen, setOwnerOpen] = useState(false);
   const [extendDays, setExtendDays] = useState(30);
   const [domainOpen, setDomainOpen] = useState(false);
   const [domainInput, setDomainInput] = useState("");
@@ -608,6 +610,14 @@ function TenantDetail({ id }: { id: string }) {
                 <span className="font-medium text-foreground">
                   {tenant.owner.name}
                 </span>
+                {tenant.owner.status !== "active" && (
+                  <Badge variant="outline" className="text-destructive">
+                    {t(
+                      "admin_tenant_detail_page.owner_inactive",
+                      "Switched off",
+                    )}
+                  </Badge>
+                )}
                 {tenant.owner.email && (
                   <a
                     href={`mailto:${tenant.owner.email}`}
@@ -650,8 +660,48 @@ function TenantDetail({ id }: { id: string }) {
                 )}
               </p>
             )}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOwnerOpen(true)}
+                disabled={writesBlocked || (tenant.admins ?? []).length < 2}
+              >
+                {t(
+                  "admin_tenant_detail_page.transfer_ownership",
+                  "Change owner",
+                )}
+              </Button>
+            </div>
+            {(tenant.ownership_history ?? []).length > 0 && (
+              <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
+                {tenant.ownership_history.map((h) => (
+                  <li key={`${h.action}-${h.created_at}`}>
+                    {formatDateTime(h.created_at)}{" "}
+                    {h.action === "tenant.registered"
+                      ? t(
+                          "admin_tenant_detail_page.ownership_registered",
+                          "Registered",
+                        )
+                      : t(
+                          "admin_tenant_detail_page.ownership_change",
+                          ":from to :to",
+                          { from: h.from ?? "", to: h.to ?? "" },
+                        )}
+                    {h.by_platform &&
+                      ` (${t("admin_tenant_detail_page.ownership_by_ethr", "by ETHR")})`}
+                    {h.reason && `: ${h.reason}`}
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
+        <TransferOwnershipDialog
+          tenant={tenant}
+          open={ownerOpen}
+          onOpenChange={setOwnerOpen}
+        />
 
         {/* Actions */}
         <Card>

@@ -15,6 +15,7 @@ use App\Http\Requests\Admin\DeleteTenantRequest;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\RemoveTenantFeatureOverrideRequest;
+use App\Http\Requests\Admin\TransferOwnershipByPlatformRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
 use App\Http\Requests\Admin\UpdateTenantDomainRequest;
 use App\Http\Requests\Admin\UpdateTenantFeatureOverrideRequest;
@@ -36,8 +37,10 @@ use App\Services\CustomDomainVerifier;
 use App\Services\Features\FeatureControls;
 use App\Services\Features\FeatureGate;
 use App\Services\MfaService;
+use App\Services\Tenancy\OrganisationOwnership;
 use App\Services\TenantAddressService;
 use App\Support\FrontendUrl;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -138,8 +141,7 @@ class AdminTenantController extends Controller
             ? Device::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count()
             : 0;
 
-        $auditLogs = AuditLog::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
+        $auditLogs = $this->auditOf($tenant)
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
@@ -147,6 +149,37 @@ class AdminTenantController extends Controller
                 'action' => $l->action,
                 'created_at' => $l->created_at,
             ]);
+
+        // Who owned it and when it changed hands: the registration, then
+        // every transfer, newest first. The audit log is the history.
+        $ownershipHistory = $this->auditOf($tenant)
+            ->whereIn('action', ['tenant.registered', 'tenant.ownership_transferred'])
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function (AuditLog $l): array {
+                // Read through getAttribute: the `array` cast's static type is
+                // loose (string|null) and defeats the array handling.
+                $raw = $l->getAttribute('payload');
+                $payload = is_array($raw) ? $raw : [];
+
+                return [
+                    'action' => $l->action,
+                    'from' => $payload['from_name'] ?? null,
+                    'to' => $payload['to_name'] ?? null,
+                    'reason' => $payload['reason'] ?? null,
+                    'by_platform' => (bool) ($payload['by_platform'] ?? false),
+                    'created_at' => $l->created_at,
+                ];
+            });
+
+        // The administrators ownership can pass to.
+        $admins = $this->usersOf($tenant)
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (User $u) => ['public_id' => $u->public_id, 'name' => $u->name, 'email' => $u->email]);
 
         return response()->json([
             'public_id' => $tenant->public_id,
@@ -185,20 +218,93 @@ class AdminTenantController extends Controller
                 'phone' => $owner->phone,
                 'phone_verified' => $owner->phone_verified_at !== null,
                 'last_login_at' => $owner->last_login_at?->toIso8601String(),
+                'public_id' => $owner->public_id,
+                'status' => $owner->status,
             ],
+            'admins' => $admins,
+            'ownership_history' => $ownershipHistory,
         ]);
     }
 
     /**
-     * The organisation's owner: its first active administrator, the person
-     * who registered it unless they have left. There is no owner field yet,
-     * so this is the rule; impersonation acts as the same person. The console
-     * resolves no tenant, so the scope is dropped and the tenant stated.
+     * Hand an organisation to another of its active administrators: for an
+     * owner who has left, or cannot be reached. The organisation's own owner
+     * transfers from Settings; this is ETHR's, with a reason, behind
+     * admin.manage and the console's MFA for writes. Recorded in the audit
+     * log, which is the ownership history.
+     */
+    public function transferOwnership(TransferOwnershipByPlatformRequest $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+
+        $to = $this->usersOf($tenant)
+            ->where('public_id', (string) $request->validated('user_public_id'))
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->first();
+
+        if ($to === null) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => __('user.errors.owner_must_be_active_admin'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        app(OrganisationOwnership::class)->transfer($tenant, $this->ownerOf($tenant), $to, (string) $request->validated('reason'), byPlatform: true);
+
+        return response()->json(['owner_public_id' => $to->public_id]);
+    }
+
+    /**
+     * The users of an organisation, from the console, where no tenant is
+     * resolved: the scope is dropped and the tenant stated. Every user
+     * lookup here starts from this one builder.
+     *
+     * @return Builder<User>
+     */
+    private function usersOf(Tenant $tenant): Builder
+    {
+        return User::withoutGlobalScopes()->where('tenant_id', $tenant->id)->whereNull('deleted_at');
+    }
+
+    /**
+     * The organisation's audit log, from the console: the scope is dropped
+     * and the tenant stated.
+     *
+     * @return Builder<AuditLog>
+     */
+    private function auditOf(Tenant $tenant): Builder
+    {
+        return AuditLog::withoutGlobalScopes()->where('tenant_id', $tenant->id);
+    }
+
+    /**
+     * The organisation's owner (`owner_user_id`), whatever their state, so
+     * the console can show an owner who has been switched off. Before the
+     * field was filled, the first active administrator.
      */
     private function ownerOf(Tenant $tenant): ?User
     {
-        return User::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
+        return $tenant->owner_user_id !== null
+            ? $this->usersOf($tenant)->whereKey($tenant->owner_user_id)->first()
+            : $this->activeAdminOf($tenant);
+    }
+
+    /**
+     * Who impersonation acts as: the owner while active, else the first
+     * active administrator.
+     */
+    private function activeAdminOf(Tenant $tenant): ?User
+    {
+        $owner = $tenant->owner_user_id !== null
+            ? $this->usersOf($tenant)->whereKey($tenant->owner_user_id)->where('status', 'active')->first()
+            : null;
+
+        return $owner ?? $this->usersOf($tenant)
             ->where('role', UserRole::TENANT_ADMIN)
             ->where('status', 'active')
             ->orderBy('id')
@@ -593,7 +699,7 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $adminUser = $this->ownerOf($tenant);
+        $adminUser = $this->activeAdminOf($tenant);
 
         if (! $adminUser) {
             return response()->json([

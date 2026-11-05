@@ -35683,6 +35683,77 @@
                 }
             }
         },
+        "/settings/ownership": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "ownership.show",
+                "summary": "Ownership settings",
+                "tags": [
+                    "Ownership"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "owner_public_id": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "owner_name": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "is_owner": {
+                                            "type": "string"
+                                        },
+                                        "candidates": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "owner_public_id",
+                                        "owner_name",
+                                        "is_owner",
+                                        "candidates"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/settings/showcase": {
             "get": {
                 "x-abilities": [

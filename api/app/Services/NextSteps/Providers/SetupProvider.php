@@ -56,7 +56,7 @@ final class SetupProvider implements StepProvider
         // ETHR's support calls an organisation's owner, its first active
         // administrator, and could not when sign-up left the phone optional.
         // Required, so a blocker: it cannot be dismissed, only done.
-        $ownerId = User::query()
+        $ownerId = $tenant->owner_user_id ?? User::query()
             ->where('role', UserRole::TENANT_ADMIN)
             ->where('status', 'active')
             ->orderBy('id')
