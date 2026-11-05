@@ -17371,9 +17371,7 @@ export interface operations {
                             employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
-                        permissions: {
-                            [key: string]: unknown;
-                        };
+                        permissions: string[];
                         plan_features: unknown[] | null;
                         features: {
                             [key: string]: {
