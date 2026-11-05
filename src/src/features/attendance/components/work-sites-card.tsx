@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import { MapPicker } from "@/components/shared/map-picker/map-picker";
 import {
@@ -84,7 +85,33 @@ export function WorkSitesCard() {
   const { t } = useT();
   const sites = useAttendanceSites();
   const remove = useDeleteAttendanceSite();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const [editing, setEditing] = useState<AttendanceSite | "new" | null>(null);
+
+  async function removeSite(site: AttendanceSite) {
+    const ok = await requestConfirm({
+      title: t("work_sites.delete_title", "Remove the site :name?", {
+        name: site.name,
+      }),
+      description: t(
+        "work_sites.delete_desc",
+        "People placed here can only be checked against their branch until you add another site.",
+      ),
+      confirmLabel: t("common.remove", "Remove"),
+      variant: "destructive",
+    });
+    if (!ok) return;
+    remove.mutate(site.public_id, {
+      onSuccess: () => toast.success(t("work_sites.deleted", "Site removed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("work_sites.delete_failed", "Couldn't remove the site"),
+          ),
+        ),
+    });
+  }
 
   return (
     <Card className="lg:col-span-2">
@@ -152,26 +179,11 @@ export function WorkSitesCard() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={t("work_sites.delete", "Remove site")}
+                    aria-label={t("work_sites.delete_named", "Remove :name", {
+                      name: site.name,
+                    })}
                     disabled={remove.isPending}
-                    onClick={() =>
-                      remove.mutate(site.public_id, {
-                        onSuccess: () =>
-                          toast.success(
-                            t("work_sites.deleted", "Site removed"),
-                          ),
-                        onError: (err) =>
-                          toast.error(
-                            apiErrorMessage(
-                              err,
-                              t(
-                                "work_sites.delete_failed",
-                                "Couldn't remove the site",
-                              ),
-                            ),
-                          ),
-                      })
-                    }
+                    onClick={() => removeSite(site)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -188,6 +200,7 @@ export function WorkSitesCard() {
           onClose={() => setEditing(null)}
         />
       )}
+      {confirmDialog}
     </Card>
   );
 }
@@ -284,12 +297,14 @@ function SiteDialog({
               />
             </div>
             <div>
-              <Label>{t("work_sites.branch", "Branch")}</Label>
+              <Label htmlFor="site-branch">
+                {t("work_sites.branch", "Branch")}
+              </Label>
               <Select
                 value={draft.branch}
                 onValueChange={(v) => setDraft({ ...draft, branch: v })}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="site-branch" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

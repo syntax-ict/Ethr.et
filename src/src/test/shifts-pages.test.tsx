@@ -200,7 +200,7 @@ describe("Shifts page", () => {
     await screen.findByText("Morning");
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Edit/ }));
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     // UpdateShiftRequest: 'start_time' => ['sometimes', 'date_format:H:i'].
     // Echoing "08:30:00" back was a 422 on every edit.

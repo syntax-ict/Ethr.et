@@ -20,7 +20,7 @@ export default function PlatformAuditLogPage() {
       <AuditLogExplorer
         endpoint="/admin/audit"
         queryKey="admin-audit"
-        title={t("platform_audit_page.title", "Platform Audit Log")}
+        title={t("platform_audit_page.title", "Platform audit log")}
         exportPrefix="platform-audit-log"
         showOrganisation
       />

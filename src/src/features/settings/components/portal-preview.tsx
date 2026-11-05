@@ -206,7 +206,7 @@ function SignInStandIn() {
     <div aria-hidden="true" className="space-y-3">
       <div className="h-9 w-9 rounded-lg bg-primary" />
       <p className="text-lg font-semibold text-foreground">
-        {t("auth.sign_in", "Sign In")}
+        {t("auth.sign_in", "Sign in")}
       </p>
       <div className="h-9 rounded-md border border-border bg-muted/40" />
       <div className="h-9 rounded-md border border-border bg-muted/40" />
