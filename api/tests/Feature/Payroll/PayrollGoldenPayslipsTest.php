@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\LeaveStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRule;
 use App\Models\PayrollRun;
+use App\Models\Shift;
 use App\Services\Accounting\AccountingExportService;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\RunRegisterService;
@@ -145,6 +147,55 @@ it('pays unpaid leave and allowances as the worked example shows', function () {
         'employee_pension' => 56000,
         'employer_pension' => 88000,
         'net' => 749000,
+    ]);
+});
+
+// Payroll upgrade 5 (owner decision 3): the overtime hourly rate is the
+// contract's monthly basic over 22 days of 8 hours, whatever the month's
+// proration or unpaid leave took off basic.
+it('pays overtime at the full hourly rate when unpaid leave reduced basic', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    $employee = goldenEmployee($tenant->id, 'G8', 880000);
+
+    $unpaid = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id, 'code' => 'unpaid', 'name' => 'Unpaid Leave', 'is_paid' => false, 'default_days' => 0,
+    ]);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'leave_type_id' => $unpaid->id,
+        'start_date' => '2026-10-05', 'end_date' => '2026-10-06', 'days' => 2,
+        'status' => LeaveStatus::APPROVED,
+    ]);
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'shift_id' => Shift::factory()->create(['tenant_id' => $tenant->id])->id, // 08:30-17:30
+        'date' => '2026-10-15',
+        'check_in' => Carbon::parse('2026-10-15 08:30', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-10-15 19:30', 'Africa/Addis_Ababa')->utc(),
+    ]);
+
+    $run = goldenRun($tenant->id, $user->id);
+    $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+
+    // Two unpaid days at 8,800 / 22 = 400 leave basic 8,000.
+    // Hourly rate 8,800 / 22 / 8 = 50; two normal hours at 1.5 = 150.
+    // Gross 8,150. Tax 25% of 8,150 - 850 = 1,187.50. Pension on 8,000: 560 / 880.
+    // Net 8,150 - 1,187.50 - 560 = 6,402.50.
+    expect([
+        'basic' => $entry->basic_salary_cents,
+        'gross' => $entry->gross_cents,
+        'tax' => $entry->income_tax_cents,
+        'employee_pension' => $entry->employee_pension_cents,
+        'employer_pension' => $entry->employer_pension_cents,
+        'net' => $entry->net_cents,
+    ])->toBe([
+        'basic' => 800000,
+        'gross' => 815000,
+        'tax' => 118750,
+        'employee_pension' => 56000,
+        'employer_pension' => 88000,
+        'net' => 640250,
     ]);
 });
 
