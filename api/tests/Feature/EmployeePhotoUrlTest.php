@@ -89,7 +89,7 @@ test('signed urls are reused within the cache window instead of re-signed', func
 // A-Z review I-06 (2026-11-04). Signed file links (photos, thumbnails, kiosk
 // faces, document downloads) were served at /storage/..., which the
 // production Apache rules refuse with 403: only /api, /sanctum and /iclock
-// reach Laravel. They are served under /api/v1/files now.
+// reach Laravel. They are served under /api/files now.
 test('a signed file link is served under /api, where Apache sends requests to Laravel', function () {
     $disk = Storage::disk('local');
     $disk->put('az-probe/hello.txt', 'hello');
@@ -97,7 +97,7 @@ test('a signed file link is served under /api, where Apache sends requests to La
     try {
         $url = $disk->temporaryUrl('az-probe/hello.txt', now()->addMinutes(5));
 
-        expect(parse_url($url, PHP_URL_PATH))->toStartWith('/api/v1/files/');
+        expect(parse_url($url, PHP_URL_PATH))->toStartWith('/api/files/');
         expect(test()->get($url)->assertOk()->streamedContent())->toBe('hello');
     } finally {
         $disk->deleteDirectory('az-probe');
