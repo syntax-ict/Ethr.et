@@ -38,11 +38,20 @@ class PlatformSettingsController extends Controller
         Gate::authorize('admin.manage');
 
         $settings = PlatformSetting::current();
+        $before = $settings->only(array_keys($request->validated()));
         $settings->update($request->validated());
 
         // Changing where every tenant sends money is exactly the kind of action the
-        // append-only audit log exists for.
-        AuditLog::record('platform.settings.updated', $settings);
+        // append-only audit log exists for, and it recorded who but not what
+        // (A-Z review H-10). A key is recorded as changed, never by value.
+        $changes = [];
+        foreach ($before as $key => $old) {
+            $new = $settings->getAttribute($key);
+            if ($old != $new) {
+                $changes[$key] = str_ends_with($key, '_key') ? ['changed' => true] : ['from' => $old, 'to' => $new];
+            }
+        }
+        AuditLog::record('platform.settings.updated', $settings, ['changes' => $changes]);
 
         return new PlatformSettingResource($settings->fresh());
     }
