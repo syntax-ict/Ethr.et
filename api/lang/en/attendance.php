@@ -57,4 +57,5 @@ return [
     'device_not_active' => 'This phone is not registered now.',
     'device_not_pending' => 'This phone is not waiting for approval.',
     'punch_failed' => 'The punch could not be recorded. Try again in a moment.',
+    'retry_key_taken' => 'This punch could not be recorded. Try again.',
 ];

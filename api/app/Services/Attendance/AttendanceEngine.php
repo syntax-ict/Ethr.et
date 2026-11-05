@@ -94,6 +94,14 @@ final class AttendanceEngine
             // check-in, found none, and showed the person an error for a
             // punch that had succeeded (attendance QA A6).
             if ($existing) {
+                // A key answers only for the person whose punch used it. Keys
+                // are unique per organisation, not per person, so a punch
+                // carrying someone else's key was answered with their record
+                // (A-Z review D-09).
+                if ($existing->employee_id !== $input->employeeId) {
+                    throw new AttendanceRefused(__('attendance.retry_key_taken'));
+                }
+
                 return new AttendanceResult($existing, wasDuplicate: true);
             }
 
