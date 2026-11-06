@@ -91,6 +91,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
 use App\Http\Controllers\Api\V1\Import\BalanceImportController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskQrController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskReportPunchController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSelfServiceController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
@@ -340,6 +341,7 @@ Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () 
 Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
     Route::post('/authenticate', [KioskSessionController::class, 'authenticate']);
     Route::post('/check-in', KioskCheckInController::class);
+    Route::post('/qr', KioskQrController::class);
     Route::post('/sync', KioskSyncController::class);
     Route::post('/exit', [KioskSessionController::class, 'exitKiosk'])->middleware('throttle:kiosk-exit');
     Route::post('/punches/{publicId}/not-me', KioskReportPunchController::class);

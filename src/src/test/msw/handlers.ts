@@ -49,6 +49,9 @@ export const handlers = [
     document.cookie = "XSRF-TOKEN=test; path=/";
     return new HttpResponse(null, { status: 204 });
   }),
+  // The kiosk's waiting screen asks for a code to show beside the keypad
+  // (KioskQrPanel); QR is off unless a test says otherwise.
+  http.post("*/kiosk/qr", () => new HttpResponse(null, { status: 403 })),
   // The attendance page asks for the caller's own exceptions on every load
   // (MyExceptionsCard); none, unless a test says otherwise.
   http.get("*/api/v1/attendance/my-exceptions", () =>
