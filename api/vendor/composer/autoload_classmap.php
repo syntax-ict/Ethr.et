@@ -984,6 +984,7 @@ return array(
     'App\\Services\\Leave\\LeaveDecisionService' => $baseDir . '/app/Services/Leave/LeaveDecisionService.php',
     'App\\Services\\Leave\\LeaveRecallService' => $baseDir . '/app/Services/Leave/LeaveRecallService.php',
     'App\\Services\\Leave\\LeaveYear' => $baseDir . '/app/Services/Leave/LeaveYear.php',
+    'App\\Services\\Leave\\SickLeaveTiers' => $baseDir . '/app/Services/Leave/SickLeaveTiers.php',
     'App\\Services\\Letters\\EmploymentLetters' => $baseDir . '/app/Services/Letters/EmploymentLetters.php',
     'App\\Services\\MfaService' => $baseDir . '/app/Services/MfaService.php',
     'App\\Services\\Migration\\WorkforceMigrationService' => $baseDir . '/app/Services/Migration/WorkforceMigrationService.php',

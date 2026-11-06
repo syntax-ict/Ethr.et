@@ -1718,6 +1718,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Leave\\LeaveDecisionService' => __DIR__ . '/../..' . '/app/Services/Leave/LeaveDecisionService.php',
         'App\\Services\\Leave\\LeaveRecallService' => __DIR__ . '/../..' . '/app/Services/Leave/LeaveRecallService.php',
         'App\\Services\\Leave\\LeaveYear' => __DIR__ . '/../..' . '/app/Services/Leave/LeaveYear.php',
+        'App\\Services\\Leave\\SickLeaveTiers' => __DIR__ . '/../..' . '/app/Services/Leave/SickLeaveTiers.php',
         'App\\Services\\Letters\\EmploymentLetters' => __DIR__ . '/../..' . '/app/Services/Letters/EmploymentLetters.php',
         'App\\Services\\MfaService' => __DIR__ . '/../..' . '/app/Services/MfaService.php',
         'App\\Services\\Migration\\WorkforceMigrationService' => __DIR__ . '/../..' . '/app/Services/Migration/WorkforceMigrationService.php',

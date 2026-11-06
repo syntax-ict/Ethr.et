@@ -26,6 +26,7 @@ use App\Services\Calendar\EthiopianCalendar;
 use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Services\Leave\SickLeaveTiers;
 use App\Support\Cents;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
@@ -70,6 +71,7 @@ final class PayrollEngine
         private readonly PayrollBalanceService $balances,
         private readonly ExpectedDays $expectedDays,
         private readonly StatutoryRules $statutoryRules,
+        private readonly SickLeaveTiers $sickLeave,
     ) {}
 
     /** @var array<string, bool> keyed by tenant id and period */
@@ -470,7 +472,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.6',
+            'version' => '1.7',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -578,6 +580,28 @@ final class PayrollEngine
             'daily_rate_cents' => $dailyRate,
             'deduction_cents' => $unpaidLeaveDeduction,
             'basic_after_unpaid_leave_cents' => $proratedBasic,
+        ];
+
+        // Sick leave under Art. 85 (A-Z review E-08): within twelve months of
+        // the first day of sickness, the first month is paid in full, the
+        // next two at half the daily rate and the last three not at all. The
+        // tier of each day is its place in that period, so a long illness
+        // moves from full to half pay across payslips without anyone acting.
+        $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $workingDaysPerMonth);
+        // In thousandths of a day, as for unpaid leave: a half-pay day is 500.
+        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * 500);
+        $sickDeduction = $sickThousandths > 0
+            ? min(Cents::mulDiv($dailyRate, $sickThousandths, 1000), $proratedBasic)
+            : 0;
+        $proratedBasic -= $sickDeduction;
+
+        $log['steps'][] = [
+            'step' => 'sick_leave',
+            'half_pay_days' => $sick['half'],
+            'unpaid_days' => $sick['unpaid'],
+            'daily_rate_cents' => $dailyRate,
+            'deduction_cents' => $sickDeduction,
+            'basic_after_sick_leave_cents' => $proratedBasic,
         ];
 
         // Lateness: only what was decided. A late arrival deducts nothing until
@@ -847,8 +871,9 @@ final class PayrollEngine
 
         foreach ($requests as $request) {
             // Only unpaid leave reduces pay; skip paid leave and orphaned rows.
+            // Art. 85 sick leave has its own step, whatever its paid flag.
             $leaveType = $request->leaveType;
-            if (! $leaveType instanceof LeaveType || $leaveType->is_paid) {
+            if (! $leaveType instanceof LeaveType || $leaveType->is_paid || $leaveType->follows_art85) {
                 continue;
             }
 
