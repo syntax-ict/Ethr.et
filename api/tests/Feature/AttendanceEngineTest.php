@@ -85,8 +85,14 @@ test('a replayed check-out returns the record it closed', function () {
     expect($replay->json('public_id'))->toBe($publicId)
         ->and($replay->json('check_out'))->toBe($first->json('check_out'));
 
-    // A new key is a new check-out, and there is nothing left open for it.
-    test()->postJson("{$base}/check-out", ['idempotency_key' => 'another-out'])->assertStatus(422);
+    // A new key a minute later is the same departure seen again (another
+    // method, a second tap), so it answers with the record it closed. Hours
+    // later it is a new check-out with nothing left open for it.
+    test()->postJson("{$base}/check-out", ['idempotency_key' => 'another-out'])
+        ->assertOk()->assertJsonPath('public_id', $publicId);
+
+    Carbon::setTestNow('2026-10-12 16:00:00');
+    test()->postJson("{$base}/check-out", ['idempotency_key' => 'much-later-out'])->assertStatus(422);
 
     Carbon::setTestNow();
 });
