@@ -199,12 +199,18 @@ function FeatureTable({
               FEATURE_LABEL_FALLBACK[feature.key],
             )}
           </span>,
-          <Badge key="s" variant={STATE_BADGE[feature.state]}>
-            {t(
-              `admin_features.state_${feature.state}`,
-              STATE_FALLBACK[feature.state],
-            )}
-          </Badge>,
+          feature.switchable ? (
+            <Badge key="s" variant={STATE_BADGE[feature.state]}>
+              {t(
+                `admin_features.state_${feature.state}`,
+                STATE_FALLBACK[feature.state],
+              )}
+            </Badge>
+          ) : (
+            <Badge key="s" variant={STATE_BADGE.enabled}>
+              {t("admin_features.always_on", "Always on")}
+            </Badge>
+          ),
           <span key="o" className="text-sm text-muted-foreground">
             {feature.grants + feature.revokes === 0
               ? t("admin_features.no_overrides", "None")
@@ -223,7 +229,7 @@ function FeatureTable({
                 })}
           </span>,
         ],
-        actions: (
+        actions: feature.switchable && (
           <Button
             variant="outline"
             size="sm"

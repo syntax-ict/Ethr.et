@@ -13251,6 +13251,7 @@ export interface operations {
                         key: string;
                         kind: string;
                         overridable: boolean;
+                        switchable: boolean;
                         state: string;
                         default_state: string;
                         reason: string | null;
@@ -30936,6 +30937,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -30980,6 +30982,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -31023,6 +31026,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
