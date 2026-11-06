@@ -30,6 +30,7 @@ use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Admin\TenantJourney\JourneyCalculator;
 use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
@@ -69,6 +70,7 @@ class AdminTenantController extends Controller
         // 150-employee demo tenant read as empty. Devices below were already
         // counted scope-free; employees were missed.
         $query = Tenant::withoutGlobalScopes()
+            ->with('journeySnapshot')
             ->withCount(['employees' => fn ($q) => $q->withoutGlobalScopes()]);
 
         if ($request->has('search')) {
@@ -90,6 +92,27 @@ class AdminTenantController extends Controller
             if ($status !== null) {
                 $query->where('status', $status);
             }
+        }
+
+        // Where the organisation is on its journey (docs/operations/TENANT-JOURNEY.md).
+        // Stage and health come from the snapshot, so an organisation with none yet
+        // has neither and matches `health=unknown` only. An expired trial is read
+        // live from the tenant, since its status never changes by itself.
+        $stage = $request->input('filter.stage');
+        if (is_string($stage) && in_array($stage, JourneyCalculator::STAGES, true)) {
+            $query->whereHas('journeySnapshot', fn ($q) => $q->where('stage', $stage));
+        }
+        $health = $request->input('filter.health');
+        if ($health === 'unknown') {
+            $query->where(fn ($q) => $q->whereDoesntHave('journeySnapshot')
+                ->orWhereHas('journeySnapshot', fn ($s) => $s->where('health_state', 'unknown')));
+        } elseif (is_string($health) && in_array($health, ['ok', 'warning', 'critical'], true)) {
+            $query->whereHas('journeySnapshot', fn ($q) => $q->where('health_state', $health));
+        }
+        if ($request->input('filter.lifecycle') === 'trial_expired') {
+            $query->where('status', TenantStatus::TRIAL->value)
+                ->whereNotNull('trial_ends_at')
+                ->where('trial_ends_at', '<', now());
         }
 
         $sort = $request->input('sort', '-created_at');
@@ -669,11 +692,7 @@ class AdminTenantController extends Controller
      */
     private function latestSubscription(Tenant $tenant): ?Subscription
     {
-        return Subscription::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->with('plan')
-            ->latest()
-            ->first();
+        return Subscription::latestForTenant($tenant->id);
     }
 
     /** `null` with no domain, `pending` until Verify passes, then `verified`. */

@@ -4458,3 +4458,20 @@ after a release is `release.json` showing the new commit **and**
 has no Plesk login and no `MAINTENANCE_TOKEN`, and no workflow can deploy (the only
 Actions secrets are `ETHR_CRON_*`). It hands the owner the steps in
 `docs/deployment/PLESK-GO-LIVE.md` → *Every release after this*, and checks the result.
+
+### 25g. A readiness score that depended on where it was asked — 2026-11-06
+
+Building the platform console's tenant journey (`docs/operations/TENANT-JOURNEY.md`) meant scoring
+readiness from the platform host, where no tenant is resolved. `ReadinessScorer` had only ever been
+tested with a tenant resolved, and `EmployeeGaps::apply()` built its "has no bank account" test as
+`whereDoesntHave('bankDetails')`. That subquery builds its own `EmployeeBankDetail` query, which carries the
+tenant scope, and with no tenant resolved the scope is `0 = 1`. Nothing was ever found, so every
+employee read as having no bank account and the payroll check `employees_have_bank` failed for every
+organisation scored from the console. Measured by `TenantJourneyTest` ("reads the same readiness from
+the platform host as from the tenant host"): 39 on the platform host against 43 on the tenant host for
+the same data.
+
+The subquery now drops the tenant scope; the relation is already keyed on the employee, who is
+tenant-owned, and the tenant's own screens are unaffected. The lesson is the general one in
+`CLAUDE.md` §4: a `whereHas` / `whereDoesntHave` on a scoped model carries the scope into its subquery,
+so anything that can run without a tenant needs the parity test, not only the outer query.

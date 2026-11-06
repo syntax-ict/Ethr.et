@@ -3,6 +3,84 @@ import type { components } from "@/api/generated";
 
 type EmployeeResource = components["schemas"]["EmployeeResource"];
 
+type TenantJourney = import("@/features/admin/journey").TenantJourney;
+type JourneySummary = import("@/features/admin/journey").JourneySummary;
+
+/** A freshly registered organisation's journey, for the console's journey card. */
+export function buildJourney(
+  overrides: Partial<TenantJourney> = {},
+): TenantJourney {
+  return {
+    stage: "registered",
+    stages: [
+      "registered",
+      "configured",
+      "people_added",
+      "team_activated",
+      "first_use",
+      "successfully_using",
+    ],
+    stage_reached_at: "2026-11-01T08:00:00+00:00",
+    lifecycle: "active",
+    health_state: "ok",
+    reasons: [],
+    milestones: { registered: "2026-11-01T08:00:00+00:00" },
+    metrics: {
+      employees: 0,
+      team_users: 0,
+      activated_users: 0,
+      invited_pending: 0,
+      users_logged_in_30d: 0,
+      punches_14d: 0,
+      punches_30d: 0,
+      punch_sources_30d: [],
+      leave_requests_14d: 0,
+      leave_requests_30d: 0,
+      payroll_enabled: false,
+      payroll_runs: 0,
+      devices: 0,
+      devices_silent: 0,
+      open_support_requests: 0,
+      invoices_overdue: 0,
+      invoices_past_due: 0,
+      trial_days_left: null,
+      last_login_at: null,
+    },
+    readiness: { score: 22, level: "not_ready", gaps: [] },
+    last_activity_at: null,
+    computed_at: "2026-11-06T08:00:00+00:00",
+    events: [],
+    ...overrides,
+  };
+}
+
+export function buildJourneySummary(
+  overrides: Partial<JourneySummary> = {},
+): JourneySummary {
+  return {
+    total: 0,
+    not_computed: 0,
+    computed_at: null,
+    stages: [
+      "registered",
+      "configured",
+      "people_added",
+      "team_activated",
+      "first_use",
+      "successfully_using",
+    ].map((stage) => ({ stage, count: 0 })),
+    health: { ok: 0, warning: 0, critical: 0, unknown: 0 },
+    lifecycle: {
+      trial: 0,
+      trial_expired: 0,
+      active: 0,
+      suspended: 0,
+      cancelled: 0,
+    },
+    ...overrides,
+  };
+}
+
 export function buildEmployee(
   overrides: Partial<EmployeeResource> = {},
 ): EmployeeResource {
@@ -82,5 +160,13 @@ export const handlers = [
   // (TenantFeaturesCard); none, unless a test says otherwise.
   http.get("*/api/v1/admin/tenants/:publicId/features", () =>
     HttpResponse.json({ data: [] }),
+  ),
+  // ...and its journey card, and the organisations list its funnel: a new
+  // organisation with nothing measured yet, unless a test says otherwise.
+  http.get("*/api/v1/admin/tenants/journey-summary", () =>
+    HttpResponse.json({ data: buildJourneySummary() }),
+  ),
+  http.get("*/api/v1/admin/tenants/:publicId/journey", () =>
+    HttpResponse.json({ data: buildJourney() }),
   ),
 ];

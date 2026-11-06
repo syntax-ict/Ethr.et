@@ -37,6 +37,15 @@ export interface AdminTenant {
   showcase_hidden: boolean;
   /** Active, or a trial that already has enough people to be named in public. */
   showcase_established?: boolean;
+  /** A trial whose end date has passed; its status stays `trial`. */
+  trial_expired?: boolean;
+  /** Where it is on its journey; null until its first snapshot is computed. */
+  stage?: string | null;
+  health_state?: string | null;
+  health_reasons?: string[];
+  readiness_score?: number | null;
+  last_activity_at?: string | null;
+  journey_computed_at?: string | null;
 }
 
 /**
@@ -137,6 +146,10 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
 export function useAdminTenants(params?: {
   search?: string;
   status?: string;
+  /** `trial_expired`: a trial whose end has passed. */
+  lifecycle?: string;
+  stage?: string;
+  health?: string;
   page?: number;
   per_page?: number;
 }) {
@@ -149,6 +162,10 @@ export function useAdminTenants(params?: {
       const queryParams: Record<string, unknown> = {};
       if (params?.search) queryParams.search = params.search;
       if (params?.status) queryParams["filter[status]"] = params.status;
+      if (params?.lifecycle)
+        queryParams["filter[lifecycle]"] = params.lifecycle;
+      if (params?.stage) queryParams["filter[stage]"] = params.stage;
+      if (params?.health) queryParams["filter[health]"] = params.health;
       if (params?.page) queryParams.page = params.page;
       if (params?.per_page) queryParams.per_page = params.per_page;
 
