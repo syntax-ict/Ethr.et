@@ -44,7 +44,7 @@ final class FeatureGate
 
     public function decide(Tenant $tenant, Feature $feature): FeatureDecision
     {
-        return $this->resolve($tenant, $feature, $this->platformStates()[$feature->value] ?? $feature->defaultState());
+        return $this->resolve($tenant, $feature, $this->platformState($feature));
     }
 
     /**
@@ -59,7 +59,7 @@ final class FeatureGate
         $paused = [];
 
         foreach (Feature::cases() as $feature) {
-            if (($this->platformStates()[$feature->value] ?? $feature->defaultState()) === FeatureState::Disabled
+            if ($this->platformState($feature) === FeatureState::Disabled
                 && $this->resolve($tenant, $feature, FeatureState::Enabled)->on) {
                 $paused[] = $feature->value;
             }
@@ -68,9 +68,19 @@ final class FeatureGate
         return $paused;
     }
 
+    /** The platform's state for a feature; a feature the console cannot switch is always at its default. */
+    private function platformState(Feature $feature): FeatureState
+    {
+        if (! $feature->switchable()) {
+            return $feature->defaultState();
+        }
+
+        return $this->platformStates()[$feature->value] ?? $feature->defaultState();
+    }
+
     private function resolve(Tenant $tenant, Feature $feature, FeatureState $state): FeatureDecision
     {
-        $override = $this->overridesFor($tenant)[$feature->value] ?? null;
+        $override = $feature->switchable() ? ($this->overridesFor($tenant)[$feature->value] ?? null) : null;
 
         if ($state === FeatureState::Disabled) {
             return FeatureDecision::off(FeatureReason::PlatformDisabled);
