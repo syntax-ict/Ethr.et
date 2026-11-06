@@ -213,6 +213,7 @@ return array(
     'App\\Http\\Controllers\\Api\\V1\\Holiday\\HolidayController' => $baseDir . '/app/Http/Controllers/Api/V1/Holiday/HolidayController.php',
     'App\\Http\\Controllers\\Api\\V1\\Import\\BalanceImportController' => $baseDir . '/app/Http/Controllers/Api/V1/Import/BalanceImportController.php',
     'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskCheckInController' => $baseDir . '/app/Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php',
+    'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskQrController' => $baseDir . '/app/Http/Controllers/Api/V1/Kiosk/KioskQrController.php',
     'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskReportPunchController' => $baseDir . '/app/Http/Controllers/Api/V1/Kiosk/KioskReportPunchController.php',
     'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskSelfServiceController' => $baseDir . '/app/Http/Controllers/Api/V1/Kiosk/KioskSelfServiceController.php',
     'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskSessionController' => $baseDir . '/app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php',

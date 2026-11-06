@@ -947,6 +947,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Controllers\\Api\\V1\\Holiday\\HolidayController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Holiday/HolidayController.php',
         'App\\Http\\Controllers\\Api\\V1\\Import\\BalanceImportController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Import/BalanceImportController.php',
         'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskCheckInController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php',
+        'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskQrController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Kiosk/KioskQrController.php',
         'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskReportPunchController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Kiosk/KioskReportPunchController.php',
         'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskSelfServiceController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Kiosk/KioskSelfServiceController.php',
         'App\\Http\\Controllers\\Api\\V1\\Kiosk\\KioskSessionController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Kiosk/KioskSessionController.php',
