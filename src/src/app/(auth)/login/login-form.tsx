@@ -385,17 +385,23 @@ export function LoginForm() {
   return (
     <div className={cn("mx-auto w-full", inPortal ? "max-w-md" : "max-w-sm")}>
       <div className={inPortal ? "mb-6" : "mb-8"}>
-        {showMark && (
-          <div
-            className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm lg:hidden"
-            aria-hidden="true"
-          >
-            <span className="text-base font-bold text-primary-foreground">
-              E
-            </span>
-          </div>
-        )}
-        <h1 className="text-title text-balance text-foreground">{heading}</h1>
+        {/* The tile beside the heading, not above it: on a phone it took a
+            line of its own and pushed the form down. */}
+        <div className="flex items-center gap-3">
+          {showMark && (
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm lg:hidden"
+              aria-hidden="true"
+            >
+              <span className="text-base font-bold text-primary-foreground">
+                E
+              </span>
+            </div>
+          )}
+          <h1 className="min-w-0 text-title text-balance text-foreground">
+            {heading}
+          </h1>
+        </div>
         <p className="mt-1.5 text-body text-muted-foreground">{subtitle}</p>
         {showAddress && (
           <p className="mt-3 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
