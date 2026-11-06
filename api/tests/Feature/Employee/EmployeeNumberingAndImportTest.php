@@ -121,6 +121,49 @@ describe('employee numbers', function () {
     });
 });
 
+describe('employee import, dates in the Ethiopian calendar', function () {
+    it('reads the file\'s dates as Ethiopian when asked, and stores them in Gregorian', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $response = $this->postJson('/api/v1/employees/import/preview', [
+            'file' => UploadedFile::fake()->createWithContent('employees.csv',
+                "name,hire_date,date_of_birth\n"
+                ."Abebe Kebede,15/04/2016,1990-01-01\n"
+                ."Tigist Hailu,2015-13-06,\n"),
+            'calendar' => 'ethiopian',
+        ])->assertOk();
+
+        // Tahsas 15, 2016 is 25 December 2023; Meskerem 1, 1990 is 11 September
+        // 1997; Pagume 6, 2015 (a leap year) is 11 September 2023.
+        expect($response->json('errors'))->toBeEmpty()
+            ->and($response->json('rows.0.hire_date'))->toBe('2023-12-25')
+            ->and($response->json('rows.0.date_of_birth'))->toBe('1997-09-11')
+            ->and($response->json('rows.1.hire_date'))->toBe('2023-09-11');
+    });
+
+    it('refuses a day the Ethiopian calendar does not have', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        // 2016 is not a leap year: Pagume has five days.
+        $response = $this->postJson('/api/v1/employees/import/preview', [
+            'file' => UploadedFile::fake()->createWithContent('employees.csv', "name,hire_date\nAbebe Kebede,2016-13-06\n"),
+            'calendar' => 'ethiopian',
+        ])->assertOk();
+
+        expect($response->json('errors.2'))->not->toBeEmpty();
+    });
+
+    it('still reads dates as Gregorian when no calendar is given', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        expect(previewCsv("name,hire_date\nAbebe Kebede,15/04/2016\n")->assertOk()->json('rows.0.hire_date'))
+            ->toBe('2016-04-15');
+    });
+});
+
 describe('employee import, read as people make files', function () {
     it('reads loose headers, day-first dates and a salary in birr', function () {
         $tenant = createTenant();

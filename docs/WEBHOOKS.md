@@ -102,7 +102,7 @@ Headers (`DispatchWebhookJob::handle()`):
 | `X-ETHR-Event` | The event name |
 | `X-ETHR-Timestamp` | When this attempt was sent, Unix seconds; signed in `X-ETHR-Signature-V2` (see below) |
 | `X-ETHR-Signature-V2` | The timestamped signature to verify (see below) |
-| `X-ETHR-Delivery` | The delivery's `public_id`. **The same on every retry of one delivery** — use it to de-duplicate |
+| `X-ETHR-Delivery` | The delivery's `public_id`. **The same on every retry of one delivery.** The body carries it too, as `delivery_id`, which the signature covers: de-duplicate on that |
 | `User-Agent` | `ETHR-Webhooks/1.0` |
 
 Any `2xx` counts as delivered. ETHR waits **10 seconds** for your response and stores the first
@@ -158,8 +158,9 @@ and a retry carries it unchanged for up to a day, so a receiver could not refuse
 delivery without refusing legitimate retries. `X-ETHR-Timestamp` is when each attempt is
 **sent**, and it is signed together with the body, so it cannot be moved without breaking the
 signature. A captured delivery therefore stops verifying once it is older than your tolerance.
-Still de-duplicate on `X-ETHR-Delivery` — the same delivery can legitimately arrive twice if
-your answer was lost on the way back.
+Still de-duplicate, on the body's `delivery_id` (the same value as `X-ETHR-Delivery`, but
+signed, added 2026-11-04): the same delivery can legitimately arrive twice if your answer was
+lost on the way back, and a header the signature does not cover could be changed on a replay.
 
 ## Delivery, retries and auto-disable
 
@@ -177,6 +178,7 @@ What happens to one delivery (`DispatchWebhookJob.php`):
 | Connection error, DNS failure, or no answer in 10 s | Records the error | **Yes** |
 | Any other `4xx`, or a `3xx` | Records the status and body; counts one failed delivery | No — the same request gets the same answer |
 | Webhook switched off while the delivery waited | Records *"Webhook disabled before delivery"* | No |
+| Webhook delivery switched off for the organisation (console feature control) | Held and queued again every 10 minutes; after a day held, records *"Not sent: expired after a day held…"* and is never sent (2026-11-04) | No |
 | URL now resolves to an internal address | Records *"Refused: …internal address"*; not counted | No |
 
 **Redirects are not followed.** The URL's host is checked against internal ranges before the

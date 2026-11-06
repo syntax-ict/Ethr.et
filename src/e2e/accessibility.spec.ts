@@ -180,13 +180,25 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
   test.describe('skip navigation', () => {
     test.use({ storageState: 'e2e/.auth/employee.json' });
 
-    test('skip navigation link is reachable via keyboard', async ({ page }) => {
+    test('skip navigation link is the first tab stop and lands in the main area', async ({ page }) => {
       await page.goto('/dashboard');
       await page.waitForLoadState('networkidle');
       await page.keyboard.press('Tab');
-      // The skip link should be the first focusable element OR become visible on focus
+      // The first Tab is the skip link, visible once focused. It used to be
+      // enough that the link existed somewhere; the dashboard review of
+      // 2026-11-03 counted 41 tab stops before the first action, so the
+      // test now walks the path: Enter on the link, then the next Tab must
+      // be inside <main>, past the sidebar and the header.
       const skipLink = page.locator('a[href="#main-content"]').first();
-      await expect(skipLink).toBeAttached();
+      await expect(skipLink).toBeFocused();
+      await expect(skipLink).toBeVisible();
+
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Tab');
+      const insideMain = await page.evaluate(
+        () => document.activeElement?.closest('#main-content') !== null,
+      );
+      expect(insideMain, 'the Tab after the skip link stays inside main').toBe(true);
     });
   });
 

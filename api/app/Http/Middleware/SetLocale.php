@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\Locales;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetLocale
 {
-    private const SUPPORTED = ['en', 'am'];
-
     public function handle(Request $request, Closure $next): Response
     {
         app()->setLocale(self::fromRequest($request));
@@ -28,6 +27,6 @@ class SetLocale
     {
         $locale = substr((string) $request->header('Accept-Language', 'en'), 0, 2);
 
-        return in_array($locale, self::SUPPORTED, true) ? $locale : 'en';
+        return Locales::orDefault($locale);
     }
 }

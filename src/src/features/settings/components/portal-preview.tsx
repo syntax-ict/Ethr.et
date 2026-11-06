@@ -36,7 +36,7 @@ export function PortalPreview({
   const { t } = useT();
   const [width, setWidth] = useState<keyof typeof WIDTHS>("phone");
   const [dark, setDark] = useState(false);
-  const [locale, setLocale] = useState<"en" | "am">("en");
+  const [locale, setLocale] = useState<"en" | "am" | "om">("en");
   // The organisation's own feed, as the page will show it.
   const { data: feed, isLoading } = useLandingFeed({ mode: "client" });
 
@@ -151,6 +151,15 @@ export function PortalPreview({
           >
             አማርኛ
           </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={locale === "om"}
+            className={segment(locale === "om")}
+            onClick={() => setLocale("om")}
+          >
+            Afaan Oromoo
+          </button>
         </div>
       </div>
 
@@ -197,7 +206,7 @@ function SignInStandIn() {
     <div aria-hidden="true" className="space-y-3">
       <div className="h-9 w-9 rounded-lg bg-primary" />
       <p className="text-lg font-semibold text-foreground">
-        {t("auth.sign_in", "Sign In")}
+        {t("auth.sign_in", "Sign in")}
       </p>
       <div className="h-9 rounded-md border border-border bg-muted/40" />
       <div className="h-9 rounded-md border border-border bg-muted/40" />

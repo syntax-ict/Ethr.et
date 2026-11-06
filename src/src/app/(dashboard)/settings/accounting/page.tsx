@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Save, Download, Loader2, BookOpen } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -95,19 +96,45 @@ function ChartOfAccountsSection() {
         },
         onError: (err) =>
           toast.error(
-            apiErrorMessage(err, t("accounting_page.chart_save_failed")),
+            apiErrorMessage(
+              err,
+              t(
+                "accounting_page.chart_save_failed",
+                "The chart of accounts could not be saved.",
+              ),
+            ),
           ),
       },
     );
   }
 
   const keyLabels: Record<string, string> = {
-    salary_expense: t("accounting_page.key_salary_expense"),
-    pension_expense: t("accounting_page.key_pension_expense"),
-    tax_payable: t("accounting_page.key_tax_payable"),
-    pension_payable_employee: t("accounting_page.key_pension_payable_employee"),
-    pension_payable_employer: t("accounting_page.key_pension_payable_employer"),
-    net_salary_payable: t("accounting_page.key_net_salary_payable"),
+    salary_expense: t("accounting_page.key_salary_expense", "Salary expense"),
+    pension_expense: t(
+      "accounting_page.key_pension_expense",
+      "Pension expense (employer)",
+    ),
+    tax_payable: t("accounting_page.key_tax_payable", "Income tax payable"),
+    pension_payable_employee: t(
+      "accounting_page.key_pension_payable_employee",
+      "Pension payable (employee)",
+    ),
+    pension_payable_employer: t(
+      "accounting_page.key_pension_payable_employer",
+      "Pension payable (employer)",
+    ),
+    net_salary_payable: t(
+      "accounting_page.key_net_salary_payable",
+      "Net salary payable",
+    ),
+    loans_receivable: t(
+      "accounting_page.key_loans_receivable",
+      "Employee loans receivable",
+    ),
+    cost_sharing_payable: t(
+      "accounting_page.key_cost_sharing_payable",
+      "Cost sharing payable",
+    ),
   };
 
   return (
@@ -119,73 +146,117 @@ function ChartOfAccountsSection() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              {t("accounting_page.chart_of_accounts")}
+              <BookOpen className="h-5 w-5" aria-hidden="true" />
+              {t("accounting_page.chart_of_accounts", "Chart of accounts")}
             </CardTitle>
-            <CardDescription>{t("accounting_page.chart_desc")}</CardDescription>
+            <CardDescription>
+              {t(
+                "accounting_page.chart_desc",
+                "Enter the account code and name your accounting system uses for each payroll component.",
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground pb-1 border-b">
-              <span>{t("accounting_page.payroll_component")}</span>
-              <span>{t("accounting_page.account_code")}</span>
-              <span>{t("accounting_page.account_name")}</span>
+            {/* The column headers are for wide screens; on a phone each row
+                stacks and carries its own visible labels instead. */}
+            <div
+              className="hidden border-b pb-1 text-label text-muted-foreground sm:grid sm:grid-cols-3 sm:gap-2"
+              aria-hidden="true"
+            >
+              <span>
+                {t("accounting_page.payroll_component", "Payroll component")}
+              </span>
+              <span>{t("accounting_page.account_code", "Account code")}</span>
+              <span>{t("accounting_page.account_name", "Account name")}</span>
             </div>
             {accounts.map((account) => {
               const label = keyLabels[account.key] ?? account.key;
               const edit = edits[account.key] ?? {};
+              const codeId = `account-code-${account.key}`;
+              const nameId = `account-name-${account.key}`;
 
               return (
                 <div
                   key={account.key}
-                  className="grid grid-cols-3 gap-2 items-center"
+                  className="grid gap-2 border-b pb-3 last:border-b-0 sm:grid-cols-3 sm:items-center sm:border-b-0 sm:pb-0"
                 >
-                  {/* The row label is a plain <div>, so neither input had an
-                      accessible name — and since every row renders the same
-                      two columns, "account code" alone would be ambiguous
-                      across ten identical pairs. Each input is named with its
-                      row *and* its column. */}
                   <div className="text-sm font-medium">{label}</div>
-                  <Input
-                    value={edit.account_code ?? account.account_code}
-                    onChange={(e) =>
-                      updateAccount(account.key, "account_code", e.target.value)
-                    }
-                    className="font-mono text-sm"
-                    placeholder="e.g. 5100"
-                    maxLength={20}
-                    aria-label={`${label} — ${t(
-                      "accounting_page.account_code",
-                      "Account code",
-                    )}`}
-                  />
-                  <Input
-                    value={edit.account_name ?? account.account_name}
-                    onChange={(e) =>
-                      updateAccount(account.key, "account_name", e.target.value)
-                    }
-                    className="text-sm"
-                    maxLength={100}
-                    aria-label={`${label} — ${t(
-                      "accounting_page.account_name",
-                      "Account name",
-                    )}`}
-                  />
+                  {/* Every row renders the same two columns, so "Account code"
+                      alone would be ambiguous across six identical pairs: each
+                      input is named with its row and its column. The label is
+                      visible on phones, where the column header is hidden. */}
+                  <div className="space-y-1">
+                    <Label htmlFor={codeId} className="sm:sr-only">
+                      {t(
+                        "accounting_page.account_code_for",
+                        "Account code for :component",
+                        { component: label },
+                      )}
+                    </Label>
+                    <Input
+                      id={codeId}
+                      value={edit.account_code ?? account.account_code}
+                      onChange={(e) =>
+                        updateAccount(
+                          account.key,
+                          "account_code",
+                          e.target.value,
+                        )
+                      }
+                      className="font-mono text-sm"
+                      placeholder="5100"
+                      maxLength={20}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={nameId} className="sm:sr-only">
+                      {t(
+                        "accounting_page.account_name_for",
+                        "Account name for :component",
+                        { component: label },
+                      )}
+                    </Label>
+                    <Input
+                      id={nameId}
+                      value={edit.account_name ?? account.account_name}
+                      onChange={(e) =>
+                        updateAccount(
+                          account.key,
+                          "account_name",
+                          e.target.value,
+                        )
+                      }
+                      className="text-sm"
+                      maxLength={100}
+                    />
+                  </div>
                 </div>
               );
             })}
             {dirty && (
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEdits({})}
+                  disabled={updateChart.isPending}
+                >
+                  {t("accounting_page.discard_changes", "Discard changes")}
+                </Button>
                 <Button
                   onClick={() => save(accounts)}
                   disabled={updateChart.isPending}
                   size="sm"
                 >
                   {updateChart.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2
+                      className="mr-2 h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
-                    <Save className="mr-2 h-4 w-4" />
+                    <Save className="mr-2 h-4 w-4" aria-hidden="true" />
                   )}
-                  {t("leave_types_page.save_changes")}
+                  {t("common.save", "Save")}
                 </Button>
               </div>
             )}
@@ -217,51 +288,75 @@ function JournalExportSection() {
     });
   }
 
-  const runs = runsQuery.data ?? [];
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t("accounting_page.journal_export")}</CardTitle>
+        <CardTitle>
+          {t("accounting_page.journal_export", "Journal entries")}
+        </CardTitle>
         <CardDescription>
-          {t("accounting_page.journal_export_desc")}
+          {t(
+            "accounting_page.journal_export_desc",
+            "Choose a payroll run to see its journal entries and download them as CSV for your accounting software.",
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-end gap-4">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="payroll_run">
-              {t("accounting_page.payroll_run")}
-            </Label>
-            {runsQuery.isLoading ? (
-              <Skeleton className="h-9 w-full" />
-            ) : (
-              <Select value={selectedRun} onValueChange={setSelectedRun}>
-                <SelectTrigger id="payroll_run">
-                  <SelectValue placeholder={t("accounting_page.select_run")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {runs.map((run) => (
-                    <SelectItem key={run.public_id} value={run.public_id}>
-                      {localizedPeriodLabel(
-                        run.period_label,
-                        run.period_start,
-                        run.period_end,
-                        calendar,
-                        locale,
-                      )}{" "}
-                      &middot; {t(statusLabelKeyOf(run.status), run.status)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <Button onClick={handleExport} disabled={!journal} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            {t("audit_logs_page.export_csv")}
-          </Button>
-        </div>
+        <QueryBoundary
+          query={runsQuery}
+          loading={<Skeleton className="h-9 w-full" />}
+          empty={
+            <p className="py-4 text-sm text-muted-foreground">
+              {t(
+                "accounting_page.no_runs",
+                "No payroll runs yet. Run payroll first, then export its journal.",
+              )}
+            </p>
+          }
+        >
+          {(runs) => (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="payroll_run">
+                  {t("accounting_page.payroll_run", "Payroll run")}
+                </Label>
+                <Select value={selectedRun} onValueChange={setSelectedRun}>
+                  <SelectTrigger id="payroll_run">
+                    <SelectValue
+                      placeholder={t(
+                        "accounting_page.select_run",
+                        "Choose a payroll run",
+                      )}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {runs.map((run) => (
+                      <SelectItem key={run.public_id} value={run.public_id}>
+                        {localizedPeriodLabel(
+                          run.period_label,
+                          run.period_start,
+                          run.period_end,
+                          calendar,
+                          locale,
+                        )}{" "}
+                        &middot; {t(statusLabelKeyOf(run.status), run.status)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={handleExport}
+                disabled={!journal}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("accounting_page.download_csv", "Download CSV")}
+              </Button>
+            </div>
+          )}
+        </QueryBoundary>
 
         {selectedRun && (
           <QueryBoundary
@@ -270,7 +365,7 @@ function JournalExportSection() {
           >
             {(journalData) => (
               <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 p-3 text-sm">
                   <span className="font-medium">
                     {t("accounting_page.reference")}: {journalData.reference}
                   </span>
@@ -278,22 +373,26 @@ function JournalExportSection() {
                     {journalData.date ? formatDate(journalData.date) : ""}
                   </span>
                   {journalData.is_balanced ? (
-                    <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success-on-soft">
+                    <Badge variant="success">
                       {t("accounting_page.balanced")}
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-on-soft">
+                    <Badge variant="destructive">
                       {t("accounting_page.unbalanced")}
-                    </span>
+                    </Badge>
                   )}
                 </div>
 
                 <div className="overflow-hidden rounded-lg border">
                   <SimpleTable
-                    caption={t("accounting_page.title", "Journal entries")}
+                    mobileCards
+                    caption={t(
+                      "accounting_page.journal_export",
+                      "Journal entries",
+                    )}
                     headers={[
-                      t("accounting_page.account_code"),
-                      t("accounting_page.account_name"),
+                      t("accounting_page.account_code", "Account code"),
+                      t("accounting_page.account_name", "Account name"),
                       t("accounting_page.debit_etb"),
                       t("accounting_page.credit_etb"),
                     ]}

@@ -37,10 +37,13 @@ entry's `calculation_log` and shown on the run page, calculator icon on each row
 
 1. Basic salary, prorated for a mid-period hire or termination.
 2. Pagume: `full_month` (the 5–6 days paid as part of the month) or `daily_rate`.
-3. Unpaid leave: monthly basic ÷ 22 working days × unpaid days, deducted from basic.
-4. Overtime: hourly rate = basic ÷ 22 ÷ 8, times the rate for the kind of hour (minimums
+3. Unpaid leave: monthly basic ÷ 22 working days × unpaid days, deducted from basic. The 22 is
+   `payroll.working_days_per_month`: the platform default, an ETHR convention not yet confirmed
+   (checklist rows 7, 9, 10), which an organisation overrides on Payroll rules → Payroll schedule.
+   Overtime and sick-leave pay read the same figure.
+4. Overtime: hourly rate = the contract's monthly basic ÷ 22 ÷ 8, before proration, unpaid leave and lateness, times the rate for the kind of hour (minimums
    1.5 normal, 1.75 night, 2.0 rest day, 2.5 public holiday — a tenant may set higher).
-5. Allowances: fixed amounts or a percentage of basic; each marked taxable or not.
+5. Allowances: fixed amounts, prorated for a mid-period hire or termination as basic is, or a percentage of basic; each marked taxable or not.
 6. Gross = basic + overtime + allowances.
 7. Taxable income = gross − non-taxable allowances. Income tax on that.
 8. Pension on basic (step 3's figure).
@@ -92,6 +95,12 @@ For a processed run, the run page offers:
 | 6 | Allowance tax treatment matches the organisation's policy and the exemption limits | | | |
 | 7 | Overtime rates, the 22-day month and the 8-hour day suit this organisation | | | |
 | 8 | Pagume treatment (`full_month` or `daily_rate`) is the one the organisation uses | | | |
+| 9 | Sick-leave pay (Labour Proclamation 1156/2019 Art. 85, PR #637): the pay tiers and their daily rate, monthly basic ÷ `payroll.working_days_per_month`. The divisor is the platform default (22) unless the organisation set its own; if it changes, this row's figures change with it | | | |
+| 10 | Every parameter marked `confirmed = no` in [`STATUTORY-PARAMETERS.md`](STATUTORY-PARAMETERS.md) §Parameters (the month length, one row per organisation type, overtime daily/weekly caps and which types they limit, fiscal-year start months, Pagume default, public-enterprise pension scheme) is accepted or corrected | | | |
+
+Rows 1–10 are the whole review. A corrected platform value is entered as a new dated row, never an
+edit (`STATUTORY-PARAMETERS.md` → *Changing a value*), carrying the same overridable flag so
+organisations keep their own choice; the golden payslips in §2 that use it are recomputed.
 
 Signed: ____________________ (name, qualification) Date: ____________
 

@@ -21,23 +21,21 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
-  failedApprovals,
-  useBatchApprovals,
   usePendingApprovals,
-  type BatchApprovalPayload,
-  type BatchApprovalResponse,
   type PendingApproval,
 } from "@/features/approvals/api";
+import { useDecideApprovals } from "@/features/approvals/use-decide";
+import { approvalSummary } from "@/features/approvals/summary";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
-import { toast } from "sonner";
-import { apiErrorMessage } from "@/lib/api/error-message";
+import { PageActions } from "@/components/shared/page-actions";
+import { PrintAction } from "@/components/shared/print-action";
 
 /** The kinds of request the queue holds (`BatchApprovalRequest`). */
 const TYPES = ["leave", "correction", "profile_update", "overtime"] as const;
 
 export default function ApprovalsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { formatDate } = useDateFormatters();
 
   // The queue mixed every kind of request with no way to narrow it, and each
@@ -55,82 +53,23 @@ export default function ApprovalsPage() {
   const [rejecting, setRejecting] = useState<PendingApproval[] | null>(null);
 
   const pending = usePendingApprovals();
-  const batchAction = useBatchApprovals();
-
-  /**
-   * The batch endpoint answers 200 and reports each item on its own; one that
-   * was already decided by someone else, or that this reviewer may not act on,
-   * comes back as `status: "error"`. The page toasted "Action completed" for
-   * those too, so a refused approval read as done.
-   */
-  function reportOutcome(response: BatchApprovalResponse) {
-    const failed = failedApprovals(response);
-    if (failed.length === 0) {
-      toast.success(t("approvals.action_completed", "Action completed"));
-      return;
-    }
-    toast.error(t("approvals.action_failed", "Action failed"), {
-      description: failed
-        .map((f) => f.detail)
-        .filter(Boolean)
-        .join("; "),
-    });
-  }
-
-  function submit(
-    payload: BatchApprovalPayload,
-    options?: { onSettled?: () => void },
-  ) {
-    batchAction.mutate(payload, {
-      onSuccess: reportOutcome,
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(err, t("approvals.action_failed", "Action failed")),
-        ),
-      onSettled: options?.onSettled,
-    });
-  }
+  // Approve, reject and the toasts that report the outcome are shared with
+  // the dashboard's Pending Approvals panel.
+  const decide = useDecideApprovals();
 
   function approve(targets: PendingApproval[]) {
-    submit(
-      {
-        actions: targets.map((item) => ({
-          type: item.type,
-          public_id: item.public_id,
-          action: "approve" as const,
-        })),
-      },
-      { onSettled: () => setSelected(new Set()) },
-    );
+    decide.approve(targets, { onSettled: () => setSelected(new Set()) });
   }
 
-  /**
-   * Rejection is recorded against the request and shown to the employee whose
-   * leave or profile change was refused. It used to send the hardcoded English
-   * string "Rejected by manager" for every rejection in the system, regardless
-   * of the actual reason or the tenant's locale — so the employee learned only
-   * that they had been refused, and the approver had no way to say why.
-   * Collect the real reason instead.
-   */
   function confirmReject(reason: string) {
     if (!rejecting) return;
 
-    submit(
-      {
-        actions: rejecting.map((item) => ({
-          type: item.type,
-          public_id: item.public_id,
-          action: "reject" as const,
-          reason,
-        })),
+    decide.reject(rejecting, reason, {
+      onSettled: () => {
+        setRejecting(null);
+        setSelected(new Set());
       },
-      {
-        onSettled: () => {
-          setRejecting(null);
-          setSelected(new Set());
-        },
-      },
-    );
+    });
   }
 
   const allItems = pending.data?.items ?? [];
@@ -155,6 +94,7 @@ export default function ApprovalsPage() {
   return (
     <RoleGate anyPermission={["viewTeamLeave"]}>
       <div className="space-y-6">
+        <PageActions actions={<PrintAction />} />
         <FilterBar
           activeCount={filters.activeCount}
           onClear={() => {
@@ -204,7 +144,7 @@ export default function ApprovalsPage() {
               variant="outline"
               className="text-success-on-soft hover:bg-success-soft"
               onClick={() => approve(chosen)}
-              disabled={batchAction.isPending}
+              disabled={decide.isPending}
             >
               <Check className="mr-1 h-3 w-3" aria-hidden="true" />
               {t("approvals.approve_selected", "Approve :count", {
@@ -216,7 +156,7 @@ export default function ApprovalsPage() {
               variant="outline"
               className="text-destructive hover:bg-destructive/10"
               onClick={() => setRejecting(chosen)}
-              disabled={batchAction.isPending}
+              disabled={decide.isPending}
             >
               <X className="mr-1 h-3 w-3" aria-hidden="true" />
               {t("approvals.reject_selected", "Reject :count", {
@@ -344,7 +284,7 @@ export default function ApprovalsPage() {
                         )}
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
-                        {item.summary}
+                        {approvalSummary(item, t, formatDate, locale)}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatDate(item.submitted_at)}
@@ -357,9 +297,9 @@ export default function ApprovalsPage() {
                       variant="outline"
                       className="text-success-on-soft hover:bg-success-soft"
                       onClick={() => approve([item])}
-                      disabled={batchAction.isPending}
+                      disabled={decide.isPending}
                     >
-                      {batchAction.isPending ? (
+                      {decide.isPending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <Check className="mr-1 h-3 w-3" />
@@ -371,7 +311,7 @@ export default function ApprovalsPage() {
                       variant="outline"
                       className="text-destructive hover:bg-destructive/10"
                       onClick={() => setRejecting([item])}
-                      disabled={batchAction.isPending}
+                      disabled={decide.isPending}
                     >
                       <X className="mr-1 h-3 w-3" aria-hidden="true" />
                       {t("common.reject", "Reject")}
@@ -414,7 +354,7 @@ export default function ApprovalsPage() {
             "e.g. Team is already at minimum cover for those dates.",
           )}
           confirmLabel={t("common.reject", "Reject")}
-          loading={batchAction.isPending}
+          loading={decide.isPending}
           onConfirm={confirmReject}
         />
       </div>

@@ -41,6 +41,8 @@ final class LeaveTypeCatalog
             'accrual_type' => 'annual',
             'is_paid' => true,
             'requires_attachment' => true,
+            // Art. 85: full, then half, then no pay, within twelve months.
+            'follows_art85' => true,
             'sort_order' => 20,
         ],
         'maternity' => [
@@ -48,6 +50,8 @@ final class LeaveTypeCatalog
             'name_am' => 'የወሊድ ፈቃድ',
             'default_days' => 120,
             'accrual_type' => 'one_time',
+            // Art. 88: 120 consecutive days, so calendar days, not working days.
+            'counts_calendar_days' => true,
             'is_paid' => true,
             'requires_attachment' => true,
             'gender_restriction' => 'female',

@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
-import { setLocale } from "@/lib/i18n/translations";
+import { isAvailableLocale, setLocale } from "@/lib/i18n/translations";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { ProductStoryAnimation } from "@/components/shared/product-story-animation";
 import { OrgMark } from "@/components/shared/org-mark";
@@ -28,7 +28,7 @@ import {
   type LandingCover,
 } from "@/lib/auth/landing-background";
 import { usePathname } from "next/navigation";
-import { entryOrganisation } from "@/lib/auth/entry-organisation";
+import { isFrontDoor } from "@/lib/auth/entry-organisation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
 import { FormSlot } from "./form-slot";
 
@@ -71,9 +71,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   // link's `?tenant=`), so those pages swapped to the portal when the context
   // arrived, which mounted the form again and emptied what had been typed
   // (Playwright run 38951069888 on PR #286).
-  const frontDoor =
-    pathname === "/login" || entryOrganisation(pathname) !== null;
-  const portal = !news && organisation && frontDoor;
+  const portal = !news && organisation && isFrontDoor(pathname);
 
   // The colours go on the document so every control on the page - the
   // button, focus rings, links - takes them, as they do once signed in.
@@ -96,7 +94,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!organisation) return;
     const asked = new URLSearchParams(window.location.search).get("lang");
-    if (asked === "en" || asked === "am") {
+    if (asked && isAvailableLocale(asked)) {
       setLocale(asked);
       return;
     }
@@ -114,7 +112,7 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!organisation || !tenantName || news) return;
     const previous = document.title;
-    document.title = `${t("auth.sign_in", "Sign In")} · ${tenantName}`;
+    document.title = `${t("auth.sign_in", "Sign in")} · ${tenantName}`;
     return () => {
       document.title = previous;
     };

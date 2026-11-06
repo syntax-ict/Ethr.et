@@ -17,7 +17,7 @@ describe("locale registry", () => {
     expect(byCode.sid).toBe("Sidaamu Afoo");
   });
 
-  it.each(["om", "ti", "so", "sid"])(
+  it.each(["ti", "so", "sid"])(
     "loads the %s stub without throwing and falls back gracefully",
     async (code) => {
       await preloadLocale(code);
@@ -28,7 +28,7 @@ describe("locale registry", () => {
     },
   );
 
-  it.each(["om", "ti", "so", "sid"])(
+  it.each(["ti", "so", "sid"])(
     "does not silently substitute Amharic for a key missing from the %s stub",
     async (code) => {
       await preloadLocale(code);
@@ -40,4 +40,10 @@ describe("locale registry", () => {
       expect(t("common.save", code)).toBe("common.save");
     },
   );
+
+  it("loads Oromo's own text, not Amharic's or the key", async () => {
+    await preloadLocale("om");
+    expect(t("common.save", "om")).toBe("Olkaa'i");
+    expect(t("__nonexistent_key__", "om")).toBe("__nonexistent_key__");
+  });
 });

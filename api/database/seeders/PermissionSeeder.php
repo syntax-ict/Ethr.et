@@ -249,10 +249,13 @@ class PermissionSeeder extends Seeder
             'disciplinary_case.viewAny',
             // Same for retirement cases — supervisors can see them, not act on them.
             'retirement_case.viewAny',
-            // Regional Manager / Operations persona: executive-style dashboard,
-            // but forced to their own branch — see ExecutiveDashboardController.
-            'dashboard.regional',
         ];
+
+        // `dashboard.regional` (the Regional Manager persona) is held by no
+        // built-in role. It shows a whole branch, and no built-in role's org
+        // scope reaches one: supervisors and department admins held it, and a
+        // department head read every other department in their branch. A
+        // custom role scoped to a branch can grant it (ExecutiveBranchScope).
 
         // Attendance selfies are biometric data (Proclamation 1321/2024, Art.
         // 2(5)): HR across the organisation and a department manager for their

@@ -90,6 +90,17 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   // `?tab=` opens a tab, and switching tabs writes it back, so a reload
   // stays put and a link can point at Security or SSO.
   const [tab, setTab] = useQueryTab(VALID_TABS, "general");
+  // A tab is mounted on its first visit and kept mounted (hidden) after it,
+  // so a name typed under General survives a look at Branding. Tabs never
+  // opened are never rendered, which keeps the first load as light as it was.
+  const [visited, setVisited] = useState<ReadonlySet<string>>(
+    () => new Set([tab]),
+  );
+  const keep = (value: string) => (visited.has(value) ? true : undefined);
+  function openTab(value: string) {
+    setVisited((prev) => (prev.has(value) ? prev : new Set(prev).add(value)));
+    setTab(value);
+  }
 
   const updateSettings = useUpdateSettings();
   const updateSso = useUpdateSso();
@@ -99,16 +110,35 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   // bare "Failed to save settings" toast left the user to guess which one.
   const [securityErrors, setSecurityErrors] = useState<FieldErrors>({});
   const [ssoDirty, setSsoDirty] = useState<SsoUpdate>({});
+  // Server field errors for the SSO card, on the same terms as Security.
+  const [ssoErrors, setSsoErrors] = useState<FieldErrors>({});
+  // The display selects save as soon as they change; the chosen value is
+  // shown at once rather than after the settings query refetches, which
+  // read as the control snapping back for the round trip.
+  const [pendingDisplay, setPendingDisplay] = useState<{
+    calendar?: CalendarSystem;
+    clock?: ClockPreference;
+  }>({});
+
+  // Typed but not a whole number from 5 to 480: said under the field, and
+  // Save waits. It used to be dropped from the request and "Settings saved"
+  // toasted while the field reverted (review 2026-11-05).
+  const timeoutDraft = dirty.session_timeout_minutes;
+  const timeoutNumber = Number(timeoutDraft);
+  const timeoutInvalid =
+    timeoutDraft !== undefined &&
+    !(
+      Number.isInteger(timeoutNumber) &&
+      timeoutNumber >= 5 &&
+      timeoutNumber <= 480
+    );
 
   function saveSettings() {
     const settings: SettingsUpdate = {};
     if (dirty.mfa_policy !== undefined) settings.mfa_policy = dirty.mfa_policy;
-    // An emptied field used to be sent as `parseInt("")` — NaN, which JSON
-    // turns into null. A timeout that is not a positive whole number is not
-    // sent at all.
-    const timeout = Number(dirty.session_timeout_minutes);
-    if (Number.isInteger(timeout) && timeout > 0) {
-      settings.session_timeout_minutes = timeout;
+    if (timeoutInvalid) return;
+    if (timeoutDraft !== undefined) {
+      settings.session_timeout_minutes = timeoutNumber;
     }
 
     setSecurityErrors({});
@@ -147,27 +177,37 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   function saveDisplay(
     display: { calendar: CalendarSystem } | { clock: ClockPreference },
   ) {
+    setPendingDisplay((p) => ({ ...p, ...display }));
     updateSettings.mutate(display, {
       onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
       onError: (error) =>
         toastError(error, t("settings.save_failed", "Failed to save settings")),
+      onSettled: () => setPendingDisplay({}),
     });
   }
 
   function saveSso() {
+    setSsoErrors({});
     updateSso.mutate(ssoDirty, {
       onSuccess: () => {
         setSsoDirty({});
         toast.success(t("settings.sso_saved", "SSO settings saved"));
       },
-      onError: (err) =>
+      onError: (err) => {
+        setSsoErrors(fieldErrors(err));
         toast.error(
           apiErrorMessage(
             err,
             t("settings.sso_save_failed", "Failed to save SSO settings"),
           ),
-        ),
+        );
+      },
     });
+  }
+
+  /** The server names a field as `idp_sso_url` or `sso.idp_sso_url`. */
+  function ssoError(key: string): string | undefined {
+    return ssoErrors[key] ?? ssoErrors[`sso.${key}`];
   }
 
   function updateField<K extends keyof SecurityDraft>(
@@ -221,8 +261,8 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           in the title bar, shown on every tab, while SSO saved in its card
           and the organisation, address and numbering cards each had their
           own: one page, four ways to save (FRONTEND_REDESIGN_PLAN.md). */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="flex w-full flex-wrap">
+      <Tabs value={tab} onValueChange={openTab} className="w-full">
+        <TabsList>
           <TabsTrigger value="general">
             {t("settings.tab_general", "General")}
           </TabsTrigger>
@@ -235,7 +275,11 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           <TabsTrigger value="sso">{t("settings.tab_sso", "SSO")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="mt-6 space-y-6">
+        <TabsContent
+          value="general"
+          forceMount={keep("general")}
+          className="mt-6 space-y-6 data-[state=inactive]:hidden"
+        >
           <OrganizationCard organization={data.organization} />
 
           <AddressCard address={data.address} />
@@ -252,27 +296,31 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="org-calendar">
-                  {t("settings.calendar_system", "Calendar System")}
+                  {t("settings.calendar_system", "Calendar system")}
                 </Label>
                 <Select
-                  value={data.display.calendar}
+                  value={pendingDisplay.calendar ?? data.display.calendar}
                   onValueChange={(v) => saveCalendar(v as CalendarSystem)}
                   disabled={updateSettings.isPending}
                 >
-                  <SelectTrigger id="org-calendar" className="mt-1">
+                  <SelectTrigger
+                    id="org-calendar"
+                    className="mt-1"
+                    aria-busy={pendingDisplay.calendar ? true : undefined}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ethiopian">
                       {t(
                         "settings.ethiopian_calendar",
-                        "Ethiopian Calendar (EC)",
+                        "Ethiopian calendar (EC)",
                       )}
                     </SelectItem>
                     <SelectItem value="gregorian">
                       {t(
                         "settings.gregorian_calendar",
-                        "Gregorian Calendar (GC)",
+                        "Gregorian calendar (GC)",
                       )}
                     </SelectItem>
                   </SelectContent>
@@ -280,7 +328,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t(
                     "settings.calendar_help",
-                    "Controls date display across the application",
+                    "The default for everyone in your organisation. Each person can choose their own under Profile, Preferences.",
                   )}
                 </p>
               </div>
@@ -291,7 +339,10 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 <ClockSelect
                   id="org-clock"
                   className="mt-1"
-                  value={toClockPreference(data.display.clock)}
+                  value={
+                    pendingDisplay.clock ??
+                    toClockPreference(data.display.clock)
+                  }
                   onChange={saveClock}
                   disabled={updateSettings.isPending}
                 />
@@ -302,7 +353,11 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           <EmployeeNumberCard employees={data.employees} />
         </TabsContent>
 
-        <TabsContent value="branding" className="mt-6">
+        <TabsContent
+          value="branding"
+          forceMount={keep("branding")}
+          className="mt-6 data-[state=inactive]:hidden"
+        >
           <div className="space-y-6">
             <BrandingCard
               uploadedLogoUrl={data.branding.uploaded_logo_url ?? null}
@@ -327,20 +382,24 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           </div>
         </TabsContent>
 
-        <TabsContent value="security" className="mt-6">
+        <TabsContent
+          value="security"
+          forceMount={keep("security")}
+          className="mt-6 data-[state=inactive]:hidden"
+        >
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-base">
-                  {t("settings.security_settings", "Security Settings")}
+                  {t("settings.security_settings", "Sign-in security")}
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="mfa-policy">
-                  {t("settings.mfa_policy", "MFA Policy")}
+                  {t("settings.mfa_policy", "Two-factor authentication")}
                 </Label>
                 <Select
                   value={getSecurityValue("mfa_policy")}
@@ -366,13 +425,13 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t(
                     "settings.mfa_policy_help",
-                    "Required: everyone must set up two-factor authentication before using ETHR. Disabled: no new set-ups; existing ones are kept.",
+                    "Required: everyone sets up two-factor authentication before using ETHR. Optional: each person decides. Disabled: no new set-ups; existing ones are kept.",
                   )}
                 </p>
               </div>
               <div>
                 <Label htmlFor="session-timeout">
-                  {t("settings.session_timeout", "Session Timeout (minutes)")}
+                  {t("settings.session_timeout", "Session timeout (minutes)")}
                 </Label>
                 <Input
                   id="session-timeout"
@@ -384,23 +443,32 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     updateField("session_timeout_minutes", e.target.value)
                   }
                   aria-invalid={
+                    timeoutInvalid ||
                     securityErrors["settings.session_timeout_minutes"]
                       ? true
                       : undefined
                   }
                   aria-describedby={
+                    timeoutInvalid ||
                     securityErrors["settings.session_timeout_minutes"]
                       ? "session-timeout-error"
                       : undefined
                   }
                   className="mt-1"
                 />
-                {securityErrors["settings.session_timeout_minutes"] && (
+                {(timeoutInvalid ||
+                  securityErrors["settings.session_timeout_minutes"]) && (
                   <p
                     id="session-timeout-error"
                     className="mt-1 text-xs text-destructive"
+                    role="alert"
                   >
-                    {securityErrors["settings.session_timeout_minutes"]}
+                    {timeoutInvalid
+                      ? t(
+                          "settings.session_timeout_invalid",
+                          "Enter a whole number from 5 to 480.",
+                        )
+                      : securityErrors["settings.session_timeout_minutes"]}
                   </p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -413,7 +481,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               <div className="flex justify-end sm:col-span-2">
                 <Button
                   onClick={saveSettings}
-                  disabled={!hasDirty || updateSettings.isPending}
+                  disabled={
+                    !hasDirty || timeoutInvalid || updateSettings.isPending
+                  }
                 >
                   {updateSettings.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -427,20 +497,23 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sso" className="mt-6 space-y-6">
+        <TabsContent
+          value="sso"
+          forceMount={keep("sso")}
+          className="mt-6 space-y-6 data-[state=inactive]:hidden"
+        >
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-muted-foreground" />
                   <CardTitle className="text-base">
-                    {t("settings.sso_saml", "SAML Single Sign-On")}
+                    {t("settings.sso_saml", "SAML single sign-on")}
                   </CardTitle>
                 </div>
-                <Badge
-                  variant={getSsoValue("is_enabled") ? "success" : "secondary"}
-                >
-                  {getSsoValue("is_enabled")
+                {/* What is saved, not the draft: the switch below says the rest. */}
+                <Badge variant={data.sso.is_enabled ? "success" : "secondary"}>
+                  {data.sso.is_enabled
                     ? t("settings.sso_enabled", "Enabled")
                     : t("settings.sso_disabled", "Disabled")}
                 </Badge>
@@ -455,7 +528,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   <p className="text-xs text-muted-foreground">
                     {t(
                       "settings.enable_sso_help",
-                      "Allow users to sign in with your identity provider",
+                      "Let people sign in with your identity provider.",
                     )}
                   </p>
                 </div>
@@ -469,7 +542,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="idp-entity-id">
-                    {t("settings.idp_entity_id", "IdP Entity ID")}
+                    {t("settings.idp_entity_id", "IdP entity ID")}
                   </Label>
                   <Input
                     id="idp-entity-id"
@@ -478,8 +551,23 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     onChange={(e) =>
                       updateSsoField("idp_entity_id", e.target.value)
                     }
+                    aria-invalid={ssoError("idp_entity_id") ? true : undefined}
+                    aria-describedby={
+                      ssoError("idp_entity_id")
+                        ? "idp-entity-id-error"
+                        : undefined
+                    }
                     className="mt-1"
                   />
+                  {ssoError("idp_entity_id") && (
+                    <p
+                      id="idp-entity-id-error"
+                      className="mt-1 text-xs text-destructive"
+                      role="alert"
+                    >
+                      {ssoError("idp_entity_id")}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="idp-sso-url">
@@ -492,14 +580,27 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     onChange={(e) =>
                       updateSsoField("idp_sso_url", e.target.value)
                     }
+                    aria-invalid={ssoError("idp_sso_url") ? true : undefined}
+                    aria-describedby={
+                      ssoError("idp_sso_url") ? "idp-sso-url-error" : undefined
+                    }
                     className="mt-1"
                   />
+                  {ssoError("idp_sso_url") && (
+                    <p
+                      id="idp-sso-url-error"
+                      className="mt-1 text-xs text-destructive"
+                      role="alert"
+                    >
+                      {ssoError("idp_sso_url")}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <Label htmlFor="idp-certificate">
-                  {t("settings.idp_certificate", "IdP Certificate (PEM)")}
+                  {t("settings.idp_certificate", "IdP certificate (PEM)")}
                 </Label>
                 <Textarea
                   id="idp-certificate"
@@ -512,11 +613,21 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   }
                   className="mt-1 font-mono text-xs"
                   rows={5}
+                  aria-invalid={ssoError("idp_certificate") ? true : undefined}
+                  aria-describedby="idp-certificate-help"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
+                {ssoError("idp_certificate") && (
+                  <p className="mt-1 text-xs text-destructive" role="alert">
+                    {ssoError("idp_certificate")}
+                  </p>
+                )}
+                <p
+                  id="idp-certificate-help"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
                   {t(
                     "settings.idp_certificate_help",
-                    "Paste the X.509 certificate from your identity provider. Stored encrypted.",
+                    "Paste the X.509 certificate from your identity provider. It is stored encrypted and not shown again; paste a new one to replace it.",
                   )}
                 </p>
               </div>
@@ -526,7 +637,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   <Label htmlFor="sso-default-role">
                     {t(
                       "settings.default_sso_role",
-                      "Default Role for SSO Users",
+                      "Default role for SSO users",
                     )}
                   </Label>
                   <Select
@@ -549,15 +660,15 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                         {t("roles.supervisor", "Supervisor")}
                       </SelectItem>
                       <SelectItem value="dept_admin">
-                        {t("roles.dept_admin", "Department Admin")}
+                        {t("roles.dept_admin", "Department admin")}
                       </SelectItem>
                       <SelectItem value="hr_admin">
-                        {t("roles.hr_admin", "HR Admin")}
+                        {t("roles.hr_admin", "HR admin")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center justify-between rounded-lg border p-4 sm:mt-5">
+                <div className="flex items-center justify-between rounded-lg border p-4 sm:self-end">
                   <div className="space-y-0.5">
                     <Label htmlFor="auto-provision">
                       {t("settings.auto_provision", "Auto-provision")}
@@ -565,7 +676,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     <p className="text-xs text-muted-foreground">
                       {t(
                         "settings.auto_provision_help",
-                        "Automatically create accounts on first SSO login",
+                        "Create an account the first time someone signs in through SSO.",
                       )}
                     </p>
                   </div>
@@ -579,9 +690,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
               {data.sso.metadata_url && (
                 <div className="rounded-lg border bg-muted/50 p-4">
-                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("settings.sp_metadata_url", "SP Metadata URL")}
-                  </Label>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("settings.sp_metadata_url", "SP metadata URL")}
+                  </p>
                   <div className="mt-1 flex items-center gap-2">
                     <code className="flex-1 truncate rounded bg-background px-2 py-1 text-xs">
                       {data.sso.metadata_url}
@@ -600,7 +711,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t(
                       "settings.sp_metadata_help",
-                      "Provide this URL to your identity provider",
+                      "Give this URL to your identity provider.",
                     )}
                   </p>
                 </div>
@@ -614,7 +725,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     ) : (
                       <Save className="mr-2 h-4 w-4" />
                     )}
-                    {t("settings.save_sso", "Save SSO Settings")}
+                    {t("settings.save_sso", "Save SSO settings")}
                   </Button>
                 </div>
               )}

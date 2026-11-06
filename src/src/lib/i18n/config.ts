@@ -18,8 +18,8 @@ export const LOCALE_COOKIE = "locale";
 /**
  * `status` gates what the language switcher offers.
  *
- * `en` and `am` have full dictionaries (3,000+ keys each). The other four are
- * stub files awaiting professional translation — selecting one previously gave
+ * `en`, `am` and `om` have full dictionaries (6,600+ keys each). The other three
+ * are stub files awaiting professional translation — selecting one previously gave
  * the user a UI that silently fell back to Amharic or to raw key names, which
  * reads as a broken product rather than an unfinished translation. They stay
  * listed so the roadmap is visible, but render disabled with an explanation.
@@ -35,7 +35,7 @@ export const supportedLocales = [
     code: "om",
     name: "Oromo",
     nativeName: "Afaan Oromoo",
-    status: "coming_soon",
+    status: "available",
   },
   {
     code: "ti",
@@ -61,6 +61,11 @@ export const supportedLocales = [
   nativeName: string;
   status: LocaleStatus;
 }>;
+
+/** A language's name in itself — `Afaan Oromoo`, `አማርኛ` — or the code. */
+export function nativeLanguageName(code: string): string {
+  return supportedLocales.find((l) => l.code === code)?.nativeName ?? code;
+}
 
 /**
  * The locale codes that have a real dictionary, in display order.
@@ -150,10 +155,40 @@ export function localeHref(locale: string, path: string): string {
 /**
  * BCP-47-with-region forms, which is what Open Graph's `og:locale` expects —
  * `en`/`am` alone are rejected by most validators. Region choices are the ones
- * this product actually targets: Ethiopia for Amharic, and `en_US` for English
- * because it is the form Facebook's list recognises.
+ * this product actually targets: Ethiopia for Amharic and Oromo, and `en_US`
+ * for English because it is the form Facebook's list recognises.
  */
 export const OPEN_GRAPH_LOCALE: Record<string, string> = {
   en: "en_US",
   am: "am_ET",
+  om: "om_ET",
 };
+
+/**
+ * The `Intl` tag to format dates and numbers with, for an app locale.
+ *
+ * Amharic and Oromo are written for Ethiopia (`am-ET`, `om-ET`). English takes
+ * the caller's variant, because the call sites already differ on purpose
+ * (`en-GB` writes `20 Oct 2026`, `en-US` writes `Oct 20, 2026`).
+ *
+ * A browser whose ICU data lacks a locale silently formats in its *own*
+ * default instead — which is how an Oromo reader on a reduced-ICU build would
+ * get dates in whatever language the device happens to be set to. Asking
+ * `supportedLocalesOf` first turns that into a deliberate English fallback.
+ */
+const ETHIOPIAN_INTL_TAGS: Record<string, string> = {
+  am: "am-ET",
+  om: "om-ET",
+};
+
+export function intlLocale(locale: string, english = "en-US"): string {
+  const tag = ETHIOPIAN_INTL_TAGS[locale];
+  if (!tag) return english;
+  try {
+    return Intl.DateTimeFormat.supportedLocalesOf([tag]).length > 0
+      ? tag
+      : english;
+  } catch {
+    return english;
+  }
+}

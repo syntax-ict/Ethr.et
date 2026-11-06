@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -214,7 +214,12 @@ describe("locked kiosk mode", () => {
     render(<KioskPage />);
     await screen.findByRole("button", { name: /^record$/i });
 
-    expect(fireEvent.contextMenu(document.body)).toBe(false);
+    // The lock attaches in an effect, which React may run after the punch
+    // screen is already on the page: waiting for the button alone raced it
+    // and lost on a loaded CI runner. Wait for the lock itself.
+    await waitFor(() =>
+      expect(fireEvent.contextMenu(document.body)).toBe(false),
+    );
     expect(fireEvent.keyDown(document.body, { key: "r", ctrlKey: true })).toBe(
       false,
     );

@@ -22,7 +22,7 @@ final class MarketingImage
      * The picture as the page draws it, or null when the owner has none.
      * Relative, same-origin URLs, like the organisation's own cover.
      *
-     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null}|null
+     * @return array{url: string, srcset: string, width: int, height: int, alt: string|null, alt_am: string|null, alt_om: string|null}|null
      */
     public static function present(MarketingItem|MarketingSection $owner): ?array
     {
@@ -46,6 +46,7 @@ final class MarketingImage
             'height' => (int) $owner->image_height,
             'alt' => $owner->image_alt,
             'alt_am' => $owner->image_alt_am,
+            'alt_om' => $owner->image_alt_om,
         ];
     }
 

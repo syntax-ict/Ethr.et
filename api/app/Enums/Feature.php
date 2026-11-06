@@ -67,7 +67,20 @@ enum Feature: string
      */
     public function overridable(): bool
     {
-        return $this !== self::SelfRegistration;
+        return $this !== self::SelfRegistration && $this->switchable();
+    }
+
+    /**
+     * Whether the console may switch this feature at all. The core modules
+     * are in every plan and nothing checks a switch for them: switched off,
+     * they showed off in the console and kept working (A-Z review H-04). A
+     * switch that does nothing is not offered, and the gate ignores any
+     * state stored for them before this. Enforcing one of them is a change
+     * that adds its checks and removes it from this list.
+     */
+    public function switchable(): bool
+    {
+        return ! in_array($this, [self::Attendance, self::Leave, self::EmployeeManagement, self::Notifications], true);
     }
 
     /**

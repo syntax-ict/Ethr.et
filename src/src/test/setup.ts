@@ -78,6 +78,9 @@ if (typeof Blob !== "undefined" && !Blob.prototype.stream) {
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 beforeEach(() => {
   localStorage.setItem("locale", "en");
+  // The site-content payload is kept across page loads (PR 11); between
+  // tests it would stand in for the answer the next test is waiting on.
+  localStorage.removeItem("ethr.site-content");
 });
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());

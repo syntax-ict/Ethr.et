@@ -42,7 +42,7 @@ describe('scheduling permissions and scoping', function () {
         $ownBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $otherBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $ownBranch->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+        actingAsRegional($tenant, $employee->id);
 
         $this->postJson('/api/v1/dashboard/digests', [
             'frequency' => 'daily',
@@ -86,7 +86,7 @@ describe('scheduling permissions and scoping', function () {
 
     it('shows a regional holder only their own branch\'s digests, and lets them cancel only those', function () {
         // index() and destroy() checked only that the caller held a dashboard
-        // permission. Every supervisor holds dashboard.regional, so each listed
+        // permission. Every supervisor held dashboard.regional, so each listed
         // and could cancel every digest in the tenant, the executives'
         // tenant-wide ones included (audit N59).
         $tenant = createTenant();
@@ -101,7 +101,7 @@ describe('scheduling permissions and scoping', function () {
         $tenantWide = $digest(null);
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $ownBranch->id]);
-        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $employee->id], $tenant);
+        actingAsRegional($tenant, $employee->id);
 
         $this->getJson('/api/v1/dashboard/digests')
             ->assertOk()
@@ -338,5 +338,51 @@ describe('failure is visible', function () {
         // answer — so a digest that failed yesterday and succeeded today must
         // not still read as failing.
         expect($digest->refresh()->last_error)->toBeNull();
+    });
+});
+
+// A-Z review H-03 and G-02 (2026-11-04). A digest ran whatever had happened
+// since it was scheduled: to a suspended organisation, and after the person
+// who scheduled it had left or lost the dashboard. Scheduled reports already
+// stopped when their author could no longer run them; digests now do too.
+describe('a digest runs only while it is allowed', function () {
+    beforeEach(fn () => Notification::fake());
+
+    it('does not run while its organisation is not in use', function () {
+        $tenant = createTenant();
+        $digest = DashboardDigest::factory()->create(['tenant_id' => $tenant->id, 'next_run_at' => now()->subMinute()]);
+        $tenant->update(['status' => 'cancelled']);
+
+        (new RunDashboardDigestsJob)->handle(app(ExecutiveDashboardService::class), app(AlertEvaluator::class), app(CurrentTenant::class));
+
+        Notification::assertSentOnDemandTimes(DashboardDigestNotification::class, 0);
+        expect($digest->fresh()->next_run_at->isFuture())->toBeTrue();
+    });
+
+    it('stops once the person who scheduled it can no longer see the dashboard', function () {
+        $tenant = createTenant();
+        $creator = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+        DashboardDigest::factory()->create(['tenant_id' => $tenant->id, 'created_by' => $creator->id, 'next_run_at' => now()->subMinute()]);
+        $creator->update(['status' => 'inactive']);
+
+        (new RunDashboardDigestsJob)->handle(app(ExecutiveDashboardService::class), app(AlertEvaluator::class), app(CurrentTenant::class));
+
+        Notification::assertSentOnDemandTimes(DashboardDigestNotification::class, 0);
+    });
+
+    it('stops a branch digest once its regional author has moved to another branch', function () {
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $other = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+        $creator = actingAsRegional($tenant, $employee->id);
+        DashboardDigest::factory()->create([
+            'tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'created_by' => $creator->id, 'next_run_at' => now()->subMinute(),
+        ]);
+        $employee->update(['branch_id' => $other->id]);
+
+        (new RunDashboardDigestsJob)->handle(app(ExecutiveDashboardService::class), app(AlertEvaluator::class), app(CurrentTenant::class));
+
+        Notification::assertSentOnDemandTimes(DashboardDigestNotification::class, 0);
     });
 });

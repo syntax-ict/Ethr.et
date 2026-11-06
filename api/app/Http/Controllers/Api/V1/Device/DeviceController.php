@@ -208,7 +208,7 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.update');
 
-        PullDeviceEventsJob::dispatch($device, 'manual');
+        PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
 
         return response()->json([
             'message' => __('device.pull_dispatched'),
@@ -230,7 +230,8 @@ class DeviceController extends Controller
         };
 
         PullDeviceEventsJob::dispatch(
-            $device,
+            $device->id,
+            $device->tenant_id,
             'history_import',
             $since?->format('Y-m-d\TH:i:sP'),
         );
@@ -253,7 +254,7 @@ class DeviceController extends Controller
 
         $dispatched = 0;
         foreach ($devices as $device) {
-            PullDeviceEventsJob::dispatch($device, 'manual');
+            PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
             $dispatched++;
         }
 

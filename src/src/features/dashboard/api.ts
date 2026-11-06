@@ -25,6 +25,27 @@ export function useEmployeeDashboard() {
 export type ManagerDashboard =
   operations["dashboard.manager"]["responses"][200]["content"]["application/json"];
 
+export type DepartmentDashboard =
+  operations["dashboard.department"]["responses"][200]["content"]["application/json"];
+
+/**
+ * "Your department" or "Your team": today, for the people a department- or
+ * team-scoped reader reaches. Gated on the caller's `org_scope` the same way
+ * `useManagerDashboard` is gated on the role, since the API answers 403 for
+ * everyone else.
+ */
+export function useDepartmentDashboard(enabled = true) {
+  return useQuery<DepartmentDashboard>({
+    queryKey: ["dashboard", "department"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/dashboard/department");
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled,
+  });
+}
+
 /**
  * @param enabled Gate the request on the caller's role. Consumers render null
  * for non-supervisors, but hooks run before those early returns, so without

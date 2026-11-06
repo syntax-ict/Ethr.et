@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ErrorState } from "@/components/shared/error-state";
 import {
   Select,
   SelectContent,
@@ -113,7 +114,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
       {
         onSuccess: () =>
           toast.success(
-            t("settings.organization_saved", "Organization updated"),
+            t("settings.organization_saved", "Organisation updated"),
           ),
         onError: (err) =>
           toast.error(
@@ -121,7 +122,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               err,
               t(
                 "settings.organization_save_failed",
-                "Failed to update organization",
+                "Could not update the organisation",
               ),
             ),
           ),
@@ -135,7 +136,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base">
-            {t("settings.organization", "Organization")}
+            {t("settings.organization", "Organisation")}
           </CardTitle>
         </div>
       </CardHeader>
@@ -143,11 +144,14 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         {needsReview && (
           <div
             role="status"
-            className="flex flex-col gap-3 rounded-md border border-[var(--color-status-warning)] bg-[var(--color-surface-secondary)] p-3 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-md border border-warning-edge bg-warning-soft p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-start gap-2">
-              <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-status-warning)]" />
-              <p className="text-sm">
+              <Landmark
+                className="mt-0.5 h-4 w-4 shrink-0 text-warning-on-soft"
+                aria-hidden="true"
+              />
+              <p className="text-sm text-warning-on-soft">
                 {t(
                   "settings.organization_kind_review",
                   "Confirm the kind of organisation below. Payroll applies the pension scheme and fiscal year set for it in law.",
@@ -167,7 +171,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="org-name">
-              {t("settings.organization_name", "Organization Name")}
+              {t("settings.organization_name", "Organisation name")}
             </Label>
             <Input
               id="org-name"
@@ -178,14 +182,14 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
           </div>
           <div>
             <Label htmlFor="org-subdomain">
-              {t("settings.subdomain", "Subdomain")}
+              {t("settings.subdomain", "Address name")}
             </Label>
             <div className="mt-1 flex items-center gap-2">
               <TenantAddressAffix side="prefix" />
               <Input
                 id="org-subdomain"
                 value={organization?.subdomain ?? ""}
-                disabled
+                readOnly
               />
               <TenantAddressAffix side="suffix" />
             </div>
@@ -200,18 +204,35 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
             <Label htmlFor="org-kind">
               {t("settings.organization_kind", "Kind of organisation in law")}
             </Label>
-            <Select value={kind} onValueChange={setKind}>
-              <SelectTrigger id="org-kind" className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(organizationTypes.data ?? []).map((option) => (
-                  <SelectItem key={option.code} value={option.code}>
-                    {uiLocale === "am" ? option.name_am : option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {organizationTypes.isError ? (
+              <div className="mt-1">
+                <ErrorState
+                  compact
+                  onRetry={() => organizationTypes.refetch()}
+                />
+              </div>
+            ) : (
+              <Select
+                value={kind}
+                onValueChange={setKind}
+                disabled={organizationTypes.isPending}
+              >
+                <SelectTrigger
+                  id="org-kind"
+                  className="mt-1"
+                  aria-busy={organizationTypes.isPending || undefined}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(organizationTypes.data ?? []).map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {uiLocale === "am" ? option.name_am : option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
                 "settings.organization_kind_help",
@@ -255,7 +276,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
           </div>
           <div>
             <Label htmlFor="org-language">
-              {t("settings.default_language", "Default Language")}
+              {t("settings.default_language", "Default language")}
             </Label>
             <Select value={locale} onValueChange={setLocale}>
               <SelectTrigger id="org-language" className="mt-1">
@@ -267,6 +288,9 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 </SelectItem>
                 <SelectItem value="am">
                   {t("settings.amharic", "Amharic")}
+                </SelectItem>
+                <SelectItem value="om">
+                  {t("settings.oromo", "Afaan Oromoo")}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -289,7 +313,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {t("settings.save_organization", "Save organization")}
+            {t("settings.save_organization", "Save organisation")}
           </Button>
         </div>
       </CardContent>

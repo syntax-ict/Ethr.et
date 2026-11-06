@@ -73,7 +73,9 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
+import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { TenantFeaturesCard } from "./tenant-features-card";
+import { TenantJourneyCard } from "./tenant-journey-card";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -204,6 +206,7 @@ function TenantDetail({ id }: { id: string }) {
   const [mountedAt] = useState(() => Date.now());
 
   const [extendOpen, setExtendOpen] = useState(false);
+  const [ownerOpen, setOwnerOpen] = useState(false);
   const [extendDays, setExtendDays] = useState(30);
   const [domainOpen, setDomainOpen] = useState(false);
   const [domainInput, setDomainInput] = useState("");
@@ -594,6 +597,203 @@ function TenantDetail({ id }: { id: string }) {
             }
           />
         </div>
+
+        {/* Where it is between sign-up and using ETHR, and what needs attention */}
+        <TenantJourneyCard publicId={tenant.public_id} />
+
+        {/* The owner, whom support calls */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.owner", "Owner")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {tenant.owner ? (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                <span className="font-medium text-foreground">
+                  {tenant.owner.name}
+                </span>
+                {tenant.owner.status !== "active" && (
+                  <Badge variant="outline" className="text-destructive">
+                    {t(
+                      "admin_tenant_detail_page.owner_inactive",
+                      "Switched off",
+                    )}
+                  </Badge>
+                )}
+                {tenant.owner.email && (
+                  <a
+                    href={`mailto:${tenant.owner.email}`}
+                    className="text-muted-foreground underline underline-offset-2"
+                  >
+                    {tenant.owner.email}
+                  </a>
+                )}
+                {tenant.owner.phone ? (
+                  <span className="flex items-center gap-2">
+                    <a
+                      href={`tel:${tenant.owner.phone}`}
+                      className="font-medium underline underline-offset-2"
+                    >
+                      {tenant.owner.phone}
+                    </a>
+                    {!tenant.owner.phone_verified && (
+                      <Badge variant="outline">
+                        {t(
+                          "admin_tenant_detail_page.phone_unverified",
+                          "Unverified",
+                        )}
+                      </Badge>
+                    )}
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="text-status-warning">
+                    {t(
+                      "admin_tenant_detail_page.phone_missing",
+                      "No phone given",
+                    )}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "admin_tenant_detail_page.no_owner",
+                  "No active administrator",
+                )}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOwnerOpen(true)}
+                disabled={writesBlocked || (tenant.admins ?? []).length < 2}
+              >
+                {t(
+                  "admin_tenant_detail_page.transfer_ownership",
+                  "Change owner",
+                )}
+              </Button>
+            </div>
+            {(tenant.ownership_history ?? []).length > 0 && (
+              <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
+                {tenant.ownership_history.map((h) => (
+                  <li key={`${h.action}-${h.created_at}`}>
+                    {formatDateTime(h.created_at)}{" "}
+                    {h.action === "tenant.registered"
+                      ? t(
+                          "admin_tenant_detail_page.ownership_registered",
+                          "Registered",
+                        )
+                      : t(
+                          "admin_tenant_detail_page.ownership_change",
+                          ":from to :to",
+                          { from: h.from ?? "", to: h.to ?? "" },
+                        )}
+                    {h.by_platform &&
+                      ` (${t("admin_tenant_detail_page.ownership_by_ethr", "by ETHR")})`}
+                    {h.reason && `: ${h.reason}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+        <TransferOwnershipDialog
+          tenant={tenant}
+          open={ownerOpen}
+          onOpenChange={setOwnerOpen}
+        />
+
+        {/* Who can administer it, and what was done with that power */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.administrators", "Administrators")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "admin_tenant_detail_page.accountability_summary",
+                ":count administrators, :mfa with two-factor sign-in. Owner phone: :phone.",
+                {
+                  count: (tenant.administrators ?? []).length,
+                  mfa: (tenant.administrators ?? []).filter(
+                    (a) => a.mfa_enabled,
+                  ).length,
+                  phone: tenant.owner?.phone
+                    ? tenant.owner.phone_verified
+                      ? t("admin_tenant_detail_page.phone_verified", "verified")
+                      : t(
+                          "admin_tenant_detail_page.phone_unverified",
+                          "Unverified",
+                        )
+                    : t(
+                        "admin_tenant_detail_page.phone_missing",
+                        "No phone given",
+                      ),
+                },
+              )}
+            </p>
+            <SimpleTable
+              caption={t(
+                "admin_tenant_detail_page.administrators",
+                "Administrators",
+              )}
+              headers={[
+                t("common.name", "Name"),
+                t("admin_tenant_detail_page.role", "Role"),
+                t("admin_tenant_detail_page.mfa", "Two-factor"),
+                t("common.status"),
+                t("admin_tenant_detail_page.last_sign_in", "Last sign-in"),
+              ]}
+              rows={(tenant.administrators ?? []).map((a) => ({
+                key: a.public_id,
+                cells: [
+                  <span key="name">
+                    {a.name}
+                    {a.is_owner &&
+                      ` (${t("admin_tenant_detail_page.owner", "Owner")})`}
+                  </span>,
+                  <span key="role">
+                    {a.custom_role ?? t(`role.${a.role}`, a.role)}
+                  </span>,
+                  <span key="mfa">
+                    {a.mfa_enabled
+                      ? t("admin_tenant_detail_page.mfa_on", "On")
+                      : t("admin_tenant_detail_page.mfa_off", "Off")}
+                  </span>,
+                  <StatusBadge key="status" status={a.status} />,
+                  <span key="login">
+                    {a.last_login_at ? formatDateTime(a.last_login_at) : ""}
+                  </span>,
+                ],
+              }))}
+            />
+            {(tenant.privileged_actions ?? []).length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-foreground">
+                  {t(
+                    "admin_tenant_detail_page.privileged_actions",
+                    "Recent privileged actions",
+                  )}
+                </p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {tenant.privileged_actions.map((p, i) => (
+                    <li key={`${p.action}-${p.created_at}-${i}`}>
+                      {formatDateTime(p.created_at)}{" "}
+                      <span className="font-mono text-xs">{p.action}</span>
+                      {p.actor && ` (${p.actor})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Actions */}
         <Card>

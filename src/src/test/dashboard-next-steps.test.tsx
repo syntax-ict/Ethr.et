@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { NextStepsCard } from "@/features/next-steps/components/next-steps-card";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import type { NextStep, NextStepsResponse } from "@/features/next-steps/api";
 
 /**
@@ -65,16 +66,27 @@ function serve(steps: NextStep[], setup: NextStepsResponse["setup"] = null) {
   return { dismissed, restored: () => restored };
 }
 
-function renderCard() {
+function renderCard({ calendar = false } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <NextStepsCard />
+      {calendar ? (
+        <CalendarProvider>
+          <NextStepsCard />
+        </CalendarProvider>
+      ) : (
+        <NextStepsCard />
+      )}
     </QueryClientProvider>,
   );
 }
+
+afterEach(() => {
+  localStorage.removeItem("ethr.calendar");
+  localStorage.setItem("locale", "en");
+});
 
 /** The rows of the main list, not the checklist links inside one. */
 function rows() {
@@ -192,6 +204,42 @@ describe("<NextStepsCard>", () => {
     ).toHaveAttribute("href", "/profile/personal");
   });
 
+  // jsdom lays nothing out, so a phone-width row is pinned by the classes
+  // that make it: the controls wrap below the text and are 44 px tall there,
+  // and go back to one line and the desktop size from `sm`.
+  it("puts a row's controls under the text on a phone, 44 px tall, and beside it from sm", async () => {
+    me("employee");
+    serve([
+      step({
+        id: "complete_profile",
+        group: "profile",
+        severity: "info",
+        count: 1,
+        total: 6,
+        items: ["bank"],
+        href: "/profile/personal",
+      }),
+    ]);
+    renderCard();
+
+    await screen.findByText("Finish your profile");
+    const controls = screen.getByTestId("next-step-controls");
+    expect(controls).toHaveClass("basis-full", "sm:basis-auto");
+    expect(screen.getByRole("link", { name: "Update profile" })).toHaveClass(
+      "h-touch",
+      "sm:h-8",
+    );
+    expect(screen.getByRole("button", { name: /^Put away/ })).toHaveClass(
+      "h-touch",
+      "w-touch",
+      "sm:h-8",
+      "sm:w-8",
+    );
+    expect(
+      screen.getByRole("link", { name: "Add your bank account" }),
+    ).toHaveClass("min-h-touch", "sm:min-h-0");
+  });
+
   it("tells HR which records are incomplete, in the singular too, and opens the filtered list", async () => {
     me("hr_admin");
     serve([
@@ -229,7 +277,7 @@ describe("<NextStepsCard>", () => {
     serve([
       step({
         id: "payroll_approve",
-        subject: "Tikimt 2019",
+        subject: "October 2026",
         href: "/payroll/01HZRUN",
         signature: "01HZRUN:completed",
       }),
@@ -238,13 +286,37 @@ describe("<NextStepsCard>", () => {
 
     expect(
       await screen.findByText(
-        "The Tikimt 2019 payroll run is waiting for approval",
+        "The October 2026 payroll run is waiting for approval",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open run/i })).toHaveAttribute(
       "href",
       "/payroll/01HZRUN",
     );
+  });
+
+  /**
+   * The subject is the run's stored `period_label`, English Gregorian, so an
+   * Amharic reader on the Ethiopian calendar read "October 2026" in a row
+   * beside a /payroll page that named the same run ጥቅምት 2019 (dashboard
+   * review, 2026-11-03).
+   */
+  it("names the payroll period in the reader's calendar and language", async () => {
+    localStorage.setItem("locale", "am");
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    me("finance_admin");
+    serve([
+      step({
+        id: "payroll_approve",
+        subject: "October 2026",
+        href: "/payroll/01HZRUN",
+        signature: "01HZRUN:completed",
+      }),
+    ]);
+    renderCard({ calendar: true });
+
+    expect(await screen.findByText(/ጥቅምት 2019/)).toBeInTheDocument();
+    expect(screen.queryByText(/October 2026/)).not.toBeInTheDocument();
   });
 
   it("shows three rows, then the rest when asked, then three again", async () => {

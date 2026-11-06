@@ -81,7 +81,12 @@ final class EmployeeGaps
     {
         return match ($gap) {
             self::TIN => $query->whereNull('tin'),
-            self::BANK => $query->whereDoesntHave('bankDetails'),
+            // The subquery builds its own EmployeeBankDetail query, which carries
+            // the tenant scope. With no tenant resolved (the platform console
+            // scoring an organisation's readiness) that scope matches nothing,
+            // so every employee read as having no bank account. The relation is
+            // already keyed on the employee, who is tenant-owned.
+            self::BANK => $query->whereDoesntHave('bankDetails', fn (Builder $bank) => $bank->withoutGlobalScope('tenant')),
             self::EMERGENCY_CONTACT => $query->whereDoesntHave('emergencyContacts'),
             self::PHONE => $query->where(fn (Builder $q) => $q->whereNull('phone')->orWhere('phone', '')),
             default => $query->whereRaw('1 = 0'),

@@ -14,8 +14,18 @@ export function MarketingFooter() {
   // The name falls back to the literal that was hardcoded here, so an operator
   // who has set nothing sees exactly what shipped before.
   const brandName =
-    pickLocalised(locale, site.platform_name_am, site.platform_name) ?? "ETHR";
-  const tagline = pickLocalised(locale, site.tagline_am, site.tagline);
+    pickLocalised(
+      locale,
+      site.platform_name_am,
+      site.platform_name,
+      site.platform_name_om,
+    ) ?? "ETHR";
+  const tagline = pickLocalised(
+    locale,
+    site.tagline_am,
+    site.tagline,
+    site.tagline_om,
+  );
 
   // Named links rather than icons: lucide-react ships no brand marks, and the
   // nearest generic glyph would tell a visitor the wrong thing about where the

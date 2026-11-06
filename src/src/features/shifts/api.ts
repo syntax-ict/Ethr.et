@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { fetchAllPages } from "@/api/fetch-all-pages";
-import type { components } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 
 // Shapes come from the generated contract. The hand-written `Shift` this
 // replaces typed `working_days` as `number[]`; ShiftResource sends the stored
@@ -32,6 +32,24 @@ export function useShifts() {
     queryKey: keys.list,
     queryFn: async () => ({ data: await fetchAllPages<Shift>("/shifts") }),
     staleTime: 30 * 60 * 1000,
+  });
+}
+
+export type ShiftCoverage =
+  operations["shift.coverage"]["responses"][200]["content"]["application/json"];
+export type ShiftCoverageRow = ShiftCoverage["shifts"][number];
+
+/**
+ * Each shift's staffing over a range of days, this week by default: people
+ * scheduled and attending per day, hours planned and covered. Feeds the
+ * Shifts page's heatmap and stacked bar (charts upgrade, 2026-11-04).
+ */
+export function useShiftCoverage(range?: { from?: string; to?: string }) {
+  return useQuery<ShiftCoverage>({
+    queryKey: ["shifts", "coverage", range ?? {}],
+    queryFn: async () =>
+      (await apiClient.get("/shifts/coverage", { params: range })).data,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

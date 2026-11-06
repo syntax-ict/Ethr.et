@@ -38,6 +38,7 @@ function organisation(signIn: HostCtx["tenantSignIn"]): HostCtx {
     tenantLanding: null,
     tenantSignIn: signIn,
     tenantDefaultLocale: null,
+    tenantBillingOnly: false,
     onLanding: false,
     carryOrganisation: null,
     tenantRequest: null,

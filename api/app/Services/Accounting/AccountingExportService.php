@@ -24,6 +24,8 @@ final class AccountingExportService
         'pension_payable_employee' => ['code' => '2200', 'name' => 'Pension Payable (Employee)'],
         'pension_payable_employer' => ['code' => '2201', 'name' => 'Pension Payable (Employer)'],
         'net_salary_payable' => ['code' => '2300', 'name' => 'Net Salary Payable'],
+        'loans_receivable' => ['code' => '1400', 'name' => 'Employee Loans Receivable'],
+        'cost_sharing_payable' => ['code' => '2400', 'name' => 'Cost Sharing Payable'],
     ];
 
     /**
@@ -58,6 +60,26 @@ final class AccountingExportService
         $totalEmployerPension = (int) $entries->sum('employer_pension_cents');
         $totalNet = (int) $entries->sum('net_cents');
         $totalOtherDeductions = (int) $entries->sum('other_deductions_cents');
+
+        // What payslips withheld besides tax and pension, by kind, from each
+        // entry's itemised deductions. Net Salary Payable is what employees are
+        // paid, which is what the bank file pays; until 2026-11-03 it was
+        // credited with net plus these, so a run with loans or cost sharing
+        // told the books the company owed its people money it had withheld,
+        // and showed nothing owed to the cost-sharing scheme (A-Z review F-03).
+        $withheld = ['loan' => 0, 'cost_sharing' => 0];
+        foreach ($entries as $entry) {
+            foreach ((array) $entry->getAttribute('deductions') as $line) {
+                $type = is_array($line) ? ($line['type'] ?? null) : null;
+                if (is_string($type) && array_key_exists($type, $withheld)) {
+                    $withheld[$type] += (int) ($line['amount_cents'] ?? 0);
+                }
+            }
+        }
+        // Anything itemised under another name, or an entry from before
+        // deductions were itemised, stays with net pay, as it always did, so
+        // the journal still balances.
+        $unitemised = $totalOtherDeductions - $withheld['loan'] - $withheld['cost_sharing'];
 
         $journal = [
             'period' => $run->period_label,
@@ -105,8 +127,21 @@ final class AccountingExportService
             'account_code' => $accounts['net_salary_payable']['code'],
             'account_name' => $accounts['net_salary_payable']['name'],
             'debit_cents' => 0,
-            'credit_cents' => (int) ($totalNet + $totalOtherDeductions),
+            'credit_cents' => (int) ($totalNet + $unitemised),
         ];
+
+        // Repayments reduce what employees owe the company; cost sharing is
+        // owed on to the scheme. A run with neither keeps its six lines.
+        foreach (['loan' => 'loans_receivable', 'cost_sharing' => 'cost_sharing_payable'] as $type => $key) {
+            if ($withheld[$type] > 0) {
+                $journal['entries'][] = [
+                    'account_code' => $accounts[$key]['code'],
+                    'account_name' => $accounts[$key]['name'],
+                    'debit_cents' => 0,
+                    'credit_cents' => (int) $withheld[$type],
+                ];
+            }
+        }
 
         $totalDebits = (int) collect($journal['entries'])->sum('debit_cents');
         $totalCredits = (int) collect($journal['entries'])->sum('credit_cents');

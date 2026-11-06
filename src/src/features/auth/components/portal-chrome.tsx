@@ -254,7 +254,7 @@ export function PortalHeader({
           </div>
           <Button size="sm" asChild>
             <a href={links?.signIn ?? "#sign-in"}>
-              {t("auth.sign_in", "Sign In")}
+              {t("auth.sign_in", "Sign in")}
             </a>
           </Button>
           {nav.length > 0 && (
@@ -309,7 +309,7 @@ export function PortalHeader({
               href={links?.signIn ?? "#sign-in"}
               onClick={() => setMenuOpen(false)}
             >
-              {t("auth.sign_in", "Sign In")}
+              {t("auth.sign_in", "Sign in")}
             </a>
           </Button>
         </div>

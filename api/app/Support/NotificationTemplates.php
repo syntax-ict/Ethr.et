@@ -59,6 +59,12 @@ use Throwable;
  */
 final class NotificationTemplates
 {
+    /**
+     * The languages an organisation can customise. Oromo is sent from the
+     * built-in text below: a reader's language wins over an organisation's
+     * wording in another one, exactly as an Amharic reader gets the Amharic
+     * text when only the English was edited.
+     */
     public const LOCALES = ['en', 'am'];
 
     public const FIELDS = ['subject_en', 'subject_am', 'body_en', 'body_am'];
@@ -73,36 +79,56 @@ final class NotificationTemplates
             'subject_am' => 'አዲስ የፈቃድ ጥያቄ — {employee_name}',
             'body_en' => '{employee_name} has submitted a {leave_type} request from {start_date} to {end_date} ({days} days). It is waiting for your approval.',
             'body_am' => '{employee_name} ከ{start_date} እስከ {end_date} ({days} ቀናት) {leave_type} ጥያቄ አቅርበዋል። ፈቃድዎ ያስፈልጋል።',
+            'subject_om' => 'Gaaffii boqonnaa haaraa — {employee_name}',
+            'body_om' => '{employee_name} gaaffii {leave_type} {start_date} irraa hanga {end_date} ({days} guyyaa) dhiyeesseera. Raggaasisa keessan eeggachaa jira.',
         ],
         'leave_approved' => [
             'subject_en' => 'Your leave request has been approved',
             'subject_am' => 'የፈቃድ ጥያቄዎ ተፈቅዷል',
             'body_en' => 'Your {leave_type} request from {start_date} to {end_date} has been approved.',
             'body_am' => 'ከ{start_date} እስከ {end_date} ያቀረቡት {leave_type} ጥያቄ ተፈቅዷል።',
+            'subject_om' => 'Gaaffiin boqonnaa keessanii raggaasifameera',
+            'body_om' => 'Gaaffiin {leave_type} {start_date} irraa hanga {end_date} dhiyeessitan raggaasifameera.',
         ],
         'leave_rejected' => [
             'subject_en' => 'Your leave request has been rejected',
             'subject_am' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል',
             'body_en' => "Your {leave_type} request from {start_date} to {end_date} has been rejected.\nReason: {reason}",
             'body_am' => "ከ{start_date} እስከ {end_date} ያቀረቡት {leave_type} ጥያቄ ውድቅ ተደርጓል።\nምክንያት: {reason}",
+            'subject_om' => 'Gaaffiin boqonnaa keessanii didameera',
+            'body_om' => "Gaaffiin {leave_type} {start_date} irraa hanga {end_date} dhiyeessitan didameera.\nSababa: {reason}",
+        ],
+        'leave_changed' => [
+            'subject_en' => 'Your leave has been changed',
+            'subject_am' => 'ፈቃድዎ ተቀይሯል',
+            'body_en' => "Your {leave_type} leave starting {start_date} was changed by HR and now counts {days} days. Days it no longer takes are back in your balance.\nReason: {reason}",
+            'body_am' => "ከ{start_date} የሚጀምረው {leave_type} ፈቃድዎ በሰው ሀብት ተቀይሯል፤ አሁን {days} ቀናት ይቆጠራል። ያልተወሰዱት ቀናት ወደ ቀሪ ፈቃድዎ ተመልሰዋል።\nምክንያት: {reason}",
+            'subject_om' => 'Boqonnaan keessan jijjiirameera',
+            'body_om' => "Boqonnaan {leave_type} {start_date} jalqabu HR'n jijjiirameera, amma guyyaa {days} lakkaa'ama. Guyyoonni inni hin fudhanne gara haftee keessanitti deebi'aniiru.\nSababa: {reason}",
         ],
         'payslip_available' => [
             'subject_en' => 'Your payslip for {period} is ready',
             'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው — {period}',
             'body_en' => 'Your payslip for {period} is now available. Log in to view and download it.',
             'body_am' => 'ለ{period} የደመወዝ ሰነድዎ አሁን ዝግጁ ነው። ለማየት እና ለማውረድ ይግቡ።',
+            'subject_om' => "Waraqaan mindaa {period} keessanii qophaa'eera",
+            'body_om' => 'Waraqaan mindaa {period} keessanii amma ni argama. Ilaaluu fi buusuuf seenaa.',
         ],
         'missing_punch' => [
             'subject_en' => 'Missing {punch_type} — {date}',
             'subject_am' => 'የ{punch_type} ምዝገባ ጉድለት — {date}',
             'body_en' => "{employee_name} is missing a {punch_type} for {date}.\nReview the attendance record and request a correction if needed.",
             'body_am' => "{employee_name}፦ ለ{date} የ{punch_type} ምዝገባ የለም።\nእባክዎ የሰዓት መዝገቡን ይመልከቱ፤ አስፈላጊ ከሆነ ማስተካከያ ይጠይቁ።",
+            'subject_om' => '{punch_type} hin galmoofne — {date}',
+            'body_om' => "{employee_name} guyyaa {date} {punch_type} hin galmeessine.\nGalmee argamaa ilaalaa; yoo barbaachise sirreeffama gaafadhaa.",
         ],
         'trial_expiring' => [
             'subject_en' => 'Your ETHR trial is expiring soon',
             'subject_am' => 'የETHR የሙከራ ጊዜዎ ሊያበቃ ነው',
             'body_en' => "Your ETHR trial will expire in {days_remaining} day(s) on {trial_ends_at}.\nUpgrade now to ensure uninterrupted access for your team.",
             'body_am' => "የETHR የሙከራ ጊዜዎ በ{days_remaining} ቀን(ቀናት) ውስጥ፣ {trial_ends_at} ላይ ያበቃል።\nቡድንዎ ያለማቋረጥ እንዲጠቀም አሁን ያሻሽሉ።",
+            'subject_om' => 'Yeroon yaalii ETHR keessanii dhiheenyatti xumurama',
+            'body_om' => "Yeroon yaalii ETHR keessanii guyyaa {days_remaining} keessatti, {trial_ends_at} irratti xumurama.\nGareen keessan osoo hin addaan citin akka itti fayyadamuuf amma ol guddisaa.",
         ],
     ];
 
@@ -115,6 +141,7 @@ final class NotificationTemplates
         'leave_requested' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'organization_name'],
         'leave_approved' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'organization_name'],
         'leave_rejected' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'reason', 'organization_name'],
+        'leave_changed' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'reason', 'organization_name'],
         'payslip_available' => ['employee_name', 'period', 'net_amount', 'organization_name'],
         'missing_punch' => ['employee_name', 'date', 'punch_type', 'organization_name'],
         'trial_expiring' => ['days_remaining', 'trial_ends_at', 'organization_name'],
@@ -226,7 +253,7 @@ final class NotificationTemplates
 
         // A driver may hand the key back as a numeric string (MariaDB under PDO).
         $tenantId = is_numeric($tenantId) ? (int) $tenantId : null;
-        $locale = app()->getLocale() === 'am' ? 'am' : 'en';
+        $locale = Locales::orDefault(app()->getLocale());
         $subjectField = "subject_{$locale}";
         $bodyField = "body_{$locale}";
 

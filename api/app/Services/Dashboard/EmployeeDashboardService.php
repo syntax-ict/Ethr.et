@@ -105,6 +105,7 @@ final class EmployeeDashboardService
             ->get()
             ->map(fn ($b) => [
                 'type' => $b->leaveType?->name,
+                'type_am' => $b->leaveType?->name_am,
                 'entitled' => (float) $b->entitled_days,
                 'used' => (float) $b->used_days,
                 'remaining' => $b->remainingDays(),
@@ -121,6 +122,12 @@ final class EmployeeDashboardService
         // Approved runs only, as /payslips/my (audit N8): a calculated run is
         // finance's draft — a void and reprocess can change every figure — and
         // this tile showed its net pay to the employee before approval.
+        //
+        // The run's dates travel with the stored label so the tile can name
+        // the month in the reader's calendar and language, as /payroll does:
+        // `period_label` is written once in English Gregorian ("September
+        // 2026"), which an Ethiopian-calendar reader saw beside Meskerem
+        // everywhere else (dashboard review, 2026-11-03).
         $entry = PayrollEntry::query()
             ->where('employee_id', $employee->id)
             ->whereHas('payrollRun', fn ($query) => $query->whereIn('status', PayrollRun::RELEASED_STATUSES))
@@ -134,6 +141,8 @@ final class EmployeeDashboardService
 
         return [
             'period' => $entry->payrollRun?->period_label,
+            'period_start' => $entry->payrollRun?->period_start?->toDateString(),
+            'period_end' => $entry->payrollRun?->period_end?->toDateString(),
             'net_cents' => $entry->net_cents,
             'gross_cents' => $entry->gross_cents,
         ];

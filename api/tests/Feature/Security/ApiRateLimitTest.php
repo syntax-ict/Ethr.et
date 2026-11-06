@@ -87,7 +87,7 @@ test('the auth budget is per account and address, with a per-address ceiling', f
 
     expect($limits)->toHaveCount(2)
         ->and($limits[0]->maxAttempts)->toBe(10)
-        ->and($limits[0]->key)->toBe('auth-account:staff@office.test|196.188.1.10')
+        ->and($limits[0]->key)->toBe('auth-account:staff@office.test|-|196.188.1.10')
         ->and($limits[1]->maxAttempts)->toBe(100)
         ->and($limits[1]->key)->toBe('auth-ip:196.188.1.10');
 });

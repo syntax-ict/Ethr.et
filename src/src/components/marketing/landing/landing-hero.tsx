@@ -31,11 +31,17 @@ export function LandingHero({
 }) {
   const { t, locale } = useT();
   const href = useLocaleHref();
-  const heading = pickLocalised(locale, section.heading_am, section.heading);
+  const heading = pickLocalised(
+    locale,
+    section.heading_am,
+    section.heading,
+    section.heading_om,
+  );
   const subheading = pickLocalised(
     locale,
     section.subheading_am,
     section.subheading,
+    section.subheading_om,
   );
 
   return (

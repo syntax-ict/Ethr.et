@@ -48,6 +48,11 @@ export interface StatDelta {
    * bad, so the colour follows meaning rather than direction.
    */
   positiveIsGood?: boolean;
+  /**
+   * Neither direction is news: grey whichever way it moves. Payroll cost
+   * falling 0.5% drew in red until 2026-11-05.
+   */
+  neutral?: boolean;
 }
 
 export interface StatCardProps {
@@ -182,10 +187,11 @@ export function DeltaBadge({
   unit = "%",
   label,
   positiveIsGood = true,
+  neutral = false,
 }: StatDelta) {
   const flat = value === 0;
   const up = value > 0;
-  const good = flat ? null : up === positiveIsGood;
+  const good = flat || neutral ? null : up === positiveIsGood;
   const Arrow = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
 
   return (

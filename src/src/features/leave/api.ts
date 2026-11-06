@@ -56,6 +56,22 @@ export function useMyLeaveRequests(params?: { page?: number }) {
   });
 }
 
+/**
+ * Every approved request of the caller's, not the first page: the leave
+ * charts spread them over the months they cover (charts upgrade,
+ * 2026-11-04).
+ */
+export function useMyApprovedLeave() {
+  return useQuery<LeaveRequest[]>({
+    queryKey: ["leave", "my", "approved", "all"],
+    queryFn: () =>
+      fetchAllPages<LeaveRequest>("/leave/my", {
+        "filter[status]": "approved",
+      }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useTeamLeaveRequests(params?: { page?: number }) {
   return useQuery<PaginatedResponse<LeaveRequest>>({
     queryKey: ["leave", "team", params],
@@ -180,6 +196,36 @@ export function useRejectLeave() {
       reason: string;
     }) => {
       const { data } = await apiClient.put(`/leave/${publicId}/reject`, {
+        reason,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/**
+ * HR cancelling approved leave (`endDate` null) or ending it early. The days
+ * go back to the balance and the employee is notified.
+ */
+export function useRecallLeave() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      endDate,
+      reason,
+    }: {
+      publicId: string;
+      endDate: string | null;
+      reason: string;
+    }) => {
+      const { data } = await apiClient.put(`/leave/${publicId}/recall`, {
+        end_date: endDate,
         reason,
       });
       return data;

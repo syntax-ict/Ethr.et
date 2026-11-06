@@ -96,7 +96,9 @@ describe("AllowanceRulesCard", () => {
 
     renderWithClient(<AllowanceRulesCard />);
 
-    expect(await screen.findByText("12.5% of basic")).toBeInTheDocument();
+    expect(
+      await screen.findByText("12.5% of basic salary"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Inactive")).toBeInTheDocument();
   });
 
@@ -375,7 +377,7 @@ describe("OvertimeRatesCard", () => {
     expect(await screen.findByLabelText("Weekly rest day")).toHaveValue(2);
   });
 
-  it("restores the defaults into the form", async () => {
+  it("fills the defaults into the form", async () => {
     server.use(
       http.get(RATES_URL, () =>
         HttpResponse.json({
@@ -392,7 +394,9 @@ describe("OvertimeRatesCard", () => {
       expect(screen.getByLabelText("Ordinary day")).toHaveValue(3),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Fill in the defaults" }),
+    );
 
     expect(screen.getByLabelText("Ordinary day")).toHaveValue(1.5);
   });

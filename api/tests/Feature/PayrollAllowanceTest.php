@@ -192,3 +192,30 @@ test('the calculation log records the allowance breakdown', function () {
     expect($step['non_taxable_allowances_cents'])->toBe(20000);
     expect($step['items'])->toHaveCount(2);
 });
+
+// Owner decision 2026-11-04: a fixed allowance is a monthly amount, paid for
+// the days of the period someone was employed, as basic is. Unpaid leave
+// does not reduce it.
+test('a fixed allowance is prorated for someone who joined during the period', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 600000,
+        'hire_date' => '2026-06-22', // 9 of June's 30 days
+    ]);
+
+    PayrollRule::factory()->fixed(60000)->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Transport Allowance',
+        'is_taxable' => false,
+    ]);
+
+    $entry = runAllowancePayroll($tenant->id, $user->id);
+
+    // Basic 6,000 x 9/30 = 1,800; transport 600 x 9/30 = 180.
+    expect($entry->basic_salary_cents)->toBe(180000)
+        ->and($entry->allowances[0]['amount_cents'])->toBe(18000)
+        ->and($entry->gross_cents)->toBe(198000);
+});

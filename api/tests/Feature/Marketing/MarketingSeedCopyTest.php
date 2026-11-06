@@ -30,6 +30,9 @@ function seededStrings(): array
             }
         }
     }
+    foreach ((new MarketingContentSeeder)->oromo() as $key => $value) {
+        $strings["{$key} (om)"] = $value;
+    }
 
     return $strings;
 }
@@ -73,7 +76,7 @@ it('seeds within the registry: fields a kind does not use are absent, counts fit
     }
 });
 
-it('makes no claim the public site may not make, in either language', function () {
+it('makes no claim the public site may not make, in any language', function () {
     foreach (seededStrings() as $where => $text) {
         expect(MarketingClaims::violation($text))->toBeNull("{$where} makes a forbidden claim: {$text}");
     }
@@ -100,4 +103,85 @@ it('gives every row both languages', function () {
             }
         }
     }
+});
+
+it('has Oromo for every seeded English text, and nothing else', function () {
+    $english = [];
+    foreach ((new MarketingContentSeeder)->sections() as $kind => $section) {
+        foreach (['heading', 'subheading'] as $field) {
+            if (isset($section[$field])) {
+                $english[] = "{$kind}.{$field}";
+            }
+        }
+        foreach ($section['items'] ?? [] as $slug => $item) {
+            foreach (['title', 'body', 'detail'] as $field) {
+                if (isset($item[$field])) {
+                    $english[] = "{$kind}.items.{$slug}.{$field}";
+                }
+            }
+        }
+    }
+    $oromo = (new MarketingContentSeeder)->oromo();
+
+    sort($english);
+    $keys = array_keys($oromo);
+    sort($keys);
+    expect($keys)->toBe($english);
+    foreach ($oromo as $key => $text) {
+        expect(trim($text))->not->toBe('', "{$key} has no Oromo");
+    }
+});
+
+it('seeds the Oromo with a fresh install', function () {
+    $this->seed(MarketingContentSeeder::class);
+    $oromo = (new MarketingContentSeeder)->oromo();
+
+    expect(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe($oromo['hero.heading'])
+        ->and(MarketingItem::query()->where('section_kind', 'cta')->where('slug', 'trial')->value('title_om'))->toBe($oromo['cta.items.trial.title']);
+});
+
+it('gives a row from before Oromo its Oromo, but not where the operator rewrote the English', function () {
+    $this->seed(MarketingContentSeeder::class);
+    // As production stood before the Oromo columns existed.
+    MarketingSection::query()->update(['heading_om' => null, 'subheading_om' => null]);
+    MarketingItem::query()->update(['title_om' => null, 'body_om' => null, 'detail_om' => null]);
+    MarketingSection::query()->where('kind', 'cta')->update(['heading' => 'Try ETHR for six months']);
+
+    $this->seed(MarketingContentSeeder::class);
+    $oromo = (new MarketingContentSeeder)->oromo();
+
+    $cta = MarketingSection::query()->where('kind', 'cta')->firstOrFail();
+    expect($cta->heading_om)->toBeNull()
+        ->and($cta->subheading_om)->toBe($oromo['cta.subheading'])
+        ->and(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe($oromo['hero.heading']);
+});
+
+it('never replaces Oromo the operator wrote', function () {
+    $this->seed(MarketingContentSeeder::class);
+    MarketingSection::query()->where('kind', 'hero')->update(['heading_om' => 'Barreeffama hojii operaataraa']);
+
+    $this->seed(MarketingContentSeeder::class);
+
+    expect(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe('Barreeffama hojii operaataraa');
+});
+
+it('replaces Oromo an earlier release seeded and a review corrected, but not the operator\'s', function () {
+    $superseded = (new MarketingContentSeeder)->oromoSuperseded();
+    $oromo = (new MarketingContentSeeder)->oromo();
+    expect($superseded)->not->toBeEmpty();
+    foreach ($superseded as $key => $earlier) {
+        expect($oromo)->toHaveKey($key)
+            ->and($earlier)->not->toContain($oromo[$key], "{$key} lists its current wording as superseded");
+    }
+
+    $this->seed(MarketingContentSeeder::class);
+    // As a release before the correction left it.
+    $earlier = $superseded['cta.subheading'][0];
+    MarketingSection::query()->where('kind', 'cta')->update(['subheading_om' => $earlier]);
+    MarketingSection::query()->where('kind', 'hero')->update(['heading_om' => 'Barreeffama operaataraa']);
+
+    $this->seed(MarketingContentSeeder::class);
+
+    expect(MarketingSection::query()->where('kind', 'cta')->value('subheading_om'))->toBe($oromo['cta.subheading'])
+        ->and(MarketingSection::query()->where('kind', 'hero')->value('heading_om'))->toBe('Barreeffama operaataraa');
 });

@@ -15,6 +15,7 @@ import {
   todayEthiopian,
 } from "@/lib/calendar/ethiopian";
 import { useT } from "@/lib/i18n/useT";
+import { intlLocale } from "@/lib/i18n/config";
 
 /** A month in one calendar: Ethiopian months run 1 to 13 (Pagume). */
 export interface ReportMonth {
@@ -82,7 +83,7 @@ export function ReportMonthPicker({
   const current = currentReportMonth(value.calendar).year;
   const years = [current - 3, current - 2, current - 1, current];
   const months = Array.from({ length: ethiopian ? 13 : 12 }, (_, i) => i + 1);
-  const gregorianName = new Intl.DateTimeFormat(locale === "am" ? "am" : "en", {
+  const gregorianName = new Intl.DateTimeFormat(intlLocale(locale, "en"), {
     month: "long",
   });
 

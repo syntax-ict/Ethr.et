@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Support\Locales;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use App\Traits\ScopesEmployeeAccess;
@@ -35,6 +36,9 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable implements HasLocalePreference
 {
+    /** @var array{key: string, names: list<string>}|null */
+    private ?array $resolvedPermissions = null;
+
     use BelongsToTenant, HasApiTokens, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
     protected $fillable = [
@@ -93,6 +97,7 @@ class User extends Authenticatable implements HasLocalePreference
             'invited_at' => 'datetime',
             'activated_at' => 'datetime',
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
         ];
     }
 
@@ -204,7 +209,7 @@ class User extends Authenticatable implements HasLocalePreference
             || $this->locale !== 'en';
 
         foreach ($chosen ? [$this->locale, $tenantLocale] : [$tenantLocale, $this->locale] as $locale) {
-            if (in_array($locale, ['en', 'am'], true)) {
+            if (Locales::isShipped($locale)) {
                 return $locale;
             }
         }
@@ -231,11 +236,25 @@ class User extends Authenticatable implements HasLocalePreference
      */
     public function permissionNames(): array
     {
+        // Once per user per request, for the role and custom role it was
+        // resolved for: a list of 100 employees asked for each row, and each
+        // ask read the cache, a database table on shared hosting (A-Z review I).
+        $key = $this->role->value.'|'.$this->custom_role_id;
+        if ($this->resolvedPermissions === null || $this->resolvedPermissions['key'] !== $key) {
+            $this->resolvedPermissions = ['key' => $key, 'names' => $this->resolvePermissionNames()];
+        }
+
+        return $this->resolvedPermissions['names'];
+    }
+
+    /** @return list<string> */
+    private function resolvePermissionNames(): array
+    {
         if ($this->role === UserRole::SUPER_ADMIN) {
             return Permission::allNames();
         }
 
-        if ($this->custom_role_id) {
+        if ($this->custom_role_id && Permission::customRoleIsActive($this->custom_role_id)) {
             return Permission::permissionsForCustomRole($this->custom_role_id);
         }
 

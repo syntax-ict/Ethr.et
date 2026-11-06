@@ -3,11 +3,16 @@
 declare(strict_types=1);
 
 use App\Jobs\ApplyDuePersonnelActionsJob;
+use App\Jobs\DeliverDeviceCommandsJob;
 use App\Jobs\DispatchWebhookJob;
 use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Jobs\ProcessPayrollJob;
+use App\Jobs\PullDeviceEventsJob;
 use App\Jobs\SendInvitationJob;
 use App\Models\Announcement;
+use App\Models\Branch;
+use App\Models\Device;
+use App\Models\DeviceSyncLog;
 use App\Models\Employee;
 use App\Models\PayrollRun;
 use App\Models\PersonnelAction;
@@ -217,7 +222,45 @@ test('the tenant id is required on every job that scopes by it', function (strin
     NotifyAnnouncementAudienceJob::class,
     SendInvitationJob::class,
     ApplyDuePersonnelActionsJob::class,
+    PullDeviceEventsJob::class,
+    DeliverDeviceCommandsJob::class,
 ]);
+
+// ── Device jobs: the tenant comes from the payload, never the device row ──
+//
+// A-Z review D-12 (2026-11-04). Both carried the Device model and set the
+// tenant from the row they fetched, which the conventions forbid.
+
+function otherTenantDevice(Tenant $owner): Device
+{
+    $branch = Branch::factory()->create(['tenant_id' => $owner->id]);
+
+    return Device::factory()->create(['tenant_id' => $owner->id, 'branch_id' => $branch->id, 'status' => 'online']);
+}
+
+test('a device sync does nothing for a device of another tenant', function () {
+    $owner = Tenant::factory()->create();
+    $other = Tenant::factory()->create();
+    $device = otherTenantDevice($owner);
+    app(CurrentTenant::class)->forget();
+
+    app()->call([new PullDeviceEventsJob($device->id, $other->id), 'handle']);
+
+    expect(DeviceSyncLog::withoutGlobalScopes()->where('device_id', $device->id)->exists())->toBeFalse();
+});
+
+test('a command delivery does nothing for a device of another tenant', function () {
+    $owner = Tenant::factory()->create();
+    $other = Tenant::factory()->create();
+    $device = otherTenantDevice($owner);
+    app(CurrentTenant::class)->forget();
+
+    app()->call([new DeliverDeviceCommandsJob($device->id, $other->id), 'handle']);
+
+    // It acts as the payload's tenant, where the device is not found;
+    // it used to act as whichever tenant the device row named.
+    expect(app(CurrentTenant::class)->get()?->id)->toBe($other->id);
+});
 
 // ── ApplyDuePersonnelActionsJob: sets its tenant, drops no scope ──
 

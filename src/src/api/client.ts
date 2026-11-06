@@ -160,9 +160,19 @@ apiClient.interceptors.response.use(
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config;
 
+    // A 419 is a stale XSRF cookie: present, so the request interceptor did
+    // not fetch one, but from a session that has since ended (signed out in
+    // another tab, or expired). Fetch a fresh one and send the write again,
+    // once; a second 419 goes to the caller like any other refusal.
+    const staleXsrf =
+      error.response?.status === 419 &&
+      originalRequest !== undefined &&
+      !originalRequest._xsrfRetry;
+
     // Kept for Get help, which sends the last few with a question. A 401
-    // that the refresh below recovers is not a failure the person saw.
-    if (error.response?.status !== 401) {
+    // that the refresh below recovers, or a 419 the retry below recovers, is
+    // not a failure the person saw.
+    if (error.response?.status !== 401 && !staleXsrf) {
       recordFailedRequest({
         method: originalRequest?.method,
         url: originalRequest?.url,
@@ -179,6 +189,13 @@ apiClient.interceptors.response.use(
         window.location.assign(target);
         return Promise.reject(error);
       }
+    }
+
+    if (staleXsrf) {
+      originalRequest._xsrfRetry = true;
+      await axios.get("/sanctum/csrf-cookie", { withCredentials: true });
+
+      return apiClient(originalRequest);
     }
 
     // `skipAuthRefresh`: a 401 that is an answer, not an expired login. The
@@ -220,6 +237,7 @@ apiClient.interceptors.response.use(
 declare module "axios" {
   interface InternalAxiosRequestConfig {
     _retry?: boolean;
+    _xsrfRetry?: boolean;
   }
   interface AxiosRequestConfig {
     /** Hand a 401 to the caller instead of refreshing the session. */

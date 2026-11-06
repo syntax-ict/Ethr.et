@@ -26,6 +26,9 @@ import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { auditActionLabel, auditEntityLabel } from "@/lib/audit/labels";
+import { AuditLogCharts } from "@/components/shared/audit-log-charts";
+
+const EMPTY_FILTERS = { action: "", from: "", to: "" };
 
 // Actions are not statuses, so they ask for a tone by name rather than
 // borrowing a status that happens to be the right colour today: "updated"
@@ -62,17 +65,20 @@ export function AuditLogExplorer({
   title,
   exportPrefix = "audit-log",
   showOrganisation = false,
+  charts = false,
 }: {
   endpoint: AuditLogEndpoint;
   queryKey: string;
   title: string;
   exportPrefix?: string;
   showOrganisation?: boolean;
+  /** Entries per day and per action above the list; the tenant trail only. */
+  charts?: boolean;
 }) {
   const { t } = useT();
   const { formatDateTime } = useDateFormatters();
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ action: "", from: "", to: "" });
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [exporting, setExporting] = useState(false);
 
   // The action box is free text; without the debounce every keystroke was a
@@ -87,33 +93,55 @@ export function AuditLogExplorer({
 
   const data = query.data;
   const logs = data?.data ?? [];
+  const hasFilters =
+    filters.action.trim() !== "" || filters.from !== "" || filters.to !== "";
+  // Both are ISO dates (YYYY-MM-DD), so a string comparison orders them.
+  const rangeInvalid =
+    filters.from !== "" && filters.to !== "" && filters.from > filters.to;
+
+  function clearFilters() {
+    setFilters(EMPTY_FILTERS);
+    setPage(1);
+  }
 
   /**
    * Every entry matching the filters, not the 50 on screen. The export used to
    * serialise `logs` — the current page — so a compliance export of a month's
-   * trail held whichever 50 rows happened to be displayed.
+   * trail held whichever 50 rows happened to be displayed. It reads the same
+   * debounced action as the table, so the file holds the rows on screen.
    */
   async function exportCsv() {
     setExporting(true);
-    const all = await fetchAllAuditLogs(endpoint, filters).catch(() => null);
+    const all = await fetchAllAuditLogs(endpoint, {
+      ...filters,
+      action: debouncedAction,
+    }).catch(() => null);
     setExporting(false);
     if (all === null) {
       toast.error(t("employees.export_failed", "Export failed"));
       return;
     }
-    if (!all.length) return;
+    if (!all.length) {
+      toast.info(
+        t(
+          "audit_logs_page.nothing_to_export",
+          "Nothing to export for these filters.",
+        ),
+      );
+      return;
+    }
     const headers = [
-      t("audit_logs_page.csv.created_at", "Created At"),
+      t("audit_logs_page.csv.created_at", "Created at"),
       ...(showOrganisation
         ? [t("audit_logs_page.csv.organisation", "Organisation")]
         : []),
       t("audit_logs_page.csv.description", "Description"),
       t("audit_logs_page.csv.action", "Action"),
       t("audit_logs_page.csv.user", "User"),
-      t("audit_logs_page.csv.user_id", "User ID"),
-      t("audit_logs_page.csv.entity_type", "Entity Type"),
-      t("audit_logs_page.csv.entity_id", "Entity ID"),
-      t("audit_logs_page.csv.ip_address", "IP Address"),
+      t("audit_logs_page.csv.user_id", "User id"),
+      t("audit_logs_page.csv.entity_type", "Entity type"),
+      t("audit_logs_page.csv.entity_id", "Entity id"),
+      t("audit_logs_page.csv.ip_address", "IP address"),
     ];
     const rows = all.map((l) => [
       l.created_at,
@@ -140,9 +168,9 @@ export function AuditLogExplorer({
             variant="outline"
             size="sm"
             onClick={exportCsv}
-            disabled={logs.length === 0 || exporting}
+            disabled={logs.length === 0 || exporting || rangeInvalid}
           >
-            <Download className="mr-2 h-4 w-4" />{" "}
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
             {t("audit_logs_page.export_csv")}
           </Button>
         }
@@ -152,11 +180,14 @@ export function AuditLogExplorer({
         <CardContent className="p-4">
           <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             <div className="sm:col-span-2">
-              <Label htmlFor="audit_filter_action" className="text-xs">
+              <Label htmlFor="audit_filter_action" className="text-label">
                 {t("audit_logs_page.action")}
               </Label>
               <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Input
                   id="audit_filter_action"
                   value={filters.action}
@@ -164,13 +195,16 @@ export function AuditLogExplorer({
                     setFilters((p) => ({ ...p, action: e.target.value }));
                     setPage(1);
                   }}
-                  placeholder={t("audit_logs_page.action_placeholder")}
+                  placeholder={t(
+                    "audit_logs_page.action_placeholder",
+                    "employee.created",
+                  )}
                   className="pl-9"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="audit_filter_from" className="text-xs">
+              <Label htmlFor="audit_filter_from" className="text-label">
                 {t("audit_logs_page.from")}
               </Label>
               <DualCalendarDateInput
@@ -184,7 +218,7 @@ export function AuditLogExplorer({
               />
             </div>
             <div>
-              <Label htmlFor="audit_filter_to" className="text-xs">
+              <Label htmlFor="audit_filter_to" className="text-label">
                 {t("audit_logs_page.to")}
               </Label>
               <DualCalendarDateInput
@@ -194,12 +228,31 @@ export function AuditLogExplorer({
                   setFilters((p) => ({ ...p, to: v }));
                   setPage(1);
                 }}
+                aria-invalid={rangeInvalid || undefined}
+                aria-describedby={
+                  rangeInvalid ? "audit_filter_range_error" : undefined
+                }
                 className="mt-1"
               />
+              {rangeInvalid && (
+                <p
+                  id="audit_filter_range_error"
+                  className="mt-1 text-caption text-destructive"
+                >
+                  {t(
+                    "audit_logs_page.range_invalid",
+                    "From must be on or before To.",
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {charts && (
+        <AuditLogCharts filters={{ ...filters, action: debouncedAction }} />
+      )}
 
       <QueryBoundary
         query={query}
@@ -212,11 +265,30 @@ export function AuditLogExplorer({
         }
         isEmpty={() => logs.length === 0}
         empty={
-          <EmptyState
-            icon={Activity}
-            title={t("audit_logs_page.no_logs")}
-            description={t("audit_logs_page.no_logs_desc")}
-          />
+          // With no filters an empty list means nothing has happened yet;
+          // with filters it means they matched nothing, and the way out is
+          // to clear them.
+          hasFilters ? (
+            <EmptyState
+              icon={Activity}
+              title={t("audit_logs_page.no_logs")}
+              description={t("audit_logs_page.no_logs_desc")}
+              action={
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  {t("common.clear_filters", "Clear filters")}
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={Activity}
+              title={t("audit_logs_page.no_logs")}
+              description={t(
+                "audit_logs_page.nothing_yet",
+                "Nothing has been recorded yet. Actions people take in ETHR appear here.",
+              )}
+            />
+          )
         }
       >
         {(result) => (
@@ -270,7 +342,7 @@ export function AuditLogExplorer({
                       <div key="a" className="space-y-1">
                         <Badge
                           variant="outline"
-                          className={`border-0 text-[11px] ${getActionColor(log.action)}`}
+                          className={`border-0 text-caption ${getActionColor(log.action)}`}
                         >
                           {auditActionLabel(log.action, t)}
                         </Badge>

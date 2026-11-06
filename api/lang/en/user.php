@@ -27,8 +27,13 @@ return [
         'batch_not_found' => 'No such invitation batch.',
     ],
     'errors' => [
+        'owner_transfer_first' => 'This person owns the organisation. Hand ownership to another administrator first.',
+        'owner_must_be_active_admin' => 'Ownership can pass only to another active administrator of the organisation.',
+        'only_owner_transfers' => 'Only the owner of the organisation can hand ownership on.',
+        'password_incorrect' => 'That password is not right.',
         'role_not_assignable' => 'This role cannot be assigned.',
         'role_above_your_level' => 'You cannot assign a role higher than your own.',
+        'custom_role_inactive' => 'That role is switched off. Switch it on in Roles first.',
         'role_beside_your_own' => 'Only an organisation admin can assign another role at your level.',
         'account_at_your_level' => 'Only an organisation admin can change an account at your level.',
         'cannot_modify_higher' => 'You cannot modify a user with a higher role than your own.',

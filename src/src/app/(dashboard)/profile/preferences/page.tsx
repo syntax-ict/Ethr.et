@@ -31,17 +31,15 @@ import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
 import { ClockSelect } from "@/components/shared/clock-select";
 import { toClockPreference } from "@/lib/calendar/ethiopian-time";
 import { useT } from "@/lib/i18n/useT";
-import { setLocale } from "@/lib/i18n/translations";
+import { setLocale, supportedLocales } from "@/lib/i18n/translations";
 import { toast } from "sonner";
 
-const LANGUAGES = [
-  { value: "en", label: "English" },
-  { value: "am", label: "አማርኛ" },
-  { value: "om", label: "Afaan Oromoo" },
-  { value: "ti", label: "ትግርኛ" },
-  { value: "so", label: "Soomaali" },
-  { value: "sid", label: "Sidaamu Afoo" },
-] as const;
+// Only languages with a full dictionary. This listed all six, so choosing
+// Tigrinya saved `ti` on the server while `setLocale` refused it and the page
+// stayed in the old language — the same split the header list once had.
+const LANGUAGES = supportedLocales
+  .filter((l) => l.status === "available")
+  .map((l) => ({ value: l.code, label: l.nativeName }));
 
 const THEMES = ["system", "light", "dark", "high-contrast"] as const;
 // No "dual": it promised both dates side by side and no display implements it

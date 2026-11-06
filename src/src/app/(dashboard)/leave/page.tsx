@@ -47,6 +47,7 @@ import {
   useTeamLeaveRequests,
   useApproveLeave,
   useRejectLeave,
+  useRecallLeave,
   useCancelLeave,
   type LeaveBalance,
   type LeaveRequest,
@@ -64,10 +65,15 @@ import {
 } from "@/lib/calendar/ethiopian";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { ReasonDialog } from "@/components/shared/reason-dialog";
+import { ChangeLeaveDialog } from "@/features/leave/components/change-leave-dialog";
+import { useCurrentUser } from "@/features/auth/api";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
+import { LeaveCharts } from "@/features/leave/components/leave-charts";
 import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { intlLocale } from "@/lib/i18n/config";
+import { PrintAction } from "@/components/shared/print-action";
 
 function leaveTypeName(
   lt: LeaveBalance["leave_type"],
@@ -119,9 +125,12 @@ export default function LeavePage() {
     <div className="space-y-6">
       <PageActions
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <PrintAction />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}
+            </Button>
+          </div>
         }
       />
 
@@ -311,6 +320,10 @@ function MyLeaveTab() {
         ) : null}
       </div>
 
+      {balances && Array.isArray(balances) && (
+        <LeaveCharts balances={balances} />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>{t("leave_page.my_requests")}</CardTitle>
@@ -423,6 +436,9 @@ function TeamLeaveTab() {
   });
   const approveLeave = useApproveLeave();
   const rejectLeave = useRejectLeave();
+  const recallLeave = useRecallLeave();
+  const { can } = usePermissions();
+  const { data: me } = useCurrentUser();
   // The request awaiting a reason. Rejecting used to send the literal word
   // "Rejected", so the employee never learned why.
   const [rejecting, setRejecting] = useState<(typeof requests)[number] | null>(
@@ -430,6 +446,40 @@ function TeamLeaveTab() {
   );
 
   const requests = data?.data ?? [];
+  // The approved request HR is cancelling or ending early (A-Z review E-02).
+  const [changing, setChanging] = useState<(typeof requests)[number] | null>(
+    null,
+  );
+
+  function confirmChange({
+    endDate,
+    reason,
+  }: {
+    endDate: string | null;
+    reason: string;
+  }) {
+    if (!changing) return;
+    recallLeave.mutate(
+      { publicId: changing.public_id, endDate, reason },
+      {
+        onSuccess: () => {
+          toast.success(
+            endDate === null
+              ? t("leave_page.change_cancelled", "Leave cancelled")
+              : t("leave_page.change_shortened", "Leave now ends earlier"),
+          );
+          setChanging(null);
+        },
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("leave_page.change_failed", "The leave could not be changed"),
+            ),
+          ),
+      },
+    );
+  }
 
   function confirmReject(reason: string) {
     if (!rejecting) return;
@@ -537,30 +587,49 @@ function TeamLeaveTab() {
                       </span>,
                       <StatusBadge key="s" status={req.status} />,
                     ],
-                    actions: req.status === "pending" && (
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-status-success"
-                          onClick={() => approveLeave.mutate(req.public_id)}
-                          disabled={approveLeave.isPending}
-                          aria-label={t("common.approve")}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-destructive"
-                          onClick={() => setRejecting(req)}
-                          disabled={rejectLeave.isPending}
-                          aria-label={t("common.reject")}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ),
+                    actions:
+                      req.status === "approved"
+                        ? can.adjustLeaveBalance &&
+                          req.employee?.public_id !==
+                            me?.employee_public_id && (
+                            <div className="flex justify-end">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7"
+                                onClick={() => setChanging(req)}
+                                disabled={recallLeave.isPending}
+                              >
+                                {t("leave_page.change", "Change")}
+                              </Button>
+                            </div>
+                          )
+                        : req.status === "pending" && (
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-status-success"
+                                onClick={() =>
+                                  approveLeave.mutate(req.public_id)
+                                }
+                                disabled={approveLeave.isPending}
+                                aria-label={t("common.approve")}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-destructive"
+                                onClick={() => setRejecting(req)}
+                                disabled={rejectLeave.isPending}
+                                aria-label={t("common.reject")}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ),
                   }))}
                 />
                 <PaginationControls
@@ -593,6 +662,14 @@ function TeamLeaveTab() {
         confirmLabel={t("common.reject", "Reject")}
         loading={rejectLeave.isPending}
         onConfirm={confirmReject}
+      />
+      <ChangeLeaveDialog
+        request={changing}
+        onOpenChange={(open) => {
+          if (!open) setChanging(null);
+        }}
+        loading={recallLeave.isPending}
+        onConfirm={confirmChange}
       />
     </div>
   );
@@ -688,7 +765,7 @@ function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
           to: formatEthiopian(to, locale),
         });
       })()
-    : firstDay.toLocaleDateString(locale === "am" ? "am-ET" : "en-US", {
+    : firstDay.toLocaleDateString(intlLocale(locale), {
         month: "long",
         year: "numeric",
       });

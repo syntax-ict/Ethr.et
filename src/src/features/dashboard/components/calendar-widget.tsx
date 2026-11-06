@@ -21,9 +21,16 @@ import {
 } from "@/lib/calendar/ethiopian";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "@/components/shared/error-state";
+import { intlLocale } from "@/lib/i18n/config";
 
 const WEEKDAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const WEEKDAYS_AM = ["እሁድ", "ሰኞ", "ማክሰ", "ረቡዕ", "ሐሙስ", "አርብ", "ቅዳሜ"];
+// Dilbata, Wiixata, Kibxata, Roobii, Kamiisa, Jimaata, Sanbata.
+const WEEKDAYS_OM = ["Dil", "Wix", "Kib", "Rob", "Kam", "Jim", "San"];
+const WEEKDAYS: Record<string, string[]> = {
+  am: WEEKDAYS_AM,
+  om: WEEKDAYS_OM,
+};
 
 function getDaysInGregorianMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -44,7 +51,7 @@ function GregorianGrid({
   holidays: Map<string, string>;
   locale: string;
 }) {
-  const weekdays = locale === "am" ? WEEKDAYS_AM : WEEKDAYS_EN;
+  const weekdays = WEEKDAYS[locale] ?? WEEKDAYS_EN;
   const now = new Date();
   const isCurrentMonth =
     viewYear === now.getFullYear() && viewMonth === now.getMonth();
@@ -58,7 +65,7 @@ function GregorianGrid({
         {weekdays.map((d) => (
           <span
             key={d}
-            className="py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="py-1.5 text-caption font-medium text-muted-foreground"
           >
             {d}
           </span>
@@ -111,7 +118,7 @@ function EthiopianGrid({
   holidays: Map<string, string>;
   locale: string;
 }) {
-  const weekdays = locale === "am" ? WEEKDAYS_AM : WEEKDAYS_EN;
+  const weekdays = WEEKDAYS[locale] ?? WEEKDAYS_EN;
   const ethToday = todayEthiopian();
   const isCurrentMonth =
     ethYear === ethToday.year && ethMonth === ethToday.month;
@@ -126,7 +133,7 @@ function EthiopianGrid({
         {weekdays.map((d) => (
           <span
             key={d}
-            className="py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="py-1.5 text-caption font-medium text-muted-foreground"
           >
             {d}
           </span>
@@ -244,12 +251,14 @@ export function CalendarWidget() {
   if (isEthMode) {
     monthName = formatEthiopianMonthYear(ethView.year, ethView.month, locale);
     const gregStart = toGregorian(ethView.year, ethView.month, 1);
-    monthSubtitle = new Intl.DateTimeFormat(
-      locale === "am" ? "am-ET" : "en-US",
-      { month: "short", year: "numeric" },
-    ).format(gregStart);
+    // The full month name: abbreviated, Amharic read "ኦክቶ 2026" under
+    // ጥቅምት 2019 (dashboard review, 2026-11-03, PR 10).
+    monthSubtitle = new Intl.DateTimeFormat(intlLocale(locale), {
+      month: "long",
+      year: "numeric",
+    }).format(gregStart);
   } else {
-    monthName = new Intl.DateTimeFormat(locale === "am" ? "am-ET" : "en-US", {
+    monthName = new Intl.DateTimeFormat(intlLocale(locale), {
       month: "long",
       year: "numeric",
     }).format(new Date(gregYear, gregMonth, 1));
@@ -288,17 +297,18 @@ export function CalendarWidget() {
           <div>
             <CardTitle className="text-sm font-semibold">{monthName}</CardTitle>
             {monthSubtitle && (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {monthSubtitle}
               </p>
             )}
           </div>
         </div>
+        {/* 44 px on a phone (WCAG 2.5.8), the tighter header size from `sm`. */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-touch w-touch sm:h-7 sm:w-7"
             onClick={handlePrev}
             aria-label={t("calendar.previous_month", "Previous month")}
           >
@@ -308,7 +318,7 @@ export function CalendarWidget() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-touch px-2 text-xs sm:h-7"
               onClick={handleToday}
             >
               {t("calendar.today", "Today")}
@@ -317,7 +327,7 @@ export function CalendarWidget() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-touch w-touch sm:h-7 sm:w-7"
             onClick={handleNext}
             aria-label={t("calendar.next_month", "Next month")}
           >
@@ -344,7 +354,7 @@ export function CalendarWidget() {
 
         {(data?.upcoming_holidays ?? []).length > 0 && (
           <div className="mt-3 border-t border-border/60 pt-3">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="mb-2 text-caption font-medium uppercase tracking-wider text-muted-foreground">
               {t("dashboard.upcoming_holidays", "Upcoming Holidays")}
             </p>
             <div className="space-y-1.5">

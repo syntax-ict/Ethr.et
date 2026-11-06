@@ -23,8 +23,10 @@ use App\Models\Tenant;
 use App\Services\Attendance\ExpectedDays;
 use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
+use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Services\Leave\SickLeaveTiers;
 use App\Support\Cents;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
@@ -69,6 +71,7 @@ final class PayrollEngine
         private readonly PayrollBalanceService $balances,
         private readonly ExpectedDays $expectedDays,
         private readonly StatutoryRules $statutoryRules,
+        private readonly SickLeaveTiers $sickLeave,
     ) {}
 
     /** @var array<string, bool> keyed by tenant id and period */
@@ -148,13 +151,24 @@ final class PayrollEngine
      * pension, overtime, loans, allowances and cost-sharing per row. This is
      * what ProcessPayrollJob runs.
      *
-     * One transaction for the whole run. A worker that dies part-way used to
-     * leave some entries written under a run ProcessPayrollJob::failed() then
-     * marked `failed`; now it leaves none, and the run can be submitted again.
+     * It was one transaction for the whole run, inside one web request. The
+     * host stops a request after 30 s of CPU, and a run of 2,000 people takes
+     * 18 s on a fast machine: a larger or slower one was stopped part-way,
+     * again on every resubmission. It now commits in batches of 100 and, once
+     * `$deadline` (a `microtime(true)` value) has passed, returns with the run
+     * still `processing` and the rest for the next call, which skips whoever
+     * already has an entry. At least one batch is written per call, so each
+     * call makes progress however short the time it was given. With no
+     * deadline the whole run is done in one call, as before.
+     *
+     * A run that is stopped for good leaves no entries: ProcessPayrollJob::
+     * failed() removes the ones written so far, so it can be submitted again.
      * Calculating moves no balance at all (PayrollBalanceService does that on
-     * approval), so a failure has nothing else to undo.
+     * approval), so a failure has nothing else to undo. The run's totals and
+     * counts are written once, from what the entries say, when the last batch
+     * is in.
      */
-    public function runEntries(PayrollRun $run): PayrollRun
+    public function runEntries(PayrollRun $run, ?float $deadline = null): PayrollRun
     {
         $tenantId = $run->tenant_id;
 
@@ -185,30 +199,37 @@ final class PayrollEngine
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
-        DB::transaction(function () use (
-            $run, $tenantId, $periodStart, $periodEnd,
-            $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
-        ): void {
-            $totalGross = 0;
-            $totalNet = 0;
-            $totalTax = 0;
-            $count = 0;
-            $skippedNoSalary = 0;
+        // Whoever already has an entry, from an earlier call that stopped at
+        // its deadline. Empty on a first call.
+        $done = PayrollEntry::query()
+            ->where('tenant_id', $tenantId)
+            ->where('payroll_run_id', $run->id)
+            ->pluck('employee_id')
+            ->all();
+        $visited = [];
+        $paused = false;
 
-            $this->payableEmployees($tenantId, $periodStart, $periodEnd)
-                // For the contract fallback in processEmployee(): an employee whose
-                // salary_cents is unset may still have a contract that states one,
-                // and until 2026-10-15 that employee silently vanished from the run
-                // (production QA, F1). Loaded here so the fallback costs no query
-                // per employee.
-                ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
-                ->chunkById(100, function ($employees) use (
-                    $run, $periodStart, $periodEnd,
+        $this->payableEmployees($tenantId, $periodStart, $periodEnd)
+            ->when($done !== [], fn ($query) => $query->whereNotIn('employees.id', $done))
+            // For the contract fallback in processEmployee(): an employee whose
+            // salary_cents is unset may still have a contract that states one,
+            // and until 2026-10-15 that employee silently vanished from the run
+            // (production QA, F1). Loaded here so the fallback costs no query
+            // per employee.
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->chunkById(100, function ($employees) use (
+                $run, $periodStart, $periodEnd,
+                $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
+                $deadline, &$visited, &$paused,
+            ) {
+                // One batch, one transaction: a batch is whole or absent, so a
+                // call that is stopped in the middle of one resumes cleanly.
+                DB::transaction(function () use (
+                    $employees, $run, $periodStart, $periodEnd,
                     $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
-                    &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
-                ) {
+                ): void {
                     foreach ($employees as $employee) {
-                        $entry = $this->processEmployee(
+                        $this->processEmployee(
                             $employee,
                             $run,
                             $periodStart,
@@ -220,24 +241,52 @@ final class PayrollEngine
                             $taxBasis,
                             $rules,
                         );
-                        if ($entry) {
-                            $totalGross += $entry->gross_cents;
-                            $totalNet += $entry->net_cents;
-                            $totalTax += $entry->income_tax_cents;
-                            $count++;
-                        } else {
-                            $skippedNoSalary++;
-                        }
                     }
                 });
 
+                foreach ($employees as $employee) {
+                    $visited[] = $employee->id;
+                }
+
+                // The deadline is looked at after a batch is written, never
+                // before, so every call makes progress.
+                if ($deadline !== null && microtime(true) >= $deadline) {
+                    $paused = true;
+
+                    return false;
+                }
+
+                return true;
+            });
+
+        // Stopped at the deadline with people still to pay: the next call
+        // carries on. Stopped on the very last batch, there is nothing left,
+        // and the run is finished now rather than by a job that would find
+        // nothing to do.
+        if ($paused && $this->payableEmployees($tenantId, $periodStart, $periodEnd)
+            ->whereNotIn('employees.id', [...$done, ...$visited])
+            ->exists()) {
+            return $run->refresh();
+        }
+
+        // The totals are what the entries say, written once, together with
+        // the count of people skipped for having no salary: they are the
+        // payable people no entry exists for.
+        DB::transaction(function () use ($run, $tenantId, $periodStart, $periodEnd): void {
+            $totals = PayrollEntry::query()
+                ->where('tenant_id', $tenantId)
+                ->where('payroll_run_id', $run->id)
+                ->selectRaw('count(*) as entries, coalesce(sum(gross_cents), 0) as gross, coalesce(sum(net_cents), 0) as net, coalesce(sum(income_tax_cents), 0) as tax')
+                ->first();
+            $entries = (int) ($totals->entries ?? 0);
+
             $run->update([
                 'status' => 'completed',
-                'employee_count' => $count,
-                'skipped_no_salary' => $skippedNoSalary,
-                'gross_total_cents' => $totalGross,
-                'net_total_cents' => $totalNet,
-                'tax_total_cents' => $totalTax,
+                'employee_count' => $entries,
+                'skipped_no_salary' => max(0, $this->payableEmployees($tenantId, $periodStart, $periodEnd)->count() - $entries),
+                'gross_total_cents' => (int) ($totals->gross ?? 0),
+                'net_total_cents' => (int) ($totals->net ?? 0),
+                'tax_total_cents' => (int) ($totals->tax ?? 0),
             ]);
         });
 
@@ -469,7 +518,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.5',
+            'version' => '1.7',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -579,6 +628,28 @@ final class PayrollEngine
             'basic_after_unpaid_leave_cents' => $proratedBasic,
         ];
 
+        // Sick leave under Art. 85 (A-Z review E-08): within twelve months of
+        // the first day of sickness, the first month is paid in full, the
+        // next two at half the daily rate and the last three not at all. The
+        // tier of each day is its place in that period, so a long illness
+        // moves from full to half pay across payslips without anyone acting.
+        $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $workingDaysPerMonth);
+        // In thousandths of a day, as for unpaid leave: a half-pay day is 500.
+        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * 500);
+        $sickDeduction = $sickThousandths > 0
+            ? min(Cents::mulDiv($dailyRate, $sickThousandths, 1000), $proratedBasic)
+            : 0;
+        $proratedBasic -= $sickDeduction;
+
+        $log['steps'][] = [
+            'step' => 'sick_leave',
+            'half_pay_days' => $sick['half'],
+            'unpaid_days' => $sick['unpaid'],
+            'daily_rate_cents' => $dailyRate,
+            'deduction_cents' => $sickDeduction,
+            'basic_after_sick_leave_cents' => $proratedBasic,
+        ];
+
         // Lateness: only what was decided. A late arrival deducts nothing until
         // a lateness correction for it is approved by someone who processes
         // payroll, and only in an organisation that switched deductions on
@@ -634,9 +705,13 @@ final class PayrollEngine
         $overtimeAmount = 0;
         $overtimeMinutes = 0;
         $overtimeBreakdown = [];
+        // The hourly rate is the contract's: proration, unpaid leave and
+        // lateness change how many days are paid, not what an hour is worth
+        // (Art. 68). Until 2026-11-03 this read the prorated basic, so a
+        // mid-month hire's overtime was paid at a fraction of the law's rate.
         foreach ($overtimeByType as $type => $minutes) {
             $amount = $this->overtimeCalculator->calculate(
-                $proratedBasic,
+                $basicSalary,
                 $workingDaysPerMonth,
                 $hoursPerDay,
                 $minutes,
@@ -655,6 +730,8 @@ final class PayrollEngine
 
         $log['steps'][] = [
             'step' => 'overtime',
+            // Since 1.6: the monthly basic the hourly rate is taken from.
+            'hourly_rate_base_cents' => $basicSalary,
             'overtime_minutes' => $overtimeMinutes,
             'overtime_amount_cents' => $overtimeAmount,
             'by_type' => $overtimeBreakdown,
@@ -662,7 +739,7 @@ final class PayrollEngine
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
         ];
 
-        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic);
+        $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
         $allowances = $allowanceResult['items'];
         $totalAllowances = $allowanceResult['total_cents'];
         $nonTaxableAllowances = $allowanceResult['non_taxable_cents'];
@@ -840,8 +917,9 @@ final class PayrollEngine
 
         foreach ($requests as $request) {
             // Only unpaid leave reduces pay; skip paid leave and orphaned rows.
+            // Art. 85 sick leave has its own step, whatever its paid flag.
             $leaveType = $request->leaveType;
-            if (! $leaveType instanceof LeaveType || $leaveType->is_paid) {
+            if (! $leaveType instanceof LeaveType || $leaveType->is_paid || $leaveType->follows_art85) {
                 continue;
             }
 
@@ -854,7 +932,7 @@ final class PayrollEngine
                 $days += (float) $request->days;
             } else {
                 $days += $this->leaveDayCalculator->calculateDays(
-                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id,
+                    $clipStart, $clipEnd, $employee->tenant_id, $employee->branch_id, $employee,
                 );
             }
         }
@@ -878,7 +956,7 @@ final class PayrollEngine
      */
     public function unexplainedAbsences(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
-        $yesterday = TenantTime::today(Tenant::query()->find($employee->tenant_id))->subDay()->format('Y-m-d');
+        $yesterday = TenantTime::today(app(CurrentTenant::class)->tenantFor($employee->tenant_id))->subDay()->format('Y-m-d');
         $first = $periodStart->format('Y-m-d');
         $last = min($periodEnd->format('Y-m-d'), $yesterday);
 
@@ -928,7 +1006,7 @@ final class PayrollEngine
         }
 
         $tenantId = $first->tenant_id;
-        $yesterday = TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d');
+        $yesterday = TenantTime::today(app(CurrentTenant::class)->tenantFor($tenantId))->subDay()->format('Y-m-d');
         $from = $periodStart->format('Y-m-d');
         $last = min($periodEnd->format('Y-m-d'), $yesterday);
 
@@ -1026,7 +1104,7 @@ final class PayrollEngine
         // A record with no shift rests on the organisation's own week, not on
         // Sunday: a Saturday at a Monday-Friday organisation was paid as a
         // normal day, and a Sunday at a six-day one as a rest day.
-        $workingWeek = WorkingWeek::of(Tenant::query()->find($employee->tenant_id));
+        $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);

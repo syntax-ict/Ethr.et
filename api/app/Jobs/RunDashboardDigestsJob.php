@@ -7,11 +7,14 @@ namespace App\Jobs;
 use App\Models\AlertThreshold;
 use App\Models\DashboardDigest;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Notifications\DashboardDigestFailedNotification;
 use App\Notifications\DashboardDigestNotification;
 use App\Services\Analytics\AlertEvaluator;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
+use App\Support\ExecutiveBranchScope;
+use App\Support\Locales;
 use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
@@ -22,6 +25,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -90,13 +94,32 @@ class RunDashboardDigestsJob implements ShouldQueue
             return;
         }
 
+        // Not while the organisation is out of use: skipped to the next slot,
+        // quietly, as a scheduled report is (A-Z review H-03).
+        if (! $tenant->isActive()) {
+            $digest->forceFill(['next_run_at' => ScheduleSlot::forTenantId($digest->frequency, $digest->tenant_id)])->save();
+
+            return;
+        }
+
         // A queue worker carries no tenant context, and the dashboard service
         // reads tenant-scoped models.
         $currentTenant->set($tenant);
 
+        // A digest shows what the person who scheduled it may see, and stops
+        // once they cannot: they left, or lost the dashboard, or moved branch
+        // (A-Z review G-02). As a scheduled report stops with its author.
+        $creator = $digest->creator()->first();
+        $branchId = $digest->getAttribute('branch_id');
+        $sees = $creator instanceof User && $creator->status === 'active'
+            && (ExecutiveBranchScope::isFull($creator)
+                || ($branchId !== null && ExecutiveBranchScope::isRegional($creator) && $creator->employee?->branch_id === $branchId));
+        if (! $sees) {
+            throw new RuntimeException('The person who scheduled this digest can no longer see it.');
+        }
+
         $to = now();
         $from = $to->copy()->subDays(30);
-        $branchId = $digest->getAttribute('branch_id');
 
         $overview = $service->overview($tenant->id, $from, $to, $branchId);
         $compliance = $service->complianceSnapshot($tenant->id, $branchId);
@@ -193,6 +216,6 @@ class RunDashboardDigestsJob implements ShouldQueue
     {
         $locale = $tenantId === null ? null : Tenant::query()->whereKey($tenantId)->value('default_locale');
 
-        return in_array($locale, ['en', 'am'], true) ? $locale : 'en';
+        return Locales::orDefault($locale);
     }
 }

@@ -33,13 +33,16 @@ class SiteContentResource extends JsonResource
         return [
             'platform_name' => $this->platform_name,
             'platform_name_am' => $this->platform_name_am,
+            'platform_name_om' => $this->platform_name_om,
             'tagline' => $this->tagline,
             'tagline_am' => $this->tagline_am,
+            'tagline_om' => $this->tagline_om,
             'logo_url' => $this->logo_url,
             'contact_email' => $this->contact_email,
             'contact_phone' => $this->contact_phone,
             'office_address' => $this->office_address,
             'office_address_am' => $this->office_address_am,
+            'office_address_om' => $this->office_address_om,
             'social_linkedin' => $this->social_linkedin,
             'social_x' => $this->social_x,
             'social_facebook' => $this->social_facebook,
@@ -47,6 +50,7 @@ class SiteContentResource extends JsonResource
             'metric_employees' => $this->metric_employees,
             'metric_uptime_note' => $this->metric_uptime_note,
             'metric_uptime_note_am' => $this->metric_uptime_note_am,
+            'metric_uptime_note_om' => $this->metric_uptime_note_om,
             ...$this->testimonial(),
             ...$this->productMark(),
         ];
@@ -62,7 +66,7 @@ class SiteContentResource extends JsonResource
      * built-in wording and the public site, resolved by the client so that
      * the wording follows the reader's language.
      *
-     * @return array{product_mark_enabled: bool, product_mark_label: string|null, product_mark_label_am: string|null, product_mark_url: string|null}
+     * @return array{product_mark_enabled: bool, product_mark_label: string|null, product_mark_label_am: string|null, product_mark_label_om: string|null, product_mark_url: string|null}
      */
     private function productMark(): array
     {
@@ -70,6 +74,7 @@ class SiteContentResource extends JsonResource
             'product_mark_enabled' => (bool) $this->product_mark_enabled,
             'product_mark_label' => $this->product_mark_label,
             'product_mark_label_am' => $this->product_mark_label_am,
+            'product_mark_label_om' => $this->product_mark_label_om,
             'product_mark_url' => $this->product_mark_url,
         ];
     }
@@ -97,9 +102,11 @@ class SiteContentResource extends JsonResource
         return [
             'testimonial_quote' => $publishable ? $this->testimonial_quote : null,
             'testimonial_quote_am' => $publishable ? $this->testimonial_quote_am : null,
+            'testimonial_quote_om' => $publishable ? $this->testimonial_quote_om : null,
             'testimonial_author' => $publishable ? $this->testimonial_author : null,
             'testimonial_role' => $publishable ? $this->testimonial_role : null,
             'testimonial_role_am' => $publishable ? $this->testimonial_role_am : null,
+            'testimonial_role_om' => $publishable ? $this->testimonial_role_om : null,
             'testimonial_organisation' => $publishable ? $this->testimonial_organisation : null,
         ];
     }

@@ -25,15 +25,23 @@ const InteractiveCharts = dynamic(
     loading: () => <Skeleton className={CHART_PLACEHOLDER} />,
   },
 );
-import { useEmployeeDashboard } from "@/features/dashboard/api";
+import {
+  useEmployeeDashboard,
+  useManagerDashboard,
+} from "@/features/dashboard/api";
 import { useCurrentUser } from "@/features/auth/api";
 import { DashboardSection } from "@/components/dashboard";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useNearViewport } from "@/lib/hooks/useNearViewport";
+import { Deferred } from "@/components/shared/deferred";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import { useCalendar } from "@/lib/calendar/calendar-context";
+import {
+  type CalendarSystem,
+  useCalendar,
+} from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
+import { localizedPeriodLabel } from "@/lib/calendar/period-label";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 import { useT } from "@/lib/i18n/useT";
 import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
@@ -45,6 +53,7 @@ import {
   AnnouncementsWidget,
   CalendarWidget,
   TeamOverview,
+  DepartmentOverview,
   LeaveOverview,
   OrganisationSnapshot,
   LinkEmployeeCallout,
@@ -72,7 +81,7 @@ import { ErrorState } from "@/components/shared/error-state";
  * absent and three approvals are waiting" sat below a week-over-week graph.
  */
 export default function DashboardPage() {
-  const { isSupervisor, isSuperAdmin, can } = usePermissions();
+  const { isSupervisor, isSuperAdmin, can, orgScope } = usePermissions();
   const { t } = useT();
   const { data: user } = useCurrentUser();
   const router = useRouter();
@@ -88,6 +97,21 @@ export default function DashboardPage() {
   // Only an explicit null means "no employee record": while /auth/me loads,
   // or from an older payload without the field, the tiles show as before.
   const hasNoEmployee = user?.employee_public_id === null;
+  const unitScoped = orgScope === "department" || orgScope === "team";
+  // Someone with no organisation, department or team section: their
+  // dashboard is only their own day.
+  const personalOnly = !isSupervisor && !can.viewExecutiveDashboard;
+  // A supervisor-level role with no direct reports (a department head, say)
+  // met a chart card that could only say the team recorded nothing
+  // (dashboard review, 2026-11-03, PR 8). TeamOverview already asks for this
+  // figure; the query is shared. The card is kept while the answer is on its
+  // way, so it does not appear late and push the page down.
+  const { data: manager } = useManagerDashboard(
+    isSupervisor && !can.viewExecutiveDashboard,
+  );
+  const showCharts =
+    Boolean(can.viewExecutiveDashboard) ||
+    (isSupervisor && manager?.team_size !== 0);
 
   if (isSuperAdmin) return null;
 
@@ -101,11 +125,16 @@ export default function DashboardPage() {
 
       {can.viewExecutiveDashboard && <OrganisationSnapshot />}
 
+      {/* A department head or team lead: the people their role reaches,
+          counted today. They have no organisation tiles and usually no direct
+          reports, so without this the page told them "No direct reports". */}
+      {unitScoped && <DepartmentOverview />}
+
       {/* Section headings turn what was a run of seven undifferentiated tiles
           into two labelled groups of four. Chunking gives the eye an entry
           point per group instead of asking it to infer where one metric family
           ends and the next begins. */}
-      {isSupervisor && <TeamOverview />}
+      {isSupervisor && <TeamOverview emptyState={!unitScoped} />}
 
       <DashboardSection
         id="my-day-heading"
@@ -121,30 +150,78 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-6 xl:col-span-2">
           <NextStepsCard />
           <PendingApprovalsPanel />
-          {(isSupervisor || can.viewExecutiveDashboard) && <DeferredCharts />}
+          {showCharts && <DeferredCharts />}
+          {/* An employee has no queue and no charts, so the wide column held
+              Next steps and then nothing while the side column ran four cards
+              long (dashboard review, 2026-11-03, PR 7). Their balances and
+              the calendar sit here, side by side, instead. */}
+          {personalOnly && (
+            <div className="grid gap-6 md:grid-cols-2">
+              {!hasNoEmployee && <LeaveOverview />}
+              <CalendarWidget />
+            </div>
+          )}
         </div>
         <div className="min-w-0 space-y-6">
-          {!hasNoEmployee && <PulsePrompt />}
+          {/* Each side widget makes a request on mount; on a phone they sit
+              well below the first screen, so they wait until the reader
+              comes near (dashboard review, 2026-11-03, PR 11). */}
+          {!hasNoEmployee && (
+            <Deferred placeholder={<Skeleton className="h-24 rounded-xl" />}>
+              <PulsePrompt />
+            </Deferred>
+          )}
           {/* Personal balances; an account with no employee record has none,
               and "My Day" already says how to get one. */}
-          {!hasNoEmployee && <LeaveOverview />}
-          <CalendarWidget />
-          <AnnouncementsWidget />
+          {!personalOnly && !hasNoEmployee && <LeaveOverview />}
+          {!personalOnly && <CalendarWidget />}
+          <Deferred placeholder={<Skeleton className="h-40 rounded-xl" />}>
+            <AnnouncementsWidget />
+          </Deferred>
           {/* The standalone unread-count tile that used to sit here restated
               what the header bell already shows and what Recent Activity
               already lists — three renderings of one number. */}
-          <RecentActivity />
+          <Deferred placeholder={<Skeleton className="h-40 rounded-xl" />}>
+            <RecentActivity />
+          </Deferred>
         </div>
       </div>
     </div>
   );
 }
 
+/**
+ * The payslip's month in the reader's calendar and language, as /payroll
+ * names it: the stored `period` is English Gregorian ("September 2026"), which
+ * an Ethiopian-calendar reader saw beside Meskerem everywhere else. The run's
+ * dates decide the month; an answer cached before the API sent them falls
+ * back to reading the label.
+ */
+function payslipPeriod(
+  payslip: {
+    period: string;
+    period_start?: string | null;
+    period_end?: string | null;
+  },
+  calendar: CalendarSystem,
+  locale: string,
+): string {
+  return payslip.period_start
+    ? localizedPeriodLabel(
+        payslip.period,
+        payslip.period_start,
+        payslip.period_end,
+        calendar,
+        locale,
+      )
+    : storedPeriodLabel(payslip.period, calendar, locale);
+}
+
 function SelfServiceKpis() {
   const { t, locale } = useT();
   const { data, isLoading, isError, refetch } = useEmployeeDashboard();
   const { formatTime } = useDateFormatters();
-  const { formatDate } = useCalendar();
+  const { calendar, formatDate } = useCalendar();
 
   // Without this a failed request fell through to the cards below, which
   // read a missing record as "Not Checked In" and an empty balance list.
@@ -214,8 +291,15 @@ function SelfServiceKpis() {
         }
         sub={
           balances.length > 0
-            ? // Null once the leave type has been deleted.
-              (balances[0].type ?? t("dashboard.leave", "Leave"))
+            ? // Null once the leave type has been deleted. The Amharic name
+              // travels with it, so an Amharic reader sees ዓመታዊ ፈቃድ, not
+              // "Annual Leave" (dashboard review, 2026-11-03, PR 10).
+              balances[0].type
+              ? localizedName(
+                  { name: balances[0].type, name_am: balances[0].type_am },
+                  locale,
+                )
+              : t("dashboard.leave", "Leave")
             : t("dashboard.no_leave_configured", "No leave configured")
         }
       />
@@ -228,7 +312,11 @@ function SelfServiceKpis() {
             ? formatETB(payslip.net_cents)
             : t("dashboard.none_yet", "None yet")
         }
-        sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
+        sub={
+          payslip
+            ? payslipPeriod(payslip, calendar, locale)
+            : t("dashboard.no_payslips", "No payslips")
+        }
       />
       <KpiCard
         icon={CalendarDays}
@@ -258,15 +346,12 @@ function SelfServiceKpis() {
  * import, and those who do see the charts fetch them on the way down the page.
  */
 function DeferredCharts() {
-  const { ref, near } = useNearViewport<HTMLDivElement>();
-
   return (
-    <div ref={ref}>
-      {near ? (
-        <InteractiveCharts />
-      ) : (
-        <Skeleton className={CHART_PLACEHOLDER} />
-      )}
-    </div>
+    <Deferred
+      margin="600px"
+      placeholder={<Skeleton className={CHART_PLACEHOLDER} />}
+    >
+      <InteractiveCharts />
+    </Deferred>
   );
 }

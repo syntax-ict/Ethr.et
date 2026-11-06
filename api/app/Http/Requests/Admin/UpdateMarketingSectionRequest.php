@@ -15,7 +15,7 @@ use Illuminate\Validation\Validator;
  *
  * The rules carry no inline comments: Scramble publishes a comment beside
  * a rule as that field's description. Every text field takes
- * PermittedMarketingClaim, in both languages. The image alt fields are
+ * PermittedMarketingClaim, in every language. The image alt fields are
  * accepted only for a kind whose registry entry allows a section image,
  * checked in withValidator(), which Scramble does not read.
  */
@@ -39,6 +39,9 @@ class UpdateMarketingSectionRequest extends FormRequest
             'is_published' => ['sometimes', 'boolean'],
             'image_alt' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
             'image_alt_am' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
+            'heading_om' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
+            'subheading_om' => ['sometimes', 'nullable', 'string', 'max:600', new PermittedMarketingClaim],
+            'image_alt_om' => ['sometimes', 'nullable', 'string', 'max:300', new PermittedMarketingClaim],
         ];
     }
 
@@ -53,7 +56,7 @@ class UpdateMarketingSectionRequest extends FormRequest
             if ($spec['section_image']) {
                 return;
             }
-            foreach (['image_alt', 'image_alt_am'] as $field) {
+            foreach (['image_alt', 'image_alt_am', 'image_alt_om'] as $field) {
                 if ($this->has($field)) {
                     $validator->errors()->add($field, __('validation.marketing_field_unused', ['kind' => $kind]));
                 }

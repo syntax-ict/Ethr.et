@@ -55,10 +55,10 @@ import { LocaleRedirect } from "@/app/(root)/locale-redirect";
  */
 describe("locale route coverage", () => {
   it("builds routes only for locales that have a dictionary", () => {
-    expect([...AVAILABLE_LOCALES]).toEqual(["en", "am"]);
+    expect([...AVAILABLE_LOCALES]).toEqual(["en", "am", "om"]);
 
-    // The four stub locales are listed in the switcher so the roadmap is
-    // visible, but generating /om/pricing would publish a page of raw
+    // The stub locales are listed in the switcher so the roadmap is
+    // visible, but generating /ti/pricing would publish a page of raw
     // translation keys — their JSON files are empty.
     const comingSoon = supportedLocales
       .filter((l) => l.status === "coming_soon")
@@ -81,9 +81,14 @@ describe("locale negotiation", () => {
   });
 
   it("refuses a locale whose dictionary is empty", () => {
-    // Honouring `om` here would route a visitor to a page rendered as raw key
+    // Honouring `ti` here would route a visitor to a page rendered as raw key
     // names — the same defect the language switcher already guards against.
-    expect(negotiateLocale(["om"])).toBe("am");
+    expect(negotiateLocale(["ti"])).toBe("am");
+  });
+
+  it("honours Oromo, which ships a full dictionary", () => {
+    expect(negotiateLocale(["om"])).toBe("om");
+    expect(negotiateLocale(["om-ET", "am"])).toBe("om");
   });
 
   it("falls back to the default when nothing matches", () => {
@@ -116,6 +121,7 @@ describe("locale-prefixed URLs", () => {
       languages: {
         en: "/en/pricing",
         am: "/am/pricing",
+        om: "/om/pricing",
         "x-default": "/en/pricing",
       },
     });
@@ -141,12 +147,19 @@ describe("sitemap", () => {
     expect(paths).toContain("/en/pricing");
     expect(paths).toContain("/am");
     expect(paths).toContain("/en");
+    expect(paths).toContain("/om/pricing");
+    expect(paths).toContain("/om");
   });
 
   it("gives every entry the full hreflang set", () => {
     for (const entry of entries) {
       const languages = entry.alternates?.languages ?? {};
-      expect(Object.keys(languages).sort()).toEqual(["am", "en", "x-default"]);
+      expect(Object.keys(languages).sort()).toEqual([
+        "am",
+        "en",
+        "om",
+        "x-default",
+      ]);
     }
   });
 

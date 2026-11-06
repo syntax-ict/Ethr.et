@@ -34,6 +34,9 @@ class TenantContextController extends Controller
         // stateful request Laravel may attach Set-Cookie (XSRF, session), and a
         // shared cache must never store and replay that.
         $cacheHeaders = ['Cache-Control' => 'private, max-age=60', 'Vary' => 'Host, X-Tenant'];
+        // Reached while inactive only when locked out for money (ResolveTenant
+        // lets that through): the sign-in page says so, and still signs in.
+        $billingOnly = (bool) ($tenant !== null && ! $tenant->isActive());
 
         return response()->json([
             'tenant' => $tenant ? [
@@ -52,6 +55,7 @@ class TenantContextController extends Controller
                     'email_code' => $otp->isAvailable(OtpService::CHANNEL_EMAIL),
                 ],
                 'default_locale' => $tenant->default_locale,
+                'billing_only' => $billingOnly,
             ] : null,
         ])->withHeaders($cacheHeaders);
     }

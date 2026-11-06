@@ -51,6 +51,16 @@ const SWITCHES: SwitchKey[] = [
 ];
 
 /**
+ * A number field's text as a whole number, or null for "same as the
+ * organisation". Text that does not parse counts as empty rather than being
+ * sent as NaN, which JSON turns into null without saying so.
+ */
+function wholeOrNull(raw: string): number | null {
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+/**
  * Attendance rules a branch sets differently from the organisation. Every
  * rule starts as "Same as organisation"; only what a branch changes is
  * stored, so a later change at the organisation still reaches it.
@@ -299,8 +309,7 @@ function BranchRulesDialog({
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  mobile_accuracy_threshold_meters:
-                    e.target.value === "" ? null : parseInt(e.target.value, 10),
+                  mobile_accuracy_threshold_meters: wholeOrNull(e.target.value),
                 })
               }
             />
@@ -330,8 +339,7 @@ function BranchRulesDialog({
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  risk_review_threshold:
-                    e.target.value === "" ? null : parseInt(e.target.value, 10),
+                  risk_review_threshold: wholeOrNull(e.target.value),
                 })
               }
             />

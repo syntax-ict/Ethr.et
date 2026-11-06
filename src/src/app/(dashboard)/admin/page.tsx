@@ -56,6 +56,7 @@ import { ethiopianMonthName, toEthiopian } from "@/lib/calendar/ethiopian";
 import { todayIn } from "@/lib/utils/date";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { auditActionLabel } from "@/lib/audit/labels";
+import { intlLocale } from "@/lib/i18n/config";
 
 export default function AdminConsolePage() {
   const { t } = useT();
@@ -1055,7 +1056,7 @@ function RevenueBars({
   const currentMonth = todayIn(timeZone).slice(0, 7);
   // `2026-06` read as "06" under the bar; name the month instead.
   const gregorianName = (y: number, mo: number, width: "short" | "long") =>
-    new Intl.DateTimeFormat(locale === "am" ? "am" : "en", {
+    new Intl.DateTimeFormat(intlLocale(locale, "en"), {
       month: width,
       ...(width === "long" ? { year: "numeric" } : {}),
       timeZone: "UTC",

@@ -129,6 +129,7 @@ export function MobileBottomNav() {
           return (
             <Link
               key={tab.href}
+              prefetch={false}
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
               aria-label={hasBadge ? `${tab.label} (${badge})` : undefined}

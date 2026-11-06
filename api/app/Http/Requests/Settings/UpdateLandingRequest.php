@@ -37,21 +37,26 @@ class UpdateLandingRequest extends FormRequest
         return [
             'headline' => ['nullable', 'string', 'max:80'],
             'headline_am' => ['nullable', 'string', 'max:80'],
+            'headline_om' => ['nullable', 'string', 'max:80'],
             'message' => ['nullable', 'string', 'max:280'],
             'message_am' => ['nullable', 'string', 'max:280'],
+            'message_om' => ['nullable', 'string', 'max:280'],
             'support_email' => ['nullable', 'email', 'max:120'],
             'support_phone' => ['nullable', 'string', 'regex:/^\+?[0-9 ()-]{6,24}$/'],
             'background' => ['required', 'string', 'in:brand,gradient,pattern,image'],
             'about' => ['nullable', 'string', 'max:600'],
             'about_am' => ['nullable', 'string', 'max:600'],
+            'about_om' => ['nullable', 'string', 'max:600'],
             'founded_year' => ['nullable', 'integer', 'min:1800', 'max:'.date('Y')],
             'sector' => ['nullable', 'string', 'in:'.implode(',', TenantLanding::SECTORS)],
             'staff_band' => ['nullable', 'string', 'in:'.implode(',', TenantLanding::STAFF_BANDS)],
             'show_branch_count' => ['sometimes', 'boolean'],
             'address' => ['nullable', 'string', 'max:200'],
             'address_am' => ['nullable', 'string', 'max:200'],
+            'address_om' => ['nullable', 'string', 'max:200'],
             'hours' => ['nullable', 'string', 'max:120'],
             'hours_am' => ['nullable', 'string', 'max:120'],
+            'hours_om' => ['nullable', 'string', 'max:120'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'show_branches' => ['sometimes', 'boolean'],
@@ -75,17 +80,21 @@ class UpdateLandingRequest extends FormRequest
             'order' => ['sometimes', 'array', 'max:7'],
             'order.*' => ['string', 'distinct', 'in:'.implode(',', TenantLanding::ORDER)],
             'faqs' => ['sometimes', 'array', 'max:12'],
-            'faqs.*' => ['array:question,question_am,answer,answer_am'],
+            'faqs.*' => ['array:question,question_am,question_om,answer,answer_am,answer_om'],
             'faqs.*.question' => ['nullable', 'string', 'max:160'],
             'faqs.*.question_am' => ['nullable', 'string', 'max:160'],
+            'faqs.*.question_om' => ['nullable', 'string', 'max:160'],
             'faqs.*.answer' => ['nullable', 'string', 'max:1000'],
             'faqs.*.answer_am' => ['nullable', 'string', 'max:1000'],
+            'faqs.*.answer_om' => ['nullable', 'string', 'max:1000'],
             'services' => ['sometimes', 'array', 'max:8'],
-            'services.*' => ['array:title,title_am,description,description_am'],
+            'services.*' => ['array:title,title_am,title_om,description,description_am,description_om'],
             'services.*.title' => ['nullable', 'string', 'max:80'],
             'services.*.title_am' => ['nullable', 'string', 'max:80'],
+            'services.*.title_om' => ['nullable', 'string', 'max:80'],
             'services.*.description' => ['nullable', 'string', 'max:400'],
             'services.*.description_am' => ['nullable', 'string', 'max:400'],
+            'services.*.description_om' => ['nullable', 'string', 'max:400'],
             'listed' => ['sometimes', 'boolean'],
         ];
     }
@@ -104,10 +113,10 @@ class UpdateLandingRequest extends FormRequest
                     continue;
                 }
                 $filled = static fn (string $key): bool => is_string($faq[$key] ?? null) && trim($faq[$key]) !== '';
-                if (! $filled('question') && ! $filled('question_am')) {
+                if (! $filled('question') && ! $filled('question_am') && ! $filled('question_om')) {
                     $validator->errors()->add("faqs.{$i}.question", __('validation.landing_faq_question'));
                 }
-                if (! $filled('answer') && ! $filled('answer_am')) {
+                if (! $filled('answer') && ! $filled('answer_am') && ! $filled('answer_om')) {
                     $validator->errors()->add("faqs.{$i}.answer", __('validation.landing_faq_answer'));
                 }
             }
@@ -117,7 +126,7 @@ class UpdateLandingRequest extends FormRequest
                     continue;
                 }
                 $named = static fn (string $key): bool => is_string($service[$key] ?? null) && trim($service[$key]) !== '';
-                if (! $named('title') && ! $named('title_am')) {
+                if (! $named('title') && ! $named('title_am') && ! $named('title_om')) {
                     $validator->errors()->add("services.{$i}.title", __('validation.landing_service_title'));
                 }
             }

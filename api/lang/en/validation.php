@@ -183,6 +183,9 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'bank_account_number' => [
+            'digits' => 'The account number may contain only digits, spaces and hyphens, and must start and end with a digit.',
+        ],
     ],
 
     /*
@@ -216,9 +219,9 @@ return [
     'cover_too_narrow' => 'The cover photo must be at least :width pixels wide.',
     'landing_cover_missing' => 'Upload a cover photo before choosing the photo background.',
     'landing_link_host' => 'This link must be on :hosts.',
-    'landing_faq_question' => 'Write the question in English or Amharic.',
-    'landing_faq_answer' => 'Write the answer in English or Amharic.',
-    'landing_service_title' => 'Give the service a name in English or Amharic.',
+    'landing_faq_question' => 'Write the question in English, Amharic or Afaan Oromo.',
+    'landing_faq_answer' => 'Write the answer in English, Amharic or Afaan Oromo.',
+    'landing_service_title' => 'Give the service a name in English, Amharic or Afaan Oromo.',
     'announcement_files_max' => 'A story can carry at most :max documents.',
     // AppRulesPermittedMarketingClaim: the public site may not make this claim.
     'marketing_claim' => 'This text makes a claim the public site may not make. See the marketing content guide for the list.',

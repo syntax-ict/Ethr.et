@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
@@ -17,15 +18,22 @@ use App\Models\Employee;
 use App\Models\Tenant;
 use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Attendance\Device\DeviceVerdict;
+use App\Services\FileStorageService;
 use App\Support\AttendanceRules;
 use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\IpUtils;
 
 final class AttendanceEngine
 {
     use DispatchesWebhooks;
+
+    /** The live self-service check-ins a required geofence refuses outside the place. */
+    private const GEOFENCED = [AttendanceSource::MOBILE, AttendanceSource::QR, AttendanceSource::WEB];
 
     public function __construct(
         private readonly ConfidenceScorer $scorer,
@@ -35,9 +43,68 @@ final class AttendanceEngine
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
         private readonly AttendanceRiskScorer $risk,
+        private readonly FileStorageService $storage,
     ) {}
 
+    /**
+     * The phone's selfie is stored before the punch is decided. When the
+     * punch is refused, or a retry is answered with the record that already
+     * has its own photo, the new one belongs to no record: no retention
+     * schedule would ever find it, so it is deleted here (A-Z review D-02).
+     */
     public function record(AttendanceInput $input): AttendanceResult
+    {
+        try {
+            $result = $this->serialised($input);
+        } catch (\Throwable $e) {
+            $this->discardPhoto($input->photoPath);
+
+            throw $e;
+        }
+
+        if ($input->photoPath !== null && ! in_array($input->photoPath, $result->record->photoPaths(), true)) {
+            $this->discardPhoto($input->photoPath);
+        }
+
+        return $result;
+    }
+
+    private function discardPhoto(?string $path): void
+    {
+        if ($path === null) {
+            return;
+        }
+
+        try {
+            $this->storage->delete($path);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * One person's punches are taken one at a time. Two methods can reach the
+     * server in the same instant (the phone and the kiosk reader, a device
+     * backlog landing while the person taps the web button); each looked for
+     * an open record, found none and inserted its own, and only the unique
+     * idempotency key — different for every method — stood between them. The
+     * lock makes the second one see the first's record, so ConflictResolver
+     * and the duplicate checks below decide, as they do for punches minutes
+     * apart. A lock that cannot be had in time lets the punch through
+     * unserialised: a delayed punch is worse than a flagged one.
+     */
+    private function serialised(AttendanceInput $input): AttendanceResult
+    {
+        $lock = Cache::lock("attendance-punch:{$input->tenantId}:{$input->employeeId}", 20);
+
+        try {
+            return $lock->block(8, fn () => $this->decide($input));
+        } catch (LockTimeoutException) {
+            return $this->decide($input);
+        }
+    }
+
+    private function decide(AttendanceInput $input): AttendanceResult
     {
         if ($input->idempotencyKey) {
             $existing = AttendanceRecord::query()
@@ -51,6 +118,14 @@ final class AttendanceEngine
             // check-in, found none, and showed the person an error for a
             // punch that had succeeded (attendance QA A6).
             if ($existing) {
+                // A key answers only for the person whose punch used it. Keys
+                // are unique per organisation, not per person, so a punch
+                // carrying someone else's key was answered with their record
+                // (A-Z review D-09).
+                if ($existing->employee_id !== $input->employeeId) {
+                    throw new AttendanceRefused(__('attendance.retry_key_taken'));
+                }
+
                 return new AttendanceResult($existing, wasDuplicate: true);
             }
 
@@ -102,6 +177,10 @@ final class AttendanceEngine
             return $this->processAuto($input, $employee, $zone, $settings);
         }
 
+        if ($input->type === 'break_out' || $input->type === 'break_in') {
+            return $this->processBreak($input, $employee, $zone, $settings);
+        }
+
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee, $zone, $settings);
         }
@@ -145,19 +224,131 @@ final class AttendanceEngine
         $now = $this->resolveMoment($input);
         $open = $this->findOpenRecord($input, $now, $zone);
 
-        // A punch older than the open record's check-in (an offline kiosk
-        // syncing late, a device backlog) cannot be its check-out: it would
-        // end the day before it began. It is a check-in, and the conflict
-        // resolver decides whether it joins the open record.
-        if ($open === null || $now->lt($open->check_in)) {
+        // A punch older than every open record's check-in (an offline kiosk
+        // syncing late, a device backlog) finds none, since it cannot end a
+        // day before it began. It is a check-in, and the conflict resolver
+        // decides whether it joins the open record.
+        if ($open === null) {
+            // The day was closed a moment ago by another method and this is
+            // the same person leaving, seen again (the gate reader after the
+            // phone, a device re-sending). Not a new arrival.
+            if (($closed = $this->findJustClosed($input, $now)) !== null) {
+                return $this->duplicateCheckOut($closed, $input, $now);
+            }
+
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
         if ($open->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MERGE_WINDOW_MINUTES) {
+            $this->logPunch($open, $input, 'check_in', $now, 'duplicate');
+
             return new AttendanceResult($open, wasDuplicate: true);
         }
 
         return $this->processCheckOut($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * A record of this person's whose check-out landed within the merge window
+     * of `$now`: the same departure reported by a second method.
+     */
+    private function findJustClosed(AttendanceInput $input, Carbon $now): ?AttendanceRecord
+    {
+        $window = AttendanceRules::MERGE_WINDOW_MINUTES;
+
+        return AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->where('employee_id', $input->employeeId)
+            ->whereNotNull('check_out')
+            ->where('check_in', '<=', $now)
+            ->whereBetween('check_out', [$now->copy()->subMinutes($window), $now->copy()->addMinutes($window)])
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->latest('check_out')
+            ->first();
+    }
+
+    private function duplicateCheckOut(AttendanceRecord $closed, AttendanceInput $input, Carbon $now): AttendanceResult
+    {
+        $this->logPunch($closed, $input, 'check_out', $now, 'duplicate');
+
+        return new AttendanceResult($closed, wasDuplicate: true, punch: 'check_out');
+    }
+
+    /**
+     * Keep every method's punch on the day's one record, so the timeline can
+     * show who reported what when. A merge keeps only the survivor's `source`;
+     * this is the rest of the story. Capped, because a device that re-sends
+     * all day must not grow the row without end.
+     */
+    private function punchLog(array $metadata, AttendanceInput $input, string $kind, Carbon $at, string $outcome): array
+    {
+        $punches = $metadata['punches'] ?? [];
+        $punches[] = [
+            'kind' => $kind,
+            'source' => $input->source->value,
+            'at' => $at->toIso8601String(),
+            'outcome' => $outcome,
+        ];
+        $metadata['punches'] = array_slice($punches, -30);
+
+        return $metadata;
+    }
+
+    private function logPunch(AttendanceRecord $record, AttendanceInput $input, string $kind, Carbon $at, string $outcome): void
+    {
+        $record->update(['metadata' => $this->punchLog($record->metadata ?? [], $input, $kind, $at, $outcome)]);
+    }
+
+    /**
+     * A terminal's break button. The break-out and break-in were sent as a
+     * check-out and a check-in, so the break-out closed the morning's record
+     * as an early leave and the break-in opened a second one, rated late
+     * against the shift's start and logged as a conflict (A-Z review D-06).
+     * A break is noted on the open record instead, which it never opens or
+     * closes; the shift's `break_minutes` still decide what is paid. With no
+     * record open there is nothing to note it on, and it is kept as an
+     * ordinary punch rather than lost.
+     */
+    private function processBreak(AttendanceInput $input, Employee $employee, string $zone, AttendanceSetting $settings): AttendanceResult
+    {
+        $now = $this->resolveMoment($input);
+
+        // A resent break is found by its key on whichever of the person's
+        // records took it, before looking for an open one: the record may
+        // have closed since, and the resend would otherwise open another.
+        if ($input->idempotencyKey !== null) {
+            $local = $now->copy()->setTimezone($zone);
+            $noted = AttendanceRecord::withoutGlobalScope('tenant')
+                ->where('tenant_id', $input->tenantId)
+                ->where('employee_id', $input->employeeId)
+                ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
+                ->whereDate('date', '<=', $local->format('Y-m-d'))
+                ->get()
+                ->first(fn (AttendanceRecord $r) => collect((array) ($r->metadata['breaks'] ?? []))->contains('key', $input->idempotencyKey));
+            if ($noted !== null) {
+                return new AttendanceResult($noted, wasDuplicate: true, punch: $input->type === 'break_out' ? 'check_out' : 'check_in');
+            }
+        }
+
+        $open = $this->findOpenRecord($input, $now, $zone);
+
+        if ($open === null) {
+            return $this->processAuto($input, $employee, $zone, $settings);
+        }
+
+        // The published punch stays in or out: only devices send breaks, and
+        // they read nothing back.
+        $punch = $input->type === 'break_out' ? 'check_out' : 'check_in';
+
+        $breaks = (array) ($open->metadata['breaks'] ?? []);
+        $breaks[] = array_filter([
+            'type' => $input->type === 'break_out' ? 'out' : 'in',
+            'at' => $now->toIso8601String(),
+            'key' => $input->idempotencyKey,
+        ], fn ($value) => $value !== null);
+        $open->update(['metadata' => array_merge($open->metadata ?? [], ['breaks' => $breaks])]);
+
+        return new AttendanceResult($open, punch: $punch);
     }
 
     /**
@@ -181,6 +372,10 @@ final class AttendanceEngine
             ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
             ->whereDate('date', '<=', $today)
             ->whereNotNull('check_in')
+            // A check-out that arrives late (an offline phone, a device
+            // backlog) closes the record it belongs to, never one that began
+            // after it: that record would end before it started (A-Z review D-05).
+            ->where('check_in', '<=', $now)
             ->whereNull('check_out')
             // A voided duplicate keeps its check-in; closing it would put the
             // check-out on a record nothing counts.
@@ -254,7 +449,14 @@ final class AttendanceEngine
         // every phone punch at the branch the moment the switch was turned
         // on. It is recorded and flagged `geofence_unconfigured` instead
         // (IntegrityInspector).
-        if ($settings?->geofence_required && $input->source->value === 'mobile') {
+        //
+        // Every live self-service channel, not the phone alone: a forwarded
+        // QR code or the web button pressed at home checked in from anywhere
+        // (A-Z review D-01). A web check-in from the office network is the
+        // office PC and needs no location. A punch an offline phone syncs
+        // later is kept and flagged: refusing it then would lose it unseen.
+        if ($settings?->geofence_required && in_array($input->source, self::GEOFENCED, true)
+            && ! ($input->source === AttendanceSource::WEB && $this->onOfficeNetwork($input, $settings))) {
             if ($input->latitude === null || $input->longitude === null) {
                 throw new AttendanceRefused(__('attendance.geofence_location_required'));
             }
@@ -316,6 +518,8 @@ final class AttendanceEngine
             $record = $record->fresh() ?? $record;
         }
 
+        $this->logPunch($record, $input, 'check_in', $now, $resolution->action);
+
         $flags = $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
         if ($settings !== null) {
             $this->risk->score($record, $input, $employee, $settings, 'check_in', $flags);
@@ -344,6 +548,12 @@ final class AttendanceEngine
         $record = $this->findOpenRecord($input, $now, $zone);
 
         if (! $record) {
+            // Closed a moment ago, by this method or another: the departure
+            // is already recorded.
+            if (($closed = $this->findJustClosed($input, $now)) !== null) {
+                return $this->duplicateCheckOut($closed, $input, $now);
+            }
+
             throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
         }
 
@@ -369,9 +579,13 @@ final class AttendanceEngine
             'checkout_signals' => $signals !== [] ? $signals : null,
         ], fn ($value) => $value !== null);
 
-        if ($metadata !== []) {
-            $updates['metadata'] = array_merge($record->metadata ?? [], $metadata);
-        }
+        $updates['metadata'] = $this->punchLog(
+            array_merge($record->metadata ?? [], $metadata),
+            $input,
+            'check_out',
+            $now,
+            'applied',
+        );
 
         $record->update($updates);
 
@@ -471,5 +685,13 @@ final class AttendanceEngine
         [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return $record->check_out->lt($shiftEnd->subMinutes($record->shift->early_departure_minutes));
+    }
+
+    /** The same office networks the device gate reads (AttendanceDeviceGate). */
+    private function onOfficeNetwork(AttendanceInput $input, AttendanceSetting $settings): bool
+    {
+        $networks = array_filter((array) ($settings->office_networks ?? []), 'is_string');
+
+        return $networks !== [] && $input->ipAddress !== null && IpUtils::checkIp($input->ipAddress, $networks);
     }
 }

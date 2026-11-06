@@ -9,6 +9,8 @@
         "heading_am": "ለኢትዮጵያ ድርጅቶች የተሠራ የመገኘት፣ የደመወዝና የሰው ሀብት መድረክ",
         "subheading": "Employees check in from a phone, a kiosk or the web, even without a network. Payroll follows Proclamation 1395/2025 and the Ethiopian calendar. Everything is in Amharic and English.",
         "subheading_am": "ሠራተኞች ከስልክ፣ ከኪዮስክ ወይም ከድር ይገባሉ፤ አውታረ መረብ ባይኖርም። ደመወዝ አዋጅ 1395/2025ንና የኢትዮጵያን የቀን አቆጣጠር ይከተላል። ሁሉም በአማርኛና በእንግሊዝኛ ነው።",
+        "heading_om": "Argama, kaffaltii mindaa fi Qabeenya Namaa, dhaabbilee Itoophiyaatiif kan qophaa'e",
+        "subheading_om": "Hojjettoonni bilbilaan, kiyoskiin ykn weebiidhaan seensa galmeessu, neetworkii malee illee. Kaffaltiin mindaa Labsii 1395/2025 fi Dhaha Itoophiyaa hordofa. Wanti hundi Afaan Oromoo, Afaan Amaaraa fi Afaan Ingiliffaan jira.",
         "image": null,
         "items": []
       },
@@ -18,6 +20,8 @@
         "heading_am": "የሰው ሀብት ቢሮን የሚሞላው ሥራ፣ እና ETHR በእሱ ላይ የሚያደርገው",
         "subheading": "Six things that go wrong today, each beside the way ETHR handles it.",
         "subheading_am": "ዛሬ የሚበላሹ ስድስት ነገሮች፣ እያንዳንዳቸው ETHR ከሚይዛቸው መንገድ ጎን።",
+        "heading_om": "Hojii waajjira Qabeenya Namaa guutu, fi wanta ETHR isa irratti hojjetu",
+        "subheading_om": "Wantoota ja'a har'a dogoggoran, tokkoon tokkoon isaanii akkaataa ETHR itti furu waliin.",
         "image": null,
         "items": [
           {
@@ -30,6 +34,9 @@
             "body_am": "የፈረቃ መዝገብ ዘግይቶ ይፈረማል፣ የትርፍ ሰዓት ክፍያ በወር መጨረሻ ይከራከርበታል፣ በ8:02 ማን በቦታው እንደነበር ማንም አይናገርም።",
             "detail": "Staff check in from a phone, a shared kiosk, a QR code or the web, with the time and place recorded as it happens. Overtime is counted from the record, not from memory.",
             "detail_am": "ሠራተኞች ከስልክ፣ ከጋራ ኪዮስክ፣ በQR ኮድ ወይም ከድር ይገባሉ፤ ሰዓቱና ቦታው ወዲያው ይመዘገባል። የትርፍ ሰዓት ከመዝገቡ ይቆጠራል እንጂ ከትውስታ አይደለም።",
+            "title_om": "Argama waraqaa irratti",
+            "body_om": "Galmeen shiftii barfatee mallattaa'a, sa'aatiin dabalataa dhuma ji'aatti falmisiisa, eenyutu sa'aatii 8:02 irratti bakka hojii ture namni tokkollee hin beeku.",
+            "detail_om": "Hojjettoonni bilbilaan, kiyoskii waliinii, koodii QR ykn weebiidhaan seensa galmeessu; yeroo fi bakki akkuma raawwatameen galmaa'a. Sa'aatiin dabalataa galmee irraa lakkaa'ama malee yaadannoo irraa miti.",
             "link_path": "/attendance-system",
             "image": null
           },
@@ -43,6 +50,9 @@
             "body_am": "በየወሩ አንድ ሰው የገቢ ግብር ደረጃዎችንና የጡረታ ክፍፍልን በስፕሬድሺት ይሠራል፤ አንድ የተሳሳተ ሕዋስ የደመወዝ ወረቀት ላይ ይደርሳል።",
             "detail": "Income tax under Proclamation 1395/2025, pension and Pagume proration are applied automatically, with a calculation trail on every payslip and an approval before anyone sees it.",
             "detail_am": "በአዋጅ 1395/2025 መሠረት የገቢ ግብር፣ ጡረታና የጳጉሜን ተመጣጣኝ ክፍያ በራስ ሰር ይተገበራሉ፤ በእያንዳንዱ የደመወዝ ወረቀት ላይ የስሌት ዱካ አለ፣ ማንም ከማየቱ በፊትም ይጸድቃል።",
+            "title_om": "Kaffaltii mindaa harkaan herregamu",
+            "body_om": "Ji'a ji'aan namni tokko sadarkaa gibira galii fi qoodinsa sooramaa gabatee herregaa irratti herrega, seelii dogoggoraa tokko waraqaa mindaa irra ga'a.",
+            "detail_om": "Gibirri galii Labsii 1395/2025 jalatti, sooramni fi qoodinsi Qaammee ofumaan raawwatamu; waraqaa mindaa hunda irratti karaan herregaa ni mul'ata, namni tokkollee osoo hin argin dura ni raggaasifama.",
             "link_path": "/payroll-software",
             "image": null
           },
@@ -56,6 +66,9 @@
             "body_am": "ቀሪዎቹ አንድ ሰው ብቻ በሚከፍተው ፋይል ውስጥ ናቸው። ጥያቄ ያንን ሰው ይጠብቃል፤ የኢትዮጵያ የቀን አቆጣጠርም በእጅ ይቆጠራል።",
             "detail": "Employees see their own balance and request leave from a phone. Managers decide from one inbox, and the days are counted on the Ethiopian calendar, Pagume and holidays included.",
             "detail_am": "ሠራተኞች የራሳቸውን ቀሪ ያያሉ፣ ፈቃድን ከስልክ ይጠይቃሉ። ኃላፊዎች ከአንድ ሳጥን ይወስናሉ፤ ቀናቱ ጳጉሜንና በዓላትን ጨምሮ በኢትዮጵያ የቀን አቆጣጠር ይቆጠራሉ።",
+            "title_om": "Haftee boqonnaa gabatee herregaa irratti",
+            "body_om": "Hafteen faayilii namni tokko qofti banuu danda'u keessa jira. Gaaffiin nama sana eeggata, Dhahni Itoophiyaas harkaan lakkaa'ama.",
+            "detail_om": "Hojjettoonni haftee boqonnaa isaanii ilaalanii bilbilaan gaafatu. Hoogganoonni sanduuqa tokko irraa murteessu; guyyoonni Dhaha Itoophiyaatiin lakkaa'amu, Qaammee fi ayyaanota dabalatee.",
             "link_path": "/leave-management",
             "image": null
           },
@@ -69,6 +82,9 @@
             "body_am": "አንድ የክልል ቅርንጫፍ ለአንድ ከሰዓት አውታረ መረብ ያጣል፤ ከእሱም ጋር የዕለቱን መዝገቦች።",
             "detail": "Check-ins queue on the device and upload themselves the moment the connection returns. Nothing is typed twice.",
             "detail_am": "መግቢያዎች በመሣሪያው ላይ ይሰለፋሉ፣ ግንኙነቱ እንደተመለሰ ራሳቸው ይላካሉ። ምንም ሁለት ጊዜ አይተየብም።",
+            "title_om": "Dameewwan quunnamtii malee",
+            "body_om": "Dameen naannoo tokko waaree booda guutuu neetworkii dhaba, galmeen guyyaa sanaas isa waliin bada.",
+            "detail_om": "Seensi galmeeffame meeshaa irratti eeggatee, yeroo quunnamtiin deebi'u ofumaan ol ergama. Homtuu lammata hin barreeffamu.",
             "link_path": null,
             "image": null
           },
@@ -82,6 +98,9 @@
             "body_am": "የፋይናንስ ቡድኑ በእንግሊዝኛ፣ የወለል ተቆጣጣሪዎች በአማርኛ ይሠራሉ፤ ለአንዱ ብቻ የተሠራ ሥርዓት ሌላውን በግምት ይተዋል።",
             "detail": "Every screen, payslip and notification is in Amharic and English, with the Ethiopian calendar beside the Gregorian one. Each person chooses their own language.",
             "detail_am": "እያንዳንዱ ገጽ፣ የደመወዝ ወረቀትና ማሳወቂያ በአማርኛና በእንግሊዝኛ ነው፤ የኢትዮጵያ የቀን አቆጣጠር ከጎርጎሪዮሱ ጎን። እያንዳንዱ ሰው የራሱን ቋንቋ ይመርጣል።",
+            "title_om": "Sirna tokko, afaanota hedduu",
+            "body_om": "Gareen faayinaansii Afaan Ingiliffaan, to'attoonni hojii immoo Afaan Amaaraa ykn Afaan Oromoon hojjetu; sirni isaan keessaa tokkoof ijaarame warra kaan tilmaamaaf dhiisa.",
+            "detail_om": "Fuulli, waraqaan mindaa fi beeksisni hundi Afaan Oromoo, Afaan Amaaraa fi Afaan Ingiliffaan jira; Dhahni Itoophiyaa Dhaha Gorgooriyaa bira jira. Namni hundi afaan ofii isaa filata.",
             "link_path": "/ethiopian-calendar-hr",
             "image": null
           },
@@ -95,6 +114,9 @@
             "body_am": "የተወሰነ ጊዜ ውል ያበቃል፣ ማንም አይነገረውም፣ እድሳቱም ከሳምንታት በኋላ ይፈረማል።",
             "detail": "Every employee has a complete digital file, with contracts and documents, and the reminders arrive before an expiry date, not after it.",
             "detail_am": "እያንዳንዱ ሠራተኛ ውሎችንና ሰነዶችን የያዘ ሙሉ ዲጂታል ፋይል አለው፤ ማስታወሻዎቹ ከማብቂያ ቀን በፊት ይደርሳሉ እንጂ በኋላ አይደለም።",
+            "title_om": "Waliigaltee osoo hin hubatamin xumuraman",
+            "body_om": "Waliigalteen yeroo murtaa'aa xumurama, namni tokkollee hin beeksifamu, haaromsis torbanoota booda mallattaa'a.",
+            "detail_om": "Hojjetaan hundi faayilii dijitaalaa guutuu waliigaltee fi sanadoota qabu qaba; yaadachiisni guyyaa xumuraa dura dhufa malee booda miti.",
             "link_path": null,
             "image": null
           }
@@ -106,6 +128,8 @@
         "heading_am": "ETHR ለድርጅትዎ የሚሠራው",
         "subheading": "Five capabilities, each paired with the work it takes off your HR team.",
         "subheading_am": "አምስት አቅሞች፤ እያንዳንዳቸው ከሰው ሀብት ቡድንዎ ከሚያቃልሉት ሥራ ጋር።",
+        "heading_om": "Wanta ETHR dhaabbata keessaniif hojjetu",
+        "subheading_om": "Dandeettiiwwan shan, tokkoon tokkoon isaanii hojii garee Qabeenya Namaa keessan irraa fudhatu waliin.",
         "image": null,
         "items": [
           {
@@ -118,6 +142,9 @@
             "body_am": "ለእያንዳንዱ ሠራተኛ ሙሉ ዲጂታል ፋይል፤ ውሎች፣ ሰነዶችና የማብቂያ ማስታወሻዎችን ጨምሮ። የግብር መለያ ቁጥርና የባንክ መረጃ ተመስጥረው ይቀመጣሉ፤ መምሪያዎች፣ ቅርንጫፎች፣ የሥራ መደቦችና ደረጃዎች የድርጅት ሠንጠረዥ ይሆናሉ።",
             "detail": "Establishes reliable workforce data",
             "detail_am": "አስተማማኝ የሠራተኛ መረጃ ይገነባል",
+            "title_om": "Galmee hojjettootaa fi caasaa dhaabbataa",
+            "body_om": "Hojjetaa hundaaf faayilii dijitaalaa guutuu, waliigaltee, sanadootaa fi yaadachiisa xumuraa waliin. Lakkoofsi TIN fi odeeffannoon baankii icciitiidhaan kuufamu; muummeewwan, dameewwan, gitawwan hojii fi sadarkaaleen keessan chaartii caasaa ta'u.",
+            "detail_om": "Daataa humna hojii amanamaa ta'e ni uuma",
             "link_path": null,
             "image": null
           },
@@ -131,6 +158,9 @@
             "body_am": "ከድር፣ ከስልክ፣ ከጋራ ኪዮስክ ወይም በQR ኮድ ይግቡ፤ ኢንተርኔት ባይኖርም። የሚዞሩና የሌሊት ፈረቃዎች፣ እንዲሁም ጳጉሜንን ጨምሮ የኢትዮጵያን የቀን አቆጣጠር የሚከተል ፈቃድ።",
             "detail": "Reduces repetitive administration",
             "detail_am": "ተደጋጋሚ የአስተዳደር ሥራን ይቀንሳል",
+            "title_om": "Argama, shiftii fi boqonnaa",
+            "body_om": "Weebii, bilbila, kiyoskii waliinii ykn koodii QR irraa seensa galmeessaa, interneetii malee illee. Shiftiiwwan naannawan fi kan halkanii, akkasumas boqonnaa Dhaha Itoophiyaa hordofu, Qaammee dabalatee.",
+            "detail_om": "Hojii bulchiinsaa irra deddeebi'u ni hir'isa",
             "link_path": "/attendance-system",
             "image": null
           },
@@ -144,6 +174,9 @@
             "body_am": "በአዋጅ ቁጥር 1395/2025 መሠረት የኢትዮጵያ የገቢ ግብር፣ ጡረታ፣ የትርፍ ሰዓት ክፍያና የጳጉሜን ተመጣጣኝ ክፍያ፤ ለእያንዳንዱ የደመወዝ ወረቀት የስሌት ዱካ፣ ሠራተኞች ከማየታቸው በፊትም ይጸድቃል።",
             "detail": "Brings care to a high-impact, sensitive workflow",
             "detail_am": "ከፍተኛ ተጽእኖ ላለው ስሱ ሥራ ጥንቃቄ ያመጣል",
+            "title_om": "Kaffaltii mindaa fi waraqaa mindaa",
+            "body_om": "Gibira galii Itoophiyaa Labsii 1395/2025 jalatti, soorama, sa'aatii dabalataa fi qoodinsa Qaammee; waraqaa mindaa hundaaf karaa herregaa fi raggaasisa hojjettoonni osoo hin argin dura.",
+            "detail_om": "Hojii miira qabeessa fi dhiibbaa guddaa qabuuf of eeggannoo fida",
             "link_path": "/payroll-software",
             "image": null
           },
@@ -157,6 +190,9 @@
             "body_am": "ሠራተኞች ፈረቃቸውን ያያሉ፣ ፈቃድ ይጠይቃሉ፣ የደመወዝ ወረቀት ያወርዳሉ፣ መረጃቸውንም ከማንኛውም ስልክ በአማርኛ ወይም በእንግሊዝኛ ያዘምናሉ። ኃላፊዎች ጥያቄዎችን ከአንድ የማጽደቂያ ሳጥን ይወስናሉ።",
             "detail": "Reduces routine HR requests",
             "detail_am": "የተለመዱ የሰው ሀብት ጥያቄዎችን ይቀንሳል",
+            "title_om": "Tajaajila ofii hojjetaa fi raggaasisa",
+            "body_om": "Hojjettoonni shiftii isaanii ilaalu, boqonnaa gaafatu, waraqaa mindaa buusu fi odeeffannoo isaanii bilbila kamiin iyyuu haaromsu, Afaan Oromoo, Afaan Amaaraa ykn Afaan Ingiliffaan. Hoogganoonni gaaffiiwwan sanduuqa raggaasisaa tokko irraa murteessu.",
+            "detail_om": "Gaaffiiwwan Qabeenya Namaa idilee ni hir'isa",
             "link_path": "/leave-management",
             "image": null
           },
@@ -170,6 +206,9 @@
             "body_am": "የሠራተኛ ብዛት፣ የሥራ መገኘት፣ የደመወዝ ወጪና የትርፍ ሰዓት በአንድ ዳሽቦርድ፤ የመምሪያና የቅርንጫፍ ንጽጽር፣ የታቀዱ ሪፖርቶች፣ አንድ አሃዝ ያስቀመጡትን ወሰን ሲያልፍም ማሳወቂያ።",
             "detail": "Supports better management decisions",
             "detail_am": "የተሻለ የአስተዳደር ውሳኔን ይደግፋል",
+            "title_om": "Xiinxala humna hojii",
+            "body_om": "Baay'ina hojjettootaa, argama, baasii mindaa fi sa'aatii dabalataa daashboordii tokko irratti; walbira qabiinsa muummee fi damee, gabaasaalee sagantaa'an fi akeekkachiisa yeroo lakkoofsi tokko daangaa keessan darbu.",
+            "detail_om": "Murtoo bulchiinsaa fooyya'aa ni deeggara",
             "link_path": null,
             "image": null
           }
@@ -181,6 +220,8 @@
         "heading_am": "በደቂቃዎች ውስጥ ይጀምሩ",
         "subheading": null,
         "subheading_am": null,
+        "heading_om": "Daqiiqaalee muraasa keessatti hojii jalqabaa",
+        "subheading_om": null,
         "image": null,
         "items": [
           {
@@ -193,6 +234,9 @@
             "body_am": "በሁለት ደቂቃ ውስጥ ይመዝገቡ። የድርጅትዎን ዝርዝር ያስገቡ እና ቡድንዎን ይጋብዙ።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Herrega keessan uumaa",
+            "body_om": "Daqiiqaa lama keessatti galmaa'aa. Odeeffannoo dhaabbata keessanii galchaatii garee keessan affeeraa.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -206,6 +250,9 @@
             "body_am": "ክፍሎችን፣ ፈረቃዎችን፣ የፈቃድ ፖሊሲዎችን እና የደመወዝ ደንቦችን ያዘጋጁ፣ ወይም ለዘርፍዎ ከተዘጋጀ ቅጥ ይጀምሩ።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Bakka hojii keessanii qindeessaa",
+            "body_om": "Muummeewwan, shiftiiwwan, imaammata boqonnaa fi seera kaffaltii mindaa dhaabbata keessaniif qopheessaa, ykn tempileetii damee keessaniif qophaa'e irraa jalqabaa.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -219,6 +266,9 @@
             "body_am": "መገኘት መከታተል፣ ደመወዝ ማስኬድ እና ሠራተኞችን ማስተዳደር ይጀምሩ።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Hojii jalqabaa",
+            "body_om": "Argama hordofuu, kaffaltii mindaa raawwachuu fi humna hojii keessan bulchuu jalqabaa.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           }
@@ -230,6 +280,8 @@
         "heading_am": "ለኢትዮጵያ ኢንዱስትሪዎች የተዘጋጀ",
         "subheading": "Pre-configured templates for your sector",
         "subheading_am": "ለዘርፍዎ አስቀድሞ የተዋቀሩ ቅጦች",
+        "heading_om": "Damee hojii Itoophiyaatiif kan ijaarame",
+        "subheading_om": "Tempileetii damee keessaniif duraan qindaa'an",
         "image": null,
         "items": [
           {
@@ -242,6 +294,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Mootummaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -255,6 +310,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Baankii",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -268,6 +326,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Fayyaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -281,6 +342,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Industirii oomishaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -294,6 +358,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Dhaabbata miti-mootummaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -307,6 +374,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Hoteelaa fi keessummeessaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -320,6 +390,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Barnoota",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -333,6 +406,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Waliigalaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           }
@@ -344,6 +420,8 @@
         "heading_am": "ውሂብዎ፣ በኢትዮጵያ ውስጥ",
         "subheading": "ETHR keeps your organisation's data on servers in Ethiopia, on Ethio Telecom hosting or your own, as the Personal Data Protection Proclamation No. 1321/2024 requires. Your organisation stays in control of its data; ETHR supplies the safeguards below.",
         "subheading_am": "ኢቲኤችአር የድርጅትዎን ውሂብ በኢትዮጵያ ውስጥ ባሉ ሰርቨሮች ላይ ያስቀምጣል፤ በኢትዮ ቴሌኮም ማስተናገጃ ወይም በራስዎ ሰርቨር፣ የግል መረጃ ጥበቃ አዋጅ ቁጥር 1321/2024 እንደሚጠይቀው። ድርጅትዎ የውሂቡ ተቆጣጣሪ ሆኖ ይቀጥላል፤ ኢቲኤችአር ከታች ያሉትን ጥበቃዎች ያቀርባል።",
+        "heading_om": "Daataan keessan, Itoophiyaa keessatti kuufama",
+        "subheading_om": "ETHR daataa dhaabbata keessanii sarvaroota Itoophiyaa keessa jiran irratti, kuusaa Ethio Telecom ykn kan mataa keessanii irratti, akkuma Labsiin Eegumsa Daataa Dhuunfaa Lak. 1321/2024 barbaadutti kuusa. Dhaabbanni keessan daataa isaa to'achuu itti fufa; ETHR eegumsa armaan gadii dhiyeessa.",
         "image": null,
         "items": [
           {
@@ -356,6 +434,9 @@
             "body_am": "በአዋጅ 1321/2024 አንቀጽ 22 መሠረት፣ እዚህ የተሰበሰበ የግል መረጃ በኢትዮጵያ ውስጥ ባሉ ሰርቨሮች ላይ ይቀመጣል።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Bakka jireenya daataa",
+            "body_om": "Akkuma Keewwanni 22 Labsii 1321/2024 daataa dhuunfaa asitti walitti qabameef barbaadutti, sarvaroota Itoophiyaa keessa jiran irratti kuufama.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -369,6 +450,9 @@
             "body_am": "የባንክ ሂሳብ፣ የግብር መለያ (ቲን) እና የብሔራዊ መታወቂያ ቁጥሮች በAES-256 ተመስጥረው ይቀመጣሉ።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Icciitii yeroo kuufamu",
+            "body_om": "Lakkoofsi herrega baankii, TIN fi eenyummaa biyyoolessaa AES-256'n icciitiidhaan kuufamu.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -382,6 +466,9 @@
             "body_am": "እያንዳንዱ ጥያቄ በአንድ ድርጅት ብቻ ይገደባል፤ ድርጅቱ ካልታወቀ ጥያቄው ሁሉንም ሳይሆን ምንም አይመልስም።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Addaan baasa dhaabbataa",
+            "body_om": "Gaaffiin hundi eegduu cufaa ta'ee kufuun dhaabbata tokkotti daangeffama: dhaabbanni tokkollee yoo hin beekamne, toorota hunda osoo hin taane tokkollee hin deebisu.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -395,6 +482,9 @@
             "body_am": "ሚስጥራዊ ተግባራት ሊስተካከል ወይም ሊሰረዝ በማይችል የኦዲት ዱካ ይመዘገባሉ።",
             "detail": null,
             "detail_am": null,
+            "title_om": "Galmee odiitii",
+            "body_om": "Gochoonni miira qabeessa ta'an galmee odiitii gulaalamuu ykn haqamuu hin dandeenye keessatti galmaa'u.",
+            "detail_om": null,
             "link_path": null,
             "image": null
           }
@@ -406,6 +496,8 @@
         "heading_am": "የ6 ወር ነጻ ሙከራ ይጀምሩ",
         "subheading": "No credit card required. Full access to all features.",
         "subheading_am": "ክሬዲት ካርድ አያስፈልግም። ሁሉም ባህሪያት ሙሉ ተደራሽነት።",
+        "heading_om": "Yaalii bilisaa ji'a 6 keessan jalqabaa",
+        "subheading_om": "Kaardiin liqii hin barbaachisu. Amaloota hunda guutummaatti argattan.",
         "image": null,
         "items": [
           {
@@ -418,6 +510,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Yaalii bilisaa ji'a 6",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -431,6 +526,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Kaardii liqii malee",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           },
@@ -444,6 +542,9 @@
             "body_am": null,
             "detail": null,
             "detail_am": null,
+            "title_om": "Yeroo barbaaddanitti dhiisaa",
+            "body_om": null,
+            "detail_om": null,
             "link_path": null,
             "image": null
           }

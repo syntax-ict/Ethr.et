@@ -45,7 +45,12 @@ export function ContactContent() {
     {
       icon: MapPin,
       key: "office" as const,
-      value: pickLocalised(locale, site.office_address_am, site.office_address),
+      value: pickLocalised(
+        locale,
+        site.office_address_am,
+        site.office_address,
+        site.office_address_om,
+      ),
     },
   ].filter((channel) => channel.value);
 

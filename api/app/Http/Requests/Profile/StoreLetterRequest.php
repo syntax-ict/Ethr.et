@@ -19,7 +19,7 @@ class StoreLetterRequest extends FormRequest
             'purpose' => ['required', 'string', 'min:3', 'max:255'],
             'addressed_to' => ['nullable', 'string', 'max:255'],
             'include_salary' => ['sometimes', 'boolean'],
-            'language' => ['sometimes', 'string', 'in:en,am'],
+            'language' => ['sometimes', 'string', 'in:en,am,om'],
         ];
     }
 }

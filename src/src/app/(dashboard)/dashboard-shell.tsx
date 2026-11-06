@@ -24,7 +24,9 @@ import { PunchReminders } from "@/features/attendance/components/punch-reminders
 import { useT } from "@/lib/i18n/useT";
 import { getLocale, preloadLocale } from "@/lib/i18n/translations";
 import { AppLoadingScreen } from "@/components/shared/app-loading-screen";
+import { PrintHeader } from "@/components/layouts/print-header";
 import { useDocumentTitle } from "@/lib/hooks/useDocumentTitle";
+import { BillingOnlyGate } from "@/features/billing/components/billing-only-gate";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -53,16 +55,23 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <ImpersonationBanner />
           <OfflineBanner />
           <PausedFeaturesBanner />
-          <div className="flex h-screen overflow-hidden bg-background">
+          <div className="print-shell flex h-screen overflow-hidden bg-background">
             <AppSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
+              {/* tabIndex -1 so the skip link above lands focus here in every
+                  browser, not only the ones that move the sequential focus
+                  start to a fragment target; the next Tab is then the page's
+                  first control, not the sidebar's (dashboard review,
+                  2026-11-03, PR 9). */}
               <main
                 id="main-content"
-                className="flex-1 overflow-y-auto"
+                tabIndex={-1}
+                className="flex-1 overflow-y-auto focus:outline-none"
                 role="main"
               >
                 <PageActionsSlotProvider>
+                  <PrintHeader />
                   <PageTitleBar />
                   <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
                     <ErrorBoundary>{children}</ErrorBoundary>
@@ -126,18 +135,25 @@ function useReaderDictionary(): boolean {
 export function DashboardShell({
   children,
   loadingLabel,
+  loadingLabels,
 }: {
   children: React.ReactNode;
   loadingLabel: string;
+  /** The same label in every available language, for the stored preference. */
+  loadingLabels?: Record<string, string>;
 }) {
   const ready = useReaderDictionary();
 
-  if (!ready) return <AppLoadingScreen label={loadingLabel} />;
+  if (!ready) {
+    return <AppLoadingScreen label={loadingLabel} labels={loadingLabels} />;
+  }
 
   return (
     <AuthGuard>
       <TenantBrandingProvider>
-        <DashboardInner>{children}</DashboardInner>
+        <BillingOnlyGate>
+          <DashboardInner>{children}</DashboardInner>
+        </BillingOnlyGate>
       </TenantBrandingProvider>
     </AuthGuard>
   );

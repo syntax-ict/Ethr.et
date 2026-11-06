@@ -70,4 +70,26 @@ describe("NotificationBell", () => {
       screen.getByRole("link", { name: /view all notifications/i }),
     ).toBeInTheDocument();
   });
+  // The first page was fetched on every page load for a list nobody had
+  // asked to see (dashboard review, 2026-11-03, PR 11): the badge needs only
+  // the count, so the list waits for the popover.
+  it("asks for the list only once the dropdown is opened", async () => {
+    const { useNotifications } = await import("@/features/notifications/api");
+    vi.mocked(useNotifications).mockClear();
+    render(<NotificationBell />, { wrapper });
+
+    expect(vi.mocked(useNotifications)).toHaveBeenLastCalledWith(
+      { page: 1 },
+      false,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /notifications/i }),
+    );
+
+    expect(vi.mocked(useNotifications)).toHaveBeenLastCalledWith(
+      { page: 1 },
+      true,
+    );
+  });
 });

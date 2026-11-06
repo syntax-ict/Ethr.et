@@ -67,7 +67,7 @@ describe("<LocalePreferenceSync>", () => {
   });
 
   it("ignores a chosen language the app cannot show yet", async () => {
-    server.use(me({ locale: "om", locale_chosen: true }));
+    server.use(me({ locale: "ti", locale_chosen: true }));
     await renderSync();
 
     expect(localStorage.getItem("locale")).toBe("am");

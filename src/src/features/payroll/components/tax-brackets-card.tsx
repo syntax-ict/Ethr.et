@@ -15,6 +15,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { todayIn } from "@/lib/utils/date";
 import { centsToETB, etbToCents, formatETB } from "@/lib/utils/currency";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { useReplaceTaxBrackets, useTaxBrackets, type TaxBracket } from "../api";
 
 /**
@@ -46,11 +47,6 @@ function minCentsFor(rows: BracketRow[], index: number): number {
   if (rows[index - 1].maxEtb === "" || Number.isNaN(previousMax)) return 0;
 
   return etbToCents(previousMax) + 1;
-}
-
-function apiDetail(err: unknown): string | undefined {
-  return (err as { response?: { data?: { detail?: string } } }).response?.data
-    ?.detail;
 }
 
 /**
@@ -144,14 +140,28 @@ function validateRows(
 
     const deduction = Number(row.deductionEtb);
     if (row.deductionEtb === "" || Number.isNaN(deduction) || deduction < 0) {
-      set(i, "deductionEtb", t("validation.amount", "Enter a valid amount"));
+      set(
+        i,
+        "deductionEtb",
+        t(
+          "validation.amount",
+          "Enter an amount, using at most two decimal places",
+        ),
+      );
     }
 
     if (isLast) return;
 
     const max = Number(row.maxEtb);
     if (row.maxEtb === "" || Number.isNaN(max)) {
-      set(i, "maxEtb", t("validation.amount", "Enter a valid amount"));
+      set(
+        i,
+        "maxEtb",
+        t(
+          "validation.amount",
+          "Enter an amount, using at most two decimal places",
+        ),
+      );
       return;
     }
 
@@ -229,11 +239,11 @@ export function TaxBracketsCard() {
   function addRow() {
     setRows((p) => {
       if (!p) return p;
-      // The current last row becomes bounded so the new one can be open-ended.
-      const bounded = p.map((row, i) =>
-        i === p.length - 1 && row.maxEtb === "" ? { ...row, maxEtb: "0" } : row,
-      );
-      return [...bounded, { maxEtb: "", rate: "0", deductionEtb: "0" }];
+      // The previous last row is no longer open-ended; its upper bound is
+      // left blank for the user to fill in. Writing "0" there made the band
+      // fail "must end above where it starts" on the next save with a value
+      // nobody typed.
+      return [...p, { maxEtb: "", rate: "0", deductionEtb: "0" }];
     });
   }
 
@@ -272,11 +282,13 @@ export function TaxBracketsCard() {
           toast.success(t("payroll_config.tax_saved", "Tax brackets updated")),
         onError: (err) =>
           toast.error(
-            apiDetail(err) ??
+            apiErrorMessage(
+              err,
               t(
                 "payroll_config.tax_save_failed",
                 "Could not save tax brackets",
               ),
+            ),
           ),
       },
     );
@@ -379,27 +391,35 @@ export function TaxBracketsCard() {
                               )}
                             />,
                           ],
-                          actions: (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive-on-soft hover:bg-destructive-soft"
-                              onClick={() => removeRow(i)}
-                              disabled={rows.length <= 1}
-                              aria-label={t(
-                                "payroll_config.remove_band",
-                                "Remove band",
-                              )}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          ),
+                          // The only band cannot be removed, so no dead
+                          // button is drawn for it.
+                          actions:
+                            rows.length > 1 ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive-on-soft hover:bg-destructive-soft"
+                                onClick={() => removeRow(i)}
+                                aria-label={t(
+                                  "payroll_config.remove_band",
+                                  "Remove band",
+                                )}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : undefined,
                         };
                       })}
                     />
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "payroll_config.deduction_help",
+                    "The fixed amount subtracted after the rate is applied, as printed in the tax schedule.",
+                  )}
+                </p>
 
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
@@ -412,7 +432,17 @@ export function TaxBracketsCard() {
                       onChange={setEffectiveFrom}
                       required
                       className="mt-1"
+                      aria-describedby="tax_effective_from-hint"
                     />
+                    <p
+                      id="tax_effective_from-hint"
+                      className="mt-1 text-xs text-muted-foreground"
+                    >
+                      {t(
+                        "payroll_config.effective_from_help",
+                        "Payroll runs on or after this date use these bands. Earlier runs keep theirs.",
+                      )}
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
