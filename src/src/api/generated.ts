@@ -12669,6 +12669,7 @@ export interface components {
                 fiscal_year_start_month?: number;
                 /** @enum {string} */
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
+                working_days_per_month?: number;
                 retirement_age?: number;
                 run_day?: number;
                 employer_tin?: string | null;
@@ -32876,6 +32877,7 @@ export interface operations {
                             run_day: number;
                             fiscal_year_start_month: number;
                             pagumen_proration_strategy: string;
+                            working_days_per_month: number;
                             /**
                              * @description Retirement-case eligibility dates are computed against this.
                              *     No single figure is authoritative across every Ethiopian

@@ -36,6 +36,7 @@ class UpdateSettingsRequest extends FormRequest
             // (government), but any Ethiopian month is accepted.
             'settings.fiscal_year_start_month' => ['sometimes', 'integer', 'between:1,13'],
             'settings.pagumen_proration_strategy' => ['sometimes', 'string', 'in:full_month,daily_rate'],
+            'settings.working_days_per_month' => ['sometimes', 'integer', 'between:20,31'],
             'settings.retirement_age' => ['sometimes', 'integer', 'between:45,75'],
             'settings.run_day' => ['sometimes', 'integer', 'between:1,28'],
             'settings.employer_tin' => ['sometimes', 'nullable', 'string', 'regex:/^\d{10}$/'],

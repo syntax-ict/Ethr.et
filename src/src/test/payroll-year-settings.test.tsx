@@ -15,6 +15,7 @@ const SETTINGS = {
     run_day: 25,
     fiscal_year_start_month: 1,
     pagumen_proration_strategy: "full_month",
+    working_days_per_month: 22,
     retirement_age: 60,
   },
 };
@@ -75,6 +76,38 @@ describe("payroll year settings", () => {
       run_day: 25,
       retirement_age: 60,
     });
+    // Untouched, the month length stays the platform's: saving something else
+    // must not pin the organisation to today's default.
+    expect(saved[0]).not.toHaveProperty("working_days_per_month");
+  });
+
+  it("saves the organisation's own working days per month", async () => {
+    const saved = serve(["settings.manage"]);
+    renderWith(<PayrollScheduleCard />);
+    const user = userEvent.setup();
+
+    const days = await screen.findByLabelText(/working days per month/i);
+    expect(days).toHaveValue(22);
+    await user.clear(days);
+    await user.type(days, "26");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toMatchObject({ working_days_per_month: 26 });
+  });
+
+  it("refuses a month length outside 20 to 31", async () => {
+    const saved = serve(["settings.manage"]);
+    renderWith(<PayrollScheduleCard />);
+    const user = userEvent.setup();
+
+    const days = await screen.findByLabelText(/working days per month/i);
+    await user.clear(days);
+    await user.type(days, "5");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(await screen.findByText(/from 20 to 31/i)).toBeInTheDocument();
+    expect(saved).toHaveLength(0);
   });
 });
 

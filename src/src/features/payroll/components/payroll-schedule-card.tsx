@@ -30,12 +30,15 @@ interface ScheduleForm {
   run_day: string;
   fiscal_year_start_month: number;
   pagumen_proration_strategy: "full_month" | "daily_rate";
+  working_days_per_month: string;
   retirement_age: string;
 }
 
-type ScheduleErrors = Partial<Record<"run_day" | "retirement_age", string>>;
+type NumericField = "run_day" | "retirement_age" | "working_days_per_month";
+type ScheduleErrors = Partial<Record<NumericField, string>>;
 
 const RUN_DAY = { min: 1, max: 28 };
+const WORKING_DAYS = { min: 20, max: 31 };
 const RETIREMENT_AGE = { min: 45, max: 75 };
 
 /** Pagume is not a month a fiscal year starts in. */
@@ -85,6 +88,7 @@ export function PayrollScheduleCard() {
       data?.payroll?.pagumen_proration_strategy === "daily_rate"
         ? "daily_rate"
         : "full_month",
+    working_days_per_month: String(data?.payroll?.working_days_per_month ?? 22),
     retirement_age: String(data?.payroll?.retirement_age ?? 60),
   };
   const payPeriod = data?.payroll?.pay_period ?? "monthly";
@@ -100,8 +104,12 @@ export function PayrollScheduleCard() {
     value: ScheduleForm[K],
   ) {
     setEdits({ ...form, [key]: value });
-    if (key === "run_day" || key === "retirement_age") {
-      const field = key as "run_day" | "retirement_age";
+    if (
+      key === "run_day" ||
+      key === "retirement_age" ||
+      key === "working_days_per_month"
+    ) {
+      const field = key as NumericField;
       setErrors((prev) =>
         prev[field] ? { ...prev, [field]: undefined } : prev,
       );
@@ -124,8 +132,15 @@ export function PayrollScheduleCard() {
         "Enter an age from 45 to 75",
       );
     }
+    if (!isWholeNumberIn(form.working_days_per_month, WORKING_DAYS)) {
+      next.working_days_per_month = t(
+        "payroll_config.working_days_per_month_range",
+        "Enter a number of days from 20 to 31",
+      );
+    }
     setErrors(next);
-    if (next.run_day || next.retirement_age) return;
+    if (next.run_day || next.retirement_age || next.working_days_per_month)
+      return;
 
     save.mutate(
       {
@@ -133,6 +148,13 @@ export function PayrollScheduleCard() {
         fiscal_year_start_month: form.fiscal_year_start_month,
         pagumen_proration_strategy: form.pagumen_proration_strategy,
         retirement_age: Number(form.retirement_age),
+        // Sent only when the person changed it: saving any other field must
+        // not pin the organisation to today's platform value, which the
+        // accountant may still correct.
+        ...(form.working_days_per_month !==
+          persisted.working_days_per_month && {
+          working_days_per_month: Number(form.working_days_per_month),
+        }),
       },
       {
         onSuccess: () => {
@@ -313,6 +335,31 @@ export function PayrollScheduleCard() {
                   </SelectContent>
                 </Select>
               )}
+            </FormField>
+            <FormField
+              id="working_days_per_month"
+              label={t(
+                "payroll_config.working_days_per_month",
+                "Working days per month",
+              )}
+              required
+              hint={t(
+                "payroll_config.working_days_per_month_help",
+                "Monthly salary is divided by this for a day of unpaid leave, an hour of overtime and sick-leave pay. 22 for a five-day week, 26 for a six-day week.",
+              )}
+              error={errors.working_days_per_month}
+            >
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={WORKING_DAYS.min}
+                max={WORKING_DAYS.max}
+                value={form.working_days_per_month}
+                onChange={(e) =>
+                  update("working_days_per_month", e.target.value)
+                }
+                className="mt-1"
+              />
             </FormField>
             <FormField
               id="retirement_age"

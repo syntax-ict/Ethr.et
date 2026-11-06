@@ -33,6 +33,7 @@ final class StatutoryRules
         'pension.default_scheme' => 'pension_scheme',
         'fiscal_year.start_month' => 'fiscal_year_start_month',
         'pagume.proration' => 'pagumen_proration_strategy',
+        'payroll.working_days_per_month' => 'working_days_per_month',
     ];
 
     /** @var array<string, StatutoryRuleSet> */

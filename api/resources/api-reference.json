@@ -35263,6 +35263,9 @@
                                                 "pagumen_proration_strategy": {
                                                     "type": "string"
                                                 },
+                                                "working_days_per_month": {
+                                                    "type": "integer"
+                                                },
                                                 "retirement_age": {
                                                     "type": "integer",
                                                     "description": "Retirement-case eligibility dates are computed against this.\nNo single figure is authoritative across every Ethiopian\nsector, so it defaults to 60 but stays tenant-overridable\nrather than hard-coded, the same treatment as the tax\nbrackets and Pagumen strategy above."
@@ -35293,6 +35296,7 @@
                                                 "run_day",
                                                 "fiscal_year_start_month",
                                                 "pagumen_proration_strategy",
+                                                "working_days_per_month",
                                                 "retirement_age",
                                                 "employer_tin",
                                                 "tax_center",
