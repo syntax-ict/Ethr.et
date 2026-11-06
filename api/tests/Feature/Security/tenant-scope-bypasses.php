@@ -11,6 +11,19 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-06, tenant journey: six more in five new files, one fewer in
+ * `AdminTenantController`, 191/78. The console shows where each organisation
+ * is between sign-up and using ETHR (docs/operations/TENANT-JOURNEY.md).
+ * `Services/Admin/TenantJourney/JourneyCalculator` lists the organisations
+ * whose snapshot is stale and, for one organisation in hand, reads counts and
+ * dates, every query stating `tenant_id`; the two controller reads and the
+ * command look one organisation up by its public id, or list the snapshots of
+ * live organisations, returning counts. `Subscription::latestForTenant()` is
+ * the former `AdminTenantController::latestSubscription()` body, shared so the
+ * calculator and the console read the plan one way, stating `tenant_id`.
+ * `EmployeeGaps::apply()` gained one: the "no bank account" subquery built its
+ * own scoped query, which matched nothing on the platform host and read every
+ * employee as missing one; it is keyed on the employee, who is tenant-owned.)
  * (2026-11-06, A-Z review E-08: `Services/Leave/SickLeaveTiers` joined
  * with two. Sick leave under Art. 85 takes its pay tier from each day's
  * place in a twelve-month period, asked by payroll, which may run with no
@@ -245,6 +258,7 @@ return [
     // app can reset. Platform accounts have no tenant, so the scope cannot see
     // them; the query states `tenant_id` itself — the --tenant organisation's,
     // or NULL (platform accounts only) when none is named.
+    'Console/Commands/RefreshTenantJourneysCommand.php' => 1,
     'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
@@ -253,7 +267,8 @@ return [
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
-    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 17,
+    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
+    'Http/Controllers/Api/V1/Admin/AdminTenantJourneyController.php' => 2,
     // Pre-authentication: the phone lookup and, since email sign-in codes, the
     // email lookup. Each states tenant_id from the resolved tenant on its own
     // chain, as AuthIdentifierResolver does for password sign-in.
@@ -313,10 +328,12 @@ return [
     // kiosk terminal has no login to name the tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
+    'Models/Subscription.php' => 1,
     'Models/Tenant.php' => 5,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,
+    'Services/Admin/TenantJourney/JourneyCalculator.php' => 1,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
@@ -385,4 +402,5 @@ return [
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,
+    'Support/EmployeeGaps.php' => 1,
 ];

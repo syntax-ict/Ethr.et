@@ -133,6 +133,12 @@ Schedule::call(function () {
     });
 })->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
 
+// Where each organisation is between sign-up and using ETHR, for the console
+// (docs/operations/TENANT-JOURNEY.md). Only snapshots older than fifty minutes
+// are recomputed, so an hourly tick refreshes each once.
+Schedule::command('ethr:refresh-tenant-journeys')
+    ->hourlyAt(20)->name('refresh-tenant-journeys')->withoutOverlapping();
+
 // Warn tenant admins at 30/7/1 days before trial expiry — 05:00 UTC (08:00 EAT)
 Schedule::job(new NotifyExpiringTrialsJob, 'notifications')
     ->dailyAt('05:00')->name('notify-expiring-trials');

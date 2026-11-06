@@ -26,6 +26,13 @@ class AdminTenantResource extends JsonResource
             'created_at' => $this->created_at,
             'showcase_consented_at' => $this->showcase_consented_at?->toIso8601String(),
             'showcase_hidden' => $this->showcase_hidden_at !== null,
+            'trial_expired' => $this->isTrialExpired(),
+            'stage' => $this->journeySnapshot === null ? null : $this->journeySnapshot->stage,
+            'health_state' => $this->journeySnapshot === null ? null : $this->journeySnapshot->health_state,
+            'health_reasons' => $this->journeySnapshot === null ? [] : $this->journeySnapshot->reasons,
+            'readiness_score' => $this->journeySnapshot === null ? null : $this->journeySnapshot->readiness_score,
+            'last_activity_at' => $this->journeySnapshot?->last_activity_at?->toIso8601String(),
+            'journey_computed_at' => $this->journeySnapshot === null ? null : $this->journeySnapshot->computed_at->toIso8601String(),
         ];
     }
 }

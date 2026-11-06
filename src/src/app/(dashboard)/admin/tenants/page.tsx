@@ -28,6 +28,17 @@ import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
+import {
+  JOURNEY_STAGES,
+  isJourneyStage,
+  journeyHealth,
+} from "@/features/admin/journey";
+import { JourneyFunnel } from "@/features/admin/components/journey-funnel";
+import { stageLabel } from "@/features/admin/components/journey-labels";
+import {
+  StateBadge,
+  stateLabel,
+} from "@/features/admin/components/operations-labels";
 
 function trialDaysLeft(trialEndsAt: string | null): number | null {
   if (!trialEndsAt) return null;
@@ -44,18 +55,33 @@ export default function AdminTenantsPage() {
   const { formatDate } = useDateFormatters();
   const router = useRouter();
   const filters = useQueryFilters(
-    { q: "", status: "all" },
+    { q: "", status: "all", stage: "all", health: "all" },
     {
-      status: ["all", "trial", "active", "suspended", "cancelled", "deleted"],
+      status: [
+        "all",
+        "trial",
+        "trial_expired",
+        "active",
+        "suspended",
+        "cancelled",
+        "deleted",
+      ],
+      stage: ["all", ...JOURNEY_STAGES],
+      health: ["all", "ok", "warning", "critical", "unknown"],
     },
   );
   const search = filters.values.q;
   const status = filters.values.status;
+  const stage = filters.values.stage;
+  const health = filters.values.health;
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, refetch } = useAdminTenants({
     search: search || undefined,
-    status: status === "all" ? undefined : status,
+    status: status === "all" || status === "trial_expired" ? undefined : status,
+    lifecycle: status === "trial_expired" ? "trial_expired" : undefined,
+    stage: stage === "all" ? undefined : stage,
+    health: health === "all" ? undefined : health,
     page,
     per_page: 25,
   });
@@ -65,6 +91,14 @@ export default function AdminTenantsPage() {
   return (
     <RoleGate minRole="super_admin">
       <div className="space-y-6">
+        <JourneyFunnel
+          stage={isJourneyStage(stage) ? stage : null}
+          onStage={(next) => {
+            filters.set({ stage: next ?? "all" });
+            setPage(1);
+          }}
+        />
+
         <FilterBar
           activeCount={filters.activeCount}
           onClear={() => {
@@ -111,6 +145,9 @@ export default function AdminTenantsPage() {
               <SelectItem value="trial">
                 {t("admin_console_page.trial", "Trial")}
               </SelectItem>
+              <SelectItem value="trial_expired">
+                {t("admin_tenant_journey.trial_expired", "Trial expired")}
+              </SelectItem>
               <SelectItem value="active">
                 {t("admin_console_page.active_label", "Active")}
               </SelectItem>
@@ -123,6 +160,33 @@ export default function AdminTenantsPage() {
               <SelectItem value="deleted">
                 {t("admin_tenants_page.deleted", "Deleted")}
               </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={health}
+            onValueChange={(v) => {
+              filters.set({ health: v });
+              setPage(1);
+            }}
+          >
+            <SelectTrigger
+              className="w-full sm:w-48"
+              aria-label={t(
+                "admin_tenant_journey.filter_by_health",
+                "Filter by health",
+              )}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t("admin_tenant_journey.all_health", "All health states")}
+              </SelectItem>
+              {(["ok", "warning", "critical", "unknown"] as const).map((h) => (
+                <SelectItem key={h} value={h}>
+                  {stateLabel(t, h)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </FilterBar>
@@ -169,14 +233,27 @@ export default function AdminTenantsPage() {
                   caption={t("admin_tenants_page.title", "Tenants")}
                   headers={[
                     t("admin_tenants_page.tenant", "Tenant"),
+                    t("admin_tenant_journey.column_stage", "Stage"),
+                    t("admin_tenant_journey.column_health", "Health"),
                     t("admin_tenants_page.subdomain", "Subdomain"),
                     t("admin_tenants_page.employees", "Employees"),
                     t("admin_tenants_page.trial_ends", "Trial Ends"),
                     t("admin_tenants_page.created", "Created"),
                     t("common.status", "Status"),
                   ]}
-                  align={["left", "left", "right", "left", "left", "left"]}
+                  align={[
+                    "left",
+                    "left",
+                    "left",
+                    "left",
+                    "right",
+                    "left",
+                    "left",
+                    "left",
+                  ]}
                   colClassName={[
+                    "",
+                    "hidden md:table-cell",
                     "",
                     "hidden sm:table-cell",
                     "hidden md:table-cell",
@@ -203,6 +280,16 @@ export default function AdminTenantsPage() {
                             </p>
                           )}
                         </div>,
+                        <span key="g" className="text-muted-foreground">
+                          {tenant.stage && isJourneyStage(tenant.stage)
+                            ? stageLabel(t, tenant.stage)
+                            : "—"}
+                        </span>,
+                        <StateBadge
+                          key="h"
+                          state={journeyHealth(tenant.health_state ?? null)}
+                          t={t}
+                        />,
                         <span
                           key="s"
                           className="font-mono text-muted-foreground"
