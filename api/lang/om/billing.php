@@ -15,6 +15,7 @@ return [
 
     'feature_not_overridable' => 'Amalli kun dhaabbilee hundaaf yeroo tokkotti murtaa\'a; dhaabbata tokkoof kennamuu ykn fudhatamuu hin danda\'u.',
     'feature_no_rollout' => 'Amalli kun dhaabbilee itti babal\'atu hin qabu. Banameera ykn Cufameera filadhaa.',
+    'feature_core' => 'Kun amala bu\'uuraa karoorri hundi of keessaa qabu dha; koonsooliin hin banu, hin cufus.',
     'features' => [
         'attendance' => 'hordoffii argamaa',
         'leave' => 'bulchiinsa boqonnaa',

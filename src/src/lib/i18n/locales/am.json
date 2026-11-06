@@ -189,6 +189,8 @@
   "admin_features.sms_elsewhere": "የጽሑፍ መልዕክቶች በራሳቸው ገጽ ይበራሉ፤ በሙከራ ደረጃ እና በዕለታዊ ገደብ።",
   "admin_features.sms_link": "SMS ክፈት",
   "admin_features.not_overridable": "ለሁሉም ድርጅቶች በአንድ ጊዜ ይወሰናል",
+  "admin_features.always_on": "ሁልጊዜ የበራ",
+  "admin_features.core": "ዋና ባህሪ፣ ሁልጊዜ የበራ",
   "admin_marketing.add_row": "ረድፍ ጨምር",
   "admin_marketing.add_row_confirm": "ጨምር",
   "admin_marketing.confirm_delete": "አዎ፣ ይህን ረድፍ ሰርዝ",

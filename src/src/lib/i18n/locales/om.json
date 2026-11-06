@@ -189,6 +189,8 @@
   "admin_features.sms_elsewhere": "Ergaawwan barreeffamaa fuula ofii isaanii irratti banamu ykn cufamu, tarkaanfii qormaataa fi daangaa guyyaa wajjin.",
   "admin_features.sms_link": "SMS bani",
   "admin_features.not_overridable": "Dhaabbata hundaaf yeroo tokkotti murteeffameera",
+  "admin_features.always_on": "Yeroo hunda banaa",
+  "admin_features.core": "Amala bu'uuraa, yeroo hunda banaa",
   "admin_marketing.add_row": "Sarara dabali",
   "admin_marketing.add_row_confirm": "Dabali",
   "admin_marketing.confirm_delete": "Eeyyee, sarara kana haqi",

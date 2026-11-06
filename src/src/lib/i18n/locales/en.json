@@ -189,6 +189,8 @@
   "admin_features.sms_elsewhere": "Text messages are switched on their own page, with a test step and a daily cap.",
   "admin_features.sms_link": "Open SMS",
   "admin_features.not_overridable": "Decided for every organisation at once",
+  "admin_features.always_on": "Always on",
+  "admin_features.core": "Core feature, always on",
   "admin_marketing.add_row": "Add row",
   "admin_marketing.add_row_confirm": "Add",
   "admin_marketing.confirm_delete": "Yes, delete this row",

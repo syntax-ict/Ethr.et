@@ -288,16 +288,16 @@ describe('the route gate', function () {
 
 describe('what /auth/me tells the screen', function () {
     test('every feature\'s decision, beside the plan list it always sent', function () {
-        $tenant = gateTenant(['attendance', 'leave', 'employee_management']);
-        setPlatformState(Feature::Leave, FeatureState::Hidden);
+        $tenant = gateTenant(['attendance', 'leave', 'employee_management', 'reports']);
+        setPlatformState(Feature::Reports, FeatureState::Hidden);
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $response = $this->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/me")->assertOk();
 
         $response
-            ->assertJsonPath('plan_features', ['attendance', 'leave', 'employee_management'])
+            ->assertJsonPath('plan_features', ['attendance', 'leave', 'employee_management', 'reports'])
             ->assertJsonPath('features.payroll', ['on' => false, 'visible' => false, 'reason' => 'plan'])
-            ->assertJsonPath('features.leave', ['on' => true, 'visible' => false, 'reason' => 'enabled'])
+            ->assertJsonPath('features.reports', ['on' => true, 'visible' => false, 'reason' => 'enabled'])
             ->assertJsonPath('features.attendance', ['on' => true, 'visible' => true, 'reason' => 'enabled']);
 
         expect(array_keys($response->json('features')))
@@ -305,13 +305,13 @@ describe('what /auth/me tells the screen', function () {
     });
 
     test('a platform switch reaches screens still reading plan_features', function () {
-        $tenant = gateTenant(['attendance', 'leave', 'employee_management']);
-        setPlatformState(Feature::Leave, FeatureState::Disabled);
+        $tenant = gateTenant(['attendance', 'leave', 'employee_management', 'reports']);
+        setPlatformState(Feature::Reports, FeatureState::Disabled);
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $this->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/me")
             ->assertOk()
-            ->assertJsonPath('plan_features', ['attendance', 'employee_management']);
+            ->assertJsonPath('plan_features', ['attendance', 'leave', 'employee_management']);
     });
 });
 
