@@ -13,6 +13,7 @@ return [
         'run_day' => 'የደመወዝ ክፍያ ቀን',
         'leave_year' => 'የፈቃድ ዓመት',
         'working_days' => 'የሥራ ቀናት',
+        'working_days_per_month' => 'በወር የሥራ ቀናት',
         'mfa_policy' => 'የሁለት ደረጃ ማረጋገጫ መመሪያ',
         'session_timeout_minutes' => 'የክፍለ ጊዜ ማብቂያ',
         'calendar' => 'የቀን መቁጠሪያ ሥርዓት',
