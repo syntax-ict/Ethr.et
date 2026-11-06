@@ -266,6 +266,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The code this kiosk shows now. Each call issues a new one and the old
+         *     one simply runs out; the kiosk asks again before it does
+         */
+        post: operations["kiosk.kioskQr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kiosk/sync": {
         parameters: {
             query?: never;
@@ -13897,6 +13917,78 @@ export interface operations {
                         status: 429;
                         /** @constant */
                         detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
+        };
+    };
+    "kiosk.kioskQr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                        branch_public_id: string;
+                        branch_name: string;
+                        expires_at: string;
+                        generated_at: string;
+                        /** @constant */
+                        ttl_seconds: 45;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/forbidden";
+                        /** @constant */
+                        title: "Method Disabled";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "This attendance method is not enabled for your organization.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 403;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
                     };
                 };
             };

@@ -41,6 +41,7 @@ import {
 } from "@/features/kiosk/kiosk-lock";
 import { KioskKeypad, PinDots } from "@/features/kiosk/components/kiosk-keypad";
 import { KioskPunchResultCard } from "@/features/kiosk/components/kiosk-punch-result";
+import { KioskQrPanel } from "@/features/kiosk/components/kiosk-qr-panel";
 import { KioskSelfService } from "@/features/kiosk/components/kiosk-self-service";
 import {
   useKioskSound,
@@ -655,7 +656,7 @@ export default function KioskPage() {
       </header>
 
       {/* Main */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="flex-1 flex flex-col items-center justify-center gap-8 p-6 md:flex-row">
         {screen === "self_service" && config ? (
           <KioskSelfService
             token={config.token}
@@ -851,6 +852,12 @@ export default function KioskPage() {
               {t("kiosk_page.self_service_entry")}
             </Button>
           </div>
+        )}
+        {/* Beside the keypad, only while it is waiting for someone. Paused
+            when the terminal is resting or cannot reach the server, so a
+            code is never fetched for a screen nobody can see. */}
+        {config && screen === "kiosk" && mode === "idle" && (
+          <KioskQrPanel token={config.token} paused={offline || covered} />
         )}
       </main>
 

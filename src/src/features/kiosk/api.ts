@@ -56,6 +56,24 @@ export async function kioskPunch(
   ).data;
 }
 
+export type KioskQr =
+  operations["kiosk.kioskQr"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The code to show on this kiosk's screen now. A new one every call; each
+ * lives `ttl_seconds` and is accepted from one scan. Rejects with 403 where
+ * QR is switched off for this kiosk's branch.
+ */
+export async function fetchKioskQr(token: string): Promise<KioskQr> {
+  return (
+    await apiClient.post<KioskQr>(
+      "/kiosk/qr",
+      {},
+      { headers: { "X-Kiosk-Token": token }, skipAuthRefresh: true },
+    )
+  ).data;
+}
+
 /**
  * Put a punch just made at this kiosk in front of HR, because the person on
  * the confirmation screen is not the one who punched. It never undoes the

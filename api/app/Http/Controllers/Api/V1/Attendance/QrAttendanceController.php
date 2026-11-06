@@ -125,6 +125,7 @@ class QrAttendanceController extends Controller
                 metadata: array_filter([
                     'qr_branch_id' => $payload['branch_id'],
                     'qr_shift_id' => $payload['shift_id'] ?? null,
+                    'qr_kiosk_session_id' => $payload['kiosk_session_id'] ?? null,
                     'qr_nonce' => $payload['nonce'] ?? null,
                     'accuracy' => $request->validated('accuracy'),
                     ...PunchSignals::from($request->validated(), $request->userAgent()),
@@ -189,7 +190,11 @@ class QrAttendanceController extends Controller
             return __('attendance.qr_already_used');
         }
 
-        $limit = (int) (AttendanceSetting::query()->value('qr_single_use_limit') ?? 0);
+        // A code on a kiosk screen is for the one person standing at it: the
+        // organisation's limit (0 = unlimited) does not apply, one use does.
+        $limit = isset($payload['kiosk_session_id'])
+            ? 1
+            : (int) (AttendanceSetting::query()->value('qr_single_use_limit') ?? 0);
         if ($limit > 0) {
             $countKey = "qr:{$tenantId}:{$nonce}:count";
             Cache::add($countKey, 0, $ttl);
