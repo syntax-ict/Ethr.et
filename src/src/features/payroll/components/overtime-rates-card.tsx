@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import {
   useOvertimeRates,
@@ -40,11 +41,6 @@ const ORDER: RateKey[] = [
   "holiday_night",
 ];
 
-function apiDetail(err: unknown): string | undefined {
-  return (err as { response?: { data?: { detail?: string } } }).response?.data
-    ?.detail;
-}
-
 export function OvertimeRatesCard() {
   const { t } = useT();
   const query = useOvertimeRates();
@@ -73,7 +69,7 @@ export function OvertimeRatesCard() {
 
   const labels: Record<RateKey, string> = {
     normal: t("payroll_config.ot_normal", "Ordinary day"),
-    night: t("payroll_config.ot_night", "Night (22:00–06:00)"),
+    night: t("payroll_config.ot_night", "Night (22:00 to 06:00)"),
     rest_day: t("payroll_config.ot_rest_day", "Weekly rest day"),
     holiday: t("payroll_config.ot_holiday", "Public holiday"),
     holiday_night: t("payroll_config.ot_holiday_night", "Holiday night"),
@@ -128,14 +124,19 @@ export function OvertimeRatesCard() {
           toast.success(t("payroll_config.ot_saved", "Overtime rates updated")),
         onError: (err) =>
           toast.error(
-            apiDetail(err) ??
+            apiErrorMessage(
+              err,
               t("payroll_config.ot_save_failed", "Could not save rates"),
+            ),
           ),
       },
     );
   }
 
-  function resetToDefaults() {
+  // Only fills the form: nothing is saved until Save is pressed, and the
+  // button and toast say so ("Reset to defaults" read as if it had already
+  // happened).
+  function fillDefaults() {
     const defaults = query.data?.defaults;
     if (!defaults) return;
 
@@ -146,6 +147,14 @@ export function OvertimeRatesCard() {
       holiday: String(defaults.holiday),
       holiday_night: String(defaults.holiday_night),
     });
+    setErrors({});
+    setSummary(null);
+    toast.info(
+      t(
+        "payroll_config.defaults_filled",
+        "Defaults filled in. Save to apply them.",
+      ),
+    );
   }
 
   return (
@@ -214,10 +223,10 @@ export function OvertimeRatesCard() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={resetToDefaults}
+                    onClick={fillDefaults}
                   >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    {t("payroll_config.reset_defaults", "Reset to defaults")}
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    {t("payroll_config.fill_defaults", "Fill in the defaults")}
                   </Button>
                   <Button type="submit" disabled={updateRates.isPending}>
                     {updateRates.isPending && (

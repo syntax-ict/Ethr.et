@@ -107,3 +107,25 @@ it('bills each tenant separately', function () {
     expect(Invoice::withoutGlobalScopes()->where('tenant_id', $alpha->tenant_id)->count())->toBe(1)
         ->and(Invoice::withoutGlobalScopes()->where('tenant_id', $beta->tenant_id)->count())->toBe(1);
 });
+
+// A-Z review H-01 (2026-11-04). Cancelling or suspending an organisation in the
+// console changes only the organisation's status; its subscription stays
+// active, and the monthly run billed it, with dunning to follow. Only an
+// organisation in use as a paying customer is invoiced.
+it('does not invoice an organisation that is not active', function (string $status) {
+    $subscription = activeSubscription();
+    $subscription->tenant->update(['status' => $status]);
+
+    (new GenerateMonthlyInvoicesJob)->handle(app(BillingService::class));
+
+    expect(Invoice::withoutGlobalScopes()->where('tenant_id', $subscription->tenant_id)->exists())->toBeFalse();
+})->with(['cancelled', 'suspended']);
+
+it('still invoices an active organisation', function () {
+    $subscription = activeSubscription();
+    $subscription->tenant->update(['status' => 'active']);
+
+    (new GenerateMonthlyInvoicesJob)->handle(app(BillingService::class));
+
+    expect(Invoice::withoutGlobalScopes()->where('tenant_id', $subscription->tenant_id)->count())->toBe(1);
+});

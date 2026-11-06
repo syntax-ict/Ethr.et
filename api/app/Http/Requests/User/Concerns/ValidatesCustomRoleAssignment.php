@@ -7,6 +7,7 @@ namespace App\Http\Requests\User\Concerns;
 use App\Enums\OrgScope;
 use App\Models\CustomRole;
 use App\Models\Permission;
+use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -42,6 +43,16 @@ trait ValidatesCustomRoleAssignment
             $validator->errors()->add('custom_role_id', __('validation.exists', [
                 'attribute' => 'custom role id',
             ]));
+
+            return;
+        }
+
+        // An inactive role grants nothing, so handing it out would leave the
+        // person on their base role while the screen says otherwise. Someone
+        // who already holds it may keep it through an unrelated edit.
+        $target = $this->route('user');
+        if (! $role->is_active && ! ($target instanceof User && $target->custom_role_id === $role->id)) {
+            $validator->errors()->add('custom_role_id', __('user.errors.custom_role_inactive'));
 
             return;
         }

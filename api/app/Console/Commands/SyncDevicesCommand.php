@@ -38,7 +38,7 @@ class SyncDevicesCommand extends Command
                     continue;
                 }
 
-                PullDeviceEventsJob::dispatch($device);
+                PullDeviceEventsJob::dispatch($device->id, $device->tenant_id);
                 $totalDispatched++;
             }
         });

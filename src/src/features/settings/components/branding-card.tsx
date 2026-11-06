@@ -62,10 +62,23 @@ export function BrandingCard({
     accent_color: theme?.accent_color ?? DEFAULT_COLORS.accent_color,
   });
 
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const saved: Record<ColorKey, string> = {
+    primary_color: theme?.primary_color ?? DEFAULT_COLORS.primary_color,
+    secondary_color: theme?.secondary_color ?? DEFAULT_COLORS.secondary_color,
+    accent_color: theme?.accent_color ?? DEFAULT_COLORS.accent_color,
+  };
+  const invalid = (key: ColorKey) => !HEX.test(colors[key]);
+  const anyInvalid = (Object.keys(colors) as ColorKey[]).some(invalid);
+  const dirty = (Object.keys(colors) as ColorKey[]).some(
+    (key) => colors[key].toLowerCase() !== saved[key].toLowerCase(),
+  );
+
   // The hook refreshes /auth/me as well as the settings query: it carries the
   // theme TenantBrandingProvider applies, so without it the saved colors only
   // appear after a reload.
   function save() {
+    if (anyInvalid || !dirty) return;
     updateBranding.mutate(
       { ...colors },
       {
@@ -90,16 +103,25 @@ export function BrandingCard({
     setColors({ ...DEFAULT_COLORS });
   }
 
-  const colorFields: Array<{ key: ColorKey; label: string }> = [
+  const colorFields: Array<{ key: ColorKey; label: string; help: string }> = [
     {
       key: "primary_color",
-      label: t("settings.primary_color", "Primary color"),
+      label: t("settings.primary_color", "Primary colour"),
+      help: t("settings.primary_color_help", "Buttons and links."),
     },
     {
       key: "secondary_color",
-      label: t("settings.secondary_color", "Secondary color"),
+      label: t("settings.secondary_color", "Secondary colour"),
+      help: t(
+        "settings.secondary_color_help",
+        "Backgrounds and highlights; it carries no text.",
+      ),
     },
-    { key: "accent_color", label: t("settings.accent_color", "Accent color") },
+    {
+      key: "accent_color",
+      label: t("settings.accent_color", "Accent colour"),
+      help: t("settings.accent_color_help", "Badges and markers."),
+    },
   ];
 
   // The primary and accent colours carry text (buttons, badges), so they are
@@ -117,7 +139,7 @@ export function BrandingCard({
         <div className="flex items-center gap-2">
           <Palette className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base">
-            {t("settings.branding", "Branding")}
+            {t("settings.branding", "Logo and colours")}
           </CardTitle>
         </div>
       </CardHeader>
@@ -154,7 +176,7 @@ export function BrandingCard({
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          {colorFields.map(({ key, label }) => (
+          {colorFields.map(({ key, label, help }) => (
             <div key={key}>
               <Label htmlFor={`branding-${key}`}>{label}</Label>
               <div className="mt-1 flex items-center gap-2">
@@ -165,7 +187,7 @@ export function BrandingCard({
                   aria-label={t("settings.color_swatch", ":label swatch", {
                     label,
                   })}
-                  value={colors[key]}
+                  value={invalid(key) ? saved[key] : colors[key]}
                   onChange={(e) => setColor(key, e.target.value)}
                   className="h-9 w-10 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
                 />
@@ -176,8 +198,29 @@ export function BrandingCard({
                   className="font-mono uppercase"
                   maxLength={7}
                   spellCheck={false}
+                  aria-invalid={invalid(key) ? true : undefined}
+                  aria-describedby={`branding-${key}-help`}
                 />
               </div>
+              {invalid(key) ? (
+                <p
+                  id={`branding-${key}-help`}
+                  className="mt-1 text-xs text-destructive"
+                  role="alert"
+                >
+                  {t(
+                    "settings.color_invalid",
+                    "Enter a six-digit hex colour, such as #0F4C75.",
+                  )}
+                </p>
+              ) : (
+                <p
+                  id={`branding-${key}-help`}
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  {help}
+                </p>
+              )}
               {corrected(key)?.changed && (
                 <p className="mt-1 text-xs text-muted-foreground" role="note">
                   {t(
@@ -206,7 +249,7 @@ export function BrandingCard({
                 color: ink("primary_color"),
               }}
             >
-              {t("common.save", "Save Changes")}
+              {t("common.save", "Save")}
             </span>
             <span
               className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
@@ -234,7 +277,10 @@ export function BrandingCard({
             <RotateCcw className="mr-2 h-4 w-4" />
             {t("settings.reset_colors", "Reset to defaults")}
           </Button>
-          <Button onClick={save} disabled={updateBranding.isPending}>
+          <Button
+            onClick={save}
+            disabled={!dirty || anyInvalid || updateBranding.isPending}
+          >
             {updateBranding.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

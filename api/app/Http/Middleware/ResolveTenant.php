@@ -60,10 +60,21 @@ class ResolveTenant
      */
     public const PLATFORM_HOST = 'ethr.platform_host';
 
+    /**
+     * Request attribute set when an organisation locked out for money is let
+     * through to sign-in and billing only (`Tenant::billingOnly()`).
+     */
+    public const BILLING_ONLY = 'ethr.billing_only';
+
+    /** The organisation refused as inactive by the last lookup, if any. */
+    private ?Tenant $refused = null;
+
     public function __construct(private readonly CurrentTenant $currentTenant) {}
 
     public function handle(Request $request, Closure $next): Response
     {
+        $this->refused = null;
+
         if ($this->isPlatformHost($request)) {
             $request->attributes->set(self::PLATFORM_HOST, true);
 
@@ -79,6 +90,17 @@ class ResolveTenant
         if ($tenant !== null) {
             if ($tenant instanceof Response) {
                 if ($this->isTenantCreationEndpoint($request)) {
+                    return $next($request);
+                }
+
+                // Locked out for money: sign-in and billing still answer, so
+                // the bill can be seen and paid (A-Z review H-09). Billing's
+                // own Gate still decides who may see it.
+                $refused = $this->refusedTenant();
+                if ($refused?->billingOnly() && $this->isBillingOnlyEndpoint($request)) {
+                    $request->attributes->set(self::BILLING_ONLY, true);
+                    $this->currentTenant->set($refused);
+
                     return $next($request);
                 }
 
@@ -322,6 +344,37 @@ class ResolveTenant
         );
     }
 
+    /** The organisation the resolvers refused as inactive, set by lookupTenant(). */
+    private function refusedTenant(): ?Tenant
+    {
+        return $this->refused;
+    }
+
+    /**
+     * What an organisation locked out for money can still reach: its public
+     * sign-in context, signing in and out, who is signed in, billing, and the
+     * plan catalogue its billing page offers.
+     */
+    private function isBillingOnlyEndpoint(Request $request): bool
+    {
+        if ($request->isMethod('GET')) {
+            return $request->is(
+                'api/v1/auth/tenant-context',
+                'api/v1/auth/me',
+                'api/v1/plans',
+                'api/v1/billing/dashboard',
+                'api/v1/billing/invoices/*/receipt',
+            );
+        }
+
+        return $this->isShareableAuthEndpoint($request)
+            || ($request->isMethod('POST') && $request->is(
+                'api/v1/auth/logout',
+                'api/v1/auth/refresh',
+                'api/v1/billing/change-plan',
+            ));
+    }
+
     private function lookupTenant(string $subdomain): Tenant|Response
     {
         // Cache tenant for 5 minutes to avoid a DB hit on every request. A name
@@ -339,6 +392,8 @@ class ResolveTenant
         }
 
         if (! $tenant->isActive()) {
+            $this->refused = $tenant;
+
             return response()->json([
                 'type' => 'https://ethr.et/errors/tenant-inactive',
                 'title' => 'Tenant Inactive',

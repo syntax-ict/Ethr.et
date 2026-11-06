@@ -27,8 +27,13 @@ return [
         'batch_not_found' => 'Gareen affeerraa akkasii hin jiru.',
     ],
     'errors' => [
+        'owner_transfer_first' => 'Namni kun abbaa qabeenyaa dhaabbatichaa ti. Dura abbummaa bulchaa biraatiif dabarsi.',
+        'owner_must_be_active_admin' => 'Abbummaan bulchaa dhaabbatichaa biraa hojii irra jiruuf qofa dabarfamuu danda\'a.',
+        'only_owner_transfers' => 'Abbummaa dabarsuu kan danda\'u abbaa qabeenyaa dhaabbatichaa qofa.',
+        'password_incorrect' => 'Jechi icciitii sun sirrii miti.',
         'role_not_assignable' => 'Gaheen kun ramadamuu hin danda\'u.',
         'role_above_your_level' => 'Gahee kan keessan caalu ramaduu hin dandeessan.',
+        'custom_role_inactive' => 'Gaheen kun cufameera. Dura Gahee keessatti banaa.',
         'role_beside_your_own' => 'Bulchaa dhaabbataa qofatu gahee biraa sadarkaa keessan irratti ramaduu danda\'a.',
         'account_at_your_level' => 'Bulchaa dhaabbataa qofatu herrega sadarkaa keessan irra jiru jijjiiruu danda\'a.',
         'cannot_modify_higher' => 'Fayyadamaa gahee kan keessan caalu qabu jijjiiruu hin dandeessan.',

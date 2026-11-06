@@ -214,3 +214,18 @@ test('punch reminders are pushed once, in their window, to subscribed staff', fu
     expect($sender->sent)->toHaveCount(2)
         ->and($sender->sent[1]['payload']['tag'])->toBe('punch-not_checked_in');
 });
+
+// A-Z review G-04 (2026-11-04): a deactivated person's phone kept receiving
+// pushes for every in-app notice.
+test('nothing is pushed to someone deactivated', function () {
+    wpConfigure();
+    Queue::fake();
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+    wpSubscribe($tenant, $user);
+    $user->update(['status' => 'inactive']);
+
+    $user->notify(new MissingPunchNotification(Employee::factory()->create(['tenant_id' => $tenant->id]), '2026-10-12', 'missing_check_in'));
+
+    Queue::assertNotPushed(SendWebPush::class);
+});

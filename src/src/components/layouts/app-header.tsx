@@ -8,6 +8,7 @@ import {
   Check,
   CircleHelp,
   Contrast,
+  ChevronDown,
   Globe,
   Keyboard,
   LogOut,
@@ -430,6 +431,12 @@ function LanguageCalendarMenu() {
           <span className="sr-only text-xs font-medium sm:not-sr-only">
             {state}
           </span>
+          {/* Says "this opens a menu" where the words show; on a phone the
+              globe alone stays, as the header has no room to spare. */}
+          <ChevronDown
+            aria-hidden
+            className="hidden size-3.5! text-muted-foreground sm:block"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

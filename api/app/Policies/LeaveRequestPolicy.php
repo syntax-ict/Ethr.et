@@ -30,6 +30,21 @@ class LeaveRequestPolicy
         return $user->orgScope() === OrgScope::ALL || $user->canAccessEmployee($employee);
     }
 
+    /**
+     * Cancelling or shortening approved leave (A-Z review E-02): whoever
+     * administers leave balances, for a person inside their org scope, as for
+     * filing on someone's behalf. Changing one's own leave is refused in the
+     * controller, with its own message.
+     */
+    public function recall(User $user, LeaveRequest $leaveRequest): bool
+    {
+        if (! $user->hasPermission('leave.adjustBalance')) {
+            return false;
+        }
+
+        return $user->orgScope() === OrgScope::ALL || ($leaveRequest->employee !== null && $user->canAccessEmployee($leaveRequest->employee));
+    }
+
     public function viewTeam(User $user): bool
     {
         return $user->hasPermission('leave.viewTeam');

@@ -40,8 +40,17 @@ class PullDeviceEventsJob implements ShouldQueue
     /** Safety ceiling on pages per run, so a misbehaving adapter can't loop forever. */
     private const MAX_PAGES_PER_RUN = 200;
 
+    /** Set by handle() and failed() from the payload's ids (resolveDevice). */
+    private Device $device;
+
+    /**
+     * The device and its tenant by id, the tenant a required argument the
+     * job states itself, never one read off the device it fetches (A-Z
+     * review D-12; CLAUDE.md, tenant isolation).
+     */
     public function __construct(
-        private readonly Device $device,
+        public readonly int $deviceId,
+        public readonly int $tenantId,
         private readonly string $triggeredBy = 'schedule',
         /**
          * A backfill start time (ISO-8601). When set this is a one-off history
@@ -55,16 +64,11 @@ class PullDeviceEventsJob implements ShouldQueue
 
     public function handle(DeviceManager $manager, AttendanceEngine $engine, IdentityResolver $resolver): void
     {
-        // A worker resolves no tenant, and the attendance engine and shift
-        // matching run through the tenant scope: without this a pulled punch
-        // matched no employee or shift and recorded nothing (audit N21). The
-        // device is tenant-owned, so its tenant is the one these punches
-        // belong to. CurrentTenant is a scoped binding, flushed between jobs.
-        $tenant = Tenant::query()->find($this->device->tenant_id);
-        if ($tenant === null) {
-            return; // the organisation was deleted after this was queued
+        $device = $this->resolveDevice();
+        if ($device === null) {
+            return;
         }
-        app(CurrentTenant::class)->set($tenant);
+        $this->device = $device;
 
         $startedAt = now();
         $syncLog = DeviceSyncLog::create([
@@ -116,7 +120,7 @@ class PullDeviceEventsJob implements ShouldQueue
                 // The rest goes to a fresh job, which gets its own budget. It
                 // carries the cursor as `since`, so it is a backfill and leaves
                 // last_sync_at alone; an incremental sync moves it below.
-                self::dispatch($this->device, $this->triggeredBy, $run['cursor']);
+                self::dispatch($this->deviceId, $this->tenantId, $this->triggeredBy, $run['cursor']);
             }
 
             // A history backfill must not move the incremental cursor, or the
@@ -203,7 +207,28 @@ class PullDeviceEventsJob implements ShouldQueue
      */
     public function failed(Throwable $e): void
     {
-        DeviceSyncFailed::dispatch($this->device, $e->getMessage());
+        $device = $this->resolveDevice();
+        if ($device !== null) {
+            DeviceSyncFailed::dispatch($device, $e->getMessage());
+        }
+    }
+
+    /**
+     * A worker resolves no tenant, and the attendance engine and shift
+     * matching run through the tenant scope: without it a pulled punch
+     * matched no employee or shift and recorded nothing (audit N21). The
+     * payload's tenant is set, and the device is found only inside it.
+     * CurrentTenant is a scoped binding, flushed between jobs.
+     */
+    private function resolveDevice(): ?Device
+    {
+        $tenant = Tenant::query()->find($this->tenantId);
+        if ($tenant === null) {
+            return null; // the organisation was deleted after this was queued
+        }
+        app(CurrentTenant::class)->set($tenant);
+
+        return Device::query()->where('tenant_id', $this->tenantId)->find($this->deviceId);
     }
 
     /**

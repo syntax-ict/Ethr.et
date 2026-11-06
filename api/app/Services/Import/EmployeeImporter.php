@@ -49,11 +49,12 @@ class EmployeeImporter
      * contract, which cannot follow rows built from the file's own headers;
      * it types the line-number keys as strings, which is what JSON makes them.
      *
+     * @param  'gregorian'|'ethiopian'  $calendar  the calendar the file's dates are written in
      * @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>}
      *
      * @scramble-return array{headers: list<string>, rows: list<array<string, string|null>>, errors: array<string, list<string>>}
      */
-    public function preview(UploadedFile $file): array
+    public function preview(UploadedFile $file, string $calendar = 'gregorian'): array
     {
         // Csv::lines, as the attendance import uses: this split on "\n" after
         // folding CRLF, so a UTF-8 BOM (Excel's "CSV UTF-8") glued itself to the
@@ -95,7 +96,7 @@ class EmployeeImporter
 
             // As the commit endpoint will receive it, so the shared rules see
             // the same values in both places.
-            $row = EmployeeImportRow::normalize($row);
+            $row = EmployeeImportRow::normalize($row, $calendar);
 
             $rowErrors = [
                 ...EmployeeImportRow::errors($row, $lineNumber),

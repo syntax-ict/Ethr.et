@@ -11,6 +11,7 @@ use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LeaveChangedNotification;
 use App\Notifications\LeaveRejectedNotification;
 use App\Notifications\LeaveRequestedNotification;
 use App\Notifications\MissingPunchNotification;
@@ -271,7 +272,7 @@ it('falls back to the built-in text when the tenant cannot be found', function (
 
 // ── Every templated notification, every variable ──────────────────────────
 
-it('renders each of the six e-mails from its template, with every listed variable supplied', function (string $type) {
+it('renders each e-mail from its template, with every listed variable supplied', function (string $type) {
     $tenant = createTenant();
     $variables = NotificationTemplates::VARIABLES[$type];
     templateSave($tenant, $type, [
@@ -297,6 +298,7 @@ it('renders each of the six e-mails from its template, with every listed variabl
         'leave_requested' => new LeaveRequestedNotification($leave),
         'leave_approved' => new LeaveApprovedNotification($leave),
         'leave_rejected' => new LeaveRejectedNotification($leave),
+        'leave_changed' => new LeaveChangedNotification($leave, 2.0, 'Came back early'),
         'payslip_available' => new PayslipAvailableNotification($entry),
         'missing_punch' => new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in'),
         'trial_expiring' => new TrialExpiringNotification(7, '2026-11-01'),

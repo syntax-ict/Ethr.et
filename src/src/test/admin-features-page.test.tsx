@@ -24,6 +24,7 @@ function feature(overrides: Partial<PlatformFeature> = {}): PlatformFeature {
     key: "payroll",
     kind: "module",
     overridable: true,
+    switchable: true,
     state: "enabled",
     default_state: "enabled",
     reason: null,
@@ -82,6 +83,22 @@ describe("feature controls page", () => {
       within(webhooks).getByText("2 granted, 1 revoked"),
     ).toBeInTheDocument();
     expect(within(webhooks).getByText(/Delivery outage/)).toBeInTheDocument();
+  });
+
+  it("offers no switch for a core feature, which is always on", async () => {
+    // A-Z review H-04: switched off, these showed off and kept working.
+    serve([
+      feature(),
+      feature({ key: "attendance", overridable: false, switchable: false }),
+    ]);
+    renderPage();
+
+    const attendance = (await screen.findByText("Attendance")).closest("tr")!;
+    expect(within(attendance).getByText("Always on")).toBeInTheDocument();
+    expect(within(attendance).queryByRole("button")).not.toBeInTheDocument();
+
+    const payroll = screen.getByText("Payroll").closest("tr")!;
+    expect(within(payroll).getByRole("button")).toBeInTheDocument();
   });
 
   it("sends the new state with its reason, and only once a reason is given", async () => {

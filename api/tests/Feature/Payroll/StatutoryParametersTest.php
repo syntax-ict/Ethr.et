@@ -101,7 +101,7 @@ it('pays the same employee under each organisation type\'s rules, and logs where
         ->and($companyEntry->income_tax_cents)->toBe($armyEntry->income_tax_cents);
 
     $log = $armyEntry->calculation_log;
-    expect($log['version'])->toBe('1.5')
+    expect($log['version'])->toBe('1.7')
         ->and($log['statutory_rules']['organization_type'])->toBe('defence_police')
         ->and($log['statutory_rules']['rules']['pension.default_scheme'])->toMatchArray(['value' => 'public_military', 'source' => 'platform_type'])
         ->and($log['statutory_rules']['rules']['payroll.hours_per_day'])->toMatchArray(['value' => 8, 'source' => 'platform', 'confirmed' => true]);
@@ -250,4 +250,52 @@ it('moves no existing organisation\'s pension scheme or fiscal year when it gues
     $rules = app(StatutoryRules::class)->for($chosen->fresh(), Carbon::parse('2026-10-15'));
     expect($rules->string('pension.default_scheme'))->toBe('public')
         ->and($rules->int('fiscal_year.start_month'))->toBe(11);
+});
+
+it('lets an organisation set its own working days per month, which payroll and sick leave then read', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $url = 'http://'.$tenant->subdomain.'.ethr.test/api/v1/settings';
+
+    $this->getJson($url)->assertOk()->assertJsonPath('payroll.working_days_per_month', 22);
+
+    $this->putJson($url, ['settings' => ['working_days_per_month' => 19]])->assertUnprocessable();
+    $this->putJson($url, ['settings' => ['working_days_per_month' => 26]])->assertOk();
+
+    $this->getJson($url)->assertJsonPath('payroll.working_days_per_month', 26);
+
+    $rules = app(StatutoryRules::class)->for($tenant->fresh(), Carbon::parse('2026-11-10'));
+    expect($rules->int('payroll.working_days_per_month'))->toBe(26)
+        ->and($rules->describe('payroll.working_days_per_month')['source'])->toBe('tenant_setting')
+        ->and($rules->describe('payroll.working_days_per_month')['confirmed'])->toBeFalse()
+        ->and(app(StatutoryRules::class)->platform(Carbon::parse('2026-11-10'))->int('payroll.working_days_per_month'))->toBe(22);
+});
+
+it('gives every organisation type its own working-days row, unconfirmed, equal to today so nothing moves', function () {
+    $types = DB::table('organization_types')->pluck('code')->all();
+    $rows = DB::table('statutory_parameters')
+        ->whereNull('tenant_id')->where('code', 'payroll.working_days_per_month')->whereNotNull('organization_type')
+        ->get()->keyBy('organization_type');
+
+    expect($types)->not->toBeEmpty()
+        ->and($rows->keys()->sort()->values()->all())->toBe(collect($types)->sort()->values()->all());
+    foreach ($rows as $row) {
+        expect(json_decode($row->value))->toBe(22)
+            ->and((bool) $row->confirmed)->toBeFalse()
+            ->and((bool) $row->tenant_overridable)->toBeTrue();
+    }
+});
+
+it('lets one type be approved or changed with a dated row without touching another, and an organisation still wins', function () {
+    platformParameter('payroll.working_days_per_month', 26, 'private', from: '2026-11-01', overridable: true);
+    $private = createTenant(['organization_type' => 'private']);
+    $ministry = createTenant(['organization_type' => 'government']);
+    $own = createTenant(['organization_type' => 'private', 'settings' => ['working_days_per_month' => 24]]);
+    $rules = app(StatutoryRules::class);
+    $day = Carbon::parse('2026-11-10');
+
+    expect($rules->for($private, $day)->int('payroll.working_days_per_month'))->toBe(26)
+        ->and($rules->for($ministry, $day)->int('payroll.working_days_per_month'))->toBe(22)
+        ->and($rules->for($own, $day)->int('payroll.working_days_per_month'))->toBe(24)
+        ->and($rules->for($private, Carbon::parse('2026-10-31'))->int('payroll.working_days_per_month'))->toBe(22);
 });

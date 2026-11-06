@@ -45,6 +45,7 @@ function organisationContext(): HostCtx {
     },
     tenantSignIn: null,
     tenantDefaultLocale: null,
+    tenantBillingOnly: false,
     onLanding: true,
     carryOrganisation: "acme",
     tenantRequest: { mode: "entry", slug: "acme" },
@@ -389,6 +390,17 @@ describe("<OrganisationPortal> brand images", () => {
 
     unmount();
     expect(existing.getAttribute("href")).toBe("/favicon.ico");
+  });
+
+  it("does not repeat the logo in the hero beside the header's", () => {
+    renderBranded();
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section");
+    expect(hero).not.toBeNull();
+    expect(hero?.querySelector('img[src="' + brand.logo_url + '"]')).toBeNull();
+    // The header and the footer still carry it.
+    expect(
+      screen.getAllByRole("img", { name: "Acme Manufacturing" }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows the dark-background logo in the header only in dark mode", () => {

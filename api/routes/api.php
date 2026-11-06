@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminSupportController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
+use App\Http\Controllers\Api\V1\Admin\AdminTenantJourneyController;
 use App\Http\Controllers\Api\V1\Admin\BackupStorageController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
@@ -52,6 +53,7 @@ use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\MfaVerifyController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
+use App\Http\Controllers\Api\V1\Auth\OwnPhoneController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\RefreshController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
@@ -142,6 +144,7 @@ use App\Http\Controllers\Api\V1\Search\GlobalSearchController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\DataExportController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
+use App\Http\Controllers\Api\V1\Settings\OwnershipController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\Settings\TenantBrandAssetController;
 use App\Http\Controllers\Api\V1\Settings\TenantLogoController;
@@ -361,6 +364,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/logout', LogoutController::class);
         Route::post('/refresh', RefreshController::class);
         Route::get('/me', MeController::class);
+        Route::put('/me/phone', OwnPhoneController::class);
         Route::post('/password/change', [PasswordResetController::class, 'change']);
 
         // MFA
@@ -529,6 +533,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('shifts')->group(function () {
         Route::post('/assign', [ShiftController::class, 'assign']);
         Route::get('/schedule', [ShiftController::class, 'schedule']);
+        Route::get('/coverage', [ShiftController::class, 'coverage']);
         Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
         Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
         Route::post('/{shift}/duplicate', [ShiftController::class, 'duplicate']);
@@ -683,6 +688,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::put('/{leaveRequest}/approve', [LeaveRequestController::class, 'approve']);
         Route::put('/{leaveRequest}/reject', [LeaveRequestController::class, 'reject']);
         Route::put('/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel']);
+        Route::put('/{leaveRequest}/recall', [LeaveRequestController::class, 'recall']);
         // Kept last so the literal GET routes above are matched first.
         Route::get('/{leaveRequest}', [LeaveRequestController::class, 'show']);
     });
@@ -983,6 +989,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         ->middleware([EnsurePlatformContext::class, RequirePlatformMfa::class, 'throttle:platform-admin'])
         ->group(function () {
             Route::get('/tenants', [AdminTenantController::class, 'index']);
+            Route::get('/tenants/journey-summary', [AdminTenantJourneyController::class, 'summary']);
+            Route::get('/tenants/{publicId}/journey', [AdminTenantJourneyController::class, 'show']);
             Route::get('/tenants/{publicId}', [AdminTenantController::class, 'show']);
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
             Route::put('/tenants/{publicId}/showcase', [AdminTenantController::class, 'updateShowcase']);
@@ -990,6 +998,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/tenants/{publicId}/domain/verify', [AdminTenantController::class, 'verifyDomain']);
             Route::put('/tenants/{publicId}/address-mode', [AdminTenantController::class, 'updateAddressMode']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
+            Route::post('/tenants/{publicId}/ownership', [AdminTenantController::class, 'transferOwnership']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
             Route::post('/tenants/{publicId}/delete', [AdminTenantController::class, 'destroy']);
@@ -1109,6 +1118,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/address', [SettingsController::class, 'updateAddress']);
+    Route::get('/settings/ownership', [OwnershipController::class, 'show']);
+    Route::post('/settings/ownership/transfer', [OwnershipController::class, 'transfer']);
     Route::post('/settings/address/verify', [SettingsController::class, 'verifyAddress']);
     Route::get('/settings/address/subdomain/check', [SettingsController::class, 'checkSubdomain']);
     Route::put('/settings/address/subdomain', [SettingsController::class, 'updateSubdomain'])->middleware('throttle:address-rename');
@@ -1147,6 +1158,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // #5 is a compliance guarantee, not a tier benefit); only reading them back
     // through the API is tiered.
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
+        ->middleware(RequiresFeature::class.':audit_log');
+    Route::get('/audit-logs/stats', [AuditLogController::class, 'stats'])
         ->middleware(RequiresFeature::class.':audit_log');
 
     // Custom roles

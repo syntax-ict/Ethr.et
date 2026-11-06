@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Services\Observability\QueueHealth;
 use App\Support\Mail\MailHealth;
+use App\Support\SchemaStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -96,6 +97,12 @@ class HealthController extends Controller
         $allHealthy = array_intersect($core, ['unhealthy', 'unavailable']) === []
             && $services['database_read'] !== 'unhealthy';
 
+        // A deploy whose `migrate` was skipped serves code ahead of its
+        // schema. It is reported, not turned into a 503, for the reason the
+        // scheduler is not: the site is up, and a probe that pages on it gets
+        // muted. scripts/release-status.sh is what acts on it (SchemaStatus).
+        $schemaDetail = ['pending_migrations' => app(SchemaStatus::class)->pendingMigrations()];
+
         // Outside `services` on purpose: everything in there feeds the 503
         // above, and scheduler staleness must not.
         return response()->json([
@@ -103,6 +110,7 @@ class HealthController extends Controller
             'services' => $services,
             'queue_detail' => $queueDetail,
             'mail_detail' => MailHealth::snapshot(),
+            'schema_detail' => $schemaDetail,
             'timestamp' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], $allHealthy ? 200 : 503);

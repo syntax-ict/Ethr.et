@@ -21,10 +21,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -207,8 +210,8 @@ export default function WebhooksPage() {
               )}
               {hasWebhooks && (
                 <Button onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />{" "}
-                  {t("webhooks_page.add_webhook")}
+                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
+                  {t("webhooks_page.add_webhook", "Add webhook")}
                 </Button>
               )}
             </>
@@ -218,13 +221,13 @@ export default function WebhooksPage() {
         {!hasWebhooks && <PlanFeatureNotice feature="webhooks" />}
 
         {newSecret && (
-          <Card className="border-2 border-status-warning/40 bg-status-warning/5">
+          <Card className="border-warning-edge bg-warning-soft">
             <CardContent className="p-4">
-              <p className="mb-2 text-sm font-semibold text-foreground">
+              <p className="mb-2 text-sm font-semibold text-warning-on-soft">
                 {t("webhooks_page.save_secret_hint")}
               </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <code className="block min-w-0 flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
                   {newSecret}
                 </code>
                 <Button
@@ -260,7 +263,19 @@ export default function WebhooksPage() {
             <EmptyState
               icon={Webhook}
               title={t("webhooks_page.no_webhooks")}
-              description={t("webhooks_page.no_webhooks_desc")}
+              // Without the plan feature there is no Add button, so the
+              // description must not send the reader looking for one.
+              description={
+                hasWebhooks
+                  ? t(
+                      "webhooks_page.no_webhooks_desc",
+                      "Add a webhook and ETHR will notify your system when employees, leave, attendance or payroll change.",
+                    )
+                  : t(
+                      "webhooks_page.no_webhooks_desc_plan",
+                      "With webhooks, ETHR notifies your system when employees, leave, attendance or payroll change.",
+                    )
+              }
             />
           }
         >
@@ -269,12 +284,12 @@ export default function WebhooksPage() {
               {webhooks.map((w) => (
                 <Card key={w.public_id}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono text-foreground truncate">
-                            {w.url}
-                          </code>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <code className="block min-w-0 break-all font-mono text-sm text-foreground">
+                          {w.url}
+                        </code>
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant="outline"
                             className={
@@ -294,7 +309,7 @@ export default function WebhooksPage() {
                             >
                               {t(
                                 "webhooks_page.failures_count",
-                                ":count failures",
+                                "Failures: :count",
                                 {
                                   count: w.failure_count,
                                 },
@@ -302,32 +317,35 @@ export default function WebhooksPage() {
                             </Badge>
                           )}
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1">
                           {w.events.map((e) => (
                             <Badge
                               key={e}
                               variant="outline"
-                              className="text-[10px]"
+                              className="text-caption"
                             >
                               {e}
                             </Badge>
                           ))}
                         </div>
                         {w.last_triggered_at && (
-                          <p className="mt-2 text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {t("webhooks_page.last_triggered")}:{" "}
                             {formatDateTime(w.last_triggered_at)}
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-1">
+                      {/* Pending states are per webhook: one mutation object
+                          serves every row, so reading `isPending` alone
+                          disabled every Test button while one was sending. */}
+                      <div className="flex flex-wrap items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setDeliveriesFor(w)}
                           title={t("webhooks_page.deliveries_title")}
                         >
-                          <History className="h-4 w-4" />
+                          <History className="h-4 w-4" aria-hidden="true" />
                           <span className="sr-only">
                             {t("webhooks_page.deliveries_title")}
                           </span>
@@ -336,10 +354,21 @@ export default function WebhooksPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => sendTest(w.public_id)}
-                          disabled={testWebhook.isPending}
+                          disabled={
+                            testWebhook.isPending &&
+                            testWebhook.variables === w.public_id
+                          }
                           title={t("webhooks_page.send_test")}
                         >
-                          <Send className="h-4 w-4" />
+                          {testWebhook.isPending &&
+                          testWebhook.variables === w.public_id ? (
+                            <Loader2
+                              className="h-4 w-4 animate-spin"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <Send className="h-4 w-4" aria-hidden="true" />
+                          )}
                           <span className="sr-only">
                             {t("webhooks_page.send_test")}
                           </span>
@@ -349,12 +378,16 @@ export default function WebhooksPage() {
                             <Switch
                               checked={w.is_active}
                               onCheckedChange={(on) => setActive(w, on)}
-                              disabled={updateWebhook.isPending}
+                              disabled={
+                                updateWebhook.isPending &&
+                                updateWebhook.variables?.publicId ===
+                                  w.public_id
+                              }
                               aria-label={t(
                                 "webhooks_page.active_toggle",
                                 "Deliver to this webhook",
                               )}
-                              className="mt-1.5"
+                              className="mx-1"
                             />
                             <Button
                               variant="ghost"
@@ -362,7 +395,7 @@ export default function WebhooksPage() {
                               onClick={() => openEdit(w)}
                               title={t("common.edit", "Edit")}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
                               <span className="sr-only">
                                 {t("common.edit", "Edit")}
                               </span>
@@ -375,7 +408,10 @@ export default function WebhooksPage() {
                           onClick={() => setDeleting(w)}
                           title={t("common.delete")}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2
+                            className="h-4 w-4 text-destructive"
+                            aria-hidden="true"
+                          />
                           <span className="sr-only">{t("common.delete")}</span>
                         </Button>
                       </div>
@@ -390,8 +426,15 @@ export default function WebhooksPage() {
         <ConfirmDialog
           open={!!deleting}
           onOpenChange={(open) => !open && setDeleting(null)}
-          title={`${t("common.delete")}: ${deleting?.url ?? ""}`}
-          description={t("devices_page.delete_confirm_suffix")}
+          title={t(
+            "webhooks_page.delete_confirm_title",
+            "Delete this webhook?",
+          )}
+          description={t(
+            "webhooks_page.delete_confirm_desc",
+            "Deliveries to :url stop immediately. This cannot be undone.",
+            { url: deleting?.url ?? "" },
+          )}
           confirmLabel={t("common.delete")}
           variant="destructive"
           loading={deleteWebhook.isPending}
@@ -414,11 +457,23 @@ export default function WebhooksPage() {
               <DialogTitle>
                 {editing
                   ? t("webhooks_page.edit_webhook", "Edit webhook")
-                  : t("webhooks_page.create_webhook")}
+                  : t("webhooks_page.create_webhook", "New webhook")}
               </DialogTitle>
+              <DialogDescription>
+                {t(
+                  "webhooks_page.create_desc",
+                  "ETHR will POST a signed JSON payload to this URL each time a chosen event happens.",
+                )}
+              </DialogDescription>
             </DialogHeader>
             <form
-              onSubmit={submit(create, t("webhooks_page.create_failed"))}
+              onSubmit={submit(
+                create,
+                t(
+                  "webhooks_page.create_failed",
+                  "The webhook could not be saved.",
+                ),
+              )}
               className="space-y-4"
               noValidate
             >
@@ -428,6 +483,10 @@ export default function WebhooksPage() {
                 id="webhook-url"
                 label={t("webhooks_page.url")}
                 required
+                hint={t(
+                  "webhooks_page.url_help",
+                  "Must be https and reachable from the internet.",
+                )}
                 error={fieldMessage(t, errors.url?.message)}
               >
                 <Input
@@ -455,18 +514,22 @@ export default function WebhooksPage() {
                     className="mt-2 max-h-60 space-y-1 overflow-y-auto rounded-lg border p-2"
                   >
                     {WEBHOOK_EVENTS.map((event) => (
-                      <label
+                      <div
                         key={event}
-                        className="flex cursor-pointer items-center gap-2 rounded p-1 hover:bg-muted/50"
+                        className="flex items-center gap-2 rounded p-1 hover:bg-muted/50"
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
+                          id={`webhook-event-${event}`}
                           checked={selectedEvents.includes(event)}
-                          onChange={() => toggleEvent(event)}
-                          className="h-4 w-4 rounded"
+                          onCheckedChange={() => toggleEvent(event)}
                         />
-                        <span className="font-mono text-sm">{event}</span>
-                      </label>
+                        <Label
+                          htmlFor={`webhook-event-${event}`}
+                          className="cursor-pointer font-mono text-sm font-normal"
+                        >
+                          {event}
+                        </Label>
+                      </div>
                     ))}
                   </div>
                 )}

@@ -26,6 +26,7 @@ class NotificationPreferencesController extends Controller
         'leave_requested',
         'leave_approved',
         'leave_rejected',
+        'leave_changed',
         'attendance_correction',
         'overtime_request',
         'attendance_anomaly',

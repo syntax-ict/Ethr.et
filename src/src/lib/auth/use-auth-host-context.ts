@@ -135,6 +135,11 @@ interface TenantContextResponse {
     landing?: TenantLanding;
     sign_in?: TenantSignIn;
     default_locale?: string;
+    /**
+     * The organisation is locked out for money (trial ended, or suspended
+     * with a bill unpaid): sign-in still works, and leads to billing only.
+     */
+    billing_only?: boolean;
   } | null;
 }
 
@@ -283,6 +288,8 @@ export function useAuthHostContext() {
     /** SSO and text-message sign-in, where the organisation offers them. */
     tenantSignIn: resolved?.sign_in ?? null,
     tenantDefaultLocale: resolved?.default_locale ?? null,
+    /** Signing in leads to billing only (`billing_only` on the context). */
+    tenantBillingOnly: resolved?.billing_only === true,
     /**
      * On an organisation's own landing address, `ethr.et/{slug}`, or a
      * sign-in page handed the organisation by `?org=` / `?tenant=`.

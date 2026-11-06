@@ -187,6 +187,7 @@ it('leaves a setup window: a fresh install registers its one organisation', func
         'subdomain' => 'mersa',
         'admin_name' => 'Admin',
         'admin_email' => 'admin@mersa.example',
+        'admin_phone' => '0912345678',
         'password' => 'Str0ng-passw0rd',
         'password_confirmation' => 'Str0ng-passw0rd',
     ])->assertCreated();

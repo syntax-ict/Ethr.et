@@ -41,6 +41,7 @@ beforeEach(() => {
     tenantLanding: null,
     tenantSignIn: { sso: false, otp: true, email_code: false },
     tenantDefaultLocale: null,
+    tenantBillingOnly: false,
     onLanding: false,
     carryOrganisation: null,
     tenantRequest: null,
