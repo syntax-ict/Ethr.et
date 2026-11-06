@@ -96,7 +96,7 @@ For a processed run, the run page offers:
 | 7 | Overtime rates, the 22-day month and the 8-hour day suit this organisation | | | |
 | 8 | Pagume treatment (`full_month` or `daily_rate`) is the one the organisation uses | | | |
 | 9 | Sick-leave pay (Labour Proclamation 1156/2019 Art. 85, PR #637): the pay tiers and their daily rate, monthly basic ÷ `payroll.working_days_per_month`. The divisor is the platform default (22) unless the organisation set its own; if it changes, this row's figures change with it | | | |
-| 10 | Every parameter marked `confirmed = no` in [`STATUTORY-PARAMETERS.md`](STATUTORY-PARAMETERS.md) §Parameters (the month length, overtime daily/weekly caps and which types they limit, fiscal-year start months, Pagume default, public-enterprise pension scheme) is accepted or corrected | | | |
+| 10 | Every parameter marked `confirmed = no` in [`STATUTORY-PARAMETERS.md`](STATUTORY-PARAMETERS.md) §Parameters (the month length, one row per organisation type, overtime daily/weekly caps and which types they limit, fiscal-year start months, Pagume default, public-enterprise pension scheme) is accepted or corrected | | | |
 
 Rows 1–10 are the whole review. A corrected platform value is entered as a new dated row, never an
 edit (`STATUTORY-PARAMETERS.md` → *Changing a value*), carrying the same overridable flag so
