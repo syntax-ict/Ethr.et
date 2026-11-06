@@ -43295,6 +43295,10 @@
                             "with_record_public_id"
                         ]
                     },
+                    "punches": {
+                        "type": "array",
+                        "items": []
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -43337,6 +43341,7 @@
                     "worked_minutes",
                     "overtime_minutes",
                     "conflict",
+                    "punches",
                     "created_at",
                     "updated_at",
                     "was_duplicate",
@@ -43464,6 +43469,10 @@
                             "with_record_public_id"
                         ]
                     },
+                    "punches": {
+                        "type": "array",
+                        "items": []
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -43496,6 +43505,7 @@
                     "worked_minutes",
                     "overtime_minutes",
                     "conflict",
+                    "punches",
                     "created_at",
                     "updated_at"
                 ],

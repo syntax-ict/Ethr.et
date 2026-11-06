@@ -35,6 +35,7 @@ final class EnteredAttendance
         array $metadata,
         ?string $idempotencyKey = null,
         ?string $ipAddress = null,
+        AttendanceSource $source = AttendanceSource::MANUAL,
     ): AttendanceResult {
         // The engine is given the entered moment, not left to use "now". It
         // matches the shift, rates lateness and looks for clashing punches at
@@ -45,7 +46,7 @@ final class EnteredAttendance
         $result = $this->engine->record(new AttendanceInput(
             employeeId: $employee->id,
             tenantId: $employee->tenant_id,
-            source: AttendanceSource::MANUAL,
+            source: $source,
             type: 'check_in',
             idempotencyKey: $idempotencyKey,
             ipAddress: $ipAddress,
