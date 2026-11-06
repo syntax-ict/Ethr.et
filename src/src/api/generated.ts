@@ -4263,6 +4263,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leave/{leaveRequest}/recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cancel approved leave, or end it early: HR only, with a reason. The
+         *     days it no longer takes go back to the balance, and the employee is
+         *     told. Without `end_date` the leave is cancelled
+         */
+        put: operations["leaveRequest.recall"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/{leaveRequest}": {
         parameters: {
             query?: never;
@@ -5468,6 +5489,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Phone me */
+        put: operations["auth.ownPhone"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ownership settings */
+        get: operations["ownership.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ownership/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer ownership */
+        post: operations["ownership.transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -6242,6 +6314,29 @@ export interface paths {
         put?: never;
         /** Extend trial tenants */
         post: operations["adminTenant.extendTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand an organisation to another of its active administrators: for an
+         *     owner who has left, or cannot be reached. The organisation's own owner
+         *     transfers from Settings; this is ETHR's, with a reason, behind
+         *     admin.manage and the console's MFA for writes. Recorded in the audit
+         *     log, which is the ownership history
+         */
+        post: operations["adminTenant.transferOwnership"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7331,6 +7426,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many entries the trail holds per day and per action over a range
+         *     (the last 30 days by default), for the charts above the list. Days are
+         *     the organisation's own: the stored UTC instant is shifted by the zone's
+         *     offset before it is dated, which `(tenant_id, created_at)` can still
+         *     serve as a range scan. Charts upgrade, 2026-11-04
+         */
+        get: operations["auditLog.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assign": {
         parameters: {
             query?: never;
@@ -7357,6 +7475,28 @@ export interface paths {
         };
         /** Schedule shifts */
         get: operations["shift.schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each shift's staffing over a range of days, this week by default: the
+         *     people scheduled and attending per day, and the hours planned against
+         *     the hours covered. Over the employees the caller reaches, as the
+         *     employee screens are (charts upgrade, 2026-11-04)
+         */
+        get: operations["shift.coverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9609,8 +9749,8 @@ export interface components {
         GradeResource: {
             public_id: string;
             name: string;
-            min_salary_cents: number;
-            max_salary_cents: number;
+            min_salary_cents?: number;
+            max_salary_cents?: number;
             sort_order: number;
             employees_count?: number;
             /** Format: date-time */
@@ -9622,7 +9762,7 @@ export interface components {
         GradeSalaryStepResource: {
             public_id: string;
             step: number;
-            salary_cents: number;
+            salary_cents?: number;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -9732,6 +9872,8 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
         };
         /**
          * IssueActivationCodeRequest
@@ -10146,7 +10288,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -10604,6 +10746,12 @@ export interface components {
                 };
             };
         };
+        /** RecallLeaveRequest */
+        RecallLeaveRequest: {
+            /** Format: date */
+            end_date?: string | null;
+            reason: string;
+        };
         /**
          * RecordApplicationEventRequest
          * @description A note, or an interview: when it is or was, and the panel's assessment out
@@ -10683,7 +10831,7 @@ export interface components {
             admin_name: string;
             /** Format: email */
             admin_email: string;
-            admin_phone?: string | null;
+            admin_phone: string;
             /**
              * @description The tenant does not exist yet, so this falls through to
              *     PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
@@ -11749,7 +11897,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
         };
         /** SupportMessageRequest */
         SupportMessageRequest: {
@@ -11823,6 +11971,16 @@ export interface components {
         TrackConcernRequest: {
             code: string;
             body?: string;
+        };
+        /** TransferOwnershipByPlatformRequest */
+        TransferOwnershipByPlatformRequest: {
+            user_public_id: string;
+            reason: string;
+        };
+        /** TransferOwnershipRequest */
+        TransferOwnershipRequest: {
+            user_public_id: string;
+            password: string;
         };
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
@@ -12020,7 +12178,7 @@ export interface components {
         UpdateChartOfAccountsRequest: {
             accounts: {
                 /** @enum {string} */
-                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable" | "loans_receivable" | "cost_sharing_payable";
                 account_code: string;
                 account_name: string;
             }[];
@@ -12363,6 +12521,10 @@ export interface components {
             holiday: number;
             holiday_night: number;
         };
+        /** UpdateOwnPhoneRequest */
+        UpdateOwnPhoneRequest: {
+            phone: string;
+        };
         /**
          * UpdatePayrollRuleRequest
          * @description Updates a tenant allowance rule. `type` is always required so the `formula`
@@ -12656,7 +12818,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
         };
         /**
@@ -13089,6 +13251,7 @@ export interface operations {
                         key: string;
                         kind: string;
                         overridable: boolean;
+                        switchable: boolean;
                         state: string;
                         default_state: string;
                         reason: string | null;
@@ -17303,9 +17466,7 @@ export interface operations {
                             employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
-                        permissions: {
-                            [key: string]: unknown;
-                        };
+                        permissions: string[];
                         plan_features: unknown[] | null;
                         features: {
                             [key: string]: {
@@ -17317,6 +17478,7 @@ export interface operations {
                         paused_features: string[];
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
+                        billing_only: boolean;
                     };
                 };
             };
@@ -18926,6 +19088,8 @@ export interface operations {
                         attendance_rate: {
                             today: number | null;
                             period: number | null;
+                            today_present: number;
+                            today_expected: number;
                         };
                         payroll_summary: {
                             gross_cents: number;
@@ -18941,6 +19105,7 @@ export interface operations {
                         workforce_growth: {
                             month: string;
                             hires: number;
+                            headcount: number;
                         }[];
                         leave_utilization: {
                             entitled_days: number;
@@ -18982,6 +19147,11 @@ export interface operations {
                         }[];
                         by_source: {
                             source: string;
+                            count: number;
+                        }[];
+                        by_hour: {
+                            weekday: number;
+                            hour: number;
                             count: number;
                         }[];
                         top_late: {
@@ -24083,11 +24253,6 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /**
-             * @description Cached briefly, like tenant-context: the portal is public and read
-             *     far more often than news is published, and Vary keeps one tenant's
-             *     feed from being served as another's through a shared cache.
-             */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -24517,6 +24682,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
+                        type: "https://ethr.et/errors/payroll-period-closed";
+                        /** @constant */
+                        title: "Payroll period closed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.";
+                    } | {
+                        /** @constant */
                         type: "https://ethr.et/errors/invalid-state";
                         /** @constant */
                         title: "Invalid State";
@@ -24629,6 +24803,43 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "leaveRequest.recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The leave request public id */
+                leaveRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecallLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description `LeaveRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "leaveRequest.show": {
@@ -25779,6 +25990,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -25839,6 +26051,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -27370,12 +27583,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27692,12 +27906,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27853,12 +28068,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -28382,6 +28598,91 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "auth.ownPhone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOwnPhoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        phone: string | null;
+                        phone_verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "ownership.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string | null;
+                        owner_name: string | null;
+                        is_owner: string;
+                        candidates: {
+                            public_id: string;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "ownership.transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "payroll.process": {
@@ -30133,6 +30434,46 @@ export interface operations {
                             /** Format: date-time */
                             created_at: string;
                         }[];
+                        owner: {
+                            name: string;
+                            email: string | null;
+                            phone: string | null;
+                            phone_verified: boolean;
+                            last_login_at: string | null;
+                            public_id: string;
+                            status: string;
+                        } | null;
+                        admins: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                        }[];
+                        ownership_history: {
+                            action: string;
+                            from: string | null;
+                            to: string | null;
+                            reason: string | null;
+                            by_platform: boolean;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
+                        administrators: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                            role: string;
+                            custom_role: string | null;
+                            mfa_enabled: boolean;
+                            status: string;
+                            last_login_at: string | null;
+                            is_owner: boolean;
+                        }[];
+                        privileged_actions: {
+                            action: string;
+                            actor: string | null;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
                     };
                 };
             };
@@ -30332,6 +30673,36 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         trial_ends_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.transferOwnership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipByPlatformRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
                     };
                 };
             };
@@ -30566,6 +30937,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -30610,6 +30982,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -30653,6 +31026,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -33003,7 +33377,7 @@ export interface operations {
                     "application/json": {
                         templates: {
                             /** @enum {string} */
-                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "payslip_available" | "missing_punch" | "trial_expiring";
+                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "payslip_available" | "missing_punch" | "trial_expiring";
                             subject_en: string;
                             subject_am: string;
                             body_en: string;
@@ -33120,6 +33494,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "auditLog.stats": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string | null;
+                "filter[from]"?: string | null;
+                "filter[to]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        by_day: {
+                            date: string;
+                            count: number;
+                        }[];
+                        by_action: {
+                            action: string;
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shift.assign": {
         parameters: {
             query?: never;
@@ -33199,6 +33610,51 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.coverage": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        days: string[];
+                        shifts: {
+                            public_id: string;
+                            name: string;
+                            name_am: string;
+                            start_time: string;
+                            end_time: string;
+                            planned_minutes: number;
+                            covered_minutes: number;
+                            scheduled_people: number;
+                            attended_people: number;
+                            by_day: {
+                                date: string;
+                                scheduled: number;
+                                attended: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shiftAssignment.destroy": {
@@ -35072,6 +35528,7 @@ export interface operations {
                                 email_code: boolean;
                             };
                             default_locale: string;
+                            billing_only: boolean;
                         } | null;
                     };
                 };
@@ -35439,6 +35896,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This person owns the organisation. Hand ownership to another administrator first.";
+                    } | {
                         /** @constant */
                         type: "https://ethr.et/errors/business-rule";
                         /** @constant */

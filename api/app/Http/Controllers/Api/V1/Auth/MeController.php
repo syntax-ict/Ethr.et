@@ -32,6 +32,10 @@ class MeController extends Controller
         // `org_scope` is how far the role reaches (ScopesEmployeeAccess); the
         // dashboard shows a department or team section from it.
         $name = $employee->name ?? $user->display_name;
+        // True when the organisation is locked out for money and only sign-in
+        // and billing answer (`Tenant::billingOnly()`, A-Z review H-09): the
+        // app then shows the billing screen and nothing else.
+        $billingOnly = (bool) ($currentTenant->resolved() && ! $currentTenant->get()->isActive());
 
         return response()->json([
             'user' => [
@@ -67,6 +71,7 @@ class MeController extends Controller
                 ? new TenantResource($currentTenant->get())
                 : null,
             'upload_limit_bytes' => UploadLimit::bytes(),
+            'billing_only' => $billingOnly,
         ]);
     }
 }

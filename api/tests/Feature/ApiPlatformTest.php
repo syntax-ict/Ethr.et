@@ -343,7 +343,8 @@ test('finance admin can view chart of accounts', function () {
         ->assertJsonStructure(['accounts'])
         ->assertJsonPath('accounts.0.key', 'salary_expense');
 
-    expect(count($response->json('accounts')))->toBe(6);
+    // Six, and since 2026-11-03 loans receivable and cost sharing payable.
+    expect(count($response->json('accounts')))->toBe(8);
 });
 
 test('finance admin can update chart of accounts', function () {

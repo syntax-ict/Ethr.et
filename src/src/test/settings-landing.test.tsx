@@ -180,7 +180,7 @@ describe("<LandingCard>", () => {
       target: { value: "1998" },
     });
     await user.click(screen.getByRole("tab", { name: "Contact" }));
-    fireEvent.change(screen.getByLabelText("HR help e-mail"), {
+    fireEvent.change(screen.getByLabelText("HR help email"), {
       target: { value: "hr@acme.et" },
     });
     fireEvent.change(screen.getByLabelText("Latitude"), {
@@ -436,9 +436,11 @@ describe("<LandingCard>", () => {
     });
     await user.click(screen.getByRole("tab", { name: "Questions" }));
 
+    // The button keeps its name at the limit; the limit is said beside it.
     expect(
-      screen.getByRole("button", { name: "Twelve questions is the most" }),
+      screen.getByRole("button", { name: "Add a question" }),
     ).toBeDisabled();
+    expect(screen.getByText("Up to twelve questions.")).toBeInTheDocument();
   });
 
   it("shows the server's refusal under the field it names, nested links included", async () => {

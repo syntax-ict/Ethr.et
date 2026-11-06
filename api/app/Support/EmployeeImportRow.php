@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\NationalityStatus;
+use App\Services\Calendar\EthiopianCalendar;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -145,10 +146,16 @@ final class EmployeeImportRow
      * commit will accept it" — and the rows the preview returns are the rows the
      * page sends back.
      *
+     * Dates are read in `$calendar`: an Ethiopian office's file says Tahsas 15,
+     * 2016 as 2016-04-15 or 15/04/2016, which is 25 December 2023, and read as
+     * Gregorian it became April 2016 without a word (A-Z review B-01). Either
+     * way the row leaves here in Gregorian, which is what the commit stores.
+     *
      * @param  array<string, mixed>  $row
+     * @param  'gregorian'|'ethiopian'  $calendar
      * @return array<string, mixed>
      */
-    public static function normalize(array $row): array
+    public static function normalize(array $row, string $calendar = 'gregorian'): array
     {
         $row = array_map(function (mixed $value): mixed {
             if (! is_string($value)) {
@@ -196,7 +203,9 @@ final class EmployeeImportRow
 
         foreach (['hire_date', 'date_of_birth'] as $field) {
             if (is_string($row[$field] ?? null)) {
-                $row[$field] = self::dayFirst($row[$field]);
+                $row[$field] = $calendar === 'ethiopian'
+                    ? self::fromEthiopian($row[$field])
+                    : self::dayFirst($row[$field]);
             }
         }
 
@@ -236,6 +245,32 @@ final class EmployeeImportRow
             fn (string $message): string => "Row {$lineNumber}: {$message}",
             $validator->errors()->all(),
         );
+    }
+
+    /**
+     * An Ethiopian date, year first (2016-04-15) or day first (15/04/2016,
+     * 15.04.2016), as the Gregorian Y-m-d it falls on. Anything that is not a
+     * real Ethiopian date is returned as written, so the date rule refuses it
+     * rather than this guessing.
+     */
+    private static function fromEthiopian(string $value): string
+    {
+        if (preg_match('#^(\d{4})-(\d{1,2})-(\d{1,2})$#', $value, $m) === 1) {
+            [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } elseif (preg_match('#^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$#', $value, $m) === 1) {
+            [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } else {
+            return $value;
+        }
+
+        $calendar = app(EthiopianCalendar::class);
+        $monthLength = $month === 13 ? $calendar->daysInPagume($year) : 30;
+
+        if ($month < 1 || $month > 13 || $day < 1 || $day > $monthLength) {
+            return $value;
+        }
+
+        return $calendar->ethiopianToGregorian($year, $month, $day)->format('Y-m-d');
     }
 
     /**

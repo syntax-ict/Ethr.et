@@ -92,8 +92,19 @@ class DispatchWebhookJob implements ShouldQueue
         // `release`). A fresh copy is queued rather than this one released,
         // because a release spends one of the six tries, and a switch left off
         // for an hour would use them all and fail deliveries nobody refused.
+        //
+        // Held for a day at most. Queued again every ten minutes up to the
+        // 30-day cleanup, a delivery went out weeks late with a fresh
+        // timestamp once the switch came back on (A-Z review G-08). Expired
+        // is recorded on the delivery and counts nothing against the webhook.
         $tenant = Tenant::query()->find($this->tenantId);
         if ($tenant !== null && ! app(FeatureGate::class)->allows($tenant, Feature::WebhooksOutbound)) {
+            if ($delivery->created_at !== null && $delivery->created_at->lt(now()->subDay())) {
+                $this->markFailed($delivery, null, 'Not sent: expired after a day held while webhook delivery was switched off', 0);
+
+                return;
+            }
+
             self::dispatch($this->webhookId, $this->event, $this->payload, $this->deliveryId, $this->tenantId)
                 ->onQueue('default')
                 ->delay(now()->addSeconds(FeatureUnavailable::RETRY_AFTER_SECONDS));
@@ -134,7 +145,11 @@ class DispatchWebhookJob implements ShouldQueue
         // The signed bytes are the bytes sent. Handing the client the array
         // let it encode the payload a second time; the signature held only
         // because both encodings happened to use the same flags.
-        $payloadJson = (string) json_encode($this->payload);
+        //
+        // The delivery id receivers de-duplicate on travels in the body too,
+        // so it is signed: in the header alone a captured delivery could be
+        // replayed under a new id and handled twice (A-Z review G-07).
+        $payloadJson = (string) json_encode([...$this->payload, 'delivery_id' => (string) $delivery->public_id]);
         $signature = 'sha256='.$webhook->sign($payloadJson);
         // The body's own `timestamp` is when the delivery was queued, and a
         // retry carries it unchanged up to a day later, so a receiver could not

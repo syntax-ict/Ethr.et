@@ -56,3 +56,29 @@ export function fetchAllAuditLogs(
 ): Promise<AuditLogEntry[]> {
   return fetchAllPages<AuditLogEntry>(endpoint, filterParams(filters));
 }
+
+export interface AuditLogStats {
+  from: string;
+  to: string;
+  by_day: { date: string; count: number }[];
+  by_action: { action: string; count: number }[];
+}
+
+/**
+ * Entries per day and per action over the filters' range (the last 30 days
+ * when none is set), for the charts above the trail (charts upgrade,
+ * 2026-11-04). Only the tenant endpoint has it.
+ */
+export function useAuditLogStats(filters: AuditLogFilters, enabled = true) {
+  return useQuery<AuditLogStats>({
+    queryKey: ["audit-logs", "stats", filters],
+    queryFn: async () =>
+      (
+        await apiClient.get("/audit-logs/stats", {
+          params: filterParams(filters),
+        })
+      ).data,
+    enabled,
+    staleTime: 60 * 1000,
+  });
+}

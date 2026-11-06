@@ -84,7 +84,7 @@ describe("Users — editing an invited account", () => {
     const ui = userEvent.setup();
     renderPage();
 
-    await ui.click(await screen.findByRole("button", { name: "Edit" }));
+    await ui.click(await screen.findByRole("button", { name: /^Edit / }));
     const dialog = await screen.findByRole("dialog");
     await ui.type(within(dialog).getByLabelText("Username"), "selam.t");
     await ui.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -101,7 +101,7 @@ describe("Users — editing an invited account", () => {
     const ui = userEvent.setup();
     renderPage();
 
-    await ui.click(await screen.findByRole("button", { name: "Edit" }));
+    await ui.click(await screen.findByRole("button", { name: /^Edit / }));
     const dialog = await screen.findByRole("dialog");
     // Role, then Status.
     await ui.click(within(dialog).getAllByRole("combobox")[1]);

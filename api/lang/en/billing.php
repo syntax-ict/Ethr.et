@@ -15,6 +15,7 @@ return [
 
     'feature_not_overridable' => 'This feature is decided for every organisation at once, and cannot be granted or revoked for one.',
     'feature_no_rollout' => 'This feature has no organisations to roll out to. Choose Enabled or Disabled.',
+    'feature_core' => 'This is a core feature that every plan includes, and the console does not switch it.',
     'features' => [
         'attendance' => 'attendance tracking',
         'leave' => 'leave management',
@@ -38,4 +39,5 @@ return [
         'public_news' => 'the public news page',
         'public_vacancies' => 'the public vacancies',
     ],
+    'trial_not_running' => 'Only an organisation on a trial can have its trial extended.',
 ];

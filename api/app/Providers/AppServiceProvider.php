@@ -290,8 +290,11 @@ class AppServiceProvider extends ServiceProvider
         // NAT is not locked out by a stranger, and per organisation and
         // employee code, so a guess at one person's code cannot be spread
         // across many addresses. The code itself locks after five wrong tries.
+        // The organisation is the one the request resolved to, not the body's
+        // spelling of it, so writing the same address another way is the
+        // same counter.
         RateLimiter::for('activation', function (Request $request) {
-            $who = hash('sha256', mb_strtolower(trim((string) $request->input('tenant', $request->header('X-Tenant', '')))).'|'.mb_strtolower(trim((string) $request->input('employee_code'))));
+            $who = hash('sha256', ThrottleIdentity::organisation().'|'.mb_strtolower(trim((string) $request->input('employee_code'))));
 
             return [
                 Limit::perMinute(20)->by('activation-ip:'.$request->ip()),
@@ -327,7 +330,7 @@ class AppServiceProvider extends ServiceProvider
                 ?? $request->input('phone'));
 
             return [
-                Limit::perMinute(10)->by('auth-account:'.$account.'|'.$request->ip()),
+                Limit::perMinute(10)->by('auth-account:'.$account.'|'.ThrottleIdentity::organisation().'|'.$request->ip()),
                 Limit::perMinute(100)->by('auth-ip:'.$request->ip()),
             ];
         });

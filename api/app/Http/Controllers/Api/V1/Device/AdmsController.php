@@ -18,8 +18,10 @@ use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureGate;
 use App\Support\FeatureUnavailable;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use PDOException;
 
 /**
  * ZKTeco ADMS: the terminal calls ETHR, so it works from a customer's LAN to
@@ -97,15 +99,24 @@ class AdmsController extends Controller
                 ->header('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
         }
 
+        // A punch the database failed to store is not acknowledged: the
+        // terminal keeps the batch and sends it again (DevicePunchRecorder).
         $punches = AdmsProtocol::attendanceLines($body);
-        foreach ($punches as $punch) {
-            $this->punches->recordBatched(
-                $device,
-                'adms',
-                $punch['pin'],
-                $punch['time'],
-                ZktecoAdapter::directionFor($punch['status']),
-            );
+        try {
+            foreach ($punches as $punch) {
+                $this->punches->recordBatched(
+                    $device,
+                    'adms',
+                    $punch['pin'],
+                    $punch['time'],
+                    ZktecoAdapter::directionFor($punch['status']),
+                );
+            }
+        } catch (QueryException|PDOException $e) {
+            report($e);
+
+            return $this->text('Temporarily unavailable', 503)
+                ->header('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
         }
 
         return $this->text('OK: '.count($punches));

@@ -15,6 +15,7 @@ use App\Http\Requests\Admin\DeleteTenantRequest;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\RemoveTenantFeatureOverrideRequest;
+use App\Http\Requests\Admin\TransferOwnershipByPlatformRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
 use App\Http\Requests\Admin\UpdateTenantDomainRequest;
 use App\Http\Requests\Admin\UpdateTenantFeatureOverrideRequest;
@@ -23,6 +24,7 @@ use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
 use App\Jobs\BackupTenantJob;
 use App\Models\AuditLog;
+use App\Models\CustomRole;
 use App\Models\Device;
 use App\Models\Invoice;
 use App\Models\Subscription;
@@ -32,15 +34,19 @@ use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
+use App\Services\CurrentTenant;
 use App\Services\CustomDomainVerifier;
 use App\Services\Features\FeatureControls;
 use App\Services\Features\FeatureGate;
 use App\Services\MfaService;
+use App\Services\Tenancy\OrganisationOwnership;
 use App\Services\TenantAddressService;
 use App\Support\FrontendUrl;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -89,6 +95,13 @@ class AdminTenantController extends Controller
         $sort = $request->input('sort', '-created_at');
         $dir = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $field = ltrim($sort, '-');
+
+        // Only columns the list offers: anything else reached orderBy() and
+        // answered 500 (A-Z review H-14).
+        if (! in_array($field, ['created_at', 'name', 'subdomain', 'status', 'trial_ends_at'], true)) {
+            $field = 'created_at';
+            $dir = 'desc';
+        }
         $query->orderBy($field, $dir);
 
         return AdminTenantResource::collection(
@@ -122,12 +135,15 @@ class AdminTenantController extends Controller
                 'paid_at' => $i->paid_at,
             ]);
 
+        // Support calls the owner on this number; a person's contact details,
+        // so shown here only, in the console behind admin.manage.
+        $owner = $this->ownerOf($tenant);
+
         $deviceCount = class_exists(Device::class)
             ? Device::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count()
             : 0;
 
-        $auditLogs = AuditLog::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
+        $auditLogs = $this->auditOf($tenant)
             ->orderByDesc('created_at')
             ->limit(20)
             ->get()
@@ -135,6 +151,45 @@ class AdminTenantController extends Controller
                 'action' => $l->action,
                 'created_at' => $l->created_at,
             ]);
+
+        // Who owned it and when it changed hands: the registration, then
+        // every transfer, newest first. The audit log is the history.
+        $ownershipHistory = $this->auditOf($tenant)
+            ->whereIn('action', ['tenant.registered', 'tenant.ownership_transferred'])
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function (AuditLog $l): array {
+                // Read through getAttribute: the `array` cast's static type is
+                // loose (string|null) and defeats the array handling.
+                $raw = $l->getAttribute('payload');
+                $payload = is_array($raw) ? $raw : [];
+
+                return [
+                    'action' => $l->action,
+                    'from' => $payload['from_name'] ?? null,
+                    'to' => $payload['to_name'] ?? null,
+                    'reason' => $payload['reason'] ?? null,
+                    'by_platform' => (bool) ($payload['by_platform'] ?? false),
+                    'created_at' => $l->created_at,
+                ];
+            });
+
+        // Everyone who can administer the organisation, for the console's
+        // administrators panel: the three admin roles and anyone on a custom
+        // role, which can grant as much.
+        $administrators = $this->administratorsOf($tenant);
+
+        // What was done with that power, most recent first, and by whom.
+        $privileged = $this->privilegedActionsOf($tenant);
+
+        // The administrators ownership can pass to.
+        $admins = $this->usersOf($tenant)
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (User $u) => ['public_id' => $u->public_id, 'name' => $u->name, 'email' => $u->email]);
 
         return response()->json([
             'public_id' => $tenant->public_id,
@@ -167,7 +222,181 @@ class AdminTenantController extends Controller
             ] : null,
             'invoices' => $invoices,
             'audit_log' => $auditLogs,
+            'owner' => $owner === null ? null : [
+                'name' => $owner->name,
+                'email' => $owner->email,
+                'phone' => $owner->phone,
+                'phone_verified' => $owner->phone_verified_at !== null,
+                'last_login_at' => $owner->last_login_at?->toIso8601String(),
+                'public_id' => $owner->public_id,
+                'status' => $owner->status,
+            ],
+            'admins' => $admins,
+            'ownership_history' => $ownershipHistory,
+            'administrators' => $administrators,
+            'privileged_actions' => $privileged,
         ]);
+    }
+
+    /**
+     * The organisation's administrators: role (with the custom role's name),
+     * MFA, account status and last sign-in. Custom roles are tenant-scoped,
+     * so their names are read with the organisation set, not by dropping
+     * the scope.
+     *
+     * @return list<array{public_id: string, name: string, email: ?string, role: string, custom_role: ?string, mfa_enabled: bool, status: string, last_login_at: ?string, is_owner: bool}>
+     */
+    private function administratorsOf(Tenant $tenant): array
+    {
+        $people = $this->usersOf($tenant)
+            ->where(fn (Builder $q) => $q
+                ->whereIn('role', [UserRole::TENANT_ADMIN->value, UserRole::HR_ADMIN->value, UserRole::FINANCE_ADMIN->value])
+                ->orWhereNotNull('custom_role_id'))
+            ->orderBy('id')
+            ->get();
+
+        $current = app(CurrentTenant::class);
+        $previous = $current->get();
+        $current->set($tenant);
+        try {
+            $roleNames = CustomRole::query()->whereIn('id', $people->pluck('custom_role_id')->filter()->all())->pluck('name', 'id');
+        } finally {
+            $previous === null ? $current->forget() : $current->set($previous);
+        }
+
+        return $people->map(fn (User $u): array => [
+            'public_id' => $u->public_id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'role' => $u->role->value,
+            'custom_role' => $u->custom_role_id !== null ? ($roleNames[$u->custom_role_id] ?? null) : null,
+            'mfa_enabled' => (bool) $u->mfa_enabled,
+            'status' => (string) $u->status,
+            'last_login_at' => $u->last_login_at?->toIso8601String(),
+            'is_owner' => $tenant->owner_user_id === $u->id,
+        ])->values()->all();
+    }
+
+    /** Audit actions that change who may do what, or move money. */
+    private const PRIVILEGED_ACTIONS = [
+        'user.%', 'role.%', 'custom_role.%', 'permission.%', 'tenant.%', 'settings.%',
+        'api_key.%', 'webhook.%', 'sso.%', 'scim.%', 'payroll.approved', 'payroll.voided',
+        'payroll.bank_export', 'billing.%', 'admin.tenant.%',
+    ];
+
+    /**
+     * The organisation's last 20 privileged actions, with who did them, named
+     * from the organisation's own users (ETHR's operators read as ETHR).
+     *
+     * @return list<array{action: string, actor: ?string, created_at: mixed}>
+     */
+    private function privilegedActionsOf(Tenant $tenant): array
+    {
+        $entries = $this->auditOf($tenant)
+            ->where(function (Builder $q): void {
+                foreach (self::PRIVILEGED_ACTIONS as $pattern) {
+                    $q->orWhere('action', 'like', $pattern);
+                }
+            })
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+
+        $actors = $this->usersOf($tenant)
+            ->whereIn('id', $entries->pluck('user_id')->filter()->unique()->all())
+            ->get()
+            ->keyBy('id');
+
+        return $entries->map(fn (AuditLog $l): array => [
+            'action' => $l->action,
+            'actor' => $l->user_id === null ? null : ($actors->has($l->user_id) ? $actors->get($l->user_id)->name : 'ETHR'),
+            'created_at' => $l->created_at,
+        ])->values()->all();
+    }
+
+    /**
+     * Hand an organisation to another of its active administrators: for an
+     * owner who has left, or cannot be reached. The organisation's own owner
+     * transfers from Settings; this is ETHR's, with a reason, behind
+     * admin.manage and the console's MFA for writes. Recorded in the audit
+     * log, which is the ownership history.
+     */
+    public function transferOwnership(TransferOwnershipByPlatformRequest $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()->where('public_id', $publicId)->firstOrFail();
+
+        $to = $this->usersOf($tenant)
+            ->where('public_id', (string) $request->validated('user_public_id'))
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->first();
+
+        if ($to === null) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => __('user.errors.owner_must_be_active_admin'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        app(OrganisationOwnership::class)->transfer($tenant, $this->ownerOf($tenant), $to, (string) $request->validated('reason'), byPlatform: true);
+
+        return response()->json(['owner_public_id' => $to->public_id]);
+    }
+
+    /**
+     * The users of an organisation, from the console, where no tenant is
+     * resolved: the scope is dropped and the tenant stated. Every user
+     * lookup here starts from this one builder.
+     *
+     * @return Builder<User>
+     */
+    private function usersOf(Tenant $tenant): Builder
+    {
+        return User::withoutGlobalScopes()->where('tenant_id', $tenant->id)->whereNull('deleted_at');
+    }
+
+    /**
+     * The organisation's audit log, from the console: the scope is dropped
+     * and the tenant stated.
+     *
+     * @return Builder<AuditLog>
+     */
+    private function auditOf(Tenant $tenant): Builder
+    {
+        return AuditLog::withoutGlobalScopes()->where('tenant_id', $tenant->id);
+    }
+
+    /**
+     * The organisation's owner (`owner_user_id`), whatever their state, so
+     * the console can show an owner who has been switched off. Before the
+     * field was filled, the first active administrator.
+     */
+    private function ownerOf(Tenant $tenant): ?User
+    {
+        return $tenant->owner_user_id !== null
+            ? $this->usersOf($tenant)->whereKey($tenant->owner_user_id)->first()
+            : $this->activeAdminOf($tenant);
+    }
+
+    /**
+     * Who impersonation acts as: the owner while active, else the first
+     * active administrator.
+     */
+    private function activeAdminOf(Tenant $tenant): ?User
+    {
+        $owner = $tenant->owner_user_id !== null
+            ? $this->usersOf($tenant)->whereKey($tenant->owner_user_id)->where('status', 'active')->first()
+            : null;
+
+        return $owner ?? $this->usersOf($tenant)
+            ->where('role', UserRole::TENANT_ADMIN)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first();
     }
 
     public function updateStatus(UpdateTenantStatusRequest $request, string $publicId): JsonResponse
@@ -396,7 +625,7 @@ class AdminTenantController extends Controller
     }
 
     /**
-     * @return list<array{key: string, kind: string, overridable: bool, on: bool, visible: bool, reason: string, override: array{mode: string, reason: string, expires_at: string|null, expired: bool, changed_at: string|null}|null}>
+     * @return list<array{key: string, kind: string, overridable: bool, switchable: bool, on: bool, visible: bool, reason: string, override: array{mode: string, reason: string, expires_at: string|null, expired: bool, changed_at: string|null}|null}>
      */
     private function featureRows(Tenant $tenant, FeatureGate $gate, FeatureControls $controls): array
     {
@@ -412,6 +641,7 @@ class AdminTenantController extends Controller
                 'key' => $feature->value,
                 'kind' => $feature->kind()->value,
                 'overridable' => $feature->overridable(),
+                'switchable' => $feature->switchable(),
                 'on' => $decision->on,
                 'visible' => $decision->visible,
                 'reason' => $decision->reason->value,
@@ -485,7 +715,10 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $newEnd = ($tenant->trial_ends_at ?? now())->addDays($request->integer('days'));
+        // From today when the trial has already ended: added to an end date
+        // 60 days gone, 30 more days left it still over (A-Z review H-05).
+        $ends = $tenant->trial_ends_at !== null ? Carbon::parse($tenant->trial_ends_at) : null;
+        $newEnd = ($ends !== null && $ends->isFuture() ? $ends : Carbon::now())->addDays($request->integer('days'));
         $tenant->update(['trial_ends_at' => $newEnd]);
 
         // A trialing subscription's period is the trial: registration sets both
@@ -555,10 +788,7 @@ class AdminTenantController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        $adminUser = User::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('role', UserRole::TENANT_ADMIN)
-            ->first();
+        $adminUser = $this->activeAdminOf($tenant);
 
         if (! $adminUser) {
             return response()->json([
@@ -754,15 +984,36 @@ class AdminTenantController extends Controller
 
         $tenant = Tenant::where('public_id', $publicId)->firstOrFail();
 
-        $invoice = Invoice::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->where('public_id', $invoicePublicId)
-            ->firstOrFail();
+        // Locked, so a double click records one payment. Once nothing is 30
+        // days overdue any more, a subscription that was moved to past_due goes
+        // back to active: nothing did, and the monthly run, which bills active
+        // subscriptions only, never invoiced the organisation again (A-Z review
+        // H-02). A suspension for non-payment stays for the operator to lift.
+        $invoice = DB::transaction(function () use ($tenant, $invoicePublicId): Invoice {
+            $invoice = Invoice::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('public_id', $invoicePublicId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($invoice->status !== 'paid') {
+            if ($invoice->status === 'paid') {
+                return $invoice;
+            }
+
             $invoice->update(['status' => 'paid', 'paid_at' => now()]);
             AuditLog::record('billing.invoice_paid', $invoice);
-        }
+
+            Subscription::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->where('status', SubscriptionStatus::PAST_DUE)
+                ->whereNotExists(fn ($overdue) => $overdue->from('invoices')
+                    ->where('invoices.tenant_id', $tenant->id)
+                    ->whereIn('invoices.status', ['sent', 'overdue', 'past_due'])
+                    ->where('invoices.due_date', '<=', now()->subDays(30)))
+                ->update(['status' => SubscriptionStatus::ACTIVE]);
+
+            return $invoice;
+        });
 
         return response()->json([
             'public_id' => $invoice->public_id,

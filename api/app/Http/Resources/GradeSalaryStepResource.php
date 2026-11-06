@@ -13,10 +13,13 @@ class GradeSalaryStepResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // A step's salary is pay, as GradeResource's band is.
+        $showPay = $request->user()?->hasPermission('employee.viewFinancial') ?? false;
+
         return [
             'public_id' => $this->public_id,
             'step' => $this->step,
-            'salary_cents' => $this->salary_cents,
+            'salary_cents' => $this->when($showPay, $this->salary_cents),
             'created_at' => $this->created_at,
         ];
     }

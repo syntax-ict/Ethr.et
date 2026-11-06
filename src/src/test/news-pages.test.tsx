@@ -38,6 +38,7 @@ function organisation(slug: string, name: string): HostCtx {
     tenantLanding: { background: "brand" },
     tenantSignIn: null,
     tenantDefaultLocale: null,
+    tenantBillingOnly: false,
     onLanding: true,
     carryOrganisation: slug,
     tenantRequest: { mode: "entry", slug },

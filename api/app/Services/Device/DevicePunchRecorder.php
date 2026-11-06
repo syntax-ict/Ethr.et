@@ -14,6 +14,8 @@ use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Support\DeviceClock;
 use App\Support\DeviceTime;
+use Illuminate\Database\QueryException;
+use PDOException;
 
 /**
  * The steps every pushed punch shares, whichever way it arrived — a vendor
@@ -101,6 +103,13 @@ final class DevicePunchRecorder
      * that the engine refuses is skipped rather than failing the batch; the
      * return value says whether it was recorded.
      *
+     * A database failure is thrown, not skipped: the caller then answers with
+     * an error the device retries, and the punches it already stored dedupe
+     * on their keys. Every failure used to be skipped, so the device was told
+     * the batch was stored and deleted punches nobody had (A-Z review D-07).
+     * Any other error is reported and skipped, so one bad punch cannot hold
+     * a device's queue for good.
+     *
      * The idempotency key is `webhook:<vendor>:<device id>:<badge>:<timestamp>`,
      * and `$vendor` is the short prefix each handler has always used (`zk`,
      * `sup`), so keys already stored still dedupe a redelivered event.
@@ -125,7 +134,15 @@ final class DevicePunchRecorder
             $this->record($device, $employee, $type, $key, $timestamp);
 
             return true;
-        } catch (\Throwable) {
+        } catch (AttendanceRefused) {
+            return false;
+        } catch (\Throwable $e) {
+            if ($e instanceof QueryException || $e instanceof PDOException) {
+                throw $e;
+            }
+
+            report($e);
+
             return false;
         }
     }

@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'የሚመዘገቡበት ስልክ ተሰርዟል፦ :reason። አሁን የሚጠቀሙበትን ስልክ ያስመዝግቡ።',
         'device_offline' => '":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
         'leave_approved' => 'የፈቃድ ጥያቄዎ ጸድቋል።',
+        'leave_changed' => 'የጸደቀ ፈቃድዎ በሰው ሀብት ተቀይሯል።',
         'leave_rejected' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
         'leave_requested' => ':name ፈቃድ ጠይቀዋል።',
         'missing_check_in' => ':name በ:date አልገቡም።',
@@ -63,4 +64,10 @@ return [
         'trial_expiring' => 'የሙከራ ጊዜዎ በ:days ቀን ውስጥ ያበቃል። ETHRን መጠቀም ለመቀጠል ዕቅድ ይምረጡ።',
     ],
     'push_unavailable' => 'የስልክ ማሳወቂያዎች በዚህ አገልጋይ ላይ ገና አልተዘጋጁም።',
+    'approval_reminder_line' => ':count የሚጠብቁዎት የማጽደቅ ጥያቄዎች አሉ።',
+    'approval_reminder_oldest' => 'በጣም የቆየው ለ:hours ሰዓት ሲጠብቅ ቆይቷል።',
+    'approval_reminder_action' => 'ማጽደቂያዎችን ይመልከቱ',
+    'device_offline_line' => 'በ:location ያለው ":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
+    'device_offline_action' => 'የመሣሪያውን ሁኔታ ይመልከቱ',
+    'unknown_location' => 'ስም ያልተሰጠው ቦታ',
 ];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { Settings2, Loader2, Save, Clock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,49 +37,101 @@ type Method = AttendanceSettings["enabled_methods"][number];
 const ALL_METHODS: {
   key: Method;
   labelKey: string;
+  label: string;
   descriptionKey: string;
+  description: string;
 }[] = [
   {
     key: "biometric",
     labelKey: "attendance.settings_page.method_biometric_label",
+    label: "Biometric device",
     descriptionKey: "attendance.settings_page.method_biometric_desc",
+    description: "Fingerprint or face devices at the door",
   },
   {
     key: "mobile",
     labelKey: "attendance.settings_page.method_mobile_label",
+    label: "Phone check-in",
     descriptionKey: "attendance.settings_page.method_mobile_desc",
+    description: "Location and a selfie from the employee's phone",
   },
   {
     key: "qr",
     labelKey: "attendance.settings_page.method_qr_label",
+    label: "QR code",
     descriptionKey: "attendance.settings_page.method_qr_desc",
+    description: "Scan QR at branch entrance",
   },
   {
     key: "kiosk",
     labelKey: "attendance.settings_page.method_kiosk_label",
+    label: "Kiosk",
     descriptionKey: "attendance.settings_page.method_kiosk_desc",
+    description: "A shared tablet; employees type their code",
   },
   {
     key: "web",
     labelKey: "attendance.settings_page.method_web_label",
+    label: "Computer",
     descriptionKey: "attendance.settings_page.method_web_desc",
+    description: "Check in from the dashboard on a computer",
   },
   {
     key: "manual",
     labelKey: "attendance.settings_page.method_manual_label",
+    label: "Manual entry",
     descriptionKey: "attendance.settings_page.method_manual_desc",
+    description: "HR records the punch by hand",
   },
   {
     key: "csv",
     labelKey: "attendance.settings_page.method_csv_label",
+    label: "Spreadsheet import",
     descriptionKey: "attendance.settings_page.method_csv_desc",
+    description: "Bulk import from spreadsheet",
   },
 ];
+
+/**
+ * The whole-number fields and the range the server accepts for each. The
+ * limits drive both the input's `min`/`max` and the message shown before a
+ * save is allowed.
+ */
+const NUMERIC_LIMITS = {
+  ot_daily_cap_minutes: { min: 0, max: 1440 },
+  confidence_threshold: { min: 0, max: 100 },
+  photo_retention_days: { min: 1, max: 90 },
+  mobile_accuracy_threshold_meters: { min: 10, max: 5000 },
+  qr_expiry_minutes: { min: 5, max: 480 },
+  qr_single_use_limit: { min: 0, max: 1000 },
+  kiosk_auto_reset_seconds: { min: 2, max: 30 },
+  reminder_lead_minutes: { min: 0, max: 120 },
+  auto_checkout_after_minutes: { min: 15, max: 720 },
+  risk_review_threshold: { min: 10, max: 100 },
+} as const satisfies Partial<Record<keyof AttendanceSettings, unknown>>;
+
+type NumericKey = keyof typeof NUMERIC_LIMITS;
+
+function parseNetworks(text: string): string[] {
+  return text.split(/[\s,]+/).filter((part) => part !== "");
+}
 
 export default function AttendanceSettingsPage() {
   const { t } = useT();
   const { can } = usePermissions();
   const [form, setForm] = useState<AttendanceSettings | null>(null);
+  // What the server last gave us; the header button is live only while the
+  // form differs from it.
+  const [baseline, setBaseline] = useState<AttendanceSettings | null>(null);
+  // The text of a number field while it is being typed. A cleared field used
+  // to snap straight back to a default, so "100" could not be retyped as
+  // "250" without passing through the default. The form keeps the last whole
+  // number; the draft keeps what is on screen, and an empty or out-of-range
+  // draft blocks the save with a message under the field.
+  const [drafts, setDrafts] = useState<Partial<Record<NumericKey, string>>>({});
+  // The office networks as typed, separators and all. Parsing on every
+  // keystroke dropped the comma the moment it was typed.
+  const [networksText, setNetworksText] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useAttendanceSettings();
 
@@ -88,20 +140,77 @@ export default function AttendanceSettingsPage() {
   // commit — see https://react.dev/learn/you-might-not-need-an-effect.
   if (data && !form) {
     setForm(data);
+    setBaseline(data);
   }
 
   const save = useUpdateAttendanceSettings();
 
+  const rangeMessage = (key: NumericKey) =>
+    t(
+      "attendance.settings_page.range_error",
+      "Enter a whole number from :min to :max.",
+      { min: NUMERIC_LIMITS[key].min, max: NUMERIC_LIMITS[key].max },
+    );
+
+  function numberError(key: NumericKey): string | undefined {
+    if (!form) return undefined;
+    const draft = drafts[key];
+    const value = draft === undefined ? form[key] : Number(draft);
+    const { min, max } = NUMERIC_LIMITS[key];
+    if (
+      draft === "" ||
+      !Number.isInteger(value) ||
+      Number(value) < min ||
+      Number(value) > max
+    ) {
+      return rangeMessage(key);
+    }
+    return undefined;
+  }
+
+  const hasNumberError = (Object.keys(NUMERIC_LIMITS) as NumericKey[]).some(
+    (key) => numberError(key) !== undefined,
+  );
+
+  const pendingForm: AttendanceSettings | null =
+    form && networksText !== null
+      ? { ...form, office_networks: parseNetworks(networksText) }
+      : form;
+
+  const isDirty =
+    pendingForm !== null &&
+    baseline !== null &&
+    (JSON.stringify(pendingForm) !== JSON.stringify(baseline) ||
+      Object.keys(drafts).length > 0);
+
   function handleSave() {
-    if (!form) return;
-    save.mutate(form, {
+    if (!pendingForm) return;
+    if (hasNumberError) {
+      toast.error(
+        t(
+          "attendance.settings_page.fix_fields",
+          "Fix the highlighted fields before saving.",
+        ),
+      );
+      return;
+    }
+    save.mutate(pendingForm, {
       onSuccess: (updated) => {
         setForm(updated);
-        toast.success(t("attendance.settings_page.saved"));
+        setBaseline(updated);
+        setDrafts({});
+        setNetworksText(null);
+        toast.success(t("attendance.settings_page.saved", "Settings saved"));
       },
       onError: (err) =>
         toast.error(
-          apiErrorMessage(err, t("attendance.settings_page.save_failed")),
+          apiErrorMessage(
+            err,
+            t(
+              "attendance.settings_page.save_failed",
+              "Failed to save settings",
+            ),
+          ),
         ),
     });
   }
@@ -112,7 +221,12 @@ export default function AttendanceSettingsPage() {
       ? form.enabled_methods.filter((m) => m !== method)
       : [...form.enabled_methods, method];
     if (enabled.length === 0) {
-      toast.error(t("attendance.settings_page.at_least_one_method"));
+      toast.error(
+        t(
+          "attendance.settings_page.at_least_one_method",
+          "At least one method must be enabled",
+        ),
+      );
       return;
     }
     setForm({ ...form, enabled_methods: enabled });
@@ -126,19 +240,67 @@ export default function AttendanceSettingsPage() {
     setForm({ ...form, [key]: value });
   }
 
+  function setNumber(key: NumericKey, raw: string) {
+    setDrafts((prev) => ({ ...prev, [key]: raw }));
+    const n = Number(raw);
+    if (raw.trim() !== "" && Number.isInteger(n)) {
+      setField(key, n);
+    }
+  }
+
+  const numberValue = (key: NumericKey) =>
+    drafts[key] ?? (form ? String(form[key]) : "");
+
+  /**
+   * The wiring every whole-number input shares. `describedBy` is the id of
+   * the hint under the field, when it has one; a range message replaces it.
+   */
+  function numberProps(key: NumericKey, id: string, describedBy?: string) {
+    const error = numberError(key);
+    return {
+      id,
+      type: "number" as const,
+      inputMode: "numeric" as const,
+      min: NUMERIC_LIMITS[key].min,
+      max: NUMERIC_LIMITS[key].max,
+      value: numberValue(key),
+      onChange: (e: ChangeEvent<HTMLInputElement>) =>
+        setNumber(key, e.target.value),
+      "aria-invalid": error ? true : undefined,
+      "aria-describedby": error ? `${id}-error` : describedBy,
+    };
+  }
+
+  function numberErrorNode(key: NumericKey, id: string) {
+    const error = numberError(key);
+    if (!error) return null;
+    return (
+      <p
+        id={`${id}-error`}
+        role="alert"
+        className="mt-1 text-xs text-destructive"
+      >
+        {error}
+      </p>
+    );
+  }
+
   return (
     // AttendanceSettingController checks attendance.manage.
     <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
         <PageActions
           actions={
-            <Button onClick={handleSave} disabled={!form || save.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={!form || save.isPending || !isDirty}
+            >
               {save.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {t("attendance.settings_page.save_changes")}
+              {t("attendance.settings_page.save_changes", "Save changes")}
             </Button>
           }
         />
@@ -160,40 +322,40 @@ export default function AttendanceSettingsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Settings2 className="h-4 w-4" />{" "}
-                  {t("attendance.settings_page.enabled_methods")}
+                  {t(
+                    "attendance.settings_page.enabled_methods",
+                    "Attendance methods",
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {ALL_METHODS.map((m) => {
                     const enabled = form.enabled_methods.includes(m.key);
+                    const switchId = `method-${m.key}`;
                     return (
                       <div
                         key={m.key}
-                        className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50"
-                        // A click on the Switch fired its own onCheckedChange
-                        // *and* bubbled to this handler, toggling twice — so
-                        // clicking the switch itself did nothing at all and the
-                        // row only responded when you hit the padding around
-                        // it. Let the control own its own clicks.
-                        onClick={(e) => {
-                          if (
-                            (e.target as HTMLElement).closest('[role="switch"]')
-                          ) {
-                            return;
-                          }
-                          toggleMethod(m.key);
-                        }}
+                        className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/50"
                       >
                         <Switch
+                          id={switchId}
                           checked={enabled}
                           onCheckedChange={() => toggleMethod(m.key)}
-                          aria-label={t(m.labelKey)}
+                          aria-describedby={`${switchId}-desc`}
                         />
                         <div>
-                          <p className="text-sm font-medium">{t(m.labelKey)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {t(m.descriptionKey)}
+                          <Label
+                            htmlFor={switchId}
+                            className="cursor-pointer text-sm font-medium"
+                          >
+                            {t(m.labelKey, m.label)}
+                          </Label>
+                          <p
+                            id={`${switchId}-desc`}
+                            className="mt-1 text-xs text-muted-foreground"
+                          >
+                            {t(m.descriptionKey, m.description)}
                           </p>
                         </div>
                       </div>
@@ -208,10 +370,10 @@ export default function AttendanceSettingsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="h-4 w-4" />{" "}
-                  {t("attendance.settings_page.rules", "Attendance Rules")}
+                  {t("attendance.settings_page.rules", "Attendance rules")}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-3">
+              <CardContent className="grid gap-4 lg:grid-cols-3">
                 <div>
                   <Label htmlFor="ot-daily-cap" className="text-sm">
                     {t(
@@ -220,20 +382,18 @@ export default function AttendanceSettingsPage() {
                     )}
                   </Label>
                   <Input
-                    id="ot-daily-cap"
-                    type="number"
-                    value={form.ot_daily_cap_minutes}
-                    onChange={(e) =>
-                      setField(
-                        "ot_daily_cap_minutes",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    min={0}
-                    max={1440}
+                    {...numberProps(
+                      "ot_daily_cap_minutes",
+                      "ot-daily-cap",
+                      "ot-daily-cap-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {numberErrorNode("ot_daily_cap_minutes", "ot-daily-cap")}
+                  <p
+                    id="ot-daily-cap-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.ot_daily_cap_desc",
                       "Days with more overtime are flagged on the payroll run for review, as are days over the legal 4 hours and weeks over 12. All overtime worked is still paid.",
@@ -266,23 +426,24 @@ export default function AttendanceSettingsPage() {
                     )}
                   </Label>
                   <Input
-                    id="confidence-threshold"
-                    type="number"
-                    value={form.confidence_threshold}
-                    onChange={(e) =>
-                      setField(
-                        "confidence_threshold",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    min={0}
-                    max={100}
+                    {...numberProps(
+                      "confidence_threshold",
+                      "confidence-threshold",
+                      "confidence-threshold-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {numberErrorNode(
+                    "confidence_threshold",
+                    "confidence-threshold",
+                  )}
+                  <p
+                    id="confidence-threshold-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.confidence_threshold_desc",
-                      "Minimum confidence score for attendance records",
+                      "Biometric matches below this score are sent for review.",
                     )}
                   </p>
                 </div>
@@ -294,14 +455,31 @@ export default function AttendanceSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("attendance.settings_page.lateness_title")}
+                  {t(
+                    "attendance.settings_page.lateness_title",
+                    "Lateness deductions",
+                  )}
                 </CardTitle>
+                {!can.managePayrollConfig && (
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.lateness_payroll_only",
+                      "Only someone who manages payroll settings can change lateness deductions.",
+                    )}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingRow
                   id="lateness-deduction-enabled"
-                  title={t("attendance.settings_page.lateness_enabled")}
-                  description={t("attendance.settings_page.lateness_desc")}
+                  title={t(
+                    "attendance.settings_page.lateness_enabled",
+                    "Allow lateness deductions",
+                  )}
+                  description={t(
+                    "attendance.settings_page.lateness_desc",
+                    "Off by default. When on, payroll can deduct approved late or early minutes from pay. Each deduction is approved by someone who processes payroll, and lateness never takes more than a third of a month's basic pay.",
+                  )}
                 >
                   <Switch
                     checked={form.lateness_deduction_enabled}
@@ -313,13 +491,17 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
                 <div>
                   <Label htmlFor="lateness-deduction-basis" className="text-sm">
-                    {t("attendance.settings_page.lateness_basis")}
+                    {t(
+                      "attendance.settings_page.lateness_basis",
+                      "Basis for deducting",
+                    )}
                   </Label>
                   <Input
                     id="lateness-deduction-basis"
                     value={form.lateness_deduction_basis ?? ""}
                     disabled={!can.managePayrollConfig}
                     maxLength={500}
+                    aria-describedby="lateness-deduction-basis-desc"
                     onChange={(e) =>
                       setField(
                         "lateness_deduction_basis",
@@ -328,15 +510,25 @@ export default function AttendanceSettingsPage() {
                     }
                     className="mt-1"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("attendance.settings_page.lateness_basis_hint")}
+                  <p
+                    id="lateness-deduction-basis-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.lateness_basis_hint",
+                      "Name the work rules clause, collective agreement or written consent that allows it (Proclamation 1156/2019 Art. 59).",
+                    )}
                   </p>
                 </div>
                 <SettingRow
                   id="reconciliation-mode"
-                  title={t("attendance.settings_page.reconciliation_mode")}
+                  title={t(
+                    "attendance.settings_page.reconciliation_mode",
+                    "Reconcile attendance before payroll",
+                  )}
                   description={t(
                     "attendance.settings_page.reconciliation_mode_desc",
+                    "Off: payroll runs are approved as they are today. Advisory: the run page lists attendance still to settle. Required: a run cannot be approved until every absence, lateness and missed punch in its period is settled.",
                   )}
                 >
                   <Select
@@ -349,18 +541,33 @@ export default function AttendanceSettingsPage() {
                       )
                     }
                   >
-                    <SelectTrigger className="w-44">
+                    {/* SettingRow clones the ids onto the Select root, which
+                        renders no element; the trigger is the control. */}
+                    <SelectTrigger
+                      className="w-44"
+                      aria-labelledby="reconciliation-mode-title"
+                      aria-describedby="reconciliation-mode-desc"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="off">
-                        {t("attendance.settings_page.reconciliation_off")}
+                        {t(
+                          "attendance.settings_page.reconciliation_off",
+                          "Off",
+                        )}
                       </SelectItem>
                       <SelectItem value="advisory">
-                        {t("attendance.settings_page.reconciliation_advisory")}
+                        {t(
+                          "attendance.settings_page.reconciliation_advisory",
+                          "Advisory",
+                        )}
                       </SelectItem>
                       <SelectItem value="required">
-                        {t("attendance.settings_page.reconciliation_required")}
+                        {t(
+                          "attendance.settings_page.reconciliation_required",
+                          "Required",
+                        )}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -372,15 +579,22 @@ export default function AttendanceSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("attendance.settings_page.mobile_checkin")}
+                  {t(
+                    "attendance.settings_page.mobile_checkin",
+                    "Phone check-in",
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingRow
                   id="require-geofence"
-                  title={t("attendance.settings_page.require_geofence")}
+                  title={t(
+                    "attendance.settings_page.require_geofence",
+                    "Require geofence",
+                  )}
                   description={t(
                     "attendance.settings_page.require_geofence_desc",
+                    "A phone check-in from outside the branch area is refused.",
                   )}
                 >
                   <Switch
@@ -390,8 +604,14 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
                 <SettingRow
                   id="require-photo"
-                  title={t("attendance.settings_page.require_photo")}
-                  description={t("attendance.settings_page.require_photo_desc")}
+                  title={t(
+                    "attendance.settings_page.require_photo",
+                    "Selfie with phone check-in",
+                  )}
+                  description={t(
+                    "attendance.settings_page.require_photo_desc",
+                    "Each phone check-in takes a selfie.",
+                  )}
                 >
                   <Switch
                     checked={form.mobile_photo_required}
@@ -408,20 +628,21 @@ export default function AttendanceSettingsPage() {
                     )}
                   </Label>
                   <Input
-                    id="photo-retention-days"
-                    type="number"
-                    value={form.photo_retention_days}
-                    onChange={(e) =>
-                      setField(
-                        "photo_retention_days",
-                        parseInt(e.target.value) || 7,
-                      )
-                    }
-                    min={1}
-                    max={90}
+                    {...numberProps(
+                      "photo_retention_days",
+                      "photo-retention-days",
+                      "photo-retention-days-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {numberErrorNode(
+                    "photo_retention_days",
+                    "photo-retention-days",
+                  )}
+                  <p
+                    id="photo-retention-days-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.photo_retention_days_desc",
                       "After this, HR and the department manager are told and have 48 hours to hold a photo for a complaint. Then the photo is deleted and the attendance record is kept.",
@@ -430,30 +651,43 @@ export default function AttendanceSettingsPage() {
                 </div>
                 <div>
                   <Label htmlFor="gps-accuracy-threshold" className="text-sm">
-                    {t("attendance.settings_page.gps_accuracy_threshold")}
+                    {t(
+                      "attendance.settings_page.gps_accuracy_threshold",
+                      "Weakest GPS accepted (metres)",
+                    )}
                   </Label>
                   <Input
-                    id="gps-accuracy-threshold"
-                    type="number"
-                    value={form.mobile_accuracy_threshold_meters}
-                    onChange={(e) =>
-                      setField(
-                        "mobile_accuracy_threshold_meters",
-                        parseInt(e.target.value) || 100,
-                      )
-                    }
-                    min={10}
-                    max={5000}
+                    {...numberProps(
+                      "mobile_accuracy_threshold_meters",
+                      "gps-accuracy-threshold",
+                      "gps-accuracy-threshold-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("attendance.settings_page.gps_accuracy_desc")}
+                  {numberErrorNode(
+                    "mobile_accuracy_threshold_meters",
+                    "gps-accuracy-threshold",
+                  )}
+                  <p
+                    id="gps-accuracy-threshold-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.gps_accuracy_desc",
+                      "A phone punch with a less accurate location is sent for review.",
+                    )}
                   </p>
                 </div>
                 <SettingRow
                   id="offline-sync"
-                  title={t("attendance.settings_page.offline_sync")}
-                  description={t("attendance.settings_page.offline_sync_desc")}
+                  title={t(
+                    "attendance.settings_page.offline_sync",
+                    "Offline sync",
+                  )}
+                  description={t(
+                    "attendance.settings_page.offline_sync_desc",
+                    "Allow check-in when offline",
+                  )}
                 >
                   <Switch
                     checked={form.offline_sync_enabled}
@@ -467,33 +701,33 @@ export default function AttendanceSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("attendance.settings_page.qr_code")}
+                  {t("attendance.settings_page.qr_code", "QR code")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="default-expiry" className="text-sm">
-                    {t("attendance.settings_page.default_expiry")}
+                    {t(
+                      "attendance.settings_page.default_expiry",
+                      "Code expires after (minutes)",
+                    )}
                   </Label>
                   <Input
-                    id="default-expiry"
-                    type="number"
-                    value={form.qr_expiry_minutes}
-                    onChange={(e) =>
-                      setField(
-                        "qr_expiry_minutes",
-                        parseInt(e.target.value) || 30,
-                      )
-                    }
-                    min={5}
-                    max={480}
+                    {...numberProps("qr_expiry_minutes", "default-expiry")}
                     className="mt-1 w-32"
                   />
+                  {numberErrorNode("qr_expiry_minutes", "default-expiry")}
                 </div>
                 <SettingRow
                   id="auto-refresh"
-                  title={t("attendance.settings_page.auto_refresh")}
-                  description={t("attendance.settings_page.auto_refresh_desc")}
+                  title={t(
+                    "attendance.settings_page.auto_refresh",
+                    "Refresh automatically",
+                  )}
+                  description={t(
+                    "attendance.settings_page.auto_refresh_desc",
+                    "Make a new code when the old one expires.",
+                  )}
                 >
                   <Switch
                     checked={form.qr_auto_refresh}
@@ -502,24 +736,28 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
                 <div>
                   <Label htmlFor="single-use-limit" className="text-sm">
-                    {t("attendance.settings_page.single_use_limit")}
+                    {t(
+                      "attendance.settings_page.single_use_limit",
+                      "Scans per code",
+                    )}
                   </Label>
                   <Input
-                    id="single-use-limit"
-                    type="number"
-                    value={form.qr_single_use_limit}
-                    onChange={(e) =>
-                      setField(
-                        "qr_single_use_limit",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    min={0}
-                    max={1000}
+                    {...numberProps(
+                      "qr_single_use_limit",
+                      "single-use-limit",
+                      "single-use-limit-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("attendance.settings_page.single_use_limit_desc")}
+                  {numberErrorNode("qr_single_use_limit", "single-use-limit")}
+                  <p
+                    id="single-use-limit-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.single_use_limit_desc",
+                      "How many times one code can be scanned. 0 means no limit.",
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -529,17 +767,20 @@ export default function AttendanceSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {t("attendance.settings_page.kiosk")}
+                  {t("attendance.settings_page.kiosk", "Kiosk")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingRow
                   id="require-pin"
-                  title={t("attendance.settings_page.require_pin")}
-                  description={`${t("attendance.settings_page.require_pin_desc")}. ${t(
-                    "attendance.settings_page.require_pin_where",
-                    "Set each employee's PIN on their profile, under Attendance.",
-                  )}`}
+                  title={t(
+                    "attendance.settings_page.require_pin",
+                    "Require employee PIN",
+                  )}
+                  description={t(
+                    "attendance.settings_page.require_pin_desc",
+                    "Employees type their PIN after their code. Set each employee's PIN on their profile, under Attendance.",
+                  )}
                 >
                   <Switch
                     checked={form.kiosk_pin_required}
@@ -548,24 +789,31 @@ export default function AttendanceSettingsPage() {
                 </SettingRow>
                 <div>
                   <Label htmlFor="auto-reset-delay" className="text-sm">
-                    {t("attendance.settings_page.auto_reset_delay")}
+                    {t(
+                      "attendance.settings_page.auto_reset_delay",
+                      "Auto-reset delay (seconds)",
+                    )}
                   </Label>
                   <Input
-                    id="auto-reset-delay"
-                    type="number"
-                    value={form.kiosk_auto_reset_seconds}
-                    onChange={(e) =>
-                      setField(
-                        "kiosk_auto_reset_seconds",
-                        parseInt(e.target.value) || 4,
-                      )
-                    }
-                    min={2}
-                    max={30}
+                    {...numberProps(
+                      "kiosk_auto_reset_seconds",
+                      "auto-reset-delay",
+                      "auto-reset-delay-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("attendance.settings_page.auto_reset_desc")}
+                  {numberErrorNode(
+                    "kiosk_auto_reset_seconds",
+                    "auto-reset-delay",
+                  )}
+                  <p
+                    id="auto-reset-delay-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.auto_reset_desc",
+                      "How long the result stays on screen before the kiosk clears for the next person.",
+                    )}
                   </p>
                 </div>
                 {/* Stacked like the delay above: this card is a narrow
@@ -573,7 +821,7 @@ export default function AttendanceSettingsPage() {
                     line. */}
                 <div>
                   <Label htmlFor="kiosk-sound" className="text-sm">
-                    {t("attendance.settings_page.kiosk_sound")}
+                    {t("attendance.settings_page.kiosk_sound", "Kiosk sound")}
                   </Label>
                   <Select
                     value={form.kiosk_sound}
@@ -584,23 +832,39 @@ export default function AttendanceSettingsPage() {
                       )
                     }
                   >
-                    <SelectTrigger id="kiosk-sound" className="mt-1 w-44">
+                    <SelectTrigger
+                      id="kiosk-sound"
+                      className="mt-1 w-44"
+                      aria-describedby="kiosk-sound-desc"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="off">
-                        {t("attendance.settings_page.kiosk_sound_off")}
+                        {t("attendance.settings_page.kiosk_sound_off", "Off")}
                       </SelectItem>
                       <SelectItem value="tones">
-                        {t("attendance.settings_page.kiosk_sound_tones")}
+                        {t(
+                          "attendance.settings_page.kiosk_sound_tones",
+                          "Tones",
+                        )}
                       </SelectItem>
                       <SelectItem value="voice">
-                        {t("attendance.settings_page.kiosk_sound_voice")}
+                        {t(
+                          "attendance.settings_page.kiosk_sound_voice",
+                          "Spoken words",
+                        )}
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("attendance.settings_page.kiosk_sound_desc")}
+                  <p
+                    id="kiosk-sound-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.kiosk_sound_desc",
+                      "Played after each punch, so a person who has already turned away still knows whether it worked. Spoken words follow the kiosk's language; a tablet with no voice for that language plays tones instead.",
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -619,7 +883,7 @@ export default function AttendanceSettingsPage() {
                   )}
                 </p>
               </CardHeader>
-              <CardContent className="grid gap-6 md:grid-cols-3">
+              <CardContent className="grid gap-6 lg:grid-cols-3">
                 <div className="space-y-3">
                   <SettingRow
                     id="assistant-reminders"
@@ -645,20 +909,11 @@ export default function AttendanceSettingsPage() {
                       )}
                     </Label>
                     <Input
-                      id="reminder-lead"
-                      type="number"
-                      value={form.reminder_lead_minutes}
-                      onChange={(e) =>
-                        setField(
-                          "reminder_lead_minutes",
-                          parseInt(e.target.value) || 0,
-                        )
-                      }
-                      min={0}
-                      max={120}
+                      {...numberProps("reminder_lead_minutes", "reminder-lead")}
                       disabled={!form.reminders_enabled}
                       className="mt-1 w-32"
                     />
+                    {numberErrorNode("reminder_lead_minutes", "reminder-lead")}
                   </div>
                 </div>
 
@@ -689,20 +944,17 @@ export default function AttendanceSettingsPage() {
                       )}
                     </Label>
                     <Input
-                      id="auto-checkout-after"
-                      type="number"
-                      value={form.auto_checkout_after_minutes}
-                      onChange={(e) =>
-                        setField(
-                          "auto_checkout_after_minutes",
-                          parseInt(e.target.value) || 120,
-                        )
-                      }
-                      min={15}
-                      max={720}
+                      {...numberProps(
+                        "auto_checkout_after_minutes",
+                        "auto-checkout-after",
+                      )}
                       disabled={!form.auto_checkout_enabled}
                       className="mt-1 w-32"
                     />
+                    {numberErrorNode(
+                      "auto_checkout_after_minutes",
+                      "auto-checkout-after",
+                    )}
                   </div>
                 </div>
 
@@ -763,6 +1015,7 @@ export default function AttendanceSettingsPage() {
                     <SelectTrigger
                       id="device-binding"
                       className="mt-1 w-full sm:w-80"
+                      aria-describedby="device-binding-desc"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -781,7 +1034,10 @@ export default function AttendanceSettingsPage() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p
+                    id="device-binding-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.device_binding_desc",
                       "Each person registers the phone they punch with, at work, and confirms each punch with its fingerprint, face or PIN. A friend's phone, a second phone or another browser cannot punch for them. Start with Check and review while staff register, then choose Only the registered phone.",
@@ -797,19 +1053,23 @@ export default function AttendanceSettingsPage() {
                   </Label>
                   <Input
                     id="office-networks"
-                    value={(form.office_networks ?? []).join(", ")}
-                    placeholder="196.188.10.0/24"
-                    onChange={(e) =>
-                      setField(
-                        "office_networks",
-                        e.target.value
-                          .split(/[\s,]+/)
-                          .filter((part) => part !== ""),
-                      )
+                    value={
+                      networksText ?? (form.office_networks ?? []).join(", ")
                     }
+                    placeholder="196.188.10.0/24"
+                    aria-describedby="office-networks-desc"
+                    onChange={(e) => setNetworksText(e.target.value)}
+                    onBlur={() => {
+                      if (networksText === null) return;
+                      setField("office_networks", parseNetworks(networksText));
+                      setNetworksText(null);
+                    }}
                     className="mt-1"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p
+                    id="office-networks-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.office_networks_desc",
                       "Only if your office has its own fixed internet address. A web punch from these addresses needs no phone and is marked for review. Leave empty otherwise.",
@@ -824,20 +1084,18 @@ export default function AttendanceSettingsPage() {
                     )}
                   </Label>
                   <Input
-                    id="risk-threshold"
-                    type="number"
-                    min={10}
-                    max={100}
-                    value={form.risk_review_threshold}
-                    onChange={(e) =>
-                      setField(
-                        "risk_review_threshold",
-                        parseInt(e.target.value) || 40,
-                      )
-                    }
+                    {...numberProps(
+                      "risk_review_threshold",
+                      "risk-threshold",
+                      "risk-threshold-desc",
+                    )}
                     className="mt-1 w-32"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  {numberErrorNode("risk_review_threshold", "risk-threshold")}
+                  <p
+                    id="risk-threshold-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
                     {t(
                       "attendance.settings_page.risk_threshold_desc",
                       "Lower sends more punches to review. 40 is recommended; a branch can set its own.",

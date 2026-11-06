@@ -58,7 +58,9 @@ describe("Employee number format card", () => {
     fireEvent.change(screen.getByLabelText("Format"), {
       target: { value: "HC/{SEQ:3}" },
     });
-    expect(screen.getByText(/Codes look like HC\/001/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/codes will look like HC\/001/),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>

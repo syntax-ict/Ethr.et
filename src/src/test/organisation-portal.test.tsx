@@ -45,6 +45,7 @@ function organisationContext(): HostCtx {
     },
     tenantSignIn: null,
     tenantDefaultLocale: null,
+    tenantBillingOnly: false,
     onLanding: true,
     carryOrganisation: "acme",
     tenantRequest: { mode: "entry", slug: "acme" },

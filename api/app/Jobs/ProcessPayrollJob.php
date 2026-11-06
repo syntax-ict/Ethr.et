@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Models\AuditLog;
+use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
@@ -17,6 +18,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -125,9 +127,18 @@ class ProcessPayrollJob implements ShouldQueue
             return;
         }
 
-        $engine->runEntries($run);
+        $run = $engine->runEntries($run, $this->deadline());
 
-        $run->refresh();
+        // Out of time with people still to pay: the rest goes to a new job,
+        // which skips whoever has an entry. Delayed, so the worker that ran
+        // this one finds nothing waiting and ends, and the next request carries
+        // on with a fresh budget. Completion is announced once, by the job
+        // that finishes the run.
+        if ($run->status === 'processing') {
+            static::dispatch($this->payrollRunId, $this->tenantId)->delay(now()->addSeconds(5));
+
+            return;
+        }
 
         AuditLog::record('payroll.processed', $run, [
             'period' => $run->period_label,
@@ -144,6 +155,30 @@ class ProcessPayrollJob implements ShouldQueue
     }
 
     /**
+     * The `microtime(true)` this job must stop at, or null to run to the end.
+     *
+     * Measured from the start of the request, not the job: a worker may have
+     * used some of the request's time already, and the host's limit is on the
+     * request. A command-line worker has no limit (`max_execution_time` is 0).
+     */
+    private function deadline(): ?float
+    {
+        $budget = config('payroll.request_budget_seconds');
+
+        if ($budget === null) {
+            $limit = (int) ini_get('max_execution_time');
+
+            if ($limit <= 0) {
+                return null;
+            }
+
+            $budget = $limit * 0.5;
+        }
+
+        return (float) ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)) + (float) $budget;
+    }
+
+    /**
      * Mark the run failed so the UI can say so.
      *
      * Without this a crashed run sits at `processing` forever and is
@@ -152,6 +187,15 @@ class ProcessPayrollJob implements ShouldQueue
      */
     public function failed(Throwable $e): void
     {
+        // This can run in a worker that never ran handle(): a job whose worker
+        // was stopped is failed by the next one, after its reservation lapses.
+        // The entries below are read and removed through the tenant scope, so
+        // the tenant is set here as handle() sets it.
+        $tenant = Tenant::query()->find($this->tenantId);
+        if ($tenant !== null) {
+            app(CurrentTenant::class)->set($tenant);
+        }
+
         // Same predicate as handle(), deliberately: the two halves of a job
         // that disagree about how much to state is the shape root CLAUDE.md
         // records for DispatchWebhookJob. This one marks a run `failed`, so
@@ -165,7 +209,20 @@ class ProcessPayrollJob implements ShouldQueue
             return;
         }
 
-        $run->update(['status' => 'failed']);
+        // A run that stops for good leaves no entries, as when it was one
+        // transaction: a batch written before the failure is not a payslip, and
+        // under a failed run it would read as one. Only a run still being
+        // computed reaches here (above), never an approved one, whose entries
+        // the database refuses to change. Through the query builder, which the
+        // model's NeverDelete does not cover, and scoped to this run.
+        DB::transaction(function () use ($run): void {
+            PayrollEntry::query()
+                ->where('tenant_id', $run->tenant_id)
+                ->where('payroll_run_id', $run->id)
+                ->delete();
+
+            $run->update(['status' => 'failed']);
+        });
 
         Log::error('Payroll run failed', [
             'payroll_run_id' => $run->id,

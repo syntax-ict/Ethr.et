@@ -8,6 +8,8 @@ use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Tenancy\OrganisationOwnership;
+use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -60,11 +62,26 @@ class UpdateUserRequest extends FormRequest
                 && $this->input('role') !== $target->role->value;
             $changesStatus = $target instanceof User && $this->has('status')
                 && $this->input('status') !== $target->status;
+            // A custom role replaces its holder's permissions, so giving a peer
+            // a narrow one locks them out as surely as a status change does.
+            $changesCustomRole = $target instanceof User && $this->has('custom_role_id')
+                && $this->input('custom_role_id') !== $target->customRole?->public_id;
 
-            if (($changesRole || $changesStatus) && $actor !== null
+            // The owner stays an active administrator until ownership is
+            // handed on: ETHR's support calls them, and only they may give
+            // it away (OrganisationOwnership). A custom role replaces their
+            // permissions, so it is refused the same way.
+            if (($changesRole || $changesCustomRole || ($changesStatus && $this->input('status') !== 'active'))
+                && OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
+                $v->errors()->add($changesRole ? 'role' : ($changesCustomRole ? 'custom_role_id' : 'status'), __('user.errors.owner_transfer_first'));
+
+                return;
+            }
+
+            if (($changesRole || $changesStatus || $changesCustomRole) && $actor !== null
                 && ! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
                 && $target->id !== $actor->id && $target->role->level() === $actor->role->level()) {
-                $v->errors()->add($changesRole ? 'role' : 'status', __('user.errors.account_at_your_level'));
+                $v->errors()->add($changesRole ? 'role' : ($changesStatus ? 'status' : 'custom_role_id'), __('user.errors.account_at_your_level'));
 
                 return;
             }
@@ -79,24 +96,9 @@ class UpdateUserRequest extends FormRequest
                 return;
             }
 
-            if ($role === UserRole::SUPER_ADMIN) {
-                $v->errors()->add('role', __('user.errors.role_not_assignable'));
-
-                return;
-            }
-
-            if (! $actor->isSuperAdmin() && $role->level() > $actor->role->level()) {
-                $v->errors()->add('role', __('user.errors.role_above_your_level'));
-            }
-
-            // Two roles share level 70 with different jobs (audit N95): whoever
-            // processes payroll must not also change the accounts it pays into.
-            // Below the organisation admin, the other role at your level is
-            // not yours to hand out, or an HR admin could open a Finance admin
-            // account for themselves.
-            if (! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
-                && $role->level() === $actor->role->level() && $role !== $actor->role) {
-                $v->errors()->add('role', __('user.errors.role_beside_your_own'));
+            $refusal = RoleAssignment::refusal($actor, $role);
+            if ($refusal !== null) {
+                $v->errors()->add('role', __($refusal));
             }
         });
     }

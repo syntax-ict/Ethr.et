@@ -8,6 +8,7 @@ return [
     'deleted' => 'የሰራተኛ መዝገብ ተሰርዟል።',
     // English placeholder until the native-speaker review (audit N73).
     'supervisor_self' => 'ሠራተኛ የራሱ ተቆጣጣሪ መሆን አይችልም።',
+    'supervisor_loop' => 'ይህ ዙር ይፈጥራል፦ ይህ ሰው የተመረጠውን ሰው በቀጥታ ወይም በበታች ደረጃ ይቆጣጠራል።',
     'import_relation_not_found' => 'ረድፍ :row፦ :field ":value" አልተገኘም። በETHR ውስጥ ያለውን ኮድ ወይም ስም ይጠቀሙ።',
     'import_relation_ambiguous' => 'ረድፍ :row፦ ":value" የሚባሉ ከአንድ በላይ :field አሉ። ኮዱን ይጠቀሙ።',
     'import_duplicate_in_file' => 'ረድፍ :row፦ :field ":value" በዚህ ፋይል ረድፍ :first ላይ ተጠቅሟል።',
@@ -21,6 +22,7 @@ return [
     'number_format_invalid' => 'አንድ {SEQ:n} ምልክት ይጠቀሙ (n ከ1 እስከ 8)፣ ዙሪያውን ፊደላት፣ ቁጥሮች፣ - _ . ወይም / ብቻ። ለምሳሌ EMP-{SEQ:4}።',
     'cannot_change_own_pay' => 'የራስዎን ደመወዝ ወይም የባንክ መረጃ በድርጅትዎ ውስጥ ሌላ ሰው መቀየር አለበት።',
     'cannot_review_own_profile' => 'በራስዎ መገለጫ ላይ የቀረበ ለውጥ መገምገም አይችሉም።',
+    'cannot_review_pay_field' => 'የግብር ከፋይ መለያ ቁጥርን ወይም የባንክ ሂሳብን ለውጥ ለመወሰን የክፍያ መረጃን የማስተካከል ፈቃድ ያስፈልጋል።',
     'cannot_review_filed_profile' => 'ይህን ለውጥ ያቀረቡት እርስዎ ስለሆኑ ሌላ ሰው መገምገም አለበት።',
     'invalid_transition' => 'ሁኔታን ከ:from ወደ :to መቀየር አይቻልም።',
     'bulk_update_failed' => 'ይህን ሰራተኛ ማዘመን አልተቻለም። እንደገና ይሞክሩ፣ ወይም ከመገለጫው ይቀይሩ።',

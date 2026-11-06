@@ -34,7 +34,7 @@ class DeviceOfflineNotification extends Notification
         return [
             'device_id' => $this->device->public_id,
             'device_name' => $this->device->name,
-            'location' => $this->device->branch?->name ?? 'Unknown',
+            'location' => $this->device->branch?->name ?? __('notification.unknown_location'),
             'offline_since' => $this->device->last_sync_at?->toIso8601String(),
             ...NotificationMessage::make('notification.inapp.device_offline', ['name' => $this->device->name]),
             'url' => '/devices/'.$this->device->public_id,
@@ -43,11 +43,11 @@ class DeviceOfflineNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $location = $this->device->branch?->name ?? 'Unknown location';
+        $location = $this->device->branch?->name ?? __('notification.unknown_location');
 
         return (new MailMessage)
             ->subject(__('notification.device_offline_subject'))
-            ->line("Biometric device \"{$this->device->name}\" at {$location} has gone offline.")
-            ->action('View Device Status', FrontendUrl::forNotifiable($notifiable, '/devices'));
+            ->line(__('notification.device_offline_line', ['name' => $this->device->name, 'location' => $location]))
+            ->action(__('notification.device_offline_action'), FrontendUrl::forNotifiable($notifiable, '/devices'));
     }
 }

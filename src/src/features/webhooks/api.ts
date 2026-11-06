@@ -15,6 +15,7 @@ export type WebhookTestResult =
 /**
  * Exactly the events the API dispatches — every `$this->webhook(...)` call
  * site (`DispatchesWebhooks`): EmployeeController, LeaveRequestController,
+ * LeaveRecallService,
  * PayrollController and ProcessPayrollJob — and the list the server accepts,
  * `App\Support\WebhookEvents::ALL` (`events.*` is validated against it, audit
  * N11). Add an event there, with the call site that sends it, and here.
@@ -25,6 +26,7 @@ export const WEBHOOK_EVENTS = [
   "leave.requested",
   "leave.approved",
   "leave.rejected",
+  "leave.changed",
   "payroll.processed",
   "payroll.approved",
   "payroll.voided",

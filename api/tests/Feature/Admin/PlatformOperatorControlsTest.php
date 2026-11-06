@@ -68,6 +68,17 @@ describe('MFA is mandatory for platform operators', function () {
         test()->getJson('http://admin.ethr.test/api/v1/admin/health')->assertOk();
     });
 
+    // A-Z review H-11 (2026-11-04): two reads return people's details across
+    // every organisation, and were open behind a password alone.
+    it('keeps the cross-organisation user search and the audit log behind MFA, even to read', function () {
+        platformOperator(mfa: false);
+
+        test()->getJson('http://admin.ethr.test/api/v1/admin/users/search?q=abebe')
+            ->assertForbidden()->assertJsonPath('type', 'https://ethr.et/errors/mfa-required');
+        test()->getJson('http://admin.ethr.test/api/v1/admin/audit')
+            ->assertForbidden()->assertJsonPath('type', 'https://ethr.et/errors/mfa-required');
+    });
+
     it('allows writes once MFA is enabled', function () {
         platformOperator(mfa: true);
 

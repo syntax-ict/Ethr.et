@@ -162,7 +162,7 @@ it('is cached briefly and varies by host and tenant header', function () {
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/tenant-landing/feed")
         ->assertOk()
-        ->assertHeader('Cache-Control', 'max-age=120, public')
+        ->assertHeader('Cache-Control', 'max-age=120, private')
         ->assertHeader('Vary', 'Host, X-Tenant, Origin');
 });
 
@@ -232,3 +232,17 @@ it('lists active branches and their count only when the organisation chose to', 
         ->assertJsonPath('branches', [])
         ->assertJsonPath('branch_count', null);
 });
+
+// A-Z review I-07 (2026-11-05). The feed and the news list are answered
+// through the stateful API, so a response can carry cookies; a shared cache
+// must never keep one. The browser still keeps it for two minutes.
+it('lets only the browser cache the feed and the news list', function (string $path) {
+    $tenant = createTenant();
+    feedAnnouncement($tenant);
+
+    $cache = (string) test()->getJson(feedUrl($tenant, $path))->assertOk()->headers->get('Cache-Control');
+
+    expect($cache)->toContain('private')
+        ->and($cache)->toContain('max-age=120')
+        ->and($cache)->not->toContain('public');
+})->with(['/auth/tenant-landing/feed', '/auth/tenant-landing/news']);

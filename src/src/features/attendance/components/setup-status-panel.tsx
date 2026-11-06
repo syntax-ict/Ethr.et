@@ -21,7 +21,18 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
   // quiet-on-error: advisory only; a failed check leaves the settings below usable, and the page reports its own load errors.
   const status = useAttendanceSetupStatus();
 
-  const text: Record<string, { title: string; detail: string }> = {
+  // A title that carries a count: one key for one, another for the rest,
+  // so "1 device" reads as a sentence in every language (no "device(s)").
+  const counted =
+    (key: string, one: string, many: string) => (count: number) =>
+      count === 1
+        ? t(`setup_status.${key}_one`, one)
+        : t(`setup_status.${key}`, many, { count });
+
+  const text: Record<
+    string,
+    { title: string | ((count: number) => string); detail: string }
+  > = {
     no_default_schedule: {
       title: t("setup_status.no_default_schedule", "No default shift"),
       detail: t(
@@ -30,9 +41,10 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
       ),
     },
     geofence_unplaced: {
-      title: t(
-        "setup_status.geofence_unplaced",
-        "Location required at :count branch(es) not on the map",
+      title: counted(
+        "geofence_unplaced",
+        "Location required at 1 branch not on the map",
+        "Location required at :count branches not on the map",
       ),
       detail: t(
         "setup_status.geofence_unplaced_desc",
@@ -50,9 +62,10 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
       ),
     },
     crews_unassigned: {
-      title: t(
-        "setup_status.crews_unassigned",
-        ":count rotation(s) with nobody on them",
+      title: counted(
+        "crews_unassigned",
+        "1 rotation with nobody on it",
+        ":count rotations with nobody on them",
       ),
       detail: t(
         "setup_status.crews_unassigned_desc",
@@ -60,9 +73,10 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
       ),
     },
     pending_punches: {
-      title: t(
-        "setup_status.pending_punches",
-        ":count punch(es) this week with no shift",
+      title: counted(
+        "pending_punches",
+        "1 punch this week with no shift",
+        ":count punches this week with no shift",
       ),
       detail: t(
         "setup_status.pending_punches_desc",
@@ -70,9 +84,10 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
       ),
     },
     devices_silent: {
-      title: t(
-        "setup_status.devices_silent",
-        ":count device(s) silent for a day",
+      title: counted(
+        "devices_silent",
+        "1 device silent for a day",
+        ":count devices silent for a day",
       ),
       detail: t(
         "setup_status.devices_silent_desc",
@@ -181,7 +196,9 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
                   />
                   <span className="min-w-0">
                     <span className="block text-sm font-medium">
-                      {copy.title.replace(":count", String(check.count))}
+                      {typeof copy.title === "function"
+                        ? copy.title(check.count)
+                        : copy.title.replace(":count", String(check.count))}
                     </span>
                     {!compact && (
                       <span className="block text-xs text-muted-foreground">

@@ -117,6 +117,19 @@ describe("<AppHeader> language and calendar menu", () => {
     expect(trigger).toHaveTextContent("English · Ethiopian");
   });
 
+  it("shows a dropdown arrow beside the words, so it reads as a menu", async () => {
+    renderHeader();
+
+    const trigger = await screen.findByRole("button", {
+      name: /language, calendar and time of day/i,
+    });
+    const arrow = trigger.querySelector("svg.lucide-chevron-down");
+    expect(arrow).not.toBeNull();
+    expect(arrow).toHaveAttribute("aria-hidden");
+    // Beside the words from sm up; a phone header shows the globe alone.
+    expect(arrow).toHaveClass("hidden", "sm:block");
+  });
+
   it("exposes the current choices as checked radio items", async () => {
     await openMenu();
 

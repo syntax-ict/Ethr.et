@@ -25,6 +25,8 @@ class AccountingController extends Controller
         ['key' => 'pension_payable_employee', 'account_code' => '2200', 'account_name' => 'Pension Payable (Employee)'],
         ['key' => 'pension_payable_employer', 'account_code' => '2201', 'account_name' => 'Pension Payable (Employer)'],
         ['key' => 'net_salary_payable',      'account_code' => '2300', 'account_name' => 'Net Salary Payable'],
+        ['key' => 'loans_receivable',        'account_code' => '1400', 'account_name' => 'Employee Loans Receivable'],
+        ['key' => 'cost_sharing_payable',    'account_code' => '2400', 'account_name' => 'Cost Sharing Payable'],
     ];
 
     public function __construct(

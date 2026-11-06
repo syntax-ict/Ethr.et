@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Leave;
 
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Leave\RecallLeaveRequest;
 use App\Http\Requests\Leave\RejectLeaveRequest;
 use App\Http\Requests\Leave\StoreLeaveRequestRequest;
 use App\Http\Resources\LeaveBalanceResource;
@@ -17,16 +18,25 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Notifications\LeaveRequestedNotification;
 use App\Services\Approval\ApprovalEngine;
+use App\Services\CurrentTenant;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
+use App\Services\Leave\LeaveRecallService;
 use App\Services\Leave\LeaveYear;
+use App\Services\Leave\SickLeaveTiers;
+use App\Services\Payroll\PayrollPeriodLock;
+use App\Services\Payroll\StatutoryRules;
+use App\Support\ApprovalRefusal;
+use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
 {
@@ -36,6 +46,8 @@ class LeaveRequestController extends Controller
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
         private readonly LeaveDecisionService $decisions,
+        private readonly SickLeaveTiers $sickLeave,
+        private readonly StatutoryRules $statutoryRules,
         private readonly ApprovalEngine $approvals,
     ) {}
 
@@ -69,12 +81,17 @@ class LeaveRequestController extends Controller
         $startDate = Carbon::parse($request->validated('start_date'));
         $endDate = Carbon::parse($request->validated('end_date'));
 
-        $days = $this->dayCalculator->calculateDays(
-            $startDate,
-            $endDate,
-            $employee->tenant_id,
-            $employee->branch_id,
-        );
+        // A type counted in consecutive calendar days (maternity, Art. 88)
+        // takes the whole span; every other type the person's own working days.
+        $days = $leaveType->counts_calendar_days
+            ? (float) ((int) $startDate->diffInDays($endDate) + 1)
+            : $this->dayCalculator->calculateDays(
+                $startDate,
+                $endDate,
+                $employee->tenant_id,
+                $employee->branch_id,
+                $employee,
+            );
 
         if ($days <= 0) {
             return response()->json([
@@ -85,9 +102,13 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
+        // Whole days from the organisation's today: measured from the
+        // server's current instant, a request made at 10:00 for a day exactly
+        // the notice period ahead counted 6.6 days and was refused, and near
+        // midnight the UTC day was the wrong one (A-Z review E-05).
         if ($leaveType->min_notice_days > 0 && ! $onBehalf) {
-            $noticeDays = now()->diffInDays($startDate, false);
-            if ($noticeDays < $leaveType->min_notice_days) {
+            $earliest = TenantTime::today(app(CurrentTenant::class)->get())->addDays($leaveType->min_notice_days);
+            if ($startDate->format('Y-m-d') < $earliest->format('Y-m-d')) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/notice-period',
                     'title' => 'Insufficient Notice',
@@ -113,7 +134,24 @@ class LeaveRequestController extends Controller
         $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
         $remaining = $balance->remainingDays();
 
-        if ($leaveType->limitedByBalance() && $days > $remaining) {
+        // Sick leave under Art. 85 is six months within twelve, counted from
+        // the first day of sickness, not the annual balance (A-Z review E-08).
+        // Pending requests count, so two filed at once cannot pass together.
+        if ($leaveType->follows_art85) {
+            $monthDays = $this->statutoryRules->for(app(CurrentTenant::class)->tenantFor($employee->tenant_id), $startDate)->int('payroll.working_days_per_month');
+            $asked = $this->sickLeave->datesBetween($employee, $leaveType, $startDate, $endDate);
+            $tiers = $this->sickLeave->tiersOf($employee, $monthDays, $asked, withPending: true);
+            foreach ($asked as $date) {
+                if (($tiers[$date] ?? null) === SickLeaveTiers::BEYOND) {
+                    return response()->json([
+                        'type' => 'https://ethr.et/errors/insufficient-balance',
+                        'title' => 'Insufficient Leave Balance',
+                        'status' => 422,
+                        'detail' => __('leave.sick_beyond_six_months'),
+                    ], 422)->header('Content-Type', 'application/problem+json');
+                }
+            }
+        } elseif ($leaveType->limitedByBalance() && $days > $remaining) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/insufficient-balance',
                 'title' => 'Insufficient Leave Balance',
@@ -325,7 +363,30 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $leaveRequest->update(['status' => LeaveStatus::CANCELLED]);
+        // Only from pending, read again under a lock: an approval landing at
+        // the same moment wins or loses as a whole (A-Z review E-01). Through
+        // the model, so its approval is closed as before.
+        $cancelled = DB::transaction(function () use ($leaveRequest): bool {
+            $locked = LeaveRequest::query()->whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if ($locked === null || $locked->status !== LeaveStatus::PENDING) {
+                return false;
+            }
+
+            $locked->update(['status' => LeaveStatus::CANCELLED]);
+
+            return true;
+        });
+
+        if (! $cancelled) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_pending'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $leaveRequest->refresh();
 
         $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
@@ -338,6 +399,68 @@ class LeaveRequestController extends Controller
         }
 
         AuditLog::record('leave.cancelled', $leaveRequest);
+
+        $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
+
+        return response()->json(new LeaveRequestResource($leaveRequest));
+    }
+
+    /**
+     * Cancel approved leave, or end it early: HR only, with a reason. The
+     * days it no longer takes go back to the balance, and the employee is
+     * told. Without `end_date` the leave is cancelled.
+     */
+    public function recall(RecallLeaveRequest $request, LeaveRequest $leaveRequest, LeaveRecallService $recalls): JsonResponse
+    {
+        $this->authorize('recall', $leaveRequest);
+
+        $user = $request->user();
+
+        // Not one's own: the days go back to the balance of whoever does it.
+        if ($user->employee_id !== null && $user->employee_id === $leaveRequest->employee_id) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/forbidden',
+                'title' => 'Forbidden',
+                'status' => 403,
+                'detail' => __('leave.cannot_recall_own'),
+            ], 403)->header('Content-Type', 'application/problem+json');
+        }
+
+        if ($leaveRequest->status !== LeaveStatus::APPROVED) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_approved'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $start = $leaveRequest->start_date->copy()->startOfDay();
+        $end = $request->validated('end_date') !== null ? Carbon::parse((string) $request->validated('end_date'))->startOfDay() : null;
+
+        if ($end !== null && ($end->lt($start) || $end->gte($leaveRequest->end_date->copy()->startOfDay()))) {
+            throw ValidationException::withMessages(['end_date' => [__('leave.recall_end_date')]]);
+        }
+
+        if ($end !== null && $recalls->daysUntil($leaveRequest, $end) <= 0) {
+            throw ValidationException::withMessages(['end_date' => [__('leave.recall_no_days')]]);
+        }
+
+        // The days given back must not fall in a period an approved run has
+        // paid, whatever the type: the run would no longer match the record.
+        $freedFrom = $end === null ? $start : $end->copy()->addDay();
+        if (app(PayrollPeriodLock::class)->anyClosed($leaveRequest->employee_id, $freedFrom, $leaveRequest->end_date)) {
+            return ApprovalRefusal::payrollPeriodClosed(__('leave.recall_period_closed'))->toResponse();
+        }
+
+        if (! $recalls->recall($leaveRequest, $user, $end, (string) $request->validated('reason'))) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('leave.not_approved'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
 
         $leaveRequest->load('employee', 'leaveType', 'approvalInstance.actions.actor');
 
