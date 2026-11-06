@@ -1,0 +1,16 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/settings/webhooks",
+  "markers": [
+    {
+      "n": 1,
+      "x": 2220,
+      "y": 228,
+      "w": 300,
+      "h": 88,
+      "pin": "below"
+    }
+  ]
+}

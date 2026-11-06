@@ -96,6 +96,28 @@ async function ethDate(page, scope, index, [year, month, day]) {
   );
 }
 
+/**
+ * Fills an Ethiopian clock time (ClockTimeInput when the reader's clock is
+ * Ethiopian): part of the day first, since it decides which hours are offered,
+ * then the hour, then the minutes.
+ */
+async function ethTime(page, scope, index, [hour, minute, period]) {
+  await pick(
+    page,
+    scope.getByRole("combobox", { name: /: የቀኑ ክፍል$/ }).nth(index),
+    period,
+  );
+  await pick(
+    page,
+    scope.getByRole("combobox", { name: /: ሰዓት$/ }).nth(index),
+    String(hour),
+  );
+  await scope
+    .getByRole("textbox", { name: /: ደቂቃ$/ })
+    .nth(index)
+    .fill(String(minute).padStart(2, "0"));
+}
+
 const open = (name) => async (page) => {
   await page.getByRole("button", { name }).first().click();
   await page.waitForTimeout(600);
@@ -182,7 +204,7 @@ export const SHOTS = [
           header(page).getByText("ሰዎችን፣ መገኘትን፣ ፈቃድንና ገጾችን ይፈልጉ"),
         pin: "below",
       },
-      { target: headerButton("ቋንቋ እና የቀን መቁጠሪያ"), pin: "below" },
+      { target: headerButton("ቋንቋ፣ የቀን መቁጠሪያ እና የሰዓት አቆጣጠር"), pin: "below" },
       { target: headerButton("እርዳታ ያግኙ"), pin: "below" },
       { target: headerButton("ማሳወቂያዎች"), pin: "below" },
       { target: headerButton("የመለያ ምናሌ"), pin: "below" },
@@ -193,12 +215,18 @@ export const SHOTS = [
     guide: "employee",
     as: "employee",
     path: "/dashboard",
-    prepare: open("ቋንቋ እና የቀን መቁጠሪያ"),
+    prepare: open("ቋንቋ፣ የቀን መቁጠሪያ እና የሰዓት አቆጣጠር"),
     clip: popover,
     clipPad: 10,
     markers: [
       { target: (page) => popover(page).getByText("English", { exact: true }) },
       { target: (page) => popover(page).getByText("ኢትዮጵያዊ").first() },
+      {
+        target: (page) =>
+          popover(page)
+            .getByText(/^የኢትዮጵያ ሰዓት/)
+            .first(),
+      },
     ],
   },
   {
@@ -286,17 +314,22 @@ export const SHOTS = [
       await open("ማስተካከያ ይጠይቁ")(page);
       const d = dialog(page);
       await ethDate(page, d, 0, [2019, "ጥቅምት", 17]);
-      const times = d.locator('input[type="time"]');
-      await times.nth(0).fill("08:25");
-      await times.nth(1).fill("17:35");
+      // 08:25 and 17:35 on the Ethiopian clock.
+      await ethTime(page, d, 0, [2, 25, "ጠዋት"]);
+      await ethTime(page, d, 1, [11, 35, "ቀን"]);
       await d
         .locator("textarea")
-        .fill("የጣት አሻራ መሣሪያው ጠዋት አልሠራም፤ 08:25 ላይ ደርሼ ነበር። የክፍሉ ኃላፊ ያውቃሉ።");
+        .fill("የጣት አሻራ መሣሪያው ጠዋት አልሠራም፤ ጠዋት 2:25 ላይ ደርሼ ነበር። የክፍሉ ኃላፊ ያውቃሉ።");
     },
     clip: dialog,
     markers: [
       { target: (page) => dialog(page).getByRole("spinbutton").first() },
-      { target: (page) => dialog(page).locator('input[type="time"]').first() },
+      {
+        target: (page) =>
+          dialog(page)
+            .getByRole("combobox", { name: /: ሰዓት$/ })
+            .first(),
+      },
       { target: (page) => dialog(page).locator("textarea") },
       {
         target: (page) =>
@@ -434,7 +467,9 @@ export const SHOTS = [
     guide: "employee",
     as: "employee",
     path: "/profile/preferences",
-    fullPage: true,
+    // The page scrolls inside <main>, so fullPage stops at the window; the
+    // clock setting pushed the consent button below it.
+    height: 1500,
     markers: [
       { target: text("የመተግበሪያ ቋንቋ", { exact: true }) },
       { target: text("የቀን አቀራረብ", { exact: true }) },
@@ -473,6 +508,48 @@ export const SHOTS = [
       { target: (page) => dialog(page).locator("textarea") },
       { target: (page) => dialog(page).getByRole("switch").first() },
       { target: (page) => dialog(page).getByRole("button", { name: "ላክ" }) },
+    ],
+  },
+  {
+    // Submits the request, so the admin guide's letter queue has one in it.
+    id: "emp-letter",
+    guide: "employee",
+    as: "employee",
+    path: "/profile/documents",
+    prepare: async (page) => {
+      await page.locator("#letter_purpose").fill("የባንክ ብድር ማመልከቻ");
+      await page.locator("#letter_to").fill("የኢትዮጵያ ንግድ ባንክ");
+    },
+    clip: (page) => [
+      page.locator("main").getByText("የሥራ ማረጋገጫ ደብዳቤዎች", { exact: true }),
+      page.locator("main").getByRole("button", { name: "ደብዳቤ ጠይቅ" }),
+    ],
+    clipPad: 20,
+    markers: [
+      { target: (page) => page.locator("#letter_purpose") },
+      { target: (page) => page.locator("#letter_to") },
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "ደብዳቤ ጠይቅ" }),
+      },
+    ],
+    after: async (page) => {
+      await page
+        .locator("main")
+        .getByRole("button", { name: "ደብዳቤ ጠይቅ" })
+        .click();
+      await page.waitForTimeout(2000);
+    },
+  },
+  {
+    id: "emp-voice",
+    guide: "employee",
+    as: "employee",
+    path: "/voice",
+    markers: [
+      { target: tab("ሳምንታዊ ስሜት"), pin: "below" },
+      { target: tab("ይናገሩ"), pin: "below" },
+      { target: tab("ምስጋና"), pin: "below" },
     ],
   },
 
@@ -1034,6 +1111,305 @@ export const SHOTS = [
     guide: "admin",
     as: "admin",
     path: "/settings",
+    markers: [],
+  },
+
+  // ------------------------------------------------------------ admin, second edition
+  // These read rows prepare-data.php makes: two vacancies with four
+  // applicants, contracts ending, two loans and one leaver's clearance.
+  {
+    id: "adm-personnel-action",
+    guide: "admin",
+    as: "admin",
+    path: "/employees",
+    prepare: async (page) => {
+      await page
+        .locator("main table tbody tr")
+        .first()
+        .getByRole("link")
+        .first()
+        .click();
+      await page.waitForURL(/\/employees\/[^/]+$/);
+      await page
+        .locator("main")
+        .getByText("ታሪክ", { exact: true })
+        .first()
+        .click();
+      await page.waitForTimeout(800);
+      await open("እርምጃ መዝግብ")(page);
+    },
+    clip: dialog,
+    // Step 1 is the button that opened this dialog.
+    markers: [
+      {
+        target: (page) => dialog(page).getByText("የእርምጃ አይነት", { exact: true }),
+        n: 2,
+      },
+      {
+        target: (page) => dialog(page).getByText("የሚጸናበት ቀን", { exact: true }),
+        n: 3,
+      },
+    ],
+  },
+  {
+    id: "adm-contracts",
+    guide: "admin",
+    as: "admin",
+    path: "/employees/contracts",
+    markers: [],
+  },
+  {
+    id: "adm-exit-clearance",
+    guide: "admin",
+    as: "admin",
+    path: "/employees/exit-clearances",
+    prepare: async (page) => {
+      // A clearance row, not the breadcrumb above the list.
+      await page.locator('main a[href*="?tab=exit"]').first().click();
+      await page.waitForURL(/\/employees\/[^/?]+\?tab=exit/);
+      await page.waitForTimeout(800);
+    },
+    // Step 1 is the list this page was opened from.
+    markers: [
+      {
+        target: (page) =>
+          page
+            .locator("main")
+            .getByText("የመልቀቂያ ማጣሪያ", { exact: true })
+            .first(),
+        n: 2,
+        pin: "below",
+      },
+      {
+        target: (page) => page.locator("main").getByRole("checkbox").nth(1),
+        n: 3,
+      },
+    ],
+  },
+  {
+    id: "adm-letters",
+    guide: "admin",
+    as: "admin",
+    path: "/employees/letters",
+    markers: [
+      { target: tab("በመጠባበቅ ላይ"), pin: "below" },
+      { target: button("ስጥ") },
+      { target: button("ውድቅ አድርግ") },
+    ],
+  },
+  {
+    id: "adm-vacancies",
+    guide: "admin",
+    as: "admin",
+    path: "/vacancies",
+    markers: [
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "ክፍት የስራ ቦታ ለጥፍ" }),
+        pin: "below",
+      },
+      { target: tab("ክፍት"), pin: "below" },
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "አመልካቾች" }).first(),
+      },
+    ],
+  },
+  {
+    id: "adm-applicants",
+    guide: "admin",
+    as: "admin",
+    path: "/vacancies",
+    prepare: async (page) => {
+      await page
+        .locator("main")
+        .getByRole("button", { name: "አመልካቾች" })
+        .first()
+        .click();
+      await page.waitForTimeout(800);
+      await dialog(page)
+        .getByRole("button", { name: /ማኅሌት ግርማ/ })
+        .click();
+      await page.waitForTimeout(800);
+    },
+    clip: dialog,
+    markers: [
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: "ቅናሽ አቅርብ" }),
+      },
+      {
+        target: (page) => dialog(page).getByText("ወደ ታሪኩ ያክሉ", { exact: true }),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: "ውድቅ አድርግ" }),
+      },
+    ],
+  },
+  {
+    id: "adm-hire",
+    guide: "admin",
+    as: "admin",
+    path: "/vacancies",
+    prepare: async (page) => {
+      await page
+        .locator("main")
+        .getByRole("button", { name: "አመልካቾች" })
+        .first()
+        .click();
+      await page.waitForTimeout(800);
+      await dialog(page)
+        .getByRole("button", { name: /ናሆም አሰፋ/ })
+        .click();
+      await page.waitForTimeout(800);
+    },
+    clip: dialog,
+    // The offer was made and approved by others in prepare-data.php.
+    markers: [
+      { target: (page) => dialog(page).getByText(/ጸድቋል/).first(), n: 2 },
+      {
+        target: (page) => dialog(page).getByRole("button", { name: "ቅጠር" }),
+        n: 3,
+      },
+    ],
+  },
+  {
+    id: "adm-devices",
+    guide: "admin",
+    as: "admin",
+    path: "/devices",
+    markers: [
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "መሳሪያ ጨምር" }),
+        pin: "below",
+      },
+      {
+        target: (page) =>
+          page
+            .locator("main")
+            .getByRole("button", { name: "የጤንነት ዳሽቦርድ" })
+            .or(
+              page.locator("main").getByRole("link", { name: "የጤንነት ዳሽቦርድ" }),
+            ),
+        pin: "below",
+      },
+      { target: (page) => page.locator("main").getByRole("combobox").first() },
+    ],
+  },
+  {
+    id: "adm-kiosks",
+    guide: "admin",
+    as: "admin",
+    path: "/attendance/kiosks",
+    prepare: open("ኪዮስክ መዝግብ"),
+    clip: dialog,
+    markers: [],
+  },
+  {
+    id: "adm-reconcile",
+    guide: "admin",
+    as: "admin",
+    path: "/payroll?tab=reconcile",
+    // Step 3 (Open) has no marker: the demo period holds only absences,
+    // which are fixed in place and have no Open button.
+    markers: [
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "አሳይ" }),
+      },
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "አስተካክል" }).first(),
+      },
+    ],
+  },
+  {
+    id: "adm-loans",
+    guide: "admin",
+    as: "admin",
+    path: "/payroll/loans",
+    markers: [],
+  },
+  {
+    id: "adm-address",
+    guide: "admin",
+    as: "admin",
+    path: "/settings",
+    height: 1300,
+    markers: [],
+  },
+  {
+    id: "adm-branding",
+    guide: "admin",
+    as: "admin",
+    path: "/settings",
+    height: 1300,
+    prepare: async (page) => {
+      await tab("የድርጅት ገጽታ")(page).click();
+      await page.waitForTimeout(800);
+    },
+    markers: [
+      { target: text("አርማዎን ይጫኑ", { exact: true }) },
+      { target: text("ዋና ቀለም", { exact: true }) },
+    ],
+  },
+  {
+    id: "adm-landing",
+    guide: "admin",
+    as: "admin",
+    path: "/settings",
+    height: 2600,
+    prepare: async (page) => {
+      await tab("የድርጅት ገጽታ")(page).click();
+      await page.waitForTimeout(800);
+    },
+    clip: (page) => [
+      page.locator("main").getByText("ይፋዊ ድረ ገጽ", { exact: true }).first(),
+      page.locator("main").getByRole("button", { name: "ይፋዊ ድረ ገጹን አስቀምጥ" }),
+    ],
+    clipPad: 20,
+    markers: [],
+  },
+  {
+    id: "adm-api-keys",
+    guide: "admin",
+    as: "admin",
+    path: "/settings/api-keys",
+    markers: [
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "ቁልፍ ፍጠር" }),
+        pin: "below",
+      },
+    ],
+  },
+  {
+    id: "adm-webhooks",
+    guide: "admin",
+    as: "admin",
+    path: "/settings/webhooks",
+    markers: [
+      {
+        target: (page) =>
+          page.locator("main").getByRole("button", { name: "ዌብሁክ ጨምር" }),
+        pin: "below",
+      },
+    ],
+  },
+  {
+    id: "adm-voice",
+    guide: "admin",
+    as: "admin",
+    path: "/voice/insights",
+    markers: [],
+  },
+  {
+    id: "adm-billing",
+    guide: "admin",
+    as: "admin",
+    path: "/billing",
     markers: [],
   },
 
