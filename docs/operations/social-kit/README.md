@@ -1,6 +1,6 @@
 # Social media kit
 
-Everything needed to run ETHR's social channels: profile images and bios, 62 ready-to-post images in English and Amharic, captions for each platform, a four-week launch calendar and short video scripts. It sits beside the [sales deck](../marketing-deck/README.md) and makes the same claims, from the same sources.
+Everything needed to run ETHR's social channels: profile images and bios, 72 ready-to-post images in English and Amharic (ten of them built on real ETHR screens), captions for each platform, a four-week launch calendar and short video scripts. It sits beside the [sales deck](../marketing-deck/README.md) and makes the same claims, from the same sources.
 
 | File | What it is |
 |---|---|
@@ -23,6 +23,8 @@ Every image exists in English (`-en`) and Amharic (`-am`). The Amharic is the pr
 | [`assets/stories/`](assets/stories/) | 1080 × 1920 (9:16) | Instagram and Facebook Stories, WhatsApp and Telegram Status, Reels covers | 8 |
 | [`assets/links/`](assets/links/) | 1200 × 675 (16:9) | Link posts on X and LinkedIn, Telegram channel posts | 16 |
 | [`assets/profile/`](assets/profile/) | Per platform | Avatars (dark and light, 800 × 800) and banners for LinkedIn, Facebook, X and YouTube | 6 |
+| [`assets/screens/`](assets/screens/) | 1080 × 1350 | Feed posts built on real screens from the demo organisation: phone check-in, payslips, leave, the same phone in English and Amharic, and the employee list in both languages | 10 |
+| [`assets/screenshots/`](assets/screenshots/) | 1440 × 900 or 390 × 844, at 2x and 3x | The raw screens those posts are built from, for anyone making their own | 10 |
 
 The eight pillars, each one post, one link card and (for four of them) one story:
 
@@ -65,8 +67,17 @@ Copy lives in [`source/content.mjs`](source/content.mjs); layout in [`source/ren
 ```bash
 cd docs/operations/social-kit/source
 node check.mjs          # the claims and style check
-node render.mjs         # all 62 images; `node render.mjs posts` for a subset
+node render.mjs         # all 72 images; `node render.mjs posts` for a subset
 node render.mjs --html  # also keeps each image's HTML beside it, for a designer
 ```
+
+### Recapturing the real screens
+
+The screen posts are built on screenshots of a local install, never of a real organisation. To recapture them after the product changes:
+
+1. Set up a local install from [`LOCAL_SETUP.md`](../../LOCAL_SETUP.md) and seed it with `DemoTenantSeeder`.
+2. Run `php docs/operations/social-kit/source/screens/ethiopian-names.php`. The seeder names its staff with US-style Faker names; this gives them Ethiopian given and father's names, in English and Amharic, and matching addresses. It changes only the `demo` organisation in whatever database `api/.env` points at.
+3. Start the API on `:8000` and `npm run dev` on `:3000`, then run `node source/screens/capture.mjs`. It signs in as the demo admin and employee and photographs each screen in both languages, with the phone placed in Addis Ababa so check-in is live.
+4. Look at every screenshot before rendering. The script blurs every money amount automatically (a demo salary on a public post reads as someone's real pay) and hides the development server's badge; the rest is judgement. Screens left out, and why, are listed in `capture.mjs`.
 
 The renderer needs Playwright's Chromium, `curl` and, for the final size reduction, Python with Pillow. The first run downloads Inter, JetBrains Mono and Noto Sans Ethiopic (all SIL Open Font Licence) into `source/.fonts`, which is not committed. It refuses to write an image whose fonts did not load or whose content runs off the canvas, so Amharic can never ship as empty boxes.

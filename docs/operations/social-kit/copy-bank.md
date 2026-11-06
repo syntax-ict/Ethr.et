@@ -351,6 +351,20 @@ Pin this on every channel.
 
 ---
 
+## Real screens
+
+**Images:** `screens/*.png`. Each is the real product, captured from the demo organisation, with money amounts blurred. Post them with the caption of the pillar they prove; a real screen is the stronger image wherever both exist.
+
+| Image | Use the caption of |
+|---|---|
+| `screens/checkin-*` | 1. Offline attendance, or 7. Phone, QR code, kiosk and web |
+| `screens/payslips-*` | 2. Payroll under Ethiopian law |
+| `screens/leave-*` | 6. Leave from a phone |
+| `screens/two-languages-*` | 4. One system, two languages |
+| `screens/employees-*` | 4. One system, two languages |
+
+The Amharic check-in screen shows the time on the Ethiopian clock (12:24 ጠዋት for 06:24). On Telegram and Facebook, label it with the product's own term: **የኢትዮጵያ ሰዓት** *(Ethiopian time)*.
+
 ## The carousel: six problems in an HR office
 
 **Images:** `carousel-en/` or `carousel-am/`, all eight slides in order · **Platforms:** Instagram, LinkedIn (upload as a PDF document post, or as images), Facebook

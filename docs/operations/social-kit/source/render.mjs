@@ -25,6 +25,7 @@ import {
   MONTHS,
   PILLARS,
   SITE,
+  SCREEN_POSTS,
   WORD_PAIRS,
 } from "./content.mjs";
 
@@ -448,10 +449,90 @@ function avatar(theme) {
   });
 }
 
+// ---------------------------------------------------------------- real screens
+// Screenshots from source/screens/capture.mjs, framed. A missing screenshot
+// fails the run rather than drawing an empty frame.
+
+const SHOTS = join(OUT, "screenshots");
+const shot = (name) => {
+  const file = join(SHOTS, `${name}.png`);
+  if (!existsSync(file)) {
+    throw new Error(`${file} is missing; run source/screens/capture.mjs first`);
+  }
+  return `data:image/png;base64,${readFileSync(file).toString("base64")}`;
+};
+
+// A browser window: the screenshot under a plain title bar. The address shows
+// how a tenant is reached in production, ethr.et/{slug}.
+// `zoom` enlarges the screen inside the window; the top left stays in view.
+const browserFrame = (name, { width = 912, height = 600, zoom = 1, style = "" } = {}) =>
+  `<div style="width:${width}px;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 30px 70px rgba(4,20,35,.45);border:1px solid rgba(255,255,255,.12);${style}">
+    <div style="height:44px;background:#e9eef3;display:flex;align-items:center;gap:10px;padding:0 18px">
+      <span style="width:13px;height:13px;border-radius:50%;background:#f87171"></span><span style="width:13px;height:13px;border-radius:50%;background:#fbbf24"></span><span style="width:13px;height:13px;border-radius:50%;background:#34d399"></span>
+      <span style="margin-left:18px;flex:1;max-width:420px;height:26px;border-radius:999px;background:#fff;color:#64748b;font-size:15px;display:flex;align-items:center;padding:0 14px">ethr.et/demo</span>
+    </div>
+    <div style="height:${height}px;background:url(${shot(name)}) top left/${zoom * 100}% auto no-repeat"></div>
+  </div>`;
+
+// A phone: the screenshot inside a dark bezel with rounded corners.
+const phoneFrame = (name, { width = 330, style = "" } = {}) => {
+  const height = Math.round((width * 844) / 390);
+  return `<div style="width:${width + 24}px;padding:12px;border-radius:${Math.round(width / 6)}px;background:#0b1f31;box-shadow:0 30px 70px rgba(4,20,35,.5);border:2px solid #1d405c;${style}">
+    <div style="width:${width}px;height:${height}px;border-radius:${Math.round(width / 7.5)}px;overflow:hidden;background:url(${shot(name)}) top center/100% auto no-repeat"></div>
+  </div>`;
+};
+
+const SCREEN_LAYOUT = {
+  // One desktop screen.
+  browser: (shots) => browserFrame(shots[0]),
+  // English behind, Amharic in front.
+  browsers: (shots) =>
+    `<div style="position:relative;width:960px;height:640px">${browserFrame(shots[0], { width: 760, height: 470, zoom: 1.8, style: "position:absolute;left:0;top:0" })}${browserFrame(shots[1], { width: 760, height: 470, zoom: 1.8, style: "position:absolute;right:0;bottom:0" })}</div>`,
+  // One phone, with the line beside it.
+  phone: (shots) => phoneFrame(shots[0], { width: 350 }),
+  // Two phones side by side.
+  phones: (shots) =>
+    `<div style="display:flex;gap:40px;justify-content:center">${shots.map((n) => phoneFrame(n, { width: 330 })).join("")}</div>`,
+};
+
+function screenPost(p, lang) {
+  const t = p[lang];
+  const shots = p.shots.map((n) => n.replace("{lang}", lang));
+  return doc({
+    w: 1080,
+    h: 1350,
+    theme: "dark",
+    lang,
+    body: `<div class="tibeb" style="top:0"></div>
+    <div class="frame" style="padding:90px 60px 72px">
+      <div style="padding:0 24px">${brand(56)}</div>
+      <div style="margin-top:44px;padding:0 24px;display:flex;flex-direction:column;gap:18px">
+        <span class="over" style="font-size:24px">${t.over}</span>
+        <h1 class="h" style="font-size:${lang === "am" ? 58 : 70}px">${nb(t.h)}</h1>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:36px 0">${SCREEN_LAYOUT[p.layout](shots)}</div>
+      <div style="padding:0 24px">${footer(lang)}</div>
+    </div>`,
+  });
+}
+
 // ---------------------------------------------------------------- the job list
 
 const jobs = [];
 const add = (name, html, w, h) => jobs.push({ name, html, w, h });
+
+// Built lazily: a screen post needs its screenshots, the rest of the kit does
+// not. With no screenshots captured at all they are skipped with a notice; a
+// single missing screenshot among captured ones still fails the run.
+const addLazy = (name, build, w, h) => jobs.push({ name, build, w, h });
+if (!existsSync(SHOTS)) {
+  console.warn("No assets/screenshots/ yet: skipping screen posts (run source/screens/capture.mjs)");
+}
+for (const p of existsSync(SHOTS) ? SCREEN_POSTS : []) {
+  for (const lang of ["en", "am"]) {
+    addLazy(`screens/${p.id}-${lang}.png`, () => screenPost(p, lang), 1080, 1350);
+  }
+}
 
 for (const p of PILLARS) {
   for (const lang of ["en", "am"]) {
@@ -524,7 +605,7 @@ let written = 0;
 for (const job of jobs) {
   if (filter && !job.name.includes(filter)) continue;
   await page.setViewportSize({ width: job.w, height: job.h });
-  await page.setContent(job.html, { waitUntil: "load" });
+  await page.setContent(job.html ?? job.build(), { waitUntil: "load" });
   // check() is true for a face that is merely absent, so load the faces
   // explicitly and count what came back.
   const fonts = await page.evaluate(async () => ({
@@ -542,7 +623,7 @@ for (const job of jobs) {
   const file = join(OUT, job.name);
   mkdirSync(dirname(file), { recursive: true });
   await page.screenshot({ path: file, type: "png" });
-  if (keepHtml) writeFileSync(file.replace(/\.png$/, ".html"), job.html);
+  if (keepHtml) writeFileSync(file.replace(/\.png$/, ".html"), job.html ?? job.build());
   written++;
 }
 await browser.close();
