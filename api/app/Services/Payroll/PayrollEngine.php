@@ -151,13 +151,24 @@ final class PayrollEngine
      * pension, overtime, loans, allowances and cost-sharing per row. This is
      * what ProcessPayrollJob runs.
      *
-     * One transaction for the whole run. A worker that dies part-way used to
-     * leave some entries written under a run ProcessPayrollJob::failed() then
-     * marked `failed`; now it leaves none, and the run can be submitted again.
+     * It was one transaction for the whole run, inside one web request. The
+     * host stops a request after 30 s of CPU, and a run of 2,000 people takes
+     * 18 s on a fast machine: a larger or slower one was stopped part-way,
+     * again on every resubmission. It now commits in batches of 100 and, once
+     * `$deadline` (a `microtime(true)` value) has passed, returns with the run
+     * still `processing` and the rest for the next call, which skips whoever
+     * already has an entry. At least one batch is written per call, so each
+     * call makes progress however short the time it was given. With no
+     * deadline the whole run is done in one call, as before.
+     *
+     * A run that is stopped for good leaves no entries: ProcessPayrollJob::
+     * failed() removes the ones written so far, so it can be submitted again.
      * Calculating moves no balance at all (PayrollBalanceService does that on
-     * approval), so a failure has nothing else to undo.
+     * approval), so a failure has nothing else to undo. The run's totals and
+     * counts are written once, from what the entries say, when the last batch
+     * is in.
      */
-    public function runEntries(PayrollRun $run): PayrollRun
+    public function runEntries(PayrollRun $run, ?float $deadline = null): PayrollRun
     {
         $tenantId = $run->tenant_id;
 
@@ -188,30 +199,37 @@ final class PayrollEngine
 
         $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
 
-        DB::transaction(function () use (
-            $run, $tenantId, $periodStart, $periodEnd,
-            $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
-        ): void {
-            $totalGross = 0;
-            $totalNet = 0;
-            $totalTax = 0;
-            $count = 0;
-            $skippedNoSalary = 0;
+        // Whoever already has an entry, from an earlier call that stopped at
+        // its deadline. Empty on a first call.
+        $done = PayrollEntry::query()
+            ->where('tenant_id', $tenantId)
+            ->where('payroll_run_id', $run->id)
+            ->pluck('employee_id')
+            ->all();
+        $visited = [];
+        $paused = false;
 
-            $this->payableEmployees($tenantId, $periodStart, $periodEnd)
-                // For the contract fallback in processEmployee(): an employee whose
-                // salary_cents is unset may still have a contract that states one,
-                // and until 2026-10-15 that employee silently vanished from the run
-                // (production QA, F1). Loaded here so the fallback costs no query
-                // per employee.
-                ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
-                ->chunkById(100, function ($employees) use (
-                    $run, $periodStart, $periodEnd,
+        $this->payableEmployees($tenantId, $periodStart, $periodEnd)
+            ->when($done !== [], fn ($query) => $query->whereNotIn('employees.id', $done))
+            // For the contract fallback in processEmployee(): an employee whose
+            // salary_cents is unset may still have a contract that states one,
+            // and until 2026-10-15 that employee silently vanished from the run
+            // (production QA, F1). Loaded here so the fallback costs no query
+            // per employee.
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->chunkById(100, function ($employees) use (
+                $run, $periodStart, $periodEnd,
+                $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
+                $deadline, &$visited, &$paused,
+            ) {
+                // One batch, one transaction: a batch is whole or absent, so a
+                // call that is stopped in the middle of one resumes cleanly.
+                DB::transaction(function () use (
+                    $employees, $run, $periodStart, $periodEnd,
                     $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
-                    &$totalGross, &$totalNet, &$totalTax, &$count, &$skippedNoSalary,
-                ) {
+                ): void {
                     foreach ($employees as $employee) {
-                        $entry = $this->processEmployee(
+                        $this->processEmployee(
                             $employee,
                             $run,
                             $periodStart,
@@ -223,24 +241,52 @@ final class PayrollEngine
                             $taxBasis,
                             $rules,
                         );
-                        if ($entry) {
-                            $totalGross += $entry->gross_cents;
-                            $totalNet += $entry->net_cents;
-                            $totalTax += $entry->income_tax_cents;
-                            $count++;
-                        } else {
-                            $skippedNoSalary++;
-                        }
                     }
                 });
 
+                foreach ($employees as $employee) {
+                    $visited[] = $employee->id;
+                }
+
+                // The deadline is looked at after a batch is written, never
+                // before, so every call makes progress.
+                if ($deadline !== null && microtime(true) >= $deadline) {
+                    $paused = true;
+
+                    return false;
+                }
+
+                return true;
+            });
+
+        // Stopped at the deadline with people still to pay: the next call
+        // carries on. Stopped on the very last batch, there is nothing left,
+        // and the run is finished now rather than by a job that would find
+        // nothing to do.
+        if ($paused && $this->payableEmployees($tenantId, $periodStart, $periodEnd)
+            ->whereNotIn('employees.id', [...$done, ...$visited])
+            ->exists()) {
+            return $run->refresh();
+        }
+
+        // The totals are what the entries say, written once, together with
+        // the count of people skipped for having no salary: they are the
+        // payable people no entry exists for.
+        DB::transaction(function () use ($run, $tenantId, $periodStart, $periodEnd): void {
+            $totals = PayrollEntry::query()
+                ->where('tenant_id', $tenantId)
+                ->where('payroll_run_id', $run->id)
+                ->selectRaw('count(*) as entries, coalesce(sum(gross_cents), 0) as gross, coalesce(sum(net_cents), 0) as net, coalesce(sum(income_tax_cents), 0) as tax')
+                ->first();
+            $entries = (int) ($totals->entries ?? 0);
+
             $run->update([
                 'status' => 'completed',
-                'employee_count' => $count,
-                'skipped_no_salary' => $skippedNoSalary,
-                'gross_total_cents' => $totalGross,
-                'net_total_cents' => $totalNet,
-                'tax_total_cents' => $totalTax,
+                'employee_count' => $entries,
+                'skipped_no_salary' => max(0, $this->payableEmployees($tenantId, $periodStart, $periodEnd)->count() - $entries),
+                'gross_total_cents' => (int) ($totals->gross ?? 0),
+                'net_total_cents' => (int) ($totals->net ?? 0),
+                'tax_total_cents' => (int) ($totals->tax ?? 0),
             ]);
         });
 
