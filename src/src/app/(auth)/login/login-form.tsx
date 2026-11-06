@@ -11,11 +11,12 @@ import { z } from "zod";
 import {
   Eye,
   EyeOff,
+  ChevronRight,
   Loader2,
   KeyRound,
   MessageSquareText,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   canonicalHandoffUrl,
   takeCanonicalHandoff,
@@ -368,6 +369,16 @@ export function LoginForm() {
   // employees, and a trial would start a new organisation.
   const offerTrial = !organisation && hostAppContext !== "platform";
   const alternatives = hostAppContext !== "platform" && (offerSso || offerOtp);
+  // How the code arrives, where the organisation says; both elsewhere.
+  const bySms = !(organisation && tenantSignIn) || tenantSignIn.otp;
+  const byEmail =
+    !(organisation && tenantSignIn) || Boolean(tenantSignIn.email_code);
+  const codeHint =
+    bySms && byEmail
+      ? t("auth.code_hint_both", "Sent by text message or email")
+      : bySms
+        ? t("auth.code_hint_sms", "Sent by text message")
+        : t("auth.code_hint_email", "Sent by email");
 
   const fieldError = "text-caption text-destructive";
 
@@ -602,52 +613,50 @@ export function LoginForm() {
               {t("auth.other_ways", "Other ways to sign in")}
               <span className="h-px flex-1 bg-border" aria-hidden="true" />
             </p>
-            {/* Side by side where both are offered and there is room; each
-                keeps a full-height target on a phone. */}
-            <div
-              className={cn(
-                "grid gap-3",
-                offerSso && offerOtp && "sm:grid-cols-2",
-              )}
-            >
+            {/* One row per way in, full width: the card is narrow at every
+                screen size, and side by side the code label ran into its
+                button's edge, worse in Amharic and Afaan Oromoo. Each row
+                says what the method is, not only its name. */}
+            <div className="grid gap-2">
               {offerSso && (
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full"
+                  className={METHOD_ROW}
                   onClick={handleSsoLogin}
                   disabled={ssoLoading}
                 >
-                  {ssoLoading ? (
-                    <Loader2
-                      className="mr-2 h-4 w-4 animate-spin"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
-                  )}
-                  {t("auth.sign_in_sso", "Sign in with SSO")}
+                  <MethodRow
+                    icon={
+                      ssoLoading ? (
+                        <Loader2 className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <KeyRound aria-hidden="true" />
+                      )
+                    }
+                    label={t("auth.sign_in_sso", "Sign in with SSO")}
+                    hint={t(
+                      "auth.sso_hint",
+                      "Your organisation's single sign-on",
+                    )}
+                  />
                 </Button>
               )}
 
               {offerOtp && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full"
-                  asChild
-                >
+                <Button variant="outline" className={METHOD_ROW} asChild>
                   <Link
                     prefetch={false}
                     href={withOrganisation("/login/otp", carryOrganisation)}
                   >
-                    <MessageSquareText
-                      className="mr-2 h-4 w-4"
-                      aria-hidden="true"
+                    <MethodRow
+                      icon={<MessageSquareText aria-hidden="true" />}
+                      label={t(
+                        "auth.sign_in_code_short",
+                        "Use a one-time code",
+                      )}
+                      hint={codeHint}
                     />
-                    {offerSso
-                      ? t("auth.sign_in_code_short", "Use a one-time code")
-                      : t("auth.sign_in_code", "Sign in with a one-time code")}
                   </Link>
                 </Button>
               )}
@@ -677,5 +686,37 @@ export function LoginForm() {
         </div>
       )}
     </div>
+  );
+}
+
+/** One way in on the sign-in form: an outlined row, full width. */
+const METHOD_ROW =
+  "h-auto min-h-11 w-full justify-start gap-3 whitespace-normal px-3 py-2.5 text-left";
+
+function MethodRow({
+  icon,
+  label,
+  hint,
+}: {
+  icon: ReactNode;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <>
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground"
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-sm font-medium leading-snug">{label}</span>
+        <span className="text-caption font-normal text-muted-foreground">
+          {hint}
+        </span>
+      </span>
+      <ChevronRight className="text-muted-foreground" aria-hidden="true" />
+    </>
   );
 }
