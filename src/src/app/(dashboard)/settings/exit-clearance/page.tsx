@@ -29,6 +29,7 @@ import { useT } from "@/lib/i18n/useT";
 
 const OWNERS: ExitClearanceOwner[] = ["hr", "supervisor", "finance"];
 const MAX_LINES = 20;
+const LABEL_ERROR_ID = "exit-clearance-label-error";
 
 /**
  * The lines every exit clearance starts with. A change applies to
@@ -69,7 +70,12 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
   );
 
   const balanceIndex = lines.findIndex((l) => l.kind === "obligations");
-  const invalid = lines.some((l) => l.label.trim().length < 2);
+  const labelTooShort = (l: ExitClearanceTemplateLine) =>
+    l.label.trim().length < 2;
+  const invalid = lines.some(labelTooShort);
+  const trimmed = lines.map((l) => ({ ...l, label: l.label.trim() }));
+  // Live only once the lines differ from what is stored.
+  const isDirty = JSON.stringify(trimmed) !== JSON.stringify(template.items);
 
   function update(index: number, patch: Partial<ExitClearanceTemplateLine>) {
     setLines((prev) =>
@@ -87,23 +93,20 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
   }
 
   function submit() {
-    save.mutate(
-      lines.map((l) => ({ ...l, label: l.label.trim() })),
-      {
-        onSuccess: () =>
-          toast.success(t("exit_clearance.template_saved", "Checklist saved")),
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "exit_clearance.template_save_failed",
-                "The checklist could not be saved.",
-              ),
+    save.mutate(trimmed, {
+      onSuccess: () =>
+        toast.success(t("exit_clearance.template_saved", "Checklist saved")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "exit_clearance.template_save_failed",
+              "The checklist could not be saved.",
             ),
           ),
-      },
-    );
+        ),
+    });
   }
 
   return (
@@ -124,12 +127,17 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
         <CardContent className="space-y-3">
           {lines.map((line, index) => {
             const n = index + 1;
+            const tooShort = labelTooShort(line);
+            const balanceTaken = balanceIndex !== -1 && balanceIndex !== index;
+            const balanceHintId = `exit-clearance-balance-hint-${index}`;
             return (
               <div key={index} className="space-y-2 rounded-lg border p-3">
                 <Input
                   aria-label={t("exit_clearance.line_label", "Line :n", { n })}
                   value={line.label}
                   maxLength={160}
+                  aria-invalid={tooShort ? true : undefined}
+                  aria-describedby={tooShort ? LABEL_ERROR_ID : undefined}
                   onChange={(e) => update(index, { label: e.target.value })}
                 />
                 <div className="flex flex-wrap items-center gap-2">
@@ -159,18 +167,34 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={line.kind === "obligations"}
-                      disabled={balanceIndex !== -1 && balanceIndex !== index}
-                      onCheckedChange={(v) =>
-                        update(index, {
-                          kind: v === true ? "obligations" : "manual",
-                        })
-                      }
-                    />
-                    {t("exit_clearance.shows_balance", "Shows what is owed")}
-                  </label>
+                  <div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={line.kind === "obligations"}
+                        disabled={balanceTaken}
+                        aria-describedby={
+                          balanceTaken ? balanceHintId : undefined
+                        }
+                        onCheckedChange={(v) =>
+                          update(index, {
+                            kind: v === true ? "obligations" : "manual",
+                          })
+                        }
+                      />
+                      {t("exit_clearance.shows_balance", "Shows what is owed")}
+                    </label>
+                    {balanceTaken && (
+                      <p
+                        id={balanceHintId}
+                        className="mt-1 text-xs text-muted-foreground"
+                      >
+                        {t(
+                          "exit_clearance.one_balance_line",
+                          "Only one line can show the balance.",
+                        )}
+                      </p>
+                    )}
+                  </div>
                   <div className="ml-auto flex gap-1">
                     <Button
                       variant="ghost"
@@ -236,7 +260,7 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
             </Button>
             <Button
               size="sm"
-              disabled={invalid || save.isPending}
+              disabled={invalid || !isDirty || save.isPending}
               onClick={submit}
             >
               {save.isPending && (
@@ -246,7 +270,7 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
             </Button>
           </div>
           {invalid && (
-            <p className="text-sm text-muted-foreground">
+            <p id={LABEL_ERROR_ID} className="text-sm text-destructive">
               {t(
                 "exit_clearance.label_required",
                 "Every line needs at least two characters.",

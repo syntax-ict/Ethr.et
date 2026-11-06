@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\Feature;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Models\Tenant;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Notifications\ScheduledReportFailedNotification;
 use App\Notifications\ScheduledReportNotification;
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use App\Services\Report\ReportEngine;
 use App\Support\Csv;
 use App\Support\Locales;
@@ -105,6 +107,17 @@ class RunScheduledReportsJob implements ShouldQueue
         $tenant = Tenant::find($schedule->tenant_id);
 
         if ($tenant === null) {
+            return;
+        }
+
+        // Making a schedule needs `custom_reports` and an organisation in
+        // use; running one checked neither, so a suspended or cancelled
+        // organisation, or one with the feature switched off, kept receiving
+        // its reports (A-Z review H-03). Skipped to the next slot, quietly:
+        // nothing failed, and it resumes once allowed again.
+        if (! $tenant->isActive() || ! app(FeatureGate::class)->decide($tenant, Feature::CustomReports)->on) {
+            $schedule->forceFill(['next_run_at' => ScheduleSlot::forTenantId($schedule->frequency, $schedule->tenant_id)])->save();
+
             return;
         }
 

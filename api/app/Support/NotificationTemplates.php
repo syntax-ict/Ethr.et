@@ -98,6 +98,14 @@ final class NotificationTemplates
             'subject_om' => 'Gaaffiin boqonnaa keessanii didameera',
             'body_om' => "Gaaffiin {leave_type} {start_date} irraa hanga {end_date} dhiyeessitan didameera.\nSababa: {reason}",
         ],
+        'leave_changed' => [
+            'subject_en' => 'Your leave has been changed',
+            'subject_am' => 'ፈቃድዎ ተቀይሯል',
+            'body_en' => "Your {leave_type} leave starting {start_date} was changed by HR and now counts {days} days. Days it no longer takes are back in your balance.\nReason: {reason}",
+            'body_am' => "ከ{start_date} የሚጀምረው {leave_type} ፈቃድዎ በሰው ሀብት ተቀይሯል፤ አሁን {days} ቀናት ይቆጠራል። ያልተወሰዱት ቀናት ወደ ቀሪ ፈቃድዎ ተመልሰዋል።\nምክንያት: {reason}",
+            'subject_om' => 'Boqonnaan keessan jijjiirameera',
+            'body_om' => "Boqonnaan {leave_type} {start_date} jalqabu HR'n jijjiirameera, amma guyyaa {days} lakkaa'ama. Guyyoonni inni hin fudhanne gara haftee keessanitti deebi'aniiru.\nSababa: {reason}",
+        ],
         'payslip_available' => [
             'subject_en' => 'Your payslip for {period} is ready',
             'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው — {period}',
@@ -133,6 +141,7 @@ final class NotificationTemplates
         'leave_requested' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'organization_name'],
         'leave_approved' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'organization_name'],
         'leave_rejected' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'reason', 'organization_name'],
+        'leave_changed' => ['employee_name', 'leave_type', 'start_date', 'end_date', 'days', 'reason', 'organization_name'],
         'payslip_available' => ['employee_name', 'period', 'net_amount', 'organization_name'],
         'missing_punch' => ['employee_name', 'date', 'punch_type', 'organization_name'],
         'trial_expiring' => ['days_remaining', 'trial_ends_at', 'organization_name'],

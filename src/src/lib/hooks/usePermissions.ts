@@ -53,6 +53,8 @@ const CAN_ABILITIES = {
   // The approvals queue (`ApprovalController::pending` authorises this).
   viewTeamLeave: "leave.viewTeam",
   manageLeaveTypes: "leave.manageTypes",
+  // Cancelling or shortening approved leave (`LeaveRequestPolicy::recall`).
+  adjustLeaveBalance: "leave.adjustBalance",
   // Viewing shifts and holidays is granted to everyone, so the management
   // screens are gated on the first write ability instead.
   manageShifts: "shift.create",

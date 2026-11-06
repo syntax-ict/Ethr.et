@@ -97,7 +97,8 @@ class RateLimitLoginAttempts
     {
         $value = $this->submittedIdentifier($request);
         $ip = $request->ip() ?? '0.0.0.0';
+        $organisation = ThrottleIdentity::organisation();
 
-        return "{$value}:{$ip}";
+        return "{$value}:{$organisation}:{$ip}";
     }
 }

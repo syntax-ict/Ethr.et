@@ -199,3 +199,44 @@ test('with no shift, a Sunday at an organisation that works Sundays is not a res
 
     expect(otStep($entry)['by_type']['rest_day']['minutes'] ?? 0)->toBe(0);
 });
+
+// Art. 68 pays overtime at a multiple of the ordinary hourly rate, which is
+// the contract's wage. Joining mid-month changes how many days are paid, not
+// what an hour is worth.
+test('a mid-month hire is paid overtime at the full hourly rate', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 500000,
+        'hire_date' => '2026-06-16',
+    ]);
+    $shift = Shift::factory()->create(['tenant_id' => $tenant->id]); // 08:30-17:30
+
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'shift_id' => $shift->id,
+        'date' => '2026-06-22',
+        'check_in' => Carbon::parse('2026-06-22 08:30', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-06-22 19:30', 'Africa/Addis_Ababa')->utc(),
+    ]);
+
+    $run = app(PayrollEngine::class)->process(
+        $tenant->id,
+        Carbon::parse('2026-06-01'),
+        Carbon::parse('2026-06-30'),
+        $user->id,
+    )->run;
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->firstOrFail();
+
+    $fullRate = app(OvertimeCalculator::class)->calculate(500000, 22, 8, 120, 'normal');
+
+    $step = otStep($entry);
+    expect($step['by_type']['normal']['minutes'])->toBe(120);
+    expect($step['overtime_amount_cents'])->toBe($fullRate);
+    // 15 of June's 30 days.
+    expect($entry->basic_salary_cents)->toBe(250000);
+    expect($entry->gross_cents)->toBe(250000 + $fullRate);
+});

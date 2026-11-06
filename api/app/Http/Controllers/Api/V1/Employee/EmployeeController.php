@@ -25,6 +25,7 @@ use App\Services\UserProvisioningService;
 use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
+use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -233,23 +234,16 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Resolve the requested login role, clamped so a creator can never grant a
-     * role above their own level. Defaults to the base employee role.
+     * Resolve the requested login role, clamped to the base employee role when
+     * the creator may not hand it out (RoleAssignment: the same rule as user
+     * management). Defaults to the base employee role.
      */
     private function resolveAssignableRole(User $actor, ?string $requested): UserRole
     {
         $role = $requested !== null ? UserRole::tryFrom($requested) : null;
         $role ??= UserRole::EMPLOYEE;
 
-        if ($role === UserRole::SUPER_ADMIN) {
-            return UserRole::EMPLOYEE;
-        }
-
-        if (! $actor->isSuperAdmin() && $role->level() > $actor->role->level()) {
-            return UserRole::EMPLOYEE;
-        }
-
-        return $role;
+        return RoleAssignment::refusal($actor, $role) === null ? $role : UserRole::EMPLOYEE;
     }
 
     /**

@@ -96,7 +96,7 @@ afterEach(function () {
 
 function runPull(Device $device, string $triggeredBy = 'manual', ?string $since = null): void
 {
-    (new PullDeviceEventsJob($device, $triggeredBy, $since))->handle(
+    (new PullDeviceEventsJob($device->id, $device->tenant_id, $triggeredBy, $since))->handle(
         app(DeviceManager::class),
         app(AttendanceEngine::class),
         app(IdentityResolver::class),

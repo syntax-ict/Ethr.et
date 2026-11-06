@@ -37,7 +37,8 @@ class PushDatabaseNotification
         }
 
         $user = $event->notifiable;
-        if ($user->tenant_id === null) {
+        // Nothing reaches the phone of someone deactivated (A-Z review G-04).
+        if ($user->tenant_id === null || $user->status !== 'active') {
             return;
         }
 

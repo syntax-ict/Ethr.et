@@ -91,6 +91,11 @@ export interface PlatformFeature {
   kind: FeatureKind;
   /** False when only the platform state decides it: no grant, no rollout. */
   overridable: boolean;
+  /**
+   * False for a core feature every plan includes: the console offers no
+   * switch for it, and it is always on (A-Z review H-04).
+   */
+  switchable: boolean;
   state: FeatureState;
   default_state: FeatureState;
   reason: string | null;
@@ -111,6 +116,8 @@ export interface TenantFeature {
   key: FeatureKey;
   kind: FeatureKind;
   overridable: boolean;
+  /** False for a core feature: always on, no exception possible. */
+  switchable: boolean;
   on: boolean;
   visible: boolean;
   reason: FeatureReason;

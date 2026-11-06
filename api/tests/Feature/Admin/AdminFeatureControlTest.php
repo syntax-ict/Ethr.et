@@ -60,6 +60,7 @@ describe('platform state', function () {
                 'key' => 'payroll',
                 'kind' => 'module',
                 'overridable' => true,
+                'switchable' => true,
                 'state' => 'enabled',
                 'default_state' => 'enabled',
                 'reason' => null,

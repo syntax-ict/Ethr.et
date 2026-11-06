@@ -160,3 +160,16 @@ it('lets one organisation manage only its own announcements', function () {
         ->assertJsonCount(0, 'data');
     expect($theirs->fresh()->published_at)->toBeNull();
 });
+
+// A-Z review G-10 (2026-11-04). The body had no limit: past what the column
+// holds it answered 500, and the public article showed only its first 10,000
+// characters with no word to the writer.
+it('refuses an announcement longer than the public article shows', function () {
+    $tenant = createTenant();
+    publishingAdmin($tenant);
+
+    test()->postJson(publishingUrl($tenant), ['title' => 'Long', 'body' => str_repeat('ሀ', 10001)])
+        ->assertUnprocessable()->assertJsonValidationErrors('body');
+    test()->postJson(publishingUrl($tenant), ['title' => 'Long', 'body' => str_repeat('ሀ', 10000)])
+        ->assertCreated();
+});

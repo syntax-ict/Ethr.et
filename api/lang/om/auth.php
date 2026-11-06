@@ -89,4 +89,5 @@ return [
         'contact' => 'Hojjetaan kun imeeliin ykn ergaa barreeffamaatiin argamuu danda\'a. Affeerraa idilee ykn jecha icciitii haaromsuu fayyadamaa.',
         'identifier' => 'Hojjetaan kun karaa itti seenu hin qabaatu. Jalqaba qindaa\'ina keessatti seensa koodii hojjetaatiin banaa.',
     ],
+    'phone_invalid' => 'Lakkoofsa bilbilaa Itoophiyaa galchi, fakkeenyaaf 0912345678 ykn +251912345678.',
 ];

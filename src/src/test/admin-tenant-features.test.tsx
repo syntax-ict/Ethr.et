@@ -22,6 +22,7 @@ function row(overrides: Partial<TenantFeature> = {}): TenantFeature {
     key: "payroll",
     kind: "module",
     overridable: true,
+    switchable: true,
     on: false,
     visible: false,
     reason: "plan",

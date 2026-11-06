@@ -34,6 +34,11 @@ class UpdateFeatureStateRequest extends FormRequest
     {
         $validator->after(function (Validator $v): void {
             $feature = Feature::tryFrom((string) $this->route('key'));
+            if ($feature !== null && ! $feature->switchable()) {
+                $v->errors()->add('state', __('billing.feature_core'));
+
+                return;
+            }
             if ($feature !== null && ! $feature->overridable() && $this->input('state') === FeatureState::Restricted->value) {
                 $v->errors()->add('state', __('billing.feature_no_rollout'));
             }

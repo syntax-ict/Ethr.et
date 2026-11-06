@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Organization;
 
+use App\Http\Controllers\Api\V1\Organization\Concerns\RefusesDeletingStaffedUnit;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreTeamRequest;
 use App\Http\Requests\Organization\UpdateTeamRequest;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Gate;
 
 class TeamController extends Controller
 {
+    use RefusesDeletingStaffedUnit;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('org.viewAny');
@@ -107,6 +110,10 @@ class TeamController extends Controller
     public function destroy(Team $team): JsonResponse
     {
         Gate::authorize('org.delete');
+
+        if ($refusal = $this->refuseIfStaffed('team_id', $team->id, 'team')) {
+            return $refusal;
+        }
 
         $team->delete();
 

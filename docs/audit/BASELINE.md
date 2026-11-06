@@ -4096,6 +4096,13 @@ line per figure; the story of why it moved belongs in this section.
 
 ### 25b. Tenant-scope bypasses: the count, and the audits behind it
 
+**2026-11-06, A-Z review E-08: 186/73.** `Services/Leave/SickLeaveTiers` joined with two. Sick leave under Labour Proclamation Art. 85 is paid in full for its first month, at half for the next two and not at all for the last three, within twelve months of the first day of sickness, so each day's pay depends on its place in that period. Payroll asks, with no tenant guaranteed, and so does the leave request: the service reads the organisation's Art. 85 leave types and the person's approved (or pending) requests of them, each stating `tenant_id` from the employee in hand.
+
+**2026-11-05, A-Z review H-09: 184/72.** `Models/Tenant.php` gained one. An organisation locked out for money (a trial that has ended, or a suspension with a bill unpaid) may now sign in and see and pay its bills, and nothing else. `ResolveTenant` asks `Tenant::billingOnly()` before any tenant is set for the request, so the unpaid-invoice check drops the scope and states `tenant_id` from the tenant in hand; it returns only whether a row exists.
+
+**2026-11-04, A-Z review H-02: 183/72.** `AdminTenantController` gained one. Marking an organisation's last overdue invoice paid in the console now puts its past-due subscription back to active; nothing did, and the monthly run bills active subscriptions only. The console resolves no tenant, so the statement drops the scope and states `tenant_id` from the organisation in the route on the subscription and on its overdue-invoice subquery.
+**2026-11-04, A-Z review D-06: 182/72.** `Services/Attendance/AttendanceEngine` gained one. A device's break button is now noted on the day's record instead of closing it and opening another, and a terminal resends batches, so `processBreak()` first finds a resent break by its key among the person's records for that day and the one before. Device ingestion may resolve no tenant, so the lookup drops the scope and states `tenant_id` and `employee_id` from the punch's own input, as `findOpenRecord()` beside it does.
+
 **2026-10-30, onboarding review: 181/72.** `Models/Tenant.php` gained two. A trial organisation is named in public (Trusted by, the portals sitemap, `index, follow` on its portal) only once it holds `Tenant::PUBLIC_MIN_EMPLOYEES` (5) people, because sign-up checks no email and no CAPTCHA, and a minute-old registration was on the ethr.et landing page under any name it chose. The pages that ask resolve no tenant, so `scopeEstablished()` counts employees through `whereHas('employees')` correlated on `employees.tenant_id = tenants.id`, and `isEstablished()` through `$this->employees()`, keyed on the tenant in hand; both return a count, never a row. `Services/Onboarding/ReadinessScorer` stays at eleven: its employee reads share one builder stating `tenant_id`, and its new salary check reads contracts stating it.
 *(2026-10-30, analytics periods: 179/72. `ExecutiveDashboardService::countedRuns()` went from one statement to two: a payroll run now belongs to the period holding its middle day, so an Ethiopian month holds a Gregorian-month run and the reverse, and no SQL engine here says "middle day" the same way. It reads the runs overlapping the period, filters them in PHP, and returns a builder over the chosen ids; both state `tenant_id`.)*
 
@@ -4451,3 +4458,20 @@ after a release is `release.json` showing the new commit **and**
 has no Plesk login and no `MAINTENANCE_TOKEN`, and no workflow can deploy (the only
 Actions secrets are `ETHR_CRON_*`). It hands the owner the steps in
 `docs/deployment/PLESK-GO-LIVE.md` → *Every release after this*, and checks the result.
+
+### 25g. A readiness score that depended on where it was asked — 2026-11-06
+
+Building the platform console's tenant journey (`docs/operations/TENANT-JOURNEY.md`) meant scoring
+readiness from the platform host, where no tenant is resolved. `ReadinessScorer` had only ever been
+tested with a tenant resolved, and `EmployeeGaps::apply()` built its "has no bank account" test as
+`whereDoesntHave('bankDetails')`. That subquery builds its own `EmployeeBankDetail` query, which carries the
+tenant scope, and with no tenant resolved the scope is `0 = 1`. Nothing was ever found, so every
+employee read as having no bank account and the payroll check `employees_have_bank` failed for every
+organisation scored from the console. Measured by `TenantJourneyTest` ("reads the same readiness from
+the platform host as from the tenant host"): 39 on the platform host against 43 on the tenant host for
+the same data.
+
+The subquery now drops the tenant scope; the relation is already keyed on the employee, who is
+tenant-owned, and the tenant's own screens are unaffected. The lesson is the general one in
+`CLAUDE.md` §4: a `whereHas` / `whereDoesntHave` on a scoped model carries the scope into its subquery,
+so anything that can run without a tenant needs the parity test, not only the outer query.

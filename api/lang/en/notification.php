@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'Your attendance phone was revoked: :reason. Register the phone you use now.',
         'device_offline' => 'Device ":name" has gone offline.',
         'leave_approved' => 'Your leave request was approved.',
+        'leave_changed' => 'Your approved leave was changed by HR.',
         'leave_rejected' => 'Your leave request was rejected.',
         'leave_requested' => ':name asked for leave.',
         'missing_check_in' => ':name did not check in on :date.',
@@ -63,4 +64,10 @@ return [
         'trial_expiring' => 'Your trial ends in :days day. Choose a plan to keep using ETHR.|Your trial ends in :days days. Choose a plan to keep using ETHR.',
     ],
     'push_unavailable' => 'Phone notifications are not set up on this server yet.',
+    'approval_reminder_line' => 'You have :count approval requests waiting for you.',
+    'approval_reminder_oldest' => 'The oldest has been waiting :hours hours.',
+    'approval_reminder_action' => 'Review approvals',
+    'device_offline_line' => 'The device ":name" at :location has gone offline.',
+    'device_offline_action' => 'View device status',
+    'unknown_location' => 'an unnamed location',
 ];

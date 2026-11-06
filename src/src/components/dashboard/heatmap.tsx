@@ -98,7 +98,7 @@ export function Heatmap({
         {columns.map((column, index) => (
           <span
             key={column.key}
-            className="min-w-0 text-center text-caption leading-4 text-muted-foreground"
+            className="min-w-0 overflow-visible whitespace-nowrap text-center text-caption leading-4 text-muted-foreground"
           >
             {index % columnLabelEvery === 0 ? column.label : null}
           </span>

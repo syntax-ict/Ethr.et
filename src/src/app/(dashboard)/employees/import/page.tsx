@@ -117,6 +117,12 @@ export default function EmployeeImportPage() {
   const [templatePending, setTemplatePending] = useState(false);
 
   const previewMutation = usePreviewEmployeeImport();
+  // Gregorian unless the person says otherwise: the two look alike (15/04/2016
+  // is a date in both, eight years apart), and a file exported from ETHR is
+  // Gregorian.
+  const [dateCalendar, setDateCalendar] = useState<"gregorian" | "ethiopian">(
+    "gregorian",
+  );
   const commitMutation = useCommitEmployeeImport();
 
   const nextCode = useNextEmployeeCode();
@@ -204,19 +210,22 @@ export default function EmployeeImportPage() {
       return;
     }
     setFile(f);
-    previewMutation.mutate(f, {
-      onSuccess: (data) => {
-        setPreview(data);
-        setImportKey(newImportKey());
-        setStep("preview");
+    previewMutation.mutate(
+      { file: f, calendar: dateCalendar },
+      {
+        onSuccess: (data) => {
+          setPreview(data);
+          setImportKey(newImportKey());
+          setStep("preview");
+        },
+        // The server's own reason when it gives one (a refused upload says the
+        // file is too large); "could not read" only when it does not.
+        onError: (err) =>
+          toast.error(
+            apiErrorDetail(err) ?? t("employees_import_page.parse_failed"),
+          ),
       },
-      // The server's own reason when it gives one (a refused upload says the
-      // file is too large); "could not read" only when it does not.
-      onError: (err) =>
-        toast.error(
-          apiErrorDetail(err) ?? t("employees_import_page.parse_failed"),
-        ),
-    });
+    );
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -369,6 +378,35 @@ export default function EmployeeImportPage() {
                       <p className="mt-4 text-xs text-muted-foreground">
                         {t("employees_import_page.format_hint")}
                       </p>
+                      <div
+                        role="group"
+                        aria-label={t(
+                          "employees_import_page.dates_in",
+                          "Dates in the file are in",
+                        )}
+                        className="mt-4 flex flex-wrap items-center justify-center gap-2"
+                      >
+                        <span className="text-xs text-muted-foreground">
+                          {t(
+                            "employees_import_page.dates_in",
+                            "Dates in the file are in",
+                          )}
+                        </span>
+                        {(["gregorian", "ethiopian"] as const).map((c) => (
+                          <Button
+                            key={c}
+                            type="button"
+                            size="sm"
+                            variant={dateCalendar === c ? "default" : "outline"}
+                            aria-pressed={dateCalendar === c}
+                            onClick={() => setDateCalendar(c)}
+                          >
+                            {c === "ethiopian"
+                              ? t("setup2.calendar_ec", "Ethiopian (E.C.)")
+                              : t("setup2.calendar_gc", "Gregorian (G.C.)")}
+                          </Button>
+                        ))}
+                      </div>
                     </>
                   )}
                 </div>
@@ -849,7 +887,7 @@ function ColumnGuide() {
     name: t("employees_import_page.col_name", "Full name"),
     hire_date: t(
       "employees_import_page.col_hire_date",
-      "2024-03-15 or 15/03/2024, day first",
+      "2024-03-15 or 15/03/2024, day first, in the calendar chosen above",
     ),
     employee_code: t(
       "employees_import_page.col_employee_code",

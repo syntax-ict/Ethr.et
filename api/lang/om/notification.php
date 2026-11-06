@@ -54,6 +54,7 @@ return [
         'phone_revoked_reason' => 'Bilbilli argamaa keessan haqameera: :reason. Bilbila amma fayyadamtan galmeessaa.',
         'device_offline' => 'Meeshaan ":name" toora ala ta\'eera.',
         'leave_approved' => 'Gaaffiin boqonnaa keessan raggaasifameera.',
+        'leave_changed' => 'Boqonnaan keessan raggaasifame HR\'n jijjiirameera.',
         'leave_rejected' => 'Gaaffiin boqonnaa keessan didameera.',
         'leave_requested' => ':name boqonnaa gaafateera.',
         'missing_check_in' => ':name guyyaa :date seensa hin galmeessine.',
@@ -63,4 +64,10 @@ return [
         'trial_expiring' => 'Yaaliin bilisaa keessan guyyaa :days keessatti xumurama. ETHR fayyadamuu itti fufuuf karoora filadhaa.|Yaaliin bilisaa keessan guyyoota :days keessatti xumurama. ETHR fayyadamuu itti fufuuf karoora filadhaa.',
     ],
     'push_unavailable' => 'Beeksisni bilbilaa ammallee sarvara kana irratti hin qindoofne.',
+    'approval_reminder_line' => 'Gaaffiiwwan raggaasisaa :count isin eegaa jiru.',
+    'approval_reminder_oldest' => 'Inni hunda caalaa turee sa\'aatii :hours eegaa ture.',
+    'approval_reminder_action' => 'Raggaasisoota ilaali',
+    'device_offline_line' => 'Meeshaan ":name" :location jiru toora ala ta\'eera.',
+    'device_offline_action' => 'Haala meeshaa ilaali',
+    'unknown_location' => 'bakka maqaa hin qabne',
 ];

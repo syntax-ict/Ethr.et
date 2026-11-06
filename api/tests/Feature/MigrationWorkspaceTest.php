@@ -12,6 +12,8 @@ use App\Models\EmployeeExternalIdentity;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\OnboardingProgress;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\DB;
 
@@ -324,5 +326,53 @@ describe('staging purge', function () {
 
         expect(MigrationBatch::withoutGlobalScopes()->find($old->id))->toBeNull();
         expect(MigrationBatch::withoutGlobalScopes()->find($recent->id))->not->toBeNull();
+    });
+});
+
+describe('the People step, as every other way of adding people', function () {
+    it('applies the plan\'s employee limit', function () {
+        $tenant = createTenant();
+        Subscription::factory()->for($tenant)->create(['plan_id' => Plan::factory()->create(['max_employees' => 1])->id]);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $host = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+        $staged = test()->postJson("{$host}/onboarding/migration/rows", [
+            'rows' => [
+                ['name' => 'First Hire', 'hire_date' => '2026-01-01'],
+                ['name' => 'Second Hire', 'hire_date' => '2026-01-01'],
+            ],
+        ])->assertCreated()->json();
+
+        test()->postJson("{$host}/onboarding/migration/batches/{$staged['public_id']}/commit")->assertForbidden();
+
+        expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(0);
+    });
+
+    it('gives people pasted without a number the next number', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $host = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+        $staged = test()->postJson("{$host}/onboarding/migration/rows", [
+            'rows' => [
+                ['name' => 'First Hire', 'hire_date' => '2026-01-01'],
+                ['name' => 'Second Hire', 'hire_date' => '2026-01-01'],
+            ],
+        ])->assertCreated()->json();
+
+        test()->postJson("{$host}/onboarding/migration/batches/{$staged['public_id']}/commit")->assertOk();
+
+        expect(Employee::where('tenant_id', $tenant->id)->orderBy('id')->pluck('employee_code')->all())
+            ->toBe(['EMP-0001', 'EMP-0002']);
+    });
+
+    it('refuses an employee number longer than the record holds, when staging', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $host = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+        test()->postJson("{$host}/onboarding/migration/rows", [
+            'rows' => [['name' => 'Long Code', 'employee_code' => str_repeat('A', 31)]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('rows.0.employee_code');
     });
 });

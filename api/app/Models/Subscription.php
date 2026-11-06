@@ -113,4 +113,20 @@ class Subscription extends Model
 
         return $plan->price_cents;
     }
+
+    /**
+     * The organisation's newest subscription, with its plan, read without the
+     * tenant scope. The platform console has no tenant resolved, so the
+     * `Tenant::subscription()` relation fails closed there and the plan check
+     * behind `FeatureGate` would read "no plan". Callers set the result on the
+     * tenant with `setRelation('subscription', ...)` before asking.
+     */
+    public static function latestForTenant(int $tenantId): ?self
+    {
+        return self::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->with('plan')
+            ->latest()
+            ->first();
+    }
 }

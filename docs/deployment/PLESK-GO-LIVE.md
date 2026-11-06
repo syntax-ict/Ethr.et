@@ -215,6 +215,12 @@ ends *"…in step"* when the site runs the latest release. If it reports an olde
 instead, Plesk Git did not deploy the newest `production` commit. Press **Deploy**
 again.
 
+It also reads `schema_detail.pending_migrations` from `/api/v1/health` and is not in
+step while that is above zero: the code is live and its `migrate` has not run. Run the
+release steps (Part 5). A release from before the check reports nothing there, which
+the script shows as unknown. *(On 2026-11-04 a release went live at 05:33Z without its
+steps; `release.json` alone read in step for five hours while the schema was behind.)*
+
 Then open `https://<APP_DOMAIN>/login`, sign in, and run
 [`shared-hosting/deploy-checklist.md`](shared-hosting/deploy-checklist.md). Now do Part 1
 step 2 so the scheduler starts.

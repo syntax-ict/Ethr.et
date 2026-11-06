@@ -10,6 +10,7 @@ return [
         'fiscal_year_start_month' => 'fiscal year start month',
         'pagumen_proration_strategy' => 'Pagumen proration',
         'retirement_age' => 'retirement age',
+        'working_days_per_month' => 'working days per month',
         'run_day' => 'payroll run day',
         'leave_year' => 'leave year',
         'working_days' => 'working days',

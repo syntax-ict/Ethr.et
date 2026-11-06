@@ -35,7 +35,9 @@ class UpdateTenantFeatureOverrideRequest extends FormRequest
     {
         $validator->after(function (Validator $v): void {
             $feature = Feature::tryFrom((string) $this->route('key'));
-            if ($feature !== null && ! $feature->overridable()) {
+            if ($feature !== null && ! $feature->switchable()) {
+                $v->errors()->add('mode', __('billing.feature_core'));
+            } elseif ($feature !== null && ! $feature->overridable()) {
                 $v->errors()->add('mode', __('billing.feature_not_overridable'));
             }
         });
