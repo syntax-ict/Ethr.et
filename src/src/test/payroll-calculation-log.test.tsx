@@ -91,4 +91,45 @@ describe("<CalculationLogDialog>", () => {
     expect(screen.getByText(/7,490\.00/)).toBeInTheDocument();
     expect(screen.getByText(/1,350\.00/)).toBeInTheDocument();
   });
+
+  it("shows sick leave past its first month as its own line (Art. 85)", async () => {
+    const base = log();
+    const steps: Array<Record<string, unknown>> = [...base.steps];
+    steps.splice(2, 0, {
+      step: "sick_leave",
+      half_pay_days: 4,
+      unpaid_days: 1,
+      daily_rate_cents: 40000,
+      deduction_cents: 120000,
+    });
+    const withSick = { ...base, steps };
+    server.use(
+      http.get("*/api/v1/payroll/runs/RUN1", () =>
+        HttpResponse.json({
+          public_id: "RUN1",
+          entries: [{ public_id: "E1", calculation_log: withSick }],
+        }),
+      ),
+    );
+
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <CalculationLogDialog
+          runId="RUN1"
+          entryId="E1"
+          employeeName="Abebe Kebede"
+          onOpenChange={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Sick leave (Art. 85)")).toBeInTheDocument();
+    expect(
+      screen.getByText("4 days at half pay, 1 days unpaid"),
+    ).toBeInTheDocument();
+  });
 });

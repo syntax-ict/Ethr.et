@@ -41,6 +41,8 @@ final class LeaveTypeCatalog
             'accrual_type' => 'annual',
             'is_paid' => true,
             'requires_attachment' => true,
+            // Art. 85: full, then half, then no pay, within twelve months.
+            'follows_art85' => true,
             'sort_order' => 20,
         ],
         'maternity' => [

@@ -4298,6 +4298,8 @@
   "payroll_detail_page.calc_taxable": "ግብር የሚከፈልበት ገቢ",
   "payroll_detail_page.calc_title": "ይህ ክፍያ እንዴት እንደተሰላ",
   "payroll_detail_page.calc_unpaid_detail": ":days ቀናት × ዕለታዊ ተመን",
+  "payroll_detail_page.calc_sick_leave": "የሕመም ፈቃድ (አንቀጽ 85)",
+  "payroll_detail_page.calc_sick_detail": ":half ቀናት በግማሽ ክፍያ፣ :unpaid ቀናት ያለ ክፍያ",
   "payroll_detail_page.calc_unpaid_leave": "ያለክፍያ ፈቃድ",
   "payroll_detail_page.confirm_payment": "ክፍያውን ያረጋግጡ",
   "payroll_detail_page.confirm_payment_description": "ባንኩ ይህን የደመወዝ ሂደት የከፈለበትን ቀን ይመዝግቡ። የተከፈለ ሂደት ሊሰረዝ አይችልም፤ በውስጡ ያለ ስህተት በሚቀጥለው የደመወዝ ሂደት ይስተካከላል።",

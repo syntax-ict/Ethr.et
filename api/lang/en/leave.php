@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'not_pending' => 'This leave request is no longer pending.',
+    'sick_beyond_six_months' => 'Sick leave is at most six months within twelve, counted from the first day of sickness (Labour Proclamation Art. 85). These days go past that.',
     'not_approved' => 'Only approved leave can be cancelled or ended early.',
     'cannot_recall_own' => 'You cannot change your own leave. Another administrator has to.',
     'recall_end_date' => 'The new end date must be on or after the first day and before the current last day.',

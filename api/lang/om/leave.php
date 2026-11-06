@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'not_pending' => 'Gaaffiin boqonnaa kun amma eegamaa hin jiru.',
+    'sick_beyond_six_months' => 'Boqonnaan dhukkubaa guyyaa dhukkubaa jalqabaa irraa lakkaa\'ee ji\'oota kudha lama keessatti ji\'a jaha hin caalu (Labsii Hojjetaa Kew. 85). Guyyoonni kunniin sana ni darbu.',
     'not_approved' => 'Boqonnaa raggaasifame qofatu haqamuu ykn dursee xumuramuu danda\'a.',
     'cannot_recall_own' => 'Boqonnaa keessan jijjiiruu hin dandeessan. Bulchaan biraa jijjiiruu qaba.',
     'recall_end_date' => 'Guyyaan xumuraa haaraan guyyaa jalqabaa irraa eegalee fi guyyaa xumuraa ammaa dura ta\'uu qaba.',

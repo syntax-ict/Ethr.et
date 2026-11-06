@@ -24,7 +24,9 @@ use App\Services\Leave\LeaveDayCalculator;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Leave\LeaveRecallService;
 use App\Services\Leave\LeaveYear;
+use App\Services\Leave\SickLeaveTiers;
 use App\Services\Payroll\PayrollPeriodLock;
+use App\Services\Payroll\StatutoryRules;
 use App\Support\ApprovalRefusal;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
@@ -44,6 +46,8 @@ class LeaveRequestController extends Controller
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
         private readonly LeaveDecisionService $decisions,
+        private readonly SickLeaveTiers $sickLeave,
+        private readonly StatutoryRules $statutoryRules,
         private readonly ApprovalEngine $approvals,
     ) {}
 
@@ -130,7 +134,24 @@ class LeaveRequestController extends Controller
         $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
         $remaining = $balance->remainingDays();
 
-        if ($leaveType->limitedByBalance() && $days > $remaining) {
+        // Sick leave under Art. 85 is six months within twelve, counted from
+        // the first day of sickness, not the annual balance (A-Z review E-08).
+        // Pending requests count, so two filed at once cannot pass together.
+        if ($leaveType->follows_art85) {
+            $monthDays = $this->statutoryRules->for(app(CurrentTenant::class)->tenantFor($employee->tenant_id), $startDate)->int('payroll.working_days_per_month');
+            $asked = $this->sickLeave->datesBetween($employee, $leaveType, $startDate, $endDate);
+            $tiers = $this->sickLeave->tiersOf($employee, $monthDays, $asked, withPending: true);
+            foreach ($asked as $date) {
+                if (($tiers[$date] ?? null) === SickLeaveTiers::BEYOND) {
+                    return response()->json([
+                        'type' => 'https://ethr.et/errors/insufficient-balance',
+                        'title' => 'Insufficient Leave Balance',
+                        'status' => 422,
+                        'detail' => __('leave.sick_beyond_six_months'),
+                    ], 422)->header('Content-Type', 'application/problem+json');
+                }
+            }
+        } elseif ($leaveType->limitedByBalance() && $days > $remaining) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/insufficient-balance',
                 'title' => 'Insufficient Leave Balance',

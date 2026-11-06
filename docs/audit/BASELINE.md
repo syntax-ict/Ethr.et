@@ -4096,6 +4096,8 @@ line per figure; the story of why it moved belongs in this section.
 
 ### 25b. Tenant-scope bypasses: the count, and the audits behind it
 
+**2026-11-06, A-Z review E-08: 186/73.** `Services/Leave/SickLeaveTiers` joined with two. Sick leave under Labour Proclamation Art. 85 is paid in full for its first month, at half for the next two and not at all for the last three, within twelve months of the first day of sickness, so each day's pay depends on its place in that period. Payroll asks, with no tenant guaranteed, and so does the leave request: the service reads the organisation's Art. 85 leave types and the person's approved (or pending) requests of them, each stating `tenant_id` from the employee in hand.
+
 **2026-11-05, A-Z review H-09: 184/72.** `Models/Tenant.php` gained one. An organisation locked out for money (a trial that has ended, or a suspension with a bill unpaid) may now sign in and see and pay its bills, and nothing else. `ResolveTenant` asks `Tenant::billingOnly()` before any tenant is set for the request, so the unpaid-invoice check drops the scope and states `tenant_id` from the tenant in hand; it returns only whether a row exists.
 
 **2026-11-04, A-Z review H-02: 183/72.** `AdminTenantController` gained one. Marking an organisation's last overdue invoice paid in the console now puts its past-due subscription back to active; nothing did, and the monthly run bills active subscriptions only. The console resolves no tenant, so the statement drops the scope and states `tenant_id` from the organisation in the route on the subscription and on its overdue-invoice subquery.
