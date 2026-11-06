@@ -4298,6 +4298,8 @@
   "payroll_detail_page.calc_taxable": "Galii gibiraaf ta'u",
   "payroll_detail_page.calc_title": "Mindaan kun akkamitti herregame",
   "payroll_detail_page.calc_unpaid_detail": "Guyyaa :days × gatii guyyaa",
+  "payroll_detail_page.calc_sick_leave": "Boqonnaa dhukkubaa (Kew. 85)",
+  "payroll_detail_page.calc_sick_detail": "guyyaa :half kaffaltii walakkaan, guyyaa :unpaid kaffaltii malee",
   "payroll_detail_page.calc_unpaid_leave": "Boqonnaa mindaa malee",
   "payroll_detail_page.confirm_payment": "Kaffaltii mirkaneessi",
   "payroll_detail_page.confirm_payment_description": "Guyyaa baankiin kaffaltii kana kaffale galmeessaa. Kaffaltiin kaffalame diigamuu hin danda'u: dogoggorri isa keessa jiru kaffaltii mindaa itti aanu keessatti sirreeffama.",

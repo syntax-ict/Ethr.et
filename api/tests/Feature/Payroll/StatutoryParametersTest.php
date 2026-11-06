@@ -101,7 +101,7 @@ it('pays the same employee under each organisation type\'s rules, and logs where
         ->and($companyEntry->income_tax_cents)->toBe($armyEntry->income_tax_cents);
 
     $log = $armyEntry->calculation_log;
-    expect($log['version'])->toBe('1.6')
+    expect($log['version'])->toBe('1.7')
         ->and($log['statutory_rules']['organization_type'])->toBe('defence_police')
         ->and($log['statutory_rules']['rules']['pension.default_scheme'])->toMatchArray(['value' => 'public_military', 'source' => 'platform_type'])
         ->and($log['statutory_rules']['rules']['payroll.hours_per_day'])->toMatchArray(['value' => 8, 'source' => 'platform', 'confirmed' => true]);

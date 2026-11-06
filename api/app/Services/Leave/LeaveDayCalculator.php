@@ -31,6 +31,24 @@ final class LeaveDayCalculator
         ?int $branchId = null,
         ?Employee $employee = null,
     ): float {
+        return (float) count($this->chargedDates($startDate, $endDate, $tenantId, $branchId, $employee));
+    }
+
+    /**
+     * The dates a leave from $startDate to $endDate charges, as calculateDays()
+     * counts them: the person's working days, holidays excluded. Sick leave
+     * under Art. 85 needs the dates themselves, to know which day of the
+     * twelve-month period each one is (`SickLeaveTiers`).
+     *
+     * @return list<string> Y-m-d, in order
+     */
+    public function chargedDates(
+        Carbon $startDate,
+        Carbon $endDate,
+        int $tenantId,
+        ?int $branchId = null,
+        ?Employee $employee = null,
+    ): array {
         $holidays = Holiday::query()
             ->withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
@@ -51,7 +69,7 @@ final class LeaveDayCalculator
             ? null
             : app(ShiftMatcher::class)->workingDays($employee, $startDate, $endDate, $workingDays);
 
-        $days = 0;
+        $dates = [];
         $period = CarbonPeriod::create($startDate, $endDate);
 
         foreach ($period as $date) {
@@ -66,9 +84,9 @@ final class LeaveDayCalculator
                 continue;
             }
 
-            $days++;
+            $dates[] = $date->format('Y-m-d');
         }
 
-        return (float) $days;
+        return $dates;
     }
 }

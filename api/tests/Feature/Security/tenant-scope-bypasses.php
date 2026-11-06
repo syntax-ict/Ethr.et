@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-06, A-Z review E-08: `Services/Leave/SickLeaveTiers` joined
+ * with two. Sick leave under Art. 85 takes its pay tier from each day's
+ * place in a twelve-month period, asked by payroll, which may run with no
+ * tenant set, and by the leave request. It reads the organisation's Art. 85
+ * leave types and that person's approved (or pending) requests of them, each
+ * stating `tenant_id` from the employee in hand. 186/73.)
  * (2026-11-05, A-Z review H-09: one more, in `Models/Tenant.php`.
  * `billingOnly()` asks whether a suspended organisation still owes a bill,
  * from `ResolveTenant` before any tenant is set for the request. It states
@@ -349,6 +355,7 @@ return [
     'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,
     'Services/Leave/LeaveDayCalculator.php' => 1,
+    'Services/Leave/SickLeaveTiers.php' => 2,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
     'Services/Onboarding/ReadinessScorer.php' => 11,

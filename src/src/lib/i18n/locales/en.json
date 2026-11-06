@@ -4298,6 +4298,8 @@
   "payroll_detail_page.calc_taxable": "Taxable income",
   "payroll_detail_page.calc_title": "How this pay was calculated",
   "payroll_detail_page.calc_unpaid_detail": ":days days × daily rate",
+  "payroll_detail_page.calc_sick_leave": "Sick leave (Art. 85)",
+  "payroll_detail_page.calc_sick_detail": ":half days at half pay, :unpaid days unpaid",
   "payroll_detail_page.calc_unpaid_leave": "Unpaid leave",
   "payroll_detail_page.confirm_payment": "Confirm payment",
   "payroll_detail_page.confirm_payment_description": "Record the day the bank paid this run. A paid run cannot be voided: a mistake in it is corrected in the next payroll run.",
