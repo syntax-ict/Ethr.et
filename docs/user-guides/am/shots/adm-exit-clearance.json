@@ -1,0 +1,23 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 1600,
+  "path": "/employees/exit-clearances",
+  "markers": [
+    {
+      "n": 2,
+      "x": 2206,
+      "y": 402,
+      "w": 264,
+      "h": 96,
+      "pin": "below"
+    },
+    {
+      "n": 3,
+      "x": 612,
+      "y": 916,
+      "w": 48,
+      "h": 48
+    }
+  ]
+}
