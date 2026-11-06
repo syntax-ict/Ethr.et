@@ -337,7 +337,7 @@ return [
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 3,
+    'Services/Attendance/AttendanceEngine.php' => 4,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,

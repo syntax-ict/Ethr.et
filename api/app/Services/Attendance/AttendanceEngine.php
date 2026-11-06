@@ -24,6 +24,8 @@ use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 final class AttendanceEngine
@@ -53,7 +55,7 @@ final class AttendanceEngine
     public function record(AttendanceInput $input): AttendanceResult
     {
         try {
-            $result = $this->decide($input);
+            $result = $this->serialised($input);
         } catch (\Throwable $e) {
             $this->discardPhoto($input->photoPath);
 
@@ -77,6 +79,28 @@ final class AttendanceEngine
             $this->storage->delete($path);
         } catch (\Throwable $e) {
             report($e);
+        }
+    }
+
+    /**
+     * One person's punches are taken one at a time. Two methods can reach the
+     * server in the same instant (the phone and the kiosk reader, a device
+     * backlog landing while the person taps the web button); each looked for
+     * an open record, found none and inserted its own, and only the unique
+     * idempotency key — different for every method — stood between them. The
+     * lock makes the second one see the first's record, so ConflictResolver
+     * and the duplicate checks below decide, as they do for punches minutes
+     * apart. A lock that cannot be had in time lets the punch through
+     * unserialised: a delayed punch is worse than a flagged one.
+     */
+    private function serialised(AttendanceInput $input): AttendanceResult
+    {
+        $lock = Cache::lock("attendance-punch:{$input->tenantId}:{$input->employeeId}", 20);
+
+        try {
+            return $lock->block(8, fn () => $this->decide($input));
+        } catch (LockTimeoutException) {
+            return $this->decide($input);
         }
     }
 
@@ -205,14 +229,74 @@ final class AttendanceEngine
         // day before it began. It is a check-in, and the conflict resolver
         // decides whether it joins the open record.
         if ($open === null) {
+            // The day was closed a moment ago by another method and this is
+            // the same person leaving, seen again (the gate reader after the
+            // phone, a device re-sending). Not a new arrival.
+            if (($closed = $this->findJustClosed($input, $now)) !== null) {
+                return $this->duplicateCheckOut($closed, $input, $now);
+            }
+
             return $this->processCheckIn($input, $employee, $zone, $settings);
         }
 
         if ($open->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MERGE_WINDOW_MINUTES) {
+            $this->logPunch($open, $input, 'check_in', $now, 'duplicate');
+
             return new AttendanceResult($open, wasDuplicate: true);
         }
 
         return $this->processCheckOut($input, $employee, $zone, $settings);
+    }
+
+    /**
+     * A record of this person's whose check-out landed within the merge window
+     * of `$now`: the same departure reported by a second method.
+     */
+    private function findJustClosed(AttendanceInput $input, Carbon $now): ?AttendanceRecord
+    {
+        $window = AttendanceRules::MERGE_WINDOW_MINUTES;
+
+        return AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->where('employee_id', $input->employeeId)
+            ->whereNotNull('check_out')
+            ->where('check_in', '<=', $now)
+            ->whereBetween('check_out', [$now->copy()->subMinutes($window), $now->copy()->addMinutes($window)])
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->latest('check_out')
+            ->first();
+    }
+
+    private function duplicateCheckOut(AttendanceRecord $closed, AttendanceInput $input, Carbon $now): AttendanceResult
+    {
+        $this->logPunch($closed, $input, 'check_out', $now, 'duplicate');
+
+        return new AttendanceResult($closed, wasDuplicate: true, punch: 'check_out');
+    }
+
+    /**
+     * Keep every method's punch on the day's one record, so the timeline can
+     * show who reported what when. A merge keeps only the survivor's `source`;
+     * this is the rest of the story. Capped, because a device that re-sends
+     * all day must not grow the row without end.
+     */
+    private function punchLog(array $metadata, AttendanceInput $input, string $kind, Carbon $at, string $outcome): array
+    {
+        $punches = $metadata['punches'] ?? [];
+        $punches[] = [
+            'kind' => $kind,
+            'source' => $input->source->value,
+            'at' => $at->toIso8601String(),
+            'outcome' => $outcome,
+        ];
+        $metadata['punches'] = array_slice($punches, -30);
+
+        return $metadata;
+    }
+
+    private function logPunch(AttendanceRecord $record, AttendanceInput $input, string $kind, Carbon $at, string $outcome): void
+    {
+        $record->update(['metadata' => $this->punchLog($record->metadata ?? [], $input, $kind, $at, $outcome)]);
     }
 
     /**
@@ -434,6 +518,8 @@ final class AttendanceEngine
             $record = $record->fresh() ?? $record;
         }
 
+        $this->logPunch($record, $input, 'check_in', $now, $resolution->action);
+
         $flags = $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
         if ($settings !== null) {
             $this->risk->score($record, $input, $employee, $settings, 'check_in', $flags);
@@ -462,6 +548,12 @@ final class AttendanceEngine
         $record = $this->findOpenRecord($input, $now, $zone);
 
         if (! $record) {
+            // Closed a moment ago, by this method or another: the departure
+            // is already recorded.
+            if (($closed = $this->findJustClosed($input, $now)) !== null) {
+                return $this->duplicateCheckOut($closed, $input, $now);
+            }
+
             throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
         }
 
@@ -487,9 +579,13 @@ final class AttendanceEngine
             'checkout_signals' => $signals !== [] ? $signals : null,
         ], fn ($value) => $value !== null);
 
-        if ($metadata !== []) {
-            $updates['metadata'] = array_merge($record->metadata ?? [], $metadata);
-        }
+        $updates['metadata'] = $this->punchLog(
+            array_merge($record->metadata ?? [], $metadata),
+            $input,
+            'check_out',
+            $now,
+            'applied',
+        );
 
         $record->update($updates);
 

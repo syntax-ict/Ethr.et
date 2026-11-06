@@ -112,7 +112,7 @@ final class AttendanceReconciliation
      *     totals: array{open: int, pending: int, resolved: int, blocking: int},
      *     by_type: list<array{type: string, count: int}>,
      *     unmatched_punches: int,
-     *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>,
+     *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}>}>,
      * }
      */
     public function forPeriod(Tenant $tenant, Carbon $start, Carbon $end, ?User $viewer = null): array
@@ -144,7 +144,7 @@ final class AttendanceReconciliation
      * they can say a recorded absence is wrong (a missed-punch claim) before
      * payroll settles it.
      *
-     * @return list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>
+     * @return list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}>
      */
     public function forEmployee(Tenant $tenant, Employee $employee, Carbon $start, Carbon $end): array
     {
@@ -205,7 +205,7 @@ final class AttendanceReconciliation
      *     totals: array{open: int, pending: int, resolved: int, blocking: int},
      *     by_type: list<array{type: string, count: int}>,
      *     unmatched_punches: int,
-     *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}>}>,
+     *     employees: list<array{employee_public_id: string, employee_name: string, employee_code: string|null, exceptions: list<array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}>}>,
      * }
      */
     private function build(Tenant $tenant, Carbon $start, Carbon $end, ?User $viewer, ?int $onlyEmployeeId = null): array
@@ -345,7 +345,7 @@ final class AttendanceReconciliation
      * a check-out auto check-out wrote, is not yet worth deciding.
      *
      * @param  list<AttendanceCorrection>  $corrections  newest first
-     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}
+     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}
      */
     private function recordException(AttendanceRecord $record, array $corrections, bool $lateness, string $zone): array
     {
@@ -378,14 +378,15 @@ final class AttendanceReconciliation
             $minutes,
             (string) $record->public_id,
             $latest === null || $state === self::STATE_OPEN ? null : ['correction', (string) $latest->public_id],
+            $record->source->value,
         );
     }
 
     /**
      * @param  array{0: string, 1: string}|null  $request  [kind, public id]
-     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null}
+     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}
      */
-    private static function item(string $type, string $date, string $state, ?int $minutes, ?string $recordPublicId, ?array $request): array
+    private static function item(string $type, string $date, string $state, ?int $minutes, ?string $recordPublicId, ?array $request, ?string $source = null): array
     {
         return [
             'type' => $type,
@@ -395,6 +396,7 @@ final class AttendanceReconciliation
             'record_public_id' => $recordPublicId,
             'request_kind' => $request[0] ?? null,
             'request_public_id' => $request[1] ?? null,
+            'source' => $source,
         ];
     }
 

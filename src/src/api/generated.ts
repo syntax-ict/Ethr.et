@@ -8978,6 +8978,7 @@ export interface components {
                 action: string;
                 with_record_public_id: string | null;
             } | null;
+            punches: unknown[];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -9012,6 +9013,7 @@ export interface components {
                 action: string;
                 with_record_public_id: string | null;
             } | null;
+            punches: unknown[];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -10036,8 +10038,7 @@ export interface components {
             check_out: string | null;
             source: string;
             status: string;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
+            punch: string;
             was_duplicate: boolean;
             employee_name: string;
             employee: components["schemas"]["KioskPersonResource"] | null;
