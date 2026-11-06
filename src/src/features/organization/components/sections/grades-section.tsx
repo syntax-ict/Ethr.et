@@ -32,8 +32,14 @@ export function GradesSection() {
     empty: EMPTY,
     toForm: (g: Grade) => ({
       name: g.name,
-      min_salary: (g.min_salary_cents / 100).toString(),
-      max_salary: (g.max_salary_cents / 100).toString(),
+      min_salary:
+        g.min_salary_cents === undefined
+          ? ""
+          : (g.min_salary_cents / 100).toString(),
+      max_salary:
+        g.max_salary_cents === undefined
+          ? ""
+          : (g.max_salary_cents / 100).toString(),
       sort_order: (g.sort_order ?? 0).toString(),
     }),
     // Birr typed, cents stored (convention 3).

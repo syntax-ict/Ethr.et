@@ -35,6 +35,7 @@ class AttendanceRecordResource extends JsonResource
                 'action' => $this->metadata['conflict_action'],
                 'with_record_public_id' => $this->metadata['conflict_with'] ?? $this->metadata['resolved_with'] ?? null,
             ] : null,
+            'punches' => array_values($this->metadata['punches'] ?? []),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -48,6 +48,7 @@ const organisation: HostCtx = {
   tenantLanding: landing,
   tenantSignIn: { sso: false, otp: false },
   tenantDefaultLocale: "en",
+  tenantBillingOnly: false,
   onLanding: true,
   carryOrganisation: null,
   tenantRequest: null,
@@ -122,6 +123,7 @@ describe("organisation sign-in page", () => {
     hostContextValue.mockReturnValue({
       ...organisation,
       tenantDefaultLocale: "am",
+      tenantBillingOnly: false,
     });
 
     renderLayout();

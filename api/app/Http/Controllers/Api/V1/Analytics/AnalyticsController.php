@@ -12,6 +12,7 @@ use App\Services\Analytics\DepartmentAnalyticsService;
 use App\Services\CurrentTenant;
 use App\Support\ExecutiveBranchScope;
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,6 +22,7 @@ class AnalyticsController extends Controller
     public function departments(Request $request, DepartmentAnalyticsService $service): JsonResponse
     {
         Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         [$from, $to] = $this->dateRange($request);
         $tenantId = app(CurrentTenant::class)->requireId();
@@ -40,7 +42,7 @@ class AnalyticsController extends Controller
         // an executive the branch they filtered to. It was executive-only and
         // branch-blind, so a regional user's click was a 403 and a filtered
         // executive saw every branch (audit N85).
-        abort_unless(Gate::any(['dashboard.executive', 'dashboard.regional']), 403);
+        abort_unless(ExecutiveBranchScope::isFull($request->user()) || ExecutiveBranchScope::isRegional($request->user()), 403);
         $branchId = ExecutiveBranchScope::resolve($request);
 
         [$from, $to] = $this->dateRange($request);
@@ -52,6 +54,7 @@ class AnalyticsController extends Controller
     public function branches(Request $request, BranchAnalyticsService $service): JsonResponse
     {
         Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         [$from, $to] = $this->dateRange($request);
         $tenantId = app(CurrentTenant::class)->requireId();
@@ -62,6 +65,7 @@ class AnalyticsController extends Controller
     public function branchDetail(Request $request, Branch $branch, BranchAnalyticsService $service): JsonResponse
     {
         Gate::authorize('dashboard.executive');
+        throw_unless(ExecutiveBranchScope::isFull($request->user()), AuthorizationException::class);
 
         $tenantId = app(CurrentTenant::class)->requireId();
 

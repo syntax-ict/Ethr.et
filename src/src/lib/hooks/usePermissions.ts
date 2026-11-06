@@ -53,6 +53,8 @@ const CAN_ABILITIES = {
   // The approvals queue (`ApprovalController::pending` authorises this).
   viewTeamLeave: "leave.viewTeam",
   manageLeaveTypes: "leave.manageTypes",
+  // Cancelling or shortening approved leave (`LeaveRequestPolicy::recall`).
+  adjustLeaveBalance: "leave.adjustBalance",
   // Viewing shifts and holidays is granted to everyone, so the management
   // screens are gated on the first write ability instead.
   manageShifts: "shift.create",
@@ -118,6 +120,10 @@ export function usePermissions() {
     isFinanceAdmin: hasRole("finance_admin", "tenant_admin", "super_admin"),
     isSupervisor: isAtLeast("supervisor"),
     isEmployee: role === "employee",
+    // How far the role reaches (`ScopesEmployeeAccess::orgScope()`): "all",
+    // "branch", "department", "team", "direct_reports" or "self". A custom
+    // role sets its own, so the role name alone cannot say.
+    orgScope: user?.org_scope ?? null,
     can,
   };
 }

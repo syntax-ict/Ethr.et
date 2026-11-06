@@ -97,6 +97,7 @@ class SettingsController extends Controller
                 'run_day' => (int) ($tenant->settings['run_day'] ?? 25),
                 'fiscal_year_start_month' => (int) $rules->int('fiscal_year.start_month'),
                 'pagumen_proration_strategy' => (string) $rules->string('pagume.proration'),
+                'working_days_per_month' => (int) $rules->int('payroll.working_days_per_month'),
                 // Retirement-case eligibility dates are computed against this.
                 // No single figure is authoritative across every Ethiopian
                 // sector, so it defaults to 60 but stays tenant-overridable

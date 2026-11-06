@@ -324,7 +324,7 @@ it('shows only complete, bounded pairs from what is stored, however it got there
     expect($faqs)->toHaveCount(12)
         ->and(mb_strlen((string) $faqs[0]['question']))->toBe(160)
         ->and(mb_strlen((string) $faqs[0]['answer']))->toBe(1000)
-        ->and(array_keys($faqs[0]))->toBe(['question', 'question_am', 'answer', 'answer_am']);
+        ->and(array_keys($faqs[0]))->toBe(['question', 'question_am', 'question_om', 'answer', 'answer_am', 'answer_om']);
 });
 
 it('places a section an organisation has not ordered yet after the one before it', function () {
@@ -391,5 +391,51 @@ it('serves only named, bounded services from what is stored', function () {
     expect($services)->toHaveCount(8)
         ->and(mb_strlen((string) $services[0]['title']))->toBe(80)
         ->and(mb_strlen((string) $services[0]['description']))->toBe(400)
-        ->and(array_keys($services[0]))->toBe(['title', 'title_am', 'description', 'description_am']);
+        ->and(array_keys($services[0]))->toBe(['title', 'title_am', 'title_om', 'description', 'description_am', 'description_om']);
+});
+
+it('saves the portal in Oromo and serves it before sign-in, an Oromo-only question and service included', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'background' => 'brand',
+        'headline' => 'Welcome to Acme',
+        'headline_om' => 'Baga gara Acme dhuftan',
+        'message_om' => 'Yeroo dhuftan seensa galmeessaa.',
+        'about_om' => 'Dhaabbata oomishaa Adaamaa keessatti argamu.',
+        'address_om' => 'Adaamaa, Itoophiyaa',
+        'hours_om' => 'Wiixata hanga Jimaataa, 2:30 hanga 11:30',
+        'faqs' => [
+            ['question' => null, 'question_am' => null, 'question_om' => 'Mindaan yoom kaffalama?', 'answer' => null, 'answer_am' => null, 'answer_om' => 'Guyyaa 28 ji\'a hundaa.'],
+        ],
+        'services' => [
+            ['title' => null, 'title_am' => null, 'title_om' => 'Oomisha nyaataa', 'description_om' => 'Daakuu fi zayitii.'],
+        ],
+    ])->assertOk()
+        ->assertJsonPath('headline_om', 'Baga gara Acme dhuftan')
+        ->assertJsonPath('faqs.0.question_om', 'Mindaan yoom kaffalama?')
+        ->assertJsonPath('services.0.title_om', 'Oomisha nyaataa');
+
+    app('auth')->forgetGuards();
+
+    test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
+        ->assertOk()
+        ->assertJsonPath('tenant.landing.headline_om', 'Baga gara Acme dhuftan')
+        ->assertJsonPath('tenant.landing.message_om', 'Yeroo dhuftan seensa galmeessaa.')
+        ->assertJsonPath('tenant.landing.about_om', 'Dhaabbata oomishaa Adaamaa keessatti argamu.')
+        ->assertJsonPath('tenant.landing.address_om', 'Adaamaa, Itoophiyaa')
+        ->assertJsonPath('tenant.landing.hours_om', 'Wiixata hanga Jimaataa, 2:30 hanga 11:30')
+        ->assertJsonPath('tenant.landing.faqs.0.answer_om', 'Guyyaa 28 ji\'a hundaa.')
+        ->assertJsonPath('tenant.landing.services.0.description_om', 'Daakuu fi zayitii.');
+});
+
+it('still refuses a question that has no answer in any language', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson(landingUrl($tenant, '/settings/landing'), [
+        'background' => 'brand',
+        'faqs' => [['question_om' => 'Mindaan yoom kaffalama?']],
+    ])->assertUnprocessable()->assertJsonValidationErrors(['faqs.0.answer']);
 });

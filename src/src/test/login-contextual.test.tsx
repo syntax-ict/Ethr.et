@@ -28,6 +28,7 @@ vi.mock("@/lib/auth/use-auth-host-context", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/login",
 }));
 
 function renderLogin() {
@@ -50,6 +51,7 @@ const base: HostCtx = {
   tenantLanding: null,
   tenantSignIn: null,
   tenantDefaultLocale: null,
+  tenantBillingOnly: false,
   onLanding: false,
   carryOrganisation: null,
   tenantRequest: null,
@@ -111,7 +113,7 @@ describe("login page — hostname context", () => {
     ).toBeInTheDocument();
   });
 
-  it("tenant host: names the org in the heading and shows a read-only indicator, not an editable field", () => {
+  it("tenant host: names the org in the heading, with no editable field", () => {
     hostContextValue.mockReturnValue({
       ...base,
       context: "tenant",
@@ -125,9 +127,10 @@ describe("login page — hostname context", () => {
     expect(
       screen.getByRole("heading", { name: /sign in to acme corporation/i }),
     ).toBeInTheDocument();
-    // The org is shown for context…
-    expect(screen.getByText("acme.ethr.et")).toBeInTheDocument();
-    // …but there is no editable subdomain field to retarget another tenant.
+    // The heading names the organisation; on its own host the portal around
+    // the form shows its mark and name too, so the card no longer repeats
+    // them in an indicator box (sign-in upgrade, 2026-11-05). There is still
+    // no editable subdomain field to retarget another tenant.
     expect(
       screen.queryByLabelText(/organization subdomain/i),
     ).not.toBeInTheDocument();

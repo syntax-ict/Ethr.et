@@ -78,7 +78,7 @@ test('PullDeviceEventsJob failure alerts the tenant with DeviceSyncFailed, not D
         'branch_id' => $branch->id,
     ]);
 
-    (new PullDeviceEventsJob($device))->failed(new RuntimeException('TLS handshake failed'));
+    (new PullDeviceEventsJob($device->id, $device->tenant_id))->failed(new RuntimeException('TLS handshake failed'));
 
     Event::assertDispatched(
         DeviceSyncFailed::class,

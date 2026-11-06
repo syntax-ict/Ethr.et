@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck,
   Plus,
@@ -80,7 +80,7 @@ const SCOPE_FALLBACK: Record<(typeof ORG_SCOPES)[number], string> = {
   self: "Their own only",
   direct_reports: "Their direct reports",
   team: "Their team",
-  department: "Their department",
+  department: "Their department and the units under it",
   branch: "Their branch",
   all: "Everyone in the organisation",
 };
@@ -196,7 +196,9 @@ function RoleCard({
     deleteRole.mutate(role.public_id, {
       onSuccess: () =>
         toast.success(
-          `${t("roles_page.role_lc")} "${role.name}" ${t("roles_page.deleted")}`,
+          t("roles_page.role_deleted", "Role :name deleted", {
+            name: role.name,
+          }),
         ),
       onError: (err) => toastError(err, t("roles_page.delete_failed")),
     });
@@ -227,7 +229,11 @@ function RoleCard({
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {role.users_count ?? 0} {t("roles_page.users_lc")}
+              {(role.users_count ?? 0) === 1
+                ? t("roles_page.users_count_one", "1 user")
+                : t("roles_page.users_count", ":count users", {
+                    count: role.users_count ?? 0,
+                  })}
             </span>
           </div>
         </div>
@@ -331,15 +337,20 @@ function RoleDialog({
     );
   }, [editingRole, reset]);
 
+  // Radix only calls onOpenChange for a change the dialog itself starts (the
+  // close button, Escape, the overlay). When the parent flips the controlled
+  // `open` to edit a role, no callback fires, so the form kept the previous
+  // values and the edit dialog opened blank. Reset whenever `open` or the
+  // role being edited changes instead.
+  useEffect(() => {
+    if (open) resetForm();
+  }, [open, resetForm]);
+
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
-      if (isOpen) {
-        resetForm();
-      } else {
-        onClose();
-      }
+      if (!isOpen) onClose();
     },
-    [resetForm, onClose],
+    [onClose],
   );
 
   const togglePermission = useCallback(
@@ -392,9 +403,13 @@ function RoleDialog({
       : createRole.mutateAsync(values));
 
     toast.success(
-      `${t("roles_page.role_lc")} "${values.name}" ${
-        isEditing ? t("roles_page.updated") : t("roles_page.created")
-      }`,
+      isEditing
+        ? t("roles_page.role_updated", "Role :name updated", {
+            name: values.name,
+          })
+        : t("roles_page.role_created", "Role :name created", {
+            name: values.name,
+          }),
     );
     onClose();
   }
@@ -427,7 +442,7 @@ function RoleDialog({
           <div className="space-y-4 px-1">
             <FormErrorSummary message={rootError} />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 id="role_name"
                 label={t("common.name")}
@@ -448,7 +463,10 @@ function RoleDialog({
               >
                 <Input
                   {...register("description")}
-                  placeholder={t("leave_page.optional_description")}
+                  placeholder={t(
+                    "roles_page.description_placeholder",
+                    "What this role is for",
+                  )}
                   className="mt-1"
                 />
               </FormField>
@@ -506,7 +524,14 @@ function RoleDialog({
             </div>
           </div>
 
-          <div className="mt-2 flex-1 overflow-y-auto border rounded-md px-1">
+          <div
+            role="group"
+            aria-labelledby="role_permissions_label"
+            aria-describedby={
+              errors.permissions?.message ? "role_permissions-error" : undefined
+            }
+            className="mt-2 flex-1 overflow-y-auto border rounded-md px-1"
+          >
             {permsLoading ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -570,14 +595,15 @@ function RoleDialog({
                               htmlFor={`perm-${perm.name}`}
                               className="cursor-pointer"
                             >
+                              {/* The description is what a person reads
+                                  ("Approve leave requests"); the identifier
+                                  is for whoever is matching against the API. */}
                               <span className="text-xs font-medium">
-                                {perm.action}
+                                {perm.description || perm.action}
                               </span>
-                              {perm.description && (
-                                <span className="block text-xs text-muted-foreground">
-                                  {perm.description}
-                                </span>
-                              )}
+                              <span className="block font-mono text-caption text-muted-foreground">
+                                {perm.name}
+                              </span>
                             </label>
                           </div>
                         ))}

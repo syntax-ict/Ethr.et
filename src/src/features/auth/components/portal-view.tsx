@@ -27,7 +27,6 @@ import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrgMark } from "@/components/shared/org-mark";
 import { NewsCard } from "@/features/news/components/news-card";
 import {
   PortalFooter,
@@ -214,16 +213,9 @@ export function PortalView({
 
         <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 @sm:px-6 @lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] @lg:items-center @lg:gap-14 @lg:py-16">
           <div className="min-w-0">
-            <OrgMark
-              name={name}
-              logoUrl={brand?.logo_url}
-              darkLogoUrl={brand?.logo_dark_url}
-              surface={cover ? "dark" : undefined}
-              className="h-16 w-16 rounded-2xl bg-primary-foreground/15 ring-0"
-              initialClassName="text-2xl"
-            />
+            {/* No logo here: the header above already carries it. */}
             {ownHeadline && (
-              <p className="mt-5 text-base font-medium text-primary-foreground/80">
+              <p className="text-base font-medium text-primary-foreground/80">
                 {name}
               </p>
             )}
@@ -231,7 +223,7 @@ export function PortalView({
               aria-busy={loading || undefined}
               className={cn(
                 "max-w-xl text-balance text-3xl font-bold leading-tight text-primary-foreground @sm:text-4xl",
-                ownHeadline ? "mt-2" : "mt-6",
+                ownHeadline && "mt-2",
               )}
             >
               {/* A bar the size of a name while it loads: it read "…", which

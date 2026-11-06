@@ -374,3 +374,23 @@ it('lists a vacancy\'s applicants furthest along first', function () {
         ->assertJsonPath('data.0.name', 'Interviewing')
         ->assertJsonPath('data.1.name', 'New');
 });
+
+// A-Z review G-06 (2026-11-04). The filled positions were counted with only
+// the application locked, so two HR users hiring two applicants for the last
+// position at the same moment both got through. The vacancy is locked for the
+// count. SQLite ignores row locks, so the MariaDB suite is where this proves it.
+it('locks the vacancy while it counts the positions filled', function () {
+    $tenant = createTenant();
+    $hr = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $application = approvedOffer(recruitingVacancy($tenant), $hr, createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+    $locked = [];
+    DB::listen(function ($query) use (&$locked): void {
+        if (str_contains(strtolower($query->sql), 'for update') && str_contains($query->sql, 'vacancies')) {
+            $locked[] = $query->sql;
+        }
+    });
+
+    test()->postJson(recruitmentUrl($tenant, "/job-applications/{$application->public_id}/hire"))->assertCreated();
+
+    expect($locked)->not->toBeEmpty();
+})->skip(fn () => DB::getDriverName() === 'sqlite', 'SQLite has no row locks; the MariaDB suite runs this');

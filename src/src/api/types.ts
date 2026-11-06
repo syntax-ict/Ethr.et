@@ -37,6 +37,8 @@ export interface User {
   email: string;
   phone: string | null;
   role: string;
+  /** `OrgScope`: how far the role reaches. Absent from an answer cached before it was sent. */
+  org_scope?: string;
   status: string;
   mfa_enabled: boolean;
   locale: string;

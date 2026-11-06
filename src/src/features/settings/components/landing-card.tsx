@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   ArrowDown,
@@ -81,7 +81,7 @@ const SERVICE_TEXT_MAX = 400;
 
 /**
  * One item of a bilingual list (a question, a service) as edited: its texts
- * by key, each with an `_am` twin, and a key that survives reordering.
+ * by key, each with `_am` and `_om` twins, and a key that survives reordering.
  */
 type ListItem = { key: string } & Record<string, string>;
 
@@ -103,12 +103,28 @@ function listUpdate<K extends string>(
     );
 }
 
-const FAQ_KEYS = ["question", "question_am", "answer", "answer_am"] as const;
+/** Each language named in itself, as the language switcher names it. */
+const LANGUAGE_NAMES = {
+  "": "English",
+  _am: "አማርኛ",
+  _om: "Afaan Oromoo",
+} as const;
+
+const FAQ_KEYS = [
+  "question",
+  "question_am",
+  "question_om",
+  "answer",
+  "answer_am",
+  "answer_om",
+] as const;
 const SERVICE_KEYS = [
   "title",
   "title_am",
+  "title_om",
   "description",
   "description_am",
+  "description_om",
 ] as const;
 
 type LinkKey = (typeof LINKS)[number];
@@ -117,21 +133,26 @@ type LinkKey = (typeof LINKS)[number];
 interface LandingForm {
   headline: string;
   headline_am: string;
+  headline_om: string;
   message: string;
   message_am: string;
+  message_om: string;
   support_email: string;
   support_phone: string;
   background: Background;
   about: string;
   about_am: string;
+  about_om: string;
   founded_year: string;
   sector: string;
   staff_band: string;
   show_branch_count: boolean;
   address: string;
   address_am: string;
+  address_om: string;
   hours: string;
   hours_am: string;
+  hours_om: string;
   latitude: string;
   longitude: string;
   show_branches: boolean;
@@ -152,21 +173,26 @@ function fromSettings(landing: TenantLandingSettings): LandingForm {
   return {
     headline: text(landing.headline),
     headline_am: text(landing.headline_am),
+    headline_om: text(landing.headline_om),
     message: text(landing.message),
     message_am: text(landing.message_am),
+    message_om: text(landing.message_om),
     support_email: text(landing.support_email),
     support_phone: text(landing.support_phone),
     background: isBackground(landing.background) ? landing.background : "brand",
     about: text(landing.about),
     about_am: text(landing.about_am),
+    about_om: text(landing.about_om),
     founded_year: landing.founded_year ? String(landing.founded_year) : "",
     sector: text(landing.sector),
     staff_band: text(landing.staff_band),
     show_branch_count: Boolean(landing.show_branch_count),
     address: text(landing.address),
     address_am: text(landing.address_am),
+    address_om: text(landing.address_om),
     hours: text(landing.hours),
     hours_am: text(landing.hours_am),
+    hours_om: text(landing.hours_om),
     latitude: landing.latitude == null ? "" : String(landing.latitude),
     longitude: landing.longitude == null ? "" : String(landing.longitude),
     show_branches: Boolean(landing.show_branches),
@@ -175,15 +201,19 @@ function fromSettings(landing: TenantLandingSettings): LandingForm {
       key: listKey(),
       question: text(faq.question),
       question_am: text(faq.question_am),
+      question_om: text(faq.question_om),
       answer: text(faq.answer),
       answer_am: text(faq.answer_am),
+      answer_om: text(faq.answer_om),
     })),
     services: (landing.services ?? []).map((service) => ({
       key: listKey(),
       title: text(service.title),
       title_am: text(service.title_am),
+      title_om: text(service.title_om),
       description: text(service.description),
       description_am: text(service.description_am),
+      description_om: text(service.description_om),
     })),
     sections,
     order: sectionOrder(landing),
@@ -201,21 +231,26 @@ function toUpdate(form: LandingForm): LandingUpdate {
   return {
     headline: trimmed(form.headline),
     headline_am: trimmed(form.headline_am),
+    headline_om: trimmed(form.headline_om),
     message: trimmed(form.message),
     message_am: trimmed(form.message_am),
+    message_om: trimmed(form.message_om),
     support_email: trimmed(form.support_email),
     support_phone: trimmed(form.support_phone),
     background: form.background,
     about: trimmed(form.about),
     about_am: trimmed(form.about_am),
+    about_om: trimmed(form.about_om),
     founded_year: numberOrNull(form.founded_year),
     sector: trimmed(form.sector) as LandingUpdate["sector"],
     staff_band: trimmed(form.staff_band) as LandingUpdate["staff_band"],
     show_branch_count: form.show_branch_count,
     address: trimmed(form.address),
     address_am: trimmed(form.address_am),
+    address_om: trimmed(form.address_om),
     hours: trimmed(form.hours),
     hours_am: trimmed(form.hours_am),
+    hours_om: trimmed(form.hours_om),
     latitude: numberOrNull(form.latitude),
     longitude: numberOrNull(form.longitude),
     show_branches: form.show_branches,
@@ -322,7 +357,7 @@ export function LandingCard({
     setFieldErrors({});
     updateLanding.mutate(toUpdate(form), {
       onSuccess: () =>
-        toast.success(t("settings.landing_saved", "Sign-in page saved")),
+        toast.success(t("settings.landing_saved", "Public website saved")),
       onError: (error: unknown) => {
         const errors = (
           error as {
@@ -369,12 +404,16 @@ export function LandingCard({
     placeholder?: string,
   ) => {
     const amKey = `${key}_am` as const;
+    const omKey = `${key}_om` as const;
     const Control = multiline ? Textarea : Input;
     return (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field
           id={`landing-${key}`}
-          label={`${label} (English)`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES[""],
+          })}
           error={fieldErrors[key]}
           counter={`${form[key].length}/${max}`}
         >
@@ -389,7 +428,10 @@ export function LandingCard({
         </Field>
         <Field
           id={`landing-${amKey}`}
-          label={`${label} (አማርኛ)`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES._am,
+          })}
           error={fieldErrors[amKey]}
           counter={`${form[amKey].length}/${max}`}
         >
@@ -402,6 +444,24 @@ export function LandingCard({
             onChange={(e) => set(amKey, e.target.value)}
           />
         </Field>
+        <Field
+          id={`landing-${omKey}`}
+          label={t("settings.landing_field_lang", ":label (:language)", {
+            label,
+            language: LANGUAGE_NAMES._om,
+          })}
+          error={fieldErrors[omKey]}
+          counter={`${form[omKey].length}/${max}`}
+        >
+          <Control
+            id={`landing-${omKey}`}
+            value={form[omKey]}
+            maxLength={max}
+            lang="om"
+            rows={multiline ? 3 : undefined}
+            onChange={(e) => set(omKey, e.target.value)}
+          />
+        </Field>
       </div>
     );
   };
@@ -412,7 +472,7 @@ export function LandingCard({
         <div className="flex items-center gap-2">
           <LogIn className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base">
-            {t("settings.landing_title", "Sign-in page")}
+            {t("settings.landing_title", "Public website")}
           </CardTitle>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -424,7 +484,7 @@ export function LandingCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs defaultValue="words">
-          <TabsList className="flex w-full flex-wrap">
+          <TabsList>
             <TabsTrigger value="words">
               {t("settings.landing_tab_words", "Words")}
             </TabsTrigger>
@@ -525,6 +585,7 @@ export function LandingCard({
                 id="landing-founded"
                 label={t("settings.landing_founded", "Founded in")}
                 error={fieldErrors.founded_year}
+                help={t("settings.landing_founded_help", "Gregorian year.")}
               >
                 <Input
                   id="landing-founded"
@@ -591,7 +652,7 @@ export function LandingCard({
               id="landing-branch-count"
               label={t(
                 "settings.landing_show_branch_count",
-                "Show how many places we have",
+                "Show how many branches we have",
               )}
               help={t(
                 "settings.landing_show_branch_count_help",
@@ -618,7 +679,7 @@ export function LandingCard({
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 id="landing-email"
-                label={t("settings.landing_support_email", "HR help e-mail")}
+                label={t("settings.landing_support_email", "HR help email")}
                 error={fieldErrors.support_email}
               >
                 <Input
@@ -677,7 +738,7 @@ export function LandingCard({
             </div>
             <SwitchRow
               id="landing-branches"
-              label={t("settings.landing_show_branches", "List our places")}
+              label={t("settings.landing_show_branches", "List our branches")}
               help={t(
                 "settings.landing_show_branches_help",
                 "Your active branches with their city, address and phone, from the branches you already keep.",
@@ -742,13 +803,13 @@ export function LandingCard({
               }
               help={t(
                 "settings.landing_services_help",
-                "What your organisation offers the public, such as its products, services or programmes. Each needs a name in English, Amharic or both; a description is optional.",
+                "What your organisation offers the public, such as its products, services or programmes. Each needs a name in at least one of English, Amharic or Afaan Oromo; a description is optional.",
               )}
               empty={t("settings.landing_services_empty", "No services yet.")}
               add={t("settings.landing_services_add", "Add a service")}
               full={t(
                 "settings.landing_services_full",
-                "Eight services is the most",
+                "Up to eight services.",
               )}
               errors={fieldErrors}
             />
@@ -779,14 +840,11 @@ export function LandingCard({
               }
               help={t(
                 "settings.landing_faq_help",
-                "Answer the questions people ask most, such as payday, working hours or how to apply. Each needs a question and an answer in English, Amharic or both.",
+                "Answer the questions people ask most, such as payday, working hours or how to apply. Each needs a question and an answer in at least one of English, Amharic or Afaan Oromo.",
               )}
               empty={t("settings.landing_faq_empty", "No questions yet.")}
               add={t("settings.landing_faq_add", "Add a question")}
-              full={t(
-                "settings.landing_faq_full",
-                "Twelve questions is the most",
-              )}
+              full={t("settings.landing_faq_full", "Up to twelve questions.")}
               errors={fieldErrors}
             />
           </TabsContent>
@@ -882,7 +940,7 @@ export function LandingCard({
           />
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm font-medium">
-              {t("settings.landing_share", "Share your sign-in page")}
+              {t("settings.landing_share", "Share your public website")}
             </p>
             <code
               className="block break-all rounded-md bg-muted px-2 py-1 font-mono text-sm"
@@ -919,7 +977,7 @@ export function LandingCard({
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {t("settings.landing_save", "Save sign-in page")}
+            {t("settings.landing_save", "Save public website")}
           </Button>
         </div>
       </CardContent>
@@ -1023,6 +1081,7 @@ function BilingualList({
     for (const field of fields) {
       item[field.key] = "";
       item[`${field.key}_am`] = "";
+      item[`${field.key}_om`] = "";
     }
     return item;
   };
@@ -1093,9 +1152,9 @@ function BilingualList({
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {fields.flatMap((field) =>
-                    (["", "_am"] as const).map((suffix) => {
+                    (["", "_am", "_om"] as const).map((suffix) => {
                       const key = `${field.key}${suffix}`;
                       const inputId = `${id}-${n}-${key}`;
                       const Control = field.multiline ? Textarea : Input;
@@ -1103,7 +1162,15 @@ function BilingualList({
                         <Field
                           key={key}
                           id={inputId}
-                          label={`${field.label} ${n} (${suffix ? "አማርኛ" : "English"})`}
+                          label={t(
+                            "settings.landing_list_field_lang",
+                            ":label :n (:language)",
+                            {
+                              label: field.label,
+                              n,
+                              language: LANGUAGE_NAMES[suffix],
+                            },
+                          )}
                           error={
                             suffix
                               ? undefined
@@ -1116,7 +1183,7 @@ function BilingualList({
                             value={item[key] ?? ""}
                             maxLength={field.max}
                             rows={field.multiline ? 3 : undefined}
-                            lang={suffix ? "am" : undefined}
+                            lang={suffix ? suffix.slice(1) : undefined}
                             onChange={(e) => update(index, key, e.target.value)}
                           />
                         </Field>
@@ -1129,16 +1196,24 @@ function BilingualList({
           })}
         </ol>
       )}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={items.length >= max}
-        onClick={() => onChange([...items, blank()])}
-      >
-        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        {items.length >= max ? full : add}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={items.length >= max}
+          aria-describedby={items.length >= max ? `${id}-full` : undefined}
+          onClick={() => onChange([...items, blank()])}
+        >
+          <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+          {add}
+        </Button>
+        {items.length >= max && (
+          <p id={`${id}-full`} className="text-xs text-muted-foreground">
+            {full}
+          </p>
+        )}
+      </div>
     </>
   );
 }
@@ -1182,23 +1257,50 @@ function Field({
   counter?: string;
   children: React.ReactNode;
 }) {
+  const describedBy =
+    [
+      error ? `${id}-error` : help ? `${id}-help` : null,
+      counter ? `${id}-counter` : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  const control = React.isValidElement(children)
+    ? React.cloneElement(
+        children as React.ReactElement<Record<string, unknown>>,
+        {
+          "aria-invalid": error ? true : undefined,
+          "aria-describedby": describedBy,
+        },
+      )
+    : children;
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         {counter && (
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span
+            id={`${id}-counter`}
+            className="text-xs tabular-nums text-muted-foreground"
+          >
             {counter}
           </span>
         )}
       </div>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1">{control}</div>
       {error ? (
-        <p className="mt-1 text-xs text-destructive" role="alert">
+        <p
+          id={`${id}-error`}
+          className="mt-1 text-xs text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       ) : (
-        help && <p className="mt-1 text-xs text-muted-foreground">{help}</p>
+        help && (
+          <p id={`${id}-help`} className="mt-1 text-xs text-muted-foreground">
+            {help}
+          </p>
+        )
       )}
     </div>
   );

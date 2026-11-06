@@ -62,6 +62,21 @@ test.describe('Admin console — platform host', () => {
     await expect(page.locator('table, h1, h2').first()).toBeVisible({ timeout: 8000 });
   });
 
+  // Where each organisation is between sign-up and using ETHR
+  // (docs/operations/TENANT-JOURNEY.md): the funnel above the list, and the
+  // journey card on an organisation's page.
+  test('organisations show where they are on the way to using ETHR', async ({ page }) => {
+    await page.goto('/admin/tenants');
+
+    await expect(page.getByText('Where organisations are')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole('button', { name: /^Signed up\s*\d+$/ })).toBeVisible();
+
+    await page.locator('tbody tr').first().click();
+    await expect(page).toHaveURL(/\/admin\/tenants\/[^/]+$/);
+    await expect(page.getByText('Journey', { exact: true })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole('list', { name: 'Journey stages' })).toBeVisible();
+  });
+
   // The plan catalogue had no spec until 2026-10-09 (audit R11). The E2E super
   // admin has no MFA, in CI and in the rehearsal alike, and the console refuses
   // every write behind a password alone (RequirePlatformMfa) — so a create is

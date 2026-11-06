@@ -82,6 +82,9 @@ export function TenantFeaturesCard({
 
   function exception(feature: TenantFeature): string {
     const override = feature.override;
+    if (!feature.switchable) {
+      return t("admin_features.core", "Core feature, always on");
+    }
     if (!feature.overridable) {
       return t(
         "admin_features.not_overridable",

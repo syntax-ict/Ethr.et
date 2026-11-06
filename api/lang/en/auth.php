@@ -89,4 +89,5 @@ return [
         'contact' => 'This employee can be reached by email or text message. Use the normal invitation or password reset instead.',
         'identifier' => 'This employee would have no way to sign in. Turn on employee code sign-in in settings first.',
     ],
+    'phone_invalid' => 'Enter an Ethiopian phone number, for example 0912345678 or +251912345678.',
 ];

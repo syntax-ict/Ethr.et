@@ -36,12 +36,14 @@ use Illuminate\Support\Carbon;
  * @property string $billing_interval
  * @property string|null $description
  * @property string|null $description_am
+ * @property string|null $description_om
  * @property int|null $max_employees
  * @property int|null $max_branches
  * @property int|null $max_devices
  * @property list<string>|null $features
  * @property list<string>|null $marketing_features
  * @property list<string>|null $marketing_features_am
+ * @property list<string>|null $marketing_features_om
  * @property bool $is_active
  * @property bool $is_public
  * @property bool $is_popular
@@ -59,6 +61,7 @@ class Plan extends Model
         'slug',
         'description',
         'description_am',
+        'description_om',
         'price_cents',
         'currency',
         'billing_interval',
@@ -68,6 +71,7 @@ class Plan extends Model
         'features',
         'marketing_features',
         'marketing_features_am',
+        'marketing_features_om',
         'is_active',
         'is_public',
         'is_popular',
@@ -88,6 +92,7 @@ class Plan extends Model
             'features' => 'array',
             'marketing_features' => 'array',
             'marketing_features_am' => 'array',
+            'marketing_features_om' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
             'is_popular' => 'boolean',

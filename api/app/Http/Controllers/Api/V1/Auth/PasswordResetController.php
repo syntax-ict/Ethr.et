@@ -47,8 +47,8 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        // Rate-limit per email+IP to prevent enumeration + spam
-        $key = 'password-forgot|'.Str::lower($request->input('email')).'|'.$request->ip();
+        // Rate-limit per email, organisation and IP to prevent enumeration + spam
+        $key = 'password-forgot|'.Str::lower($request->input('email')).'|'.$tenant->id().'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 3)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/rate-limit',

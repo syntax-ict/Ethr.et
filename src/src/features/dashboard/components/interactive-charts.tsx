@@ -17,12 +17,17 @@ import {
   useExecutiveAttendance,
   useExecutiveOverview,
 } from "@/features/dashboard/executive-api";
+import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartCard } from "@/components/dashboard/chart-card";
+import {
+  ChartCard,
+  ChartTable,
+  type ChartView,
+} from "@/components/dashboard/chart-card";
 import {
   ChartLegend,
   STATUS_SERIES,
@@ -104,13 +109,15 @@ export function InteractiveCharts() {
         )
       }
     >
-      {activeTab === "workforce" && organisation ? (
-        <HeadcountByDepartment />
-      ) : organisation ? (
-        <OrganisationAttendance />
-      ) : (
-        <TeamAttendanceTrend />
-      )}
+      {(view) =>
+        activeTab === "workforce" && organisation ? (
+          <HeadcountByDepartment view={view} />
+        ) : organisation ? (
+          <OrganisationAttendance view={view} />
+        ) : (
+          <TeamAttendanceTrend view={view} />
+        )
+      }
     </ChartCard>
   );
 }
@@ -128,8 +135,10 @@ function ChartEmpty({ children }: { children: React.ReactNode }) {
   );
 }
 
-function OrganisationAttendance() {
-  const { data, isLoading, isError, refetch } = useExecutiveAttendance();
+function OrganisationAttendance({ view }: { view: ChartView }) {
+  // The reader's month, as the Organisation today tiles and Analytics ask.
+  const { data, isLoading, isError, refetch } =
+    useExecutiveAttendance(useThisMonth());
   const { t, locale } = useT();
   const { calendar } = useCalendar();
 
@@ -153,6 +162,26 @@ function OrganisationAttendance() {
   }
 
   const present = t("dashboard.present", "Present");
+
+  if (view === "table") {
+    return (
+      <ChartTable
+        className="max-h-64"
+        caption={t(
+          "dashboard.attendance_this_month",
+          "People present each day this month",
+        )}
+        columns={[
+          { key: "date", label: t("common.date", "Date") },
+          { key: "present", label: present, numeric: true },
+        ]}
+        rows={days.map((day) => ({
+          date: dayKeyLabel(day.date, calendar, locale),
+          present: day.present,
+        }))}
+      />
+    );
+  }
 
   return (
     <div className={CHART_HEIGHT}>
@@ -202,8 +231,10 @@ function OrganisationAttendance() {
   );
 }
 
-function HeadcountByDepartment() {
-  const { data, isLoading, isError, refetch } = useExecutiveOverview();
+function HeadcountByDepartment({ view }: { view: ChartView }) {
+  // Headcount has no period; the same one as the tiles shares their request.
+  const { data, isLoading, isError, refetch } =
+    useExecutiveOverview(useThisMonth());
   const { t } = useT();
 
   if (isLoading) return <Skeleton className={cn(CHART_HEIGHT, "rounded-lg")} />;
@@ -224,6 +255,26 @@ function HeadcountByDepartment() {
   }
 
   const people = t("dashboard.total_employees", "Employees");
+
+  if (view === "table") {
+    return (
+      <ChartTable
+        className="max-h-64"
+        caption={t(
+          "dashboard.headcount_by_department",
+          "Headcount by department",
+        )}
+        columns={[
+          { key: "department", label: t("common.department", "Department") },
+          { key: "count", label: people, numeric: true },
+        ]}
+        rows={departments.map((d) => ({
+          department: d.department,
+          count: d.count,
+        }))}
+      />
+    );
+  }
 
   return (
     <div className={CHART_HEIGHT}>
@@ -259,7 +310,7 @@ function HeadcountByDepartment() {
   );
 }
 
-function TeamAttendanceTrend() {
+function TeamAttendanceTrend({ view }: { view: ChartView }) {
   const { data, isLoading, isError, refetch } =
     useTeamAttendanceSummary("weekly");
   const { t } = useT();
@@ -324,6 +375,20 @@ function TeamAttendanceTrend() {
     },
   ] as const;
 
+  if (view === "table") {
+    return (
+      <ChartTable
+        className="max-h-56"
+        caption={t("dashboard.team_this_week", "Your team this week")}
+        columns={[
+          { key: "name", label: t("common.day", "Day") },
+          ...series.map((s) => ({ key: s.key, label: s.label, numeric: true })),
+        ]}
+        rows={chartData}
+      />
+    );
+  }
+
   return (
     <div className="space-y-3">
       <ChartLegend
@@ -340,14 +405,17 @@ function TeamAttendanceTrend() {
             <XAxis dataKey="name" {...axisProps} />
             <YAxis {...axisProps} allowDecimals={false} />
             <Tooltip {...tooltipProps} />
-            {series.map((s) => (
+            {/* One stacked bar per day: its height is the people accounted
+                for, its split who was present, late or absent. */}
+            {series.map((s, index) => (
               <Bar
                 key={s.key}
                 dataKey={s.key}
                 name={s.label}
+                stackId="day"
                 fill={s.color}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={18}
+                radius={index === series.length - 1 ? [4, 4, 0, 0] : 0}
+                maxBarSize={28}
               />
             ))}
           </BarChart>

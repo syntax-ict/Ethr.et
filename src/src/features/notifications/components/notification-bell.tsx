@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
@@ -26,8 +27,11 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 export function NotificationBell() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
+  const [open, setOpen] = useState(false);
   const { data: unread } = useUnreadCount();
-  const { data: notifData } = useNotifications({ page: 1 });
+  // The badge needs only the count; the list is fetched when the popover
+  // opens, and stays cached for the next time.
+  const { data: notifData } = useNotifications({ page: 1 }, open);
   const markRead = useMarkAsRead();
   const router = useRouter();
   const markAllRead = useMarkAllAsRead();
@@ -36,7 +40,7 @@ export function NotificationBell() {
   const count = unread?.count ?? 0;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"

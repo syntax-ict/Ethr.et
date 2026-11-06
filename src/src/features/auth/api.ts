@@ -33,6 +33,11 @@ export interface MeResponse {
   features?: Record<string, { on: boolean; reason: string }> | null;
   /** The largest upload the server accepts, in bytes (PHP's own limits). */
   upload_limit_bytes?: number;
+  /**
+   * The organisation is locked out for money (trial ended, or suspended with
+   * a bill unpaid): only sign-in and billing answer (`Tenant::billingOnly()`).
+   */
+  billing_only?: boolean;
   tenant: {
     public_id: string;
     name: string;
@@ -235,6 +240,37 @@ export function useChangePassword() {
       queryClient.invalidateQueries({ queryKey: ["auth", "sessions"] });
     },
   });
+}
+
+/**
+ * The signed-in person's own phone, on their account (`PUT /auth/me/phone`):
+ * the number ETHR support calls an organisation's owner on. Stored as typed
+ * in either local or +251 form, normalised by the server, and unverified
+ * until a code confirms it.
+ */
+export function useUpdateOwnPhone() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (phone: string) =>
+      (await apiClient.put("/auth/me/phone", { phone })).data as {
+        phone: string;
+        phone_verified: boolean;
+      },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "next-steps"] });
+    },
+  });
+}
+
+/** True when only billing answers for this organisation (`billing_only`). */
+export function useBillingOnly(): boolean {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) => me.billing_only === true,
+  });
+  return data === true;
 }
 
 export function useLogout() {

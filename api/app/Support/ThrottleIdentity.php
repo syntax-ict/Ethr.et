@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Services\CurrentTenant;
+
 /**
  * The one spelling of a sign-in identifier that rate limits and lockouts are
  * counted under.
@@ -28,5 +30,19 @@ final class ThrottleIdentity
         }
 
         return EthiopianPhone::canonical($value) ?? $value;
+    }
+
+    /**
+     * The organisation the request resolved to, for the same keys. An employee
+     * code or email is unique within one organisation only, so a counter
+     * without it let failed attempts at one organisation lock the same
+     * identifier out at another behind the same address. `-` when none was
+     * resolved (the platform host, or a request that names no organisation).
+     */
+    public static function organisation(): string
+    {
+        $tenant = app(CurrentTenant::class);
+
+        return $tenant->resolved() ? (string) $tenant->id() : '-';
     }
 }

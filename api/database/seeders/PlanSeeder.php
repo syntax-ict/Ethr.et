@@ -32,6 +32,12 @@ class PlanSeeder extends Seeder
                     'የሠራተኛ መዝገብ',
                     'ከመስመር ውጭ ይሠራል',
                 ],
+                'description_om' => 'Waajjira tokko kan argamaa fi boqonnaa sirnatti galchuu barbaaduuf.',
+                'marketing_features_om' => [
+                    'Argamaa fi boqonnaa',
+                    'Galmee hojjettootaa',
+                    'Toora ala ni hojjeta',
+                ],
                 'sort_order' => 1,
             ],
             [
@@ -54,6 +60,12 @@ class PlanSeeder extends Seeder
                     'ሁሉም በStarter ውስጥ ያለው',
                     'ከኢትዮጵያ የገቢ ግብርና ጡረታ ጋር ደመወዝ',
                     'ሪፖርቶች እና ማሳወቂያዎች',
+                ],
+                'description_om' => 'Dhaabbata dameewwan hedduu keessatti kaffaltii mindaa raawwatuuf.',
+                'marketing_features_om' => [
+                    'Wanti Starter keessa jiru hundi',
+                    'Kaffaltii mindaa gibira galii fi soorama Itoophiyaa waliin',
+                    'Gabaasaalee fi beeksisoota',
                 ],
                 'sort_order' => 2,
             ],
@@ -83,6 +95,12 @@ class PlanSeeder extends Seeder
                     'የሠራተኛ፣ ቅርንጫፍ ወይም መሣሪያ ገደብ የለም',
                     'የAPI መዳረሻ፣ webhooks እና የኦዲት መዝገብ',
                 ],
+                'description_om' => 'Dhaabbata daangaa hin barbaannee fi walqabsiisa mataa isaa barbaaduuf.',
+                'marketing_features_om' => [
+                    'Wanti Professional keessa jiru hundi',
+                    'Daangaa hojjetaa, damee ykn meeshaa hin qabu',
+                    'Seensa API, webhooks fi galmee odiitii',
+                ],
                 'sort_order' => 3,
             ],
         ];
@@ -103,7 +121,30 @@ class PlanSeeder extends Seeder
         // later changes to this file, which is correct — those are a migration's
         // job when they need to reach existing rows.
         foreach ($plans as $plan) {
-            Plan::firstOrCreate(['slug' => $plan['slug']], $plan);
+            $row = Plan::firstOrCreate(['slug' => $plan['slug']], $plan);
+            self::backfillOromo($row, $plan);
+        }
+    }
+
+    /**
+     * The one exception to first-run-only: a plan created before the Oromo
+     * columns existed gets the built-in Oromo, field by field, while that
+     * field is empty and the English beside it is still the seeded English.
+     * An operator who rewrote the English has a description the translation
+     * no longer matches, so that field stays empty and shows their English.
+     *
+     * @param  array<string, mixed>  $seeded
+     */
+    private static function backfillOromo(Plan $row, array $seeded): void
+    {
+        foreach (['description', 'marketing_features'] as $field) {
+            if ($row->getAttribute("{$field}_om") === null && $row->getAttribute($field) === $seeded[$field]) {
+                $row->setAttribute("{$field}_om", $seeded["{$field}_om"]);
+            }
+        }
+
+        if ($row->isDirty()) {
+            $row->save();
         }
     }
 }

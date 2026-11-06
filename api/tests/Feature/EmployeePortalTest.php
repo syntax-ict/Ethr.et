@@ -58,7 +58,7 @@ test('dashboard shows leave balances', function () {
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     test()->actingAs($user);
 
-    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual']);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual', 'name_am' => 'ዓመታዊ']);
     LeaveBalance::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -73,6 +73,10 @@ test('dashboard shows leave balances', function () {
     $response->assertOk();
     expect($response->json('leave_balances'))->toHaveCount(1);
     expect((float) $response->json('leave_balances.0.remaining'))->toBe(15.0);
+    // Both names travel, so the dashboard can name the type in the reader's
+    // language; it sent only the English one (dashboard review, 2026-11-03).
+    expect($response->json('leave_balances.0.type'))->toBe('Annual')
+        ->and($response->json('leave_balances.0.type_am'))->toBe('ዓመታዊ');
 });
 
 test('dashboard shows upcoming holidays', function () {

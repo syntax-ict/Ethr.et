@@ -8,7 +8,7 @@ namespace App\Support;
  * The events the application actually sends to a tenant's webhooks.
  *
  * One entry per `DispatchesWebhooks::webhook()` call site — EmployeeController,
- * LeaveRequestController, LeaveDecisionService, PayrollController,
+ * LeaveRequestController, LeaveDecisionService, LeaveRecallService, PayrollController,
  * ProcessPayrollJob, AttendanceEngine and CorrectionDecisionService. `WebhookEventsTest` scans `app/` for those calls and fails
  * if this list and the call sites disagree, in either direction.
  *
@@ -17,7 +17,7 @@ namespace App\Support;
  * `test` is not here: `WebhookDispatcher::sendTestEvent()` sends it to the one
  * webhook asked, whatever that webhook subscribes to.
  *
- * The settings page offers the same nine (`src/src/features/webhooks/api.ts`).
+ * The settings page offers the same list (`src/src/features/webhooks/api.ts`).
  */
 final class WebhookEvents
 {
@@ -28,6 +28,7 @@ final class WebhookEvents
         'leave.requested',
         'leave.approved',
         'leave.rejected',
+        'leave.changed',
         'payroll.processed',
         'payroll.approved',
         'payroll.voided',

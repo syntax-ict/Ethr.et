@@ -8,13 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\StoreAlertThresholdRequest;
 use App\Models\AlertThreshold;
 use App\Models\AuditLog;
-use App\Models\Branch;
 use App\Services\Analytics\AlertEvaluator;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
+use App\Support\ExecutiveBranchScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Phase 6.7 — configurable alert thresholds over the same metrics the
@@ -110,44 +109,14 @@ class AlertThresholdController extends Controller
 
     private function authorizeConfiguration(Request $request): void
     {
-        $allowed = $request->user()?->hasPermission('dashboard.executive') ?? false;
-
-        if (! $allowed) {
-            throw new HttpException(403, 'This action is unauthorized.');
-        }
+        abort_unless(ExecutiveBranchScope::isFull($request->user()), 403);
     }
 
     /** Same rule ExecutiveDashboardController::resolveBranchId() enforces. */
     private function resolveBranchId(Request $request): ?int
     {
-        $user = $request->user();
-        $hasFull = $user?->hasPermission('dashboard.executive') ?? false;
-        $hasRegional = $user?->hasPermission('dashboard.regional') ?? false;
+        abort_unless(ExecutiveBranchScope::isFull($request->user()) || ExecutiveBranchScope::isRegional($request->user()), 403);
 
-        if (! $hasFull && ! $hasRegional) {
-            throw new HttpException(403, 'This action is unauthorized.');
-        }
-
-        if ($hasFull) {
-            if (! $request->filled('branch')) {
-                return null;
-            }
-
-            $branch = Branch::where('public_id', $request->input('branch'))->first();
-
-            if (! $branch) {
-                throw new HttpException(404, 'Branch not found.');
-            }
-
-            return $branch->id;
-        }
-
-        $branchId = $user->employee?->branch_id;
-
-        if ($branchId === null) {
-            throw new HttpException(403, 'No branch is assigned to your account.');
-        }
-
-        return $branchId;
+        return ExecutiveBranchScope::resolve($request);
     }
 }

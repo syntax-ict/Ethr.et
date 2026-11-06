@@ -56,7 +56,7 @@ const registerSchema = z
     subdomain: z.string().min(3, "auth.complete_org_step").max(63),
     admin_name: z.string().min(2, "auth.complete_admin_step"),
     admin_email: z.string().email("auth.complete_admin_step"),
-    admin_phone: z.string().max(20).optional().or(z.literal("")),
+    admin_phone: z.string().min(9, "auth.complete_admin_step").max(20),
     password: z.string().min(8, "auth.password_requirements"),
     password_confirmation: z.string().min(8, "auth.password_requirements"),
   })
@@ -263,7 +263,7 @@ export function RegisterForm() {
         subdomain: data.subdomain,
         admin_name: data.admin_name,
         admin_email: data.admin_email,
-        admin_phone: data.admin_phone || undefined,
+        admin_phone: data.admin_phone,
         password: data.password,
         password_confirmation: data.password_confirmation,
       });
@@ -550,7 +550,7 @@ export function RegisterForm() {
 
             <div className="space-y-2">
               <Label htmlFor="admin_phone">
-                {t("auth.admin_phone", "Phone (Optional)")}
+                {t("auth.admin_phone", "Phone")}
               </Label>
               <Input
                 id="admin_phone"

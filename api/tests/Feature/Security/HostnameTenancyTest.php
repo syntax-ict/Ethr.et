@@ -295,6 +295,7 @@ it('refuses to register a tenant on a reserved subdomain', function () {
         'subdomain' => 'admin',
         'admin_name' => 'Squatter Admin',
         'admin_email' => 'squatter@example.test',
+        'admin_phone' => '0912345678',
         'password' => 'Str0ng-Passw0rd!',
         'password_confirmation' => 'Str0ng-Passw0rd!',
     ])

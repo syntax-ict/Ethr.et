@@ -85,6 +85,7 @@ final class PortalHead
             '<meta property="og:image:alt" content="'.$e($name).'">',
             '<meta property="og:locale" content="en_US">',
             '<meta property="og:locale:alternate" content="am_ET">',
+            '<meta property="og:locale:alternate" content="om_ET">',
             '<meta name="twitter:card" content="summary_large_image">',
             '<meta name="twitter:title" content="'.$e($name).'">',
             '<meta name="twitter:description" content="'.$e($description).'">',
@@ -245,6 +246,7 @@ final class PortalHead
             '<meta property="og:image:alt" content="'.$e($image['alt']).'">',
             '<meta property="og:locale" content="en_US">',
             '<meta property="og:locale:alternate" content="am_ET">',
+            '<meta property="og:locale:alternate" content="om_ET">',
         );
         if ($published !== null) {
             $tags[] = '<meta property="article:published_time" content="'.$e($published->toIso8601String()).'">';

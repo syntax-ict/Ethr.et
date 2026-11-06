@@ -75,19 +75,35 @@ export const LINKS = [
 type BilingualKey = "headline" | "message" | "about" | "address" | "hours";
 
 /**
- * The text in the viewer's language, else the other language's: an
- * organisation that wrote only English is still readable in Amharic, and the
- * reverse.
+ * One text in the viewer's language, else English, else whichever language the
+ * organisation did write: an organisation that wrote only Amharic is still
+ * readable in Oromo, and one that wrote only Oromo is still readable in English.
  */
+export function pickText(
+  locale: string,
+  en: string | null | undefined,
+  am: string | null | undefined,
+  om: string | null | undefined,
+): string {
+  const own = locale === "am" ? am : locale === "om" ? om : en;
+  return own || en || am || om || "";
+}
+
+/** The text in the viewer's language, falling back as `pickText` does. */
 export function localised(
   landing: TenantLanding | null | undefined,
   key: BilingualKey,
   locale: string,
 ): string | null {
   if (!landing) return null;
-  const en = landing[key] ?? null;
-  const am = landing[`${key}_am`] ?? null;
-  return locale === "am" ? am || en || null : en || am || null;
+  return (
+    pickText(
+      locale,
+      landing[key],
+      landing[`${key}_am`],
+      landing[`${key}_om`],
+    ) || null
+  );
 }
 
 export function sectionOn(
@@ -143,6 +159,7 @@ export function hasAbout(
     landing &&
     (landing.about ||
       landing.about_am ||
+      landing.about_om ||
       landing.founded_year ||
       landing.sector ||
       landing.staff_band ||
@@ -152,19 +169,22 @@ export function hasAbout(
 
 /**
  * The organisation's questions in the viewer's language, each half falling
- * back to the other language as every text here does. The server already
+ * back as every text here does (`pickText`). The server already
  * dropped any pair missing a question or an answer.
  */
 export function localisedFaqs(
   landing: TenantLanding | null | undefined,
   locale: string,
 ): Array<{ question: string; answer: string }> {
-  const pick = (en: string | null, am: string | null) =>
-    locale === "am" ? am || en || "" : en || am || "";
   return (landing?.faqs ?? [])
     .map((faq) => ({
-      question: pick(faq.question, faq.question_am),
-      answer: pick(faq.answer, faq.answer_am),
+      question: pickText(
+        locale,
+        faq.question,
+        faq.question_am,
+        faq.question_om,
+      ),
+      answer: pickText(locale, faq.answer, faq.answer_am, faq.answer_om),
     }))
     .filter((faq) => faq.question !== "" && faq.answer !== "");
 }
@@ -174,12 +194,15 @@ export function localisedServices(
   landing: TenantLanding | null | undefined,
   locale: string,
 ): Array<{ title: string; description: string }> {
-  const pick = (en: string | null, am: string | null) =>
-    locale === "am" ? am || en || "" : en || am || "";
   return (landing?.services ?? [])
     .map((s) => ({
-      title: pick(s.title, s.title_am),
-      description: pick(s.description, s.description_am),
+      title: pickText(locale, s.title, s.title_am, s.title_om),
+      description: pickText(
+        locale,
+        s.description,
+        s.description_am,
+        s.description_om,
+      ),
     }))
     .filter((s) => s.title !== "");
 }
@@ -205,8 +228,10 @@ export function hasContact(
     landing &&
     (landing.address ||
       landing.address_am ||
+      landing.address_om ||
       landing.hours ||
       landing.hours_am ||
+      landing.hours_om ||
       landing.support_phone ||
       landing.support_email ||
       (landing.latitude != null && landing.longitude != null) ||

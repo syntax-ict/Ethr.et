@@ -62,6 +62,10 @@ class ApprovalController extends Controller
                 ?? $lr->leaveType?->name
                 ?? __('approval.leave');
 
+            // The dates travel as calendar dates beside the summary, so the
+            // queue can name them in the reader's own calendar: the summary's
+            // "Nov 09 - Nov 12" sat under a submitted-on date of Tikimt 24
+            // (dashboard review, 2026-11-03, PR 12).
             $items[] = [
                 'type' => 'leave',
                 'public_id' => $lr->public_id,
@@ -72,6 +76,12 @@ class ApprovalController extends Controller
                     'from' => $lr->start_date->translatedFormat('M d'),
                     'to' => $lr->end_date->translatedFormat('M d'),
                 ]),
+                'leave_type' => $lr->leaveType === null ? null : [
+                    'name' => $lr->leaveType->name,
+                    'name_am' => $lr->leaveType->name_am,
+                ],
+                'from' => $lr->start_date->toDateString(),
+                'to' => $lr->end_date->toDateString(),
                 'submitted_at' => $lr->created_at,
                 'step' => $this->approvalOf($lr)->current_position ?? 1,
                 'steps' => $this->approvalOf($lr)?->stepCount() ?? 1,
@@ -98,6 +108,7 @@ class ApprovalController extends Controller
                     'summary' => __('approval.correction_summary', [
                         'date' => $date?->translatedFormat('M d') ?? '—',
                     ]),
+                    'date' => $date?->toDateString(),
                     'submitted_at' => $c->created_at,
                     'step' => $this->approvalOf($c)->current_position ?? 1,
                     'steps' => $this->approvalOf($c)?->stepCount() ?? 1,
@@ -120,6 +131,8 @@ class ApprovalController extends Controller
                     'date' => $ot->date->translatedFormat('M d'),
                     'hours' => round($ot->planned_minutes / 60, 1),
                 ]),
+                'date' => $ot->date->toDateString(),
+                'hours' => round($ot->planned_minutes / 60, 1),
                 'submitted_at' => $ot->created_at,
                 'step' => $this->approvalOf($ot)->current_position ?? 1,
                 'steps' => $this->approvalOf($ot)?->stepCount() ?? 1,

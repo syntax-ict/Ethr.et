@@ -11,6 +11,40 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-06, tenant journey: six more in five new files, one fewer in
+ * `AdminTenantController`, 191/78. The console shows where each organisation
+ * is between sign-up and using ETHR (docs/operations/TENANT-JOURNEY.md).
+ * `Services/Admin/TenantJourney/JourneyCalculator` lists the organisations
+ * whose snapshot is stale and, for one organisation in hand, reads counts and
+ * dates, every query stating `tenant_id`; the two controller reads and the
+ * command look one organisation up by its public id, or list the snapshots of
+ * live organisations, returning counts. `Subscription::latestForTenant()` is
+ * the former `AdminTenantController::latestSubscription()` body, shared so the
+ * calculator and the console read the plan one way, stating `tenant_id`.
+ * `EmployeeGaps::apply()` gained one: the "no bank account" subquery built its
+ * own scoped query, which matched nothing on the platform host and read every
+ * employee as missing one; it is keyed on the employee, who is tenant-owned.)
+ * (2026-11-06, A-Z review E-08: `Services/Leave/SickLeaveTiers` joined
+ * with two. Sick leave under Art. 85 takes its pay tier from each day's
+ * place in a twelve-month period, asked by payroll, which may run with no
+ * tenant set, and by the leave request. It reads the organisation's Art. 85
+ * leave types and that person's approved (or pending) requests of them, each
+ * stating `tenant_id` from the employee in hand. 186/73.)
+ * (2026-11-05, A-Z review H-09: one more, in `Models/Tenant.php`.
+ * `billingOnly()` asks whether a suspended organisation still owes a bill,
+ * from `ResolveTenant` before any tenant is set for the request. It states
+ * `tenant_id` from the tenant in hand and returns only whether a row exists.
+ * 184/72.)
+ * (2026-11-04, A-Z review H-02: one more, in `AdminTenantController::
+ * markInvoicePaid()`. Marking the last overdue invoice paid puts a past-due
+ * subscription back to active, on the platform host where no tenant is
+ * resolved. One statement, stating `tenant_id` from the organisation in the
+ * route on the subscription and on its overdue-invoice subquery. 183/72.)
+ * (2026-11-04, A-Z review D-06: one more, in `AttendanceEngine::processBreak()`.
+ * A resent break is found by its key among the person's records for the day
+ * before any open record is looked for, from device ingestion where no
+ * tenant may be resolved. The query states `tenant_id` and `employee_id` from
+ * the punch's own input, as `findOpenRecord()` beside it does. 182/72.)
  * (2026-10-30, onboarding review: two more, both in `Models/Tenant.php`. A
  * trial organisation is named in public (Trusted by, the portals sitemap,
  * `index` on its portal) only once it holds `PUBLIC_MIN_EMPLOYEES` people, and
@@ -224,6 +258,7 @@ return [
     // app can reset. Platform accounts have no tenant, so the scope cannot see
     // them; the query states `tenant_id` itself — the --tenant organisation's,
     // or NULL (platform accounts only) when none is named.
+    'Console/Commands/RefreshTenantJourneysCommand.php' => 1,
     'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
@@ -233,6 +268,7 @@ return [
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
     'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
+    'Http/Controllers/Api/V1/Admin/AdminTenantJourneyController.php' => 2,
     // Pre-authentication: the phone lookup and, since email sign-in codes, the
     // email lookup. Each states tenant_id from the resolved tenant on its own
     // chain, as AuthIdentifierResolver does for password sign-in.
@@ -292,14 +328,16 @@ return [
     // kiosk terminal has no login to name the tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
-    'Models/Tenant.php' => 4,
+    'Models/Subscription.php' => 1,
+    'Models/Tenant.php' => 5,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,
+    'Services/Admin/TenantJourney/JourneyCalculator.php' => 1,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 2,
+    'Services/Attendance/AttendanceEngine.php' => 4,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,
@@ -334,6 +372,7 @@ return [
     'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,
     'Services/Leave/LeaveDayCalculator.php' => 1,
+    'Services/Leave/SickLeaveTiers.php' => 2,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
     'Services/Onboarding/ReadinessScorer.php' => 11,
@@ -363,4 +402,5 @@ return [
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,
+    'Support/EmployeeGaps.php' => 1,
 ];

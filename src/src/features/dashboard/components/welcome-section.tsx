@@ -1,14 +1,12 @@
 "use client";
 
 import { useCurrentUser, useCurrentTenant } from "@/features/auth/api";
-import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { useT } from "@/lib/i18n/useT";
+import { givenName } from "@/lib/given-name";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
-import { Clock } from "lucide-react";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import { cn } from "@/lib/utils";
 import { QuickActions } from "./quick-actions";
 
 // quiet-on-error: a greeting; a failed /auth/me is a sign-out handled by the API client, and the time line is decoration.
@@ -39,14 +37,13 @@ export function WelcomeSection() {
   const { t, locale } = useT();
   const { data: user, isLoading } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
-  const { data: dashData } = useEmployeeDashboard();
   const { formatDate } = useCalendar();
-  const { formatTime, timeZone } = useDateFormatters();
+  const { timeZone } = useDateFormatters();
 
   const greeting = t(getGreetingKey(timeZone), "Welcome back");
   const displayName =
     locale === "am" && user?.name_am ? user.name_am : user?.name;
-  const firstName = displayName?.split(" ")[0];
+  const firstName = givenName(displayName);
   const dateStr = formatDate(new Date(), locale);
 
   if (isLoading) {
@@ -60,9 +57,6 @@ export function WelcomeSection() {
       </div>
     );
   }
-
-  const attendance = dashData?.attendance_today;
-  const isCheckedIn = attendance?.status === "checked_in";
 
   return (
     // A page header, not a card: the greeting and the day's actions sit on
@@ -100,29 +94,11 @@ export function WelcomeSection() {
           </div>
         </div>
 
+        {/* The day's attendance state is said once, by the My Day tile, and
+            acted on once, by the Check In / Check Out verb below. The chip
+            that sat here said it a third time (dashboard review, 2026-11-03,
+            PR 7). */}
         <div className="flex min-w-0 flex-col items-start gap-3 xl:shrink-0 xl:items-end">
-          {attendance && (
-            <div
-              className={cn(
-                "flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors",
-                isCheckedIn
-                  ? "border-success-edge bg-success-soft text-success-on-soft"
-                  : "border-border bg-muted text-muted-foreground",
-              )}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              {isCheckedIn
-                ? t("dashboard.checked_in", "Checked In")
-                : t("dashboard.not_checked_in", "Not Checked In")}
-              {isCheckedIn && attendance.check_in && (
-                <span className="tabular-nums opacity-70">
-                  {/* A UTC instant from the datetime cast; show wall-clock time. */}
-                  {formatTime(attendance.check_in)}
-                </span>
-              )}
-            </div>
-          )}
-
           <QuickActions />
         </div>
       </div>

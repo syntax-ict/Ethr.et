@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useCurrentUser } from "@/features/auth/api";
+import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
+import { storedPeriodLabel } from "@/lib/calendar/stored-period-label";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -105,7 +107,7 @@ export function NextStepsCard() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs"
+                className="h-touch px-2 text-xs sm:h-8"
                 aria-expanded={expanded}
                 onClick={() => setExpanded((open) => !open)}
               >
@@ -126,7 +128,7 @@ export function NextStepsCard() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs"
+                className="h-touch px-2 text-xs sm:h-8"
                 disabled={restore.isPending}
                 onClick={() =>
                   restore.mutate(undefined, {
@@ -157,7 +159,8 @@ function NextStepRow({
   step: NextStep;
   onPutAway: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
   const def = STEP_DEFS[step.id];
   const Icon = def.icon;
   const blocker = step.severity === "blocker";
@@ -165,9 +168,15 @@ function NextStepRow({
   // A step with a total is a checklist: how much is done, out of how many.
   const total = step.total ?? 0;
   const done = Math.max(total - step.count, 0);
+  // A payroll row's subject is the run's stored English month; the reader
+  // sees it as /payroll names it (ጥቅምት 2019 on the Ethiopian calendar).
+  const period =
+    step.subject && def.subject === "payroll_period"
+      ? storedPeriodLabel(step.subject, calendar, locale)
+      : (step.subject ?? "");
   const replacements = {
     count: step.count,
-    period: step.subject ?? "",
+    period,
     done,
     total,
   };
@@ -182,9 +191,14 @@ function NextStepRow({
   const hasProgress = step.total != null && step.total > 0;
   const items = (step.items ?? []).filter(isProfileItem);
 
+  // On a phone the controls take a row of their own under the text: with the
+  // action and the put-away button beside it, a 375 px screen left the title
+  // one word per line (dashboard review, 2026-11-03). Anything tapped there is
+  // 44 px tall (WCAG 2.5.8 comfortable size); from `sm` up the row is one line
+  // and the controls keep their desktop size.
   return (
     <li className="rounded-xl border border-border/60 p-3.5">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
         <span
           className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
@@ -199,25 +213,35 @@ function NextStepRow({
           </span>
           <span className="block text-xs text-muted-foreground">{reason}</span>
         </span>
-        <Button variant="outline" size="sm" className="h-8 shrink-0" asChild>
-          <Link href={step.href}>
-            {action}
-            <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
-          </Link>
-        </Button>
-        <button
-          type="button"
-          onClick={onPutAway}
-          aria-label={`${t(blocker ? "next_steps.snooze" : "next_steps.put_away")}: ${title}`}
-          title={t(blocker ? "next_steps.snooze" : "next_steps.put_away")}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div
+          data-testid="next-step-controls"
+          className="flex basis-full items-center justify-between gap-2 pl-12 sm:basis-auto sm:justify-start sm:pl-0"
         >
-          {blocker ? (
-            <BellOff className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <X className="h-4 w-4" aria-hidden="true" />
-          )}
-        </button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-touch shrink-0 sm:h-8"
+            asChild
+          >
+            <Link href={step.href}>
+              {action}
+              <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
+            </Link>
+          </Button>
+          <button
+            type="button"
+            onClick={onPutAway}
+            aria-label={`${t(blocker ? "next_steps.snooze" : "next_steps.put_away")}: ${title}`}
+            title={t(blocker ? "next_steps.snooze" : "next_steps.put_away")}
+            className="flex h-touch w-touch shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-8 sm:w-8"
+          >
+            {blocker ? (
+              <BellOff className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <X className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        </div>
       </div>
 
       {hasProgress && (
@@ -233,7 +257,7 @@ function NextStepRow({
                 <li key={item}>
                   <Link
                     href={PROFILE_ITEM_HREF[item]}
-                    className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex min-h-touch items-center rounded-full border border-border px-3 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-xs"
                   >
                     {t(`next_steps.profile_item.${item}`)}
                   </Link>

@@ -197,6 +197,26 @@ function toLines(
     });
   }
 
+  // Art. 85 sick leave past its first month: half pay, then none (A-Z
+  // review E-08). Logs before version 1.7 have no such step.
+  const sick = step("sick_leave");
+  if (sick && num(sick.deduction_cents) > 0) {
+    lines.push({
+      key: "sick",
+      label: t("payroll_detail_page.calc_sick_leave", "Sick leave (Art. 85)"),
+      detail: t(
+        "payroll_detail_page.calc_sick_detail",
+        ":half days at half pay, :unpaid days unpaid",
+        {
+          half: num(sick.half_pay_days),
+          unpaid: num(sick.unpaid_days),
+        },
+      ),
+      cents: num(sick.deduction_cents),
+      kind: "minus",
+    });
+  }
+
   const overtime = step("overtime");
   if (overtime && num(overtime.overtime_amount_cents) > 0) {
     lines.push({

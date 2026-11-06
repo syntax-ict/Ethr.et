@@ -14,6 +14,8 @@ import {
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -27,12 +29,13 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
-import { ChartCard, StatCard } from "@/components/dashboard";
+import { ChartCard, ChartTable, StatCard } from "@/components/dashboard";
 import {
   axisProps,
   gridProps,
   lineTooltipProps,
   seriesColor,
+  tooltipProps,
 } from "@/components/dashboard/chart-theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,8 +127,11 @@ function PulseOverview() {
   const open = (concerns?.counts.new ?? 0) + (concerns?.counts.in_review ?? 0);
 
   const recent = data?.recent;
-  const topTags = Object.entries(recent?.tags ?? {}).slice(0, 6);
-  const maxTag = Math.max(1, ...topTags.map(([, n]) => n));
+  // Topics as sideways bars (charts upgrade, 2026-11-04); the list of
+  // hand-drawn progress bars they replace could not be read as a table.
+  const topics = Object.entries(recent?.tags ?? {})
+    .slice(0, 6)
+    .map(([tag, n]) => ({ name: t(`voice.tag.${tag}`, tag), count: n }));
 
   return (
     <div className="space-y-6">
@@ -176,96 +182,149 @@ function PulseOverview() {
             "Average answer per week, 1 (very hard) to 5 (great). Weeks with fewer than 5 answers are not shown.",
           )}
         >
-          {isLoading ? (
-            <Skeleton className="h-64" />
-          ) : isError ? (
-            <ErrorState compact onRetry={() => refetch()} />
-          ) : (data?.trend ?? []).every((w) => w.average === null) ? (
-            <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
-              {t(
-                "voice.trend_empty",
-                "The chart appears once a week has 5 or more answers.",
-              )}
-            </p>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart
-                data={data?.trend ?? []}
-                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="voice-pulse" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor={seriesColor(0)}
-                      stopOpacity={0.3}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor={seriesColor(0)}
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid {...gridProps} />
-                <XAxis
-                  dataKey="week"
-                  {...axisProps}
-                  tickFormatter={weekLabel}
-                />
-                <YAxis
-                  {...axisProps}
-                  domain={[1, 5]}
-                  ticks={[1, 2, 3, 4, 5]}
-                  width={32}
-                />
-                <Tooltip
-                  {...lineTooltipProps}
-                  labelFormatter={(w) => weekLabel(String(w))}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="average"
-                  name={t("voice.average", "Average")}
-                  stroke={seriesColor(0)}
-                  fill="url(#voice-pulse)"
-                  strokeWidth={2}
-                  connectNulls={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
+          {(view) =>
+            isLoading ? (
+              <Skeleton className="h-64" />
+            ) : isError ? (
+              <ErrorState compact onRetry={() => refetch()} />
+            ) : view === "table" ? (
+              <ChartTable
+                caption={t("voice.trend", "Weekly pulse")}
+                columns={[
+                  { key: "week", label: t("voice.week", "Week") },
+                  {
+                    key: "average",
+                    label: t("voice.average", "Average"),
+                    numeric: true,
+                  },
+                ]}
+                rows={(data?.trend ?? []).map((w) => ({
+                  week: weekLabel(w.week),
+                  average: w.average ?? "",
+                }))}
+              />
+            ) : (data?.trend ?? []).every((w) => w.average === null) ? (
+              <p className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
+                {t(
+                  "voice.trend_empty",
+                  "The chart appears once a week has 5 or more answers.",
+                )}
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart
+                  data={data?.trend ?? []}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="voice-pulse"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={seriesColor(0)}
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={seriesColor(0)}
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...gridProps} />
+                  <XAxis
+                    dataKey="week"
+                    {...axisProps}
+                    tickFormatter={weekLabel}
+                  />
+                  <YAxis
+                    {...axisProps}
+                    domain={[1, 5]}
+                    ticks={[1, 2, 3, 4, 5]}
+                    width={32}
+                  />
+                  <Tooltip
+                    {...lineTooltipProps}
+                    labelFormatter={(w) => weekLabel(String(w))}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="average"
+                    name={t("voice.average", "Average")}
+                    stroke={seriesColor(0)}
+                    fill="url(#voice-pulse)"
+                    strokeWidth={2}
+                    connectNulls={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          }
         </ChartCard>
 
-        <ChartCard title={t("voice.topics", "What it is about")}>
-          {topTags.length === 0 ? (
+        {topics.length === 0 ? (
+          <ChartCard title={t("voice.topics", "What it is about")}>
             <p className="text-sm text-muted-foreground">
               {t(
                 "voice.topics_empty",
                 "Topics appear once enough people have answered.",
               )}
             </p>
-          ) : (
-            <ul className="space-y-3">
-              {topTags.map(([tag, n]) => (
-                <li key={tag}>
-                  <div className="flex justify-between text-sm">
-                    <span>{t(`voice.tag.${tag}`, tag)}</span>
-                    <span className="tabular-nums text-muted-foreground">
-                      {n}
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2 rounded-full bg-muted">
-                    <div
-                      className="h-2 rounded-full bg-primary"
-                      style={{ width: `${(n / maxTag) * 100}%` }}
+          </ChartCard>
+        ) : (
+          <ChartCard title={t("voice.topics", "What it is about")}>
+            {(view) =>
+              view === "table" ? (
+                <ChartTable
+                  caption={t("voice.topics", "What it is about")}
+                  columns={[
+                    { key: "name", label: t("voice.topic", "Topic") },
+                    {
+                      key: "count",
+                      label: t("voice.mentions", "Mentions"),
+                      numeric: true,
+                    },
+                  ]}
+                  rows={topics}
+                />
+              ) : (
+                <ResponsiveContainer
+                  width="100%"
+                  height={Math.max(200, topics.length * 36)}
+                >
+                  <BarChart
+                    data={topics}
+                    layout="vertical"
+                    margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                    barCategoryGap={8}
+                  >
+                    <CartesianGrid {...gridProps} horizontal={false} vertical />
+                    <XAxis type="number" {...axisProps} allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      {...axisProps}
+                      width={110}
                     />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </ChartCard>
+                    <Tooltip {...tooltipProps} />
+                    <Bar
+                      dataKey="count"
+                      name={t("voice.mentions", "Mentions")}
+                      fill={seriesColor(0)}
+                      radius={[0, 6, 6, 0]}
+                      maxBarSize={22}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            }
+          </ChartCard>
+        )}
       </div>
 
       {(recent?.departments.length ?? 0) > 0 && (

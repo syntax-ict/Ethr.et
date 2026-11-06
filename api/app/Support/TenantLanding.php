@@ -17,8 +17,9 @@ use App\Services\Features\FeatureGate;
  * rule existed, or edited by hand, cannot put a script URL or an unbounded
  * string on a public page.
  *
- * Every text an organisation writes has an English and an Amharic key; the
- * page shows the viewer's language and falls back to the other. The photo
+ * Every text an organisation writes has an English, an Amharic and an Oromo
+ * key; the page shows the viewer's language and falls back to English, then
+ * to whichever language the organisation did write. The photo
  * background is the uploaded cover (`TenantBrand::cover()`), never a URL the
  * organisation typed: a row that still holds one from before 2026-10-14 is
  * read as having none. Links are the only outside URLs, https and, for the
@@ -85,7 +86,7 @@ final class TenantLanding
     public const SERVICE_TEXT_MAX = 400;
 
     /**
-     * @return array{headline: string|null, headline_am: string|null, message: string|null, message_am: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, hours: string|null, hours_am: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, faqs: list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>, services: list<array{title: string|null, title_am: string|null, description: string|null, description_am: string|null}>, sections: array<string, bool>, order: list<string>, listed: bool}
+     * @return array{headline: string|null, headline_am: string|null, headline_om: string|null, message: string|null, message_am: string|null, message_om: string|null, support_email: string|null, support_phone: string|null, background: string, about: string|null, about_am: string|null, about_om: string|null, founded_year: int|null, sector: string|null, staff_band: string|null, show_branch_count: bool, address: string|null, address_am: string|null, address_om: string|null, hours: string|null, hours_am: string|null, hours_om: string|null, latitude: float|null, longitude: float|null, show_branches: bool, links: array<string, string|null>, faqs: list<array{question: string|null, question_am: string|null, question_om: string|null, answer: string|null, answer_am: string|null, answer_om: string|null}>, services: list<array{title: string|null, title_am: string|null, title_om: string|null, description: string|null, description_am: string|null, description_om: string|null}>, sections: array<string, bool>, order: list<string>, listed: bool}
      */
     public static function present(Tenant $tenant): array
     {
@@ -108,8 +109,10 @@ final class TenantLanding
         return [
             'headline' => self::text($landing['headline'] ?? null, self::HEADLINE_MAX),
             'headline_am' => self::text($landing['headline_am'] ?? null, self::HEADLINE_MAX),
+            'headline_om' => self::text($landing['headline_om'] ?? null, self::HEADLINE_MAX),
             'message' => self::text($landing['message'] ?? null, self::MESSAGE_MAX),
             'message_am' => self::text($landing['message_am'] ?? null, self::MESSAGE_MAX),
+            'message_om' => self::text($landing['message_om'] ?? null, self::MESSAGE_MAX),
             'support_email' => is_string($landing['support_email'] ?? null)
                 && filter_var($landing['support_email'], FILTER_VALIDATE_EMAIL) !== false
                     ? $landing['support_email']
@@ -119,14 +122,17 @@ final class TenantLanding
             'background' => $background === 'image' && $tenant->brandAsset('cover') === null ? 'brand' : $background,
             'about' => self::text($landing['about'] ?? null, self::ABOUT_MAX),
             'about_am' => self::text($landing['about_am'] ?? null, self::ABOUT_MAX),
+            'about_om' => self::text($landing['about_om'] ?? null, self::ABOUT_MAX),
             'founded_year' => self::year($landing['founded_year'] ?? null),
             'sector' => self::choice($landing['sector'] ?? null, self::SECTORS),
             'staff_band' => self::choice($landing['staff_band'] ?? null, self::STAFF_BANDS),
             'show_branch_count' => ($landing['show_branch_count'] ?? null) === true,
             'address' => self::text($landing['address'] ?? null, self::ADDRESS_MAX),
             'address_am' => self::text($landing['address_am'] ?? null, self::ADDRESS_MAX),
+            'address_om' => self::text($landing['address_om'] ?? null, self::ADDRESS_MAX),
             'hours' => self::text($landing['hours'] ?? null, self::HOURS_MAX),
             'hours_am' => self::text($landing['hours_am'] ?? null, self::HOURS_MAX),
+            'hours_om' => self::text($landing['hours_om'] ?? null, self::HOURS_MAX),
             'latitude' => self::coordinate($latitude, $longitude, 90),
             'longitude' => self::coordinate($longitude, $latitude, 180),
             'show_branches' => ($landing['show_branches'] ?? null) === true,
@@ -247,10 +253,10 @@ final class TenantLanding
     /**
      * The organisation's questions and answers, in its order. A pair is shown
      * only when it has a question and an answer, each in at least one
-     * language; the page shows the viewer's language and falls back to the
-     * other, as it does for every text here.
+     * language; the page shows the viewer's language and falls back to
+     * another, as it does for every text here.
      *
-     * @return list<array{question: string|null, question_am: string|null, answer: string|null, answer_am: string|null}>
+     * @return list<array{question: string|null, question_am: string|null, question_om: string|null, answer: string|null, answer_am: string|null, answer_om: string|null}>
      */
     public static function faqs(mixed $stored): array
     {
@@ -262,10 +268,13 @@ final class TenantLanding
             $faq = [
                 'question' => self::text($item['question'] ?? null, self::QUESTION_MAX),
                 'question_am' => self::text($item['question_am'] ?? null, self::QUESTION_MAX),
+                'question_om' => self::text($item['question_om'] ?? null, self::QUESTION_MAX),
                 'answer' => self::text($item['answer'] ?? null, self::ANSWER_MAX),
                 'answer_am' => self::text($item['answer_am'] ?? null, self::ANSWER_MAX),
+                'answer_om' => self::text($item['answer_om'] ?? null, self::ANSWER_MAX),
             ];
-            if (($faq['question'] ?? $faq['question_am']) !== null && ($faq['answer'] ?? $faq['answer_am']) !== null) {
+            if (($faq['question'] ?? $faq['question_am'] ?? $faq['question_om']) !== null
+                && ($faq['answer'] ?? $faq['answer_am'] ?? $faq['answer_om']) !== null) {
                 $faqs[] = $faq;
             }
         }
@@ -277,7 +286,7 @@ final class TenantLanding
      * What the organisation offers, in its order: a title in at least one
      * language, and optionally a few words about it.
      *
-     * @return list<array{title: string|null, title_am: string|null, description: string|null, description_am: string|null}>
+     * @return list<array{title: string|null, title_am: string|null, title_om: string|null, description: string|null, description_am: string|null, description_om: string|null}>
      */
     public static function services(mixed $stored): array
     {
@@ -289,10 +298,12 @@ final class TenantLanding
             $service = [
                 'title' => self::text($item['title'] ?? null, self::SERVICE_TITLE_MAX),
                 'title_am' => self::text($item['title_am'] ?? null, self::SERVICE_TITLE_MAX),
+                'title_om' => self::text($item['title_om'] ?? null, self::SERVICE_TITLE_MAX),
                 'description' => self::text($item['description'] ?? null, self::SERVICE_TEXT_MAX),
                 'description_am' => self::text($item['description_am'] ?? null, self::SERVICE_TEXT_MAX),
+                'description_om' => self::text($item['description_om'] ?? null, self::SERVICE_TEXT_MAX),
             ];
-            if (($service['title'] ?? $service['title_am']) !== null) {
+            if (($service['title'] ?? $service['title_am'] ?? $service['title_om']) !== null) {
                 $services[] = $service;
             }
         }

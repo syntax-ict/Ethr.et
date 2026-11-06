@@ -152,6 +152,63 @@ describe("<CorrectionsPage> request", () => {
     });
   });
 
+  it("puts a check-out typed alone on the next morning when the record's check-in was the night before", async () => {
+    // A-Z review D-04: a night worker in at 22:00 who forgot to check out
+    // types only 06:00. That was sent as 06:00 the same day, before the
+    // check-in.
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      me("employee", ["correction.create", "attendance.viewOwn"]),
+      http.get("*/api/v1/attendance/my", ({ request }) => {
+        const from = new URL(request.url).searchParams.get("date_from");
+        return HttpResponse.json(
+          page(
+            from === "2026-09-29"
+              ? [
+                  {
+                    ...RECORD,
+                    check_in: "2026-09-29T19:00:00+00:00",
+                    check_out: null,
+                  },
+                ]
+              : [],
+          ),
+        );
+      }),
+      http.post("*/api/v1/attendance/corrections", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(CORRECTION, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Request Correction/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(dialog.querySelector('input[type="date"]')!, {
+      target: { value: "2026-09-29" },
+    });
+    fireEvent.change(screen.getByLabelText("Correct Check Out"), {
+      target: { value: "06:00" },
+    });
+    await user.type(screen.getByLabelText(/Reason/), "Forgot to check out");
+
+    const submit = screen.getByRole("button", { name: /Submit Request/ });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({
+      attendance_record_public_id: RECORD.public_id,
+      proposed_check_in: null,
+      // 06:00 on the 30th in Addis Ababa.
+      proposed_check_out: "2026-09-30T03:00:00Z",
+      reason: "Forgot to check out",
+    });
+  });
+
   it("claims a missed punch for a day with no record instead of refusing it", async () => {
     // A day with nothing on record used to leave Submit disabled. It is now
     // a missed-punch claim: approving it creates the record.

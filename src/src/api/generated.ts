@@ -266,6 +266,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The code this kiosk shows now. Each call issues a new one and the old
+         *     one simply runs out; the kiosk asks again before it does
+         */
+        post: operations["kiosk.kioskQr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kiosk/sync": {
         parameters: {
             query?: never;
@@ -2132,6 +2152,27 @@ export interface paths {
         };
         /** Manager dashboard */
         get: operations["dashboard.manager"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The section exists for a reader whose role reaches one department or
+         *     team. Everyone else has a view already: the organisation one, or the
+         *     direct-reports one
+         */
+        get: operations["dashboard.department"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4242,6 +4283,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leave/{leaveRequest}/recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cancel approved leave, or end it early: HR only, with a reason. The
+         *     days it no longer takes go back to the balance, and the employee is
+         *     told. Without `end_date` the leave is cancelled
+         */
+        put: operations["leaveRequest.recall"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/leave/{leaveRequest}": {
         parameters: {
             query?: never;
@@ -5447,6 +5509,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Phone me */
+        put: operations["auth.ownPhone"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ownership settings */
+        get: operations["ownership.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ownership/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer ownership */
+        post: operations["ownership.transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -6086,6 +6199,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/journey-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The funnel: how many organisations sit at each stage, in each health
+         *     state and in each lifecycle state. Deleted organisations are left out
+         */
+        get: operations["adminTenantJourney.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/journey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One organisation's journey: stage, milestones, metrics, readiness gaps
+         *     and the lifecycle events behind them. A snapshot older than an hour, or
+         *     none yet, is recomputed first so the page never shows a stale picture
+         */
+        get: operations["adminTenantJourney.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}": {
         parameters: {
             query?: never;
@@ -6221,6 +6375,29 @@ export interface paths {
         put?: never;
         /** Extend trial tenants */
         post: operations["adminTenant.extendTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand an organisation to another of its active administrators: for an
+         *     owner who has left, or cannot be reached. The organisation's own owner
+         *     transfers from Settings; this is ETHR's, with a reason, behind
+         *     admin.manage and the console's MFA for writes. Recorded in the audit
+         *     log, which is the ownership history
+         */
+        post: operations["adminTenant.transferOwnership"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7310,6 +7487,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many entries the trail holds per day and per action over a range
+         *     (the last 30 days by default), for the charts above the list. Days are
+         *     the organisation's own: the stored UTC instant is shifted by the zone's
+         *     offset before it is dated, which `(tenant_id, created_at)` can still
+         *     serve as a range scan. Charts upgrade, 2026-11-04
+         */
+        get: operations["auditLog.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/shifts/assign": {
         parameters: {
             query?: never;
@@ -7336,6 +7536,28 @@ export interface paths {
         };
         /** Schedule shifts */
         get: operations["shift.schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each shift's staffing over a range of days, this week by default: the
+         *     people scheduled and attending per day, and the hours planned against
+         *     the hours covered. Over the employees the caller reaches, as the
+         *     employee screens are (charts upgrade, 2026-11-04)
+         */
+        get: operations["shift.coverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8426,6 +8648,13 @@ export interface components {
             created_at: string | null;
             showcase_consented_at: string | null;
             showcase_hidden: boolean;
+            trial_expired: boolean;
+            stage: string | null;
+            health_state: string | null;
+            health_reasons: string[];
+            readiness_score: number | null;
+            last_activity_at: string | null;
+            journey_computed_at: string | null;
         };
         /** AnnouncementResource */
         AnnouncementResource: {
@@ -8769,6 +8998,7 @@ export interface components {
                 action: string;
                 with_record_public_id: string | null;
             } | null;
+            punches: unknown[];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -8803,6 +9033,7 @@ export interface components {
                 action: string;
                 with_record_public_id: string | null;
             } | null;
+            punches: unknown[];
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -9588,8 +9819,8 @@ export interface components {
         GradeResource: {
             public_id: string;
             name: string;
-            min_salary_cents: number;
-            max_salary_cents: number;
+            min_salary_cents?: number;
+            max_salary_cents?: number;
             sort_order: number;
             employees_count?: number;
             /** Format: date-time */
@@ -9601,7 +9832,7 @@ export interface components {
         GradeSalaryStepResource: {
             public_id: string;
             step: number;
-            salary_cents: number;
+            salary_cents?: number;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -9711,6 +9942,8 @@ export interface components {
              * @description Maximum file size: 5120 kilobytes.
              */
             file: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
         };
         /**
          * IssueActivationCodeRequest
@@ -9825,8 +10058,7 @@ export interface components {
             check_out: string | null;
             source: string;
             status: string;
-            /** @enum {string} */
-            punch: "check_in" | "check_out";
+            punch: string;
             was_duplicate: boolean;
             employee_name: string;
             employee: components["schemas"]["KioskPersonResource"] | null;
@@ -10125,7 +10357,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -10377,6 +10609,8 @@ export interface components {
             is_popular: boolean;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            description_om: string | null;
+            marketing_features_om: string[] | null;
         };
         /**
          * PlanFeature
@@ -10404,6 +10638,7 @@ export interface components {
             slug: string;
             description: string | null;
             description_am: string | null;
+            description_om: string | null;
             price_cents: number;
             currency: string;
             billing_interval: string;
@@ -10413,6 +10648,7 @@ export interface components {
             features: string[] | null;
             marketing_features: string[] | null;
             marketing_features_am: string[] | null;
+            marketing_features_om: string[] | null;
             is_popular: boolean;
             sort_order: number;
         };
@@ -10424,16 +10660,20 @@ export interface components {
             bank_account_name: string | null;
             payment_instructions: string | null;
             payment_instructions_am: string | null;
+            payment_instructions_om: string | null;
             is_configured: boolean;
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10441,11 +10681,14 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             /**
              * @description Published here and not by SiteContentResource: the operator has to
@@ -10458,6 +10701,7 @@ export interface components {
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
             /** Format: date-time */
             updated_at: string | null;
@@ -10571,6 +10815,12 @@ export interface components {
                 };
             };
         };
+        /** RecallLeaveRequest */
+        RecallLeaveRequest: {
+            /** Format: date */
+            end_date?: string | null;
+            reason: string;
+        };
         /**
          * RecordApplicationEventRequest
          * @description A note, or an interview: when it is or was, and the panel's assessment out
@@ -10650,7 +10900,7 @@ export interface components {
             admin_name: string;
             /** Format: email */
             admin_email: string;
-            admin_phone?: string | null;
+            admin_phone: string;
             /**
              * @description The tenant does not exist yet, so this falls through to
              *     PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
@@ -10961,13 +11211,16 @@ export interface components {
         SiteContentResource: {
             platform_name: string | null;
             platform_name_am: string | null;
+            platform_name_om: string | null;
             tagline: string | null;
             tagline_am: string | null;
+            tagline_om: string | null;
             logo_url: string | null;
             contact_email: string | null;
             contact_phone: string | null;
             office_address: string | null;
             office_address_am: string | null;
+            office_address_om: string | null;
             social_linkedin: string | null;
             social_x: string | null;
             social_facebook: string | null;
@@ -10975,15 +11228,19 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            metric_uptime_note_om: string | null;
             testimonial_quote: string | null;
             testimonial_quote_am: string | null;
+            testimonial_quote_om: string | null;
             testimonial_author: string | null;
             testimonial_role: string | null;
             testimonial_role_am: string | null;
+            testimonial_role_om: string | null;
             testimonial_organisation: string | null;
             product_mark_enabled: boolean;
             product_mark_label: string | null;
             product_mark_label_am: string | null;
+            product_mark_label_om: string | null;
             product_mark_url: string | null;
         };
         /** StageRowsRequest */
@@ -11537,6 +11794,7 @@ export interface components {
             slug: string;
             description?: string | null;
             description_am?: string | null;
+            description_om?: string | null;
             price_cents: number;
             currency?: string;
             /** @enum {string} */
@@ -11547,6 +11805,7 @@ export interface components {
             features?: components["schemas"]["PlanFeature"][];
             marketing_features?: string[] | null;
             marketing_features_am?: string[] | null;
+            marketing_features_om?: string[] | null;
             is_active?: boolean;
             is_public?: boolean;
             is_popular?: boolean;
@@ -11707,7 +11966,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
         };
         /** SupportMessageRequest */
         SupportMessageRequest: {
@@ -11781,6 +12040,16 @@ export interface components {
         TrackConcernRequest: {
             code: string;
             body?: string;
+        };
+        /** TransferOwnershipByPlatformRequest */
+        TransferOwnershipByPlatformRequest: {
+            user_public_id: string;
+            reason: string;
+        };
+        /** TransferOwnershipRequest */
+        TransferOwnershipRequest: {
+            user_public_id: string;
+            password: string;
         };
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
@@ -11978,7 +12247,7 @@ export interface components {
         UpdateChartOfAccountsRequest: {
             accounts: {
                 /** @enum {string} */
-                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable" | "loans_receivable" | "cost_sharing_payable";
                 account_code: string;
                 account_name: string;
             }[];
@@ -12162,8 +12431,10 @@ export interface components {
         UpdateLandingRequest: {
             headline?: string | null;
             headline_am?: string | null;
+            headline_om?: string | null;
             message?: string | null;
             message_am?: string | null;
+            message_om?: string | null;
             /** Format: email */
             support_email?: string | null;
             support_phone?: string | null;
@@ -12171,6 +12442,7 @@ export interface components {
             background: "brand" | "gradient" | "pattern" | "image";
             about?: string | null;
             about_am?: string | null;
+            about_om?: string | null;
             founded_year?: number | null;
             /** @enum {string|null} */
             sector?: "agriculture" | "construction" | "education" | "finance" | "government" | "health" | "hospitality" | "logistics" | "manufacturing" | "media" | "mining" | "ngo" | "retail" | "services" | "technology" | "telecom" | "utilities" | "other" | null;
@@ -12179,8 +12451,10 @@ export interface components {
             show_branch_count?: boolean;
             address?: string | null;
             address_am?: string | null;
+            address_om?: string | null;
             hours?: string | null;
             hours_am?: string | null;
+            hours_om?: string | null;
             latitude?: number | null;
             longitude?: number | null;
             show_branches?: boolean;
@@ -12215,14 +12489,18 @@ export interface components {
             faqs?: {
                 question: string | null;
                 question_am: string | null;
+                question_om: string | null;
                 answer: string | null;
                 answer_am: string | null;
+                answer_om: string | null;
             }[];
             services?: {
                 title: string | null;
                 title_am: string | null;
+                title_om: string | null;
                 description: string | null;
                 description_am: string | null;
+                description_om: string | null;
             }[];
             listed?: boolean;
         };
@@ -12312,6 +12590,10 @@ export interface components {
             holiday: number;
             holiday_night: number;
         };
+        /** UpdateOwnPhoneRequest */
+        UpdateOwnPhoneRequest: {
+            phone: string;
+        };
         /**
          * UpdatePayrollRuleRequest
          * @description Updates a tenant allowance rule. `type` is always required so the `formula`
@@ -12342,10 +12624,13 @@ export interface components {
             bank_account_name?: string | null;
             payment_instructions?: string | null;
             payment_instructions_am?: string | null;
+            payment_instructions_om?: string | null;
             platform_name?: string | null;
             platform_name_am?: string | null;
+            platform_name_om?: string | null;
             tagline?: string | null;
             tagline_am?: string | null;
+            tagline_om?: string | null;
             /** Format: uri */
             logo_url?: string | null;
             /** Format: email */
@@ -12353,6 +12638,7 @@ export interface components {
             contact_phone?: string | null;
             office_address?: string | null;
             office_address_am?: string | null;
+            office_address_om?: string | null;
             /** Format: uri */
             social_linkedin?: string | null;
             /** Format: uri */
@@ -12363,11 +12649,14 @@ export interface components {
             metric_employees?: number | null;
             metric_uptime_note?: string | null;
             metric_uptime_note_am?: string | null;
+            metric_uptime_note_om?: string | null;
             testimonial_quote?: string | null;
             testimonial_quote_am?: string | null;
+            testimonial_quote_om?: string | null;
             testimonial_author?: string | null;
             testimonial_role?: string | null;
             testimonial_role_am?: string | null;
+            testimonial_role_om?: string | null;
             testimonial_organisation?: string | null;
             /** Format: date-time */
             testimonial_consented_on?: string | null;
@@ -12375,6 +12664,7 @@ export interface components {
             product_mark_enabled?: boolean;
             product_mark_label?: string | null;
             product_mark_label_am?: string | null;
+            product_mark_label_om?: string | null;
             /** Format: uri */
             product_mark_url?: string | null;
         };
@@ -12448,6 +12738,7 @@ export interface components {
                 fiscal_year_start_month?: number;
                 /** @enum {string} */
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
+                working_days_per_month?: number;
                 retirement_age?: number;
                 run_day?: number;
                 employer_tin?: string | null;
@@ -12597,7 +12888,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "leave.changed" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.paid" | "payroll.reprocessed" | "attendance.checked_in" | "attendance.checked_out" | "attendance.corrected")[];
             is_active?: boolean;
         };
         /**
@@ -13030,6 +13321,7 @@ export interface operations {
                         key: string;
                         kind: string;
                         overridable: boolean;
+                        switchable: boolean;
                         state: string;
                         default_state: string;
                         reason: string | null;
@@ -13625,6 +13917,78 @@ export interface operations {
                         status: 429;
                         /** @constant */
                         detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                    };
+                };
+            };
+        };
+    };
+    "kiosk.kioskQr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                        branch_public_id: string;
+                        branch_name: string;
+                        expires_at: string;
+                        generated_at: string;
+                        /** @constant */
+                        ttl_seconds: 45;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/forbidden";
+                        /** @constant */
+                        title: "Method Disabled";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "This attendance method is not enabled for your organization.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/feature-unavailable";
+                        /** @constant */
+                        title: "Feature Unavailable";
+                        /** @constant */
+                        status: 403;
+                        detail: string;
+                        /** @constant */
+                        code: "feature-unavailable";
+                        reason: string;
                     };
                 };
             };
@@ -17221,6 +17585,7 @@ export interface operations {
                             email: string | null;
                             phone: string | null;
                             role: components["schemas"]["UserRole"];
+                            org_scope: string;
                             status: string;
                             mfa_enabled: boolean;
                             locale: string;
@@ -17243,9 +17608,7 @@ export interface operations {
                             employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
-                        permissions: {
-                            [key: string]: unknown;
-                        };
+                        permissions: string[];
                         plan_features: unknown[] | null;
                         features: {
                             [key: string]: {
@@ -17257,6 +17620,7 @@ export interface operations {
                         paused_features: string[];
                         tenant: components["schemas"]["TenantResource"] | null;
                         upload_limit_bytes: number;
+                        billing_only: boolean;
                     };
                 };
             };
@@ -18018,6 +18382,7 @@ export interface operations {
                             account_name: string;
                             instructions: string | null;
                             instructions_am: string | null;
+                            instructions_om: string | null;
                         } | null;
                     };
                 };
@@ -18705,12 +19070,15 @@ export interface operations {
                         } | null;
                         leave_balances: {
                             type: string | null;
+                            type_am: string | null;
                             entitled: number;
                             used: number;
                             remaining: number;
                         }[];
                         latest_payslip: {
                             period: string;
+                            period_start: string | null;
+                            period_end: string | null;
                             net_cents: number;
                             gross_cents: number;
                         } | null;
@@ -18779,6 +19147,59 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "dashboard.department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        scope: string;
+                        unit: {
+                            name: string;
+                            name_am: string | null;
+                        } | null;
+                        headcount: number;
+                        attendance: {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        } | {
+                            present: number;
+                            absent: number;
+                            late: number;
+                        };
+                        on_leave_today: number;
+                        pending_approvals: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
     "executiveDashboard.overview": {
         parameters: {
             query?: {
@@ -18809,6 +19230,8 @@ export interface operations {
                         attendance_rate: {
                             today: number | null;
                             period: number | null;
+                            today_present: number;
+                            today_expected: number;
                         };
                         payroll_summary: {
                             gross_cents: number;
@@ -18824,6 +19247,7 @@ export interface operations {
                         workforce_growth: {
                             month: string;
                             hires: number;
+                            headcount: number;
                         }[];
                         leave_utilization: {
                             entitled_days: number;
@@ -18865,6 +19289,11 @@ export interface operations {
                         }[];
                         by_source: {
                             source: string;
+                            count: number;
+                        }[];
+                        by_hour: {
+                            weekday: number;
+                            hour: number;
                             count: number;
                         }[];
                         top_late: {
@@ -23966,11 +24395,6 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /**
-             * @description Cached briefly, like tenant-context: the portal is public and read
-             *     far more often than news is published, and Vary keeps one tenant's
-             *     feed from being served as another's through a shared cache.
-             */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -24400,6 +24824,15 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
+                        type: "https://ethr.et/errors/payroll-period-closed";
+                        /** @constant */
+                        title: "Payroll period closed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.";
+                    } | {
+                        /** @constant */
                         type: "https://ethr.et/errors/invalid-state";
                         /** @constant */
                         title: "Invalid State";
@@ -24512,6 +24945,43 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "leaveRequest.recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The leave request public id */
+                leaveRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecallLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description `LeaveRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                        approval: components["schemas"]["ApprovalSummaryResource"] & {
+                            history: components["schemas"]["ApprovalActionResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "leaveRequest.show": {
@@ -24771,6 +25241,12 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            leave_type: {
+                                name: string;
+                                name_am: string;
+                            } | null;
+                            from: string;
+                            to: string;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24781,6 +25257,7 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string | null;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -24791,6 +25268,8 @@ export interface operations {
                             employee_name: string | null;
                             employee_public_id: string | null;
                             summary: string;
+                            date: string;
+                            hours: number;
                             submitted_at: string;
                             step: number;
                             steps: number;
@@ -25653,6 +26132,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -25713,6 +26193,7 @@ export interface operations {
                             "leave_requested",
                             "leave_approved",
                             "leave_rejected",
+                            "leave_changed",
                             "attendance_correction",
                             "overtime_request",
                             "attendance_anomaly",
@@ -27244,12 +27725,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27566,12 +28048,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -27727,12 +28210,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No content */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
@@ -28256,6 +28740,91 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "auth.ownPhone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOwnPhoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        phone: string | null;
+                        phone_verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "ownership.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string | null;
+                        owner_name: string | null;
+                        is_owner: string;
+                        candidates: {
+                            public_id: string;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "ownership.transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "payroll.process": {
@@ -29890,6 +30459,14 @@ export interface operations {
                  *      the console asks for the deleted ones.
                  */
                 "filter[status]"?: string;
+                /**
+                 * @description Where the organisation is on its journey (docs/operations/TENANT-JOURNEY.md).
+                 *      Stage and health come from the snapshot, so an organisation with none yet
+                 *      has neither and matches `health=unknown` only. An expired trial is read
+                 *      live from the tenant, since its status never changes by itself.
+                 */
+                "filter[stage]"?: string;
+                "filter[health]"?: string;
                 sort?: string;
                 per_page?: number;
             };
@@ -29931,6 +30508,125 @@ export interface operations {
                             to: number | null;
                             /** @description Total number of items being paginated. */
                             total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenantJourney.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            total: number;
+                            not_computed: number;
+                            computed_at: string | null;
+                            stages: {
+                                stage: string;
+                                count: number;
+                            }[];
+                            health: {
+                                ok: number;
+                                warning: number;
+                                critical: number;
+                                unknown: number;
+                            };
+                            lifecycle: {
+                                trial: number;
+                                trial_expired: number;
+                                active: number;
+                                suspended: number;
+                                cancelled: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenantJourney.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            stage: string;
+                            stages: string[];
+                            stage_reached_at: string | null;
+                            lifecycle: string;
+                            health_state: string;
+                            reasons: string[];
+                            milestones: {
+                                [key: string]: string;
+                            };
+                            metrics: {
+                                employees: number;
+                                team_users: number;
+                                activated_users: number;
+                                invited_pending: number;
+                                users_logged_in_30d: number;
+                                punches_14d: number;
+                                punches_30d: number;
+                                punch_sources_30d: {
+                                    source: string;
+                                    count: number;
+                                }[];
+                                leave_requests_14d: number;
+                                leave_requests_30d: number;
+                                payroll_enabled: boolean;
+                                payroll_runs: number;
+                                devices: number;
+                                devices_silent: number;
+                                open_support_requests: number;
+                                invoices_overdue: number;
+                                invoices_past_due: number;
+                                trial_days_left: number | null;
+                                last_login_at: string | null;
+                            };
+                            readiness: {
+                                score: number;
+                                level: string;
+                                gaps: {
+                                    id: string;
+                                    category: string;
+                                    label: string;
+                                }[];
+                            };
+                            last_activity_at: string | null;
+                            computed_at: string;
+                            events: {
+                                action: string;
+                                created_at: string;
+                                by_platform: boolean;
+                            }[];
                         };
                     };
                 };
@@ -30004,6 +30700,46 @@ export interface operations {
                         }[];
                         audit_log: {
                             action: string;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
+                        owner: {
+                            name: string;
+                            email: string | null;
+                            phone: string | null;
+                            phone_verified: boolean;
+                            last_login_at: string | null;
+                            public_id: string;
+                            status: string;
+                        } | null;
+                        admins: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                        }[];
+                        ownership_history: {
+                            action: string;
+                            from: string | null;
+                            to: string | null;
+                            reason: string | null;
+                            by_platform: boolean;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
+                        administrators: {
+                            public_id: string;
+                            name: string;
+                            email: string | null;
+                            role: string;
+                            custom_role: string | null;
+                            mfa_enabled: boolean;
+                            status: string;
+                            last_login_at: string | null;
+                            is_owner: boolean;
+                        }[];
+                        privileged_actions: {
+                            action: string;
+                            actor: string | null;
                             /** Format: date-time */
                             created_at: string;
                         }[];
@@ -30206,6 +30942,36 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         trial_ends_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.transferOwnership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipByPlatformRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        owner_public_id: string;
                     };
                 };
             };
@@ -30440,6 +31206,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -30484,6 +31251,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -30527,6 +31295,7 @@ export interface operations {
                             key: string;
                             kind: string;
                             overridable: string;
+                            switchable: string;
                             on: boolean;
                             visible: boolean;
                             reason: string;
@@ -32310,22 +33079,27 @@ export interface operations {
                         landing: {
                             headline: string | null;
                             headline_am: string | null;
+                            headline_om: string | null;
                             message: string | null;
                             message_am: string | null;
+                            message_om: string | null;
                             support_email: string | null;
                             support_phone: string | null;
                             /** @description A photo background with no cover uploaded is the brand colour. */
                             background: string;
                             about: string | null;
                             about_am: string | null;
+                            about_om: string | null;
                             founded_year: number | null;
                             sector: string | null;
                             staff_band: string | null;
                             show_branch_count: boolean;
                             address: string | null;
                             address_am: string | null;
+                            address_om: string | null;
                             hours: string | null;
                             hours_am: string | null;
+                            hours_om: string | null;
                             latitude: number | null;
                             longitude: number | null;
                             show_branches: boolean;
@@ -32335,14 +33109,18 @@ export interface operations {
                             faqs: {
                                 question: string | null;
                                 question_am: string | null;
+                                question_om: string | null;
                                 answer: string | null;
                                 answer_am: string | null;
+                                answer_om: string | null;
                             }[];
                             services: {
                                 title: string | null;
                                 title_am: string | null;
+                                title_om: string | null;
                                 description: string | null;
                                 description_am: string | null;
+                                description_om: string | null;
                             }[];
                             sections: {
                                 [key: string]: boolean;
@@ -32367,6 +33145,7 @@ export interface operations {
                             run_day: number;
                             fiscal_year_start_month: number;
                             pagumen_proration_strategy: string;
+                            working_days_per_month: number;
                             /**
                              * @description Retirement-case eligibility dates are computed against this.
                              *     No single figure is authoritative across every Ethiopian
@@ -32715,22 +33494,27 @@ export interface operations {
                     "application/json": {
                         headline: string | null;
                         headline_am: string | null;
+                        headline_om: string | null;
                         message: string | null;
                         message_am: string | null;
+                        message_om: string | null;
                         support_email: string | null;
                         support_phone: string | null;
                         /** @description A photo background with no cover uploaded is the brand colour. */
                         background: string;
                         about: string | null;
                         about_am: string | null;
+                        about_om: string | null;
                         founded_year: number | null;
                         sector: string | null;
                         staff_band: string | null;
                         show_branch_count: boolean;
                         address: string | null;
                         address_am: string | null;
+                        address_om: string | null;
                         hours: string | null;
                         hours_am: string | null;
+                        hours_om: string | null;
                         latitude: number | null;
                         longitude: number | null;
                         show_branches: boolean;
@@ -32740,14 +33524,18 @@ export interface operations {
                         faqs: {
                             question: string | null;
                             question_am: string | null;
+                            question_om: string | null;
                             answer: string | null;
                             answer_am: string | null;
+                            answer_om: string | null;
                         }[];
                         services: {
                             title: string | null;
                             title_am: string | null;
+                            title_om: string | null;
                             description: string | null;
                             description_am: string | null;
+                            description_om: string | null;
                         }[];
                         sections: {
                             [key: string]: boolean;
@@ -32859,7 +33647,7 @@ export interface operations {
                     "application/json": {
                         templates: {
                             /** @enum {string} */
-                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "payslip_available" | "missing_punch" | "trial_expiring";
+                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "payslip_available" | "missing_punch" | "trial_expiring";
                             subject_en: string;
                             subject_am: string;
                             body_en: string;
@@ -32976,6 +33764,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "auditLog.stats": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string | null;
+                "filter[from]"?: string | null;
+                "filter[to]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        by_day: {
+                            date: string;
+                            count: number;
+                        }[];
+                        by_action: {
+                            action: string;
+                            count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shift.assign": {
         parameters: {
             query?: never;
@@ -33055,6 +33880,51 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.coverage": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: string;
+                        to: string;
+                        days: string[];
+                        shifts: {
+                            public_id: string;
+                            name: string;
+                            name_am: string;
+                            start_time: string;
+                            end_time: string;
+                            planned_minutes: number;
+                            covered_minutes: number;
+                            scheduled_people: number;
+                            attended_people: number;
+                            by_day: {
+                                date: string;
+                                scheduled: number;
+                                attended: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "shiftAssignment.destroy": {
@@ -34872,22 +35742,27 @@ export interface operations {
                             landing: {
                                 headline: string | null;
                                 headline_am: string | null;
+                                headline_om: string | null;
                                 message: string | null;
                                 message_am: string | null;
+                                message_om: string | null;
                                 support_email: string | null;
                                 support_phone: string | null;
                                 /** @description A photo background with no cover uploaded is the brand colour. */
                                 background: string;
                                 about: string | null;
                                 about_am: string | null;
+                                about_om: string | null;
                                 founded_year: number | null;
                                 sector: string | null;
                                 staff_band: string | null;
                                 show_branch_count: boolean;
                                 address: string | null;
                                 address_am: string | null;
+                                address_om: string | null;
                                 hours: string | null;
                                 hours_am: string | null;
+                                hours_om: string | null;
                                 latitude: number | null;
                                 longitude: number | null;
                                 show_branches: boolean;
@@ -34897,14 +35772,18 @@ export interface operations {
                                 faqs: {
                                     question: string | null;
                                     question_am: string | null;
+                                    question_om: string | null;
                                     answer: string | null;
                                     answer_am: string | null;
+                                    answer_om: string | null;
                                 }[];
                                 services: {
                                     title: string | null;
                                     title_am: string | null;
+                                    title_om: string | null;
                                     description: string | null;
                                     description_am: string | null;
+                                    description_om: string | null;
                                 }[];
                                 sections: {
                                     [key: string]: boolean;
@@ -34919,6 +35798,7 @@ export interface operations {
                                 email_code: boolean;
                             };
                             default_locale: string;
+                            billing_only: boolean;
                         } | null;
                     };
                 };
@@ -35286,6 +36166,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This person owns the organisation. Hand ownership to another administrator first.";
+                    } | {
                         /** @constant */
                         type: "https://ethr.et/errors/business-rule";
                         /** @constant */

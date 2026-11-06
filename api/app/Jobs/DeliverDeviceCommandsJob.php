@@ -28,25 +28,38 @@ class DeliverDeviceCommandsJob implements ShouldQueue
 
     public int $timeout = 60;
 
-    public function __construct(private readonly Device $device) {}
+    /**
+     * The device and its tenant by id, the tenant a required argument the
+     * job states itself, never one read off the device it fetches (A-Z
+     * review D-12; CLAUDE.md, tenant isolation).
+     */
+    public function __construct(
+        public readonly int $deviceId,
+        public readonly int $tenantId,
+    ) {}
 
     /** @return list<object> */
     public function middleware(): array
     {
         // Ten edits in a row queue ten jobs; one delivery covers them all.
-        return [(new WithoutOverlapping('device-commands-'.$this->device->id))->dontRelease()->expireAfter(120)];
+        return [(new WithoutOverlapping('device-commands-'.$this->deviceId))->dontRelease()->expireAfter(120)];
     }
 
     public function handle(DeviceCommandQueue $queue): void
     {
-        // Same reason as PullDeviceEventsJob: a worker resolves no tenant, and
-        // the device is tenant-owned, so its tenant is the one to act as.
-        $tenant = Tenant::query()->find($this->device->tenant_id);
+        // A worker resolves no tenant: the payload's is set, and the device is
+        // found only inside it.
+        $tenant = Tenant::query()->find($this->tenantId);
         if ($tenant === null) {
             return; // the organisation was deleted after this was queued
         }
         app(CurrentTenant::class)->set($tenant);
 
-        $queue->deliver($this->device);
+        $device = Device::query()->where('tenant_id', $this->tenantId)->find($this->deviceId);
+        if ($device === null) {
+            return;
+        }
+
+        $queue->deliver($device);
     }
 }

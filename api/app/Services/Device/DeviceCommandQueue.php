@@ -426,7 +426,7 @@ final class DeviceCommandQueue
         ]);
 
         if ($this->delivers($device)) {
-            DeliverDeviceCommandsJob::dispatch($device)->afterCommit();
+            DeliverDeviceCommandsJob::dispatch($device->id, $device->tenant_id)->afterCommit();
         }
 
         return $command;

@@ -223,7 +223,7 @@ export function DashboardDigestDialog({
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
-                            className="text-[10px] capitalize"
+                            className="text-caption capitalize"
                           >
                             {d.frequency}
                           </Badge>

@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Feature;
 use App\Models\ApiKey;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
+use App\Support\FeatureUnavailable;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +50,10 @@ final class AuthenticateApiKey
     /** Request attribute carrying the authenticated ApiKey. */
     public const ATTRIBUTE = 'api_key';
 
-    public function __construct(private readonly CurrentTenant $currentTenant) {}
+    public function __construct(
+        private readonly CurrentTenant $currentTenant,
+        private readonly FeatureGate $features,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -71,6 +77,14 @@ final class AuthenticateApiKey
         $tenant = Tenant::query()->find($apiKey->tenant_id);
         if ($tenant === null || ! $tenant->isActive()) {
             return $this->unauthenticated();
+        }
+
+        // API access switched off, for everyone or for this organisation,
+        // stops the keys it already has too; only creating keys was checked
+        // (A-Z review H-04).
+        $access = $this->features->decide($tenant, Feature::ApiAccess);
+        if (! $access->on) {
+            return FeatureUnavailable::response(Feature::ApiAccess, $access->reason);
         }
 
         // The creator, stated against the key's own tenant: a user row from any

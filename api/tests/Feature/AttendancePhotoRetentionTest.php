@@ -301,3 +301,25 @@ it('grants the photo ability to HR, tenant admins and department managers only',
 
     expect($holders)->toEqualCanonicalizing(['tenant_admin', 'hr_admin', 'dept_admin']);
 });
+
+// A-Z review D-11 (2026-11-04). The sweep ran only for organisations in use,
+// so once an organisation was suspended, cancelled, past its trial or closed,
+// none of its selfies was ever deleted. Retention is a duty to the people in
+// the photos, whatever the subscription; only the notice to HR is skipped
+// where nobody is using the organisation to read it.
+it('deletes the selfies of an organisation that is no longer in use', function (string $state) {
+    $old = recordWithSelfies($this->tenant, $this->worker, 8);
+    match ($state) {
+        'suspended' => $this->tenant->update(['status' => 'suspended']),
+        'trial over' => $this->tenant->update(['status' => 'trial', 'trial_ends_at' => now()->subDay()]),
+        'closed' => $this->tenant->delete(),
+    };
+
+    runRetention($this->tenant);
+    $this->travel(49)->hours();
+    runRetention($this->tenant);
+
+    expect(AttendanceRecord::withoutGlobalScopes()->find($old->id)->photo_path)->toBeNull();
+    Storage::disk('local')->assertMissing($old->photo_path);
+    Notification::assertNothingSent();
+})->with(['suspended', 'trial over', 'closed']);

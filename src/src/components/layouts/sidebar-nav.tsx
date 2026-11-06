@@ -480,7 +480,12 @@ function NavLink({
 
   const link = (
     <div className="group/pin relative flex items-center">
+      {/* No viewport prefetch: every sidebar link prefetched its route's
+          scripts as soon as it was on screen, 130 to 350 KB brotli a reader
+          may never open (dashboard review, 2026-11-03, PR 11). Hover and
+          focus still prefetch, so a chosen page loads as before. */}
       <Link
+        prefetch={false}
         href={item.href}
         onClick={onNavigate}
         aria-current={isActive ? "page" : undefined}
@@ -736,6 +741,7 @@ function NavGroup({
               const isActive = child.href === activeHref;
               return (
                 <Link
+                  prefetch={false}
                   key={child.href}
                   href={child.href}
                   onClick={onNavigate}
@@ -871,6 +877,7 @@ function SetupBanner({
   if (collapsed) {
     return (
       <Link
+        prefetch={false}
         href="/setup/guided"
         title={t("sidebar.setup_progress", ":done of :total completed", {
           done: completedCount,
@@ -901,6 +908,7 @@ function SetupBanner({
     >
       <div className="flex items-center">
         <Link
+          prefetch={false}
           href="/setup/guided"
           aria-current={isOnSetup ? "page" : undefined}
           className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-2.5 transition-colors duration-150 hover:bg-sidebar-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

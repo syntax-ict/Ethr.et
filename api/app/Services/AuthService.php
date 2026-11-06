@@ -82,6 +82,9 @@ class AuthService
                 'locale' => 'en',
             ]);
 
+            // Whoever registers the organisation owns it, until they hand it on.
+            $tenant->update(['owner_user_id' => $user->id]);
+
             $starterPlan = Plan::where('slug', 'starter')->first();
             if ($starterPlan) {
                 Subscription::create([

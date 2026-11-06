@@ -33,11 +33,20 @@ const keys = {
 /**
  * Leave and attendance corrections from the caller's direct reports, plus
  * profile changes when the caller holds `employee.update`. Not paginated.
+ *
+ * @param enabled Gate the request on the caller's role: the dashboard panel
+ * renders null for anyone below supervisor, but hooks run before that early
+ * return, so without this every employee fired a request the API answers
+ * with 403.
+ * @param refetchInterval The dashboard keeps its rows current while the tab
+ * is open; the queue page refreshes on each decision and leaves this unset.
  */
-export function usePendingApprovals() {
+export function usePendingApprovals(enabled = true, refetchInterval?: number) {
   return useQuery<PendingApprovals>({
     queryKey: keys.pending,
     queryFn: async () => (await apiClient.get("/approvals/pending")).data,
+    enabled,
+    refetchInterval,
   });
 }
 

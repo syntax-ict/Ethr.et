@@ -145,6 +145,9 @@ Use a real phone at B1's address and one at least 1 km away.
 
 ## 5. Kiosk terminal
 
+Steps marked **Device** must be run on the real kiosk tablet. A desktop browser cannot show what they
+test: full screen, touch, the device's own lock, speech and the on-screen number pad.
+
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | KIO-001 | P1 | W | Register | HR: Attendance → Kiosks → add "QA Lobby", branch B1, admin PIN `4826` | Created; the 64-character token is shown once only |
@@ -153,12 +156,25 @@ Use a real phone at B1's address and one at least 1 km away.
 | KIO-004 | P1 | W | PIN required | Kiosk PIN required for QA Lobby's branch (organisation setting or B1 rule); HR sets EMP's PIN `1357` (4 to 6 digits); punch without, with a wrong, with the right PIN | Without: 422. Wrong: 401 "Invalid employee PIN." Right: recorded. An employee with no PIN: 422. The rule is the kiosk's branch, not the employee's (BRR-006) |
 | KIO-005 | P1 | W | PIN lock | Wrong PIN 5 times for EMP | 429 with `Retry-After`; EMP locked at this kiosk for 15 minutes; audited `kiosk.pin_locked`. Other employees unaffected |
 | KIO-006 | P2 | W | Unknown code | Enter a code that does not exist | 404 |
-| KIO-007 | P1 | W | Exit | Exit with a wrong admin PIN, then the right one | "Incorrect admin PIN."; then the kiosk closes (204, audited `kiosk.exited`). More than 5 exit attempts a minute: 429 |
+| KIO-007 | P1 | W | Exit | **Device.** There is no Exit button. Hold the organisation name for 3 seconds, then enter a wrong admin PIN, then the right one | A shorter press does nothing. "Incorrect admin PIN."; then the kiosk closes (204, audited `kiosk.exited`). More than 5 exit attempts a minute: 429 |
 | KIO-008 | P1 | W | Deactivate and regenerate | Deactivate the session; the tablet tries to punch. Activate, regenerate the token; the tablet tries the old token | 401 "Invalid or inactive kiosk session." in both cases |
 | KIO-009 | P1 | W | Offline kiosk | Disconnect the tablet's network; punch two employees on Automatic; reconnect | Queued on the tablet, then synced, each created or duplicate; the time is the tablet's punch time, not the sync time. An Automatic punch is decided on sync, and one older than an open record's check-in is a check-in, never a check-out (PUNCH-006) |
 | KIO-010 | P2 | R | Kiosk on another organisation | Present QA Audit's kiosk token on QA Isolation's address | 401 |
 | KIO-011 | P2 | W | Kiosk disabled | Turn the kiosk method off for QA Lobby's branch; punch. Then on there but off at B2, and EMP2 punches at QA Lobby | First: 403. Second: 422 "This attendance method is not enabled for your organization." (the engine checks the employee's branch) |
 | KIO-012 | P2 | W | Staff kiosk entry | HR (signed in) records a kiosk punch for EMP via `POST /attendance/kiosk`; SUP tries the same | HR allowed; SUP 403 |
+| KIO-013 | P1 | W | Who punched | Give EMP a profile photo and a position; EMP punches at QA Lobby | The result shows EMP's photo, name (and Amharic name when the kiosk is in Amharic) and position, then resets. The punch answer carries only that: no email, phone, date of birth or other profile field (#516) |
+| KIO-014 | P1 | W | Not you | EMP2 punches with EMP's code; on the result tap "Not you? Tell HR"; then EMP punches with their own code | "HR will check this punch. Now punch with your own code." The wrong punch stays (it is never undone) and an integrity flag `kiosk_wrong_person`, high, is raised for HR. EMP's own punch then records normally |
+| KIO-015 | P2 | W | Not you, too late or elsewhere | Report a punch after 120 seconds; then report one from a different kiosk | "This punch can no longer be reported here. Tell HR." in both cases; no flag |
+| KIO-016 | P1 | W | Resting cover | **Device.** Leave the kiosk untouched for 60 seconds; then touch it once | A clock cover with "Tap to start" covers the screen; the first touch only wakes it and presses nothing underneath |
+| KIO-017 | P2 | W | Half-typed code is wiped | **Device.** Type part of a code and walk away for 20 seconds | The typed digits are cleared, so the next person never inherits them |
+| KIO-018 | P1 | W | Locked screen | **Device.** On the tablet: pinch to zoom, long-press for a menu, swipe or press Back, try to reload | None of them works; the kiosk stays on its screen. If the browser refuses full screen, the kiosk still works and does not keep asking |
+| KIO-019 | P2 | R | Lock the device itself | HR: Attendance → Kiosks → "Lock the kiosk device"; follow the steps for the tablet's kind (Android app pinning, iPad Guided Access, Windows assigned access) | The steps match the device; once pinned, the Home and app-switch buttons cannot leave the kiosk. The kiosk page cannot do this itself; only the device can |
+| KIO-020 | P1 | W | Self-service sign-in | On the kiosk: "My attendance and leave"; enter EMP's code and the right kiosk PIN. Repeat with a wrong PIN, and for an employee with no PIN | Right: EMP's last 7 days and leave balances, and no pay of any kind. Wrong: "That code and PIN do not match. Check both and try again." No PIN: "You do not have a kiosk PIN yet. Ask HR to set one." It asks for the PIN even where punching needs none |
+| KIO-021 | P1 | W | Self-service signs itself out | Signed in as EMP in self-service, leave it untouched for 30 seconds; separately, keep it open past 3 minutes | Back to the punch screen after 30 seconds of no touch. After 3 minutes the session has ended: "Your session at this kiosk has ended. Enter your code and PIN again." A session opened on one kiosk cannot be used from another |
+| KIO-022 | P1 | W | Change my PIN | In self-service: "Change my PIN"; current PIN, then a new 4-to-6-digit PIN twice; try a mismatch first | Mismatch: "The two new PINs are not the same." Then "Your PIN is changed. Use the new one from now on." The old PIN no longer punches; the new one does. Wrong current PINs count towards the same 5-try lock as punching (KIO-005) |
+| KIO-023 | P1 | W | Punch sounds | **Device.** Settings → Attendance → Kiosk sound: Tones (default), then Off, then Voice. Punch on each, in English and in Amharic | Tones: a short tone pattern per result (check in, check out, already recorded, error, locked). Off: silent. Voice: the result is spoken ("Checked in. Thank you." and so on) in the kiosk's language. On a tablet with no Amharic voice, Amharic plays tones, never English speech |
+| KIO-024 | P1 | W | Type only your number | With employee codes like `EMP-0007`, type `7` on the kiosk and punch | The kiosk shows "Your code: EMP-0007" and records EMP-0007. The on-screen number pad is used; the tablet's own keyboard does not pop up |
+| KIO-025 | P2 | W | Number that matches two people | Where the number matches more than one employee's code (for example two code formats), type it | 422 "This number matches more than one person. Type your full code with the ABC key."; the ABC key opens a full keyboard and the full code works |
 
 ## 5a. The punch each screen offers
 
@@ -401,6 +417,10 @@ and DEV-010 and mark the rest Blocked. Never register a device using a serial a 
 | DEV-013 | P3 | R | Fleet dashboard | Devices → dashboard | KPIs and 24 h sync figures agree with the device list |
 
 ## 15. Registered phones (device binding)
+
+Run this section on **real phones**, at least one Android and one iPhone. Registering a phone uses
+the phone's own passkey (fingerprint, face or screen lock), which a desktop browser cannot stand in
+for, and no case here has yet been run on a real phone.
 
 `GET /attendance/device`, `POST /attendance/device/register-options`, `/attendance/device/register`
 and `/attendance/device/challenge` need `attendance.checkIn` (everyone). `GET /attendance/devices`,

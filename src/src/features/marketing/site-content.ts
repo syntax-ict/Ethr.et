@@ -10,13 +10,16 @@ import { useQuery } from "@tanstack/react-query";
 export interface SiteContent {
   platform_name: string | null;
   platform_name_am: string | null;
+  platform_name_om: string | null;
   tagline: string | null;
   tagline_am: string | null;
+  tagline_om: string | null;
   logo_url: string | null;
   contact_email: string | null;
   contact_phone: string | null;
   office_address: string | null;
   office_address_am: string | null;
+  office_address_om: string | null;
   social_linkedin: string | null;
   social_x: string | null;
   social_facebook: string | null;
@@ -24,6 +27,7 @@ export interface SiteContent {
   metric_employees: number | null;
   metric_uptime_note: string | null;
   metric_uptime_note_am: string | null;
+  metric_uptime_note_om: string | null;
   /**
    * All six arrive together or not at all. `SiteContentResource` refuses to
    * publish a quote without an author and a recorded consent date, so a
@@ -32,9 +36,11 @@ export interface SiteContent {
    */
   testimonial_quote: string | null;
   testimonial_quote_am: string | null;
+  testimonial_quote_om: string | null;
   testimonial_author: string | null;
   testimonial_role: string | null;
   testimonial_role_am: string | null;
+  testimonial_role_om: string | null;
   testimonial_organisation: string | null;
   /**
    * The "Powered by ETHR" mark at the foot of every organisation's sidebar,
@@ -44,6 +50,7 @@ export interface SiteContent {
   product_mark_enabled: boolean;
   product_mark_label: string | null;
   product_mark_label_am: string | null;
+  product_mark_label_om: string | null;
   product_mark_url: string | null;
 }
 
@@ -59,13 +66,16 @@ export interface SiteContent {
 export const EMPTY_SITE_CONTENT: SiteContent = {
   platform_name: null,
   platform_name_am: null,
+  platform_name_om: null,
   tagline: null,
   tagline_am: null,
+  tagline_om: null,
   logo_url: null,
   contact_email: null,
   contact_phone: null,
   office_address: null,
   office_address_am: null,
+  office_address_om: null,
   social_linkedin: null,
   social_x: null,
   social_facebook: null,
@@ -73,19 +83,52 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
   metric_employees: null,
   metric_uptime_note: null,
   metric_uptime_note_am: null,
+  metric_uptime_note_om: null,
   testimonial_quote: null,
   testimonial_quote_am: null,
+  testimonial_quote_om: null,
   testimonial_author: null,
   testimonial_role: null,
   testimonial_role_am: null,
+  testimonial_role_om: null,
   testimonial_organisation: null,
   // On, like the column: the mark is the product's default, and a failed
   // fetch is not an operator's decision to hide it.
   product_mark_enabled: true,
   product_mark_label: null,
   product_mark_label_am: null,
+  product_mark_label_om: null,
   product_mark_url: null,
 };
+
+/**
+ * The last payload, kept across page loads. The backend caches it for five
+ * minutes, so a copy younger than that is what the server would send; a
+ * fresh copy means no request on this load (dashboard review, 2026-11-03,
+ * PR 11). Storage can be absent or full; either way the fetch still runs.
+ */
+const STORAGE_KEY = "ethr.site-content";
+const FRESH_FOR_MS = 5 * 60_000;
+
+function storedSiteContent(): { data: SiteContent; at: number } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data?: SiteContent; at?: number };
+    if (!parsed.data || typeof parsed.at !== "number") return null;
+    return { data: parsed.data, at: parsed.at };
+  } catch {
+    return null;
+  }
+}
+
+function storeSiteContent(data: SiteContent): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, at: Date.now() }));
+  } catch {
+    // Private mode or a full store: the next load fetches, as before.
+  }
+}
 
 const siteContentQuery = {
   queryKey: ["site-content"],
@@ -99,12 +142,23 @@ const siteContentQuery = {
       throw new Error(`site-content answered ${response.status}`);
     }
     const body = (await response.json()) as { data: SiteContent };
+    storeSiteContent(body.data);
     return body.data;
   },
-  // The backend caches for five minutes and invalidates on write, so a short
-  // client stale time costs little and means an operator's correction reaches
-  // a tab that is already open.
-  staleTime: 60_000,
+  // The backend caches for five minutes and invalidates on write, so the
+  // client keeps an answer for the same five minutes: an operator's
+  // correction reaches an open tab when the backend's own cache would have
+  // served it anyway.
+  staleTime: FRESH_FOR_MS,
+  // A stored copy younger than that stands in for the first answer, dated so
+  // React Query knows when it was fetched and refetches once it is stale.
+  initialData: () => {
+    const stored = storedSiteContent();
+    return stored && Date.now() - stored.at < FRESH_FOR_MS
+      ? stored.data
+      : undefined;
+  },
+  initialDataUpdatedAt: () => storedSiteContent()?.at,
 } as const;
 
 export function useSiteContent(): SiteContent {
@@ -143,6 +197,7 @@ export function useProductMark(locale: string): ProductMark | null {
       locale,
       site.product_mark_label_am,
       site.product_mark_label,
+      site.product_mark_label_om,
     ),
     url: site.product_mark_url,
     logoUrl: site.logo_url,
@@ -152,9 +207,8 @@ export function useProductMark(locale: string): ProductMark | null {
 /**
  * Picks the reader's language, falling back to English rather than to nothing.
  *
- * `om` is optional because only the landing page's sections carry an Oromo
- * twin; the site-wide labels (`platform_settings`) have Amharic alone, and an
- * Oromo reader gets their English.
+ * `om` is optional so a field that has no Oromo twin can still be picked;
+ * every platform-written field has one since 2026-11-03.
  *
  * An operator who filled the English column and not the Amharic one has not
  * asked for the field to disappear — and Amharic is the locale the server

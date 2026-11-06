@@ -185,6 +185,9 @@ return [
         'attribute-name' => [
             'rule-name' => 'custom-message',
         ],
+        'bank_account_number' => [
+            'digits' => 'Lakkoofsi herregaa lakkoofsota, iddoo duwwaa fi sararoota qofa qabaachuu danda\'a; lakkoofsaan jalqabee lakkoofsaan xumuramuu qaba.',
+        ],
     ],
 
     /*
@@ -218,9 +221,9 @@ return [
     'cover_too_narrow' => 'Suuraan haguuggii yoo xiqqaate bal\'ina piikseelii :width qabaachuu qaba.',
     'landing_cover_missing' => 'Duubbee suuraa filachuu dura suuraa haguuggii olfe\'aa.',
     'landing_link_host' => 'Liinkiin kun :hosts irratti ta\'uu qaba.',
-    'landing_faq_question' => 'Gaaffii sana Afaan Ingiliffaa ykn Afaan Amaaraatiin barreessaa.',
-    'landing_faq_answer' => 'Deebii sana Afaan Ingiliffaa ykn Afaan Amaaraatiin barreessaa.',
-    'landing_service_title' => 'Tajaajilichaaf Afaan Ingiliffaa ykn Afaan Amaaraatiin maqaa kennaa.',
+    'landing_faq_question' => 'Gaaffii sana Afaan Ingiliffaa, Afaan Amaaraa ykn Afaan Oromootiin barreessaa.',
+    'landing_faq_answer' => 'Deebii sana Afaan Ingiliffaa, Afaan Amaaraa ykn Afaan Oromootiin barreessaa.',
+    'landing_service_title' => 'Tajaajilichaaf Afaan Ingiliffaa, Afaan Amaaraa ykn Afaan Oromootiin maqaa kennaa.',
     'announcement_files_max' => 'Oduun tokko yoo baay\'ate sanadoota :max qabaachuu danda\'a.',
     // AppRulesPermittedMarketingClaim: the public site may not make this claim.
     'marketing_claim' => 'Barreeffamni kun ibsa marsariitiin ummataa gochuu hin dandeenye qaba. Tarreeffama isaatiif qajeelfama qabiyyee gabaa ilaalaa.',

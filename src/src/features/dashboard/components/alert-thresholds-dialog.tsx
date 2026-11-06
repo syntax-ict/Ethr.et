@@ -232,7 +232,7 @@ export function AlertThresholdsDialog({
                         </span>
                         <Badge
                           variant="outline"
-                          className="ml-2 text-[10px] capitalize"
+                          className="ml-2 text-caption capitalize"
                         >
                           {th.severity}
                         </Badge>
