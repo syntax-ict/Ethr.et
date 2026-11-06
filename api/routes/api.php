@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminSupportController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
+use App\Http\Controllers\Api\V1\Admin\AdminTenantJourneyController;
 use App\Http\Controllers\Api\V1\Admin\BackupStorageController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
@@ -988,6 +989,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         ->middleware([EnsurePlatformContext::class, RequirePlatformMfa::class, 'throttle:platform-admin'])
         ->group(function () {
             Route::get('/tenants', [AdminTenantController::class, 'index']);
+            Route::get('/tenants/journey-summary', [AdminTenantJourneyController::class, 'summary']);
+            Route::get('/tenants/{publicId}/journey', [AdminTenantJourneyController::class, 'show']);
             Route::get('/tenants/{publicId}', [AdminTenantController::class, 'show']);
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
             Route::put('/tenants/{publicId}/showcase', [AdminTenantController::class, 'updateShowcase']);

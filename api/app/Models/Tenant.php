@@ -366,6 +366,12 @@ class Tenant extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    /** @return HasOne<TenantJourneySnapshot, $this> */
+    public function journeySnapshot(): HasOne
+    {
+        return $this->hasOne(TenantJourneySnapshot::class);
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);

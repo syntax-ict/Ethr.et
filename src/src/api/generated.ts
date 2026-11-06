@@ -6179,6 +6179,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/journey-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The funnel: how many organisations sit at each stage, in each health
+         *     state and in each lifecycle state. Deleted organisations are left out
+         */
+        get: operations["adminTenantJourney.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/journey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One organisation's journey: stage, milestones, metrics, readiness gaps
+         *     and the lifecycle events behind them. A snapshot older than an hour, or
+         *     none yet, is recomputed first so the page never shows a stale picture
+         */
+        get: operations["adminTenantJourney.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}": {
         parameters: {
             query?: never;
@@ -8587,6 +8628,13 @@ export interface components {
             created_at: string | null;
             showcase_consented_at: string | null;
             showcase_hidden: boolean;
+            trial_expired: boolean;
+            stage: string | null;
+            health_state: string | null;
+            health_reasons: string[];
+            readiness_score: number | null;
+            last_activity_at: string | null;
+            journey_computed_at: string | null;
         };
         /** AnnouncementResource */
         AnnouncementResource: {
@@ -30317,6 +30365,14 @@ export interface operations {
                  *      the console asks for the deleted ones.
                  */
                 "filter[status]"?: string;
+                /**
+                 * @description Where the organisation is on its journey (docs/operations/TENANT-JOURNEY.md).
+                 *      Stage and health come from the snapshot, so an organisation with none yet
+                 *      has neither and matches `health=unknown` only. An expired trial is read
+                 *      live from the tenant, since its status never changes by itself.
+                 */
+                "filter[stage]"?: string;
+                "filter[health]"?: string;
                 sort?: string;
                 per_page?: number;
             };
@@ -30358,6 +30414,125 @@ export interface operations {
                             to: number | null;
                             /** @description Total number of items being paginated. */
                             total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenantJourney.summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            total: number;
+                            not_computed: number;
+                            computed_at: string | null;
+                            stages: {
+                                stage: string;
+                                count: number;
+                            }[];
+                            health: {
+                                ok: number;
+                                warning: number;
+                                critical: number;
+                                unknown: number;
+                            };
+                            lifecycle: {
+                                trial: number;
+                                trial_expired: number;
+                                active: number;
+                                suspended: number;
+                                cancelled: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenantJourney.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            stage: string;
+                            stages: string[];
+                            stage_reached_at: string | null;
+                            lifecycle: string;
+                            health_state: string;
+                            reasons: string[];
+                            milestones: {
+                                [key: string]: string;
+                            };
+                            metrics: {
+                                employees: number;
+                                team_users: number;
+                                activated_users: number;
+                                invited_pending: number;
+                                users_logged_in_30d: number;
+                                punches_14d: number;
+                                punches_30d: number;
+                                punch_sources_30d: {
+                                    source: string;
+                                    count: number;
+                                }[];
+                                leave_requests_14d: number;
+                                leave_requests_30d: number;
+                                payroll_enabled: boolean;
+                                payroll_runs: number;
+                                devices: number;
+                                devices_silent: number;
+                                open_support_requests: number;
+                                invoices_overdue: number;
+                                invoices_past_due: number;
+                                trial_days_left: number | null;
+                                last_login_at: string | null;
+                            };
+                            readiness: {
+                                score: number;
+                                level: string;
+                                gaps: {
+                                    id: string;
+                                    category: string;
+                                    label: string;
+                                }[];
+                            };
+                            last_activity_at: string | null;
+                            computed_at: string;
+                            events: {
+                                action: string;
+                                created_at: string;
+                                by_platform: boolean;
+                            }[];
                         };
                     };
                 };

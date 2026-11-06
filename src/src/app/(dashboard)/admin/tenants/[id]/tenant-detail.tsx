@@ -75,6 +75,7 @@ import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { TenantFeaturesCard } from "./tenant-features-card";
+import { TenantJourneyCard } from "./tenant-journey-card";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -596,6 +597,9 @@ function TenantDetail({ id }: { id: string }) {
             }
           />
         </div>
+
+        {/* Where it is between sign-up and using ETHR, and what needs attention */}
+        <TenantJourneyCard publicId={tenant.public_id} />
 
         {/* The owner, whom support calls */}
         <Card>

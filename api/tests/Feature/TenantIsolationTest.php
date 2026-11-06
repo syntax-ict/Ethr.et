@@ -19,6 +19,7 @@ use App\Models\SmsSend;
 use App\Models\SmsSetting;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
+use App\Models\TenantJourneySnapshot;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Services\CurrentTenant;
@@ -81,6 +82,27 @@ const GLOBAL_MODELS = [
 const NULLABLE_TENANT_MODELS = [];
 
 /**
+ * Platform-side facts about a tenant: they carry a `tenant_id` because they are
+ * about one organisation, and carry no BelongsToTenant scope because the only
+ * reader is the platform console, which has no tenant resolved and would see
+ * nothing through a fail-closed scope. Adding an entry here is a security
+ * decision: it must be reachable only behind `admin.manage` on the platform
+ * host, and every read must state `tenant_id`. The test below pins the files
+ * that may mention each model, so a tenant-facing path cannot start reading it.
+ *
+ * @var array<class-string<Model>, list<string>> Model => the app/ files allowed to name it.
+ */
+const PLATFORM_OWNED_TENANT_MODELS = [
+    TenantJourneySnapshot::class => [
+        'Console/Commands/RefreshTenantJourneysCommand.php',
+        'Http/Controllers/Api/V1/Admin/AdminTenantJourneyController.php',
+        'Models/Tenant.php',
+        'Models/TenantJourneySnapshot.php',
+        'Services/Admin/TenantJourney/JourneyCalculator.php',
+    ],
+];
+
+/**
  * @return list<class-string<Model>>
  */
 function discoverModels(): array
@@ -132,7 +154,7 @@ describe('tenant isolation model sweep', function () {
             $hasColumn = Schema::hasColumn($table, 'tenant_id');
             $hasTrait = usesTenantTrait($class);
 
-            if ($hasColumn && ! $hasTrait && ! in_array($class, NULLABLE_TENANT_MODELS, true)) {
+            if ($hasColumn && ! $hasTrait && ! in_array($class, NULLABLE_TENANT_MODELS, true) && ! array_key_exists($class, PLATFORM_OWNED_TENANT_MODELS)) {
                 $offenders[] = "{$class} has a tenant_id column but is missing BelongsToTenant";
             }
 
@@ -166,12 +188,35 @@ describe('tenant isolation model sweep', function () {
         $unscoped = [];
 
         foreach (discoverModels() as $class) {
-            if (! usesTenantTrait($class) && ! in_array($class, GLOBAL_MODELS, true)) {
+            if (! usesTenantTrait($class) && ! in_array($class, GLOBAL_MODELS, true) && ! array_key_exists($class, PLATFORM_OWNED_TENANT_MODELS)) {
                 $unscoped[] = $class;
             }
         }
 
         expect($unscoped)->toBe([]);
+    });
+
+    it('keeps platform-owned tenant models out of every file but the console\'s', function () {
+        $offenders = [];
+
+        foreach (PLATFORM_OWNED_TENANT_MODELS as $class => $allowed) {
+            $short = class_basename($class);
+            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path(), FilesystemIterator::SKIP_DOTS));
+
+            foreach ($files as $file) {
+                if ($file->getExtension() !== 'php') {
+                    continue;
+                }
+
+                $relative = str_replace('\\', '/', substr($file->getPathname(), strlen(app_path()) + 1));
+
+                if (! in_array($relative, $allowed, true) && str_contains((string) file_get_contents($file->getPathname()), $short)) {
+                    $offenders[] = "{$relative} names {$short}, which only the platform console may read";
+                }
+            }
+        }
+
+        expect($offenders)->toBe([]);
     });
 });
 
