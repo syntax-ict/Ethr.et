@@ -13,6 +13,7 @@ return [
         'run_day' => 'guyyaa raawwii kaffaltii mindaa',
         'leave_year' => 'waggaa boqonnaa',
         'working_days' => 'guyyoota hojii',
+        'working_days_per_month' => 'guyyoota hojii ji\'aa tokkoo keessatti',
         'mfa_policy' => 'imaammata MFA',
         'session_timeout_minutes' => 'yeroo dhumaa seshinii',
         'calendar' => 'sirna dhahaa',
