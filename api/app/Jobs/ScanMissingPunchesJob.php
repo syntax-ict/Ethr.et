@@ -82,6 +82,7 @@ class ScanMissingPunchesJob implements ShouldQueue
             // Notify their supervisor
             if ($employee->supervisor_id) {
                 $supervisor = Employee::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $employee->tenant_id)
                     ->where('id', $employee->supervisor_id)
                     ->first();
 
