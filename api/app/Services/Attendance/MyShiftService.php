@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceMode;
-use App\Enums\LeaveStatus;
+use App\Enums\ExpectedDay;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
-use App\Models\Holiday;
-use App\Models\LeaveRequest;
 use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
@@ -35,6 +33,7 @@ final class MyShiftService
         private readonly ShiftMatcher $shiftMatcher,
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
+        private readonly DayContext $days,
     ) {}
 
     /**
@@ -73,9 +72,10 @@ final class MyShiftService
         $policy = $this->policy->for($employee);
         $prefs = ProfilePreferencesController::present($user);
 
-        $holiday = $this->holiday($employee, $day);
-        $onLeave = $this->onLeave($employee, $day);
-        $working = (bool) ($shift !== null && $shift->isWorkingDay($day) && $holiday === null && ! $onLeave);
+        // The one rule for what a day is (ExpectedDays, through DayContext): the
+        // shift or rotation, the organisation's working week, holidays, leave.
+        $dayContext = $this->days->forEmployee($employee, $day);
+        $working = (bool) ($shift !== null && $dayContext['kind'] === ExpectedDay::WORKDAY->value);
 
         // A selfie today: always where required, sometimes where adaptive.
         $selfie = $this->policy->selfieRequired($employee, $policy, $day->format('Y-m-d'));
@@ -98,8 +98,9 @@ final class MyShiftService
             'date' => $day->format('Y-m-d'),
             'timezone' => $zone,
             'working_day' => $working,
-            'holiday' => $holiday,
-            'on_leave' => $onLeave,
+            'holiday' => $dayContext['holiday'],
+            'on_leave' => $dayContext['kind'] === ExpectedDay::ON_LEAVE->value,
+            'day' => $dayContext,
             'shift' => $shift === null ? null : $this->shiftWindow($shift, $day),
             'attendance' => [
                 'status' => $record === null
@@ -165,27 +166,5 @@ final class MyShiftService
     public static function window(Shift $shift, CarbonInterface $day): array
     {
         return $shift->windowOn($day->format('Y-m-d'), $day->getTimezone()->getName());
-    }
-
-    /** @return array{name: string, name_am: string|null}|null */
-    private function holiday(Employee $employee, CarbonInterface $day): ?array
-    {
-        $holiday = Holiday::query()
-            ->whereDate('date', $day->format('Y-m-d'))
-            ->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $employee->branch_id))
-            ->first();
-
-        return $holiday === null ? null : ['name' => $holiday->name, 'name_am' => $holiday->name_am];
-    }
-
-    private function onLeave(Employee $employee, CarbonInterface $day): bool
-    {
-        return LeaveRequest::query()
-            ->where('employee_id', $employee->id)
-            ->where('status', LeaveStatus::APPROVED)
-            ->whereDate('start_date', '<=', $day->format('Y-m-d'))
-            ->whereDate('end_date', '>=', $day->format('Y-m-d'))
-            ->exists();
     }
 }

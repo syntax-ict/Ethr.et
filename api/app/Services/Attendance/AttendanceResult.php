@@ -11,6 +11,10 @@ use App\Models\AttendanceRecord;
  * turned out to be. `punch` matters for `auto`, where the caller did not say:
  * the shared kiosk sends `auto` because it cannot know before the code is
  * typed whether this person is arriving or leaving.
+ *
+ * `outcome` says what the punch came to (PunchOutcome): on time, late, early
+ * out, or already on record from another method. Null for a break, which
+ * neither opens nor closes the day.
  */
 final readonly class AttendanceResult
 {
@@ -21,5 +25,6 @@ final readonly class AttendanceResult
         public AttendanceRecord $record,
         public bool $wasDuplicate = false,
         public string $punch = 'check_in',
+        public ?PunchOutcome $outcome = null,
     ) {}
 }
