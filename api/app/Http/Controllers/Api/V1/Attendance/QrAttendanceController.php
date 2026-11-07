@@ -151,7 +151,7 @@ class QrAttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate);
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, outcome: $result->outcome);
 
         if ($result->wasDuplicate || $request->validated('type') === 'check_out') {
             return $punch->response()->setStatusCode(200);

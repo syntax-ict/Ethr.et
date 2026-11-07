@@ -1919,11 +1919,11 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "`AttendanceRecordResource`",
+                        "description": "`AttendancePunchResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/AttendanceRecordResource"
+                                    "$ref": "#/components/schemas/AttendancePunchResource"
                                 }
                             }
                         }
@@ -5595,11 +5595,11 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "`AttendanceRecordResource`",
+                        "description": "`AttendancePunchResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/AttendanceRecordResource"
+                                    "$ref": "#/components/schemas/AttendancePunchResource"
                                 }
                             }
                         }
@@ -6041,6 +6041,43 @@
                                         "on_leave": {
                                             "type": "boolean"
                                         },
+                                        "day": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string"
+                                                },
+                                                "weekend": {
+                                                    "type": "boolean"
+                                                },
+                                                "holiday": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "name_am": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "name",
+                                                        "name_am"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "weekend",
+                                                "holiday"
+                                            ]
+                                        },
                                         "shift": {
                                             "type": [
                                                 "object",
@@ -6319,6 +6356,7 @@
                                         "working_day",
                                         "holiday",
                                         "on_leave",
+                                        "day",
                                         "shift",
                                         "attendance",
                                         "policy",
@@ -43388,6 +43426,78 @@
                     },
                     "employee_name": {
                         "type": "null"
+                    },
+                    "day": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string"
+                            },
+                            "weekend": {
+                                "type": "boolean"
+                            },
+                            "holiday": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "name_am": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "name_am"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "kind",
+                            "weekend",
+                            "holiday"
+                        ]
+                    },
+                    "outcome": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "code": {
+                                "type": "string"
+                            },
+                            "minutes": {
+                                "type": "integer"
+                            },
+                            "by": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "minutes",
+                            "by",
+                            "at"
+                        ]
                     }
                 },
                 "required": [
@@ -43411,7 +43521,9 @@
                     "created_at",
                     "updated_at",
                     "was_duplicate",
-                    "punch"
+                    "punch",
+                    "day",
+                    "outcome"
                 ],
                 "title": "AttendancePunchResource"
             },

@@ -126,7 +126,7 @@ final class AttendanceEngine
                     throw new AttendanceRefused(__('attendance.retry_key_taken'));
                 }
 
-                return new AttendanceResult($existing, wasDuplicate: true);
+                return new AttendanceResult($existing, wasDuplicate: true, outcome: $this->outcomeFor($existing, 'check_in'));
             }
 
             if (in_array($input->type, ['check_out', 'auto'], true)) {
@@ -137,7 +137,7 @@ final class AttendanceEngine
                     ->first();
 
                 if ($existing) {
-                    return new AttendanceResult($existing, wasDuplicate: true, punch: 'check_out');
+                    return new AttendanceResult($existing, wasDuplicate: true, punch: 'check_out', outcome: $this->outcomeFor($existing, 'check_out'));
                 }
             }
         }
@@ -242,7 +242,7 @@ final class AttendanceEngine
         if ($open->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MERGE_WINDOW_MINUTES) {
             $this->logPunch($open, $input, 'check_in', $now, 'duplicate');
 
-            return new AttendanceResult($open, wasDuplicate: true);
+            return new AttendanceResult($open, wasDuplicate: true, outcome: $this->alreadyIn($open));
         }
 
         return $this->processCheckOut($input, $employee, $zone, $settings);
@@ -271,7 +271,61 @@ final class AttendanceEngine
     {
         $this->logPunch($closed, $input, 'check_out', $now, 'duplicate');
 
-        return new AttendanceResult($closed, wasDuplicate: true, punch: 'check_out');
+        return new AttendanceResult($closed, wasDuplicate: true, punch: 'check_out', outcome: $this->alreadyOut($closed));
+    }
+
+    /**
+     * What a check-in or check-out came to for the person who made it: on time
+     * or late, out on time or early. Read from the record's status, which the
+     * shift's rules set, so a replay says what the original said.
+     */
+    private function outcomeFor(AttendanceRecord $record, string $punch, ?string $zone = null): PunchOutcome
+    {
+        if ($punch === 'check_out') {
+            return $record->status === AttendanceStatus::EARLY_LEAVE
+                ? new PunchOutcome(PunchOutcome::CHECKED_OUT_EARLY, $this->missedMinutes($record, $zone))
+                : new PunchOutcome(PunchOutcome::CHECKED_OUT);
+        }
+
+        return $record->status === AttendanceStatus::LATE
+            ? new PunchOutcome(PunchOutcome::CHECKED_IN_LATE, $this->missedMinutes($record, $zone))
+            : new PunchOutcome(PunchOutcome::CHECKED_IN);
+    }
+
+    /** The day is already open: who opened it, and when. */
+    private function alreadyIn(AttendanceRecord $record): PunchOutcome
+    {
+        return new PunchOutcome(
+            PunchOutcome::ALREADY_CHECKED_IN,
+            0,
+            $this->loggedSource($record, 'check_in', latest: false) ?? $record->source,
+            $record->check_in,
+        );
+    }
+
+    /** The day is already closed: who closed it, and when. */
+    private function alreadyOut(AttendanceRecord $record): PunchOutcome
+    {
+        return new PunchOutcome(
+            PunchOutcome::ALREADY_CHECKED_OUT,
+            0,
+            $this->loggedSource($record, 'check_out', latest: true) ?? $record->source,
+            $record->check_out,
+        );
+    }
+
+    /**
+     * The method behind a punch of this kind on the record, from its punch
+     * log: the first one that counted (a check-in) or the last (a check-out).
+     * A repeat the log marks `duplicate` is not the punch itself.
+     */
+    private function loggedSource(AttendanceRecord $record, string $kind, bool $latest): ?AttendanceSource
+    {
+        $entries = collect((array) ($record->metadata['punches'] ?? []))
+            ->filter(fn ($punch) => ($punch['kind'] ?? null) === $kind && ($punch['outcome'] ?? null) !== 'duplicate');
+        $entry = $latest ? $entries->last() : $entries->first();
+
+        return AttendanceSource::tryFrom((string) ($entry['source'] ?? ''));
     }
 
     /**
@@ -429,6 +483,30 @@ final class AttendanceEngine
         $local = $now->copy()->setTimezone($zone);
         ['shift' => $shift, 'date' => $workDate] = $this->shiftMatcher->forPunch($employee, $local);
 
+        // One record a day, whichever method reports it. This person's work
+        // day is already open, so this is not a new arrival: another method
+        // (the phone, the kiosk, the web, a QR code) got there first. Within
+        // the merge window it still goes through the resolver below, which
+        // folds the evidence into the one record; later than that it used to
+        // open a second record flagged for review, and now only says so. A
+        // check-in after the day was closed is a second session and is kept.
+        //
+        // Only live punches. A manual or imported entry is times somebody
+        // typed for a day, not an arrival: where it clashes with a punch it is
+        // kept and flagged for review, never answered "already in".
+        $live = ! in_array($input->source, [AttendanceSource::MANUAL, AttendanceSource::CSV], true);
+        $open = $live ? $this->findOpenRecord($input, $now, $zone) : null;
+        $already = null;
+        if ($open !== null && $open->date->format('Y-m-d') === $workDate) {
+            $already = $this->alreadyIn($open);
+
+            if ($open->check_in->diffInMinutes($now, absolute: true) > AttendanceRules::MERGE_WINDOW_MINUTES) {
+                $this->logPunch($open, $input, 'check_in', $now, 'duplicate');
+
+                return new AttendanceResult($open, wasDuplicate: true, outcome: $already);
+            }
+        }
+
         // Inside the branch or any of the person's work sites, giving a fix
         // the benefit of its reported accuracy (AttendancePlaces). Null when
         // there is no place to be inside.
@@ -539,7 +617,15 @@ final class AttendanceEngine
             $this->webhook($record->tenant_id, 'attendance.checked_in', AttendanceWebhookPayload::of($record, $employee));
         }
 
-        return new AttendanceResult($record);
+        // Folded into the day's record: the arrival is already on record.
+        // Otherwise a second session beside it, or the arrival itself.
+        $outcome = match (true) {
+            in_array($resolution->action, ['merged', 'deduped'], true) && $already !== null => $already,
+            $resolution->action === 'flagged' => new PunchOutcome(PunchOutcome::CHECKED_IN_AGAIN),
+            default => $this->outcomeFor($record, 'check_in', $zone),
+        };
+
+        return new AttendanceResult($record, outcome: $outcome);
     }
 
     private function processCheckOut(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings = null): AttendanceResult
@@ -603,7 +689,7 @@ final class AttendanceEngine
 
         $this->webhook($record->tenant_id, 'attendance.checked_out', AttendanceWebhookPayload::of($record, $employee));
 
-        return new AttendanceResult($record, punch: 'check_out');
+        return new AttendanceResult($record, punch: 'check_out', outcome: $this->outcomeFor($record, 'check_out', $zone));
     }
 
     /**
