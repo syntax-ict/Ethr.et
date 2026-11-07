@@ -281,7 +281,9 @@ test('employee can sync offline attendance records', function () {
             [
                 'idempotency_key' => 'offline-002',
                 'employee_public_id' => $employee->public_id,
-                'type' => 'check_in',
+                // The day's one record is opened by the first punch; a second
+                // check-in while it is open is already on record (PunchOutcome).
+                'type' => 'check_out',
                 'timestamp' => now()->subHours(2)->toIso8601String(),
                 'latitude' => 9.0,
                 'longitude' => 38.0,

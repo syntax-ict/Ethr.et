@@ -4,6 +4,11 @@ import { useState } from "react";
 import { CheckCircle2, Loader2, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
+import {
+  DayNote,
+  type DayInfo,
+} from "@/features/attendance/components/day-note";
+import type { PunchOutcomeText } from "@/features/attendance/punch-outcome";
 import { useT } from "@/lib/i18n/useT";
 import type { KioskPunchResult } from "../api";
 
@@ -23,12 +28,18 @@ export function KioskPunchResultCard({
   message,
   time,
   person,
+  day,
+  outcome,
   canReport,
   onReport,
 }: {
   message: string;
   time: string;
   person: Person | null;
+  /** What today is for this person: a holiday, the weekend, leave. */
+  day?: DayInfo | null;
+  /** What the punch came to: late, early, or already on record by another method. */
+  outcome?: PunchOutcomeText | null;
   canReport: boolean;
   /** Resolves when HR has it; rejects when the server refused. */
   onReport: () => Promise<void>;
@@ -78,6 +89,17 @@ export function KioskPunchResultCard({
           <p className="text-lg text-muted-foreground">{person.position}</p>
         )}
       </div>
+      {outcome && (
+        <div className="space-y-1" data-outcome={outcome.code}>
+          <p className="text-2xl font-semibold text-foreground">
+            {outcome.title}
+          </p>
+          {outcome.hint && (
+            <p className="text-sm text-muted-foreground">{outcome.hint}</p>
+          )}
+        </div>
+      )}
+      <DayNote day={day} className="mx-auto max-w-md text-left" />
       <p className="text-sm text-muted-foreground">
         {t("kiosk_page.recorded_at", undefined, { time })}
       </p>

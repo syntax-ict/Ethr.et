@@ -151,7 +151,7 @@ class KioskCheckInController extends Controller
         // that anyone can type a code into, and until 2026-11-01 it carried
         // the person's email, phone, date of birth and nationality. The
         // terminal needs to show who punched, and nothing more.
-        $punch = new KioskPunchResource($result->record, $employee, $result->wasDuplicate, $result->punch);
+        $punch = new KioskPunchResource($result->record, $employee, $result->wasDuplicate, $result->punch, $result->outcome);
 
         if ($result->wasDuplicate || $result->punch === 'check_out') {
             return $punch->response()->setStatusCode(200);

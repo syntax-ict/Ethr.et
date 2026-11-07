@@ -73,7 +73,7 @@ class ManualAttendanceController extends Controller
         if ($result->wasDuplicate) {
             $result->record->load('employee', 'shift');
 
-            return (new AttendancePunchResource($result->record, true))->response()->setStatusCode(200);
+            return (new AttendancePunchResource($result->record, true, outcome: $result->outcome))->response()->setStatusCode(200);
         }
 
         AuditLog::record('attendance.manual_entry', $result->record, [

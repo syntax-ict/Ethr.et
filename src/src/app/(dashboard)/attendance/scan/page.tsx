@@ -22,6 +22,12 @@ import {
   useMyShift,
   useScanQr,
 } from "@/features/attendance/api";
+import { DayNote } from "@/features/attendance/components/day-note";
+import {
+  punchOutcomeText,
+  type PunchOutcomeText,
+} from "@/features/attendance/punch-outcome";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import type { DeviceProof } from "@/lib/attendance/passkey";
 import { cn } from "@/lib/utils";
 import { nextPunch } from "@/lib/attendance/next-punch";
@@ -34,6 +40,7 @@ type Status =
 
 export default function QrScanPage() {
   const { t } = useT();
+  const { formatTime } = useDateFormatters();
   const { data: shift } = useMyShift();
   const router = useRouter();
   // Starts on the punch the day is waiting for, as the phone screen does:
@@ -44,6 +51,8 @@ export default function QrScanPage() {
     chosen ?? (nextPunch(shift) === "check_out" ? "check_out" : "check_in");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
+  // What the punch came to: late, early, or already on record by another method.
+  const [outcome, setOutcome] = useState<PunchOutcomeText | null>(null);
   const [manualToken, setManualToken] = useState("");
   const [showManual, setShowManual] = useState(false);
   const readerRef = useRef<HTMLDivElement | null>(null);
@@ -166,6 +175,7 @@ export default function QrScanPage() {
       });
       proofRef.current = undefined;
       const empName = data.employee?.name ?? t("attendance.employee");
+      setOutcome(punchOutcomeText(data.outcome, t, formatTime));
       setStatus("success");
       setMessage(
         `${type === "check_in" ? t("attendance.scan_page.welcome") : t("attendance.scan_page.goodbye")}, ${empName}!`,
@@ -217,6 +227,7 @@ export default function QrScanPage() {
             )}
           </div>
         )}
+        <DayNote day={shift?.day} />
         {/* Type selector */}
         <div className="flex rounded-xl border-2 p-1">
           <button
@@ -251,6 +262,16 @@ export default function QrScanPage() {
             <CardContent className="p-8 text-center space-y-3">
               <CheckCircle2 className="mx-auto h-16 w-16 text-success animate-in zoom-in" />
               <p className="text-xl font-bold">{message}</p>
+              {outcome && (
+                <div className="space-y-1">
+                  <p className="font-medium">{outcome.title}</p>
+                  {outcome.hint && (
+                    <p className="text-sm text-muted-foreground">
+                      {outcome.hint}
+                    </p>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 {t("attendance.mobile_page.redirecting")}
               </p>
