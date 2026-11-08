@@ -30,6 +30,7 @@ function shift(
     working_day: overrides.working_day ?? true,
     holiday: null,
     on_leave: false,
+    day: { kind: "workday", weekend: false, holiday: null },
     shift: {
       public_id: "01HQZX3NDJKMNP4RSTVWXY5Z6A",
       name: "Regular",

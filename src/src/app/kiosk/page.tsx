@@ -41,6 +41,7 @@ import {
 } from "@/features/kiosk/kiosk-lock";
 import { KioskKeypad, PinDots } from "@/features/kiosk/components/kiosk-keypad";
 import { KioskPunchResultCard } from "@/features/kiosk/components/kiosk-punch-result";
+import { punchOutcomeText } from "@/features/attendance/punch-outcome";
 import { KioskQrPanel } from "@/features/kiosk/components/kiosk-qr-panel";
 import { KioskSelfService } from "@/features/kiosk/components/kiosk-self-service";
 import {
@@ -677,6 +678,10 @@ export default function KioskPage() {
               locale,
             )}
             person={lastPunch?.result.employee ?? null}
+            day={lastPunch?.result.day}
+            outcome={punchOutcomeText(lastPunch?.result.outcome, t, (iso) =>
+              formatClockTime(iso, DEFAULT_TIMEZONE, clock, locale),
+            )}
             canReport={lastPunch !== null && !offline}
             onReport={async () => {
               if (!config || !lastPunch?.result.public_id) return;

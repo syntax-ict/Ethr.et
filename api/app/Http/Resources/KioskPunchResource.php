@@ -6,6 +6,8 @@ namespace App\Http\Resources;
 
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Services\Attendance\DayContext;
+use App\Services\Attendance\PunchOutcome;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +30,7 @@ class KioskPunchResource extends JsonResource
         private readonly Employee $employee,
         private readonly bool $wasDuplicate,
         private readonly string $punch,
+        private readonly ?PunchOutcome $outcome = null,
     ) {
         parent::__construct($record);
     }
@@ -47,6 +50,8 @@ class KioskPunchResource extends JsonResource
             'was_duplicate' => $this->wasDuplicate,
             'employee_name' => $this->employee->name,
             'employee' => new KioskPersonResource($this->employee),
+            'day' => DayContext::of($this->employee, $this->date ?? now()),
+            'outcome' => PunchOutcome::describe($this->outcome),
         ];
     }
 }

@@ -61,6 +61,7 @@ import {
   useMyShift,
   type AttendanceFilters,
   type MyAttendanceFilters,
+  type PunchResult,
 } from "@/features/attendance/api";
 import { useCurrentPermissions, useCurrentUser } from "@/features/auth/api";
 import { nextPunch } from "@/lib/attendance/next-punch";
@@ -76,6 +77,11 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { MyExceptionsCard } from "@/features/attendance/components/my-exceptions-card";
+import {
+  DayNote,
+  dayNoteText,
+} from "@/features/attendance/components/day-note";
+import { punchOutcomeText } from "@/features/attendance/punch-outcome";
 import { PrintAction } from "@/components/shared/print-action";
 
 // The values the address may carry; anything else falls back to "all".
@@ -191,6 +197,19 @@ export default function AttendancePage() {
     return signed;
   }
 
+  // What the punch came to (on time, late, early, already on record from
+  // another method), and what the day is (a holiday, the weekend).
+  function announcePunch(punched: PunchResult, fallback: string) {
+    const outcome = punchOutcomeText(punched.outcome, t, formatTime);
+    const description =
+      [dayNoteText(punched.day, t, locale)?.title, outcome?.hint]
+        .filter(Boolean)
+        .join(". ") || undefined;
+    const show = outcome?.tone === "info" ? toast.info : toast.success;
+
+    show(outcome?.title ?? fallback, { description });
+  }
+
   async function handleCheckIn() {
     const signed = await signedOrStop();
     if (signed.stop) return;
@@ -212,8 +231,11 @@ export default function AttendancePage() {
         ...(signed.proof ? { device_proof: signed.proof } : {}),
       },
       {
-        onSuccess: () =>
-          toast.success(t("attendance.checked_in", "Checked in successfully")),
+        onSuccess: (punched) =>
+          announcePunch(
+            punched,
+            t("attendance.checked_in", "Checked in successfully"),
+          ),
         onError: (err) =>
           toast.error(
             apiErrorMessage(
@@ -235,8 +257,9 @@ export default function AttendancePage() {
         ...(signed.proof ? { device_proof: signed.proof } : {}),
       },
       {
-        onSuccess: () =>
-          toast.success(
+        onSuccess: (punched) =>
+          announcePunch(
+            punched,
             t("attendance.checked_out", "Checked out successfully"),
           ),
         onError: (err) =>
@@ -293,6 +316,8 @@ export default function AttendancePage() {
           </div>
         }
       />
+
+      <DayNote day={shift?.day} />
 
       <MyExceptionsCard />
 

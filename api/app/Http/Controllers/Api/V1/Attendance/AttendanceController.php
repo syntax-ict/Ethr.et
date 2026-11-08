@@ -68,7 +68,7 @@ class AttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate);
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate, outcome: $result->outcome);
 
         if ($result->wasDuplicate) {
             return $punch->response()->setStatusCode(200);
@@ -106,7 +106,7 @@ class AttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        return (new AttendanceRecordResource($result->record))
+        return (new AttendancePunchResource($result->record, $result->wasDuplicate, punch: 'check_out', outcome: $result->outcome))
             ->response()
             ->setStatusCode(200);
     }

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   CloudUpload,
   History,
+  Info,
   Loader2,
   LogIn,
   LogOut,
@@ -38,6 +39,14 @@ import {
   useMyShift,
 } from "@/features/attendance/api";
 import { DeviceCard } from "@/features/attendance/components/device-card";
+import {
+  DayNote,
+  dayNoteText,
+} from "@/features/attendance/components/day-note";
+import {
+  punchOutcomeText,
+  type PunchOutcomeInfo,
+} from "@/features/attendance/punch-outcome";
 import { fixedCoordinate, signOfflinePunch } from "@/lib/attendance/passkey";
 import { useCurrentUser } from "@/features/auth/api";
 import {
@@ -84,6 +93,8 @@ interface Done {
   at: Date;
   auto: boolean;
   offline: boolean;
+  /** What the server said the punch came to; absent for one saved offline. */
+  outcome?: PunchOutcomeInfo | null;
 }
 
 function formatDistance(meters: number): string {
@@ -397,8 +408,14 @@ export default function MobilePunchPage() {
         ...(auto ? { auto: true } : {}),
       },
       {
-        onSuccess: () => {
-          setDone({ type, at: new Date(), auto, offline: false });
+        onSuccess: (punched) => {
+          setDone({
+            type,
+            at: new Date(),
+            auto,
+            offline: false,
+            outcome: punched.outcome,
+          });
           setPhoto(null);
           setAgain(false);
         },
@@ -442,32 +459,55 @@ export default function MobilePunchPage() {
     iso ? formatClockTime(iso, zone, readerClock, locale) : "";
 
   if (done) {
+    // What the server said the punch came to: late, early, or already on
+    // record from another method. A punch saved offline has no answer yet.
+    const outcome = punchOutcomeText(done.outcome, t, timeOf);
+    const already = outcome?.already === true;
+
     return (
       <div className="mx-auto max-w-md space-y-6 py-6 text-center">
-        <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success-soft text-success-on-soft">
-          <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
+        <span
+          className={cn(
+            "mx-auto flex h-20 w-20 items-center justify-center rounded-full",
+            already
+              ? "bg-info-soft text-info-on-soft"
+              : "bg-success-soft text-success-on-soft",
+          )}
+        >
+          {already ? (
+            <Info className="h-10 w-10" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
+          )}
         </span>
         <div>
           <p className="text-xl font-semibold text-foreground">
-            {done.type === "check_in"
-              ? t("attendance.checked_in_label")
-              : t("attendance.checked_out_label")}{" "}
-            <span className="tabular-nums">
-              {timeOf(done.at.toISOString())}
-            </span>
+            {outcome ? (
+              outcome.title
+            ) : (
+              <>
+                {done.type === "check_in"
+                  ? t("attendance.checked_in_label")
+                  : t("attendance.checked_out_label")}{" "}
+                <span className="tabular-nums">
+                  {timeOf(done.at.toISOString())}
+                </span>
+              </>
+            )}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {done.offline
-              ? t("attendance.mobile_page.saved_offline_toast")
-              : done.auto
-                ? t(
-                    "attendance.punch.auto_done",
-                    "Checked in automatically when you arrived.",
-                  )
-                : t(
-                    "attendance.punch.recorded",
-                    "Your attendance is recorded.",
-                  )}
+            {outcome?.hint ??
+              (done.offline
+                ? t("attendance.mobile_page.saved_offline_toast")
+                : done.auto
+                  ? t(
+                      "attendance.punch.auto_done",
+                      "Checked in automatically when you arrived.",
+                    )
+                  : t(
+                      "attendance.punch.recorded",
+                      "Your attendance is recorded.",
+                    ))}
           </p>
         </div>
         <div className="flex justify-center gap-2">
@@ -526,6 +566,9 @@ export default function MobilePunchPage() {
         </div>
       )}
 
+      {/* A holiday, the weekend, a day off or leave: said before the clock. */}
+      <DayNote day={shift?.day} />
+
       {/* Today: the clock, the shift, the status. */}
       <section className="rounded-2xl border border-border bg-card p-5 text-center shadow-xs">
         <p className="text-sm text-muted-foreground">{dateLine}</p>
@@ -536,18 +579,8 @@ export default function MobilePunchPage() {
         <div className="mt-3 min-h-6 text-sm">
           {shiftQuery.isLoading && hasEmployee ? (
             <Skeleton className="mx-auto h-5 w-48" />
-          ) : shift?.holiday ? (
-            <span className="text-muted-foreground">
-              {t("attendance.punch.holiday", "Holiday")} ·{" "}
-              {locale === "am" && shift.holiday.name_am
-                ? shift.holiday.name_am
-                : shift.holiday.name}
-            </span>
-          ) : shift?.on_leave ? (
-            <span className="text-muted-foreground">
-              {t("attendance.punch.on_leave", "You are on leave today")}
-            </span>
-          ) : shift?.shift && shift.working_day ? (
+          ) : dayNoteText(shift?.day, t, locale) ? null : shift?.shift &&
+            shift.working_day ? (
             <span className="text-muted-foreground">
               {shift.shift.name} ·{" "}
               <span className="font-medium tabular-nums text-foreground">

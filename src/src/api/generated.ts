@@ -9007,6 +9007,20 @@ export interface components {
             /** @constant */
             punch: "check_in";
             employee_name?: null;
+            day: {
+                kind: string;
+                weekend: boolean;
+                holiday: {
+                    name: string;
+                    name_am: string | null;
+                } | null;
+            } | null;
+            outcome: {
+                code: string;
+                minutes: number;
+                by: string | null;
+                at: string | null;
+            } | null;
         };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
@@ -10062,6 +10076,20 @@ export interface components {
             was_duplicate: boolean;
             employee_name: string;
             employee: components["schemas"]["KioskPersonResource"] | null;
+            day: {
+                kind: string;
+                weekend: boolean;
+                holiday: {
+                    name: string;
+                    name_am: string | null;
+                } | null;
+            };
+            outcome: {
+                code: string;
+                minutes: number;
+                by: string | null;
+                at: string | null;
+            } | null;
         };
         /** KioskSessionResource */
         KioskSessionResource: {
@@ -14465,13 +14493,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendanceRecordResource` */
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"];
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14947,13 +14975,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `AttendanceRecordResource` */
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"];
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -25650,6 +25678,14 @@ export interface operations {
                             name_am: string | null;
                         } | null;
                         on_leave: boolean;
+                        day: {
+                            kind: string;
+                            weekend: boolean;
+                            holiday: {
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                        };
                         shift: {
                             public_id: string;
                             name: string;
