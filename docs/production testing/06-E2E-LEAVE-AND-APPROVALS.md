@@ -77,8 +77,8 @@ Labour Proclamation Art. 85: up to six months within a twelve-month period that 
 sick day not already in one. A month is the payroll rule's working days per month (22 by default), so
 six months is 132 charged days. Pending requests count, so two filed together cannot pass the limit
 between them. No leave screen shows a day's tier (full, half or unpaid pay); the pay figures are file
-07, section 12. 07's SICK-004 (K-46) records that sick leave dated in an approved payroll period is
-approved without refusal. Never use E-SICK-1 or E-SICK-2 here.
+07, section 12. 07's SICK-004 (K-46, fixed in #657) checks that sick leave dated in an approved payroll period is
+refused, as unpaid leave is. Never use E-SICK-1 or E-SICK-2 here.
 
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|

@@ -71,3 +71,41 @@ it('still approves unpaid leave in a period no run has paid', function () {
         ->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leave->public_id}/approve")
         ->assertOk();
 });
+
+// Known issue K-46: sick leave is a paid type, so the refusal above passed it.
+// Under Art. 85 a sick day can fall at half pay or no pay, and every late day
+// moves the tier of each sick day after it, so approved for a paid period it
+// was never deducted, and the deductions that followed it were out by a day.
+function paidPeriodSickLeave(Tenant $tenant, Employee $employee, string $start, string $end): LeaveRequest
+{
+    $type = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id, 'code' => 'sick_x', 'is_paid' => true, 'follows_art85' => true, 'default_days' => 30,
+    ]);
+
+    return LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'leave_type_id' => $type->id,
+        'start_date' => $start, 'end_date' => $end, 'days' => 2, 'status' => LeaveStatus::PENDING,
+    ]);
+}
+
+it('refuses to approve Art. 85 sick leave for days an approved run already paid', function () {
+    [$tenant, $employee, $hr] = paidPeriodSetup();
+    $leave = paidPeriodSickLeave($tenant, $employee, '2026-06-15', '2026-06-16');
+
+    test()->actingAs($hr)
+        ->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leave->public_id}/approve")
+        ->assertUnprocessable()
+        ->assertJsonPath('type', 'https://ethr.et/errors/payroll-period-closed')
+        ->assertJsonPath('detail', __('leave.payroll_period_closed'));
+
+    expect($leave->fresh()->status)->toBe(LeaveStatus::PENDING);
+});
+
+it('still approves Art. 85 sick leave in a period no run has paid', function () {
+    [$tenant, $employee, $hr] = paidPeriodSetup();
+    $leave = paidPeriodSickLeave($tenant, $employee, '2026-07-15', '2026-07-16');
+
+    test()->actingAs($hr)
+        ->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leave->public_id}/approve")
+        ->assertOk();
+});
