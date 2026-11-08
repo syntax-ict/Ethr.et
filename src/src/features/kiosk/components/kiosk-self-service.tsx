@@ -28,6 +28,7 @@ import { KioskKeypad, PinDots } from "./kiosk-keypad";
 import type { KioskCue } from "../kiosk-sound";
 import type { KioskCodeFormat } from "../kiosk-code";
 import { KioskCodeHint } from "./kiosk-code-hint";
+import { sickNextTierLabel } from "@/features/leave/sick-leave";
 
 /** A self-service screen left alone this long signs the person out. */
 export const SELF_SERVICE_IDLE_MS = 30_000;
@@ -452,17 +453,38 @@ export function KioskSelfService({
                       ? b.leave_type_am
                       : b.leave_type}
                   </p>
-                  <p className="text-2xl font-bold tabular-nums">
-                    {t("kiosk_page.days_left", undefined, {
-                      days: b.remaining_days,
-                    })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("kiosk_page.days_used", undefined, {
-                      used: b.used_days,
-                      total: b.entitled_days,
-                    })}
-                  </p>
+                  {b.sick_leave ? (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {t("kiosk_page.sick_days_taken", undefined, {
+                          days: b.sick_leave.days_taken,
+                        })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("kiosk_page.days_used", undefined, {
+                          used: b.sick_leave.days_taken,
+                          total: b.sick_leave.days_allowed,
+                        })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {sickNextTierLabel(t, b.sick_leave.next_tier)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums">
+                        {t("kiosk_page.days_left", undefined, {
+                          days: Math.max(0, b.remaining_days),
+                        })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("kiosk_page.days_used", undefined, {
+                          used: b.used_days,
+                          total: b.entitled_days,
+                        })}
+                      </p>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

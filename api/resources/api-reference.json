@@ -11420,6 +11420,42 @@
                                                     },
                                                     "remaining": {
                                                         "type": "number"
+                                                    },
+                                                    "sick_leave": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "days_taken": {
+                                                                "type": "integer"
+                                                            },
+                                                            "days_allowed": {
+                                                                "type": "integer"
+                                                            },
+                                                            "period_start": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "period_end": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "next_tier": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "days_taken",
+                                                            "days_allowed",
+                                                            "period_start",
+                                                            "period_end",
+                                                            "next_tier"
+                                                        ]
                                                     }
                                                 },
                                                 "required": [
@@ -11427,7 +11463,8 @@
                                                     "type_am",
                                                     "entitled",
                                                     "used",
-                                                    "remaining"
+                                                    "remaining",
+                                                    "sick_leave"
                                                 ]
                                             }
                                         },
@@ -47373,6 +47410,39 @@
                     },
                     "remaining_days": {
                         "type": "number"
+                    },
+                    "sick_leave": {
+                        "type": "object",
+                        "properties": {
+                            "days_taken": {
+                                "type": "integer"
+                            },
+                            "days_allowed": {
+                                "type": "integer"
+                            },
+                            "period_start": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "period_end": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "next_tier": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "days_taken",
+                            "days_allowed",
+                            "period_start",
+                            "period_end",
+                            "next_tier"
+                        ]
                     }
                 },
                 "required": [

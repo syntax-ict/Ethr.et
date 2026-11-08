@@ -275,7 +275,7 @@ class LeaveRequestController extends Controller
         $balances = LeaveBalance::query()
             ->where('employee_id', $user->employee_id)
             ->where('year', $year)
-            ->with('leaveType')
+            ->with('leaveType', 'employee')
             ->get();
 
         return LeaveBalanceResource::collection($balances);
@@ -290,7 +290,7 @@ class LeaveRequestController extends Controller
         $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
             ->where('year', $year)
-            ->with('leaveType')
+            ->with('leaveType', 'employee')
             ->get();
 
         return LeaveBalanceResource::collection($balances);
