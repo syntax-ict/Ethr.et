@@ -187,15 +187,20 @@ class TeamMonitoringController extends Controller
             return response()->json(['employees' => [], 'total_hours' => 0]);
         }
 
-        $from = Carbon::now()->startOfMonth();
-        $to = Carbon::now()->endOfMonth();
+        // The tenant's month, not UTC's: the first hours of an Addis Ababa
+        // month are still the previous month in UTC.
+        $today = TenantTime::today(app(CurrentTenant::class)->get());
+        $from = $today->startOfMonth();
+        $to = $today->endOfMonth();
 
         // Standard work day is 8 hours (480 minutes)
         $standardMinutes = 480;
 
         $records = AttendanceRecord::query()
             ->whereIn('employee_id', $teamIds)
-            ->whereBetween('date', [$from, $to])
+            ->whereDate('date', '>=', $from->format('Y-m-d'))
+            ->whereDate('date', '<=', $to->format('Y-m-d'))
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereNotNull('check_in')
             ->whereNotNull('check_out')
             ->with('employee:id,public_id,name')
