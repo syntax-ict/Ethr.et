@@ -97,6 +97,20 @@ adds their rows here, file by file.
 | A sound for every kiosk punch result, in the kiosk's language | #541 | KIO-023 |
 | Type only your number at the kiosk | #542 | KIO-024, KIO-025 |
 
+**Third edition, stage 2, file 03** (2026-11-08, from `main` at `af68fa495`):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Sign-in limits per organisation and per phone number; codes and authenticator codes lock after five wrong tries; even sign-in timing; the post-SSO redirect | #486, #492, #632 | AUTH-035 to AUTH-038, MFA-012, MFA-013, PWD-015; AUTH-026, ACT-009, IMP-002, SSO-005 changed |
+| Writes from another site's origin are signed out; a stale XSRF cookie is retried once | #632 | SES-008, SES-009, AUTH-036 |
+| The sign-in form, its other ways in, and the hero logo | #623, #638, #640 | AUTH-031 to AUTH-034 |
+| A department reaches its own units, never another department; dashboards closed below HR | #561 | ACC-017 to ACC-019; ACC-001, ACC-004, ACC-009 changed |
+| One role per job at level 70; nobody changes their own pay or enters their own hours; attendance tools follow a role's reach | #488, #490, #624 | ACC-020 to ACC-025; ACC-008 changed |
+| Access denied names the role; permissions as a list of names; the organisation's owner, who can hand it on | #478, #625 | ACC-026 to ACC-030; ORG-004, IMP-001 changed |
+| An organisation locked out for money can still see and pay its bill | #635 | TEN-024 to TEN-026; TEN-006, TEN-007, PLAN-011 changed |
+| Feature controls as an organisation sees them: grants, revokes, platform switches, switches that work or are not offered | #464, #480, #636 | PLAN-019 to PLAN-021, AUTH-039, ORG-008; PLAN-002, PLAN-014 to PLAN-018 rewritten |
+| A-Z review items: a trial converts to active, a trial extended from today, dunning | #624 | PLAN-007, PLAN-009, PLAN-012 changed |
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
@@ -206,6 +220,10 @@ builds it step by step):
 | Employees | The persona employees above, plus E-PAY-1 to E-PAY-8 with the golden-payslip salaries in [07, section 2](07-E2E-PAYROLL.md#2-golden-payslips); E-REC-1 (basic 6,600.00) and E-LATE-1 to E-LATE-3 (basic 8,800.00) for [07, sections 8 and 9](07-E2E-PAYROLL.md#8-attendance-reconciliation-before-payroll); E-NC, with no email and no phone (EMP-014); E-PH, with a phone and no email (EMP-015) |
 | Work site | "QA-Site North" at `9.0300, 38.7400`, radius 200 m, open to EMP2 and D1 (PLACE-001) |
 | Test files | A CSV employee import of 5 rows; an attendance import of 5 rows; a 1.4 MB JPEG; a 2.5 MB PDF; a 3 MB JPEG; a `.exe` renamed to `.pdf`; a 960 px and a 600 px wide JPEG; an Amharic CSV saved as UTF-8 with a byte order mark |
+
+File 03 needs four more items (a login shared across QA Audit and QA Isolation, a sub-unit under each
+of D1 and D2, MFA on EMP3, a `uat-` organisation holding an unpaid invoice); its *Extra test data*
+table lists them with the cases that use them.
 
 **Naming rule.** Everything a tester creates carries the prefix `QA-` (people, branches, announcements)
 or `uat-` (organisations, slugs), so it can be told apart and cleaned up.

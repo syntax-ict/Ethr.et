@@ -95,7 +95,7 @@ some of them, not a sign the test was run wrongly.
 
 | # | Area | Observation | Case |
 |---|---|---|---|
-| K-01 | Billing | Upgrading during a trial may leave the organisation in `trial`, so it is treated as inactive once the trial date passes | PLAN-007 |
+| K-01 | Billing | **Fixed in #624** (A-Z review, `BillingService.php:145`): a trial converted to a paid plan now becomes `active`. Verify | PLAN-007 |
 | K-02 | Leave | Messages for minimum notice and maximum consecutive days may show raw keys (`leave.min_notice`, `leave.max_consecutive`) | LR-009, LR-010 |
 | K-03 | Leave | Overlap message says "approved" even when the clash is with a pending request; the insufficient-balance message does not show remaining or requested days | LR-007, LR-006 |
 | K-04 | Leave | No half-day leave in the API | (none; product gap) |
@@ -113,9 +113,9 @@ some of them, not a sign the test was run wrongly.
 | K-16 | Hosting | Uploads over 2 MB are refused by the host's PHP limits (provider-locked). Expected: a clear refusal | DOC-002, ANN-005 |
 | K-17 | Mobile check-out | Check-out does not re-check photo consent and uses the general 8 MB image cap | MOB-008 |
 | K-18 | Copy | Backend messages are outside the copy-style check (some contain an em dash) | MKT-009 |
-| K-19 | Activation | The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
+| K-19 | Activation | *Re-checked 2026-11-08, still open.* The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
 | K-20 | Employees | **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
-| K-21 | Activation | A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
+| K-21 | Activation | *Re-checked 2026-11-08, still open; since #486 the wrong code also counts toward the 15-minute authenticator lock (MFA-012).* A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
 | K-22 | Payroll | Finance can open the Reconcile tab but cannot settle (no `leave.adjustBalance` or `attendance.manage`); HR can settle but cannot open the tab. Only the tenant admin can do both | RCN-005 |
 | K-23 | Field visits | The Visits date filter may use the UTC date, so a visit between 00:00 and 03:00 EAT shows under the previous day | VIS-005 |
 | K-24 | Public site | Since 2026-10-26 every organisation in use is named under Trusted by and listed for search engines unless switched off, including QA Audit, Syntax, QA Isolation and every `uat-` organisation from the moment it is created | LAND-007 |
@@ -133,11 +133,12 @@ some of them, not a sign the test was run wrongly.
 | K-36 | Registered phones | "One phone, one person" is checked per browser: a colleague in a different browser app on the same handset can register | PHN-010 |
 | K-37 | Payroll | A lateness deduction is not itemised on the payslip or register CSV; basic is shown already reduced (only the calculation log and the register API's `lateness_cents` show it) | LATE-005 |
 | K-38 | Payroll | `paid_on` is checked against today's UTC date, so between 00:00 and 03:00 EAT today's EAT date may be refused | PAID-002 |
-| K-39 | Address | A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
+| K-39 | Address | *Re-checked 2026-11-08, still open: `SettingsController@updateSubdomain` is not on `BlockImpersonatedActions`' list.* A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
 | K-40 | Attendance setup | The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
-| K-41 | Feature gate | **Superseded.** The console now switches features for every organisation and grants or revokes them for one, integrations and public pages can be switched off without a deploy, and every switch offered either works or is not shown. PLAN-014 to PLAN-018 predate these and are rewritten in stage 2 of the third edition; until then, read their expectations against the console | PLAN-017 |
+| K-41 | Feature gate | **Superseded.** The console now switches features for every organisation and grants or revokes them for one, integrations and public pages can be switched off without a deploy, and every switch offered either works or is not shown. PLAN-014 to PLAN-018 were rewritten for them, and PLAN-019 to PLAN-021 added | PLAN-014 to PLAN-021 |
 | K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
-| K-43 | Users | After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
+| K-43 | Users | *Re-checked 2026-11-08, still open.* After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
+| K-44 | Sign-in | Found 2026-11-08 while refreshing file 03. The sign-in form labels its one field "Email" and refuses anything else with "Enter a valid email address." (`login-form.tsx:52`), although the API can resolve a phone number or an employee code when the organisation turns those on, and a finished in-person activation says "Sign in with your employee code and the password you just chose." An employee with no email may have no way in from the form. Confirm before a pass that relies on in-person activation | AUTH-004, ACT-002 |
 
 ## 5. Production facts in one place
 
