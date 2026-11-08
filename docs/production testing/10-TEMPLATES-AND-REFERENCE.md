@@ -88,25 +88,24 @@ K-43) and from earlier production QA. **They
 are not confirmed on production.** Run the named case, then either file the defect or record
 "not reproduced" in the log.
 
-**The list predates about a hundred merged PRs** (see [README, *Keeping this pack current*](README.md#keeping-this-pack-current)).
-Some entries may have been fixed since. Each is re-checked against the code as its spec file is
-refreshed in stage 2 of the third edition; until then, a "not reproduced" is the likely result for
-some of them, not a sign the test was run wrongly.
+**Every entry was re-checked against the code on 2026-11-08** (third edition), and K-44 to K-51 were
+found then. "Fixed" means fixed in the code on `main`; it still needs verifying on production, and a
+fix that is merged but not released is recorded as still open there.
 
 | # | Area | Observation | Case |
 |---|---|---|---|
 | K-01 | Billing | **Fixed in #624** (A-Z review, `BillingService.php:145`): a trial converted to a paid plan now becomes `active`. Verify | PLAN-007 |
-| K-02 | Leave | Messages for minimum notice and maximum consecutive days may show raw keys (`leave.min_notice`, `leave.max_consecutive`) | LR-009, LR-010 |
-| K-03 | Leave | Overlap message says "approved" even when the clash is with a pending request; the insufficient-balance message does not show remaining or requested days | LR-007, LR-006 |
-| K-04 | Leave | No half-day leave in the API | (none; product gap) |
+| K-02 | Leave | **Fixed in #624** (A-Z review): `leave.min_notice` and `leave.max_consecutive` now have text in en, am and om. Verify | LR-009, LR-010 |
+| K-03 | Leave | *Re-checked 2026-11-08, still open, both halves; the controller passes remaining and requested days, but the message never uses them.* Overlap message says "approved" even when the clash is with a pending request; the insufficient-balance message does not show remaining or requested days | LR-007, LR-006 |
+| K-04 | Leave | *Re-checked 2026-11-08, still open.* No half-day leave in the API | (none; product gap) |
 | K-05 | Team attendance | **Confirmed in code 2026-11-08, worse than first written.** `summary.present` filters with `whereIn` on an enum-cast status (`TeamMonitoringController.php:88`), which never matches, so only members with no recorded status count as present: anyone present or late drops out and the figure can read 0. `late` (a plain `where`) is right | TEAM-002 |
 | K-06 | Team attendance | *Re-checked 2026-11-08, still open.* `/attendance/team` without a date may use the UTC date (between 00:00 and 03:00 EAT it shows yesterday) | TEAM-004 |
 | K-07 | Team overtime | *Re-checked 2026-11-08, still open; the month is also taken in UTC.* Voided records may be counted | TEAM-005 |
 | K-08 | Attendance | *Confirmed in the code 2026-11-08.* **Fixed 2026-10-24** (e9e76b85d): night-shift lateness after midnight is dated the night the shift began. Verify | SHF-004 |
 | K-09 | Attendance | *Confirmed in the code 2026-11-08.* **Fixed 2026-10-27** (#443): manual entry records a night shift crossing midnight. Verify | MAN-002 |
 | K-10 | Attendance import | *Confirmed in the code 2026-11-08.* **Fixed 2026-10-27** (#443): imported rows are rated against the day's shift. Verify | AIMP-002, CAP-002 |
-| K-11 | Contracts | The contracts-ending list includes contracts already past their end but still active. **By design** since #441 ("end within 30 days or have ended") | LIFE-006 |
-| K-12 | Approvals | Batch approval has no maximum size | LD-006 |
+| K-11 | Contracts | *Re-checked 2026-11-08, by design.* The contracts-ending list includes contracts already past their end but still active. **By design** since #441 ("end within 30 days or have ended") | LIFE-006 |
+| K-12 | Approvals | *Re-checked 2026-11-08, still open; each item's reason has no length limit either, while a single rejection allows 1,000 characters.* Batch approval has no maximum size | LD-006 |
 | K-13 | Payroll | *Re-checked 2026-11-08, still open; A-Z review decision D-F1 keeps it for the accountant.* There is no statutory transport-allowance exemption; taxability is the rule's own flag. Confirm with the accountant | PAY-004 |
 | K-14 | Console | *Re-checked 2026-11-08, still open; user search now also needs console MFA to read.* Platform user search and statutory layouts have no screen; API only | CON-P-017 |
 | K-15 | Security | **Answered in the code 2026-11-08:** `/api/docs` is installed on production but closed. Scramble's `RestrictedDocsAccess` lets only the `viewApiDocs` gate in outside `local`, and only a platform super admin passes it; anyone else gets 403. Confirm on production | SEC-007 |
@@ -114,7 +113,7 @@ some of them, not a sign the test was run wrongly.
 | K-17 | Mobile check-out | **Fixed in #624** (A-Z review): check-out re-checks photo consent and takes the 1.5 MB selfie limit. Verify | MOB-008 |
 | K-18 | Copy | *Re-checked 2026-11-08, still open:* 7 strings in `api/lang/en` carry a long dash (3 in `auth.php`, 2 in `personnel.php`, 1 each in `disciplinary.php` and `payroll.php`), as do the same keys in `am` and `om`, and `copy-style.test.ts` reads only `en.json` and `am.json`. `om.json`'s `admin_features.exception_title` has one too | MKT-009 |
 | K-19 | Activation | *Re-checked 2026-11-08, still open.* The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
-| K-20 | Employees | **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
+| K-20 | Employees | *Re-checked 2026-11-08.* **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
 | K-21 | Activation | *Re-checked 2026-11-08, still open; since #486 the wrong code also counts toward the 15-minute authenticator lock (MFA-012).* A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
 | K-22 | Payroll | *Re-checked 2026-11-08, still open.* Finance can open the Reconcile tab but cannot settle (no `leave.adjustBalance` or `attendance.manage`); HR can settle but cannot open the tab. Only the tenant admin can do both | RCN-005 |
 | K-23 | Field visits | *Re-checked 2026-11-08, still open.* The Visits date filter may use the UTC date, so a visit between 00:00 and 03:00 EAT shows under the previous day | VIS-005 |
@@ -136,13 +135,16 @@ some of them, not a sign the test was run wrongly.
 | K-39 | Address | *Re-checked 2026-11-08, still open: `SettingsController@updateSubdomain` is not on `BlockImpersonatedActions`' list.* A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
 | K-40 | Attendance setup | *Re-checked 2026-11-08, still open.* The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
 | K-41 | Feature gate | **Superseded.** The console now switches features for every organisation and grants or revokes them for one, integrations and public pages can be switched off without a deploy, and every switch offered either works or is not shown. PLAN-014 to PLAN-018 were rewritten for them, and PLAN-019 to PLAN-021 added | PLAN-014 to PLAN-021 |
-| K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
+| K-42 | Employees | *Re-checked 2026-11-08, still open; the sign-in fix in #652 does not change this form.* The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
 | K-43 | Users | *Re-checked 2026-11-08, still open.* After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
 | K-44 | Sign-in | **Fix open in #652 (not merged or deployed yet).** Found 2026-11-08 while refreshing file 03. The sign-in form labels its one field "Email" and refuses anything else with "Enter a valid email address." (`login-form.tsx:52`), although the API can resolve a phone number or an employee code when the organisation turns those on, and a finished in-person activation says "Sign in with your employee code and the password you just chose." An employee with no email may have no way in from the form. Confirm before a pass that relies on in-person activation | AUTH-004, ACT-002 |
 | K-45 | Public site | Found 2026-11-08 while refreshing file 08. The organisations sitemap gives each portal `hreflang` links for `en`, `am` and `x-default` only (`OrganisationSitemapController.php:108`), while the portal page itself declares `om` too. Search engines may not find the Afaan Oromoo portals from the sitemap | MKT-006 |
 | K-46 | Payroll | Found 2026-11-08 while refreshing file 07. An Art. 85 sick day approved in a period an approved run already paid is not refused: the period lock in `LeaveDecisionService.php:61` checks unpaid leave types only, and Sick Leave is a paid type. Its half-pay or unpaid deduction is never taken, the gap A-Z review E-03 closed for unpaid leave | SICK-004 |
 | K-47 | Payroll | Found 2026-11-08 while refreshing file 07. Finance can create, lower or cancel a loan or cost-sharing obligation on its own employee record: the controllers check the permission only, and #490's rule that nobody below the organisation admin changes their own pay does not reach deductions. Owner decision | LOAN-009 |
 | K-48 | Payslips | Found 2026-11-08 while refreshing file 07. The payslip PDF lists basic, the allowance rules and gross, but never overtime (`payslip.blade.php`; overtime is not in the entry's allowances), so with overtime the printed lines do not add up to gross | OUT-006 |
+| K-49 | Setup wizard | Found 2026-11-08 while refreshing file 04. A "General Company" sign-up is stored as type `general`, and the industry step keeps every industry whose key or base matches the type (`industry-config-step.tsx:80`). Ten catalogue industries have base `general`, so such an organisation sees only those ten, although the code says General keeps them all. "Show every type" is the workaround. The #499 test passes only because its fixture has no `general`-based industry | SET-008 |
+| K-50 | Leave | Found 2026-11-08 while refreshing file 06. Sick leave under Art. 85 is no longer held to the 30-day balance, but the Sick balance card still shows the 30-day figure, so after a long illness `remaining_days` goes below zero and the card shows the negative number | LB-012 |
+| K-51 | Leave | Found 2026-11-08 while refreshing file 06, owner decision. `GET /leave/balance/{employee}` needs `leave.viewAll`: a supervisor gets 403 even for their own report, while Finance can read anyone's balance. The pack said a supervisor could see a report's balance; LB-008 now states what the code does | LB-008 |
 
 ## 5. Production facts in one place
 
