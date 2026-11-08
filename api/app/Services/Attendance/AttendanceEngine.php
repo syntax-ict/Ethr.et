@@ -493,7 +493,7 @@ final class AttendanceEngine
                 }
 
                 return $r->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MAX_OPEN_HOURS * 60
-                    || ($nearShiftEnd && $r->shift?->crossesMidnight() === true);
+                    || ($nearShiftEnd && $r->shift->crossesMidnight());
             });
     }
 
