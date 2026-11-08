@@ -85,6 +85,8 @@ it('returns the host-resolved tenant display info', function () {
                     'sso' => false,
                     'otp' => app(OtpService::class)->isAvailable(),
                     'email_code' => app(OtpService::class)->isAvailable(OtpService::CHANNEL_EMAIL),
+                    // What the sign-in field asks for: email unless the organisation chose.
+                    'identifiers' => ['email'],
                 ],
                 'default_locale' => 'en',
                 'billing_only' => false,
