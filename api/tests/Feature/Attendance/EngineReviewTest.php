@@ -193,8 +193,9 @@ test('a punch that fails after its insert leaves no record and no photo, and its
     ]);
 
     // Anything after the insert: here a listener of the punch's own event.
+    // The controller reports it and answers with a sentence (A-Z review D-10).
     Event::listen(AttendanceRecorded::class, fn () => throw new RuntimeException('after the insert'));
-    expect($send)->toThrow(RuntimeException::class, 'after the insert');
+    $send()->assertStatus(422);
 
     expect(AttendanceRecord::query()->count())->toBe(0)
         ->and(array_filter(Storage::disk('local')->allFiles(), fn (string $p) => str_contains($p, '/selfies/')))->toBe([]);
