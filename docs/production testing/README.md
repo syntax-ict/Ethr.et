@@ -6,7 +6,12 @@ the user acceptance test (UAT) guide and the end-to-end (E2E) test specification
 
 Written 2026-10-24 from the code on `main` (`c2f86e234`) and the product documents, and brought up
 to date on 2026-10-29 from `main` at `87d12d4d0` (PRs #406 to #462; the list is in
-[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)). The figures
+[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), with kiosk cases added on
+2026-11-03. **The third edition** (2026-11-08) brings every spec file up to date with `main` at
+`d4b3524ea4` (PRs to #646): stage 1 corrected the facts that had gone wrong (hosting quota, Afaan
+Oromoo, the schema check in the smoke test), and stage 2 refreshed each spec file, re-tiered
+priorities so that P1 means release-blocking (about a quarter of the cases, more in payroll), and
+re-checked every known issue against the code. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
@@ -40,6 +45,27 @@ Every case in documents 03 to 09 has the same columns:
 
 Personas used in the steps (TA, HR, FIN, DA, SUP, EMP, EMP2, PA) are defined in
 [01-TEST-PLAN.md, section 5](01-TEST-PLAN.md#5-test-accounts-and-personas).
+
+## Keeping this pack current
+
+<!-- qa-pack-baseline: d4b3524ea4 -->
+
+The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
+above names the last commit of `main` the whole pack was brought up to date from. To see what has
+merged since and is cited nowhere in the pack:
+
+```bash
+scripts/qa-pack-coverage.sh                # since the baseline, up to origin/main
+scripts/qa-pack-coverage.sh v2026.11.06.9  # up to the release under test
+```
+
+It leaves out docs, chore, ci, test and build changes (`--all` shows them). A PR in its list is not
+necessarily a gap: a refactor has nothing a tester can see. A user-visible change gets a case, and
+the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
+**Before a release pass, run it against the release tag:** a case for a change it lists is recorded
+as **Not covered** in the execution log, and the test summary says how many there were. Move the
+marker forward only when every file has been brought up to date (last moved 2026-11-08, third
+edition).
 
 ## The three rules that matter most on production
 
