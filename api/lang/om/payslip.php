@@ -12,6 +12,7 @@ return [
     'position' => 'Gita hojii',
     'earnings' => 'Galiiwwan',
     'basic_salary' => 'Mindaa bu\'uuraa',
+    'overtime' => 'Kaffaltii sa\'aatii dabalataa',
     'allowance' => 'Abbaltii',
     'gross' => 'Mindaa waliigalaa',
     'deductions' => 'Hir\'isoota',

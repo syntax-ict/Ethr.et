@@ -62,6 +62,7 @@ final class PayslipPdfService
             // position on every payslip. Every other reader already uses `title`.
             'position' => $entry->employee->position?->title ?? '',
             'basic_salary_cents' => $entry->basic_salary_cents,
+            'overtime_cents' => self::overtimeCents($entry),
             'allowances' => $entry->allowances ?? [],
             'gross_cents' => $entry->gross_cents,
             'income_tax_cents' => $entry->income_tax_cents,
@@ -105,13 +106,34 @@ final class PayslipPdfService
 
     private static function rate(PayrollEntry $entry, string $key): ?string
     {
+        $pension = self::step($entry, 'pension');
+
+        return is_numeric($pension[$key] ?? null) ? RunRegisterService::rateLabel([(float) $pension[$key]]) : null;
+    }
+
+    /**
+     * The overtime the entry paid. It has no column: gross is basic, overtime
+     * and allowances, and only the log holds the overtime, so the payslip
+     * printed lines that did not add up to gross (known issue K-48). Read as
+     * the run register reads it.
+     */
+    private static function overtimeCents(PayrollEntry $entry): int
+    {
+        $overtime = self::step($entry, 'overtime');
+
+        return is_numeric($overtime['overtime_amount_cents'] ?? null) ? (int) $overtime['overtime_amount_cents'] : 0;
+    }
+
+    /** @return array<array-key, mixed> one step of the entry's calculation log, empty when it has none */
+    private static function step(PayrollEntry $entry, string $name): array
+    {
         $log = $entry->getAttribute('calculation_log');
         foreach ((is_array($log) && is_array($log['steps'] ?? null)) ? $log['steps'] : [] as $step) {
-            if (is_array($step) && ($step['step'] ?? null) === 'pension' && is_numeric($step[$key] ?? null)) {
-                return RunRegisterService::rateLabel([(float) $step[$key]]);
+            if (is_array($step) && ($step['step'] ?? null) === $name) {
+                return $step;
             }
         }
 
-        return null;
+        return [];
     }
 }

@@ -2,12 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRule;
 use App\Models\PayrollRun;
 use App\Models\Position;
+use App\Models\Shift;
+use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 /*
  * PayslipPdfService, directly (was PayslipPositionTest, which held the first
@@ -158,4 +164,57 @@ it('prints blanks rather than failing for an employee with no department or posi
 
     expect($data['department'])->toBe('')
         ->and($data['position'])->toBe('');
+});
+
+// Known issue K-48: the payslip printed basic, the allowance rules and gross,
+// and never the overtime the engine paid, so with overtime the printed lines
+// did not add up to gross. The figures are golden case G8's (overtime 150.00)
+// with a transport allowance beside it, worked out by hand.
+it('prints the overtime line, so the earnings add up to gross', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id, 'salary_cents' => 880000, 'hire_date' => '2025-01-01', 'status' => 'confirmed',
+    ]);
+    PayrollRule::query()->create([
+        'tenant_id' => $tenant->id, 'name' => 'Transport allowance', 'type' => 'fixed', 'category' => 'allowance',
+        'formula' => ['amount_cents' => 60000], 'is_taxable' => false, 'is_active' => true, 'sort_order' => 10,
+    ]);
+    // Two hours past an 08:30-17:30 shift.
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'shift_id' => Shift::factory()->create(['tenant_id' => $tenant->id])->id,
+        'date' => '2026-10-15',
+        'check_in' => Carbon::parse('2026-10-15 08:30', 'Africa/Addis_Ababa')->utc(),
+        'check_out' => Carbon::parse('2026-10-15 19:30', 'Africa/Addis_Ababa')->utc(),
+    ]);
+    $run = app(PayrollEngine::class)->process($tenant->id, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'), $user->id)->run;
+    $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+
+    $data = payslipPdfCapture($entry);
+    $html = view('payslip', $data)->render();
+
+    // Hourly rate 8,800 / 22 / 8 = 50; two normal hours at 1.5 = 150.
+    // Gross 8,800 + 150 + 600 = 9,550.
+    $printed = $data['basic_salary_cents'] + ($data['overtime_cents'] ?? 0) + (int) collect($data['allowances'])->sum('amount_cents');
+    expect($data['gross_cents'])->toBe(955000)
+        ->and($printed)->toBe($data['gross_cents'])
+        ->and($html)->toContain('Overtime')
+        ->and($html)->toContain('150.00');
+});
+
+it('prints no overtime line when the entry paid none', function () {
+    $tenant = createTenant();
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+    $entry = PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+    ]);
+
+    $data = payslipPdfCapture($entry);
+
+    expect($data['overtime_cents'] ?? 0)->toBe(0)
+        ->and(view('payslip', $data)->render())->not->toContain('Overtime');
 });
