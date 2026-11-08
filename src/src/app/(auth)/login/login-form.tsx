@@ -16,7 +16,7 @@ import {
   KeyRound,
   MessageSquareText,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   canonicalHandoffUrl,
   takeCanonicalHandoff,
@@ -31,6 +31,46 @@ import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 import { cn } from "@/lib/utils";
+
+/**
+ * What a person may type in the sign-in field, as AuthIdentifierResolver
+ * names them. The organisation enables some of these, in its own order.
+ */
+const SIGN_IN_IDENTIFIERS = [
+  "email",
+  "phone",
+  "employee_code",
+  "username",
+] as const;
+type SignInIdentifier = (typeof SIGN_IN_IDENTIFIERS)[number];
+
+/**
+ * The organisation's list, keeping only types this form knows. Empty or
+ * absent (an API older than K-44) is email, the server's own default.
+ */
+function knownIdentifiers(listed: string[] | undefined): SignInIdentifier[] {
+  const known = (listed ?? []).filter((type): type is SignInIdentifier =>
+    (SIGN_IN_IDENTIFIERS as readonly string[]).includes(type),
+  );
+  return known.length > 0 ? [...new Set(known)] : ["email"];
+}
+
+/**
+ * The sign-in field accepts whatever the organisation enables (K-44). It was
+ * an email field everywhere, so an employee activated in person, told to sign
+ * in with their employee code, was refused before the server was asked.
+ *
+ * The email check stays only where email is the one way in. Elsewhere the
+ * value only has to be there: the server resolves it, and refuses anything it
+ * cannot match with the same words as a wrong password.
+ */
+function loginSchemaFor(emailOnly: boolean) {
+  return loginSchema.extend({
+    identifier: emailOnly
+      ? z.string().email("auth.email_invalid")
+      : z.string().trim().min(1, "auth.identifier_required"),
+  });
+}
 
 const loginSchema = z.object({
   // Deliberately optional, and the server decides.
@@ -48,8 +88,9 @@ const loginSchema = z.object({
   tenant: z.string().optional(),
   // Each message is a key: the form translates it where it is shown. A
   // malformed address used to be told "Invalid credentials", which sent
-  // people to reset a password that was never checked.
-  email: z.string().email("auth.email_invalid"),
+  // people to reset a password that was never checked. Replaced per
+  // organisation by loginSchemaFor().
+  identifier: z.string(),
   password: z.string().min(1, "auth.password_required"),
 });
 type LoginForm = z.infer<typeof loginSchema>;
@@ -101,6 +142,20 @@ export function LoginForm() {
   const [ssoLoading, setSsoLoading] = useState(false);
   const [arrivedByHandoff, setArrivedByHandoff] = useState(false);
 
+  // Where the organisation is known, what it enables; its sign-in page while
+  // that loads, email as before. On the shared page the organisation is only
+  // typed, so every type is possible and the server decides. A platform super
+  // admin always signs in by email.
+  const identifiers: SignInIdentifier[] =
+    hostAppContext === "platform"
+      ? ["email"]
+      : hostAppContext === "tenant" || onLanding
+        ? knownIdentifiers(tenantSignIn?.identifiers)
+        : [...SIGN_IN_IDENTIFIERS];
+  const emailOnly = identifiers.length === 1 && identifiers[0] === "email";
+  const phoneOnly = identifiers.length === 1 && identifiers[0] === "phone";
+  const schema = useMemo(() => loginSchemaFor(emailOnly), [emailOnly]);
+
   const {
     register,
     handleSubmit,
@@ -108,13 +163,13 @@ export function LoginForm() {
     setFocus,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       tenant:
         typeof window !== "undefined"
           ? (organisationFromEntryUrl() ?? localStorage.getItem("tenant") ?? "")
           : "",
-      email: "",
+      identifier: "",
       password: "",
     },
   });
@@ -126,13 +181,13 @@ export function LoginForm() {
     if (!handoff) return;
 
     if (handoff.lang) setLocale(handoff.lang);
-    if (handoff.email) setValue("email", handoff.email);
+    if (handoff.email) setValue("identifier", handoff.email);
     // Read once from the address bar — an external system — and the URL is
     // cleared as it is read, so this cannot be derived during render: a
     // second render would find nothing. The documented exception to the rule.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setArrivedByHandoff(true);
-    setFocus(handoff.email ? "password" : "email");
+    setFocus(handoff.email ? "password" : "identifier");
   }, [setValue, setFocus]);
 
   async function onSubmit(data: LoginForm) {
@@ -161,8 +216,10 @@ export function LoginForm() {
     }
 
     try {
+      // `identifier`, which the server reads first; `email` is its alias for
+      // clients older than K-44.
       const result = await login({
-        email: data.email,
+        identifier: data.identifier,
         password: data.password,
         tenant: effectiveTenant,
       });
@@ -214,8 +271,11 @@ export function LoginForm() {
           ? axiosError.response.data?.canonical_url
           : null;
       if (canonicalUrl && /^https?:\/\//i.test(canonicalUrl)) {
+        // Only an email travels: the other page takes nothing else from a
+        // URL, so an employee code would ride along for nothing.
+        const carried = data.identifier.includes("@") ? data.identifier : "";
         window.location.assign(
-          canonicalHandoffUrl(canonicalUrl, data.email, locale),
+          canonicalHandoffUrl(canonicalUrl, carried, locale),
         );
         return;
       }
@@ -331,16 +391,59 @@ export function LoginForm() {
           })
         : t("auth.sign_in_to", "Sign in to ETHR");
 
+  // Named once in a sentence, once as a label: "employee code or email" and
+  // "Employee code or email".
+  const identifierName = (type: SignInIdentifier, inline: boolean) => {
+    switch (type) {
+      case "phone":
+        return inline
+          ? t("auth.identifier_phone_inline", "phone number")
+          : t("auth.identifier_phone", "Phone number");
+      case "employee_code":
+        return inline
+          ? t("auth.identifier_employee_code_inline", "employee code")
+          : t("auth.identifier_employee_code", "Employee code");
+      case "username":
+        return inline
+          ? t("auth.identifier_username_inline", "username")
+          : t("auth.identifier_username", "Username");
+      default:
+        return inline
+          ? t("auth.identifier_email_inline", "email")
+          : t("auth.identifier_email", "Email");
+    }
+  };
+  const identifierList = (inline: boolean) => {
+    const [a, b, c, d] = identifiers.map((type, i) =>
+      identifierName(type, inline || i > 0),
+    );
+    if (d)
+      return t("auth.identifier_or_four", ":a, :b, :c or :d", { a, b, c, d });
+    if (c) return t("auth.identifier_or_three", ":a, :b or :c", { a, b, c });
+    if (b) return t("auth.identifier_or_two", ":a or :b", { a, b });
+    return a;
+  };
+  const identifierLabel = emailOnly
+    ? t("auth.email", "Email")
+    : identifierList(false);
+  const identifierInSentence = identifierList(true);
+
   const subtitle =
     hostAppContext === "platform"
       ? t(
           "auth.platform_subtitle",
           "Platform administration: super admin sign-in",
         )
-      : t(
-          "auth.enter_credentials",
-          "Enter your email and password to continue.",
-        );
+      : emailOnly
+        ? t(
+            "auth.enter_credentials",
+            "Enter your email and password to continue.",
+          )
+        : t(
+            "auth.enter_credentials_identifier",
+            "Enter your :label and password to continue.",
+            { label: identifierInSentence },
+          );
 
   // The surface around the form already carries the mark: the portal's hero,
   // the two-panel layout's brand panel, and on a phone its organisation band.
@@ -498,22 +601,28 @@ export function LoginForm() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="email">{t("auth.email", "Email")}</Label>
+          <Label htmlFor="identifier">{identifierLabel}</Label>
           <Input
-            id="email"
-            type="email"
-            inputMode="email"
+            id="identifier"
+            type={emailOnly ? "email" : "text"}
+            inputMode={emailOnly ? "email" : phoneOnly ? "tel" : "text"}
             autoCapitalize="none"
             spellCheck={false}
-            {...register("email")}
-            autoComplete="email"
-            aria-invalid={errors.email ? true : undefined}
-            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("identifier")}
+            autoComplete={emailOnly ? "email" : "username"}
+            aria-invalid={errors.identifier ? true : undefined}
+            aria-describedby={
+              errors.identifier ? "identifier-error" : undefined
+            }
             className="h-11"
           />
-          {errors.email && (
-            <p id="email-error" className={fieldError}>
-              {t(errors.email.message!, "Enter a valid email address.")}
+          {errors.identifier && (
+            <p id="identifier-error" className={fieldError}>
+              {errors.identifier.message === "auth.identifier_required"
+                ? t("auth.identifier_required", "Enter your :label.", {
+                    label: identifierInSentence,
+                  })
+                : t(errors.identifier.message!, "Enter a valid email address.")}
             </p>
           )}
         </div>

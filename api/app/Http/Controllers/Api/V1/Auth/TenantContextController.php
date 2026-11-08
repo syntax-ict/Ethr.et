@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\SsoSetting;
+use App\Services\Auth\AuthIdentifierResolver;
 use App\Services\Auth\OtpService;
 use App\Services\CurrentTenant;
 use App\Support\TenantBrand;
@@ -37,6 +38,10 @@ class TenantContextController extends Controller
         // Reached while inactive only when locked out for money (ResolveTenant
         // lets that through): the sign-in page says so, and still signs in.
         $billingOnly = (bool) ($tenant !== null && ! $tenant->isActive());
+        // What the sign-in field asks for (K-44). The organisation's own
+        // setting, which the field's label shows anyway: it says nothing about
+        // any one account, and a refusal is the same words whatever was typed.
+        $identifiers = AuthIdentifierResolver::enabledFor($tenant);
 
         return response()->json([
             'tenant' => $tenant ? [
@@ -53,6 +58,7 @@ class TenantContextController extends Controller
                     'sso' => SsoSetting::query()->where('is_enabled', true)->exists(),
                     'otp' => $otp->isAvailable(),
                     'email_code' => $otp->isAvailable(OtpService::CHANNEL_EMAIL),
+                    'identifiers' => $identifiers,
                 ],
                 'default_locale' => $tenant->default_locale,
                 'billing_only' => $billingOnly,

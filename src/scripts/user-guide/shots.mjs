@@ -134,13 +134,13 @@ export const SHOTS = [
       const org = page.getByPlaceholder("acme");
       if (await org.isVisible().catch(() => false)) await org.fill("namuna");
       await page
-        .locator('input[type="email"]')
+        .locator('#identifier')
         .fill("selam.tesfaye@sample.ethr.et");
       await page.locator('input[type="password"]').fill("password");
     },
     markers: [
       { target: (page) => page.getByPlaceholder("acme") },
-      { target: (page) => page.locator('input[type="email"]') },
+      { target: (page) => page.locator('#identifier') },
       { target: (page) => page.locator('input[type="password"]') },
       { target: (page) => page.locator('button[type="submit"]') },
       { target: link("የይለፍ ቃል ረሳኽ?") },
