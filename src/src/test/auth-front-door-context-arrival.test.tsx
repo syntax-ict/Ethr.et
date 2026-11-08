@@ -202,7 +202,7 @@ describe("the organisation's front door when its context arrives", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Sign in$/i }));
     await waitFor(() =>
       expect(sent).toMatchObject({
-        email: "abebe@acme.et",
+        identifier: "abebe@acme.et",
         password: "Correct-Horse-Battery-9",
       }),
     );

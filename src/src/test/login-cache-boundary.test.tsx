@@ -101,7 +101,7 @@ describe("the login cache boundary", () => {
 
     // By id: "Password" also matches the "Forgot password?" link.
     const { container } = utils;
-    const email = container.querySelector("#email") as HTMLInputElement;
+    const email = container.querySelector("#identifier") as HTMLInputElement;
     const password = container.querySelector("#password") as HTMLInputElement;
 
     await waitFor(() => expect(email).toBeInTheDocument());

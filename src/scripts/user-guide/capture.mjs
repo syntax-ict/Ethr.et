@@ -82,7 +82,7 @@ async function signIn(browser, role, device) {
   await page.goto(`${WEB}/login`);
   const org = page.getByPlaceholder("acme");
   if (await org.isVisible().catch(() => false)) await org.fill(ORG);
-  await page.locator('input[type="email"]').fill(account.email);
+  await page.locator('#identifier').fill(account.email);
   await page.locator('input[type="password"]').fill(account.password);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), {

@@ -35853,6 +35853,9 @@ export interface operations {
                                 sso: boolean;
                                 otp: boolean;
                                 email_code: boolean;
+                                identifiers: [
+                                    "email"
+                                ] | unknown[];
                             };
                             default_locale: string;
                             billing_only: boolean;

@@ -14,7 +14,7 @@ test.describe('Authentication', () => {
     if (await tenantField.isVisible().catch(() => false)) {
       await tenantField.fill(DEMO_TENANT);
     }
-    await page.fill('input[type="email"]', DEMO_EMAIL);
+    await page.fill('#identifier', DEMO_EMAIL);
     await page.fill('input[type="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');
     // Locale-agnostic: the app defaults to Amharic, so assert the error summary
