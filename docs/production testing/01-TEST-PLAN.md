@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, 2026-11-03 for the kiosk upgrade from `main` at `a136364e1`, and 2026-11-08 for the facts that had gone stale (third edition, stage 1; section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, 2026-11-03 for the kiosk upgrade from `main` at `a136364e1`, and 2026-11-08 as the third edition, every spec file brought up to date from `main` at `d4b3524ea4` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -61,10 +61,10 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 `/release.json` (S-01) before running these cases: a merged change is not necessarily deployed.** A
 case for a change that is not live is recorded as Blocked, not Fail.
 
-**Changes merged after `87d12d4d0` are not in this table yet** unless a row names them. List them
-with `scripts/qa-pack-coverage.sh <release tag>` ([README](README.md#keeping-this-pack-current)) and
-record each user-visible one as **Not covered** in the execution log. Stage 2 of the third edition
-adds their rows here, file by file.
+**The third edition's rows follow, file by file, up to `d4b3524ea4`.** A change merged after that is
+not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
+the execution log.
 
 | Change | PRs | Cases |
 |---|---|---|
@@ -110,6 +110,80 @@ adds their rows here, file by file.
 | An organisation locked out for money can still see and pay its bill | #635 | TEN-024 to TEN-026; TEN-006, TEN-007, PLAN-011 changed |
 | Feature controls as an organisation sees them: grants, revokes, platform switches, switches that work or are not offered | #464, #480, #636 | PLAN-019 to PLAN-021, AUTH-039, ORG-008; PLAN-002, PLAN-014 to PLAN-018 rewritten |
 | A-Z review items: a trial converts to active, a trial extended from today, dunning | #624 | PLAN-007, PLAN-009, PLAN-012 changed |
+
+**Third edition, stage 2, file 08** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Get help, from an employee to their HR and on to ETHR | #471 | HELP-001 to HELP-006 |
+| Dashboards: a department head's today, Organisation today band, deciding requests from the dashboard, the reader's calendar, phones, fewer requests | #561, #569, #571, #574, #575, #578, #581, #584, #591, #594, #597, #633, #467 | DASH-006 to DASH-016; DASH-002, NXT-003 changed |
+| Charts and printing | #584, #597, #613, #614, #615, #617, #619 | CHT-001 to CHT-004, PRN-001, PRN-002 |
+| Reports and analytics: monthly timesheet, reports by organisation type, figures that count what they say, period comparison | #472, #474, #477, #479 | REP-006 to REP-009, ANA-002, ANA-003 |
+| Console feature controls (the organisation's side is in 03) | #464, #480, #636 | FC-001 to FC-004; CON-P-003 changed |
+| Backups off-host, disk watch, mail budget | #509, #517, #530, #532, #534 | BAK-001 to BAK-006; OPC-001, OPC-005, CON-P-011 changed |
+| Release status reads pending migrations | #620 | OPC-009 |
+| Console: an organisation's administrators, tenant journey, A-Z review corrections | #624, #625, #643 | CON-P-024 to CON-P-027, NXT-007; CON-P-001, CON-P-002, CON-P-005, CON-P-014, CON-P-016 changed |
+| Notices in the reader's language and only to active people; vacancies on the public site and not over-filled; announcements fit | #466, #482, #510, #624 | NOT-006, NOT-007, VAC-004, ANN-009; NOT-005, VAC-001 changed |
+| Public site: what the product does, call links, feed out of shared caches | #507, #519, #632 | MKT-013, MKT-014, LAND-009; MKT-006, NEWS-003 changed |
+| Webhooks: delivery id signed, held deliveries expire, connect to the checked address | #489, #624 | WH-008, WH-009; WH-003, KEY-006 changed |
+
+**Third edition, stage 2, file 05** (2026-11-08). #646 merged after the rest; check S-01 before running its cases:
+
+| Change | PRs | Cases |
+|---|---|---|
+| A single-use, short-lived QR on the kiosk screen | #641 | KIO-026 to KIO-028; KIO-010, PHN-007 changed |
+| One record a day across every method; no duplicate departure | #644 | PUNCH-007, PUNCH-009, AIMP-004; ATT-006, AIMP-002 changed |
+| Every punch method names the day type and what the punch came to; a second check-in answers "Already checked in" instead of opening a conflict | #646 | MOB-013, PUNCH-008, PUNCH-010; ATT-001, ATT-002, ATT-004, ATT-005, ATT-007, KIO-003, CON-001, MOB-011 changed |
+| ADMS terminals report who is enrolled, and belong to the organisation whose address they call | #461, #498 | DEV-014, DEV-015 |
+| The attendance page title says whose records it shows; times in the reader's clock | #511, #508, #512, #514 | ATT-014, ATT-015; MOB-012, SHF-012 changed |
+| A-Z review: a required geofence for QR and web too, a retry key answers only its own person, check-out photo consent and size, corrections, offline order, devices | #624 | QR-009, ATT-013, COR-010, OFF-010, DEV-016; ATT-011, MOB-003, MOB-007, MOB-008 changed |
+| Attendance refusals by role and reach (cases in 03) | #490 | ACC-023, ACC-024; PHN-001 changed |
+
+**Third edition, stage 2, file 09** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Afaan Oromoo end to end: the interface, the platform's labels and plans, an organisation's portal | #546, #549, #552, #553 | L10N-010 to L10N-013; L10N-009 changed |
+| One word for attendance and a payroll run; the chosen language follows the user; a switch refetches server text; one Language and calendar menu | #513, #485, #478, #484, #539 | L10N-014 to L10N-017 |
+| Ethiopian time of day: a display preference, on every screen, in notices and in files | #508, #512, #514, #520 | L10N-018 to L10N-020; L10N-008 changed |
+| The installed app opens offline; pay data never kept offline, a 401 empties the cache; offline copies expire after a week; the offline page | #483, #494, #496, #466, #469 | PWA-006 to PWA-010; PWA-001, PWA-002, SEC-010 changed |
+| Sign-in limits: the numbers (the flow is in 03) | #486, #632 | RL-012 to RL-015; RL-001 to RL-003 changed |
+| Cron and kiosk tokens from headers and bodies only; outbound connections only to the checked address; headers and framing | #497, #489, #495, #632 | SEC-028, SEC-029; SEC-003, SEC-006, SEC-011, SEC-018, RL-009 changed |
+| Every route that names a record refuses another organisation's admin (automated, L0) | #645 | Section 2 note |
+| Focus after the skip link, a 12 px floor | #588 | A11Y-007, A11Y-008 |
+| Lighter pages: no Sentry without a DSN, no full dictionary on the 404 or the dashboard, charts only for those shown them, pre-compressed files | #487, #491, #500, #518, #538 | PERF-008 to PERF-012 |
+
+**Third edition, stage 2, file 07** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| An organisation sets its own working days per month (22 by default) | #642 | PAY-032 to PAY-034; sections 1.3, 1.4, 9, 11 and STAT-005 changed |
+| Sick leave pays as Art. 85 sets out: a month in full, two at half, three unpaid | #637 | SICK-001 to SICK-004 (section 12); PAY-012 changed |
+| A run too big for one request finishes across several | #639 | PAY-035 |
+| A-Z review: overtime at the contract's hourly rate (golden G8), allowances prorated by days employed, the journal's new accounts, the approved-period check | #624 | PAY-036 to PAY-038, OUT-012; PAY-007, OUT-008, OUT-009 changed |
+| Payslips in the reader's language and calendar | #520 | OUT-011; OUT-004, OUT-006 changed |
+| Finance and its own deductions; pay-setting contracts | #490, #488 | LOAN-009; PAY-020 changed (the role rules are ACC-020, ACC-022 in 03) |
+| A run reads what is the same for the organisation once (figures must not move) | #625 | PAY-011 changed |
+
+**Third edition, stage 2, file 06** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Each organisation chooses its leave year; Ethiopian by default unless leave is already recorded | #521, #536 | LB-009 to LB-011 |
+| HR cancels approved leave or ends it early, and the balance moves back | #634 | LD-010 to LD-015; LR-012 changed |
+| Sick leave under Art. 85, the leave side (the pay side is 07 section 12) | #637 | LR-018, LR-019, LB-012; LT-001 changed |
+| Deciding requests from the dashboard, the approval engine's side (the dashboard is DASH-009) | #578 | LD-016, LD-017; LD-006 changed |
+| A-Z review: notice and length messages, working-day counting, reminders in the reader's language | #624 | LR-020, LR-021; LR-009, LR-010, LD-005, CH-010 changed |
+
+**Third edition, stage 2, file 04** (2026-11-08). Wizard cases run on a fresh `uat-setup-<date>` organisation:
+
+| Change | PRs | Cases |
+|---|---|---|
+| The wizard offers only the kind of organisation chosen at sign-up | #499 | SET-008; SET-001 changed |
+| Bring people in from a spreadsheet inside the wizard: Excel paste, CSV, header detection | #501 | SET-009 to SET-011; SET-005a changed |
+| The People step counts existing staff, reads Ethiopian hire dates, warns about missing ones, and its example follows the calendar | #505, #506 | SET-012 to SET-014 |
+| Public listing, admin name, pasted hire dates, honest readiness | #481 | SET-016, SET-017; SET-006 changed |
+| A-Z review: Ethiopian dates in the import, People step limits, pay data in imports and profile reviews, structure deletions, signed file links | #624, #625 | SET-015, IMP-E-015, IMP-E-016, PRO-011, DOC-011; ORG-S-004, EMP-005, EMP-008, REC-009, DOC-001, PRO-007 changed |
 
 ## 3. Approach
 
@@ -223,7 +297,9 @@ builds it step by step):
 
 File 03 needs four more items (a login shared across QA Audit and QA Isolation, a sub-unit under each
 of D1 and D2, MFA on EMP3, a `uat-` organisation holding an unpaid invoice); its *Extra test data*
-table lists them with the cases that use them.
+table lists them with the cases that use them. File 07 adds E-PAY-9 (golden G8), E-PAY-10, E-SICK-1 and
+E-SICK-2 in its own *Extra test data* table, and file 04 a fresh `uat-setup-<date>` organisation, spreadsheet
+people lists and a custom role "QA Pay-less HR" in its.
 
 **Naming rule.** Everything a tester creates carries the prefix `QA-` (people, branches, announcements)
 or `uat-` (organisations, slugs), so it can be told apart and cleaned up.
@@ -293,8 +369,11 @@ These are not optional. A breach of rule 1 or 2 is itself an incident.
    data exports, tenant delete and restore, backups.
 5. **Use only addresses and phone numbers the test team controls** for invitations, sign-in codes,
    password resets, digests and scheduled reports.
-6. **Mind the rate limits.** Five failed sign-ins in a minute block that account for a minute; ten in
-   fifteen minutes lock it for fifteen. Two payroll runs per hour per organisation. Five imports per
+6. **Mind the rate limits.** Five failed sign-ins in a minute for one identifier, at one organisation,
+   from one address, block it until a minute after the first failure; ten in fifteen minutes lock it
+   until fifteen minutes after the first. A phone number counts once however it is written. Five
+   wrong authenticator codes or sign-in codes lock that account for fifteen minutes from the first,
+   from any address ([09, section 3](09-NON-FUNCTIONAL.md#3-rate-limits)). Two payroll runs per hour per organisation. Five imports per
    hour per organisation. Plan negative tests so they do not lock the accounts you need next.
 7. **Do not try to break the host.** No load tests, no scanners, no large-file floods. Performance
    checks are single requests.
