@@ -152,6 +152,29 @@ it('shows a person their own week and leave balances after their code and PIN', 
         ->assertJsonMissingPath('employee.email');
 });
 
+// The kiosk picked balances by the Gregorian year, so an organisation on the
+// Ethiopian leave year saw none after Meskerem (found with K-50, 2026-11-08).
+it('shows the balances of the leave year the organisation keeps', function () {
+    Carbon::setTestNow(Carbon::parse('2026-10-28 09:00:00', 'Africa/Addis_Ababa'));
+    [$tenant, $session, $person] = selfServiceKiosk();
+    $tenant->update(['settings' => [...($tenant->settings ?? []), 'calendar' => 'ethiopian', 'leave_year' => 'ethiopian']]);
+    $annual = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual leave']);
+    foreach ([2026 => 5, 2019 => 16] as $year => $days) {
+        LeaveBalance::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $person->id, 'leave_type_id' => $annual->id,
+            'year' => $year, 'entitled_days' => $days, 'used_days' => 0, 'pending_days' => 0,
+        ]);
+    }
+
+    $pass = selfServicePass($tenant, $session);
+
+    // 28 October 2026 is Tikimt 2019 on the Ethiopian calendar.
+    selfServiceCall($tenant, $session, 'GET', '/self-service', [], ['X-Kiosk-Pass' => $pass])
+        ->assertOk()
+        ->assertJsonCount(1, 'leave_balances')
+        ->assertJsonPath('leave_balances.0.remaining_days', 16);
+});
+
 it('gives one answer for an unknown code and a wrong PIN', function () {
     [$tenant, $session] = selfServiceKiosk();
 

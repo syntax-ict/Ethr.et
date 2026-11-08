@@ -22,6 +22,7 @@ use App\Services\Features\FeatureGate;
 use App\Services\Kiosk\KioskEmployeeCode;
 use App\Services\Kiosk\KioskPass;
 use App\Services\Kiosk\KioskPinGuard;
+use App\Services\Leave\LeaveYear;
 use App\Support\FeatureUnavailable;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
@@ -136,9 +137,11 @@ class KioskSelfServiceController extends Controller
             ->orderByDesc('check_in')
             ->get();
 
+        // The organisation's own leave year: on the Ethiopian one, the
+        // Gregorian year showed nothing from Meskerem on.
         $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
-            ->where('year', $today->year)
+            ->where('year', LeaveYear::forTenantId($employee->tenant_id)->current())
             ->with('leaveType', 'employee')
             ->get();
 
