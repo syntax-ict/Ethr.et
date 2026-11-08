@@ -10,7 +10,7 @@ return [
     'recall_end_date' => 'The new end date must be on or after the first day and before the current last day.',
     'recall_no_days' => 'Ending the leave on that date leaves no working days. Cancel the leave instead.',
     'recall_period_closed' => 'Some of the days given back fall in a payroll period that is already approved. Void and reprocess that run first, so pay follows the change.',
-    'payroll_period_closed' => 'This unpaid leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.',
+    'payroll_period_closed' => 'This leave falls in a payroll period that is already approved. Void and reprocess that run first, so the deduction is paid from it.',
     'not_own_request' => 'You can only modify your own leave requests.',
     'overlap' => 'You already have an approved leave request that overlaps with these dates.',
     'no_working_days' => 'The selected dates do not include any working days.',
