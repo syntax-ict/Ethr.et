@@ -283,7 +283,7 @@ class LeaveRequestController extends Controller
 
     public function employeeBalance(Request $request, Employee $employee): AnonymousResourceCollection
     {
-        $this->authorize('viewAll', LeaveRequest::class);
+        $this->authorize('viewBalance', [LeaveRequest::class, $employee]);
 
         $year = $request->integer('year', LeaveYear::forTenantId($employee->tenant_id)->current());
 

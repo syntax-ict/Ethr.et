@@ -20,6 +20,7 @@ return [
     'import_field_badge_number' => 'badge number',
     'number_format_invalid' => 'Use one {SEQ:n} token, n from 1 to 8, with letters, digits, - _ . or / around it. For example EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Someone else in your organisation must change your own pay or bank details.',
+    'cannot_change_own_deductions' => 'Someone else in your organisation must set up or change your own loans and deductions.',
     'cannot_review_own_profile' => 'You cannot review a change to your own profile.',
     'cannot_review_pay_field' => 'Deciding a change to a TIN or bank account needs permission to edit pay data.',
     'cannot_review_filed_profile' => 'You filed this change, so someone else must review it.',

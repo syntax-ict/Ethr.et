@@ -20,6 +20,7 @@ return [
     'import_field_badge_number' => 'lakkoofsa baajii',
     'number_format_invalid' => 'Mallattoo {SEQ:n} tokko fayyadamaa, n 1 hanga 8, naannoo isaatti qubee, dijiitii, - _ . ykn / waliin. Fakkeenyaaf EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Mindaa ykn odeeffannoo baankii keessanii nama biraa dhaabbata keessan keessaatu jijjiiruu qaba.',
+    'cannot_change_own_deductions' => "Liqaa ykn hir'isa mindaa keessanii nama biraa dhaabbata keessan keessaatu galmeessuu ykn jijjiiruu qaba.",
     'cannot_review_own_profile' => 'Jijjiirama piroofaayilii keessanii ilaaluu hin dandeessan.',
     'cannot_review_pay_field' => 'Jijjiirama TIN ykn herrega baankii murteessuuf hayyama odeeffannoo kaffaltii gulaaluu barbaachisa.',
     'cannot_review_filed_profile' => 'Jijjiirama kana isin galchitaniittu, kanaaf nama biraatu ilaaluu qaba.',
