@@ -74,7 +74,7 @@ test.describe('Two-factor authentication', () => {
     if (await tenantField.isEditable().catch(() => false)) {
       await tenantField.fill(DEMO_TENANT);
     }
-    await page.fill('input[type="email"]', HR_EMAIL);
+    await page.fill('#identifier', HR_EMAIL);
     await page.fill('input[type="password"]', HR_PASS);
     await page.click('button[type="submit"]');
 

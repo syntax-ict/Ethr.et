@@ -39,7 +39,7 @@ function submit() {
     </QueryClientProvider>,
   );
 
-  const email = container.querySelector("#email") as HTMLInputElement;
+  const email = container.querySelector("#identifier") as HTMLInputElement;
   const password = container.querySelector("#password") as HTMLInputElement;
   fireEvent.change(email, { target: { value: "admin@acme.et" } });
   fireEvent.change(password, { target: { value: "correct-horse" } });
@@ -160,9 +160,9 @@ describe("arriving at the canonical address from the apex", () => {
 
     const status = await findByRole("status");
     expect(status.textContent).toMatch(/signs in at this address/);
-    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
-      "admin@acme.et",
-    );
+    expect(
+      (container.querySelector("#identifier") as HTMLInputElement).value,
+    ).toBe("admin@acme.et");
     expect(replaceState).toHaveBeenCalled();
     expect(replaceState.mock.calls.at(-1)?.[2]).toBe("/login");
   });
@@ -179,9 +179,9 @@ describe("arriving at the canonical address from the apex", () => {
     const { queryByRole, container } = arrive("#section-2");
 
     expect(queryByRole("status")).toBeNull();
-    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
-      "",
-    );
+    expect(
+      (container.querySelector("#identifier") as HTMLInputElement).value,
+    ).toBe("");
   });
 
   it("does not put something that is not an email into the field", async () => {
@@ -190,8 +190,8 @@ describe("arriving at the canonical address from the apex", () => {
     );
 
     await findByRole("status");
-    expect((container.querySelector("#email") as HTMLInputElement).value).toBe(
-      "",
-    );
+    expect(
+      (container.querySelector("#identifier") as HTMLInputElement).value,
+    ).toBe("");
   });
 });

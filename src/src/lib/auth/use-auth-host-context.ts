@@ -124,6 +124,11 @@ export interface TenantSignIn {
   otp: boolean;
   /** Codes by email: wherever mail is configured. */
   email_code?: boolean;
+  /**
+   * What the sign-in field accepts, in the organisation's order
+   * (AuthIdentifierResolver). Absent from an API older than K-44: email.
+   */
+  identifiers?: string[];
 }
 
 interface TenantContextResponse {
