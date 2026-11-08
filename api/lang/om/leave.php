@@ -10,7 +10,7 @@ return [
     'recall_end_date' => 'Guyyaan xumuraa haaraan guyyaa jalqabaa irraa eegalee fi guyyaa xumuraa ammaa dura ta\'uu qaba.',
     'recall_no_days' => 'Boqonnaa guyyaa sanatti xumuruun guyyaa hojii tokkollee hin hambisu. Kanaa mannaa boqonnaa haqaa.',
     'recall_period_closed' => 'Guyyoota deebi\'an keessaa tokko tokko yeroo kaffaltii mindaa duraan raggaafame keessa jiru. Kaffaltiin jijjiirama akka hordofuuf dura kaffaltii sana haqaatii irra deebi\'aa hojjechiisaa.',
-    'payroll_period_closed' => 'Boqonnaan kaffaltii malee kun yeroo kaffaltii mindaa duraan raggaafame keessa jira. Hir\'isni akka itti herregamuuf dura kaffaltii sana haqaatii irra deebi\'aa hojjechiisaa.',
+    'payroll_period_closed' => 'Boqonnaan kun yeroo kaffaltii mindaa duraan raggaafame keessa jira. Hir\'isni akka itti herregamuuf dura kaffaltii sana haqaatii irra deebi\'aa hojjechiisaa.',
     'not_own_request' => 'Gaaffiiwwan boqonnaa keessan qofa jijjiiruu dandeessu.',
     'overlap' => 'Gaaffii boqonnaa raggaasifame kan guyyoota kana waliin walitti bu\'u duraan qabdu.',
     'no_working_days' => 'Guyyoonni filataman guyyaa hojii tokkollee hin qabatan.',

@@ -12,6 +12,7 @@ return [
     'position' => 'Position',
     'earnings' => 'Earnings',
     'basic_salary' => 'Basic salary',
+    'overtime' => 'Overtime',
     'allowance' => 'Allowance',
     'gross' => 'Gross salary',
     'deductions' => 'Deductions',

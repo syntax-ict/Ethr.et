@@ -12,6 +12,7 @@ return [
     'position' => 'የሥራ መደብ',
     'earnings' => 'ገቢዎች',
     'basic_salary' => 'መሠረታዊ ደመወዝ',
+    'overtime' => 'የትርፍ ሰዓት ክፍያ',
     'allowance' => 'አበል',
     'gross' => 'ጠቅላላ ደመወዝ',
     'deductions' => 'ተቀናሾች',

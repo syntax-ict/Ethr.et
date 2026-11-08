@@ -67,6 +67,12 @@
                 <td>{{ __('payslip.basic_salary', [], $locale) }}</td>
                 <td class="amount">{{ number_format($basic_salary_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
+            @if(($overtime_cents ?? 0) > 0)
+            <tr>
+                <td>{{ __('payslip.overtime', [], $locale) }}</td>
+                <td class="amount">{{ number_format($overtime_cents / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
+            </tr>
+            @endif
             @foreach($allowances as $allowance)
             <tr>
                 <td>{{ $allowance['name'] ?? $allowance['type'] ?? __('payslip.allowance', [], $locale) }}</td>
