@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, 2026-11-03 for the kiosk upgrade from `main` at `a136364e1`, and 2026-11-08 for the facts that had gone stale (third edition, stage 1; section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, 2026-11-03 for the kiosk upgrade from `main` at `a136364e1`, and 2026-11-08 as the third edition, every spec file brought up to date from `main` at `d4b3524ea4` (section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -61,10 +61,10 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 `/release.json` (S-01) before running these cases: a merged change is not necessarily deployed.** A
 case for a change that is not live is recorded as Blocked, not Fail.
 
-**Changes merged after `87d12d4d0` are not in this table yet** unless a row names them. List them
-with `scripts/qa-pack-coverage.sh <release tag>` ([README](README.md#keeping-this-pack-current)) and
-record each user-visible one as **Not covered** in the execution log. Stage 2 of the third edition
-adds their rows here, file by file.
+**The third edition's rows follow, file by file, up to `d4b3524ea4`.** A change merged after that is
+not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
+the execution log.
 
 | Change | PRs | Cases |
 |---|---|---|
@@ -164,6 +164,26 @@ adds their rows here, file by file.
 | Payslips in the reader's language and calendar | #520 | OUT-011; OUT-004, OUT-006 changed |
 | Finance and its own deductions; pay-setting contracts | #490, #488 | LOAN-009; PAY-020 changed (the role rules are ACC-020, ACC-022 in 03) |
 | A run reads what is the same for the organisation once (figures must not move) | #625 | PAY-011 changed |
+
+**Third edition, stage 2, file 06** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Each organisation chooses its leave year; Ethiopian by default unless leave is already recorded | #521, #536 | LB-009 to LB-011 |
+| HR cancels approved leave or ends it early, and the balance moves back | #634 | LD-010 to LD-015; LR-012 changed |
+| Sick leave under Art. 85, the leave side (the pay side is 07 section 12) | #637 | LR-018, LR-019, LB-012; LT-001 changed |
+| Deciding requests from the dashboard, the approval engine's side (the dashboard is DASH-009) | #578 | LD-016, LD-017; LD-006 changed |
+| A-Z review: notice and length messages, working-day counting, reminders in the reader's language | #624 | LR-020, LR-021; LR-009, LR-010, LD-005, CH-010 changed |
+
+**Third edition, stage 2, file 04** (2026-11-08). Wizard cases run on a fresh `uat-setup-<date>` organisation:
+
+| Change | PRs | Cases |
+|---|---|---|
+| The wizard offers only the kind of organisation chosen at sign-up | #499 | SET-008; SET-001 changed |
+| Bring people in from a spreadsheet inside the wizard: Excel paste, CSV, header detection | #501 | SET-009 to SET-011; SET-005a changed |
+| The People step counts existing staff, reads Ethiopian hire dates, warns about missing ones, and its example follows the calendar | #505, #506 | SET-012 to SET-014 |
+| Public listing, admin name, pasted hire dates, honest readiness | #481 | SET-016, SET-017; SET-006 changed |
+| A-Z review: Ethiopian dates in the import, People step limits, pay data in imports and profile reviews, structure deletions, signed file links | #624, #625 | SET-015, IMP-E-015, IMP-E-016, PRO-011, DOC-011; ORG-S-004, EMP-005, EMP-008, REC-009, DOC-001, PRO-007 changed |
 
 ## 3. Approach
 
@@ -278,7 +298,8 @@ builds it step by step):
 File 03 needs four more items (a login shared across QA Audit and QA Isolation, a sub-unit under each
 of D1 and D2, MFA on EMP3, a `uat-` organisation holding an unpaid invoice); its *Extra test data*
 table lists them with the cases that use them. File 07 adds E-PAY-9 (golden G8), E-PAY-10, E-SICK-1 and
-E-SICK-2 in its own *Extra test data* table.
+E-SICK-2 in its own *Extra test data* table, and file 04 a fresh `uat-setup-<date>` organisation, spreadsheet
+people lists and a custom role "QA Pay-less HR" in its.
 
 **Naming rule.** Everything a tester creates carries the prefix `QA-` (people, branches, announcements)
 or `uat-` (organisations, slugs), so it can be told apart and cleaned up.
