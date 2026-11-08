@@ -109,10 +109,10 @@ some of them, not a sign the test was run wrongly.
 | K-12 | Approvals | Batch approval has no maximum size | LD-006 |
 | K-13 | Payroll | There is no statutory transport-allowance exemption; taxability is the rule's own flag. Confirm with the accountant | PAY-004 |
 | K-14 | Console | *Re-checked 2026-11-08, still open; user search now also needs console MFA to read.* Platform user search and statutory layouts have no screen; API only | CON-P-017 |
-| K-15 | Security | Whether the API documentation UI at `/api/docs` should be public on production | SEC-007 |
-| K-16 | Hosting | Uploads over 2 MB are refused by the host's PHP limits (provider-locked). Expected: a clear refusal | DOC-002, ANN-005 |
+| K-15 | Security | **Answered in the code 2026-11-08:** `/api/docs` is installed on production but closed. Scramble's `RestrictedDocsAccess` lets only the `viewApiDocs` gate in outside `local`, and only a platform super admin passes it; anyone else gets 403. Confirm on production | SEC-007 |
+| K-16 | Hosting | *Re-checked 2026-11-08, still open on the host side.* Uploads over 2 MB are refused by the host's PHP limits (provider-locked). The application reports the real limit in `/auth/me` (`upload_limit_bytes`) and refuses an oversized request by name. Expected: a clear refusal | DOC-002, ANN-005, OPS-005 |
 | K-17 | Mobile check-out | **Fixed in #624** (A-Z review): check-out re-checks photo consent and takes the 1.5 MB selfie limit. Verify | MOB-008 |
-| K-18 | Copy | Backend messages are outside the copy-style check (some contain an em dash) | MKT-009 |
+| K-18 | Copy | *Re-checked 2026-11-08, still open:* 7 strings in `api/lang/en` carry a long dash (3 in `auth.php`, 2 in `personnel.php`, 1 each in `disciplinary.php` and `payroll.php`), as do the same keys in `am` and `om`, and `copy-style.test.ts` reads only `en.json` and `am.json`. `om.json`'s `admin_features.exception_title` has one too | MKT-009 |
 | K-19 | Activation | *Re-checked 2026-11-08, still open.* The typed-code form `/login/activate` is linked from nowhere and says "Invalid activation link" without `?tenant=`, though HR's dialog tells staff to "open the sign-in page and type the code" | ACT-012 |
 | K-20 | Employees | **Fixed in #458 for the API and the profile:** an employee with a phone and no email now gets a login for in-person activation, and the code works while text invitations are off. The form's box is still disabled (K-42) | EMP-015, INV-010 |
 | K-21 | Activation | *Re-checked 2026-11-08, still open; since #486 the wrong code also counts toward the 15-minute authenticator lock (MFA-012).* A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |

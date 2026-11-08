@@ -139,6 +139,20 @@ adds their rows here, file by file.
 | A-Z review: a required geofence for QR and web too, a retry key answers only its own person, check-out photo consent and size, corrections, offline order, devices | #624 | QR-009, ATT-013, COR-010, OFF-010, DEV-016; ATT-011, MOB-003, MOB-007, MOB-008 changed |
 | Attendance refusals by role and reach (cases in 03) | #490 | ACC-023, ACC-024; PHN-001 changed |
 
+**Third edition, stage 2, file 09** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Afaan Oromoo end to end: the interface, the platform's labels and plans, an organisation's portal | #546, #549, #552, #553 | L10N-010 to L10N-013; L10N-009 changed |
+| One word for attendance and a payroll run; the chosen language follows the user; a switch refetches server text; one Language and calendar menu | #513, #485, #478, #484, #539 | L10N-014 to L10N-017 |
+| Ethiopian time of day: a display preference, on every screen, in notices and in files | #508, #512, #514, #520 | L10N-018 to L10N-020; L10N-008 changed |
+| The installed app opens offline; pay data never kept offline, a 401 empties the cache; offline copies expire after a week; the offline page | #483, #494, #496, #466, #469 | PWA-006 to PWA-010; PWA-001, PWA-002, SEC-010 changed |
+| Sign-in limits: the numbers (the flow is in 03) | #486, #632 | RL-012 to RL-015; RL-001 to RL-003 changed |
+| Cron and kiosk tokens from headers and bodies only; outbound connections only to the checked address; headers and framing | #497, #489, #495, #632 | SEC-028, SEC-029; SEC-003, SEC-006, SEC-011, SEC-018, RL-009 changed |
+| Every route that names a record refuses another organisation's admin (automated, L0) | #645 | Section 2 note |
+| Focus after the skip link, a 12 px floor | #588 | A11Y-007, A11Y-008 |
+| Lighter pages: no Sentry without a DSN, no full dictionary on the 404 or the dashboard, charts only for those shown them, pre-compressed files | #487, #491, #500, #518, #538 | PERF-008 to PERF-012 |
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
@@ -321,8 +335,11 @@ These are not optional. A breach of rule 1 or 2 is itself an incident.
    data exports, tenant delete and restore, backups.
 5. **Use only addresses and phone numbers the test team controls** for invitations, sign-in codes,
    password resets, digests and scheduled reports.
-6. **Mind the rate limits.** Five failed sign-ins in a minute block that account for a minute; ten in
-   fifteen minutes lock it for fifteen. Two payroll runs per hour per organisation. Five imports per
+6. **Mind the rate limits.** Five failed sign-ins in a minute for one identifier, at one organisation,
+   from one address, block it until a minute after the first failure; ten in fifteen minutes lock it
+   until fifteen minutes after the first. A phone number counts once however it is written. Five
+   wrong authenticator codes or sign-in codes lock that account for fifteen minutes from the first,
+   from any address ([09, section 3](09-NON-FUNCTIONAL.md#3-rate-limits)). Two payroll runs per hour per organisation. Five imports per
    hour per organisation. Plan negative tests so they do not lock the accounts you need next.
 7. **Do not try to break the host.** No load tests, no scanners, no large-file floods. Performance
    checks are single requests.
