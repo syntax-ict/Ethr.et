@@ -57,6 +57,7 @@ class CostSharingController extends Controller
         Gate::authorize('payroll.manageCostSharing');
 
         $employee = Employee::where('public_id', $request->validated('employee_public_id'))->firstOrFail();
+        Gate::authorize('changeDeductions', [Employee::class, $employee->id]);
 
         // One active obligation per employee, enforced here rather than by a
         // unique index: the constraint is "at most one *active*", which a plain
@@ -113,6 +114,7 @@ class CostSharingController extends Controller
         EmployeeCostSharing $costSharing,
     ): JsonResponse|EmployeeCostSharingResource {
         Gate::authorize('payroll.manageCostSharing');
+        Gate::authorize('changeDeductions', [Employee::class, $costSharing->employee_id]);
 
         $validated = $request->validated();
 

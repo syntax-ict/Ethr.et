@@ -57,9 +57,13 @@ class LeaveDecisionService
         // approved run, it changed no payslip and no later run picked it up,
         // so the employee kept pay the decision said to deduct (A-Z review
         // E-03). As for attendance, the run is voided and reprocessed first.
-        // Paid leave recorded late moves no pay and stays open.
+        // Art. 85 sick leave too, though a paid type: a day can fall at half
+        // or no pay, and each one moves the tier of every sick day after it,
+        // so a late full-pay day changes later deductions (known issue K-46).
+        // Other paid leave recorded late moves no pay and stays open.
+        $movesPay = $leaveRequest->leaveType?->is_paid === false || $leaveRequest->leaveType?->follows_art85 === true;
         if ($approving
-            && $leaveRequest->leaveType?->is_paid === false
+            && $movesPay
             && app(PayrollPeriodLock::class)->anyClosed($leaveRequest->employee_id, $leaveRequest->start_date, $leaveRequest->end_date)) {
             return ApprovalRefusal::payrollPeriodClosed(__('leave.payroll_period_closed'));
         }

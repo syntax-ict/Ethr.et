@@ -15,6 +15,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\User;
 use App\Services\Leave\LeaveYear;
+use App\Services\Leave\SickLeaveTiers;
 use Carbon\Carbon;
 
 final class EmployeeDashboardService
@@ -109,8 +110,24 @@ final class EmployeeDashboardService
                 'entitled' => (float) $b->entitled_days,
                 'used' => (float) $b->used_days,
                 'remaining' => $b->remainingDays(),
+                'sick_leave' => $this->sickLeave($b, $employee),
             ])
             ->all();
+    }
+
+    /**
+     * Where the person stands in the twelve months of an Art. 85 sick type,
+     * in place of a remainder a long illness drives below zero (K-50).
+     *
+     * @return array{days_taken: int, days_allowed: int, period_start: string|null, period_end: string|null, next_tier: string}|null
+     */
+    private function sickLeave(LeaveBalance $balance, Employee $employee): ?array
+    {
+        if ($balance->leaveType?->follows_art85 !== true) {
+            return null;
+        }
+
+        return app(SickLeaveTiers::class)->standingToday($employee);
     }
 
     private function latestPayslip($employee): ?array

@@ -275,7 +275,7 @@ class LeaveRequestController extends Controller
         $balances = LeaveBalance::query()
             ->where('employee_id', $user->employee_id)
             ->where('year', $year)
-            ->with('leaveType')
+            ->with('leaveType', 'employee')
             ->get();
 
         return LeaveBalanceResource::collection($balances);
@@ -283,14 +283,14 @@ class LeaveRequestController extends Controller
 
     public function employeeBalance(Request $request, Employee $employee): AnonymousResourceCollection
     {
-        $this->authorize('viewAll', LeaveRequest::class);
+        $this->authorize('viewBalance', [LeaveRequest::class, $employee]);
 
         $year = $request->integer('year', LeaveYear::forTenantId($employee->tenant_id)->current());
 
         $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
             ->where('year', $year)
-            ->with('leaveType')
+            ->with('leaveType', 'employee')
             ->get();
 
         return LeaveBalanceResource::collection($balances);
