@@ -36,7 +36,7 @@ async function saveAuthState(baseURL: string, email: string, password: string, o
   if (await tenantField.isEditable().catch(() => false)) {
     await tenantField.fill(DEMO_TENANT);
   }
-  await page.fill('input[type="email"]', email);
+  await page.fill('#identifier', email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
   // The dev/container API cold-starts ~17-18s on first hit, which blew past a fixed 15s here

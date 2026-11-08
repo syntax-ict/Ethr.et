@@ -106,14 +106,8 @@ class LoginRequest extends FormRequest
         // resolver is tenant-scoped and denies ambiguous identifiers, so a value
         // can never authenticate the wrong account. Password is still verified
         // here, in constant time via Hash::check.
-        $tenant = $currentTenant->get();
-        // Read settings via getAttribute so the array-cast's loose static type
-        // (array|string) doesn't defeat the offset access.
-        $rawSettings = $tenant?->getAttribute('settings');
-        $settings = is_array($rawSettings) ? $rawSettings : [];
-        $enabledTypes = AuthIdentifierResolver::sanitizeTypes(
-            (array) ($settings['login_identifiers'] ?? AuthIdentifierResolver::DEFAULT)
-        );
+        // The same list GET /auth/tenant-context gives the sign-in form.
+        $enabledTypes = AuthIdentifierResolver::enabledFor($currentTenant->get());
 
         $user = app(AuthIdentifierResolver::class)->resolve(
             (int) $currentTenant->id(),

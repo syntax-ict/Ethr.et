@@ -101,7 +101,7 @@ export async function mintSuperAdminSession(): Promise<boolean> {
     // the form does not submit a typed subdomain, it *routes* to that tenant's
     // own login host (`tenantHostUrl()`, because the session cookie is
     // host-only), which would capture a tenant session instead.
-    await page.fill('input[type="email"]', SUPER_ADMIN_EMAIL);
+    await page.fill('#identifier', SUPER_ADMIN_EMAIL);
     await page.fill('input[type="password"]', SUPER_ADMIN_PASS);
     await page.click('button[type="submit"]');
 
@@ -164,7 +164,7 @@ export async function login(page: Page, email: string, password: string) {
   if (await tenantField.isEditable().catch(() => false)) {
     await tenantField.fill(DEMO_TENANT);
   }
-  await page.fill('[data-testid="email-input"], input[type="email"], input[name="email"]', email);
+  await page.fill('#identifier', email);
   await page.fill('[data-testid="password-input"], input[type="password"], input[name="password"]', password);
   await page.click('[data-testid="login-button"], button[type="submit"]');
   // Shares E2E_LOGIN_TIMEOUT with global-setup: the API cold-starts ~17-18s on a

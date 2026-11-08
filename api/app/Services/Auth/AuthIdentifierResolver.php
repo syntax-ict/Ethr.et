@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Auth;
 
 use App\Models\Employee;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -101,6 +102,22 @@ final class AuthIdentifierResolver
         )));
 
         return $clean === [] ? self::DEFAULT : $clean;
+    }
+
+    /**
+     * The identifier types this tenant signs in with, in its order: what
+     * `LoginRequest` resolves against, and what the sign-in form asks for.
+     *
+     * @return array<int, string>
+     */
+    public static function enabledFor(?Tenant $tenant): array
+    {
+        // Read via getAttribute so the array cast's loose static type
+        // (array|string) does not defeat the offset access.
+        $raw = $tenant?->getAttribute('settings');
+        $settings = is_array($raw) ? $raw : [];
+
+        return self::sanitizeTypes((array) ($settings['login_identifiers'] ?? self::DEFAULT));
     }
 
     private function byEmail(int $tenantId, string $value): ?User

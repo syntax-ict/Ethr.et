@@ -155,9 +155,10 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
     // domain (hidden on real tenant subdomains), so don't assume email is
     // the first tab stop — just verify each field is keyboard-reachable
     // and the whole form can ultimately be submitted via keyboard.
-    await page.locator('input[type="email"]').focus();
+    // `#identifier`: an email field only where email is the one way in (K-44).
+    await page.locator('#identifier').focus();
     const emailFocused = await page.evaluate(
-      () => document.activeElement?.getAttribute('type') === 'email',
+      () => document.activeElement?.id === 'identifier',
     );
     expect(emailFocused).toBe(true);
 
