@@ -65,7 +65,9 @@ class TeamMonitoringController extends Controller
                 if ($kind === ExpectedDay::ON_LEAVE) {
                     $status = 'on_leave';
                 } elseif ($record) {
-                    $status = $record->status ?? ($record->check_out ? 'present' : 'checked_in');
+                    $status = $record->status === AttendanceStatus::PENDING
+                        ? ($record->check_out ? 'present' : 'checked_in')
+                        : $record->status->value;
                 } elseif ($kind === ExpectedDay::WORKDAY) {
                     $status = 'absent';
                 } else {
@@ -84,8 +86,10 @@ class TeamMonitoringController extends Controller
                 ];
             });
 
+        // Each status is a plain string by now: `whereIn` compares strictly
+        // and never matches an enum, which once counted nobody present.
         $summary = [
-            'present' => $employees->whereIn('status', ['present', 'checked_in', 'late'])->count(),
+            'present' => $employees->whereIn('status', ['present', 'checked_in', 'late', 'early_leave'])->count(),
             'absent' => $employees->where('status', 'absent')->count(),
             'late' => $employees->where('status', 'late')->count(),
             'on_leave' => $employees->where('status', 'on_leave')->count(),
