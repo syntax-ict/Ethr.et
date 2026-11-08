@@ -139,7 +139,7 @@ class KioskSelfServiceController extends Controller
         $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
             ->where('year', $today->year)
-            ->with('leaveType')
+            ->with('leaveType', 'employee')
             ->get();
 
         return response()->json([

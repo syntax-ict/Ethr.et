@@ -10056,6 +10056,13 @@ export interface components {
             used_days: number;
             pending_days: number;
             remaining_days: number;
+            sick_leave?: {
+                days_taken: number;
+                days_allowed: number;
+                period_start: string | null;
+                period_end: string | null;
+                next_tier: string;
+            };
         };
         /** KioskPersonResource */
         KioskPersonResource: {
@@ -10130,6 +10137,13 @@ export interface components {
             carried_days: number;
             pending_days: number;
             remaining_days: number;
+            sick_leave?: {
+                days_taken: number;
+                days_allowed: number;
+                period_start: string | null;
+                period_end: string | null;
+                next_tier: string;
+            };
         };
         /** LeaveRequestResource */
         LeaveRequestResource: {
@@ -19102,6 +19116,13 @@ export interface operations {
                             entitled: number;
                             used: number;
                             remaining: number;
+                            sick_leave: {
+                                days_taken: number;
+                                days_allowed: number;
+                                period_start: string | null;
+                                period_end: string | null;
+                                next_tier: string;
+                            } | null;
                         }[];
                         latest_payslip: {
                             period: string;

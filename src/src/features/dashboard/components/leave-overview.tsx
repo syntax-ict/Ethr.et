@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, CalendarDays, Plus, TreePalm } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WidgetError } from "./widget-error";
+import { sickNextTierLabel } from "@/features/leave/sick-leave";
 
 export function LeaveOverview() {
   const { t, locale } = useT();
@@ -95,7 +96,15 @@ export function LeaveOverview() {
         ) : (
           <div className="space-y-4">
             {balances.map((b, i) => {
-              const { entitled, used, remaining } = b;
+              // Art. 85 sick leave counts days taken against six months
+              // within twelve, not the 30-day entitlement, which a long
+              // illness drove below zero (K-50).
+              const sick = b.sick_leave;
+              const entitled = sick ? sick.days_allowed : b.entitled;
+              const used = sick ? sick.days_taken : b.used;
+              const remaining = sick
+                ? sick.days_allowed - sick.days_taken
+                : Math.max(0, b.remaining);
               // Null once the leave type has been deleted. The Amharic name
               // travels with it (dashboard review, 2026-11-03, PR 10).
               const type = b.type
@@ -103,7 +112,7 @@ export function LeaveOverview() {
                 : t("dashboard.leave", "Leave");
               const pct =
                 entitled > 0 ? Math.round((used / entitled) * 100) : 0;
-              const isLow = remaining <= 3 && entitled > 0;
+              const isLow = !sick && remaining <= 3 && entitled > 0;
 
               return (
                 <div
@@ -121,7 +130,7 @@ export function LeaveOverview() {
                         </span>
                       )}
                       <span className="text-xs font-semibold tabular-nums text-foreground">
-                        {remaining}
+                        {sick ? used : remaining}
                         <span className="font-normal text-muted-foreground">
                           /{entitled}
                         </span>
@@ -147,9 +156,11 @@ export function LeaveOverview() {
                       })}
                     </span>
                     <span>
-                      {t("dashboard.remaining_count", ":count remaining", {
-                        count: remaining,
-                      })}
+                      {sick
+                        ? sickNextTierLabel(t, sick.next_tier)
+                        : t("dashboard.remaining_count", ":count remaining", {
+                            count: remaining,
+                          })}
                     </span>
                   </div>
                 </div>
