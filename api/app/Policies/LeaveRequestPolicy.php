@@ -65,6 +65,24 @@ class LeaveRequestPolicy
         return $user->hasPermission('leave.manageTypes');
     }
 
+    /**
+     * Your own balance, anyone's with leave.viewAll, and the people your
+     * scope reaches with leave.viewTeam: a supervisor deciding a report's
+     * request reads the balance it draws on.
+     */
+    public function viewBalance(User $user, Employee $employee): bool
+    {
+        if ($user->employee_id !== null && $employee->id === $user->employee_id) {
+            return true;
+        }
+
+        if ($user->hasPermission('leave.viewAll')) {
+            return true;
+        }
+
+        return $user->hasPermission('leave.viewTeam') && $user->canAccessEmployee($employee);
+    }
+
     public function view(User $user, LeaveRequest $leaveRequest): bool
     {
         // Owners can always view their own request.

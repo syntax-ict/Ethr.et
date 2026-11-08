@@ -681,6 +681,43 @@ test('hr admin can view employee balance', function () {
     $response->assertOk();
 });
 
+// K-51 (owner decision 2026-11-08): a supervisor deciding a report's request
+// reads the balance it draws on, and nobody else's.
+test('a supervisor can view a direct report balance and no one else outside the team', function () {
+    $tenant = createTenant();
+    $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $report = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+    $stranger = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'sup_bal']);
+
+    LeaveBalance::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $report->id,
+        'leave_type_id' => $leaveType->id,
+        'year' => now()->year,
+        'entitled_days' => 20,
+    ]);
+
+    actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/leave/balance";
+
+    test()->getJson("{$base}/{$report->public_id}")->assertOk()->assertJsonCount(1);
+    test()->getJson("{$base}/{$stranger->public_id}")->assertForbidden();
+    test()->getJson("{$base}/{$supervisor->public_id}")->assertOk();
+});
+
+test('an employee can read only their own balance by id', function () {
+    $tenant = createTenant();
+    $self = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    actingAsUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $self->id], $tenant);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/leave/balance";
+
+    test()->getJson("{$base}/{$self->public_id}")->assertOk();
+    test()->getJson("{$base}/{$colleague->public_id}")->assertForbidden();
+});
+
 // ── Balance Service ──
 
 // LeaveBalanceService::calculateBalance() had no caller (audit B2); the live

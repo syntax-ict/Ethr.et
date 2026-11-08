@@ -21,6 +21,7 @@ return [
     'import_field_badge_number' => 'የባጅ ቁጥር',
     'number_format_invalid' => 'አንድ {SEQ:n} ምልክት ይጠቀሙ (n ከ1 እስከ 8)፣ ዙሪያውን ፊደላት፣ ቁጥሮች፣ - _ . ወይም / ብቻ። ለምሳሌ EMP-{SEQ:4}።',
     'cannot_change_own_pay' => 'የራስዎን ደመወዝ ወይም የባንክ መረጃ በድርጅትዎ ውስጥ ሌላ ሰው መቀየር አለበት።',
+    'cannot_change_own_deductions' => 'የራስዎን ብድር ወይም ተቀናሽ በድርጅትዎ ውስጥ ሌላ ሰው መመዝገብ ወይም መቀየር አለበት።',
     'cannot_review_own_profile' => 'በራስዎ መገለጫ ላይ የቀረበ ለውጥ መገምገም አይችሉም።',
     'cannot_review_pay_field' => 'የግብር ከፋይ መለያ ቁጥርን ወይም የባንክ ሂሳብን ለውጥ ለመወሰን የክፍያ መረጃን የማስተካከል ፈቃድ ያስፈልጋል።',
     'cannot_review_filed_profile' => 'ይህን ለውጥ ያቀረቡት እርስዎ ስለሆኑ ሌላ ሰው መገምገም አለበት።',

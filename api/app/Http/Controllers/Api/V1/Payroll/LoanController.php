@@ -48,6 +48,7 @@ class LoanController extends Controller
         Gate::authorize('payroll.manageLoan');
 
         $employee = Employee::where('public_id', $request->validated('employee_public_id'))->firstOrFail();
+        Gate::authorize('changeDeductions', [Employee::class, $employee->id]);
 
         $loan = EmployeeLoan::create([
             'tenant_id' => $employee->tenant_id,
@@ -89,6 +90,7 @@ class LoanController extends Controller
     public function update(UpdateLoanRequest $request, EmployeeLoan $loan): JsonResponse|EmployeeLoanResource
     {
         Gate::authorize('payroll.manageLoan');
+        Gate::authorize('changeDeductions', [Employee::class, $loan->employee_id]);
 
         if ($loan->status !== 'active') {
             return $this->notActive();
@@ -121,6 +123,7 @@ class LoanController extends Controller
     public function cancel(CancelLoanRequest $request, EmployeeLoan $loan): JsonResponse|EmployeeLoanResource
     {
         Gate::authorize('payroll.manageLoan');
+        Gate::authorize('changeDeductions', [Employee::class, $loan->employee_id]);
 
         if ($loan->status !== 'active') {
             return $this->notActive();

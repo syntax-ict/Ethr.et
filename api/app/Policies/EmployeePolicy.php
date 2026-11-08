@@ -61,6 +61,22 @@ class EmployeePolicy
         return Response::allow();
     }
 
+    /**
+     * A loan or cost-sharing instalment is pay: lowering your own raises your
+     * own net pay. The controller's named gate checks the permission; this
+     * refuses your own record below the organisation admin, as
+     * updateFinancial() does. It takes the employee's id because a loan can
+     * outlive its employee's record.
+     */
+    public function changeDeductions(User $user, int $employeeId): Response
+    {
+        if ($employeeId === $user->employee_id && ! $user->isAtLeast(UserRole::TENANT_ADMIN)) {
+            return Response::deny(__('employee.cannot_change_own_deductions'));
+        }
+
+        return Response::allow();
+    }
+
     public function issueActivationCode(User $user, Employee $employee): bool
     {
         return $user->hasPermission('users.issueActivationCode')
