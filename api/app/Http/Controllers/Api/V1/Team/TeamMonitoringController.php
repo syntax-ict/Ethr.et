@@ -113,16 +113,21 @@ class TeamMonitoringController extends Controller
             return response()->json(['data' => []]);
         }
 
+        // The tenant's week and month: at 01:00 on a Monday in Addis Ababa
+        // it is still Sunday in UTC, and the chart showed last week.
+        $tenantToday = TenantTime::today(app(CurrentTenant::class)->get());
+
         [$from, $to] = match ($period) {
-            'monthly' => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
-            default => [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()],
+            'monthly' => [$tenantToday->startOfMonth(), $tenantToday->endOfMonth()->startOfDay()],
+            default => [$tenantToday->startOfWeek(), $tenantToday->endOfWeek()->startOfDay()],
         };
 
-        $today = TenantTime::today(app(CurrentTenant::class)->get())->format('Y-m-d');
+        $today = $tenantToday->format('Y-m-d');
 
         $records = AttendanceRecord::query()
             ->whereIn('employee_id', $teamIds)
-            ->whereBetween('date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->whereDate('date', '>=', $from->format('Y-m-d'))
+            ->whereDate('date', '<=', $to->format('Y-m-d'))
             ->get();
 
         $attended = [];
