@@ -9,11 +9,26 @@ export type AccrualType = components["schemas"]["AccrualType"];
 export type LeaveTypePayload = components["schemas"]["StoreLeaveTypeRequest"];
 export type LeaveTypeUpdate = components["schemas"]["UpdateLeaveTypeRequest"];
 
+/**
+ * Where a person stands in the twelve months of Art. 85 sick leave: six
+ * months within twelve, counted from the first sick day. Sent for a leave
+ * type that follows Art. 85 instead of a meaningful remainder, which the
+ * 30-day entitlement drove below zero after a long illness (K-50).
+ */
+export interface SickLeaveStanding {
+  days_taken: number;
+  days_allowed: number;
+  period_start: string | null;
+  period_end: string | null;
+  next_tier: "full" | "half" | "unpaid" | "beyond";
+}
+
 export interface LeaveBalance {
   leave_type: { name: string; code: string; public_id: string } | string;
   entitled_days: number;
   used_days: number;
   remaining_days: number;
+  sick_leave?: SickLeaveStanding;
 }
 
 export interface LeaveRequest {

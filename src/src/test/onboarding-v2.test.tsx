@@ -182,9 +182,19 @@ describe("IndustryConfigStep — follows the sign-up type", () => {
       icon: "x",
       group: "hospitality",
     },
+    // Ten catalogue industries share the base `general`, the type the
+    // sign-up form stores for General Company (K-49).
+    {
+      key: "professional_services",
+      label: "Professional services",
+      label_am: "የሙያ አገልግሎት",
+      base: "general",
+      icon: "x",
+      group: "services_tech",
+    },
   ];
 
-  function signedUpAs(type: string) {
+  function signedUpAs(type: string | null) {
     server.use(
       http.get("*/api/v1/onboarding/industries", () =>
         HttpResponse.json({ data: catalog }),
@@ -238,16 +248,25 @@ describe("IndustryConfigStep — follows the sign-up type", () => {
     expect(screen.queryByText("Ministry")).not.toBeInTheDocument();
   });
 
-  it("offers every type to an organisation that signed up as general", async () => {
-    signedUpAs("general");
-    renderWithClient(<IndustryConfigStep />);
+  it.each([["general"], [null]])(
+    "offers every type, and chooses none, to an organisation that signed up as %s",
+    async (type) => {
+      signedUpAs(type);
+      renderWithClient(<IndustryConfigStep />);
 
-    expect(await screen.findByText("Ministry")).toBeInTheDocument();
-    expect(screen.getByText("Bank")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Show every type of organisation"),
-    ).not.toBeInTheDocument();
-  });
+      expect(await screen.findByText("Ministry")).toBeInTheDocument();
+      expect(screen.getByText("Bank")).toBeInTheDocument();
+      expect(screen.getByText("Hotel")).toBeInTheDocument();
+      expect(screen.getByText("Professional services")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Show every type of organisation"),
+      ).not.toBeInTheDocument();
+      // The one general-based industry is not picked for them either.
+      expect(
+        screen.getByRole("radio", { name: "Professional services" }),
+      ).toHaveAttribute("aria-checked", "false");
+    },
+  );
 });
 
 describe("IndustryConfigStep — composed profiles and review", () => {

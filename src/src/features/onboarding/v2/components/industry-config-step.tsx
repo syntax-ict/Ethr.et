@@ -74,12 +74,17 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   // industries of that kind are offered: Government shows the ministries,
   // bureaus and administrations, Bank shows banks, insurers and microfinance.
   // A sign-up type is an industry key (bank, hospital) or the base several
-  // industries share (government). "General" names no kind and keeps them all.
-  const signupType = tenant?.type ?? null;
+  // industries share (government). "General" names no kind and keeps them all,
+  // although ten catalogue industries carry the base `general` (K-49).
+  const rawSignupType = tenant?.type ?? null;
+  const signupType = rawSignupType === "general" ? null : rawSignupType;
   const allIndustries = industriesQuery.data ?? [];
-  const ofSignupType = allIndustries.filter(
-    (ind) => ind.key === signupType || ind.base === signupType,
-  );
+  const ofSignupType =
+    signupType === null
+      ? []
+      : allIndustries.filter(
+          (ind) => ind.key === signupType || ind.base === signupType,
+        );
   const narrowed = !showAllTypes && ofSignupType.length > 0;
   const shown = narrowed ? ofSignupType : allIndustries;
 

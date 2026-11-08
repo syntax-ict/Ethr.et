@@ -50,8 +50,10 @@ import {
   useRecallLeave,
   useCancelLeave,
   type LeaveBalance,
+  type SickLeaveStanding,
   type LeaveRequest,
 } from "@/features/leave/api";
+import { sickNextTierLabel } from "@/features/leave/sick-leave";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -236,6 +238,64 @@ export default function LeavePage() {
   );
 }
 
+/**
+ * Art. 85 sick leave is six months within twelve, not the 30-day entitlement,
+ * so the card counts the days taken in the current twelve months and says
+ * what the next sick day pays, as SickLeaveTiers decides it (K-50).
+ */
+function SickLeaveCard({
+  label,
+  standing,
+}: {
+  label: string;
+  standing: SickLeaveStanding;
+}) {
+  const { t } = useT();
+  const { formatDate } = useDateFormatters();
+  const { days_taken: taken, days_allowed: allowed } = standing;
+  const width = allowed > 0 ? Math.min(100, (taken / allowed) * 100) : 0;
+  const next = sickNextTierLabel(t, standing.next_tier);
+
+  return (
+    <StatCard
+      icon={CalendarDays}
+      tone="success"
+      label={label}
+      value={
+        <span>
+          {taken}
+          <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+            {t("leave_page.sick_days_taken")}
+          </span>
+        </span>
+      }
+      hint={
+        <span className="block space-y-1.5">
+          <span className="block">
+            {standing.period_start
+              ? t("leave_page.sick_period", undefined, {
+                  taken,
+                  allowed,
+                  start: formatDate(standing.period_start),
+                })
+              : t("leave_page.sick_no_period", undefined, { allowed })}
+          </span>
+          <span className="block">{next}</span>
+          <span
+            className="block h-1.5 overflow-hidden rounded-full bg-muted"
+            aria-hidden="true"
+          >
+            <span
+              className="block h-full rounded-full bg-status-success"
+              style={{ width: `${width}%` }}
+            />
+          </span>
+        </span>
+      }
+    />
+  );
+}
+
 function MyLeaveTab() {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
@@ -273,6 +333,15 @@ function MyLeaveTab() {
           />
         ) : balances && Array.isArray(balances) ? (
           balances.map((b, i) => {
+            if (b.sick_leave) {
+              return (
+                <SickLeaveCard
+                  key={i}
+                  label={leaveTypeName(b.leave_type, t("leave_page.unknown"))}
+                  standing={b.sick_leave}
+                />
+              );
+            }
             const used =
               b.entitled_days > 0
                 ? Math.min(100, (b.used_days / b.entitled_days) * 100)
@@ -285,7 +354,7 @@ function MyLeaveTab() {
                 label={leaveTypeName(b.leave_type, t("leave_page.unknown"))}
                 value={
                   <span>
-                    {b.remaining_days}
+                    {Math.max(0, b.remaining_days)}
                     <span className="ml-1.5 text-sm font-normal text-muted-foreground">
                       {t("common.days", "days")}
                     </span>

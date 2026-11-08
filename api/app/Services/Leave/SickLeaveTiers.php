@@ -8,6 +8,10 @@ use App\Enums\LeaveStatus;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\Tenant;
+use App\Services\CurrentTenant;
+use App\Services\Payroll\StatutoryRules;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
@@ -39,7 +43,10 @@ final class SickLeaveTiers
     /** Past six months in the period: refused when asked for, unpaid if approved anyway. */
     public const BEYOND = 'beyond';
 
-    public function __construct(private readonly LeaveDayCalculator $calculator) {}
+    public function __construct(
+        private readonly LeaveDayCalculator $calculator,
+        private readonly StatutoryRules $statutoryRules,
+    ) {}
 
     /**
      * The tier of every day of this person's Art. 85 sick leave, oldest first.
@@ -80,6 +87,70 @@ final class SickLeaveTiers
         }
 
         return $tiers;
+    }
+
+    /**
+     * Where this person stands in the period that has not ended by $today
+     * (the one running, or one an approved future leave opens): its approved
+     * days, the six months it allows, and the tier the next sick day in it
+     * would take. With no such period, nothing is taken and the next day is
+     * at full pay. The balance shows this for an Art. 85 type in place of
+     * the annual remainder, which a long illness drove below zero (K-50).
+     *
+     * @return array{days_taken: int, days_allowed: int, period_start: string|null, period_end: string|null, next_tier: string}
+     */
+    public function standing(Employee $employee, int $monthDays, CarbonInterface $today): array
+    {
+        $day = $today->format('Y-m-d');
+        $start = null;
+        $end = null;
+        $taken = 0;
+
+        foreach (array_keys($this->tiersOf($employee, $monthDays)) as $date) {
+            if ($end !== null && $date <= $end) {
+                $taken++;
+
+                continue;
+            }
+            if ($end !== null && $end >= $day) {
+                break;
+            }
+            $start = $date;
+            $end = Carbon::parse($date)->addYear()->subDay()->format('Y-m-d');
+            $taken = 1;
+        }
+
+        if ($end === null || $end < $day) {
+            [$start, $end, $taken] = [null, null, 0];
+        }
+
+        return [
+            'days_taken' => $taken,
+            'days_allowed' => 6 * $monthDays,
+            'period_start' => $start,
+            'period_end' => $end,
+            'next_tier' => match (true) {
+                $taken < $monthDays => self::FULL,
+                $taken < 3 * $monthDays => self::HALF,
+                $taken < 6 * $monthDays => self::UNPAID,
+                default => self::BEYOND,
+            },
+        ];
+    }
+
+    /**
+     * standing() as of the organisation's today, with its month of working
+     * days, for a balance row.
+     *
+     * @return array{days_taken: int, days_allowed: int, period_start: string|null, period_end: string|null, next_tier: string}
+     */
+    public function standingToday(Employee $employee): array
+    {
+        $tenant = app(CurrentTenant::class)->tenantFor($employee->tenant_id) ?? Tenant::query()->findOrFail($employee->tenant_id);
+        $today = TenantTime::today($tenant);
+        $monthDays = $this->statutoryRules->for($tenant, $today)->int('payroll.working_days_per_month');
+
+        return $this->standing($employee, $monthDays, $today);
     }
 
     /**
