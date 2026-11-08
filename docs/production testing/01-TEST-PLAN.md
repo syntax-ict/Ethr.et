@@ -111,6 +111,22 @@ adds their rows here, file by file.
 | Feature controls as an organisation sees them: grants, revokes, platform switches, switches that work or are not offered | #464, #480, #636 | PLAN-019 to PLAN-021, AUTH-039, ORG-008; PLAN-002, PLAN-014 to PLAN-018 rewritten |
 | A-Z review items: a trial converts to active, a trial extended from today, dunning | #624 | PLAN-007, PLAN-009, PLAN-012 changed |
 
+**Third edition, stage 2, file 08** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Get help, from an employee to their HR and on to ETHR | #471 | HELP-001 to HELP-006 |
+| Dashboards: a department head's today, Organisation today band, deciding requests from the dashboard, the reader's calendar, phones, fewer requests | #561, #569, #571, #574, #575, #578, #581, #584, #591, #594, #597, #633, #467 | DASH-006 to DASH-016; DASH-002, NXT-003 changed |
+| Charts and printing | #584, #597, #613, #614, #615, #617, #619 | CHT-001 to CHT-004, PRN-001, PRN-002 |
+| Reports and analytics: monthly timesheet, reports by organisation type, figures that count what they say, period comparison | #472, #474, #477, #479 | REP-006 to REP-009, ANA-002, ANA-003 |
+| Console feature controls (the organisation's side is in 03) | #464, #480, #636 | FC-001 to FC-004; CON-P-003 changed |
+| Backups off-host, disk watch, mail budget | #509, #517, #530, #532, #534 | BAK-001 to BAK-006; OPC-001, OPC-005, CON-P-011 changed |
+| Release status reads pending migrations | #620 | OPC-009 |
+| Console: an organisation's administrators, tenant journey, A-Z review corrections | #624, #625, #643 | CON-P-024 to CON-P-027, NXT-007; CON-P-001, CON-P-002, CON-P-005, CON-P-014, CON-P-016 changed |
+| Notices in the reader's language and only to active people; vacancies on the public site and not over-filled; announcements fit | #466, #482, #510, #624 | NOT-006, NOT-007, VAC-004, ANN-009; NOT-005, VAC-001 changed |
+| Public site: what the product does, call links, feed out of shared caches | #507, #519, #632 | MKT-013, MKT-014, LAND-009; MKT-006, NEWS-003 changed |
+| Webhooks: delivery id signed, held deliveries expire, connect to the checked address | #489, #624 | WH-008, WH-009; WH-003, KEY-006 changed |
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.

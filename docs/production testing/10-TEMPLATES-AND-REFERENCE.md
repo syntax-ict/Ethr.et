@@ -108,7 +108,7 @@ some of them, not a sign the test was run wrongly.
 | K-11 | Contracts | The contracts-ending list includes contracts already past their end but still active. **By design** since #441 ("end within 30 days or have ended") | LIFE-006 |
 | K-12 | Approvals | Batch approval has no maximum size | LD-006 |
 | K-13 | Payroll | There is no statutory transport-allowance exemption; taxability is the rule's own flag. Confirm with the accountant | PAY-004 |
-| K-14 | Console | Platform user search and statutory layouts have no screen; API only | CON-P-017 |
+| K-14 | Console | *Re-checked 2026-11-08, still open; user search now also needs console MFA to read.* Platform user search and statutory layouts have no screen; API only | CON-P-017 |
 | K-15 | Security | Whether the API documentation UI at `/api/docs` should be public on production | SEC-007 |
 | K-16 | Hosting | Uploads over 2 MB are refused by the host's PHP limits (provider-locked). Expected: a clear refusal | DOC-002, ANN-005 |
 | K-17 | Mobile check-out | Check-out does not re-check photo consent and uses the general 8 MB image cap | MOB-008 |
@@ -118,12 +118,12 @@ some of them, not a sign the test was run wrongly.
 | K-21 | Activation | *Re-checked 2026-11-08, still open; since #486 the wrong code also counts toward the 15-minute authenticator lock (MFA-012).* A wrong or missing authenticator code when issuing a code is reported on `mfa_code` as "The password is incorrect." | ACT-009 |
 | K-22 | Payroll | Finance can open the Reconcile tab but cannot settle (no `leave.adjustBalance` or `attendance.manage`); HR can settle but cannot open the tab. Only the tenant admin can do both | RCN-005 |
 | K-23 | Field visits | The Visits date filter may use the UTC date, so a visit between 00:00 and 03:00 EAT shows under the previous day | VIS-005 |
-| K-24 | Public site | Since 2026-10-26 every organisation in use is named under Trusted by and listed for search engines unless switched off, including QA Audit, Syntax, QA Isolation and every `uat-` organisation from the moment it is created | LAND-007 |
-| K-25 | Console | The operations Services panel shows raw codes (`api`, `reverb`, queue names) and lists `reverb` as `disabled`, while the console home translates names and hides disabled services; "PHP limits" stays English in Amharic. Cosmetic | OPC-006 |
-| K-26 | Console | Any failed job, however old, keeps Failed jobs at "Needs a look" until it is retried or dismissed, so production rarely reads "Nothing needs attention" | OPC-006 |
-| K-27 | Console | Deleting a cancelled organisation needs only a reason from a signed-in PA with MFA on, no fresh code (owner decision 2026-10-27; Restore undoes it) | CON-P-009 |
-| K-28 | Console | "Recurring revenue" leaves out trials and uses each subscription's captured price, not the plan's current price. "Conversion" counts any active organisation with a trial end date as converted | CON-P-011 |
-| K-29 | Marketing | Uploading a picture to the hero or a problems row replaces its animation (by design; do not do it on production) | CON-P-013, MKT-010 |
+| K-24 | Public site | *Re-checked 2026-11-08, narrowed: a trial is named only once it holds 5 people (`Tenant::PUBLIC_MIN_EMPLOYEES`), so an empty new `uat-` organisation is not named; QA Audit and Syntax still are.* Since 2026-10-26 every organisation in use is named under Trusted by and listed for search engines unless switched off, including QA Audit, Syntax, QA Isolation and every `uat-` organisation from the moment it is created | LAND-007 |
+| K-25 | Console | *Re-checked 2026-11-08, partly fixed: "PHP limits" is translated; the raw codes and `reverb` as `disabled` remain.* The operations Services panel shows raw codes (`api`, `reverb`, queue names) and lists `reverb` as `disabled`, while the console home translates names and hides disabled services; "PHP limits" stays English in Amharic. Cosmetic | OPC-006 |
+| K-26 | Console | *Re-checked 2026-11-08, still open.* Any failed job, however old, keeps Failed jobs at "Needs a look" until it is retried or dismissed, so production rarely reads "Nothing needs attention" | OPC-006 |
+| K-27 | Console | *Re-checked 2026-11-08, unchanged by owner decision.* Deleting a cancelled organisation needs only a reason from a signed-in PA with MFA on, no fresh code (owner decision 2026-10-27; Restore undoes it) | CON-P-009 |
+| K-28 | Console | *Re-checked 2026-11-08, still open.* "Recurring revenue" leaves out trials and uses each subscription's captured price, not the plan's current price. "Conversion" counts any active organisation with a trial end date as converted | CON-P-011 |
+| K-29 | Marketing | *Re-checked 2026-11-08, by design.* Uploading a picture to the hero or a problems row replaces its animation (by design; do not do it on production) | CON-P-013, MKT-010 |
 | K-30 | Registered phones | A person who is exempt, or on a listed office network, but still has an active registered phone is asked for the passkey; under "Only the registered phone" dismissing it stops the punch, though the server would accept it | PHN-016 |
 | K-31 | Registered phones | "Check and review" and an exemption score 35, an office computer 5; the default review threshold is 40, so alone they never reach Integrity, although the screens say the punches are sent for review | PHN-009, PHN-015, PHN-017 |
 | K-32 | Registered phones | Passkeys belong to the platform domain: on a verified custom domain every punch is refused `device-wrong-host`, and the "Open" link may be the same custom domain | PHN-020 |
@@ -139,6 +139,7 @@ some of them, not a sign the test was run wrongly.
 | K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
 | K-43 | Users | *Re-checked 2026-11-08, still open.* After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
 | K-44 | Sign-in | Found 2026-11-08 while refreshing file 03. The sign-in form labels its one field "Email" and refuses anything else with "Enter a valid email address." (`login-form.tsx:52`), although the API can resolve a phone number or an employee code when the organisation turns those on, and a finished in-person activation says "Sign in with your employee code and the password you just chose." An employee with no email may have no way in from the form. Confirm before a pass that relies on in-person activation | AUTH-004, ACT-002 |
+| K-45 | Public site | Found 2026-11-08 while refreshing file 08. The organisations sitemap gives each portal `hreflang` links for `en`, `am` and `x-default` only (`OrganisationSitemapController.php:108`), while the portal page itself declares `om` too. Search engines may not find the Afaan Oromoo portals from the sitemap | MKT-006 |
 
 ## 5. Production facts in one place
 
