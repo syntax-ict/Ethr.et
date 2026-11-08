@@ -153,6 +153,18 @@ adds their rows here, file by file.
 | Focus after the skip link, a 12 px floor | #588 | A11Y-007, A11Y-008 |
 | Lighter pages: no Sentry without a DSN, no full dictionary on the 404 or the dashboard, charts only for those shown them, pre-compressed files | #487, #491, #500, #518, #538 | PERF-008 to PERF-012 |
 
+**Third edition, stage 2, file 07** (2026-11-08):
+
+| Change | PRs | Cases |
+|---|---|---|
+| An organisation sets its own working days per month (22 by default) | #642 | PAY-032 to PAY-034; sections 1.3, 1.4, 9, 11 and STAT-005 changed |
+| Sick leave pays as Art. 85 sets out: a month in full, two at half, three unpaid | #637 | SICK-001 to SICK-004 (section 12); PAY-012 changed |
+| A run too big for one request finishes across several | #639 | PAY-035 |
+| A-Z review: overtime at the contract's hourly rate (golden G8), allowances prorated by days employed, the journal's new accounts, the approved-period check | #624 | PAY-036 to PAY-038, OUT-012; PAY-007, OUT-008, OUT-009 changed |
+| Payslips in the reader's language and calendar | #520 | OUT-011; OUT-004, OUT-006 changed |
+| Finance and its own deductions; pay-setting contracts | #490, #488 | LOAN-009; PAY-020 changed (the role rules are ACC-020, ACC-022 in 03) |
+| A run reads what is the same for the organisation once (figures must not move) | #625 | PAY-011 changed |
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
@@ -265,7 +277,8 @@ builds it step by step):
 
 File 03 needs four more items (a login shared across QA Audit and QA Isolation, a sub-unit under each
 of D1 and D2, MFA on EMP3, a `uat-` organisation holding an unpaid invoice); its *Extra test data*
-table lists them with the cases that use them.
+table lists them with the cases that use them. File 07 adds E-PAY-9 (golden G8), E-PAY-10, E-SICK-1 and
+E-SICK-2 in its own *Extra test data* table.
 
 **Naming rule.** Everything a tester creates carries the prefix `QA-` (people, branches, announcements)
 or `uat-` (organisations, slugs), so it can be told apart and cleaned up.
