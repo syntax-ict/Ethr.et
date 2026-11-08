@@ -6,7 +6,7 @@
 | System under test | Production: `https://www.ethr.et` (apex and organisation addresses), `https://admin.ethr.et` (platform console) |
 | Release under test | The release tag being verified, `vYYYY.MM.DD.N`. Read it from `https://www.ethr.et/release.json` before starting |
 | Document owner | Product owner (Syntax ICT) |
-| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, and 2026-11-03 for the kiosk upgrade from `main` at `a136364e1` (section 2.3) |
+| Prepared | 2026-10-24, from `main` at `c2f86e234`; updated 2026-10-28 and 2026-10-29 from `main` at `87d12d4d0`, 2026-11-03 for the kiosk upgrade from `main` at `a136364e1`, and 2026-11-08 for the facts that had gone stale (third edition, stage 1; section 2.3) |
 | Companion documents | [UAT guide](02-UAT-GUIDE.md), E2E specifications 03 to 09, [templates](10-TEMPLATES-AND-REFERENCE.md) |
 
 ---
@@ -48,18 +48,23 @@ no shell on the host, and the only server-side window is the public health endpo
 | Item | Why |
 |---|---|
 | Server configuration, Plesk, DNS, backups, restore rehearsal | Owner and host work, tracked in `docs/deployment/CUTOVER-CHECKLIST.md` |
-| Load and stress testing on production | Shared hosting with a 5 GB quota and stock PHP limits. A load test can take every customer down. Only the light timing checks in [09](09-NON-FUNCTIONAL.md) are allowed |
+| Load and stress testing on production | Shared hosting with stock PHP limits and no worker process. A load test can take every customer down. Only the light timing checks in [09](09-NON-FUNCTIONAL.md) are allowed |
 | Penetration testing beyond the black-box checks in [09](09-NON-FUNCTIONAL.md) | Needs a separate authorisation from the owner |
 | Physical biometric devices | Only if the owner provides a test device registered to the QA organisation |
 | Face matching (comparing a selfie with a stored face) | Not built. The live face check before a selfie (liveness) is in scope, [05, section 6a](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md#6a-risk-score-liveness-and-pattern-scans) |
-| Afaan Oromoo, Tigrinya, Somali, Sidama | Listed as coming soon; they cannot be selected |
+| Tigrinya, Somali, Sidama | Listed as coming soon; they cannot be selected. Afaan Oromoo shipped on 2026-11-02 and **is** in scope ([09, section 6](09-NON-FUNCTIONAL.md#6-localisation-and-the-ethiopian-calendar)) |
 | Real payment collection | ETHR raises invoices; payment is confirmed by hand in the console |
 
 ### 2.3 Changes since the first edition
 
-Merged on `main` between `c2f86e234` and `87d12d4d0`. **Check `/release.json` (S-01) before running
-these cases: a merged change is not necessarily deployed.** A case for a change that is not live is
-recorded as Blocked, not Fail.
+Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the end. **Check
+`/release.json` (S-01) before running these cases: a merged change is not necessarily deployed.** A
+case for a change that is not live is recorded as Blocked, not Fail.
+
+**Changes merged after `87d12d4d0` are not in this table yet** unless a row names them. List them
+with `scripts/qa-pack-coverage.sh <release tag>` ([README](README.md#keeping-this-pack-current)) and
+record each user-visible one as **Not covered** in the execution log. Stage 2 of the third edition
+adds their rows here, file by file.
 
 | Change | PRs | Cases |
 |---|---|---|
@@ -216,8 +221,8 @@ notes, and never send its bank file anywhere.
 - The release steps for that release have been run (migrate, clear, optimize, and seeders when the
   release notes say so). A new route answering 404 while old routes answer 401 means they did not
   run; report it to the owner before going further.
-- `/api/v1/health` reports healthy, and `queue_detail` shows a scheduler heartbeat less than 15
-  minutes old.
+- `/api/v1/health` reports healthy, `queue_detail` shows a scheduler heartbeat less than 15
+  minutes old, and `schema_detail.pending_migrations` is `0`.
 - The QA accounts and organisations in section 5 exist and the tester has their credentials.
 - CI was green on the release commit (L0).
 

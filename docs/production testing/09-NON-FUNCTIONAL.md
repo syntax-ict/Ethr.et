@@ -128,7 +128,7 @@ hosting, record the figures and flag only large misses (more than double) as S3.
 | L10N-006 | P1 | R | Time zone | Every time shown | EAT (UTC+3); a record at 09:00 EAT shows 09:00, never 06:00 |
 | L10N-007 | P2 | R | Currency format | Amounts in the interface and exports | `X,XXX.XX ETB`; no floating-point artefacts (for example 1,349.9999) |
 | L10N-008 | P2 | R | Amharic in files | PDFs (payslip, letters, statutory schedules, reports), CSV exports opened in a spreadsheet | Amharic renders; CSV opens as UTF-8 |
-| L10N-009 | P3 | R | Other languages | Preferences language list | Afaan Oromoo, Tigrinya, Somali, Sidama listed as coming soon, not selectable |
+| L10N-009 | P3 | R | Other languages | Preferences language list, and the header's Language menu | English, አማርኛ and Afaan Oromoo can be selected. ትግርኛ (Tigrinya), Soomaali (Somali) and Sidaamu Afoo (Sidama) are listed as coming soon and cannot be selected |
 
 ## 7. Responsive layout, themes and browsers
 

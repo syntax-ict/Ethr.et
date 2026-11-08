@@ -53,6 +53,9 @@ with the same columns.
 | PLAN-011 | Not run | | | | | Needs 60 days |
 
 Results: **Pass**, **Fail** (with a defect), **Blocked** (cannot run; say why), **Not run** (say why).
+A change in the release that the pack has no case for is logged by its PR number as **Not covered**
+(from `scripts/qa-pack-coverage.sh`; [README](README.md#keeping-this-pack-current)), so the summary
+shows what was never tested rather than reading as a clean pass.
 At the end, total per module and per priority, and the pass rates the exit criteria ask for.
 
 ## 3. Release smoke checklist
@@ -63,7 +66,7 @@ the test pass (test plan 7.3).
 | # | Check | How | Pass when |
 |---|---|---|---|
 | S-01 | Right release is live | `https://www.ethr.et/release.json`, or `scripts/release-status.sh https://www.ethr.et` | Commit and tag equal the release under test; the script exits 0 |
-| S-02 | Healthy | `GET /api/v1/health` | All core services healthy; scheduler heartbeat under 15 min; failed jobs not growing |
+| S-02 | Healthy | `GET /api/v1/health` | All core services healthy; scheduler heartbeat under 15 min; failed jobs not growing; `schema_detail.pending_migrations` is `0`. Above 0 the code is ahead of its schema (the release steps did not run): stop and tell the owner. The release-status script fails on it too |
 | S-03 | Release steps ran | Call a route added in this release (from the release notes) while signed out | 401 (needs sign-in), **not** 404. A 404 here while old routes give 401 means the route cache is stale |
 | S-04 | Redirects | `http://ethr.et` → `https://www.ethr.et`; `https://ethr.et/qa-audit` → `https://www.ethr.et/qa-audit` (301); organisation subdomain (if used) → `/login`; `https://admin.ethr.et` → `/admin/` | As stated |
 | S-05 | Secrets closed | `/.env`, `/api/.env`, `/artisan`, logs, at most three in ten minutes ([01, rule 10](01-TEST-PLAN.md#9-production-safety-rules)) | 403 or 404 |
@@ -73,7 +76,7 @@ the test pass (test plan 7.3).
 | S-09 | Console | PA signs in at `https://admin.ethr.et` with MFA | Lands on `/admin`, not an organisation dashboard; KPI cards, the Operations strip and the tenant list load with no error toast |
 | S-10 | One read per module | As TA: employees list, attendance list, leave page, payroll runs, reports page, announcements, settings, billing, devices | Each loads with data (or a proper empty state), no error toast, console clean |
 | S-11 | Self-service | As EMP: My Attendance, Leave balances, My Payslips, Profile | Load |
-| S-12 | Amharic | Switch to አማርኛ on the dashboard | Translated, no raw keys |
+| S-12 | Amharic and Afaan Oromoo | Header menu, Language: switch to አማርኛ, then to Afaan Oromoo, on the dashboard | Translated each time, no raw keys; switch back to English |
 | S-13 | Phone | Dashboard at 375 px | Bottom bar, no horizontal scroll |
 | S-14 | No stale browser bundle | Hard reload after the release; check the version shown or `release.json` fetched by the page | New version served (the site sends no-cache on HTML) |
 | S-15 | Release finished its steps | PA: `/admin/operations` | Release is Healthy: commit equals S-01, pending migrations 0, configuration and routes cached after "Built", maintenance routes closed. Background work Healthy, external caller under 30 min. "Needs a look" on Failed jobs alone does not fail the smoke; read the jobs (OPC-004) |
@@ -84,6 +87,11 @@ Found by reading the code while writing this pack (2026-10-24, K-01 to K-18; 202
 K-43) and from earlier production QA. **They
 are not confirmed on production.** Run the named case, then either file the defect or record
 "not reproduced" in the log.
+
+**The list predates about a hundred merged PRs** (see [README, *Keeping this pack current*](README.md#keeping-this-pack-current)).
+Some entries may have been fixed since. Each is re-checked against the code as its spec file is
+refreshed in stage 2 of the third edition; until then, a "not reproduced" is the likely result for
+some of them, not a sign the test was run wrongly.
 
 | # | Area | Observation | Case |
 |---|---|---|---|
@@ -127,7 +135,7 @@ are not confirmed on production.** Run the named case, then either file the defe
 | K-38 | Payroll | `paid_on` is checked against today's UTC date, so between 00:00 and 03:00 EAT today's EAT date may be refused | PAID-002 |
 | K-39 | Address | A platform operator impersonating an organisation can rename its address (renaming is not on the impersonation block list) | TEN-015 |
 | K-40 | Attendance setup | The "no kiosk" check fires only when the kiosk PIN is also required, not whenever the kiosk method is on with no kiosk | SETUP-003 |
-| K-41 | Feature gate | Platform switches and per-organisation overrides exist in the database (#460) but have no console screen or API yet. Any reason other than `enabled` or `plan` on production means a row was written by hand | PLAN-017 |
+| K-41 | Feature gate | **Superseded.** The console now switches features for every organisation and grants or revokes them for one, integrations and public pages can be switched off without a deploy, and every switch offered either works or is not shown. PLAN-014 to PLAN-018 predate these and are rewritten in stage 2 of the third edition; until then, read their expectations against the console | PLAN-017 |
 | K-42 | Employees | The Add employee form still disables the login box for a phone and no email, saying "Add an email to send a login invitation.", although an in-person code now works for them. Workaround: save without a login, then "Activate in person" from the profile | EMP-015 |
 | K-43 | Users | After a bulk resend that queued nothing, the toast always reads "No one is waiting for an invitation by email.", including when people were skipped as invited in the last 10 minutes or counted for in-person activation. Suspected; confirm the wording is acceptable | INV-003 |
 
@@ -140,7 +148,9 @@ are not confirmed on production.** Run the named case, then either file the defe
 | Organisation addresses | `https://www.ethr.et/{slug}`, `https://{slug}.ethr.et` when subdomains are on, or a verified custom domain; one canonical address per organisation |
 | Health | `/api/v1/health` (30 a minute per IP) |
 | Release identity | `/release.json`; tags `vYYYY.MM.DD.N` |
-| Hosting | Ethio Telecom shared hosting (Plesk): Apache, PHP 8.3, MariaDB; no shell; 5 GB quota for database, files and backups together |
+| Hosting | Ethio Telecom shared hosting (Plesk), Linux Gold: Apache, PHP 8.3, MariaDB; no shell; one 50 GB quota (51,200 MB) for database, files, backups and mail together. The nightly backup measures use against it (`DISK_QUOTA_MB`), amber at 70%, red at 85% |
+| Languages | English, Amharic and Afaan Oromoo (since 2026-11-02). Tigrinya, Somali and Sidama are listed as coming soon and cannot be selected |
+| Mail | One mailbox for every organisation, with a daily budget (`MAIL_DAILY_CAP`, 500 until the provider's real cap is read), counted per Ethiopian day. Bulk email (payslips released, missing punches, reminders, digests) stops at 60% of it and other email at 90%; sign-in codes, resets and activation are never held. A held email skips only the mail: the in-app notice still arrives. The operations centre shows sent and held today |
 | PHP limits in force | upload 2 MB, post 8 MB, memory 128 MB, time 30 s |
 | Background work | No worker. Scheduler and queue run every 5 minutes from two outside callers, and briefly after ordinary requests |
 | Realtime | Off; the client polls |
@@ -173,7 +183,8 @@ Times are UTC (EAT is +3).
 | Leave accrual | Daily, 00:30 | Raises annual balances when a new month of the leave year starts |
 | Holiday roll-forward | 1st of the month, 01:30 | Copies recurring holidays to next year |
 | Leave carry-forward | Daily 01:00 in the first week of the leave year (1 January, or Meskerem 1) | Sets carried days |
-| Backup | daily 01:00 | `ethr:backup` |
+| Backup | daily 01:00 | `ethr:backup`: a local archive, an encrypted off-host copy when storage is set in the console, and a disk-use reading against the plan's quota |
+| Tenant journeys | hourly at :20 | Recomputes each organisation's journey stage in the console |
 | Data clean-up | daily 02:00 | Notifications over 90 days, webhook deliveries over 30 days, import staging over 7 days removed |
 | Monthly invoices | 1st of the month, 03:00 | Raises invoices for paid plans |
 | Overdue invoices | daily 04:00 | Overdue at 7 days, past due 30, suspended 60 |
