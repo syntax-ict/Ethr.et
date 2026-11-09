@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -80,47 +79,18 @@ describe("<PensionRulesCard>", () => {
     expect(screen.getByText("ETHR default")).toBeInTheDocument();
   });
 
-  it("adds a dated rule only once its legal source is given", async () => {
-    const posted = serve();
+  it("offers no Add even to someone who manages payroll configuration: the rates are the law's", async () => {
+    serve();
     granted.manage = true;
-    const user = userEvent.setup();
     renderCard();
 
-    await user.click(
-      await screen.findByRole("button", { name: /add a rule/i }),
-    );
-    await user.type(screen.getByLabelText("Employee %"), "8");
-    await user.type(screen.getByLabelText("Employer %"), "12");
-    const save = screen.getByRole("button", { name: /save rule/i });
-    await user.click(save);
-
-    // Without its legal source the rule is refused, with the reason beside
-    // the field, and nothing is sent.
+    await screen.findByText(/In force today/);
     expect(
-      await screen.findByText(
-        "Name the proclamation or directive this rate comes from",
-      ),
+      screen.queryByRole("button", { name: /add a rule/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/an organisation cannot change them/i),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Law or source")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(posted).toHaveLength(0);
-
-    await user.type(
-      screen.getByLabelText("Law or source"),
-      "Proclamation No. 9999/2027, Art. 10",
-    );
-    await user.click(save);
-
-    await waitFor(() => expect(posted).toHaveLength(1));
-    expect(posted[0]).toMatchObject({
-      scheme: "private",
-      employee_rate: 8,
-      employer_rate: 12,
-      ceiling_cents: null,
-      legal_reference: "Proclamation No. 9999/2027, Art. 10",
-    });
   });
 
   it("offers no Add to someone who may only view payroll configuration", async () => {

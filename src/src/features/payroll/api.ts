@@ -575,20 +575,6 @@ export function useTaxBrackets() {
   });
 }
 
-export function useReplaceTaxBrackets() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: Schemas["ReplaceTaxBracketsRequest"]) => {
-      const { data } = await apiClient.put("/payroll/tax-brackets", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "tax-brackets"] });
-    },
-  });
-}
-
 export function useOvertimeRates() {
   return useQuery<OvertimeRatesResponse>({
     queryKey: ["payroll", "overtime-rates"],
@@ -700,7 +686,6 @@ export async function downloadStatutorySchedule(
 export type PensionRule = Schemas["PensionRuleResource"];
 export type PensionRules =
   operations["pensionRule.index"]["responses"][200]["content"]["application/json"];
-export type CreatePensionRule = Schemas["StorePensionRuleRequest"];
 
 export function usePensionRules() {
   return useQuery<PensionRules>({
@@ -709,13 +694,46 @@ export function usePensionRules() {
   });
 }
 
-export function useCreatePensionRule() {
+// ── Statutory rules ─────────────────────────────────────────────────────────
+
+export type StatutoryRulesResponse =
+  operations["statutoryRule.index"]["responses"][200]["content"]["application/json"];
+
+/**
+ * One statutory rule as payroll applies it today, with where it came from.
+ * `value` is whatever the law states: a number, a word, or a small map
+ * (overtime multipliers, sick-leave months), so it is read as unknown.
+ */
+export type StatutoryRule = Omit<
+  StatutoryRulesResponse["data"][number],
+  "value" | "default_value"
+> & { value: unknown; default_value: unknown };
+
+export const STATUTORY_RULES_KEY = ["payroll", "statutory-rules"] as const;
+
+export function useStatutoryRules() {
+  return useQuery<
+    Omit<StatutoryRulesResponse, "data"> & { data: StatutoryRule[] }
+  >({
+    queryKey: STATUTORY_RULES_KEY,
+    queryFn: async () => (await apiClient.get("/payroll/statutory-rules")).data,
+  });
+}
+
+/** Back to the value the organisation's profile gives: deletes its own row. */
+export function useResetStatutoryRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: CreatePensionRule): Promise<PensionRule> =>
-      (await apiClient.post("/payroll/pension-rules", payload)).data,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["payroll", "pension-rules"] }),
+    mutationFn: async (code: string) =>
+      (
+        await apiClient.delete(
+          `/payroll/statutory-rules/${encodeURIComponent(code)}`,
+        )
+      ).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATUTORY_RULES_KEY });
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 }

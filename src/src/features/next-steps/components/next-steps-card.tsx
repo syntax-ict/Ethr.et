@@ -73,6 +73,7 @@ export function NextStepsCard() {
           {t("next_steps.title")}
         </CardTitle>
         <p className="text-xs text-muted-foreground">{t("next_steps.hint")}</p>
+        {data?.payroll && <PayrollReadiness readiness={data.payroll} />}
       </CardHeader>
       <CardContent>
         {steps.length === 0 ? (
@@ -268,5 +269,43 @@ function NextStepRow({
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * "Ready for first payroll": how many of the payroll checks pass, computed by
+ * the server from what is stored now. Shown only to someone who can set them.
+ */
+function PayrollReadiness({
+  readiness,
+}: {
+  readiness: { done: number; total: number; ready: boolean };
+}) {
+  const { t } = useT();
+  const percent =
+    readiness.total > 0
+      ? Math.round((readiness.done / readiness.total) * 100)
+      : 0;
+
+  return (
+    <div className="mt-3 space-y-1.5" data-testid="payroll-readiness">
+      <p className="text-xs font-medium text-foreground">
+        {readiness.ready
+          ? t("next_steps.payroll_ready_done", "Ready for first payroll")
+          : t(
+              "next_steps.payroll_ready_progress",
+              "Ready for first payroll: :done of :total",
+              { done: readiness.done, total: readiness.total },
+            )}
+      </p>
+      <Progress
+        value={percent}
+        className="h-1.5"
+        aria-label={t(
+          "next_steps.payroll_ready_label",
+          "First payroll readiness",
+        )}
+      />
+    </div>
   );
 }

@@ -23,10 +23,14 @@ import {
   useConfigurationProfiles,
   useIndustries,
   usePreviewConfiguration,
+  STAFF_BANDS,
+  type StaffBand,
 } from "../api";
 import type { ConfigurationPlan, ConfigurationProfile } from "../types";
 import { SourceLabel } from "./source-label";
 import { useCurrentTenant } from "@/features/auth/api";
+import { useOrganizationTypes, useSettings } from "@/features/settings/api";
+import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
 
 const SECTION_TITLES: Record<string, [string, string]> = {
   branches: ["setup2.section_branches", "Branches"],
@@ -60,8 +64,17 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
 
   const { data: tenant } = useCurrentTenant();
   const [chosen, setChosen] = useState<string | null>(null);
-  const [employeeCount, setEmployeeCount] = useState("");
+  const [staffBand, setStaffBand] = useState<StaffBand | null>(null);
   const [region, setRegion] = useState("");
+  // The kind of organisation in law (asked at sign-up; confirmed here), and
+  // how and in which calendar it pays: with the industry, the five answers
+  // its statutory rules resolve from.
+  const settingsQuery = useSettings();
+  const kindsQuery = useOrganizationTypes();
+  const [kind, setKind] = useState<string | null>(null);
+  const [calendar, setCalendar] = useState<"ethiopian" | "gregorian" | null>(
+    null,
+  );
   // null = the industry's usual profile; set only when the admin changes it,
   // so the preview can tell an explicit choice from a default.
   const [workforceProfile, setWorkforceProfile] = useState<string | null>(null);
@@ -104,6 +117,10 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const selectedIndustry = (industriesQuery.data ?? []).find(
     (ind) => ind.key === selected,
   );
+  const currentKind =
+    kind ?? settingsQuery.data?.organization.organization_type ?? undefined;
+  const currentCalendar =
+    calendar ?? settingsQuery.data?.display.calendar ?? "ethiopian";
   const workforceOptions = profilesQuery.data?.workforce ?? [];
   const policyOptions = profilesQuery.data?.policy ?? [];
   const label = (p: { label: string; label_am: string }) =>
@@ -169,7 +186,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     try {
       const result = await preview.mutateAsync({
         industry: selected,
-        employee_count: employeeCount ? Number(employeeCount) : undefined,
+        staff_band: staffBand ?? undefined,
         region: region || undefined,
         workforce_profile: workforceProfile ?? undefined,
         policy_profile: policyProfile ?? undefined,
@@ -214,6 +231,10 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         save: true,
         workforce_profile: plan.profiles?.workforce?.key,
         policy_profile: plan.profiles?.policy?.key,
+        organization_type: currentKind,
+        staff_band: staffBand ?? undefined,
+        pay_period: "monthly",
+        calendar: currentCalendar,
       });
       const created = result.provisioned.total_created;
       toast.success(
@@ -412,18 +433,31 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                         setPolicyProfile,
                       )}
                     <div>
-                      <Label htmlFor="employee-count">
-                        {t("setup2.employee_count", "Employees (approx.)")}
+                      <Label htmlFor="staff-band">
+                        {t("setup2.staff_band", "How many people work here")}
                       </Label>
-                      <Input
-                        id="employee-count"
-                        type="number"
-                        min={1}
-                        inputMode="numeric"
-                        value={employeeCount}
-                        onChange={(e) => setEmployeeCount(e.target.value)}
-                        className="mt-1"
-                      />
+                      <Select
+                        value={staffBand ?? ""}
+                        onValueChange={(value) =>
+                          setStaffBand(value as StaffBand)
+                        }
+                      >
+                        <SelectTrigger id="staff-band" className="mt-1">
+                          <SelectValue
+                            placeholder={t(
+                              "setup2.staff_band_choose",
+                              "Choose a range",
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STAFF_BANDS.map((band) => (
+                            <SelectItem key={band} value={band}>
+                              {band}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="region">
@@ -437,6 +471,119 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                         placeholder={t("setup.default_city", "Addis Ababa")}
                       />
                     </div>
+                  </div>
+                </section>
+              )}
+
+              {selectedIndustry && (
+                <section className="space-y-4 border-t pt-6">
+                  <div>
+                    <h3 className="text-sm font-semibold">
+                      {t("setup2.payroll_basics", "How you pay")}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "setup2.payroll_basics_hint",
+                        "Tax, pension and leave rules follow from the kind of organisation. Nothing here asks you to type a rate.",
+                      )}
+                    </p>
+                  </div>
+                  <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="org-kind">
+                        {t("setup2.org_kind", "Kind of organisation in law")}
+                      </Label>
+                      <div className="mt-1">
+                        <OrgKindSelect
+                          id="org-kind"
+                          kinds={kindsQuery.data ?? []}
+                          value={currentKind}
+                          onChange={setKind}
+                          disabled={kindsQuery.isPending}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="org-calendar-choice">
+                        {t("setup2.calendar", "Calendar")}
+                      </Label>
+                      <Select
+                        value={currentCalendar}
+                        onValueChange={(value) =>
+                          setCalendar(value as "ethiopian" | "gregorian")
+                        }
+                      >
+                        <SelectTrigger
+                          id="org-calendar-choice"
+                          className="mt-1"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ethiopian">
+                            {t(
+                              "setup2.calendar_ethiopian",
+                              "Ethiopian calendar",
+                            )}
+                          </SelectItem>
+                          <SelectItem value="gregorian">
+                            {t(
+                              "setup2.calendar_gregorian",
+                              "Gregorian calendar",
+                            )}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <fieldset className="sm:col-span-2">
+                      <legend className="text-sm font-medium">
+                        {t("setup2.pay_frequency", "How often you pay")}
+                      </legend>
+                      <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="pay-frequency"
+                            value="monthly"
+                            checked
+                            readOnly
+                            className="h-4 w-4 accent-[var(--color-interactive-primary)]"
+                          />
+                          {t("setup2.pay_monthly", "Monthly")}
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <input
+                            type="radio"
+                            name="pay-frequency"
+                            value="biweekly"
+                            disabled
+                            aria-describedby="pay-frequency-later"
+                            className="h-4 w-4"
+                          />
+                          {t("setup2.pay_biweekly", "Every two weeks")}
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <input
+                            type="radio"
+                            name="pay-frequency"
+                            value="weekly"
+                            disabled
+                            aria-describedby="pay-frequency-later"
+                            className="h-4 w-4"
+                          />
+                          {t("setup2.pay_weekly", "Weekly")}
+                        </label>
+                      </div>
+                      <p
+                        id="pay-frequency-later"
+                        className="mt-1 text-xs text-muted-foreground"
+                      >
+                        {t(
+                          "setup2.pay_frequency_later",
+                          "Weekly and two-weekly pay are not supported yet; payroll runs monthly.",
+                        )}
+                      </p>
+                    </fieldset>
                   </div>
                 </section>
               )}

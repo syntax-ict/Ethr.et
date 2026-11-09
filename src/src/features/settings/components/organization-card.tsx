@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
+import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -75,7 +76,7 @@ export interface OrganizationCardProps {
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
-  const { t, locale: uiLocale } = useT();
+  const { t } = useT();
   const updateOrganization = useUpdateOrganization();
   const organizationTypes = useOrganizationTypes();
 
@@ -212,26 +213,18 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 />
               </div>
             ) : (
-              <Select
-                value={kind}
-                onValueChange={setKind}
-                disabled={organizationTypes.isPending}
+              <div
+                className="mt-1"
+                aria-busy={organizationTypes.isPending || undefined}
               >
-                <SelectTrigger
+                <OrgKindSelect
                   id="org-kind"
-                  className="mt-1"
-                  aria-busy={organizationTypes.isPending || undefined}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(organizationTypes.data ?? []).map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {uiLocale === "am" ? option.name_am : option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  kinds={organizationTypes.data ?? []}
+                  value={kind}
+                  onChange={setKind}
+                  disabled={organizationTypes.isPending}
+                />
+              </div>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
               {t(

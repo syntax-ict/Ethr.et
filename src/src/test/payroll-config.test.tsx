@@ -159,17 +159,21 @@ describe("TaxBracketsCard", () => {
     },
   ];
 
-  it("renders each band with a derived lower bound", async () => {
+  it("shows the law's ladder, each band from where the last one ended, and offers no way to change it", async () => {
     server.use(
       http.get(BRACKETS_URL, () => HttpResponse.json({ data: LADDER })),
     );
 
     renderWithClient(<TaxBracketsCard />);
 
-    // First band starts at 0; the second starts one cent after the first ends.
-    expect(await screen.findByText("0.00 ETB")).toBeInTheDocument();
+    expect(await screen.findByText("and above")).toBeInTheDocument();
+    expect(screen.getAllByText("0.00 ETB").length).toBeGreaterThan(0);
     expect(screen.getByText("600.01 ETB")).toBeInTheDocument();
-    expect(screen.getByText("and above")).toBeInTheDocument();
+    expect(
+      screen.getByText(/an organisation cannot change it/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save/i })).toBeNull();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
   it("shows the error state when the ladder cannot be loaded", async () => {
@@ -180,53 +184,6 @@ describe("TaxBracketsCard", () => {
     renderWithClient(<TaxBracketsCard />);
 
     expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
-  });
-
-  it("submits a contiguous ladder in integer cents", async () => {
-    const put = vi.fn();
-
-    server.use(
-      http.get(BRACKETS_URL, () => HttpResponse.json({ data: LADDER })),
-      http.put(BRACKETS_URL, async ({ request }) => {
-        put(await request.json());
-        return HttpResponse.json({ data: LADDER });
-      }),
-    );
-
-    renderWithClient(<TaxBracketsCard />);
-
-    await screen.findByText("and above");
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(put).toHaveBeenCalled());
-
-    const body = put.mock.calls[0][0] as {
-      brackets: { min_amount_cents: number; max_amount_cents: number | null }[];
-    };
-
-    expect(body.brackets[0].min_amount_cents).toBe(0);
-    expect(body.brackets[0].max_amount_cents).toBe(60000);
-    // Derived: previous max + 1 cent — no gap, no overlap.
-    expect(body.brackets[1].min_amount_cents).toBe(60001);
-    expect(body.brackets[1].max_amount_cents).toBeNull();
-  });
-
-  it("keeps the last band open-ended after adding one", async () => {
-    server.use(
-      http.get(BRACKETS_URL, () => HttpResponse.json({ data: LADDER })),
-    );
-
-    renderWithClient(<TaxBracketsCard />);
-
-    await screen.findByText("and above");
-    expect(screen.getAllByText("and above")).toHaveLength(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Add band" }));
-
-    await waitFor(() =>
-      expect(screen.getAllByLabelText("Rate (%)")).toHaveLength(3),
-    );
-    expect(screen.getAllByText("and above")).toHaveLength(1);
   });
 });
 

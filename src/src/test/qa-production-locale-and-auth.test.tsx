@@ -5,6 +5,7 @@ import { server } from "./msw/server";
 import { apiClient } from "@/api/client";
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import RegisterPage from "@/app/(auth)/register/page";
 
 vi.mock("next/navigation", () => ({
@@ -113,7 +114,15 @@ describe("sign-up checks the subdomain once typing pauses", () => {
       }),
     );
 
-    const { container } = render(<RegisterPage />);
+    const { container } = render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <RegisterPage />
+      </QueryClientProvider>,
+    );
     for (const value of ["QA A", "QA Au", "QA Aud", "QA Audi", "QA Audit"]) {
       fireEvent.change(field(container, "org_name"), { target: { value } });
     }
