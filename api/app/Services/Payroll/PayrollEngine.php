@@ -436,17 +436,38 @@ final class PayrollEngine
 
     public function reprocess(PayrollRun $voidedRun, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
     {
-        $tenantId = $voidedRun->tenant_id;
-        $periodStart = Carbon::parse($voidedRun->period_start);
-        $periodEnd = Carbon::parse($voidedRun->period_end);
+        $begun = $this->reserve(
+            $voidedRun->tenant_id,
+            Carbon::parse($voidedRun->period_start),
+            Carbon::parse($voidedRun->period_end),
+            $processedBy,
+            $idempotencyKey,
+        );
 
-        // One live run per period, as ProcessPayrollRequest holds for
-        // `/process`. Reprocessing never asked: the same voided run
-        // reprocessed twice with two keys, or after the period had been
-        // processed afresh, gave the period two runs, both approvable, each
-        // with its own bank file. Checked and reserved under one lock so two
-        // clicks cannot both pass; the computation runs after it.
-        $begun = Cache::lock("payroll-reserve:{$tenantId}", 15)->block(10, function () use ($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey): PayrollProcessResult {
+        if (! $begun->wasDuplicate) {
+            $begun->run->update(['reprocessed_from_id' => $voidedRun->id]);
+        }
+
+        // Reserved only. The caller queues ProcessPayrollJob, as `/process`
+        // does: it computes in batches against the request's deadline,
+        // carries on where it stopped, and marks a run that dies `failed`.
+        // Computed inline here, a large organisation's run outlived the
+        // host's time limit, or a missing rule threw, and the run stayed
+        // `processing` with nothing able to void, approve or replace it.
+        return $begun;
+    }
+
+    /**
+     * begin(), once no live run covers any of the period: one live run per
+     * period. ProcessPayrollRequest says so before a run is asked for, but a
+     * check in the request and an insert later let two requests both pass,
+     * and reprocessing never asked at all. Here the check and the insert run
+     * under one lock per organisation, so the second of two waits and is
+     * refused. A replayed idempotency key is answered with its run as before.
+     */
+    public function reserve(int $tenantId, Carbon $periodStart, Carbon $periodEnd, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
+    {
+        return Cache::lock("payroll-reserve:{$tenantId}", 15)->block(10, function () use ($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey): PayrollProcessResult {
             $replay = $idempotencyKey !== null && PayrollRun::query()
                 ->where('tenant_id', $tenantId)
                 ->where('idempotency_key', $idempotencyKey)
@@ -468,14 +489,6 @@ final class PayrollEngine
 
             return $this->begin($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey);
         });
-
-        if ($begun->wasDuplicate) {
-            return $begun;
-        }
-
-        $begun->run->update(['reprocessed_from_id' => $voidedRun->id]);
-
-        return new PayrollProcessResult($this->runEntries($begun->run));
     }
 
     /**
