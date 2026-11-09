@@ -6,6 +6,7 @@ return [
     'plan_changed' => 'የምዝገባ ዕቅድ ወደ :plan ተለውጧል።',
     'invoice_paid' => 'ደረሰኝ ተከፍሏል ተብሎ ምልክት ተደርጎበታል።',
     'employee_limit_reached' => 'ለዕቅድዎ የሰራተኛ ገደብ ደርሰዋል።',
+    'limit_check_busy' => 'ሌላ የሰራተኞች ቁጥር ለውጥ በመቀመጥ ላይ ነው። ትንሽ ቆይተው እንደገና ይሞክሩ።',
     'branch_limit_reached' => 'ለዕቅድዎ የቅርንጫፍ ገደብ ደርሰዋል።',
     'device_limit_reached' => 'ለዕቅድዎ የመሳሪያ ገደብ ደርሰዋል።',
 

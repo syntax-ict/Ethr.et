@@ -88,14 +88,12 @@ class ScimUserController extends Controller
             return $this->scimError('User already exists', 409, 'uniqueness');
         }
 
-        // The plan's seat cap applies however an employee arrives; the form and
-        // the import enforced it and SCIM did not.
-        $planLimits->assertCanAdd($tenant, 'employees');
-
         $ssoSettings = $tenant->ssoSetting;
         $defaultRole = UserRole::tryFrom($ssoSettings?->default_role ?? '') ?? UserRole::EMPLOYEE;
 
-        $user = DB::transaction(function () use ($tenant, $data, $email, $defaultRole) {
+        // The plan's seat cap applies however an employee arrives; the form and
+        // the import enforced it and SCIM did not. Checked under the seat lock.
+        $user = $planLimits->withinLimit($tenant, 'employees', 1, fn () => DB::transaction(function () use ($tenant, $data, $email, $defaultRole) {
             $name = $data['name'] ?? [];
             $fullName = trim(($name['givenName'] ?? '').' '.($name['familyName'] ?? '')) ?: $email;
 
@@ -125,7 +123,7 @@ class ScimUserController extends Controller
             ]);
 
             return $user->load('employee');
-        });
+        }));
 
         return response()->json($this->toScimUser($user), 201)
             ->header('Location', url("/api/v1/scim/v2/Users/{$user->public_id}"));

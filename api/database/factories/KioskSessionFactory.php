@@ -22,7 +22,15 @@ class KioskSessionFactory extends Factory
             'device_identifier' => 'device-'.fake()->unique()->numerify('###'),
             'status' => 'active',
             'activated_at' => now(),
+            'expires_at' => KioskSession::freshExpiry(),
         ];
+    }
+
+    public function expired(): static
+    {
+        return $this->state([
+            'expires_at' => now()->subMinute(),
+        ]);
     }
 
     public function inactive(): static

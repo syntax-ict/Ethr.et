@@ -6,6 +6,10 @@ namespace App\Services;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use Closure;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Enforces the seat/branch/device caps on `Plan` — previously read by nothing
@@ -28,6 +32,91 @@ use App\Models\Tenant;
  */
 class PlanLimitService
 {
+    /**
+     * How long the seat lock is held at most. An import commit of a few
+     * hundred rows, logins included, finishes well inside it; a lock that
+     * expired mid-commit would let a second writer count too early.
+     */
+    public const LOCK_SECONDS = 120;
+
+    /** How long a second writer waits for the first before it is refused. */
+    public const LOCK_WAIT_SECONDS = 20;
+
+    public function __construct(private readonly int $lockWaitSeconds = self::LOCK_WAIT_SECONDS) {}
+
+    /**
+     * Checks the cap and runs `$create` under one lock per organisation and
+     * resource, so the count it is checked against cannot move until the
+     * create is done.
+     *
+     * assertCanAdd() alone counted, then the caller created: two import
+     * commits sent together each counted the same headcount, each passed, and
+     * both landed past the plan (review 2026-11-09). The second now waits for
+     * the first and counts what it created, as PayrollEngine::reserve() does
+     * for overlapping payroll runs. `$create` must commit before it returns:
+     * a transaction still open when the lock is released hides its rows from
+     * the next count.
+     *
+     * A writer that cannot get the lock in time is refused with a 409, not
+     * let through and not a 500.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $create
+     * @return T
+     */
+    public function withinLimit(Tenant $tenant, string $resource, int $count, Closure $create): mixed
+    {
+        return $this->serialised($tenant, $resource, function () use ($tenant, $resource, $count, $create): mixed {
+            $this->assertCanAdd($tenant, $resource, $count);
+
+            return $create();
+        });
+    }
+
+    /**
+     * The lock alone, for a caller that checks the cap itself inside `$work`
+     * because it may return without creating anything (a replayed hire).
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $work
+     * @return T
+     */
+    public function serialised(Tenant $tenant, string $resource, Closure $work): mixed
+    {
+        $lock = $this->lock($tenant, $resource);
+
+        try {
+            return $work();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * The seat lock, held, for a caller that releases it in its own `finally`:
+     * a controller whose response type is read from the statements between,
+     * which the API contract generator cannot follow through a closure.
+     */
+    public function lock(Tenant $tenant, string $resource): Lock
+    {
+        $lock = Cache::lock(self::lockKey($tenant, $resource), self::LOCK_SECONDS);
+
+        try {
+            $lock->block($this->lockWaitSeconds);
+        } catch (LockTimeoutException) {
+            abort(409, __('billing.limit_check_busy'));
+        }
+
+        return $lock;
+    }
+
+    public static function lockKey(Tenant $tenant, string $resource): string
+    {
+        return "plan-limit:{$resource}:{$tenant->id}";
+    }
+
     /**
      * Capacity left for `$resource`, or null if this tenant/resource
      * combination is not capped at all (trial, or no plan on record).

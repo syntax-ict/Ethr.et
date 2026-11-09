@@ -1044,6 +1044,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Middleware\\EnsurePlatformContext' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsurePlatformContext.php',
         'App\\Http\\Middleware\\EnsureRegistrationOpen' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureRegistrationOpen.php',
         'App\\Http\\Middleware\\EnsureUserBelongsToTenant' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureUserBelongsToTenant.php',
+        'App\\Http\\Middleware\\HardenServedFiles' => __DIR__ . '/../..' . '/app/Http/Middleware/HardenServedFiles.php',
         'App\\Http\\Middleware\\RateLimitLoginAttempts' => __DIR__ . '/../..' . '/app/Http/Middleware/RateLimitLoginAttempts.php',
         'App\\Http\\Middleware\\RejectInactiveUser' => __DIR__ . '/../..' . '/app/Http/Middleware/RejectInactiveUser.php',
         'App\\Http\\Middleware\\RejectUnverifiedMfaToken' => __DIR__ . '/../..' . '/app/Http/Middleware/RejectUnverifiedMfaToken.php',

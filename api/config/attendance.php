@@ -20,4 +20,17 @@ return [
 
     'offline_future_skew_minutes' => 5,
 
+    /*
+    | How long a kiosk session works before an admin must renew it.
+    |
+    | A kiosk token is the whole credential of a shared terminal, kept in that
+    | terminal's browser. It never expired, so a token copied once punched for
+    | anyone in the organisation until someone thought to regenerate it
+    | (review 2026-11-09). Registering, renewing and replacing the token each
+    | start the period again; renewing keeps the token, so the terminal does
+    | not have to be set up again.
+    */
+
+    'kiosk_session_days' => 90,
+
 ];

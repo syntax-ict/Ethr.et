@@ -310,6 +310,7 @@ return array(
     'App\\Http\\Middleware\\EnsurePlatformContext' => $baseDir . '/app/Http/Middleware/EnsurePlatformContext.php',
     'App\\Http\\Middleware\\EnsureRegistrationOpen' => $baseDir . '/app/Http/Middleware/EnsureRegistrationOpen.php',
     'App\\Http\\Middleware\\EnsureUserBelongsToTenant' => $baseDir . '/app/Http/Middleware/EnsureUserBelongsToTenant.php',
+    'App\\Http\\Middleware\\HardenServedFiles' => $baseDir . '/app/Http/Middleware/HardenServedFiles.php',
     'App\\Http\\Middleware\\RateLimitLoginAttempts' => $baseDir . '/app/Http/Middleware/RateLimitLoginAttempts.php',
     'App\\Http\\Middleware\\RejectInactiveUser' => $baseDir . '/app/Http/Middleware/RejectInactiveUser.php',
     'App\\Http\\Middleware\\RejectUnverifiedMfaToken' => $baseDir . '/app/Http/Middleware/RejectUnverifiedMfaToken.php',
