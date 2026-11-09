@@ -48,6 +48,26 @@ describe("Contract type compatibility", () => {
     }>();
   });
 
+  // The drift gate compares generated.ts with a fresh export, so a Scramble
+  // upgrade that regenerates it wrongly turns the gate green. 0.13.53 (#663)
+  // typed `total` and `last_page` as string and dropped `| null` from link
+  // urls. These pins make that fail tsc instead of shipping.
+  it("generated LengthAwarePaginator keeps its integer and nullable fields", () => {
+    type Paginator = components["schemas"]["LengthAwarePaginator"];
+
+    expectTypeOf<Paginator["total"]>().toEqualTypeOf<number>();
+    expectTypeOf<Paginator["last_page"]>().toEqualTypeOf<number>();
+    expectTypeOf<Paginator["current_page"]>().toEqualTypeOf<number>();
+    expectTypeOf<Paginator["per_page"]>().toEqualTypeOf<number>();
+    expectTypeOf<Paginator["from"]>().toEqualTypeOf<number | null>();
+    expectTypeOf<Paginator["to"]>().toEqualTypeOf<number | null>();
+    expectTypeOf<Paginator["next_page_url"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<Paginator["prev_page_url"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<Paginator["links"][number]["url"]>().toEqualTypeOf<
+      string | null
+    >();
+  });
+
   it("generated spec has critical API paths", () => {
     expectTypeOf<paths>().toHaveProperty("/employees");
     expectTypeOf<paths>().toHaveProperty("/auth/login");
