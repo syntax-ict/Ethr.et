@@ -165,7 +165,7 @@ final class SupremaAdapter implements DeviceAdapter
         $baseUrl = DeviceHost::baseUrl($scheme, (string) $config['ip'], (string) $port);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
-        $request = Http::connectTimeout(2)->timeout(10)
+        $request = Http::connectTimeout(2)->timeout(10)->withoutRedirecting()
             ->withOptions($pin)
             ->withHeaders([
                 'X-API-Key' => $config['api_key'] ?? '',

@@ -40,6 +40,7 @@ return [
         'cannot_delete_self' => 'Herrega keessan hojii ala gochuu hin dandeessan.',
         'not_pending' => 'Fayyadamaan kun kakaasa eegaa hin jiru.',
         'already_exists' => 'Fayyadamaan imeelii kana qabu duraan jira.',
+        'employee_has_login' => 'Hojjetaan kun duraan herrega seensaa qaba.',
         'cannot_reset_own_mfa' => 'Mirkaneessa tarkaanfii lamaa keessanii qindaa\'ina nageenyaa keessan irraa cufaa.',
         'mfa_not_enabled' => 'Fayyadamaan kun mirkaneessa tarkaanfii lamaa hin banne.',
     ],

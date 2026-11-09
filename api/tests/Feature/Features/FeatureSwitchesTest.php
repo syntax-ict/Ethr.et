@@ -122,8 +122,8 @@ describe('phone notifications', function () {
         PushSubscription::create([
             'tenant_id' => $tenant->id,
             'user_id' => $user->id,
-            'endpoint' => 'https://push.example.test/abc',
-            'endpoint_hash' => PushSubscription::hashEndpoint('https://push.example.test/abc'),
+            'endpoint' => 'https://fcm.googleapis.com/fcm/send/abc',
+            'endpoint_hash' => PushSubscription::hashEndpoint('https://fcm.googleapis.com/fcm/send/abc'),
             'public_key' => 'p256dh-key',
             'auth_token' => 'auth-key',
         ]);

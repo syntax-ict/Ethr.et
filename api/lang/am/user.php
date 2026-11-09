@@ -40,6 +40,7 @@ return [
         'cannot_delete_self' => 'የራስዎን መለያ ማሰናከል አይችሉም።',
         'not_pending' => 'ይህ ተጠቃሚ ማንቃትን አይጠብቅም።',
         'already_exists' => 'በዚህ ኢሜይል ተጠቃሚ አስቀድሞ አለ።',
+        'employee_has_login' => 'ይህ ሠራተኛ አስቀድሞ የመግቢያ መለያ አለው።',
         'cannot_reset_own_mfa' => 'የራስዎን ባለሁለት ደረጃ ማረጋገጫ ከደህንነት ቅንብሮችዎ ያጥፉ።',
         'mfa_not_enabled' => 'ይህ ተጠቃሚ ባለሁለት ደረጃ ማረጋገጫ አላበራም።',
     ],
