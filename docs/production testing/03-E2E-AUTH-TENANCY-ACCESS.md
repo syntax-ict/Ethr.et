@@ -23,6 +23,11 @@ employee and no second admin at one's own level (#670, #678: ACC-020, ACC-031), 
 organisation (#668: TEN-027), the address while impersonating (#680: IMP-004, IMP-008) and upgrades
 billed for the rest of the period (#670: PLAN-022).
 
+**Org-type-aware configuration (#682).** Sign-up asks the kind of organisation in law, grouped by
+sector (section 6a, ORG-009 to ORG-011). What the kind decides is file 07's section 13; the setup
+wizard's answers are file 04's section 1a. TEN-014 notes where the fiscal year now lives. The
+platform console gains no screen for the kinds: the catalogue is written by migrations.
+
 **Extra test data for this file** (add it with the rest of [01, section 6](01-TEST-PLAN.md#6-test-data)):
 
 | Item | Used by |
@@ -199,6 +204,22 @@ activated" holds only addresses the team controls.
 | ORG-007 | P3 | R | Registration closed | Only on a single-organisation installation | 403 `registration-closed` (not expected on ethr.et; record if seen) |
 | ORG-008 | P3 | R | Sign-up switched off by ETHR (#480) | Observe only: the switch closes sign-up for everyone, so never switch it for a test. If PA has "New organisation sign-up" disabled, submit `/register` | 403 `feature-unavailable`, `reason: "platform_disabled"`, "ETHR has switched off new organisation sign-up for now. Try again later."; no organisation is created. Blocked while sign-up is open |
 
+### 6a. Kind of organisation at sign-up (#682)
+
+**Run only once #682 is deployed (check S-01); until then record Blocked.**
+
+The kind of organisation in law (`organization_kind`, one of the sixteen active rows of
+`organization_types`) decides which statutory payroll rules apply (07, section 13). It is separate
+from "Organization Type", the industry, which the setup wizard's industry list still follows (04,
+SET-001). Registering with a kind writes the organisation's first dated profile and needs no later
+confirmation; a client that sends none gets the old guess from the industry, flagged for review.
+
+| ID | P | Mode | Scenario | Steps | Expected |
+|---|---|---|---|---|---|
+| ORG-009 | P1 | R | The kind is asked at sign-up (#682) | Signed out: `/register`, step 1 in English. Fill the organisation name and a free `uat-` slug; leave the kind empty; open the kind list; choose one; do not submit. Repeat in አማርኛ | Below "Organization Type": "Kind of organisation in law", "Choose one", help "Decides which tax, pension and labour rules apply to your payroll." "Next" stays disabled until a kind is chosen. The list in four groups, in this order: "Private sector": Private organisation, Sole proprietor, Private limited company (PLC), Share company (S.C.), Partnership or joint venture, Cooperative society, Branch of a foreign company; "Non-profit": Charity or society, Foreign civil society organisation, Religious organisation; "Public sector": Public enterprise, Government office (civil service), Regional or city government office, Defence or police; "International": International organisation or embassy, Embassy or diplomatic mission. In አማርኛ the label reads «በሕግ የድርጅቱ ዓይነት» and the kinds their `name_am` (the ten newer names are drafts awaiting native review). If the list cannot load: "The list could not be loaded. Check your connection and reload the page." Note: two kinds both say "embassy"; record which a tester would pick (cosmetic) |
+| ORG-010 | P2 | W | The kind through the API (#682) | `POST /api/v1/auth/register` as ORG-004's body with slug `uat-kind-<date>`: (a) `organization_kind` `plc`; (b) `organization_kind` `cooperative`. Then TA of (b): `GET /settings`, `GET /payroll/statutory-rules` | (a) 422 on `organization_kind`, "The selected organization kind is invalid.", nothing created. (b) 201; `organization.organization_type` `cooperative`, `organization_type_needs_review` false; `statutory-rules` `organization_type` `cooperative`, `sector` null until the configuration step names the industry. Without `organization_kind` (an older client) the kind is guessed from the industry (`government`, `ngo`, else `private`) and flagged for review (STAT-001); do not register a third organisation for it. Switch off the public listing (04, SET-017's note) |
+| ORG-011 | P3 | R | The catalogue is public (#682) | Signed out: `GET /api/v1/organization-types` | 200, `data`: 16 rows, each `code`, `name`, `name_am`, `description`, `group` (`private`, `non_profit`, `public`, `international`) and `parent_code`, in ORG-009's order. The six older kinds have no parent; `sole_proprietor`, `private_limited_company`, `share_company`, `partnership`, `cooperative` and `foreign_company_branch` name `private`; `foreign_cso` and `religious_organization` name `ngo`; `regional_government` names `government`; `diplomatic_mission` names `international_organization`. Throttled at 120 a minute per address (`public-catalogue`); do not loop |
+
 ## 7. Organisation addresses and tenancy
 
 | ID | P | Mode | Scenario | Steps | Expected |
@@ -216,7 +237,7 @@ activated" holds only addresses the team controls.
 | TEN-011 | P1 | R | Super admin on a tenant host | PA tries to sign in on QA Audit's address | Refused (403); only impersonation reaches a tenant |
 | TEN-012 | P2 | R | Header ignored on tenant hosts | On `qa-audit.ethr.et`, send `X-Tenant: uat-iso-…` | Still QA Audit; the header is honoured only on the apex |
 | TEN-013 | P2 | W | Organisation chooses its own address | On a `uat-` organisation, TA: Settings → address: switch between the path form and the subdomain form (and a custom domain if the plan carries the add-on; verify with `POST /settings/address/verify`) | Saved; emails, the entry page and sign-in links use the new canonical address, and the old form redirects to it. The same rules as the console's domain endpoints (CON-P-006, CON-P-007). This is the address *form* (`PUT /settings/address`); renaming the name itself is TEN-015 |
-| TEN-014 | P2 | W | Organisation details | TA: Settings (organisation and general sections): name, Amharic name, contact details, and, where offered, fiscal year start (Hamle 1 or Meskerem 1) and the working week | Saved, audited; the header, sign-in page and leave day counting follow (working week change affects LR-002) |
+| TEN-014 | P2 | W | Organisation details (#682) | TA: Settings (organisation and general sections): name, Amharic name, contact details, and, where offered, fiscal year start (Hamle 1 or Meskerem 1) and the working week. Since #682 the fiscal year start is on Settings → Payroll → Payroll setup, and saving it makes it the organisation's own value against its kind's default (07, STAT-007, STAT-008); in QA Audit change only name and contact details | Saved, audited; the header, sign-in page and leave day counting follow (working week change affects LR-002) |
 | TEN-015 | P2 | W | Rename the address | `uat-` organisation only (a rename reserves the old name for that organisation for good). TA: Settings → Address → "Address name" → "Change name"; type `<slug>-b`, wait for "Available" → "Continue"; read the dialog → "Change address". Routes: `GET /settings/address/subdomain/check?subdomain=`, `PUT /settings/address/subdomain`, `settings.manage` (tenant admin only), 5 renames an hour per organisation | Dialog "Change your address to …?": ":old keeps working and forwards to :new. The old name stays reserved for your organisation." 200; "Address changed to …". The card lists "Earlier names that still forward here: `<slug>`". Audit "Organisation address renamed" (`settings.subdomain_changed`) with both names. Emails sent afterwards use the new name |
 | TEN-016 | P2 | R | Old name keeps working | After TEN-015: `https://www.ethr.et/<old>`; with subdomains on, `https://<old>.ethr.et/login`; `GET /api/v1/auth/me` with `X-Tenant: <old>` | Both pages answer **302** (not 301) to the current address (the subdomain to the new host's `/login`). The API answers as the same organisation, not 404 `tenant-not-found` |
 | TEN-017 | P2 | R | Name rules | Check, then save: `ab`, `-qa`, `qa_1`, `www`, `dashboard`, `admin`, ` QA-Test-9 ` (capitals, spaces around) | The check always returns 200 with `available` and `message`. `ab`: "The subdomain field must be at least 3 characters." (screen: "Use at least 3 characters."). `-qa`, `qa_1`: "Use lower-case letters, numbers and hyphens, starting and ending with a letter or number." Reserved: "That name is reserved by ETHR. Please choose another." The last is trimmed and lower-cased, then judged |

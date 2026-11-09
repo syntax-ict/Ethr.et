@@ -13,8 +13,10 @@ Oromoo, the schema check in the smoke test), and stage 2 refreshed each spec fil
 priorities so that P1 means release-blocking (about a quarter of the cases, more in payroll), and
 re-checked every known issue against the code. **The fourth edition** (2026-11-09) adds the
 cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`; rows in
-[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)) and makes the pack runnable by
-Claude Code and Playwright ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)). The figures
+[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)) makes the pack runnable by
+Claude Code and Playwright ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
+configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
+they are recorded Blocked until #682 is deployed. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.

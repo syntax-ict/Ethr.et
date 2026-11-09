@@ -21,7 +21,9 @@ are **P2**; cosmetic and secondary checks are **P3**.
 
 **Since the third edition (2026-11-09).** A supervisor reads the balances of the people they reach
 (#658: LB-008), and two requests sent together can no longer both draw on the same balance (#669:
-LR-022).
+LR-022). Annual, maternity and paternity leave types can no longer grant fewer days than the law
+(#682: LT-006); the days, Art. 85's sick tiers and window are now statutory rows (07, STAT-005),
+with the same values, so no case here moves.
 
 **Ground rules:**
 
@@ -56,6 +58,7 @@ LR-022).
 | LT-003 | P2 | W | Deactivate | Deactivate QA Compassionate; EMP tries to request it | Not offered; through the API refused (type must be active) |
 | LT-004 | P2 | R | Rights | SUP opens leave type settings | View only (everyone holds `leave.viewTypes`); `leave.manageTypes` is HR |
 | LT-005 | P2 | R | Kinds that settle absences | HR: Settings → Leave types in QA Audit and in a new `uat-` organisation | Both have "Official Duty / Business Trip" (duty) and "Excused Absence" (excused), both paid, plus an unpaid type. Duty and excused days use no balance and are absent from balance cards and the leave balance report |
+| LT-006 | P2 | W | Leave types are held to the law's days (#682) | Run only once #682 is deployed (S-01); until then record Blocked. On uat-setup (04), HR: Settings → Leave types: Annual Leave to 15 days, then 17; Maternity Leave to 119; Paternity Leave to 2; a new type "QA Compassionate" with 1 day. Put Annual back to 16. Then TA: the dashboard's Next steps | Annual 15: refused under the days, "The law grants at least 16 days of this leave (Labour Proclamation No. 1156/2019, Art. 77(1)). A leave type may give more, never less." 17: saved. Maternity 119: "The law grants at least 120 days of this leave (Labour Proclamation No. 1156/2019, Art. 88). A leave type may give more, never less." Paternity 2: "The law grants at least 3 days of this leave (Labour Proclamation No. 1156/2019). A leave type may give more, never less." A type the law sets no days for (QA Compassionate) is not held. Only the codes `annual`, `maternity` and `paternity` are checked (`LeaveTypeCatalog::STATUTORY_DAYS`); the floors are the locked rows of 07's STAT-006. An organisation whose type was already below the law before #682 sees the step "Raise leave to the legal minimum", "A leave type grants fewer days than the Labour Proclamation does.", "Review leave types", and "Leave types grant at least what the law grants" fails (04, SET-020); the type itself keeps paying its days until edited. The defaults of LT-001 do not move |
 
 ## 2. Balances
 

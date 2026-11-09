@@ -215,6 +215,23 @@ the execution log.
 | Nobody below the organisation admin approves their own phone or sets their own exemption | #680 | SEC-026; SEC-027, PHN-001, PHN-015 changed |
 | Running the pack by machine: Claude Code with the Playwright MCP server, and the scripted smoke checks | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
+**Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
+branch before it merged). **Run these only once #682 is deployed (S-01); until then record Blocked.**
+Each changed case keeps its old expectation for a release without #682:
+
+| Change | PRs | Cases |
+|---|---|---|
+| Statutory rules are resolved by profile: the organisation's own row, then sector, kind, the kind's parent, then the law for everyone. Calculation log 1.8 (layer, enforcement, floor, version); `tenant_setting` retired | #682 | STAT-005, STAT-006, ISO-014; 07 sections 1.1, 1.2 and 11 notes, PAY-012, PAY-033, PAY-034 changed |
+| Sign-up asks the kind of organisation in law: 16 kinds in four groups; the 10 new kinds inherit their parent's rules; public catalogue | #682 | ORG-009 to ORG-011, STAT-003; STAT-001 changed |
+| Income tax ladder and pension rules locked to the law (422 cites the law); ladders saved earlier are still honoured and flagged | #682 | STAT-009, STAT-010; PAY-001, PAY-002, PAY-003, PAY-041 changed |
+| Settings → Payroll gets a "Statutory rules" tab with "Reset to default"; the four settings values become the organisation's own rows | #682 | STAT-006 to STAT-008; PAY-006, TEN-014 changed |
+| Leave types cannot grant fewer days than the law (annual 16, maternity 120, paternity 3) | #682 | LT-006 |
+| The wizard's configuration step asks headcount band, pay frequency (monthly only), calendar and kind, and records them as a profile | #682 | SET-018, SET-019; SET-002, SET-008 changed |
+| Pension registration number (POESSA/PSSSA), payout method, paying bank; "Ready for first payroll" (`GET /next-steps` → `payroll`) | #682 | SET-020 to SET-022; SET-006 changed |
+| Run Payroll opens on a dry-run preview (`POST /payroll/preview`, audited `payroll.previewed`, outside the 2-an-hour limit) | #682 | STAT-014 to STAT-016; PAY-010 changed |
+| After the first approved run, a change of kind needs `effective_from` (a month's first day, never Pagume); pending change shown, replaced or cancelled | #682 | STAT-011 to STAT-013; STAT-002 changed |
+| Kind, statutory rules and preview in Amharic and Afaan Oromoo | #682 | L10N-021 |
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
