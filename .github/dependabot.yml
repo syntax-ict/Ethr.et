@@ -26,6 +26,14 @@ updates:
         patterns: ["laravel/*", "illuminate/*"]
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # Held on 2026-11-09, for a measured reason. Lift it when the migration is
+      # planned, not as a weekly bump.
+      #   laravel/framework 13: #660 failed four gates. Pest exhausted its 2 GB
+      #                 memory limit in Foundation/Application.php, and the API
+      #                 contract, coverage and MySQL suites failed with it.
+      - dependency-name: laravel/framework
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /src
@@ -78,6 +86,10 @@ updates:
       #   msw 3:        84 of 151 test files fail; a migration, not a bump.
       #   jsdom 30:     Vitest 5's URL.createObjectURL shim reads jsdom 29's
       #                 Blob internals; three file-upload tests fail.
+      #   @sentry/nextjs 11 (held 2026-11-09): #666. next.config.ts fails to
+      #                 load, `withSentryConfig is not a function`, so the
+      #                 static export is never built. Lift with the config
+      #                 migration to Sentry 11's API.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
       - dependency-name: eslint
@@ -85,6 +97,8 @@ updates:
       - dependency-name: msw
         update-types: [version-update:semver-major]
       - dependency-name: jsdom
+        update-types: [version-update:semver-major]
+      - dependency-name: "@sentry/nextjs"
         update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
