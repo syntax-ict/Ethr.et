@@ -6648,6 +6648,7 @@
   "audit.action.user.device_trusted": "Meeshaan seensaaf amanamaa ta'e",
   "audit.action.user.device_untrusted": "Meeshaan kana booda hin amanamu",
   "audit.action.user.employee_linked": "Herregni hojjetaa tokko waliin walqabsiifame",
+  "audit.action.user.employee_unlinked": "Herregni lammaffaan hojjetaa irraa adda baafame",
   "audit.action.user.invite_resent": "Afeerraan irra deebiin ergame",
   "audit.action.user.login": "Seene",
   "audit.action.user.login_blocked": "Seensi dhorkame",

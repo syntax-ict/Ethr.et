@@ -223,6 +223,23 @@ class Employee extends Model
         return $this->hasOne(User::class);
     }
 
+    /**
+     * Whether a live account is this employee's login, by either side of the
+     * link. A deleted account is not: `employees.user_id` keeps naming it after
+     * `UserController::destroy()`, and reading that column alone refused the
+     * employee a new login for good. The database holds the same line through
+     * `users_live_employee_unique`.
+     */
+    public function hasLogin(): bool
+    {
+        return User::query()
+            ->where('tenant_id', $this->tenant_id)
+            ->where(fn (Builder $q) => $q
+                ->where('employee_id', $this->id)
+                ->when($this->user_id !== null, fn (Builder $q) => $q->orWhere('id', $this->user_id)))
+            ->exists();
+    }
+
     /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
