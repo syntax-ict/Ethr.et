@@ -69,6 +69,16 @@ new batch of new dated rows; it never touches an organisation's own rows, and
 no organisation pins a batch: the law in force on a payroll date is the law
 applied.
 
+### Seeing and resetting them
+
+Settings → Payroll → Statutory rules (`GET /payroll/statutory-rules`,
+`payroll.viewConfig`) lists every code in force with its layer, enforcement,
+legal reference, batch and the default it would have without the organisation's
+own value. A `default` code is changed where it always was (`PUT /settings`) and
+reset here (`DELETE /payroll/statutory-rules/{code}`, `payroll.manageConfig`,
+audited `statutory_parameter.reset`), which deletes the organisation's own row.
+A `locked` code is listed, never editable.
+
 ### Settings keys from before the table
 
 Four values an organisation could set as `tenants.settings` keys before they

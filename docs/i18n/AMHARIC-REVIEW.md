@@ -34,6 +34,19 @@ Drafts written without a native speaker; a wrong label moves no money.
   `api/lang/am/validation.php` — `leave_below_statutory_floor`. The Afaan Oromoo
   (`api/lang/om/`) versions of the same three keys need the same review.
 
+### Org-type-aware onboarding, frontend (2026-11-09)
+
+108 keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `auth.org_kind*`, `setup2.payroll_basics*`,
+`setup2.staff_band*`, `setup2.pay_*`, `setup2.calendar*`, `setup2.org_kind`,
+`statutory.pension_registration_*`, `statutory.payout_*`, `statutory.employer_bank_name`,
+`statutory_rules.*`, `settings.org_kind_*`, `payroll_config.tab_*`,
+`payroll_config.tax_brackets_locked`, `pension_rules.locked_description`,
+`next_steps.payroll_ready_*`, and `next_steps.step.*` for `statutory_override`,
+`setup_employer_tin`, `setup_tax_center`, `setup_pension_registration`,
+`setup_payout_method`, `setup_employee_salaries`, `leave_below_law`,
+`setup_device_linked` and `profile_legal_review`.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |

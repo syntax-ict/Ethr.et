@@ -144,6 +144,29 @@ Contract reference: `FRONTEND.md`. Live in-browser verification against a runnin
 backend + authenticated tenant is the one remaining manual check (the dev server
 was held by another session during implementation).
 
+### Org-type-aware onboarding (2026-11-09)
+
+- **Sign-up** asks the kind of organisation in law (`organization_kind`, one of the
+  sixteen `organization_types`, grouped private / non-profit / public / international)
+  beside the industry. Given, the type needs no later confirmation; a client that does
+  not send it keeps the old guess from the industry, flagged for review. Every
+  registration writes the organisation's first dated profile (`tenant_profile_assignments`).
+- **Smart configuration** also asks the headcount band (`staff_band`, read as its lower
+  bound for the attendance heuristic), pay frequency (monthly only; weekly and two-weekly
+  are shown as not supported) and calendar, and confirms the kind. Apply records them as
+  the organisation's profile — the kind, and the industry as its sector — through
+  `OrganisationProfile`; it writes no statutory value into settings, so the fiscal year and
+  Pagume proration follow the type (`docs/payroll/STATUTORY-PARAMETERS.md`).
+- **Ready for first payroll** is computed by `ReadinessScorer` (payroll category: employer
+  TIN, tax centre, pension registration, payout method, the law's own tax and pension rates,
+  leave at least the law, and a salary, TIN and bank account for everyone; a linked device
+  is suggested with weight 0) and returned as `payroll {done,total,ready}` by
+  `GET /next-steps`, each failing check a step.
+- **Settings → Payroll → Statutory rules** lists every rule with its source; rules the law
+  sets are locked, the organisation's own values can be reset (`DELETE
+  /payroll/statutory-rules/{code}`).
+- Playwright: `src/e2e/onboarding-first-payroll.spec.ts` (sign-up → answers → checklist ready).
+
 ### Superseded historical slices (below) — original planning notes retained for provenance.
 
 **Slice 5 — Device enrollment discovery.**
