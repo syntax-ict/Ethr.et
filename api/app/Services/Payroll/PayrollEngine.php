@@ -33,6 +33,7 @@ use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -295,8 +296,8 @@ final class PayrollEngine
 
     /**
      * The employees a run for the period pays: everyone in a working status,
-     * and anyone who left during the period. Attendance reconciliation asks
-     * the same question, so it reads exactly these people.
+     * and anyone whose leaving date is in the period or after it. Attendance
+     * reconciliation asks the same question, so it reads exactly these people.
      *
      * @return Builder<Employee>
      */
@@ -316,14 +317,19 @@ final class PayrollEngine
                     EmployeeStatus::PROBATION,
                     EmployeeStatus::CONFIRMED,
                 ])
+                // And someone whose leaving is recorded ahead of its date:
+                // the transition sets the status at once and the date as
+                // given, so a retirement entered on 20 November for 31
+                // December dropped that person from November's run, unpaid
+                // and unflagged. A termination date after the period pays
+                // the full period: proration reads only a date inside it.
                 ->orWhere(fn ($left) => $left
                     ->whereIn('status', [
                         EmployeeStatus::RESIGNED,
                         EmployeeStatus::TERMINATED,
                         EmployeeStatus::RETIRED,
                     ])
-                    ->whereDate('termination_date', '>=', $periodStart->toDateString())
-                    ->whereDate('termination_date', '<=', $periodEnd->toDateString())));
+                    ->whereDate('termination_date', '>=', $periodStart->toDateString())));
     }
 
     /**
@@ -430,19 +436,46 @@ final class PayrollEngine
 
     public function reprocess(PayrollRun $voidedRun, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
     {
-        $result = $this->process(
-            $voidedRun->tenant_id,
-            Carbon::parse($voidedRun->period_start),
-            Carbon::parse($voidedRun->period_end),
-            $processedBy,
-            $idempotencyKey,
-        );
+        $tenantId = $voidedRun->tenant_id;
+        $periodStart = Carbon::parse($voidedRun->period_start);
+        $periodEnd = Carbon::parse($voidedRun->period_end);
 
-        if (! $result->wasDuplicate) {
-            $result->run->update(['reprocessed_from_id' => $voidedRun->id]);
+        // One live run per period, as ProcessPayrollRequest holds for
+        // `/process`. Reprocessing never asked: the same voided run
+        // reprocessed twice with two keys, or after the period had been
+        // processed afresh, gave the period two runs, both approvable, each
+        // with its own bank file. Checked and reserved under one lock so two
+        // clicks cannot both pass; the computation runs after it.
+        $begun = Cache::lock("payroll-reserve:{$tenantId}", 15)->block(10, function () use ($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey): PayrollProcessResult {
+            $replay = $idempotencyKey !== null && PayrollRun::query()
+                ->where('tenant_id', $tenantId)
+                ->where('idempotency_key', $idempotencyKey)
+                ->exists();
+
+            if (! $replay) {
+                $live = PayrollRun::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereNotIn('status', ['voided', 'failed'])
+                    ->whereDate('period_start', '<=', $periodEnd->toDateString())
+                    ->whereDate('period_end', '>=', $periodStart->toDateString())
+                    ->orderByDesc('period_start')
+                    ->first();
+
+                if ($live !== null) {
+                    throw PayrollRunRefused::periodOverlaps($live);
+                }
+            }
+
+            return $this->begin($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey);
+        });
+
+        if ($begun->wasDuplicate) {
+            return $begun;
         }
 
-        return $result;
+        $begun->run->update(['reprocessed_from_id' => $voidedRun->id]);
+
+        return new PayrollProcessResult($this->runEntries($begun->run));
     }
 
     /**
