@@ -95,8 +95,14 @@ retired.
 A global catalogue (`organization_types`), written by migrations: there is
 no editor in the platform console yet. An organisation chooses its type at
 registration or in Settings, and `App\Services\Tenancy\OrganisationProfile`
-records it as a dated assignment (before any payroll is approved a change
-corrects the history; after, it applies from the day it is made). Every
+records it as a dated assignment. Before any payroll is approved a change
+corrects the history. After, it is never retroactive: `PUT
+/settings/organization` needs an `effective_from` that is the first day of an
+organisation month (never Pagume) after the last approved period and not before
+today (`OrganisationProfile::earliestChange()`, which `GET /settings` reports as
+`organization_type_earliest_change`). The change waits as a future assignment
+(`organization_type_pending`); a newer one replaces it, and choosing the current
+type again cancels it. Every
 organisation that existed before 2026-10-27 was given the type its settings
 suggested and asked to confirm it (`organization_type_needs_review`).
 

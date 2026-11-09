@@ -165,6 +165,17 @@ was held by another session during implementation).
 - **Settings → Payroll → Statutory rules** lists every rule with its source; rules the law
   sets are locked, the organisation's own values can be reset (`DELETE
   /payroll/statutory-rules/{code}`).
+- **Dry run before the first payroll.** Run Payroll previews the period first: `POST
+  /payroll/preview` (`payroll.process`, same feature gate as `/payroll/process`) works every
+  payslip out with the engine's own `computeEntry()` and writes nothing — no run, entry,
+  reservation or balance movement. It pages by employee (`after` → `next_after`) under the
+  request budget (`App\Support\RequestBudget`, shared with `ProcessPayrollJob`) and reports
+  the statutory rules, tax ladder, pension rule and published version applied. Running is
+  the existing `POST /payroll/process` after the person ticks that they checked the figures;
+  approving the run stays the final step. Audited as `payroll.previewed` (counts, no amounts).
+- **A change of kind after an approved payroll** starts on a later organisation-month start
+  (`docs/payroll/STATUTORY-PARAMETERS.md` → *Organisation types*); the organisation card asks
+  for the date and shows a pending change.
 - Playwright: `src/e2e/onboarding-first-payroll.spec.ts` (sign-up → answers → checklist ready).
 
 ### Superseded historical slices (below) — original planning notes retained for provenance.

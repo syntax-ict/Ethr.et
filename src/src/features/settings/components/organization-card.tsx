@@ -2,7 +2,13 @@
 
 import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
-import { Building2, Landmark, Loader2, Save } from "lucide-react";
+import {
+  Building2,
+  CalendarClock,
+  Landmark,
+  Loader2,
+  Save,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   useOrganizationTypes,
@@ -15,6 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorState } from "@/components/shared/error-state";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import {
   Select,
   SelectContent,
@@ -25,6 +34,7 @@ import {
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
+import { orgKindName } from "@/features/settings/org-kind";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -72,11 +82,17 @@ export interface OrganizationCardProps {
     locale?: string | null;
     organization_type?: string | null;
     organization_type_needs_review?: boolean | null;
+    organization_type_pending?: {
+      organization_type: string;
+      effective_from: string;
+    } | null;
+    organization_type_earliest_change?: string | null;
   } | null;
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
-  const { t } = useT();
+  const { t, locale: uiLocale } = useT();
+  const { formatDate } = useCalendar();
   const updateOrganization = useUpdateOrganization();
   const organizationTypes = useOrganizationTypes();
 
@@ -92,6 +108,19 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     organization?.organization_type ?? "private",
   );
   const needsReview = organization?.organization_type_needs_review === true;
+  // Once payroll is approved a change of kind is never retroactive: it
+  // starts on a later month's first day, which the server names.
+  const earliestChange =
+    organization?.organization_type_earliest_change ?? null;
+  const pending = organization?.organization_type_pending ?? null;
+  const [kindFrom, setKindFrom] = useState(earliestChange ?? "");
+  const askDate =
+    earliestChange !== null &&
+    kind !== (organization?.organization_type ?? "private");
+  const kindNameOf = (code: string) => {
+    const found = organizationTypes.data?.find((k) => k.code === code);
+    return found ? orgKindName(found, uiLocale) : code;
+  };
 
   const dirty =
     name !== (organization?.name ?? "") ||
@@ -111,6 +140,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         timezone,
         locale: locale as OrganizationUpdate["locale"],
         organization_type: kind,
+        ...(askDate ? { effective_from: kindFrom } : {}),
       },
       {
         onSuccess: () =>
@@ -232,6 +262,46 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 "Decides the statutory payroll rules: the pension scheme and the fiscal year.",
               )}
             </p>
+            {askDate && earliestChange && (
+              <div className="mt-3">
+                <Label htmlFor="org-kind-from">
+                  {t("settings.organization_kind_from", "Applies from")}
+                </Label>
+                <DualCalendarDateInput
+                  id="org-kind-from"
+                  value={kindFrom}
+                  onChange={setKindFrom}
+                  required
+                  className="mt-1"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.organization_kind_from_help",
+                    "Payroll has been approved under the current kind, so the change starts on the first day of a later month: :date or after.",
+                    { date: formatDate(dateFromIso(earliestChange)) },
+                  )}
+                </p>
+              </div>
+            )}
+            {pending && (
+              <p
+                role="status"
+                className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"
+              >
+                <CalendarClock
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                {t(
+                  "settings.organization_kind_pending",
+                  "Becomes :kind on :date. Payroll before then keeps the current kind.",
+                  {
+                    kind: kindNameOf(pending.organization_type),
+                    date: formatDate(dateFromIso(pending.effective_from)),
+                  },
+                )}
+              </p>
+            )}
           </div>
           <div>
             <Label htmlFor="org-type">

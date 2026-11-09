@@ -272,6 +272,52 @@ export function useProcessPayroll() {
   });
 }
 
+type PayrollPreviewPage =
+  operations["payroll.payrollPreview"]["responses"][200]["content"]["application/json"];
+
+/** A dry run of a period: every payslip, and the rules it was worked out under. */
+export type PayrollPreview = Omit<PayrollPreviewPage, "next_after">;
+export type PreviewPayslip = PayrollPreview["payslips"][number];
+
+/**
+ * Most pages a preview walks. Each page stops at the request budget the host
+ * allows (or 100 people), so this covers some thousands of employees.
+ */
+const PREVIEW_MAX_PAGES = 100;
+
+/**
+ * POST /payroll/preview, page after page until everyone is worked out. It
+ * writes nothing: no run, no payslip, no balance. Committing is
+ * `useProcessPayroll`, and approving the run that makes stays final.
+ */
+export function usePayrollPreview() {
+  return useMutation({
+    mutationFn: async (period: {
+      period_start: string;
+      period_end: string;
+    }): Promise<PayrollPreview> => {
+      let after: string | null = null;
+      let result: PayrollPreview | null = null;
+
+      for (let page = 0; page < PREVIEW_MAX_PAGES; page++) {
+        const response: { data: PayrollPreviewPage } = await apiClient.post(
+          "/payroll/preview",
+          { ...period, ...(after ? { after } : {}) },
+        );
+        const { next_after, ...rest } = response.data;
+        result = result
+          ? { ...rest, payslips: [...result.payslips, ...rest.payslips] }
+          : rest;
+        if (!next_after) break;
+        after = next_after;
+      }
+
+      if (!result) throw new Error("preview returned nothing");
+      return result;
+    },
+  });
+}
+
 export function useApprovePayroll() {
   const queryClient = useQueryClient();
 

@@ -5592,6 +5592,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview payroll */
+        post: operations["payroll.payrollPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/runs": {
         parameters: {
             query?: never;
@@ -10830,6 +10847,14 @@ export interface components {
             /** @enum {string|null} */
             policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
         };
+        /** PreviewPayrollRequest */
+        PreviewPayrollRequest: {
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            after?: string | null;
+        };
         /** ProcessPayrollRequest */
         ProcessPayrollRequest: {
             /** Format: date-time */
@@ -12664,6 +12689,8 @@ export interface components {
             name?: string;
             type?: string | null;
             organization_type?: string;
+            /** Format: date-time */
+            effective_from?: string | null;
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
@@ -28968,6 +28995,73 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "payroll.payrollPreview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewPayrollRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period_start: string;
+                        period_end: string;
+                        organization_type: string | null;
+                        sector: string | null;
+                        rules: {
+                            code: string;
+                            value: string;
+                            layer: string;
+                            version: string | null;
+                            legal_reference: string | null;
+                        }[];
+                        income_tax: {
+                            legal_reference: string | null;
+                            effective_from: string | null;
+                            source: string;
+                        };
+                        pension: {
+                            scheme: string;
+                            employee_rate: number;
+                            employer_rate: number;
+                            legal_reference: string;
+                            source: string;
+                        };
+                        payslips: {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                                employee_code: string | null;
+                            };
+                            basic_salary_cents: number;
+                            gross_cents: number;
+                            income_tax_cents: number;
+                            employee_pension_cents: number;
+                            employer_pension_cents: number;
+                            other_deductions_cents: number;
+                            net_cents: number;
+                            pension_exempt_reason: string | null;
+                        }[];
+                        next_after: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.index": {
         parameters: {
             query?: {
@@ -33138,6 +33232,11 @@ export interface operations {
                             locale: string;
                             organization_type: string;
                             organization_type_needs_review: boolean;
+                            organization_type_pending: {
+                                organization_type: string;
+                                effective_from: string;
+                            } | null;
+                            organization_type_earliest_change: string | null;
                         };
                         address: {
                             mode: string;
@@ -33375,6 +33474,11 @@ export interface operations {
                             locale: string;
                             organization_type: string;
                             organization_type_needs_review: boolean;
+                            organization_type_pending: {
+                                organization_type: string;
+                                effective_from: string;
+                            } | null;
+                            organization_type_earliest_change: string | null;
                         };
                     };
                 };

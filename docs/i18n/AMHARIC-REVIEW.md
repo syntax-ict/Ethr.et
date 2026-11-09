@@ -47,6 +47,14 @@ Drafts written without a native speaker; a wrong label moves no money.
 `setup_payout_method`, `setup_employee_salaries`, `leave_below_law`,
 `setup_device_linked` and `profile_legal_review`.
 
+### Dry-run payroll and future-dated kind changes (2026-11-09)
+
+24 keys drafted in Amharic and Afaan Oromoo without a native speaker:
+`payroll.preview*`, `payroll.income_tax`, `payroll.pension`, `payroll.pension_total`,
+`payroll.employee`, and `settings.organization_kind_from`, `settings.organization_kind_from_help`,
+`settings.organization_kind_pending`. Backend: `api/lang/{am,om}/validation.php` →
+`organization_type_change_future`, `organization_type_change_month_start`.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |

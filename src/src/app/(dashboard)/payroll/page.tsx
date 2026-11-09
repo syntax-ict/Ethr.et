@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Wallet,
   Plus,
-  Loader2,
   FileText,
   HandCoins,
   ChevronRight,
@@ -14,30 +13,20 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { usePayrollRuns, useProcessPayroll } from "@/features/payroll/api";
+import { usePayrollRuns } from "@/features/payroll/api";
+import { RunPayrollDialog } from "@/features/payroll/components/run-payroll-dialog";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
-import { toast } from "sonner";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
-import { apiErrorDetail } from "@/lib/api/error-message";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { ReconcilePanel } from "@/features/payroll/components/reconcile-panel";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
@@ -47,44 +36,14 @@ export default function PayrollPage() {
   const { calendar, formatDate } = useCalendar();
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
   const { data, isLoading, isError, refetch } = usePayrollRuns({ page });
   const { can } = usePermissions();
   // Running payroll needs the plan's `payroll` feature; the button was shown
   // on every plan and the run refused with a 403 (audit N66).
   const hasPayroll = usePlanFeatures().has("payroll");
-  const processPayroll = useProcessPayroll();
   // In the address, so the run page's reconciliation banner can link here.
   const view = useQueryFilters({ tab: "runs" }, { tab: ["runs", "reconcile"] });
   const reconciling = view.values.tab === "reconcile";
-
-  function handleRunPayroll(e: React.FormEvent) {
-    e.preventDefault();
-    processPayroll.mutate(
-      {
-        period_start: periodStart,
-        period_end: periodEnd,
-        idempotency_key: crypto.randomUUID(),
-      },
-      {
-        onSuccess: () => {
-          toast.success(
-            t("payroll.processing_started", "Payroll processing started"),
-          );
-          setDialogOpen(false);
-          setPeriodStart("");
-          setPeriodEnd("");
-        },
-        onError: (err: unknown) => {
-          toast.error(
-            apiErrorDetail(err) ||
-              t("payroll.process_failed", "Failed to process payroll"),
-          );
-        },
-      },
-    );
-  }
 
   return (
     <RoleGate anyPermission={["viewPayrollRuns"]}>
@@ -271,54 +230,7 @@ export default function PayrollPage() {
           </>
         )}
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("payroll.run", "Run Payroll")}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleRunPayroll} className="space-y-4">
-              <div>
-                <Label htmlFor="period_start">
-                  {t("payroll.period_start", "Period Start")}
-                </Label>
-                <DualCalendarDateInput
-                  id="period_start"
-                  value={periodStart}
-                  onChange={setPeriodStart}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="period_end">
-                  {t("payroll.period_end", "Period End")}
-                </Label>
-                <DualCalendarDateInput
-                  id="period_end"
-                  value={periodEnd}
-                  onChange={setPeriodEnd}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  {t("common.cancel", "Cancel")}
-                </Button>
-                <Button type="submit" disabled={processPayroll.isPending}>
-                  {processPayroll.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {t("payroll.process", "Process Payroll")}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <RunPayrollDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </div>
     </RoleGate>
   );
