@@ -10,6 +10,7 @@ use App\Services\UserProvisioningService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 
 /**
  * One live login per employee, held by the database.
@@ -132,7 +133,7 @@ test('the generated column is not part of a user as serialised', function () {
 
 // ── The request check, which the index backs ──
 
-function inviteLogin(Tenant $tenant, Employee $employee, string $email): Illuminate\Testing\TestResponse
+function inviteLogin(Tenant $tenant, Employee $employee, string $email): TestResponse
 {
     return test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/users", [
         'email' => $email,

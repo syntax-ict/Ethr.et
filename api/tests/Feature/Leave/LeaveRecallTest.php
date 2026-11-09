@@ -100,7 +100,9 @@ it('changes only approved leave', function () {
 });
 
 it('does not let HR change their own leave', function () {
-    [$tenant, $hr, $employee, , $leave] = recallSetup();
+    [$tenant, $hr, $employee, $person, $leave] = recallSetup();
+    // HR is the person on leave: their one login is the HR account.
+    $person->delete();
     $hr->update(['employee_id' => $employee->id]);
 
     test()->actingAs($hr)
