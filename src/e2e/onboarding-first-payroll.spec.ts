@@ -28,7 +28,9 @@ test.describe("Onboarding to first payroll", () => {
       .locator('#org_kind option[value="share_company"]')
       .waitFor({ state: "attached" });
     await page.selectOption("#org_kind", "share_company");
-    await expect(page.getByRole("button", { name: "Next", exact: true })).toBeEnabled({
+    await expect(
+      page.getByRole("button", { name: "Next", exact: true }),
+    ).toBeEnabled({
       timeout: 15_000,
     });
     await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -55,11 +57,17 @@ test.describe("Onboarding to first payroll", () => {
     await page.getByRole("option", { name: "Gregorian calendar" }).click();
 
     await page.getByRole("button", { name: /review proposal/i }).click();
+    // The proposal may ask for a confirmation, and its notes can arrive after
+    // the button renders; `isVisible()` does not wait, so tick the box whenever
+    // it is shown until Apply is enabled.
     const confirm = page.getByRole("checkbox", { name: /I have read these/i });
-    if (await confirm.isVisible({ timeout: 10_000 }).catch(() => false)) {
-      await confirm.check();
-    }
-    await page.getByRole("button", { name: /apply configuration/i }).click();
+    const apply = page.getByRole("button", { name: /apply configuration/i });
+    await expect(apply).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      if (await confirm.isVisible()) await confirm.check();
+      await expect(apply).toBeEnabled({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await apply.click();
     await expect(page.getByText(/Configuration applied/i)).toBeVisible({
       timeout: 30_000,
     });
