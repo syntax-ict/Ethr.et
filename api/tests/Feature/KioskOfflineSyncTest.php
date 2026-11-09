@@ -115,6 +115,56 @@ it('still records a punch made offline when kiosk check-in is switched off befor
         ->assertJsonPath('results.0.status', 'created');
 });
 
+it('refuses, while kiosk check-in is off, an offline punch with no grant to show when it was made', function () {
+    // Sync skipped the switch entirely before 2026-11-09: a token and the key
+    // start hands out recorded punches for an organisation that had turned
+    // kiosks off. A punch is still kept when its grant was issued while the
+    // feature was on (the test above); one without a grant is not.
+    [$tenant, $session, $config] = offlineKiosk();
+    switchFeature(Feature::KioskCheckIn);
+
+    $punch = fn (string $key): string => sealPunch($config['public_key'], [
+        'c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->subMinute()->toIso8601String(), 'k' => $key,
+    ]);
+
+    syncKiosk($tenant, $session, [
+        ['idempotency_key' => 'off-no-grant', 'sealed' => $punch('off-no-grant')],
+        ['idempotency_key' => 'off-bad-grant', 'sealed' => $punch('off-bad-grant'), 'grant' => 'forged'],
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.detail', __('kiosk.offline_switched_off'))
+        ->assertJsonPath('results.1.status', 'error')
+        ->assertJsonPath('results.1.detail', __('kiosk.offline_switched_off'));
+
+    expect(AttendanceRecord::withoutGlobalScopes()->whereIn('idempotency_key', ['off-no-grant', 'off-bad-grant'])->exists())->toBeFalse();
+});
+
+it('issues no offline grant while kiosk check-in is off', function () {
+    [$tenant, $session] = offlineKiosk();
+    switchFeature(Feature::KioskCheckIn);
+    app(CurrentTenant::class)->forget();
+
+    test()->postJson(offlineKioskUrl($tenant, '/kiosk/authenticate'), ['token' => $session->token])
+        ->assertOk()
+        ->assertJsonPath('offline', null);
+});
+
+it('refuses the whole sync when the kiosk method is off at its branch', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+    AttendanceSetting::withoutGlobalScopes()->where('tenant_id', $tenant->id)->update([
+        'enabled_methods' => json_encode(array_values(array_diff(AttendanceSetting::defaults()['enabled_methods'], ['kiosk']))),
+    ]);
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'method-off',
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->toIso8601String(), 'k' => 'method-off']),
+        'grant' => $config['grant'],
+    ]])->assertForbidden()
+        ->assertJsonPath('detail', __('attendance.method_disabled'));
+
+    expect(AttendanceRecord::withoutGlobalScopes()->where('idempotency_key', 'method-off')->exists())->toBeFalse();
+});
+
 it('checks the PIN at sync as it would have been checked live', function () {
     [$tenant, $session, $config] = offlineKiosk();
 

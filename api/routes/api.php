@@ -655,6 +655,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/{kioskSession}/deactivate', [KioskSessionController::class, 'deactivate']);
         Route::post('/{kioskSession}/activate', [KioskSessionController::class, 'activate']);
         Route::post('/{kioskSession}/regenerate-token', [KioskSessionController::class, 'regenerateToken']);
+        Route::post('/{kioskSession}/renew', [KioskSessionController::class, 'renew']);
         Route::delete('/{kioskSession}', [KioskSessionController::class, 'destroy']);
     });
 

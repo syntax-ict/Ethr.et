@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Kiosk;
 
+use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\AuthenticateKioskRequest;
 use App\Http\Requests\Kiosk\ExitKioskRequest;
@@ -16,6 +17,7 @@ use App\Models\Tenant;
 use App\Services\Attendance\AttendancePolicy;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Features\FeatureGate;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,6 +54,7 @@ class KioskSessionController extends Controller
             'device_identifier' => $request->validated('device_identifier'),
             'status' => 'active',
             'activated_at' => now(),
+            'expires_at' => KioskSession::freshExpiry(),
         ]);
 
         $session->load('branch');
@@ -107,11 +110,32 @@ class KioskSessionController extends Controller
         Gate::authorize('attendance.manage');
 
         $session = KioskSession::where('public_id', $publicId)->firstOrFail();
-        $session->update(['token' => KioskSession::generateToken()]);
+        $token = KioskSession::generateToken();
+        $session->update([
+            'token' => $token,
+            'expires_at' => KioskSession::freshExpiry(),
+        ]);
 
         AuditLog::record('kiosk.token_regenerated', $session);
 
-        return response()->json(['token' => $session->token]);
+        return response()->json(['token' => $token]);
+    }
+
+    /**
+     * Another full period for a kiosk session, keeping its token, so the
+     * terminal goes on working without being set up again. An expired session
+     * can be renewed; until it is, its terminal is refused as an invalid token.
+     */
+    public function renew(string $publicId): JsonResponse
+    {
+        Gate::authorize('attendance.manage');
+
+        $session = KioskSession::where('public_id', $publicId)->firstOrFail();
+        $session->update(['expires_at' => KioskSession::freshExpiry()]);
+
+        AuditLog::record('kiosk.renewed', $session, ['expires_at' => $session->expires_at?->toIso8601String()]);
+
+        return (new KioskSessionResource($session->load('branch')))->response();
     }
 
     public function destroy(string $publicId): JsonResponse
@@ -153,6 +177,14 @@ class KioskSessionController extends Controller
         // The pad types only digits; the screen shows the full code this
         // organisation's format makes of them (KioskEmployeeCode).
         $codeFormat = $numbering->shape($tenant);
+        // No grant while kiosk check-in is off: sync accepts a punch made
+        // with the feature off only on a grant, so a grant handed out now
+        // would let this terminal record what the switch refuses.
+        $offline = app(FeatureGate::class)->decide($tenant, Feature::KioskCheckIn)->on ? [
+            'public_key' => $seal->publicKey($session),
+            ...$seal->grant($session),
+            'server_time' => now()->toIso8601String(),
+        ] : null;
 
         return response()->json([
             'session' => new KioskSessionResource($session),
@@ -171,14 +203,7 @@ class KioskSessionController extends Controller
                 },
                 'code_format' => $codeFormat,
             ],
-            // For punching through a power cut or a dropped connection: the
-            // key the terminal seals offline punches with, and the grant that
-            // bounds its clock (KioskOfflineSeal). Renewed on every start.
-            'offline' => [
-                'public_key' => $seal->publicKey($session),
-                ...$seal->grant($session),
-                'server_time' => now()->toIso8601String(),
-            ],
+            'offline' => $offline,
         ]);
     }
 

@@ -14,6 +14,7 @@ use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
+use App\Http\Middleware\HardenServedFiles;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
@@ -109,6 +110,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             RunBackgroundWorkAfterResponse::class,
         ]);
+
+        // Global, because the signed file route is outside the api group.
+        $middleware->append(HardenServedFiles::class);
 
         $middleware->statefulApi();
 
