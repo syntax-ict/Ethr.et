@@ -86,7 +86,9 @@ class UpdateUserRequest extends FormRequest
                 return;
             }
 
-            if (! $this->has('role')) {
+            // Only a change is a grant: resending someone's current role
+            // hands out nothing.
+            if (! $changesRole) {
                 return;
             }
 

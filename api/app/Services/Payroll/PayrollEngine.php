@@ -33,6 +33,7 @@ use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -295,8 +296,8 @@ final class PayrollEngine
 
     /**
      * The employees a run for the period pays: everyone in a working status,
-     * and anyone who left during the period. Attendance reconciliation asks
-     * the same question, so it reads exactly these people.
+     * and anyone whose leaving date is in the period or after it. Attendance
+     * reconciliation asks the same question, so it reads exactly these people.
      *
      * @return Builder<Employee>
      */
@@ -316,14 +317,19 @@ final class PayrollEngine
                     EmployeeStatus::PROBATION,
                     EmployeeStatus::CONFIRMED,
                 ])
+                // And someone whose leaving is recorded ahead of its date:
+                // the transition sets the status at once and the date as
+                // given, so a retirement entered on 20 November for 31
+                // December dropped that person from November's run, unpaid
+                // and unflagged. A termination date after the period pays
+                // the full period: proration reads only a date inside it.
                 ->orWhere(fn ($left) => $left
                     ->whereIn('status', [
                         EmployeeStatus::RESIGNED,
                         EmployeeStatus::TERMINATED,
                         EmployeeStatus::RETIRED,
                     ])
-                    ->whereDate('termination_date', '>=', $periodStart->toDateString())
-                    ->whereDate('termination_date', '<=', $periodEnd->toDateString())));
+                    ->whereDate('termination_date', '>=', $periodStart->toDateString())));
     }
 
     /**
@@ -430,7 +436,7 @@ final class PayrollEngine
 
     public function reprocess(PayrollRun $voidedRun, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
     {
-        $result = $this->process(
+        $begun = $this->reserve(
             $voidedRun->tenant_id,
             Carbon::parse($voidedRun->period_start),
             Carbon::parse($voidedRun->period_end),
@@ -438,11 +444,51 @@ final class PayrollEngine
             $idempotencyKey,
         );
 
-        if (! $result->wasDuplicate) {
-            $result->run->update(['reprocessed_from_id' => $voidedRun->id]);
+        if (! $begun->wasDuplicate) {
+            $begun->run->update(['reprocessed_from_id' => $voidedRun->id]);
         }
 
-        return $result;
+        // Reserved only. The caller queues ProcessPayrollJob, as `/process`
+        // does: it computes in batches against the request's deadline,
+        // carries on where it stopped, and marks a run that dies `failed`.
+        // Computed inline here, a large organisation's run outlived the
+        // host's time limit, or a missing rule threw, and the run stayed
+        // `processing` with nothing able to void, approve or replace it.
+        return $begun;
+    }
+
+    /**
+     * begin(), once no live run covers any of the period: one live run per
+     * period. ProcessPayrollRequest says so before a run is asked for, but a
+     * check in the request and an insert later let two requests both pass,
+     * and reprocessing never asked at all. Here the check and the insert run
+     * under one lock per organisation, so the second of two waits and is
+     * refused. A replayed idempotency key is answered with its run as before.
+     */
+    public function reserve(int $tenantId, Carbon $periodStart, Carbon $periodEnd, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
+    {
+        return Cache::lock("payroll-reserve:{$tenantId}", 15)->block(10, function () use ($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey): PayrollProcessResult {
+            $replay = $idempotencyKey !== null && PayrollRun::query()
+                ->where('tenant_id', $tenantId)
+                ->where('idempotency_key', $idempotencyKey)
+                ->exists();
+
+            if (! $replay) {
+                $live = PayrollRun::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereNotIn('status', ['voided', 'failed'])
+                    ->whereDate('period_start', '<=', $periodEnd->toDateString())
+                    ->whereDate('period_end', '>=', $periodStart->toDateString())
+                    ->orderByDesc('period_start')
+                    ->first();
+
+                if ($live !== null) {
+                    throw PayrollRunRefused::periodOverlaps($live);
+                }
+            }
+
+            return $this->begin($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey);
+        });
     }
 
     /**

@@ -612,3 +612,31 @@ test('a cancelled loan can no longer be modified', function () {
         'reason' => 'Again',
     ])->assertStatus(422);
 });
+
+test('a ladder saved to start later leaves the current one in force until then', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 500000, 'hire_date' => '2020-01-01']);
+
+    // In force from January: 50% at the top.
+    test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), ['effective_from' => '2026-01-01', 'brackets' => ladder()])->assertOk();
+
+    // Saved now, to start next year: 10% at the top.
+    $next = ladder();
+    $next[1]['rate'] = 10;
+    test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), ['effective_from' => '2027-01-01', 'brackets' => $next])
+        ->assertOk()
+        ->assertJsonPath('data.1.rate', 10);
+
+    // Before, the first ladder was deleted and June fell back to the
+    // platform's. It is closed the day before the new one starts.
+    $june = app(PayrollEngine::class)->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
+    expect(PayrollEntry::where('payroll_run_id', $june->id)->firstOrFail()->income_tax_cents)->toBe(250000);
+    expect(TaxBracket::query()->whereDate('effective_to', '2026-12-31')->count())->toBe(2);
+
+    $january = app(PayrollEngine::class)->process($tenant->id, Carbon::parse('2027-01-01'), Carbon::parse('2027-01-31'), $user->id)->run;
+    expect(PayrollEntry::where('payroll_run_id', $january->id)->firstOrFail()->income_tax_cents)->toBe(50000);
+
+    // The settings page shows the latest ladder only.
+    test()->getJson(configUrl($tenant->subdomain, 'tax-brackets'))->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('data.1.rate', 10);
+});

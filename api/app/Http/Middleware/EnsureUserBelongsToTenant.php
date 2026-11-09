@@ -49,8 +49,27 @@ class EnsureUserBelongsToTenant
         // leaking. Nothing to enforce. This is also the branch that lets a super
         // admin work on the platform host, where `admin` is reserved and so no
         // tenant ever resolves.
+        //
+        // Reads, that is. A write is another matter: with no tenant,
+        // BelongsToTenant's `creating` hook leaves tenant_id NULL, and on a
+        // table where NULL means "the platform's" (tax_brackets,
+        // pension_rules) a tenant admin who left out X-Tenant on the apex
+        // rewrote the tax and pension rules every organisation falls back
+        // to. So only a platform account writes with no tenant. The account's
+        // own endpoints under auth/ (sign-out, tokens, MFA, sessions) act on
+        // the signed-in user alone and stay open, so a browser that lost its
+        // stored organisation can still sign out.
         if (! $this->currentTenant->resolved()) {
-            return $next($request);
+            if ($user->role === UserRole::SUPER_ADMIN || $request->isMethodSafe() || $request->is('api/v1/auth/*')) {
+                return $next($request);
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/tenant-required',
+                'title' => 'Tenant Required',
+                'status' => 403,
+                'detail' => 'Say which organisation this change is for.',
+            ], 403)->withHeaders(['Content-Type' => 'application/problem+json']);
         }
 
         if ($user->role === UserRole::SUPER_ADMIN) {

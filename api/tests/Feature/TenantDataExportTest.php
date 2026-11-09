@@ -202,3 +202,16 @@ it('deletes the archive when it expires and refuses the download after', functio
     $this->actingAs($this->admin);
     $this->get(exportUrl($this->tenant, "/{$export->public_id}/download"))->assertStatus(410);
 });
+
+it('marks the export failed when its worker was stopped outright', function () {
+    // PHP stopping the job (memory, the time limit) skips handle()'s catch;
+    // the next worker calls only failed(), in a fresh tenant context.
+    $export = TenantExport::query()->create(['tenant_id' => $this->tenant->id, 'status' => TenantExport::RUNNING]);
+    app(CurrentTenant::class)->forget();
+
+    (new ExportTenantDataJob($this->tenant->id, $export->id))->failed(new RuntimeException('Allowed memory size exhausted'));
+
+    app(CurrentTenant::class)->set($this->tenant);
+    expect($export->refresh()->status)->toBe(TenantExport::FAILED)
+        ->and($export->error)->toContain('memory');
+});

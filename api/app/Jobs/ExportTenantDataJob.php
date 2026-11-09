@@ -159,6 +159,23 @@ class ExportTenantDataJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         Log::error('ExportTenantDataJob failed', ['tenant_id' => $this->tenantId, 'error' => $exception->getMessage()]);
+
+        // handle() marks the export failed when it throws, but not when PHP
+        // stops it outright (out of memory, the time limit): the worker that
+        // finds the job dead calls only this, and the export stayed `running`
+        // with nothing able to retry or clear it. Tenant set as handle() sets
+        // it; this can run in a worker that never ran handle().
+        $tenant = Tenant::query()->find($this->tenantId);
+        if (! $tenant instanceof Tenant) {
+            return;
+        }
+        app(CurrentTenant::class)->set($tenant);
+
+        TenantExport::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereKey($this->exportId)
+            ->whereIn('status', [TenantExport::QUEUED, TenantExport::RUNNING])
+            ->update(['status' => TenantExport::FAILED, 'error' => mb_substr($exception->getMessage(), 0, 500)]);
     }
 
     /** @return array{0: string, 1: int} where the archive is on the disk, and how many files it holds */
