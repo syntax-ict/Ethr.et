@@ -12,7 +12,8 @@ A-Z review train #624), reports and analytics (#472, #474, #477, #479), dashboar
 organisation's administrators and owner (#625), backups, disk and mail (#509, #517, #530, #532,
 #534), the release schema check (#620), public pages and notices (#466, #482, #507, #510, #519,
 #632) and webhooks (#489, and the delivery id and held deliveries from #624). Existing cases these
-changed were corrected in place. The tenant side of the feature controls is file 03's (PLAN-014 to
+changed were corrected in place. Since then (2026-11-09) EXP-001 covers exports the host stopped
+(#669) and kiosk token hashes left out of the archive (#679). The tenant side of the feature controls is file 03's (PLAN-014 to
 PLAN-021, AUTH-039, ORG-008); section 9b covers only the console screens.
 Priorities were re-tiered: **P1** is kept for cross-organisation or cross-department exposure (in
 dashboards, search, help requests and console reads), API key scope, webhook signatures, secrets
@@ -188,7 +189,7 @@ service the owner approves). Every delivery is an outside call (X).
 | SCIM-001 | P2 | W | Token | TA: Settings → SCIM → generate token | Shown once; valid 1 year |
 | SCIM-002 | P2 | W | Users | `GET /scim/v2/Users?filter=userName eq "…"`; create a user; create the same again; delete | List with `startIndex` 1, `count` up to 100; 201; 409 uniqueness; delete makes the user inactive, revokes sessions and suspends the employee. Unsupported filter: 400 `invalidFilter` |
 | SCIM-003 | P2 | R | Wrong token | Any SCIM call with an API key lacking the `scim` ability | 401 |
-| EXP-001 | P2 | X | Data export | TA: Settings → data export | One export at a time (409 while one runs); download when ready (409 before, 410 after 7 days); more than 3 in 24 h: 429. Contents only QA Audit's data |
+| EXP-001 | P2 | X | Data export (#669, #679) | TA: Settings → data export; open the archive | One export at a time (409 while one runs); download when ready (409 before, 410 after 7 days); more than 3 in 24 h: 429. Contents only QA Audit's data, with no secret: no password, token or token hash (`kiosk_sessions` carries no `token_hash` since #679). An export never stays `running`: one the host stopped outright (memory or time limit) is marked `failed` with a reason, and a new one can be asked for (#669; before it, such an export blocked every later one with 409). Do not force a failure |
 | AUD-001 | P1 | R | Audit log | TA (Enterprise or trial): Settings → audit logs, filter by action `payroll`, by user, by date | 50 per page; entries for payroll approve and void, role changes, MFA resets, photo views, statutory downloads, impersonation. Entries cannot be edited or deleted (no control offered) |
 | AUD-002 | P2 | R | Plan gate | Professional plan | 403 plan feature; the records are still being written |
 | AUD-003 | P3 | R | Audit rows read as words | TA (Enterprise or trial): Settings → audit logs, English and Amharic | Actions read as words ("Payroll approved", "Authenticator code accepted") with the code in small type beneath; the filter still matches the code. The entity reads as a word ("Attendance flag"). No organisation column in an organisation's own log |
