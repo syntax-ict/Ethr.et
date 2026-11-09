@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\TenantSubdomainAlias;
+use App\Services\Auth\ImpersonationToken;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -183,6 +184,26 @@ it('is for tenant admins only', function (UserRole $role) {
     'finance admin' => [UserRole::FINANCE_ADMIN],
     'employee' => [UserRole::EMPLOYEE],
 ]);
+
+it('refuses an operator impersonating the organisation, who can neither rename nor move its address (K-39)', function () {
+    $tenant = createTenant(['subdomain' => 'acme']);
+    $admin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $impersonating = $admin->createToken(ImpersonationToken::nameFor(999), ['*', ImpersonationToken::ABILITY], now()->addMinutes(30))->plainTextToken;
+
+    test()->withToken($impersonating)->putJson(renameUrl('acme'), ['subdomain' => 'acme-group'])
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+    test()->withToken($impersonating)->putJson('http://acme.ethr.test/api/v1/settings/address', ['mode' => 'custom_domain', 'custom_domain' => 'hr.acme.example'])
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect($tenant->fresh()->subdomain)->toBe('acme')
+        ->and(AuditLog::withoutGlobalScopes()->where('action', 'settings.subdomain_changed')->exists())->toBeFalse();
+
+    $own = $admin->createToken('session')->plainTextToken;
+    app('auth')->forgetGuards();
+    test()->withToken($own)->putJson(renameUrl('acme'), ['subdomain' => 'acme-group'])->assertOk();
+});
 
 it('stops a deleted organisation resolving at its retired names too', function () {
     $tenant = renamingAdmin('acme');

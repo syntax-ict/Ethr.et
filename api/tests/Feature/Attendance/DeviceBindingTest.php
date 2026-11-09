@@ -301,6 +301,38 @@ test('HR approves a replacement phone, and the old one stops working', function 
     expect(AttendanceDevice::where('employee_id', $employee->id)->where('status', 'active')->sole()->public_id)->toBe($pending);
 });
 
+test('HR cannot approve their own waiting phone or exempt themselves; a colleague can (K-34)', function () {
+    [$tenant, $employee, $user] = dbOrganisation();
+    $user->update(['role' => UserRole::HR_ADMIN]);
+    dbRegister($tenant, new SoftAuthenticator)->assertCreated()->assertJsonPath('status', 'active');
+    $pending = dbRegister($tenant, new SoftAuthenticator, install: 'install-b')->json('public_id');
+    $exemption = dbUrl($tenant, "employees/{$employee->public_id}/attendance-device-exemption");
+
+    test()->postJson(dbUrl($tenant, "attendance/devices/{$pending}/approve"))
+        ->assertForbidden()
+        ->assertJsonPath('detail', __('attendance.cannot_approve_own_device'));
+    test()->putJson($exemption, ['until' => '2026-11-15'])
+        ->assertForbidden()
+        ->assertJsonPath('detail', __('attendance.cannot_exempt_self'));
+
+    expect(AttendanceDevice::where('public_id', $pending)->sole()->status)->toBe('pending')
+        ->and($employee->fresh()->attendance_device_exempt_until)->toBeNull();
+
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+    test()->postJson(dbUrl($tenant, "attendance/devices/{$pending}/approve"))->assertOk()->assertJsonPath('status', 'active');
+    test()->putJson($exemption, ['until' => '2026-11-15'])->assertOk();
+});
+
+test('the organisation admin approves their own phone, having no one above them', function () {
+    [$tenant, $employee, $user] = dbOrganisation();
+    $user->update(['role' => UserRole::TENANT_ADMIN]);
+    dbRegister($tenant, new SoftAuthenticator)->assertCreated();
+    $pending = dbRegister($tenant, new SoftAuthenticator, install: 'install-b')->json('public_id');
+
+    test()->postJson(dbUrl($tenant, "attendance/devices/{$pending}/approve"))->assertOk()->assertJsonPath('status', 'active');
+    test()->putJson(dbUrl($tenant, "employees/{$employee->public_id}/attendance-device-exemption"), ['until' => '2026-11-15'])->assertOk();
+});
+
 test('only people who manage attendance see and decide phones', function () {
     [$tenant] = dbOrganisation();
 

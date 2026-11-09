@@ -75,14 +75,17 @@ lifetime (`:238`, `:260`, `:282`). There is no extension: start again, with a ne
 operator's user id, read from the token name (`api/app/Models/AuditLog.php:73-78`). The rows
 are filed under the tenant, so the tenant's own audit view shows them.
 
-**Blocked** (`api/app/Http/Middleware/BlockImpersonatedActions.php:19-45`), answered
-`403 Action Restricted`:
+**Blocked** (`api/app/Http/Middleware/BlockImpersonatedActions.php`, `BLOCKED_ACTIONS`),
+answered `403 Action Restricted`:
 
 - **every `DELETE`**, whatever the route;
 - changing the password (`PasswordResetController@change`);
 - MFA setup, enable and disable (`MfaSetupController@setup/enable/disable`);
 - issuing an API key (`ApiKeyController@store`);
-- changing the plan (`BillingController@changePlan`).
+- changing the plan (`BillingController@changePlan`);
+- renaming the organisation's address or changing its custom domain
+  (`SettingsController@updateSubdomain`, `@updateAddress`). Added 2026-11-09 for K-39: the
+  address is where the organisation's people sign in.
 
 Everything else the impersonated tenant admin could do, the operator can do — including
 approving payroll and leave. The protection there is the audit tag, not a block. The middleware

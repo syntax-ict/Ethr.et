@@ -56,6 +56,8 @@ return [
     'device_wrong_host' => 'Open the ETHR address of your own organisation to punch with your registered phone.',
     'device_not_active' => 'This phone is not registered now.',
     'device_not_pending' => 'This phone is not waiting for approval.',
+    'cannot_approve_own_device' => 'Someone else in your organisation must approve your own phone.',
+    'cannot_exempt_self' => 'Someone else in your organisation must exempt you from punching with your registered phone.',
     'punch_failed' => 'The punch could not be recorded. Try again in a moment.',
     'retry_key_taken' => 'This punch could not be recorded. Try again.',
 ];
