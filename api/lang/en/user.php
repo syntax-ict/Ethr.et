@@ -40,6 +40,7 @@ return [
         'cannot_delete_self' => 'You cannot deactivate your own account.',
         'not_pending' => 'This user is not pending activation.',
         'already_exists' => 'A user with this email already exists.',
+        'employee_has_login' => 'This employee already has a login.',
         'cannot_reset_own_mfa' => 'Turn off your own two-factor authentication from your security settings.',
         'mfa_not_enabled' => 'This user does not have two-factor authentication turned on.',
     ],

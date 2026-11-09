@@ -59,6 +59,15 @@ class UserProvisioningService
             return null;
         }
 
+        // One login per employee record: a second would read the first one's
+        // payslips and leave as its own (StoreUserRequest::hasLogin).
+        if ($employee !== null && ($employee->user_id !== null || User::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('employee_id', $employee->id)
+            ->exists())) {
+            return null;
+        }
+
         $user = User::create([
             'tenant_id' => $tenant->id,
             'employee_id' => $employee?->id,
