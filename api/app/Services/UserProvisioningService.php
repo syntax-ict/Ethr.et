@@ -89,8 +89,10 @@ class UserProvisioningService
             'locale' => $locale ?? $tenant->default_locale ?? 'en',
         ]);
 
-        // Keep the Employee<->User link consistent in both directions.
-        if ($employee !== null && $employee->user_id === null) {
+        // Keep the Employee<->User link consistent in both directions. The
+        // employee has no login of their own here: one that had is refused
+        // above.
+        if ($employee !== null) {
             $employee->update(['user_id' => $user->id]);
         }
 

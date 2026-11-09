@@ -22,7 +22,18 @@ final class BillingService
     /** Whether $invoice is a plan change's, not a month's. */
     public static function isProration(Invoice $invoice): bool
     {
-        return collect((array) $invoice->line_items)->contains(fn ($item): bool => is_array($item) && ($item['kind'] ?? null) === self::PRORATION);
+        $items = $invoice->getAttribute('line_items');
+        if (! is_array($items)) {
+            return false;
+        }
+
+        foreach ($items as $item) {
+            if (is_array($item) && ($item['kind'] ?? null) === self::PRORATION) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
