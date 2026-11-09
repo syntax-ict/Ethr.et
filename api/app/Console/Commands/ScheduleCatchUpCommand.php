@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -70,6 +71,18 @@ final class ScheduleCatchUpCommand extends Command
             try {
                 $event->run($this->laravel);
                 $ran++;
+
+                // A `Schedule::command` runs as a child process, so its failure
+                // is an exit code, not an exception. Only exceptions counted,
+                // and a backup that never ran (a PHP binary the host cannot
+                // find, an off-host copy refused) answered `/cron/schedule`
+                // with "ok" while its output went to /dev/null. Stock
+                // schedule:run reads the exit code; this replacement did not.
+                if (is_int($event->exitCode) && $event->exitCode !== 0) {
+                    $failed = true;
+                    $this->error(sprintf('  failed: exit code %d', $event->exitCode));
+                    report(new RuntimeException(sprintf('Scheduled task [%s] exited %d.', $event->getSummaryForDisplay(), $event->exitCode)));
+                }
             } catch (Throwable $e) {
                 // One failing task must not stop the rest, or a broken report
                 // definition would starve the backup behind it.
