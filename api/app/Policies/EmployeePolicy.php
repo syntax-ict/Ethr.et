@@ -77,6 +77,36 @@ class EmployeePolicy
         return Response::allow();
     }
 
+    /**
+     * Approving a phone makes it the one that may punch for its owner, so
+     * approving your own lets you choose the device that proves you were at
+     * work. The controller checks attendance.manage and reach; this refuses
+     * your own record below the organisation admin, as changeDeductions() does.
+     */
+    public function approveAttendanceDevice(User $user, int $employeeId): Response
+    {
+        if ($employeeId === $user->employee_id && ! $user->isAtLeast(UserRole::TENANT_ADMIN)) {
+            return Response::deny(__('attendance.cannot_approve_own_device'));
+        }
+
+        return Response::allow();
+    }
+
+    /**
+     * An exemption lifts the registered-phone rule altogether, so giving one to
+     * yourself would undo it for the person who manages it. Same rule as
+     * approveAttendanceDevice(); clearing an exemption is the same request and
+     * is refused with it, which leaves your own to someone else either way.
+     */
+    public function exemptFromAttendanceDevice(User $user, int $employeeId): Response
+    {
+        if ($employeeId === $user->employee_id && ! $user->isAtLeast(UserRole::TENANT_ADMIN)) {
+            return Response::deny(__('attendance.cannot_exempt_self'));
+        }
+
+        return Response::allow();
+    }
+
     public function issueActivationCode(User $user, Employee $employee): bool
     {
         return $user->hasPermission('users.issueActivationCode')

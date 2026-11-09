@@ -188,6 +188,7 @@ class AttendanceDeviceController extends Controller
     {
         Gate::authorize('attendance.manage');
         $this->reach($request, $device->employee);
+        Gate::authorize('approveAttendanceDevice', [Employee::class, (int) $device->employee_id]);
         abort_unless($device->status === AttendanceDevice::PENDING, 409, __('attendance.device_not_pending'));
 
         return new AttendanceDeviceResource($this->gate->approve($device, (int) $request->user()->id)->load('employee'));
@@ -216,6 +217,7 @@ class AttendanceDeviceController extends Controller
     {
         Gate::authorize('attendance.manage');
         $this->reach($request, $employee);
+        Gate::authorize('exemptFromAttendanceDevice', [Employee::class, $employee->id]);
 
         $until = $request->validated('until');
         $employee->forceFill(['attendance_device_exempt_until' => $until])->save();

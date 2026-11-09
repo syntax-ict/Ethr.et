@@ -56,6 +56,8 @@ return [
     'device_wrong_host' => 'Bilbila keessan galmaa\'een galmeessuuf teessoo ETHR dhaabbata keessanii banaa.',
     'device_not_active' => 'Bilbilli kun amma galmaa\'aa miti.',
     'device_not_pending' => 'Bilbilli kun raggaasisa hin eegu.',
+    'cannot_approve_own_device' => 'Bilbila keessanii nama biraa dhaabbata keessan keessaatu raggaasisuu qaba.',
+    'cannot_exempt_self' => "Bilbila keessan galmaa'een galmeessuu irraa bilisa isin gochuu kan qabu nama biraa dhaabbata keessan keessaati.",
     'punch_failed' => 'Galmeen hin milkoofne. Yeroo muraasa booda irra deebi\'ii yaali.',
     'retry_key_taken' => 'Galmeen kun hin galmoofne. Irra deebi\'ii yaali.',
 ];
