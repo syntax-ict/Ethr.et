@@ -11,6 +11,15 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-09, layered settings resolver: six more, two new files, 198/80.
+ * `Services/Tenancy/ProfileContext` reads one organisation's dated profile
+ * assignments, stating `tenant_id` from the organisation in hand, from
+ * payroll that may run with no tenant set. `Services/Tenancy/OrganisationProfile`,
+ * the only writer of those assignments, reads, deletes and writes them and
+ * asks whether a payroll run was approved, each stating `tenant_id` from the
+ * organisation in hand. `PensionCalculator::contractExemption()` reads the
+ * contract a person is on, stating `tenant_id` and `employee_id` from the
+ * employee in hand.)
  * (2026-11-06, tenant journey: six more in five new files, one fewer in
  * `AdminTenantController`, 191/78. The console shows where each organisation
  * is between sign-up and using ETHR (docs/operations/TENANT-JOURNEY.md).
@@ -381,7 +390,9 @@ return [
     'Services/Payroll/PayrollEngine.php' => 4,
     // The rule in force: the organisation's (`where tenant_id = X`), else the
     // platform's (`whereNull`) — the tax ladder's arrangement (2026-10-14).
-    'Services/Payroll/PensionCalculator.php' => 1,
+    // rule()'s inForce(), and contractExemption()'s contract lookup, both
+    // stating tenant_id (2026-11-09).
+    'Services/Payroll/PensionCalculator.php' => 2,
     // Platform and organisation parameters in one chain, each owner stated (2026-10-27).
     'Services/Payroll/StatutoryRules.php' => 1,
     // rowsInForce(): the organisation's ladder, the type's, then every type's,
@@ -398,6 +409,9 @@ return [
     // employees its `tenant_id`; the platform admins told of a request state
     // `tenant_id` NULL.
     'Services/Support/PlatformSupportInbox.php' => 7,
+    // The organisation's dated profile: read, assigned, corrected (2026-11-09).
+    'Services/Tenancy/OrganisationProfile.php' => 4,
+    'Services/Tenancy/ProfileContext.php' => 1,
     'Services/TenantAddressService.php' => 2,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,

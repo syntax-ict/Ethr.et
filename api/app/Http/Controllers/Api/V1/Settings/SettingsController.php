@@ -23,6 +23,7 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
+use App\Services\Tenancy\OrganisationProfile;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
@@ -169,7 +170,6 @@ class SettingsController extends Controller
         // Choosing the organisation type, even the one it already had, is the
         // confirmation the migration asked existing organisations for.
         if (array_key_exists('organization_type', $validated)) {
-            $tenantFields['organization_type'] = $validated['organization_type'];
             $tenantFields['organization_type_needs_review'] = false;
         }
 
@@ -181,6 +181,12 @@ class SettingsController extends Controller
 
         if (! empty($tenantFields)) {
             $tenant->update($tenantFields);
+        }
+
+        // The type is the organisation's profile: dated, and written only by
+        // OrganisationProfile, which keeps the column in step.
+        if (array_key_exists('organization_type', $validated)) {
+            app(OrganisationProfile::class)->set($tenant, (string) $validated['organization_type'], $request->user()?->id);
         }
 
         // Mirror into the settings JSON as well: it was the only store before

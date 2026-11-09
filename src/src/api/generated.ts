@@ -29851,9 +29851,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["TaxBracketResource"][];
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -30272,13 +30270,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `PensionRuleResource` */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PensionRuleResource"];
+                    "application/json": Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];

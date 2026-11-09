@@ -24,12 +24,12 @@ final readonly class PensionRuleSnapshot
         public ?int $minServiceDays,
         public string $legalReference,
         public ?string $effectiveFrom,
-        /** tenant, platform or fallback */
+        /** tenant, platform_type or platform */
         public string $source,
         public ?string $rulePublicId,
     ) {}
 
-    public static function fromModel(PensionRule $rule): self
+    public static function fromModel(PensionRule $rule, ?string $source = null): self
     {
         return new self(
             scheme: $rule->scheme,
@@ -42,7 +42,7 @@ final readonly class PensionRuleSnapshot
             minServiceDays: $rule->min_service_days,
             legalReference: $rule->legal_reference,
             effectiveFrom: $rule->effective_from->format('Y-m-d'),
-            source: $rule->tenant_id === null ? 'platform' : 'tenant',
+            source: $source ?? ($rule->tenant_id === null ? 'platform' : 'tenant'),
             rulePublicId: $rule->public_id,
         );
     }

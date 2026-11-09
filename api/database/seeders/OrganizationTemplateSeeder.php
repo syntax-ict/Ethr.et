@@ -30,9 +30,11 @@ class OrganizationTemplateSeeder extends Seeder
     /**
      * Payroll and attendance defaults shared by every Ethiopian employer.
      *
-     * Overtime multipliers and pension rates follow Labour Proclamation
-     * 1156/2019 and Pension Proclamations 714/2011 & 907/2015. Tenants can
-     * override any of it during the configuration review step.
+     * No statutory figure lives here. Pension rates, the overtime floor and
+     * every other value the law sets are dated statutory_parameters,
+     * pension_rules and tax_brackets rows, resolved for the organisation's
+     * type (docs/payroll/STATUTORY-PARAMETERS.md); a copy here was never read
+     * and cited repealed proclamations.
      *
      * @return array<string, mixed>
      */
@@ -43,14 +45,6 @@ class OrganizationTemplateSeeder extends Seeder
                 'pay_frequency' => 'monthly',
                 'fiscal_year_start' => $fiscalYearStart,
                 'pagumen_proration' => 'full_month',
-                'pension_employee_rate' => 0.07,
-                'pension_employer_rate' => 0.11,
-                'overtime_multipliers' => [
-                    'weekday' => 1.5,
-                    'night' => 1.75,
-                    'rest_day' => 2.0,
-                    'public_holiday' => 2.5,
-                ],
             ],
             'attendance' => [
                 'default_method' => $attendanceMethod,

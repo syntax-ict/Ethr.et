@@ -244,4 +244,5 @@ return [
     'employee_minimum_age' => 'The employee must be at least 15 years old on the hire date.',
     'holiday_duplicate' => 'This holiday is already on the calendar for that date.',
     'leave_paid_needs_days' => 'A paid leave type needs at least half a day of entitlement. Use 0 only for unpaid leave.',
+    'leave_below_statutory_floor' => 'The law grants at least :days days of this leave (:reference). A leave type may give more, never less.',
 ];

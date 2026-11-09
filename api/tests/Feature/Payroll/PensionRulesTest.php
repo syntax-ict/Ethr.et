@@ -227,23 +227,18 @@ describe('Settings → Payroll → Pension rules', function () {
             ->assertJsonMissingPath('data.0.id');
     });
 
-    it('adds a dated rule that needs its legal source, closes the previous one, and is audited', function () {
+    it('refuses a new rule, citing the law, while still asking for its legal source first', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
         $url = "http://{$tenant->subdomain}.ethr.test/api/v1/payroll/pension-rules";
         $rule = ['scheme' => 'private', 'employee_rate' => 7, 'employer_rate' => 11, 'effective_from' => '2027-01-01'];
 
         test()->postJson($url, $rule)->assertUnprocessable()->assertJsonValidationErrors('legal_reference');
-        test()->postJson($url, [...$rule, 'legal_reference' => 'Board resolution 12/2026'])->assertCreated()
-            ->assertJsonPath('owner', 'organisation');
-        test()->postJson($url, [...$rule, 'employee_rate' => 8, 'effective_from' => '2027-06-01', 'legal_reference' => 'Directive 3/2027'])
-            ->assertCreated();
-        test()->postJson($url, [...$rule, 'effective_from' => '2027-03-01', 'legal_reference' => 'Out of order'])
-            ->assertUnprocessable();
+        $refused = test()->postJson($url, [...$rule, 'legal_reference' => 'Board resolution 12/2026'])->assertUnprocessable();
 
-        expect(PensionRule::query()->orderBy('effective_from')->pluck('effective_to')->map(fn ($d) => $d?->format('Y-m-d'))->all())
-            ->toBe(['2027-05-31', null])
-            ->and(AuditLog::where('action', 'pension_rule.created')->count())->toBe(2);
+        expect($refused->json('detail'))->toContain('1268/2022')
+            ->and(PensionRule::query()->count())->toBe(0)
+            ->and(AuditLog::where('action', 'pension_rule.created')->count())->toBe(0);
     });
 
     it('lets only those who manage payroll configuration add one', function () {

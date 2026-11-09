@@ -564,7 +564,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.7',
+            'version' => '1.8',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -680,8 +680,12 @@ final class PayrollEngine
         // tier of each day is its place in that period, so a long illness
         // moves from full to half pay across payslips without anyone acting.
         $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $workingDaysPerMonth);
-        // In thousandths of a day, as for unpaid leave: a half-pay day is 500.
-        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * 500);
+        // In thousandths of a day, as for unpaid leave. A half-pay day keeps
+        // `leave.sick.half_pay_ratio` of the daily rate, so withholds the rest:
+        // 500 at the law's one half.
+        $halfPay = $rules->list('leave.sick.half_pay_ratio');
+        $halfPayWithheld = 1000 * ((int) $halfPay['denominator'] - (int) $halfPay['numerator']) / (int) $halfPay['denominator'];
+        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * $halfPayWithheld);
         $sickDeduction = $sickThousandths > 0
             ? min(Cents::mulDiv($dailyRate, $sickThousandths, 1000), $proratedBasic)
             : 0;
@@ -714,7 +718,9 @@ final class PayrollEngine
             // are fixed. Cost sharing is a share of gross, not known yet, so it
             // is estimated on basic here, and the run register flags any payslip
             // whose actual total still passes the third.
-            $third = intdiv($proratedBasic, 3);
+            // The share is `payroll.deduction_cap_ratio`, one third in law.
+            $capRatio = $rules->list('payroll.deduction_cap_ratio');
+            $third = intdiv($proratedBasic * (int) $capRatio['numerator'], (int) $capRatio['denominator']);
             $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
                 + $this->costSharingService->calculateDeduction(
                     $this->costSharingService->getActiveObligation($employee),
@@ -826,7 +832,7 @@ final class PayrollEngine
             'rule' => $taxBasis,
         ];
 
-        $pension = $this->pensionCalculator->apply($pensionRule, $employee, $proratedBasic, $totalAllowances, $periodEnd);
+        $pension = $this->pensionCalculator->apply($pensionRule, $employee, $proratedBasic, $totalAllowances, $periodEnd, $rules->list('pension.applies_to'));
 
         $log['steps'][] = [
             'step' => 'pension',

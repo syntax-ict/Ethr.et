@@ -15,8 +15,13 @@ use Illuminate\Support\Carbon;
  * (StatutoryParameter, TaxBracket, PensionRule), and an organisation's type
  * decides which of those apply to it.
  *
- * A global catalogue, edited from the platform console: no tenant owns a
- * type, and adding one is a row, not a deploy.
+ * A global catalogue: no tenant owns a type, and adding one is a row, not a
+ * deploy. Rows are written by migrations.
+ *
+ * A type may name a `parent_code` (one level deep): it owns no rule rows of
+ * its own until a sourced rule differs, and resolves through its parent's
+ * meanwhile. `group_code` groups the picker: private, non_profit, public,
+ * international.
  *
  * @property int $id
  * @property string $public_id
@@ -26,6 +31,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property int $sort_order
  * @property bool $is_active
+ * @property string|null $parent_code
+ * @property string $group_code
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -41,6 +48,8 @@ class OrganizationType extends Model
         'description',
         'sort_order',
         'is_active',
+        'parent_code',
+        'group_code',
     ];
 
     protected $hidden = ['id'];
@@ -51,6 +60,26 @@ class OrganizationType extends Model
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    public const GROUPS = ['private', 'non_profit', 'public', 'international'];
+
+    /**
+     * The codes a type's rules resolve through, most specific first: the
+     * type, then its parent if it has one. Empty for no type. Callers memoize
+     * (App\Services\Tenancy\ProfileContext); this reads the row each time.
+     *
+     * @return list<string>
+     */
+    public static function lineage(?string $code): array
+    {
+        if ($code === null || $code === '') {
+            return [];
+        }
+
+        $parent = self::query()->where('code', $code)->value('parent_code');
+
+        return is_string($parent) && $parent !== '' ? [$code, $parent] : [$code];
     }
 
     /** @return list<string> the codes an organisation may be given */

@@ -40,7 +40,8 @@ function platformParameter(string $code, mixed $value, ?string $type = null, str
 {
     DB::table('statutory_parameters')->insert([
         'public_id' => (string) Str::ulid(), 'tenant_id' => null, 'organization_type' => $type, 'code' => $code,
-        'value' => json_encode($value), 'tenant_overridable' => $overridable, 'legal_reference' => 'Test', 'confirmed' => false,
+        'value' => json_encode($value), 'tenant_overridable' => $overridable, 'enforcement' => $overridable ? 'default' : 'locked',
+        'legal_reference' => 'Test', 'confirmed' => false,
         'effective_from' => $from, 'created_at' => now(), 'updated_at' => now(),
     ]);
 }
@@ -101,7 +102,7 @@ it('pays the same employee under each organisation type\'s rules, and logs where
         ->and($companyEntry->income_tax_cents)->toBe($armyEntry->income_tax_cents);
 
     $log = $armyEntry->calculation_log;
-    expect($log['version'])->toBe('1.7')
+    expect($log['version'])->toBe('1.8')
         ->and($log['statutory_rules']['organization_type'])->toBe('defence_police')
         ->and($log['statutory_rules']['rules']['pension.default_scheme'])->toMatchArray(['value' => 'public_military', 'source' => 'platform_type'])
         ->and($log['statutory_rules']['rules']['payroll.hours_per_day'])->toMatchArray(['value' => 8, 'source' => 'platform', 'confirmed' => true]);
@@ -116,12 +117,14 @@ it('lets an organisation override only what the platform marks overridable', fun
     $rules = app(StatutoryRules::class)->for($tenant, Carbon::parse('2026-10-01'));
 
     expect($rules->get('fiscal_year.start_month'))->toBe(5)
-        ->and($rules->describe('fiscal_year.start_month')['source'])->toBe('tenant_setting')
+        ->and($rules->describe('fiscal_year.start_month')['source'])->toBe('tenant')
         ->and($rules->get('payroll.hours_per_day'))->toBe(8);
 });
 
 it('applies a new parameter row from its date, and only from its date', function () {
-    platformParameter('payroll.working_days_per_month', 26, from: '2026-11-01');
+    // For the organisation's own type: each type has its own row, which is
+    // more specific than the row for every type.
+    platformParameter('payroll.working_days_per_month', 26, 'private', from: '2026-11-01', overridable: true);
     $tenant = createTenant();
     $rules = app(StatutoryRules::class);
 
@@ -166,7 +169,7 @@ describe('organisation type', function () {
     it('lists the active types publicly, for the registration form', function () {
         $this->getJson('/api/v1/organization-types')
             ->assertOk()
-            ->assertJsonCount(6, 'data')
+            ->assertJsonCount(16, 'data')
             ->assertJsonPath('data.0.code', 'private')
             ->assertJsonMissingPath('data.0.id')
             ->assertJsonStructure(['data' => [['code', 'name', 'name_am', 'description']]]);
@@ -239,6 +242,8 @@ it('moves no existing organisation\'s pension scheme or fiscal year when it gues
 
     $migration = require database_path('migrations/2026_10_27_000002_create_organization_types_and_statutory_parameters.php');
     (fn () => self::backfillTenants())->call($migration);
+    // Then, as on deploy, the 2026-11-09 move of those settings into rows.
+    (require database_path('migrations/2026_11_09_000004_move_statutory_settings_into_tenant_rows.php'))->up();
 
     $ministry = $ministry->fresh();
     $rules = app(StatutoryRules::class)->for($ministry, Carbon::parse('2026-10-15'));
@@ -266,13 +271,14 @@ it('lets an organisation set its own working days per month, which payroll and s
 
     $rules = app(StatutoryRules::class)->for($tenant->fresh(), Carbon::parse('2026-11-10'));
     expect($rules->int('payroll.working_days_per_month'))->toBe(26)
-        ->and($rules->describe('payroll.working_days_per_month')['source'])->toBe('tenant_setting')
+        ->and($rules->describe('payroll.working_days_per_month')['source'])->toBe('tenant')
         ->and($rules->describe('payroll.working_days_per_month')['confirmed'])->toBeFalse()
         ->and(app(StatutoryRules::class)->platform(Carbon::parse('2026-11-10'))->int('payroll.working_days_per_month'))->toBe(22);
 });
 
 it('gives every organisation type its own working-days row, unconfirmed, equal to today so nothing moves', function () {
-    $types = DB::table('organization_types')->pluck('code')->all();
+    // A type with a parent reads its parent's row until it is given its own.
+    $types = DB::table('organization_types')->whereNull('parent_code')->pluck('code')->all();
     $rows = DB::table('statutory_parameters')
         ->whereNull('tenant_id')->where('code', 'payroll.working_days_per_month')->whereNotNull('organization_type')
         ->get()->keyBy('organization_type');
