@@ -213,12 +213,14 @@ it('answers another tenant\'s kiosk id with 404 on every admin route and changes
     $this->getJson($base)->assertNotFound();
     $this->postJson("{$base}/deactivate")->assertNotFound();
     $this->postJson("{$base}/regenerate-token")->assertNotFound();
+    $this->postJson("{$base}/renew")->assertNotFound();
     $this->deleteJson($base)->assertNotFound();
 
     $row = DB::table('kiosk_sessions')->where('id', $theirs->id)->first();
     expect($row)->not->toBeNull()
         ->and($row->status)->toBe('active')
-        ->and($row->token)->toBe($theirToken);
+        ->and($row->token_hash)->toBe(KioskSession::hashToken($theirToken))
+        ->and($row->expires_at)->toBe($theirs->getRawOriginal('expires_at'));
 });
 
 it('does not let an employee manage kiosks', function () {

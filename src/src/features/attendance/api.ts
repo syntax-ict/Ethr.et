@@ -692,6 +692,15 @@ export function useRegenerateKioskToken() {
   );
 }
 
+/** Another full period for the session; the token, and the terminal, stay as they are. */
+export function useRenewKiosk() {
+  return useAttendanceMutation(
+    async (publicId: string): Promise<KioskSession> =>
+      (await apiClient.post(`/kiosk-sessions/${publicId}/renew`)).data,
+    [keys.kiosks],
+  );
+}
+
 export function useDeleteKiosk() {
   return useAttendanceMutation(
     async (publicId: string): Promise<void> => {

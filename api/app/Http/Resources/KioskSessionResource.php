@@ -23,6 +23,7 @@ class KioskSessionResource extends JsonResource
             'device_identifier' => $this->device_identifier,
             'status' => $this->status,
             'token' => $this->when($this->wasRecentlyCreated, $this->token),
+            'expires_at' => $this->expires_at?->toIso8601String(),
             'last_activity_at' => $this->last_activity_at?->toIso8601String(),
             'activated_at' => $this->activated_at?->toIso8601String(),
             'deactivated_at' => $this->deactivated_at?->toIso8601String(),

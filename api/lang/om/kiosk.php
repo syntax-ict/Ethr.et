@@ -12,6 +12,7 @@ return [
     'pin_locked' => 'Hojjetaa kanaaf PIN dogoggoraa baay\'eetu galfame. Daqiiqaa 15 booda irra deebi\'aa yaalaa ykn Qabeenya Namaa (HR) gaafadhaa.',
     'offline_unreadable' => 'Galmeen argamaa toora ala kun dubbifamuu hin dandeenye. Irra deebi\'aa galmeessaa.',
     'offline_failed' => 'Galmeen argamaa toora ala kun galmaa\'uu hin dandeenye. Akka galchu Qabeenya Namaa (HR) gaafadhaa.',
+    'offline_switched_off' => 'Galmeen kiyooskii dhaabbateera; galmeen argamaa toora ala kun osoo hin dhaabbatin dura akka taasifame mirkaneessuun hin danda\'amu. Akka galchu Qabeenya Namaa (HR) gaafadhaa.',
     'self_service_refused' => 'Koodiin fi PIN sun wal hin simne. Lamaanuu mirkaneessaatii irra deebi\'aa yaalaa.',
     'self_service_no_pin' => 'Ammallee PIN kiyoskii hin qabdan. Akka isiniif qindeessu Qabeenya Namaa (HR) gaafadhaa.',
     'self_service_expired' => 'Seshiniin keessan kiyoskii kana irratti xumurameera. Koodii fi PIN keessan irra deebi\'aa galchaa.',
