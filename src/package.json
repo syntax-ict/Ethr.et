@@ -17,6 +17,7 @@
     "test:e2e:theme": "playwright test theme-switching.spec.ts",
     "test:e2e:amharic": "playwright test amharic-layout.spec.ts",
     "test:e2e:ux": "playwright test ux-audit.spec.ts",
+    "test:e2e:production": "playwright test -c playwright.production.config.ts",
     "analyze": "ANALYZE=true next build",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",

@@ -30,6 +30,7 @@ defect against one or the other and say which.** Do not silently adjust the expe
 | 8 | [08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) | Test engineer | Announcements, news, landing page and public listing, notifications, voice, search, Next steps, reports, API keys, webhooks, SCIM, SSO, platform console and operations centre, marketing site |
 | 9 | [09-NON-FUNCTIONAL.md](09-NON-FUNCTIONAL.md) | Test engineer | Security, tenant isolation, rate limits, performance, accessibility, Amharic and the Ethiopian calendar, responsive, PWA and offline, browsers |
 | 10 | [10-TEMPLATES-AND-REFERENCE.md](10-TEMPLATES-AND-REFERENCE.md) | Everyone | Defect report template, execution log, release smoke checklist, known issues to verify, glossary |
+| 11 | [11-CLAUDE-CODE-AND-PLAYWRIGHT.md](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) | Test engineer, anyone running Claude Code | Which cases a machine may run, saving sessions without handing over a password, the scripted smoke checks (`npm run test:e2e:production`), Claude Code with the Playwright MCP server, and turning a run into execution-log rows |
 
 ## How a test case is written
 
@@ -45,6 +46,13 @@ Every case in documents 03 to 09 has the same columns:
 
 Personas used in the steps (TA, HR, FIN, DA, SUP, EMP, EMP2, PA) are defined in
 [01-TEST-PLAN.md, section 5](01-TEST-PLAN.md#5-test-accounts-and-personas).
+
+**Run by machine.** The ID at the start of each row is what links a case to a script and to the
+execution log: a Playwright test is titled with it (`S-02 …`) and tagged with its priority and mode
+(`@P1`, `@R`), and an agent reports one log row per ID. Which cases Claude Code or Playwright may run
+follows from the Mode column and what the steps need, by the table in
+[11, section 2](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#2-which-cases-a-machine-may-run); an agent working
+in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running the pack.
 
 ## Keeping this pack current
 

@@ -208,6 +208,15 @@ Run only read-only specs there (`auth`, `marketing`, `accessibility`, `responsiv
 `theme-switching`, `amharic-layout`, `offline`) unless the owner agrees otherwise, and run them with
 `workers: 1` (the default) so rate limits are not tripped.
 
+**On production itself, use the production suite instead** (added 2026-11-09): `npm run
+test:e2e:production` in `src/` runs the release smoke checklist's scriptable rows (S-01, S-02, S-04
+to S-11, S-13) against `https://www.ethr.et` and the QA organisation. It never signs in (a person
+saves each persona's session, MFA included), refuses any organisation that is not a QA one, and
+aborts every state-changing API call before it leaves the browser. Claude Code can run the read-only
+cases of 03 to 09 through the Playwright MCP server with the same guard. What each may run, and
+what stays with the tester, is in [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md). A green scripted run is
+L1 evidence only: it does not replace the sign-in, isolation or phone cases.
+
 ## 4. Environments
 
 | Environment | Address | Use |

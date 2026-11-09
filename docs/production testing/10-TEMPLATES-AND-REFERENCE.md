@@ -53,6 +53,11 @@ with the same columns.
 | PLAN-011 | Not run | | | | | Needs 60 days |
 
 Results: **Pass**, **Fail** (with a defect), **Blocked** (cannot run; say why), **Not run** (say why).
+The **Tester** is the person, or `Playwright` for a scripted check, or `Claude Code` (with the
+session link in the notes) for an agent's run; a person signs off every machine row, and reviews
+every Fail and every P1 Pass first ([11, section 5.4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#54-what-the-agent-hands-back)).
+`node e2e-production/execution-log.mjs` in `src/` prints a Playwright run as rows of this table; a
+skipped check comes out as **Not run** with its reason, never Pass.
 A change in the release that the pack has no case for is logged by its PR number as **Not covered**
 (from `scripts/qa-pack-coverage.sh`; [README](README.md#keeping-this-pack-current)), so the summary
 shows what was never tested rather than reading as a clean pass.
@@ -62,6 +67,12 @@ At the end, total per module and per priority, and the pass rates the exit crite
 
 Run after every deployment, before anything else. **Read-only.** About 30 minutes. A failure stops
 the test pass (test plan 7.3).
+
+Most rows are scripted: `npm run test:e2e:production` in `src/` runs S-01, S-02, S-04, S-06 and S-07
+signed out, and S-08 to S-11 and S-13 from sessions a person saved first; S-05 only with
+`PROD_PROBE_SECRETS=1`. Each script names what it leaves for a person to check by eye
+([11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli)).
+S-03, S-12, S-14 and S-15 stay manual.
 
 | # | Check | How | Pass when |
 |---|---|---|---|
