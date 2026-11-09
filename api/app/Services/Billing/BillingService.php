@@ -16,6 +16,26 @@ use Illuminate\Support\Facades\DB;
 
 final class BillingService
 {
+    /** The line-item kind of the invoice changePlan() raises for an upgrade. */
+    public const PRORATION = 'proration';
+
+    /** Whether $invoice is a plan change's, not a month's. */
+    public static function isProration(Invoice $invoice): bool
+    {
+        $items = $invoice->getAttribute('line_items');
+        if (! is_array($items)) {
+            return false;
+        }
+
+        foreach ($items as $item) {
+            if (is_array($item) && ($item['kind'] ?? null) === self::PRORATION) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Move a tenant to a different plan, pricing the switch.
      *
@@ -135,8 +155,31 @@ final class BillingService
             $attributes['current_period_end'] = Carbon::now()->addMonth();
         }
 
-        DB::transaction(function () use ($subscription, $attributes, $tenant, $isTrialConversion): void {
+        DB::transaction(function () use ($subscription, $attributes, $tenant, $isTrialConversion, $prorationAmount, $oldPlan, $newPlan): void {
             $subscription->update($attributes);
+
+            // An upgrade is billed for the rest of the period now. The
+            // proration was worked out and only returned, and the monthly
+            // invoice bills whatever plan is held on the 1st: an
+            // organisation could move to Enterprise on the 2nd and back to
+            // Starter on the 30th, and never be billed for it. A downgrade
+            // credits nothing; the period already paid for is not refunded.
+            if (! $isTrialConversion && $prorationAmount > 0) {
+                Invoice::create([
+                    'tenant_id' => $tenant->id,
+                    'subscription_id' => $subscription->id,
+                    'amount_cents' => $prorationAmount,
+                    'tax_cents' => 0,
+                    'total_cents' => $prorationAmount,
+                    'status' => 'sent',
+                    'line_items' => [[
+                        'description' => ($oldPlan->name ?? 'Plan').' → '.$newPlan->name.' — rest of the period',
+                        'amount_cents' => $prorationAmount,
+                        'kind' => self::PRORATION,
+                    ]],
+                    'due_date' => Carbon::now()->addDays(15)->startOfDay(),
+                ]);
+            }
 
             // The organisation leaves the trial with its subscription. Left on
             // `trial`, isActive() still read trial_ends_at and refused a paying
@@ -191,13 +234,17 @@ final class BillingService
         // limit: a run starting at 23:59 on the last day and retrying after
         // midnight would still produce two. A `period` column on invoices is the
         // fuller fix and a schema change; recorded rather than smuggled in here.
+        //
+        // A plan change's invoice is not the month's: one raised on the 1st
+        // before this ran would otherwise stand in for it.
         $existing = Invoice::withoutGlobalScope('tenant')
             ->where('subscription_id', $subscription->id)
             ->whereBetween('created_at', [
                 Carbon::now()->startOfMonth(),
                 Carbon::now()->endOfMonth(),
             ])
-            ->first();
+            ->get()
+            ->first(fn (Invoice $invoice): bool => ! self::isProration($invoice));
 
         if ($existing) {
             // Returned rather than null so the caller can distinguish "already

@@ -197,6 +197,28 @@ describe('roles at the same level', function () {
         expect($finance->fresh()->custom_role_id)->toBeNull();
     });
 
+    it('an HR admin cannot open a second HR admin account', function () {
+        // With no employee behind it, a second HR admin account could edit
+        // the first one's own pay and bank account (review 2026-11-09).
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->postJson(payAuthzUrl($tenant, 'users'), [
+            'name' => 'Second account',
+            'email' => 'second-hr@example.com',
+            'role' => UserRole::HR_ADMIN->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors('role');
+    });
+
+    it('an HR admin cannot give a supervisor their own role either', function () {
+        $tenant = createTenant();
+        $supervisor = createUser(['role' => UserRole::SUPERVISOR, 'status' => 'active'], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        test()->patchJson(payAuthzUrl($tenant, "users/{$supervisor->public_id}"), ['role' => UserRole::HR_ADMIN->value])
+            ->assertUnprocessable()->assertJsonValidationErrors('role');
+    });
+
     it('an HR admin still manages the people below them', function () {
         $tenant = createTenant();
         $supervisor = createUser(['role' => UserRole::SUPERVISOR, 'status' => 'active'], $tenant);
@@ -336,4 +358,37 @@ describe('grade salary bands', function () {
         test()->getJson(payAuthzUrl($tenant, "organization/grades/{$grade->public_id}/salary-steps"))
             ->assertJsonPath('0.salary_cents', 900000);
     });
+});
+
+test('a login cannot be added to an employee who already has one', function () {
+    // A second login on someone else's record reads their payslips, salary
+    // and leave as its own: an HR admin could do it to the CEO from an
+    // inbox they control (review 2026-11-09).
+    $tenant = createTenant();
+    $ceo = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $login = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $ceo->id, 'status' => 'active'], $tenant);
+    $ceo->update(['user_id' => $login->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->postJson(payAuthzUrl($tenant, 'users'), [
+        'name' => 'Not the CEO',
+        'email' => 'alias@example.com',
+        'role' => UserRole::EMPLOYEE->value,
+        'employee_id' => $ceo->public_id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('employee_id');
+
+    expect(User::query()->where('employee_id', $ceo->id)->count())->toBe(1);
+});
+
+test('a login can still be added to an employee who has none', function () {
+    $tenant = createTenant();
+    $newcomer = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->postJson(payAuthzUrl($tenant, 'users'), [
+        'name' => 'Newcomer',
+        'email' => 'newcomer@example.com',
+        'role' => UserRole::EMPLOYEE->value,
+        'employee_id' => $newcomer->public_id,
+    ])->assertSuccessful();
 });

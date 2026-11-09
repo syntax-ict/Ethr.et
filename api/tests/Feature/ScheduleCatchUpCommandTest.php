@@ -169,3 +169,13 @@ it('keeps going when one task throws, and reports failure', function () {
     $this->artisan('ethr:schedule-run')->assertFailed();
     expect($after)->toBe(1);
 });
+
+it('fails when a task that runs as a child process exits non-zero', function () {
+    // The 01:00 backup is a Schedule::command, run as a child process: its
+    // failure is an exit code, and an exit code was counted as a success.
+    catchUpSchedule(function (Schedule $s) {
+        $s->exec('exit 3')->everyMinute();
+    });
+
+    $this->artisan('ethr:schedule-run')->assertFailed();
+});

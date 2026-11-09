@@ -14,6 +14,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\MissingPunchNotification;
 use App\Services\Push\WebPushSender;
+use App\Support\PushEndpoint;
 use Carbon\Carbon;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -38,7 +39,7 @@ function wpConfigure(): void
     config(['webpush.public_key' => 'BPublicKeyForTests', 'webpush.private_key' => 'PrivateKeyForTests']);
 }
 
-function wpSubscribe(Tenant $tenant, User $user, string $endpoint = 'https://push.example.test/abc'): PushSubscription
+function wpSubscribe(Tenant $tenant, User $user, string $endpoint = 'https://fcm.googleapis.com/fcm/send/abc'): PushSubscription
 {
     return PushSubscription::create([
         'tenant_id' => $tenant->id,
@@ -73,7 +74,7 @@ test('push is off, and says so, until the keys are set', function () {
         ->assertJsonPath('enabled', false)
         ->assertJsonPath('public_key', null);
     test()->postJson(wpUrl($tenant, '/push/subscriptions'), [
-        'endpoint' => 'https://push.example.test/1', 'keys' => ['p256dh' => 'a', 'auth' => 'b'],
+        'endpoint' => 'https://fcm.googleapis.com/fcm/send/1', 'keys' => ['p256dh' => 'a', 'auth' => 'b'],
     ])->assertStatus(409);
 
     wpConfigure();
@@ -86,7 +87,7 @@ test('a browser subscribes, moves to whoever signs in on it, and unsubscribes on
     wpConfigure();
     $tenant = createTenant();
     $first = actingAsUser([], $tenant);
-    $body = ['endpoint' => 'https://push.example.test/shared', 'keys' => ['p256dh' => 'a', 'auth' => 'b']];
+    $body = ['endpoint' => 'https://fcm.googleapis.com/fcm/send/shared', 'keys' => ['p256dh' => 'a', 'auth' => 'b']];
 
     test()->postJson(wpUrl($tenant, '/push/subscriptions'), $body)->assertCreated();
     expect(PushSubscription::query()->sole()->user_id)->toBe($first->id);
@@ -160,14 +161,14 @@ test('an endpoint the push service reports gone is forgotten', function () {
     wpConfigure();
     $tenant = createTenant();
     $user = createUser([], $tenant);
-    $gone = wpSubscribe($tenant, $user, 'https://push.example.test/gone');
-    $live = wpSubscribe($tenant, $user, 'https://push.example.test/live');
+    $gone = wpSubscribe($tenant, $user, 'https://fcm.googleapis.com/fcm/send/gone');
+    $live = wpSubscribe($tenant, $user, 'https://fcm.googleapis.com/fcm/send/live');
 
     $client = Mockery::mock(WebPush::class);
     $client->shouldReceive('queueNotification')->twice();
     $client->shouldReceive('flush')->once()->andReturnUsing(function () {
-        yield new MessageSentReport(new Request('POST', 'https://push.example.test/gone'), new Response(410), false, 'Gone');
-        yield new MessageSentReport(new Request('POST', 'https://push.example.test/live'), new Response(201), true);
+        yield new MessageSentReport(new Request('POST', 'https://fcm.googleapis.com/fcm/send/gone'), new Response(410), false, 'Gone');
+        yield new MessageSentReport(new Request('POST', 'https://fcm.googleapis.com/fcm/send/live'), new Response(201), true);
     });
     $sender = new class($client) extends WebPushSender
     {
@@ -229,3 +230,32 @@ test('nothing is pushed to someone deactivated', function () {
 
     Queue::assertNotPushed(SendWebPush::class);
 });
+
+test('a subscription must point at a browser push service', function (string $endpoint) {
+    // The endpoint is whatever the caller sends, and every notification then
+    // made the server POST to it: the Plesk panel on 127.0.0.1:8443, or a
+    // public URL that redirects inward (review 2026-11-09).
+    wpConfigure();
+    $tenant = createTenant();
+    actingAsUser([], $tenant);
+
+    test()->postJson(wpUrl($tenant, '/push/subscriptions'), ['endpoint' => $endpoint, 'keys' => ['p256dh' => 'a', 'auth' => 'b']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('endpoint');
+    expect(PushSubscription::query()->count())->toBe(0);
+})->with([
+    'the Plesk panel' => ['https://127.0.0.1:8443/smb/'],
+    'a private address' => ['https://10.0.0.5/push'],
+    'a host of the caller\'s' => ['https://attacker.example/redirect-inward'],
+    'a look-alike' => ['https://fcm.googleapis.com.attacker.example/x'],
+    'another port' => ['https://fcm.googleapis.com:8443/fcm/send/x'],
+]);
+
+test('the push services browsers use are accepted', function (string $endpoint) {
+    expect(PushEndpoint::allowed($endpoint))->toBeTrue();
+})->with([
+    ['https://fcm.googleapis.com/fcm/send/abc'],
+    ['https://updates.push.services.mozilla.com/wpush/v2/abc'],
+    ['https://web.push.apple.com/QAbc'],
+    ['https://wns2-par02p.notify.windows.com/w/?token=abc'],
+]);

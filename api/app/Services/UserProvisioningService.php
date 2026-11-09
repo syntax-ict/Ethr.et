@@ -59,6 +59,15 @@ class UserProvisioningService
             return null;
         }
 
+        // One login per employee record: a second would read the first one's
+        // payslips and leave as its own (StoreUserRequest::hasLogin).
+        if ($employee !== null && ($employee->user_id !== null || User::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('employee_id', $employee->id)
+            ->exists())) {
+            return null;
+        }
+
         $user = User::create([
             'tenant_id' => $tenant->id,
             'employee_id' => $employee?->id,
@@ -80,8 +89,10 @@ class UserProvisioningService
             'locale' => $locale ?? $tenant->default_locale ?? 'en',
         ]);
 
-        // Keep the Employee<->User link consistent in both directions.
-        if ($employee !== null && $employee->user_id === null) {
+        // Keep the Employee<->User link consistent in both directions. The
+        // employee has no login of their own here: one that had is refused
+        // above.
+        if ($employee !== null) {
             $employee->update(['user_id' => $user->id]);
         }
 

@@ -454,3 +454,28 @@ describe('IPv6 device addresses', function () {
             ->and(DeviceHost::baseUrl('https', 'biostar.example.com', '443'))->toBe('https://biostar.example.com:443');
     });
 });
+
+describe('redirects', function () {
+    it('never follows a device that answers with a redirect', function (string $adapter, Closure $device) {
+        // The device's host is checked and pinned; a redirect's target was
+        // not. A device address of the admin's choosing that answered 302 to
+        // 127.0.0.1 turned status checks into a port scan of the host
+        // (review 2026-11-09). Webhooks already refused to follow (N18).
+        Http::fake([
+            '127.0.0.1*' => Http::response('inside', 200),
+            '*' => Http::response('', 302, ['Location' => 'http://127.0.0.1:9000/internal']),
+        ]);
+
+        try {
+            app($adapter)->getStatus($device());
+        } catch (Throwable) {
+            // An adapter may refuse a 302 outright; what matters is below.
+        }
+
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '127.0.0.1'));
+    })->with([
+        'Hikvision' => [HikvisionAdapter::class, fn () => hikvisionDevice()],
+        'Suprema' => [SupremaAdapter::class, fn () => supremaDevice()],
+        'ZKTeco' => [ZktecoAdapter::class, fn () => zktecoDevice()],
+    ]);
+});

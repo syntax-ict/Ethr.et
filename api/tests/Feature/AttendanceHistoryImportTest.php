@@ -373,6 +373,30 @@ describe('history import pagination', function () {
         Queue::assertPushed(PullDeviceEventsJob::class, 1);
     });
 
+    it('moves a sync that handed on only as far as it got, so a lost continuation loses nothing', function () {
+        Carbon::setTestNow('2026-07-31 09:00:00');
+        config(['devices.pull_time_budget_seconds' => 20]);
+        [$tenant, $device, $fake] = pagedDevice(badges: ['1001']);
+        $device->update(['last_sync_at' => Carbon::now()->subDays(400)]);
+        $fake->events = dailyCheckIns('1001', 350);
+        $fake->secondsPerPull = 10;
+
+        // The continuation is queued and never runs, as when it finds the
+        // device offline and returns without retrying.
+        Queue::fake();
+        runPull($device, 'schedule');
+
+        $pulled = AttendanceRecord::where('tenant_id', $tenant->id)->count();
+        $cursor = $device->fresh()->last_sync_at;
+        $latestPulled = AttendanceRecord::where('tenant_id', $tenant->id)->max('check_in');
+
+        // Before, the cursor moved to 09:00 and the punches after the last
+        // page were never pulled by any later sync.
+        expect($pulled)->toBeLessThan(350)
+            ->and($cursor->lt(Carbon::parse('2026-07-31 09:00:00')))->toBeTrue()
+            ->and($cursor->gte(Carbon::parse($latestPulled)->subDay()))->toBeTrue();
+    });
+
     it('stops rather than loops when a whole page falls inside one second', function () {
         Carbon::setTestNow('2026-07-31 09:00:00');
         [$tenant, $device, $fake] = pagedDevice(badges: ['1001', '1002', '1003', '1004', '1005']);
