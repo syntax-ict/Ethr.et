@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
+use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Services\Auth\ImpersonationToken;
 use Closure;
 use Illuminate\Http\Request;
@@ -23,6 +24,10 @@ class BlockImpersonatedActions
         MfaSetupController::class.'@disable',
         ApiKeyController::class.'@store',
         BillingController::class.'@changePlan',
+        // The organisation's address is where its people sign in. An operator
+        // looking at an organisation as it sees itself must not move it.
+        SettingsController::class.'@updateSubdomain',
+        SettingsController::class.'@updateAddress',
     ];
 
     public function handle(Request $request, Closure $next): Response
