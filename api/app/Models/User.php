@@ -70,7 +70,9 @@ class User extends Authenticatable implements HasLocalePreference
     // `username` and `phone` in normalised form and carry nothing a client
     // needs, so they are hidden for the same reason `national_id_hash` is on
     // `Employee`: a derived column is not part of the resource. Added by
-    // `2026_09_23_000003_index_login_identifier_lookups.php`. The explanation
+    // `2026_09_23_000003_index_login_identifier_lookups.php`. `employee_id_active`
+    // is the same kind of column, there for the one-login-per-employee unique
+    // index (`2026_11_09_000002_make_users_employee_id_unique.php`). The explanation
     // sits on the statement rather than above the keys because Scramble
     // publishes comments above array keys as OpenAPI descriptions.
     protected $hidden = [
@@ -82,6 +84,7 @@ class User extends Authenticatable implements HasLocalePreference
         'email_normalized',
         'username_normalized',
         'phone_normalized',
+        'employee_id_active',
     ];
 
     protected function casts(): array
