@@ -1,7 +1,10 @@
 // Copy MediaPipe's vision WASM into public/ so on-device liveness loads it
 // from this site, never a CDN: the static export serves it like any asset and
-// the service worker can cache it for offline punching. Only the SIMD and the
-// no-SIMD builds are copied; FilesetResolver picks one for the device.
+// the service worker can cache it for offline punching. Only the SIMD build is
+// copied: @mediapipe/tasks-vision 1.2 dropped the no-SIMD fallback, and its
+// FilesetResolver no longer asks for one. A browser without WebAssembly SIMD
+// cannot load the landmarker, so liveness reports "unavailable", which the
+// server treats as neutral.
 //
 // Runs on postinstall, so `npm ci` in CI, in the release build and locally all
 // produce the same public/mediapipe. The folder is gitignored: the package
@@ -27,11 +30,6 @@ if (!existsSync(from)) {
 }
 
 mkdirSync(to, { recursive: true });
-for (const name of [
-  "vision_wasm_internal.js",
-  "vision_wasm_internal.wasm",
-  "vision_wasm_nosimd_internal.js",
-  "vision_wasm_nosimd_internal.wasm",
-]) {
+for (const name of ["vision_wasm_internal.js", "vision_wasm_internal.wasm"]) {
   copyFileSync(path.join(from, name), path.join(to, name));
 }
