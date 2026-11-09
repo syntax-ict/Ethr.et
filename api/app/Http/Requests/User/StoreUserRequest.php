@@ -7,6 +7,7 @@ namespace App\Http\Requests\User;
 use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\Employee;
+use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
@@ -60,6 +61,13 @@ class StoreUserRequest extends FormRequest
                 && ! $v->errors()->has('employee_id')
                 && ! Employee::where('public_id', $employeeId)->exists()) {
                 $v->errors()->add('employee_id', __('validation.exists', ['attribute' => 'employee id']));
+            } elseif (is_string($employeeId) && $employeeId !== '' && ! $v->errors()->has('employee_id')
+                && self::hasLogin(Employee::where('public_id', $employeeId)->first())) {
+                // A login is who an account's punches, payslips and leave belong
+                // to. A second one on someone else's record let an HR admin
+                // read the CEO's payslips from an inbox they control; linking
+                // an existing account already refused this (linkExistingAccount).
+                $v->errors()->add('employee_id', __('user.errors.employee_has_login'));
             }
 
             $role = UserRole::tryFrom((string) $this->input('role'));
@@ -74,5 +82,12 @@ class StoreUserRequest extends FormRequest
                 $v->errors()->add('role', __($refusal));
             }
         });
+    }
+
+    /** Whether any account in the organisation is already this employee's login. */
+    public static function hasLogin(?Employee $employee): bool
+    {
+        return $employee !== null
+            && ($employee->user_id !== null || User::query()->where('employee_id', $employee->id)->exists());
     }
 }

@@ -15,6 +15,13 @@ final class AttendanceRules
     public const MAX_OPEN_HOURS = 14;
 
     /**
+     * How long after its shift's end a record from the day before may still be
+     * closed: by any check-out, for a shift that crosses midnight, and by an
+     * `auto` punch (a device that does not say in or out), for any shift.
+     */
+    public const CLOSE_HOURS_AFTER_SHIFT_END = 6;
+
+    /**
      * Two check-ins this close are one arrival seen twice: ConflictResolver
      * merges them, and an `auto` punch this soon after the check-in it would
      * close is answered as a duplicate rather than a check-out.
