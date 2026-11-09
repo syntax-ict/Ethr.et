@@ -18,6 +18,22 @@ that a value exists and differs from English, never its wording.
 - `api/lang/am/device.php` — `read_failed`; `employee.php` — `supervisor_self`;
   `organization.php` — `department_parent_cycle`.
 
+### Organisation types and statutory locks (2026-11-09)
+
+Drafts written without a native speaker; a wrong label moves no money.
+
+- `organization_types.name_am` for the ten types added by migration
+  `2026_11_09_000002_add_lineage_to_organization_types`:
+  `sole_proprietor` የግል ነጋዴ, `private_limited_company` ኃላፊነቱ የተወሰነ የግል ማኅበር,
+  `share_company` አክሲዮን ማኅበር, `partnership` የሽርክና ማኅበር, `cooperative` የኅብረት ሥራ ማኅበር,
+  `foreign_company_branch` የውጭ ኩባንያ ቅርንጫፍ, `foreign_cso` የውጭ ሲቪል ማኅበረሰብ ድርጅት,
+  `religious_organization` የሃይማኖት ድርጅት, `regional_government` የክልል ወይም የከተማ መንግሥት
+  መሥሪያ ቤት, `diplomatic_mission` ዲፕሎማቲክ ሚሲዮን. Correct them with a new migration that
+  updates the rows, never by editing that one.
+- `api/lang/am/payroll.php` — `tax_ladder_locked`, `pension_rule_locked`;
+  `api/lang/am/validation.php` — `leave_below_statutory_floor`. The Afaan Oromoo
+  (`api/lang/om/`) versions of the same three keys need the same review.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |
