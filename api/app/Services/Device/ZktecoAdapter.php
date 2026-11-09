@@ -135,7 +135,7 @@ final class ZktecoAdapter implements DeviceAdapter
         $baseUrl = DeviceHost::baseUrl('http', (string) $config['ip'], (string) $config['port']);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
-        $request = Http::connectTimeout(2)->timeout(10)->withOptions($pin);
+        $request = Http::connectTimeout(2)->timeout(10)->withoutRedirecting()->withOptions($pin);
 
         if (! empty($config['api_key'])) {
             $request = $request->withHeaders(['Authorization' => "Bearer {$config['api_key']}"]);

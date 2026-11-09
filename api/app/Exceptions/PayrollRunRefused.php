@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Models\PayrollRun;
 use RuntimeException;
 
 /**
@@ -31,6 +32,16 @@ class PayrollRunRefused extends RuntimeException
     public static function notCompleted(): self
     {
         return new self('https://ethr.et/errors/invalid-state', 'Invalid State', __('payroll.not_completed'));
+    }
+
+    /** Another run that is not voided or failed already covers part of the period. */
+    public static function periodOverlaps(PayrollRun $run): self
+    {
+        return new self('https://ethr.et/errors/period-overlaps', 'Period already processed', __('payroll.period_overlaps', [
+            'label' => $run->period_label,
+            'start' => $run->period_start?->toDateString(),
+            'end' => $run->period_end?->toDateString(),
+        ]));
     }
 
     public static function cannotVoid(): self

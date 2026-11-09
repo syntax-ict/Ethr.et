@@ -19,9 +19,10 @@ use App\Models\User;
  * - Nobody grants a role above their own level.
  * - Two roles share level 70 with different jobs (audit N95): whoever
  *   processes payroll must not also change the accounts it pays into. Below
- *   the organisation admin, the other role at your level is not yours to
- *   hand out, or an HR admin could open a Finance admin account for
- *   themselves.
+ *   the organisation admin, no role at your level is yours to hand out:
+ *   not the other one, or an HR admin could open a Finance admin account
+ *   for themselves, and not your own, or they could open a second HR admin
+ *   account and change their own pay from it.
  */
 final class RoleAssignment
 {
@@ -43,8 +44,12 @@ final class RoleAssignment
             return 'user.errors.role_above_your_level';
         }
 
+        // Your own role too, not only the other one at your level: an HR
+        // admin who could open a second HR admin account, with no employee
+        // record behind it, edited their own pay and bank account from it,
+        // past the rule that nobody changes their own (review 2026-11-09).
         if ($actor->role->level() < UserRole::TENANT_ADMIN->level()
-            && $role->level() === $actor->role->level() && $role !== $actor->role) {
+            && $role->level() === $actor->role->level()) {
             return 'user.errors.role_beside_your_own';
         }
 

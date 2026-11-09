@@ -35,6 +35,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -127,69 +128,81 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        // The leave year the request starts in: Ethiopian for an organisation
-        // on that calendar, so a Meskerem request draws on the new year.
-        $leaveYear = LeaveYear::forTenantId($employee->tenant_id);
-        $year = $leaveYear->yearOf($startDate);
-        $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
-        $remaining = $balance->remainingDays();
+        // One request at a time per person, from the balance check to the
+        // pending days it adds. Two submitted together (an offline queue
+        // flushing on reconnect, HR filing on behalf while the employee
+        // files) both read the same remaining balance and both passed, and
+        // approval does not check it again.
+        $lock = Cache::lock("leave-request:{$employee->tenant_id}:{$employee->id}", 15);
+        $lock->block(10);
 
-        // Sick leave under Art. 85 is six months within twelve, counted from
-        // the first day of sickness, not the annual balance (A-Z review E-08).
-        // Pending requests count, so two filed at once cannot pass together.
-        if ($leaveType->follows_art85) {
-            $monthDays = $this->statutoryRules->for(app(CurrentTenant::class)->tenantFor($employee->tenant_id), $startDate)->int('payroll.working_days_per_month');
-            $asked = $this->sickLeave->datesBetween($employee, $leaveType, $startDate, $endDate);
-            $tiers = $this->sickLeave->tiersOf($employee, $monthDays, $asked, withPending: true);
-            foreach ($asked as $date) {
-                if (($tiers[$date] ?? null) === SickLeaveTiers::BEYOND) {
-                    return response()->json([
-                        'type' => 'https://ethr.et/errors/insufficient-balance',
-                        'title' => 'Insufficient Leave Balance',
-                        'status' => 422,
-                        'detail' => __('leave.sick_beyond_six_months'),
-                    ], 422)->header('Content-Type', 'application/problem+json');
+        try {
+            // The leave year the request starts in: Ethiopian for an organisation
+            // on that calendar, so a Meskerem request draws on the new year.
+            $leaveYear = LeaveYear::forTenantId($employee->tenant_id);
+            $year = $leaveYear->yearOf($startDate);
+            $balance = $this->balanceService->getOrCreateBalance($employee, $leaveType, $year, $leaveYear);
+            $remaining = $balance->remainingDays();
+
+            // Sick leave under Art. 85 is six months within twelve, counted from
+            // the first day of sickness, not the annual balance (A-Z review E-08).
+            // Pending requests count, so two filed at once cannot pass together.
+            if ($leaveType->follows_art85) {
+                $monthDays = $this->statutoryRules->for(app(CurrentTenant::class)->tenantFor($employee->tenant_id), $startDate)->int('payroll.working_days_per_month');
+                $asked = $this->sickLeave->datesBetween($employee, $leaveType, $startDate, $endDate);
+                $tiers = $this->sickLeave->tiersOf($employee, $monthDays, $asked, withPending: true);
+                foreach ($asked as $date) {
+                    if (($tiers[$date] ?? null) === SickLeaveTiers::BEYOND) {
+                        return response()->json([
+                            'type' => 'https://ethr.et/errors/insufficient-balance',
+                            'title' => 'Insufficient Leave Balance',
+                            'status' => 422,
+                            'detail' => __('leave.sick_beyond_six_months'),
+                        ], 422)->header('Content-Type', 'application/problem+json');
+                    }
                 }
+            } elseif ($leaveType->limitedByBalance() && $days > $remaining) {
+                return response()->json([
+                    'type' => 'https://ethr.et/errors/insufficient-balance',
+                    'title' => 'Insufficient Leave Balance',
+                    'status' => 422,
+                    'detail' => __('leave.insufficient_balance', ['remaining' => $remaining, 'requested' => $days]),
+                ], 422)->header('Content-Type', 'application/problem+json');
             }
-        } elseif ($leaveType->limitedByBalance() && $days > $remaining) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/insufficient-balance',
-                'title' => 'Insufficient Leave Balance',
-                'status' => 422,
-                'detail' => __('leave.insufficient_balance', ['remaining' => $remaining, 'requested' => $days]),
-            ], 422)->header('Content-Type', 'application/problem+json');
+
+            $overlap = LeaveRequest::query()
+                ->where('employee_id', $employee->id)
+                ->whereIn('status', [LeaveStatus::PENDING, LeaveStatus::APPROVED])
+                ->where('start_date', '<=', $endDate)
+                ->where('end_date', '>=', $startDate)
+                ->exists();
+
+            if ($overlap) {
+                return response()->json([
+                    'type' => 'https://ethr.et/errors/overlap',
+                    'title' => 'Overlapping Leave Request',
+                    'status' => 422,
+                    'detail' => __('leave.overlap'),
+                ], 422)->header('Content-Type', 'application/problem+json');
+            }
+
+            $leaveRequest = LeaveRequest::create([
+                'tenant_id' => $employee->tenant_id,
+                'employee_id' => $employee->id,
+                'leave_type_id' => $leaveType->id,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'days' => $days,
+                'reason' => $request->validated('reason'),
+                'attachment_path' => $request->validated('attachment_path'),
+                'status' => LeaveStatus::PENDING,
+                'approved_by' => [],
+            ]);
+
+            $balance->increment('pending_days', $days);
+        } finally {
+            $lock->release();
         }
-
-        $overlap = LeaveRequest::query()
-            ->where('employee_id', $employee->id)
-            ->whereIn('status', [LeaveStatus::PENDING, LeaveStatus::APPROVED])
-            ->where('start_date', '<=', $endDate)
-            ->where('end_date', '>=', $startDate)
-            ->exists();
-
-        if ($overlap) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/overlap',
-                'title' => 'Overlapping Leave Request',
-                'status' => 422,
-                'detail' => __('leave.overlap'),
-            ], 422)->header('Content-Type', 'application/problem+json');
-        }
-
-        $leaveRequest = LeaveRequest::create([
-            'tenant_id' => $employee->tenant_id,
-            'employee_id' => $employee->id,
-            'leave_type_id' => $leaveType->id,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'days' => $days,
-            'reason' => $request->validated('reason'),
-            'attachment_path' => $request->validated('attachment_path'),
-            'status' => LeaveStatus::PENDING,
-            'approved_by' => [],
-        ]);
-
-        $balance->increment('pending_days', $days);
 
         if ($onBehalf) {
             $this->approvals->recordFiledFor($leaveRequest, $user);

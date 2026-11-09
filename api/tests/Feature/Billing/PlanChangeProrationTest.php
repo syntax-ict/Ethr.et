@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\SubscriptionStatus;
+use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Services\Billing\BillingService;
@@ -135,4 +136,41 @@ it('refuses when there is no active subscription', function () {
     $plan = Plan::factory()->create(['price_cents' => 100000]);
 
     expect(app(BillingService::class)->changePlan($tenant, $plan))->toHaveKey('error');
+});
+
+it('bills an upgrade for the rest of the period when it is made', function () {
+    // The proration was returned and never invoiced, and the monthly run bills
+    // the plan held on the 1st: up on the 2nd, down on the 30th, never billed.
+    Carbon::setTestNow('2026-06-16');
+    $subscription = subscriptionSpanning(Carbon::parse('2026-06-01'), Carbon::parse('2026-07-01'), 0);
+    $enterprise = Plan::factory()->create(['name' => 'Enterprise', 'price_cents' => 899900]);
+
+    $result = app(BillingService::class)->changePlan($subscription->tenant, $enterprise);
+
+    $invoice = Invoice::withoutGlobalScopes()->where('tenant_id', $subscription->tenant_id)->sole();
+    expect($result['proration_cents'])->toBeGreaterThan(0)
+        ->and($invoice->total_cents)->toBe($result['proration_cents'])
+        ->and($invoice->status)->toBe('sent')
+        ->and(BillingService::isProration($invoice))->toBeTrue();
+
+    // A downgrade afterwards credits nothing and raises no second invoice.
+    $starter = Plan::factory()->create(['name' => 'Starter again', 'price_cents' => 0]);
+    app(BillingService::class)->changePlan($subscription->tenant, $starter);
+    expect(Invoice::withoutGlobalScopes()->where('tenant_id', $subscription->tenant_id)->count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
+it('still issues the month\'s invoice after a plan change billed the same month', function () {
+    Carbon::setTestNow('2026-07-01 00:30:00');
+    $subscription = subscriptionSpanning(Carbon::parse('2026-07-01'), Carbon::parse('2026-08-01'), 100000);
+    $premium = Plan::factory()->create(['name' => 'Premium', 'price_cents' => 300000]);
+
+    // Upgraded on the 1st, before the monthly run.
+    app(BillingService::class)->changePlan($subscription->tenant, $premium);
+
+    expect(app(BillingService::class)->generateMonthlyInvoice($subscription->tenant->fresh()))->not->toBeNull()
+        ->and(Invoice::withoutGlobalScopes()->where('tenant_id', $subscription->tenant_id)->count())->toBe(2);
+
+    Carbon::setTestNow();
 });

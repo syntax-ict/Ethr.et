@@ -10079,7 +10079,8 @@ export interface components {
             check_out: string | null;
             source: string;
             status: string;
-            punch: string;
+            /** @enum {string} */
+            punch: "check_in" | "check_out";
             was_duplicate: boolean;
             employee_name: string;
             employee: components["schemas"]["KioskPersonResource"] | null;

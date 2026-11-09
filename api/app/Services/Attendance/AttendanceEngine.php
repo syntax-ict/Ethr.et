@@ -26,6 +26,7 @@ use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 final class AttendanceEngine
@@ -93,14 +94,38 @@ final class AttendanceEngine
      * apart. A lock that cannot be had in time lets the punch through
      * unserialised: a delayed punch is worse than a flagged one.
      */
+    /**
+     * A punch's writes (the record, a merge that voids another, the punch
+     * log, findings, the risk score, the conflict row) commit together or not
+     * at all. They were separate statements: a failure after the record was
+     * written left it saved without its findings or score, record() deleted
+     * the selfie it pointed at, and the client's retry was answered with that
+     * half-made record as a duplicate, so it was never inspected.
+     *
+     * The lock is released outside the transaction and a failure to release
+     * it is only reported: an exception escaping after the commit would have
+     * made record() delete the photo of a punch that was saved.
+     */
     private function serialised(AttendanceInput $input): AttendanceResult
     {
         $lock = Cache::lock("attendance-punch:{$input->tenantId}:{$input->employeeId}", 20);
 
         try {
-            return $lock->block(8, fn () => $this->decide($input));
+            $held = $lock->block(8);
         } catch (LockTimeoutException) {
-            return $this->decide($input);
+            $held = false;
+        }
+
+        try {
+            return DB::transaction(fn () => $this->decide($input));
+        } finally {
+            if ($held) {
+                try {
+                    $lock->release();
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
     }
 
@@ -222,7 +247,7 @@ final class AttendanceEngine
     private function processAuto(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings): AttendanceResult
     {
         $now = $this->resolveMoment($input);
-        $open = $this->findOpenRecord($input, $now, $zone);
+        $open = $this->findOpenRecord($input, $now, $zone, directionGuessed: true);
 
         // A punch older than every open record's check-in (an offline kiosk
         // syncing late, a device backlog) finds none, since it cannot end a
@@ -282,13 +307,13 @@ final class AttendanceEngine
     private function outcomeFor(AttendanceRecord $record, string $punch, ?string $zone = null): PunchOutcome
     {
         if ($punch === 'check_out') {
-            return $record->status === AttendanceStatus::EARLY_LEAVE
-                ? new PunchOutcome(PunchOutcome::CHECKED_OUT_EARLY, $this->missedMinutes($record, $zone))
+            return $this->isEarlyDeparture($record, $zone)
+                ? new PunchOutcome(PunchOutcome::CHECKED_OUT_EARLY, $this->earlyMinutes($record, $zone))
                 : new PunchOutcome(PunchOutcome::CHECKED_OUT);
         }
 
         return $record->status === AttendanceStatus::LATE
-            ? new PunchOutcome(PunchOutcome::CHECKED_IN_LATE, $this->missedMinutes($record, $zone))
+            ? new PunchOutcome(PunchOutcome::CHECKED_IN_LATE, $this->lateMinutes($record, $zone))
             : new PunchOutcome(PunchOutcome::CHECKED_IN);
     }
 
@@ -410,8 +435,13 @@ final class AttendanceEngine
      * yesterday's when its shift crosses midnight or it began less than
      * MAX_OPEN_HOURS ago. Shared by check-out and `auto`, so both close the
      * same record.
+     *
+     * $directionGuessed is an `auto` punch, whose device does not say whether
+     * the person is arriving or leaving. It closes yesterday's record only
+     * when it could be the end of that record's shift, not merely within
+     * MAX_OPEN_HOURS of its check-in.
      */
-    private function findOpenRecord(AttendanceInput $input, Carbon $now, string $zone): ?AttendanceRecord
+    private function findOpenRecord(AttendanceInput $input, Carbon $now, string $zone, bool $directionGuessed = false): ?AttendanceRecord
     {
         $local = $now->copy()->setTimezone($zone);
         $today = $local->format('Y-m-d');
@@ -444,9 +474,27 @@ final class AttendanceEngine
         // this until 03:00 Addis by accident; dating by the tenant's day
         // (processCheckIn) exposed it. A check-in left open yesterday morning
         // stays out of reach — it is a missing punch, not this check-out.
+        //
+        // A night shift's record is closable past MAX_OPEN_HOURS (a long
+        // shift, an early arrival), but only until a few hours after the
+        // shift ends. It was closable at any time on the next day: a guard
+        // who missed the 06:00 exit scan had the next evening's arrival read
+        // as the check-out of a 24-hour shift, and the morning's exit then
+        // opened a new record.
         return $candidates->first(fn (AttendanceRecord $r) => $r->date->format('Y-m-d') === $today)
-            ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true
-                || $r->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MAX_OPEN_HOURS * 60);
+            ?? $candidates->first(function (AttendanceRecord $r) use ($now, $zone, $directionGuessed): bool {
+                $nearShiftEnd = $r->shift !== null
+                    && $now->lt($r->shift->windowOn($r->workDate($zone), $zone)[1]->addHours(AttendanceRules::CLOSE_HOURS_AFTER_SHIFT_END));
+
+                // An `auto` punch hours after yesterday's shift ended is
+                // today's arrival, however recently yesterday's check-in was.
+                if ($directionGuessed && $r->shift !== null) {
+                    return $nearShiftEnd;
+                }
+
+                return $r->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MAX_OPEN_HOURS * 60
+                    || ($nearShiftEnd && $r->shift->crossesMidnight());
+            });
     }
 
     /**
@@ -507,19 +555,7 @@ final class AttendanceEngine
             }
         }
 
-        // Inside the branch or any of the person's work sites, giving a fix
-        // the benefit of its reported accuracy (AttendancePlaces). Null when
-        // there is no place to be inside.
-        $geofenceVerified = null;
-        if ($input->latitude !== null && $input->longitude !== null) {
-            $accuracy = $input->metadata['accuracy'] ?? null;
-            $geofenceVerified = $this->places->check(
-                $this->places->for($employee),
-                $input->latitude,
-                $input->longitude,
-                is_numeric($accuracy) ? (float) $accuracy : null,
-            )['inside'];
-        }
+        $geofenceVerified = $this->insidePlace($input, $employee);
 
         // Refused only when the place is known and the punch is outside it.
         // A person with no placed branch or site cannot be checked
@@ -643,6 +679,16 @@ final class AttendanceEngine
             throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
         }
 
+        // A required geofence asks the phone and a QR scan for a location at
+        // check-out too, as at check-in. Being outside the place is flagged,
+        // not refused (IntegrityInspector): refusing would leave the day open
+        // for someone who has already gone. The web button sends no location
+        // and is flagged `location_missing` instead.
+        if ($settings?->geofence_required && $input->latitude === null
+            && in_array($input->source, [AttendanceSource::MOBILE, AttendanceSource::QR], true)) {
+            throw new AttendanceRefused(__('attendance.geofence_location_required'));
+        }
+
         $updates = ['check_out' => $now];
 
         // The record's `photo_path` belongs to the check-in selfie; a check-out
@@ -658,11 +704,17 @@ final class AttendanceEngine
             'client_offset_seconds', 'webdriver', 'user_agent',
             'device_verdict', 'device_public_id', 'device_install_changed',
         ]));
+        // Where the check-out was made, beside the check-in's columns. Only
+        // the distance went into a finding before, and only when outside; a
+        // late check-out disputed as overtime had no location on record.
         $metadata = array_filter([
             'checkout_photo_path' => $input->photoPath,
             'checkout_idempotency_key' => $input->idempotencyKey,
             'checkout_ip_address' => $input->ipAddress,
             'checkout_signals' => $signals !== [] ? $signals : null,
+            'checkout_latitude' => $input->latitude,
+            'checkout_longitude' => $input->longitude,
+            'checkout_geofence_verified' => $this->insidePlace($input, $employee),
         ], fn ($value) => $value !== null);
 
         $updates['metadata'] = $this->punchLog(
@@ -734,27 +786,60 @@ final class AttendanceEngine
     /**
      * The minutes a `late` or `early_leave` record missed of its shift, read
      * from the same shift window the status was rated against: from the
-     * shift's start to the check-in, or from the check-out to the shift's end.
-     * Grace decides whether a punch is late, not how late it is. Zero for any
-     * other status or a record with no shift. $zone is the tenant's, when the
-     * caller already knows it and reads many records.
+     * shift's start to the check-in, plus from the check-out to the shift's
+     * end. Grace decides whether a punch is late, not how late it is. Zero for
+     * any other status or a record with no shift. $zone is the tenant's, when
+     * the caller already knows it and reads many records.
+     *
+     * A record keeps `late` however the day ended, so someone 20 minutes late
+     * who left three hours early was counted 20 minutes — the cap on a
+     * lateness deduction, and what payroll was shown — until 2026-11-08.
      */
     public function missedMinutes(AttendanceRecord $record, ?string $zone = null): int
     {
-        if (! $record->shift || ! $record->check_in) {
+        return $this->lateMinutes($record, $zone) + $this->earlyMinutes($record, $zone);
+    }
+
+    /** From the shift's start to a `late` record's check-in. */
+    private function lateMinutes(AttendanceRecord $record, ?string $zone): int
+    {
+        if (! $record->shift || ! $record->check_in || $record->status !== AttendanceStatus::LATE) {
             return 0;
         }
 
         $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
-        [$shiftStart, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
+        [$shiftStart] = $record->shift->windowOn($record->workDate($zone), $zone);
 
-        return match ($record->status) {
-            AttendanceStatus::LATE => max(0, (int) $shiftStart->diffInMinutes($record->check_in, false)),
-            AttendanceStatus::EARLY_LEAVE => $record->check_out === null
-                ? 0
-                : max(0, (int) $record->check_out->diffInMinutes($shiftEnd, false)),
-            default => 0,
-        };
+        return max(0, (int) $shiftStart->diffInMinutes($record->check_in, false));
+    }
+
+    /** From an early departure's check-out to the shift's end. */
+    private function earlyMinutes(AttendanceRecord $record, ?string $zone): int
+    {
+        if (! $record->shift || ! $record->check_out || ! $this->isEarlyDeparture($record, $zone)) {
+            return 0;
+        }
+
+        $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
+        [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
+
+        return max(0, (int) $record->check_out->diffInMinutes($shiftEnd, false));
+    }
+
+    /**
+     * Whether the record ended in an early departure: `early_leave`, or a
+     * `late` arrival that also left before the early-departure threshold.
+     */
+    private function isEarlyDeparture(AttendanceRecord $record, ?string $zone): bool
+    {
+        if ($record->status === AttendanceStatus::EARLY_LEAVE) {
+            return true;
+        }
+        if ($record->status !== AttendanceStatus::LATE || ! $record->shift || ! $record->check_out) {
+            return false;
+        }
+
+        return $this->leftEarly($record, $zone ?? TenantTime::zone(Tenant::query()->find($record->tenant_id)));
     }
 
     /** Whether the record's check-out came before its shift's early-departure threshold. */
@@ -771,6 +856,27 @@ final class AttendanceEngine
         [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return $record->check_out->lt($shiftEnd->subMinutes($record->shift->early_departure_minutes));
+    }
+
+    /**
+     * Whether the punch's fix is inside the branch or any of the person's
+     * work sites, giving it the benefit of its reported accuracy
+     * (AttendancePlaces). Null with no fix, or no place to be inside.
+     */
+    private function insidePlace(AttendanceInput $input, Employee $employee): ?bool
+    {
+        if ($input->latitude === null || $input->longitude === null) {
+            return null;
+        }
+
+        $accuracy = $input->metadata['accuracy'] ?? null;
+
+        return $this->places->check(
+            $this->places->for($employee),
+            $input->latitude,
+            $input->longitude,
+            is_numeric($accuracy) ? (float) $accuracy : null,
+        )['inside'];
     }
 
     /** The same office networks the device gate reads (AttendanceDeviceGate). */

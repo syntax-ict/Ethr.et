@@ -10,6 +10,7 @@ use App\Http\Resources\TaxBracketResource;
 use App\Models\AuditLog;
 use App\Models\TaxBracket;
 use App\Services\Payroll\TaxCalculator;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -28,7 +29,11 @@ class TaxBracketController extends Controller
     {
         Gate::authorize('payroll.viewConfig');
 
+        // The organisation's latest ladder: replace() closes the one before
+        // it rather than deleting it, so earlier periods keep the rates they
+        // were taxed at.
         $brackets = TaxBracket::query()
+            ->whereNull('effective_to')
             ->orderBy('min_amount_cents')
             ->get();
 
@@ -55,10 +60,28 @@ class TaxBracketController extends Controller
         $input = $request->validated('brackets');
         $effectiveFrom = $request->validated('effective_from');
 
-        $previous = TaxBracket::query()->orderBy('min_amount_cents')->get();
+        $from = Carbon::parse($effectiveFrom);
 
-        $brackets = DB::transaction(function () use ($input, $effectiveFrom, $previous) {
-            $previous->each->delete();
+        // The rows the new ladder replaces from its start date on. Every row
+        // was deleted, whatever its dates: a ladder saved on 9 November to
+        // start on 1 January left November and December with no organisation
+        // ladder in force, so they were taxed on the platform's without a
+        // word, and so was any reprocess of an earlier period. Rows that run
+        // up to the new start are closed the day before it; rows that would
+        // only have started on or after it are removed.
+        $previous = TaxBracket::query()
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $from->toDateString()))
+            ->orderBy('min_amount_cents')
+            ->get();
+
+        $brackets = DB::transaction(function () use ($input, $effectiveFrom, $previous, $from) {
+            foreach ($previous as $row) {
+                if ($row->effective_from->lt($from)) {
+                    $row->update(['effective_to' => $from->copy()->subDay()->toDateString()]);
+                } else {
+                    $row->delete();
+                }
+            }
 
             foreach ($input as $bracket) {
                 TaxBracket::create([
@@ -72,7 +95,7 @@ class TaxBracketController extends Controller
                 ]);
             }
 
-            return TaxBracket::query()->orderBy('min_amount_cents')->get();
+            return TaxBracket::query()->whereNull('effective_to')->orderBy('min_amount_cents')->get();
         });
 
         AuditLog::record('tax_brackets.replaced', null, [

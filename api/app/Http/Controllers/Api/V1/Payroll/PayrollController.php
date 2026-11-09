@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Payroll;
 
 use App\Events\PayrollApproved;
-use App\Events\PayrollProcessed;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ApprovePayrollRunRequest;
@@ -68,7 +67,7 @@ class PayrollController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
 
-        $result = $engine->begin(
+        $result = $engine->reserve(
             $tenant->id,
             Carbon::parse($request->validated('period_start')),
             Carbon::parse($request->validated('period_end')),
@@ -277,6 +276,11 @@ class PayrollController extends Controller
         $run = $result->run;
 
         if (! $result->wasDuplicate) {
+            // Computed by the job, as `/process` is; the job announces the
+            // completed run (`payroll.processed`), so this says only that a
+            // reprocess was asked for, and by whom.
+            ProcessPayrollJob::dispatch($run->id, $run->tenant_id);
+
             AuditLog::record('payroll.reprocessed', $run, [
                 'period' => $run->period_label,
                 'reprocessed_from' => $payrollRun->public_id,
@@ -286,11 +290,9 @@ class PayrollController extends Controller
                 'period' => $run->period_label,
                 'reprocessed_from' => $payrollRun->public_id,
             ]);
-
-            PayrollProcessed::dispatch($run);
         }
 
-        $run->load('entries.employee', 'reprocessedFrom');
+        $run->refresh()->load('entries.employee', 'reprocessedFrom');
 
         $data = (new PayrollRunResource($run))->resolve();
         $data['was_duplicate'] = $result->wasDuplicate;

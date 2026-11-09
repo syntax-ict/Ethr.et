@@ -85,8 +85,16 @@ final class IntegrityInspector
         if ($places !== []) {
             // Outside the branch and every site open to this person.
             $check = $this->places->check($places, (float) $lat, (float) $lon, is_numeric($accuracy) ? (float) $accuracy : null);
+            // A check-out outside a required geofence is the punch a check-in
+            // there would have been refused for, kept because refusing it
+            // would leave the day open. It is serious, so the payroll run
+            // register and reconciliation list it: at medium they never did,
+            // and the hours of a check-out made from home reached payroll
+            // unread.
+            $serious = in_array($source, ['offline_mobile', 'web'], true)
+                || ($punch === 'check_out' && ($settings->geofence_required ?? false));
             if ($check['inside'] === false && $check['nearest'] !== null) {
-                $findings[] = ['outside_geofence', in_array($source, ['offline_mobile', 'web'], true) ? 'high' : 'medium', [
+                $findings[] = ['outside_geofence', $serious ? 'high' : 'medium', [
                     'distance_meters' => (int) round((float) $check['distance_meters']),
                     'radius_meters' => $check['nearest']['radius_meters'],
                     'place' => $check['nearest']['name'],
