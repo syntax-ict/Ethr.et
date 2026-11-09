@@ -136,10 +136,31 @@ class DatabaseDumper
             fwrite($handle, "DROP TABLE IF EXISTS `{$table}`;\n{$ddl};\n\n");
         }
 
-        // Pass 2 — data.
-        $rows = 0;
-        foreach ($tables as $table) {
-            $rows += $this->writeRows($handle, $table);
+        // Pass 2 — data, from one consistent snapshot. Without it every page of
+        // every table read its own moment: the scheduler and the queue drain
+        // keep writing while the 01:00 backup runs, a row inserted below the
+        // current offset shifted the window, and the next page wrote a row the
+        // dump already held. The file was valid and its sha256 matched; the
+        // restore stopped at the duplicate key after pass 1 had already
+        // dropped every table, leaving the rest empty.
+        //
+        // Not inside a transaction the caller already holds: START
+        // TRANSACTION would commit it, and its reads are consistent anyway.
+        $snapshot = $db->transactionLevel() === 0;
+        if ($snapshot) {
+            $db->unprepared('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+            $db->unprepared('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+        }
+
+        try {
+            $rows = 0;
+            foreach ($tables as $table) {
+                $rows += $this->writeRows($handle, $table);
+            }
+        } finally {
+            if ($snapshot) {
+                $db->unprepared('COMMIT');
+            }
         }
 
         // Pass 3 — triggers.
@@ -234,7 +255,15 @@ class DatabaseDumper
             return 0;
         }
 
-        $query = $db->table($table)->select($columns)->orderByRaw('1');
+        // A total order, so pages neither repeat nor skip a row: the primary
+        // key, or every column for a table without one. `ORDER BY 1` sorted
+        // by the first column alone, and rows tied on it could come back in
+        // a different order from one page's query to the next. The write
+        // connection, so the pages are read inside the snapshot above.
+        $query = $db->table($table)->select($columns)->useWritePdo();
+        foreach ($this->orderColumns($table, $columns) as $column) {
+            $query->orderBy($column);
+        }
 
         $query->chunk(self::CHUNK, function ($chunk) use ($handle, $table, $quote, &$written) {
             foreach ($chunk as $row) {
@@ -291,6 +320,35 @@ class DatabaseDumper
      *
      * @return array<int, string>
      */
+    /**
+     * The table's primary key columns in key order, or all of $columns when it
+     * has none.
+     *
+     * @param  list<string>  $columns
+     * @return list<string>
+     */
+    private function orderColumns(string $table, array $columns): array
+    {
+        $db = DB::connection($this->connection);
+
+        if ($db->getDriverName() === 'sqlite') {
+            $key = collect($db->select('PRAGMA table_info("'.str_replace('"', '""', $table).'")'))
+                ->map(fn ($column) => (array) $column)
+                ->filter(fn (array $column) => (int) $column['pk'] > 0)
+                ->sortBy(fn (array $column) => (int) $column['pk'])
+                ->pluck('name');
+        } else {
+            $key = collect($db->select('SHOW KEYS FROM `'.str_replace('`', '``', $table)."` WHERE Key_name = 'PRIMARY'"))
+                ->map(fn ($index) => (array) $index)
+                ->sortBy(fn (array $index) => (int) $index['Seq_in_index'])
+                ->pluck('Column_name');
+        }
+
+        $key = $key->map(fn ($name) => (string) $name)->values()->all();
+
+        return $key !== [] ? $key : $columns;
+    }
+
     private function writableColumns(string $table): array
     {
         return $this->columnsByKind($table)['writable'];
