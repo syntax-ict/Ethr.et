@@ -55,6 +55,52 @@ Drafts written without a native speaker; a wrong label moves no money.
 `settings.organization_kind_pending`. Backend: `api/lang/{am,om}/validation.php` →
 `organization_type_change_future`, `organization_type_change_month_start`.
 
+### Second-reader review of the 2026-11-09 Amharic (2026-11-10)
+
+The Amharic of the three 2026-11-09 sections above was read again, by a fluent but
+**non-native** reviewer, against the terms the rest of `am.json` already uses. It is a second
+draft, not the native sign-off this document asks for (O7). The Afaan Oromoo was not reviewed.
+
+**Terms aligned with the existing locale and the law's own Amharic names:**
+
+| English | Now | Was | Why |
+|---|---|---|---|
+| rate (overtime, generic) | ተመን | መጣኔ | `am.json` uses ተመን; መጣኔ is a misspelling of ምጣኔ |
+| tax rate | የግብር ምጣኔ | የግብር መጣኔ | the tax proclamations' term |
+| pension contribution rate | የመዋጮ መጠን | የመዋጮ መጣኔ | `pension_rules.description` and Proclamation 1268/2022 |
+| Labour Proclamation | የአሠሪና ሠራተኛ አዋጅ | ሠራተኛ አዋጅ | Proclamation 1156/2019's Amharic title |
+| TIN | የግብር ከፋይ ቁጥር (TIN) | የግብር ቁጥር | `employees.missing.tin`, `next_steps.profile_item.tin` |
+| preview | ቅድመ እይታ | በቅድሚያ ማየት | fourteen existing keys |
+| payroll, as the thing that applies rules | የደመወዝ ስሌቱ | የደመወዝ ክፍያ | "the salary payment applies" read oddly |
+| a setting's value | እሴት | ዋጋ | ዋጋ reads as *price* |
+
+**Meaning corrected:**
+
+| Key | Was | Problem |
+|---|---|---|
+| `setup2.staff_band_choose` | ክልል ይምረጡ | ክልል reads as *region*, not *range* |
+| `payroll.preview_empty_hint` | ለጊዜው ደመወዝ ያላቸው | ለጊዜው means *for now*, not *for the period* |
+| `validation.organization_type_change_future` (api) | ከኋላ ካለ ቀን | ከኋላ reads as *earlier*; the date is later |
+| `settings.organization_kind_from_help` | ተፈቅዷል | *permitted*; approved pay is ጸድቋል |
+| `next_steps.step.setup_pension_registration.reason`, `setup_tax_center.reason` | ይታወጃሉ / የሚታወጅበት | *proclaimed*; declared is ሪፖርት ይደረጋሉ / የሚያሳውቁበት |
+| `next_steps.step.profile_legal_review.title` | በማረጋገጥ ላይ ነው | had no subject; now እየተረጋገጠ ነው |
+| `setup2.pay_frequency` | ምን ያህል ጊዜ ይከፍላሉ | read as *how much time*; now በየስንት ጊዜው |
+| `organization_types.diplomatic_mission` | ዲፕሎማቲክ ሚሲዮን | a transliteration that dropped *embassy*; now ኤምባሲ ወይም ዲፕሎማሲያዊ ሚሲዮን, by migration `2026_11_10_000001` |
+
+`tax_ladder_locked` and `pension_rule_locked` (api) no longer attach a suffix to the
+placeholder (`:reference ን`). Word order and wording were also smoothed in:
+`auth.org_kind`, `setup2.org_kind`, `auth.org_kind_help`, `leave_below_law.*`, `setup_employee_salaries.*`,
+`setup_employer_tin.*`, `setup_payout_method.reason`, `statutory_override.title`, `payroll_config.tax_brackets_locked`,
+`pension_rules.locked_description`, `setup2.payroll_basics_hint`, `setup2.staff_band`,
+`statutory.payout_cash`, `statutory_rules.*` (description, deduction cap, half pay, limited types, minimum rates),
+`payroll.preview`, `payroll.preview_failed`, `payroll.preview_rules`, `payroll.preview_confirm`,
+`settings.organization_kind_pending`, and `statutory_rule_not_resettable` (api).
+
+**Still for the native reviewer to decide:** pension *scheme* is ዕቅድ, as `statutory.pension_scheme`
+already had it, though ዕቅድ is also the subscription *plan*; and the ten organisation-type names other
+than `diplomatic_mission` read correctly against the Commercial Code's terms but were not checked by a
+native speaker.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |
