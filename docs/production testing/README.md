@@ -11,7 +11,10 @@ to date on 2026-10-29 from `main` at `87d12d4d0` (PRs #406 to #462; the list is 
 `d4b3524ea4` (PRs to #646): stage 1 corrected the facts that had gone wrong (hosting quota, Afaan
 Oromoo, the schema check in the smoke test), and stage 2 refreshed each spec file, re-tiered
 priorities so that P1 means release-blocking (about a quarter of the cases, more in payroll), and
-re-checked every known issue against the code. The figures
+re-checked every known issue against the code. **The fourth edition** (2026-11-09) adds the
+cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`; rows in
+[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)) and makes the pack runnable by
+Claude Code and Playwright ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)). The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
@@ -56,7 +59,7 @@ in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running
 
 ## Keeping this pack current
 
-<!-- qa-pack-baseline: d4b3524ea4 -->
+<!-- qa-pack-baseline: 8431f382a8 -->
 
 The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
 above names the last commit of `main` the whole pack was brought up to date from. To see what has
@@ -72,7 +75,7 @@ necessarily a gap: a refactor has nothing a tester can see. A user-visible chang
 the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
 **Before a release pass, run it against the release tag:** a case for a change it lists is recorded
 as **Not covered** in the execution log, and the test summary says how many there were. Move the
-marker forward only when every file has been brought up to date (last moved 2026-11-08, third
+marker forward only when every file has been brought up to date (last moved 2026-11-09, fourth
 edition).
 
 ## The three rules that matter most on production

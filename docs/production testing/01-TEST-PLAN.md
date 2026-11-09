@@ -61,8 +61,8 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 `/release.json` (S-01) before running these cases: a merged change is not necessarily deployed.** A
 case for a change that is not live is recorded as Blocked, not Fail.
 
-**The third edition's rows follow, file by file, up to `d4b3524ea4`.** A change merged after that is
-not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+**The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
+`8431f382a8`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -184,6 +184,36 @@ the execution log.
 | The People step counts existing staff, reads Ethiopian hire dates, warns about missing ones, and its example follows the calendar | #505, #506 | SET-012 to SET-014 |
 | Public listing, admin name, pasted hire dates, honest readiness | #481 | SET-016, SET-017; SET-006 changed |
 | A-Z review: Ethiopian dates in the import, People step limits, pay data in imports and profile reviews, structure deletions, signed file links | #624, #625 | SET-015, IMP-E-015, IMP-E-016, PRO-011, DOC-011; ORG-S-004, EMP-005, EMP-008, REC-009, DOC-001, PRO-007 changed |
+
+**Fourth edition, the 2026-11-09 review fixes** (merged after `d4b3524ea4`, up to `8431f382a8`):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Team summary counts everyone present (late and early leave included); the team chart and team overtime use the organisation's week and month; voided records leave team overtime | #654 | TEAM-002, TEAM-003, TEAM-005 changed |
+| A night shift's record can be closed only until 6 h after the shift ends (or within 14 h of check-in); an Automatic punch after that is the next arrival | #659 | SHF-013 |
+| A late arrival who also leaves early is told both, and both sets of minutes count (Reconcile, lateness cap) | #659 | LATE-004, PUNCH-010 changed |
+| Check-out under a required geofence needs a location on phone and QR; a check-out outside the place is recorded and flagged high | #659 | MOB-014; 05 section 6 `outside_geofence` row changed |
+| Nobody below the organisation admin creates, changes or cancels their own loans or cost sharing | #658 | LOAN-009 changed |
+| A supervisor reads the leave balances of the people they reach | #658 | LB-008 changed |
+| A leaver recorded ahead of their last day is paid the whole period | #668 | PAY-039; 07 section 1.4, test employee E-LEAVE-1 and section 3 step 5 changed |
+| One live run per period; a reprocess is computed by the queue | #668, #669 | PAY-040; PAY-023 and section 3 step 6 changed |
+| A new tax ladder closes the old one instead of deleting it; earlier periods keep their rates | #669 | PAY-041 |
+| A write with no organisation resolved is refused (403 `tenant-required`) | #668 | TEN-027 |
+| Two leave requests sent together cannot overdraw one balance | #669 | LR-022 |
+| A scheduled task that exits non-zero makes `/cron/schedule` report `failed` (the cron run goes red) | #669 | OPS-006 |
+| A device backlog that is handed on loses no punch | #669 | DEV-017 |
+| A data export the host kills is marked failed; kiosk token hashes are left out of the archive | #669, #679 | EXP-001 changed |
+| One live login per employee; an employee whose login was deleted can get a new one; the migration unlinks second logins (audited) | #670, #678 | ACC-031 |
+| No admin role at your own level below the organisation admin (no second HR admin); resending someone's current role is not a grant | #670 | ACC-020 changed |
+| An upgrade raises an invoice for the rest of the period | #670 | PLAN-022 |
+| Push subscriptions only to browser push services | #670 | PUSH-006 |
+| Stored files are named by detected type and served as `attachment` with `nosniff` | #679 | DOC-012; DOC-001, DOC-011, SEC-016 changed |
+| Kiosk tokens are hashed and expire after 90 days; "Renew" | #679 | KIO-029, KIO-030; KIO-001, KIO-008 changed |
+| Kiosk sync obeys the kiosk check-in switch and the branch's kiosk method | #679 | KIO-031; KIO-011 changed |
+| Two writers at a plan's last free seats are taken one at a time | #679 | IMP-E-017 |
+| An operator impersonating an organisation cannot rename its address or change its form or custom domain | #680 | IMP-008, IMP-004 changed |
+| Nobody below the organisation admin approves their own phone or sets their own exemption | #680 | SEC-026; SEC-027, PHN-001, PHN-015 changed |
+| Running the pack by machine: Claude Code with the Playwright MCP server, and the scripted smoke checks | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 ## 3. Approach
 
