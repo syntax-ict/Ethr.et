@@ -18,6 +18,43 @@ that a value exists and differs from English, never its wording.
 - `api/lang/am/device.php` — `read_failed`; `employee.php` — `supervisor_self`;
   `organization.php` — `department_parent_cycle`.
 
+### Organisation types and statutory locks (2026-11-09)
+
+Drafts written without a native speaker; a wrong label moves no money.
+
+- `organization_types.name_am` for the ten types added by migration
+  `2026_11_09_000002_add_lineage_to_organization_types`:
+  `sole_proprietor` የግል ነጋዴ, `private_limited_company` ኃላፊነቱ የተወሰነ የግል ማኅበር,
+  `share_company` አክሲዮን ማኅበር, `partnership` የሽርክና ማኅበር, `cooperative` የኅብረት ሥራ ማኅበር,
+  `foreign_company_branch` የውጭ ኩባንያ ቅርንጫፍ, `foreign_cso` የውጭ ሲቪል ማኅበረሰብ ድርጅት,
+  `religious_organization` የሃይማኖት ድርጅት, `regional_government` የክልል ወይም የከተማ መንግሥት
+  መሥሪያ ቤት, `diplomatic_mission` ዲፕሎማቲክ ሚሲዮን. Correct them with a new migration that
+  updates the rows, never by editing that one.
+- `api/lang/am/payroll.php` — `tax_ladder_locked`, `pension_rule_locked`;
+  `api/lang/am/validation.php` — `leave_below_statutory_floor`. The Afaan Oromoo
+  (`api/lang/om/`) versions of the same three keys need the same review.
+
+### Org-type-aware onboarding, frontend (2026-11-09)
+
+108 keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `auth.org_kind*`, `setup2.payroll_basics*`,
+`setup2.staff_band*`, `setup2.pay_*`, `setup2.calendar*`, `setup2.org_kind`,
+`statutory.pension_registration_*`, `statutory.payout_*`, `statutory.employer_bank_name`,
+`statutory_rules.*`, `settings.org_kind_*`, `payroll_config.tab_*`,
+`payroll_config.tax_brackets_locked`, `pension_rules.locked_description`,
+`next_steps.payroll_ready_*`, and `next_steps.step.*` for `statutory_override`,
+`setup_employer_tin`, `setup_tax_center`, `setup_pension_registration`,
+`setup_payout_method`, `setup_employee_salaries`, `leave_below_law`,
+`setup_device_linked` and `profile_legal_review`.
+
+### Dry-run payroll and future-dated kind changes (2026-11-09)
+
+24 keys drafted in Amharic and Afaan Oromoo without a native speaker:
+`payroll.preview*`, `payroll.income_tax`, `payroll.pension`, `payroll.pension_total`,
+`payroll.employee`, and `settings.organization_kind_from`, `settings.organization_kind_from_help`,
+`settings.organization_kind_pending`. Backend: `api/lang/{am,om}/validation.php` →
+`organization_type_change_future`, `organization_type_change_month_start`.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |

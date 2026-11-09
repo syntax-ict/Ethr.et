@@ -211,4 +211,7 @@ return [
     'employee_minimum_age' => 'ሰራተኛው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት።',
     'holiday_duplicate' => 'ይህ በዓል በዚያ ቀን አስቀድሞ በቀን መቁጠሪያው ላይ አለ።',
     'leave_paid_needs_days' => 'የሚከፈልበት የፈቃድ ዓይነት ቢያንስ የግማሽ ቀን መብት ያስፈልገዋል። 0 የሚጠቀሙት ለክፍያ የሌለው ፈቃድ ብቻ ነው።',
+    'leave_below_statutory_floor' => 'ሕጉ ለዚህ ፈቃድ ቢያንስ :days ቀናት ይሰጣል (:reference)። የፈቃድ ዓይነት ከዚህ በላይ ሊሰጥ ይችላል፤ ከዚህ በታች ግን አይችልም።',
+    'organization_type_change_future' => 'የደመወዝ ክፍያ አሁን ባለው የድርጅት ዓይነት ጸድቋል፤ ስለዚህ ለውጡ ከኋላ ካለ ቀን ጀምሮ ይሠራል፦ :date ወይም ከዚያ በኋላ።',
+    'organization_type_change_month_start' => 'የድርጅት ዓይነት ለውጥ በወር የመጀመሪያ ቀን ይጀምራል።',
 ];

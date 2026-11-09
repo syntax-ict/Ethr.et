@@ -9,6 +9,7 @@ use App\Enums\NextStepId;
 use App\Enums\OnboardingStep;
 use App\Enums\UserRole;
 use App\Models\OnboardingProgress;
+use App\Models\OrganizationType;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Attendance\AttendanceHealth;
@@ -16,6 +17,8 @@ use App\Services\Features\FeatureGate;
 use App\Services\NextSteps\NextStep;
 use App\Services\NextSteps\StepProvider;
 use App\Services\Onboarding\ReadinessScorer;
+use App\Services\Tenancy\ProfileContext;
+use Illuminate\Support\Carbon;
 
 /**
  * Configuration that is genuinely unfinished, for the person who can change it.
@@ -37,7 +40,12 @@ final class SetupProvider implements StepProvider
         'holidays_exist' => Feature::Attendance,
         'attendance_source_configured' => Feature::Attendance,
         'leave_types_exist' => Feature::Leave,
+        'device_linked' => Feature::Attendance,
+        'leave_types_meet_law' => Feature::Leave,
     ];
+
+    /** @var array<int, array<string, mixed>> tenant id => readiness report, for one request */
+    private array $reports = [];
 
     public function __construct(
         private readonly ReadinessScorer $readiness,
@@ -72,7 +80,7 @@ final class SetupProvider implements StepProvider
             ))
             : [];
 
-        foreach ($this->readiness->score($tenant->id)['gaps'] as $gap) {
+        foreach ($this->report($tenant)['gaps'] as $gap) {
             $id = NextStepId::fromReadinessCheck($gap['id']);
             $feature = self::CHECK_FEATURE[$gap['id']] ?? null;
 
@@ -85,6 +93,15 @@ final class SetupProvider implements StepProvider
             }
 
             $steps[] = new NextStep($id, $gap['remediation'], 'open');
+        }
+
+        // A kind of organisation whose pension coverage the accountant has not
+        // confirmed (ACCOUNTANT-SIGN-OFF.md row 11): paid as its parent type
+        // meanwhile, and said so, never changed silently.
+        $lineage = app(ProfileContext::class)->for($tenant->id, Carbon::today())['lineage'];
+        $unconfirmed = array_values(array_intersect($lineage, OrganizationType::COVERAGE_UNCONFIRMED));
+        if ($unconfirmed !== []) {
+            $steps[] = new NextStep(NextStepId::ProfileLegalReview, '/settings', $lineage[0]);
         }
 
         if ($blockers !== []) {
@@ -109,6 +126,35 @@ final class SetupProvider implements StepProvider
         }
 
         return $steps;
+    }
+
+    /**
+     * "Ready for first payroll": how many of the payroll readiness checks
+     * pass, computed now from what is stored, for whoever may set them, and
+     * only when the plan includes payroll.
+     *
+     * @return array{done: int, total: int, ready: bool}|null
+     */
+    public function payroll(User $user, Tenant $tenant): ?array
+    {
+        if (! $user->hasPermission('settings.manage')) {
+            return null;
+        }
+
+        $checks = $this->report($tenant)['categories']['payroll']['checks'] ?? null;
+        if (! is_array($checks)) {
+            return null;
+        }
+
+        $done = count(array_filter($checks, static fn (array $check): bool => (bool) $check['passed']));
+
+        return ['done' => $done, 'total' => count($checks), 'ready' => $done === count($checks)];
+    }
+
+    /** @return array<string, mixed> one scoring per tenant per request: steps() and payroll() share it */
+    private function report(Tenant $tenant): array
+    {
+        return $this->reports[$tenant->id] ??= $this->readiness->score($tenant->id);
     }
 
     /**

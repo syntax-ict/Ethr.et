@@ -69,6 +69,7 @@ class RegisterTenantRequest extends FormRequest
             // every password entry point in the app enforces the same rule.
             'password' => ['required', 'string', new PasswordPolicy, 'confirmed'],
             'organization_type' => ['nullable', 'string', 'max:50'],
+            'organization_kind' => ['nullable', 'string', Rule::exists('organization_types', 'code')->where('is_active', true)],
         ];
     }
 

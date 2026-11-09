@@ -19,6 +19,7 @@ class NextStepsResource extends JsonResource
         return [
             'steps' => NextStepResource::collection($this->steps),
             'setup' => $this->setup,
+            'payroll' => $this->payroll,
         ];
     }
 }

@@ -67,6 +67,19 @@ function ladder(): array
     ];
 }
 
+/**
+ * A ladder an organisation saved before ladders were locked (2026-11-09,
+ * decision D6): written as rows, since the API now refuses a new one.
+ *
+ * @param  list<array{min_amount_cents: int, max_amount_cents: int|null, rate: int, deduction_cents: int}>  $brackets
+ */
+function savedTenantLadder(array $brackets, string $from, ?string $to = null): void
+{
+    foreach ($brackets as $bracket) {
+        TaxBracket::create([...$bracket, 'max_amount_cents' => $bracket['max_amount_cents'] ?? 0, 'effective_from' => $from, 'effective_to' => $to]);
+    }
+}
+
 // ──────────────────────── Allowance rules ────────────────────────
 
 test('tenant admin can create a fixed allowance rule', function () {
@@ -257,7 +270,7 @@ test('tax brackets fall back to the platform ladder when the tenant has none', f
         ->assertJsonPath('data.0.max_amount_cents', null);
 });
 
-test('replacing the tax ladder changes the tax payroll withholds', function () {
+test('a ladder saved before ladders were locked still sets the tax payroll withholds, and no new one is accepted', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
@@ -267,12 +280,12 @@ test('replacing the tax ladder changes the tax payroll withholds', function () {
         'hire_date' => '2020-01-01',
     ]);
 
+    savedTenantLadder(ladder(), '2026-01-01');
+
     test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), [
         'effective_from' => '2026-01-01',
         'brackets' => ladder(),
-    ])->assertOk()
-        ->assertJsonCount(2, 'data')
-        ->assertJsonPath('data.1.max_amount_cents', null);
+    ])->assertUnprocessable();
 
     $run = app(PayrollEngine::class)->process(
         $tenant->id,
@@ -285,7 +298,7 @@ test('replacing the tax ladder changes the tax payroll withholds', function () {
 
     // 500,000 falls in the top band: 50% of 500,000, no deduction.
     expect($entry->income_tax_cents)->toBe(250000);
-    expect(AuditLog::where('action', 'tax_brackets.replaced')->exists())->toBeTrue();
+    expect(AuditLog::where('action', 'tax_brackets.replaced')->exists())->toBeFalse();
 });
 
 test('a tenant ladder fully replaces the platform ladder rather than merging', function () {
@@ -354,10 +367,8 @@ test('a tenant tax ladder does not leak to another tenant', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
-    test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), [
-        'effective_from' => '2026-01-01',
-        'brackets' => ladder(),
-    ])->assertOk();
+    savedTenantLadder(ladder(), '2026-01-01');
+    test()->getJson(configUrl($tenant->subdomain, 'tax-brackets'))->assertOk()->assertJsonCount(2, 'data');
 
     $other = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $other);
@@ -618,21 +629,15 @@ test('a ladder saved to start later leaves the current one in force until then',
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
     Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 500000, 'hire_date' => '2020-01-01']);
 
-    // In force from January: 50% at the top.
-    test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), ['effective_from' => '2026-01-01', 'brackets' => ladder()])->assertOk();
-
-    // Saved now, to start next year: 10% at the top.
+    // Saved before ladders were locked: 50% at the top through December,
+    // then 10% at the top from January.
+    savedTenantLadder(ladder(), '2026-01-01', '2026-12-31');
     $next = ladder();
     $next[1]['rate'] = 10;
-    test()->putJson(configUrl($tenant->subdomain, 'tax-brackets'), ['effective_from' => '2027-01-01', 'brackets' => $next])
-        ->assertOk()
-        ->assertJsonPath('data.1.rate', 10);
+    savedTenantLadder($next, '2027-01-01');
 
-    // Before, the first ladder was deleted and June fell back to the
-    // platform's. It is closed the day before the new one starts.
     $june = app(PayrollEngine::class)->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
     expect(PayrollEntry::where('payroll_run_id', $june->id)->firstOrFail()->income_tax_cents)->toBe(250000);
-    expect(TaxBracket::query()->whereDate('effective_to', '2026-12-31')->count())->toBe(2);
 
     $january = app(PayrollEngine::class)->process($tenant->id, Carbon::parse('2027-01-01'), Carbon::parse('2027-01-31'), $user->id)->run;
     expect(PayrollEntry::where('payroll_run_id', $january->id)->firstOrFail()->income_tax_cents)->toBe(50000);

@@ -412,7 +412,7 @@ test('a platform super admin belongs to no organisation and gets an empty list',
 
     test()->getJson('http://admin.ethr.test/api/v1/next-steps')
         ->assertOk()
-        ->assertExactJson(['steps' => [], 'setup' => null]);
+        ->assertExactJson(['steps' => [], 'setup' => null, 'payroll' => null]);
 });
 
 test('a payroll run that failed is a blocker for whoever processes payroll', function () {

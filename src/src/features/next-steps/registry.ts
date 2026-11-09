@@ -14,6 +14,7 @@ import {
   PhoneCall,
   Receipt,
   Rocket,
+  Scale,
   ShieldAlert,
   ShieldCheck,
   Smartphone,
@@ -54,6 +55,7 @@ export const STEP_DEFS: Record<NextStepId, StepDef> = {
   setup_admin_present: { icon: ShieldCheck },
   setup_admin_active: { icon: ShieldCheck },
   owner_phone: { icon: Phone },
+  statutory_override: { icon: ShieldAlert },
 
   // Work waiting for a decision, and setup that is unfinished.
   integrity: { icon: ShieldAlert, plural: true },
@@ -70,6 +72,12 @@ export const STEP_DEFS: Record<NextStepId, StepDef> = {
   setup_employees: { icon: UserPlus },
   setup_employee_departments: { icon: Users },
   setup_attendance_source: { icon: Smartphone },
+  setup_employer_tin: { icon: Receipt },
+  setup_tax_center: { icon: Landmark },
+  setup_pension_registration: { icon: ShieldCheck },
+  setup_payout_method: { icon: Wallet },
+  setup_employee_salaries: { icon: Wallet },
+  leave_below_law: { icon: CalendarDays },
   records_missing_tin: { icon: Receipt, plural: true },
   records_missing_bank: { icon: Landmark, plural: true },
   nationality_review: { icon: Globe, plural: true },
@@ -80,6 +88,8 @@ export const STEP_DEFS: Record<NextStepId, StepDef> = {
   records_missing_phone: { icon: Phone, plural: true },
   unmatched_badges: { icon: Fingerprint, plural: true },
   team_absent: { icon: UserX, plural: true },
+  setup_device_linked: { icon: Fingerprint },
+  profile_legal_review: { icon: Scale },
 };
 
 export type StepCopyPart = "title" | "title_one" | "reason" | "cta";

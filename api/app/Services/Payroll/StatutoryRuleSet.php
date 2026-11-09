@@ -19,11 +19,12 @@ use App\Exceptions\PayrollRunRefused;
 final class StatutoryRuleSet
 {
     /**
-     * @param  array<string, array{value: mixed, source: string, legal_reference: string|null, confirmed: bool, effective_from: string|null, parameter: string|null}>  $rules
+     * @param  array<string, array{value: mixed, source: string, layer: string, enforcement: string, floor_direction: string|null, legal_reference: string|null, confirmed: bool, effective_from: string|null, version: string|null, parameter: string|null}>  $rules
      */
     public function __construct(
         public readonly ?string $organizationType,
         private readonly array $rules,
+        public readonly ?string $sector = null,
     ) {}
 
     public function has(string $code): bool
@@ -62,15 +63,21 @@ final class StatutoryRuleSet
         return is_array($value) ? $value : throw PayrollRunRefused::noRuleInForce($code);
     }
 
-    /** @return array{value: mixed, source: string, legal_reference: string|null, confirmed: bool, effective_from: string|null, parameter: string|null}|null */
+    /** @return array{value: mixed, source: string, layer: string, enforcement: string, floor_direction: string|null, legal_reference: string|null, confirmed: bool, effective_from: string|null, version: string|null, parameter: string|null}|null */
     public function describe(string $code): ?array
     {
         return $this->rules[$code] ?? null;
     }
 
-    /** @return array{organization_type: string|null, rules: array<string, array{value: mixed, source: string, legal_reference: string|null, confirmed: bool, effective_from: string|null, parameter: string|null}>} */
+    /** @return array<string, array{value: mixed, source: string, layer: string, enforcement: string, floor_direction: string|null, legal_reference: string|null, confirmed: bool, effective_from: string|null, version: string|null, parameter: string|null}> every code in force, with its provenance */
+    public function all(): array
+    {
+        return $this->rules;
+    }
+
+    /** @return array{organization_type: string|null, sector: string|null, rules: array<string, array{value: mixed, source: string, layer: string, enforcement: string, floor_direction: string|null, legal_reference: string|null, confirmed: bool, effective_from: string|null, version: string|null, parameter: string|null}>} */
     public function toLog(): array
     {
-        return ['organization_type' => $this->organizationType, 'rules' => $this->rules];
+        return ['organization_type' => $this->organizationType, 'sector' => $this->sector, 'rules' => $this->rules];
     }
 }

@@ -8,6 +8,8 @@ use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Services\Onboarding\IndustryCatalog;
 use App\Services\Onboarding\PolicyProfileCatalog;
 use App\Services\Onboarding\WorkforceProfileCatalog;
+use App\Support\CalendarPreference;
+use App\Support\TenantLanding;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator as ValidatorFactory;
 use Illuminate\Validation\Rule;
@@ -26,6 +28,13 @@ class ApplyConfigurationRequest extends FormRequest
         return true;
     }
 
+    /**
+     * The pay frequencies payroll can run. Weekly and biweekly are asked about
+     * at onboarding but not accepted until the engine pays them: the tax
+     * ladder, run day and working-day divisor are all monthly.
+     */
+    public const PAY_PERIODS = ['monthly'];
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -33,6 +42,10 @@ class ApplyConfigurationRequest extends FormRequest
             'industry' => ['nullable', 'string', Rule::in(app(IndustryCatalog::class)->keys())],
             'workforce_profile' => ['nullable', 'string', Rule::in(app(WorkforceProfileCatalog::class)->keys())],
             'policy_profile' => ['nullable', 'string', Rule::in(app(PolicyProfileCatalog::class)->keys())],
+            'organization_type' => ['nullable', 'string', Rule::exists('organization_types', 'code')->where('is_active', true)],
+            'staff_band' => ['nullable', 'string', Rule::in(TenantLanding::STAFF_BANDS)],
+            'pay_period' => ['nullable', 'string', Rule::in(self::PAY_PERIODS)],
+            'calendar' => ['nullable', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
             'plan' => ['required', 'array'],
             'plan.branches' => ['sometimes', 'array', 'max:100'],
             'plan.departments' => ['sometimes', 'array', 'max:200'],

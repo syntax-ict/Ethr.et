@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import { OrganizationCard } from "@/features/settings/components/organization-card";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -15,7 +16,9 @@ function renderWithClient(ui: React.ReactElement) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <QueryClientProvider client={client}>
+      <CalendarProvider>{ui}</CalendarProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -192,6 +195,61 @@ describe("<OrganizationCard>", () => {
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ organization_type: "government" });
+  });
+
+  it("sends no start date while the kind is unchanged, even after payroll was approved", async () => {
+    localStorage.setItem("ethr.calendar", "gregorian");
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/organization", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Organization updated" });
+      }),
+    );
+
+    renderWithClient(
+      <OrganizationCard
+        organization={{
+          ...org,
+          organization_type: "private",
+          organization_type_needs_review: false,
+          organization_type_earliest_change: "2026-12-01",
+        }}
+      />,
+    );
+
+    // Unchanged kind: no date to ask for.
+    expect(screen.queryByLabelText("Applies from")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Organisation name"), {
+      target: { value: "Acme Ethiopia PLC" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save organisation/i }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).not.toHaveProperty("effective_from");
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  it("says when a scheduled change of kind takes effect", () => {
+    localStorage.setItem("ethr.calendar", "gregorian");
+    renderWithClient(
+      <OrganizationCard
+        organization={{
+          ...org,
+          organization_type: "private",
+          organization_type_needs_review: false,
+          organization_type_pending: {
+            organization_type: "government",
+            effective_from: "2027-01-01",
+          },
+          organization_type_earliest_change: "2026-12-01",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /becomes government on .*payroll before then keeps the current kind/i,
+    );
+    localStorage.removeItem("ethr.calendar");
   });
 
   it("shows no confirmation once the kind is confirmed", () => {

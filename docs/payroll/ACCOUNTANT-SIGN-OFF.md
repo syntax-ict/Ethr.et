@@ -98,7 +98,11 @@ For a processed run, the run page offers:
 | 9 | Sick-leave pay (Labour Proclamation 1156/2019 Art. 85, PR #637): the pay tiers and their daily rate, monthly basic ÷ `payroll.working_days_per_month`. The divisor is the platform default (22) unless the organisation set its own; if it changes, this row's figures change with it | | | |
 | 10 | Every parameter marked `confirmed = no` in [`STATUTORY-PARAMETERS.md`](STATUTORY-PARAMETERS.md) §Parameters (the month length, one row per organisation type, overtime daily/weekly caps and which types they limit, fiscal-year start months, Pagume default, public-enterprise pension scheme) is accepted or corrected | | | |
 
-Rows 1–10 are the whole review. A corrected platform value is entered as a new dated row, never an
+| 11 | Organisation-type coverage (2026-11-09, research P9): whether 1268/2022 Art. 3(4) excludes a **sole proprietor**'s own staff or only the owner; the scheme for **international organisations and diplomatic missions**, which today fall back to the private scheme; and the schemes for **cooperatives** and **religious organisations**. Each new type is paid as its parent until this row decides otherwise | | | |
+| 12 | Leave and deduction rows added 2026-11-09, all `confirmed = no`: annual 16 days and +1 per two years (Art. 77(1)), maternity 120 calendar days (Art. 88), paternity 3 days (article to cite), Art. 85 sick-pay tiers, window and half-pay ratio, the Art. 59 one-third cap; civil-service leave under 1353/2024 (`PolicyProfileCatalog` still cites the repealed 1064/2017); regional civil-service law and fiscal year | | | |
+| 13 | Pension coverage by contract type (`pension.applies_to`, research P11): casual and consultancy contracts are covered today, as before the row existed; confirm or correct | | | |
+
+Rows 1–13 are the whole review. A corrected platform value is entered as a new dated row, never an
 edit (`STATUTORY-PARAMETERS.md` → *Changing a value*), carrying the same overridable flag so
 organisations keep their own choice; the golden payslips in §2 that use it are recomputed.
 

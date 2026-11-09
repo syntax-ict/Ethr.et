@@ -118,7 +118,7 @@ jobs:
           # next dev compiles each route on first request; global-setup's 30s
           # page.goto timeout is shorter than a cold compile on a runner.
           # /employees/warm compiles the [id] route; the id need not exist.
-          for path in /login /dashboard /employees /employees/warm /attendance /leave /payroll /devices /admin /settings /profile; do
+          for path in /login /register /setup/guided /dashboard /employees /employees/warm /attendance /leave /payroll /devices /admin /settings /settings/payroll /profile; do
             curl -s -o /dev/null -m 240 -w "$path %{http_code} %{time_total}s\n" "$BASE_URL$path" || true
           done
 

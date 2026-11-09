@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\TenantAddressMode;
 use App\Enums\TenantStatus;
+use App\Services\Payroll\StatutorySettingsBridge;
 use App\Support\TenancyDomain;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
@@ -630,6 +631,11 @@ class Tenant extends Model
         // functional for up to 5 more minutes — the opposite of what "suspend"
         // promises. Bust both the old and new subdomain in case it changed.
         static::saved(fn (self $tenant) => $tenant->forgetResolverCache());
+
+        // The four statutory values an organisation could set as settings
+        // keys live as its own statutory_parameters rows; every path that
+        // saves the keys writes them through (StatutorySettingsBridge).
+        static::saved(fn (self $tenant) => StatutorySettingsBridge::sync($tenant));
 
         // A soft delete writes `deleted_at` without a save event, so it busts
         // the same caches itself: a deleted organisation must stop resolving

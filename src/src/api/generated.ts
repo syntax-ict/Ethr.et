@@ -5613,6 +5613,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview payroll */
+        post: operations["payroll.payrollPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/runs": {
         parameters: {
             query?: never;
@@ -7924,6 +7941,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/statutory-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List statutory rules */
+        get: operations["statutoryRule.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/statutory-rules/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete statutory rule */
+        delete: operations["statutoryRule.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/support-requests": {
         parameters: {
             query?: never;
@@ -8721,6 +8772,13 @@ export interface components {
             workforce_profile?: "standard_office" | "six_day_week" | "flexible_hybrid" | "rotating_three_shift" | "continuous_24_7" | "extended_hours_two_shift" | "part_time" | "field_distributed" | "seasonal_agricultural" | "weekend" | null;
             /** @enum {string|null} */
             policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
+            organization_type?: string | null;
+            /** @enum {string|null} */
+            staff_band?: "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1000+" | null;
+            /** @enum {string|null} */
+            pay_period?: "monthly" | null;
+            /** @enum {string|null} */
+            calendar?: "ethiopian" | "gregorian" | null;
             plan: {
                 branches?: string[];
                 departments?: string[];
@@ -10422,7 +10480,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "statutory_override" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "setup_employer_tin" | "setup_tax_center" | "setup_pension_registration" | "setup_payout_method" | "setup_employee_salaries" | "leave_below_law" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent" | "setup_device_linked" | "profile_legal_review";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -10448,6 +10506,11 @@ export interface components {
                 done: number;
                 total: number;
                 complete: boolean;
+            } | null;
+            payroll: {
+                done: number;
+                total: number;
+                ready: boolean;
             } | null;
         };
         /** NotificationResource */
@@ -10798,11 +10861,21 @@ export interface components {
             /** @enum {string} */
             industry: "federal_government" | "ministry" | "federal_agency" | "regional_government" | "regional_bureau" | "zonal_administration" | "city_administration" | "woreda_administration" | "sector_office" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "restaurant" | "retail" | "wholesale" | "professional_services" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "small_business" | "multi_branch" | "custom";
             employee_count?: number | null;
+            /** @enum {string|null} */
+            staff_band?: "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1000+" | null;
             region?: string | null;
             /** @enum {string|null} */
             workforce_profile?: "standard_office" | "six_day_week" | "flexible_hybrid" | "rotating_three_shift" | "continuous_24_7" | "extended_hours_two_shift" | "part_time" | "field_distributed" | "seasonal_agricultural" | "weekend" | null;
             /** @enum {string|null} */
             policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
+        };
+        /** PreviewPayrollRequest */
+        PreviewPayrollRequest: {
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            after?: string | null;
         };
         /** ProcessPayrollRequest */
         ProcessPayrollRequest: {
@@ -10975,6 +11048,7 @@ export interface components {
              */
             password: string;
             organization_type?: string | null;
+            organization_kind?: string | null;
             password_confirmation: string;
         };
         /** RejectCorrectionRequest */
@@ -12637,6 +12711,8 @@ export interface components {
             name?: string;
             type?: string | null;
             organization_type?: string;
+            /** Format: date-time */
+            effective_from?: string | null;
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
@@ -12821,6 +12897,12 @@ export interface components {
                 clock?: "auto" | "ethiopian" | "24h";
                 employee_number_format?: string;
                 invitation_reminders?: boolean;
+                /** @enum {string} */
+                pay_period?: "monthly";
+                pension_registration_number?: string | null;
+                /** @enum {string|null} */
+                payout_method?: "bank" | "cash" | null;
+                employer_bank_name?: string | null;
             };
         };
         /** UpdateShiftRequest */
@@ -28485,6 +28567,8 @@ export interface operations {
                             name: string;
                             name_am: string;
                             description: string | null;
+                            group: string;
+                            parent_code: string | null;
                         }[];
                     };
                 };
@@ -28976,6 +29060,73 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payroll.payrollPreview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewPayrollRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period_start: string;
+                        period_end: string;
+                        organization_type: string | null;
+                        sector: string | null;
+                        rules: {
+                            code: string;
+                            value: string;
+                            layer: string;
+                            version: string | null;
+                            legal_reference: string | null;
+                        }[];
+                        income_tax: {
+                            legal_reference: string | null;
+                            effective_from: string | null;
+                            source: string;
+                        };
+                        pension: {
+                            scheme: string;
+                            employee_rate: number;
+                            employer_rate: number;
+                            legal_reference: string;
+                            source: string;
+                        };
+                        payslips: {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                                employee_code: string | null;
+                            };
+                            basic_salary_cents: number;
+                            gross_cents: number;
+                            income_tax_cents: number;
+                            employee_pension_cents: number;
+                            employer_pension_cents: number;
+                            other_deductions_cents: number;
+                            net_cents: number;
+                            pension_exempt_reason: string | null;
+                        }[];
+                        next_after: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
@@ -29919,9 +30070,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["TaxBracketResource"][];
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -30340,13 +30489,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `PensionRuleResource` */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PensionRuleResource"];
+                    "application/json": Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -33152,6 +33300,11 @@ export interface operations {
                             locale: string;
                             organization_type: string;
                             organization_type_needs_review: boolean;
+                            organization_type_pending: {
+                                organization_type: string;
+                                effective_from: string;
+                            } | null;
+                            organization_type_earliest_change: string | null;
                         };
                         address: {
                             mode: string;
@@ -33285,6 +33438,10 @@ export interface operations {
                             tax_center: string | null;
                             pension_scheme: string;
                             pension_schemes: unknown[];
+                            pension_agency: string;
+                            pension_registration_number: string | null;
+                            payout_method: string | null;
+                            employer_bank_name: string | null;
                         };
                         security: {
                             mfa_policy: string;
@@ -33385,6 +33542,11 @@ export interface operations {
                             locale: string;
                             organization_type: string;
                             organization_type_needs_review: boolean;
+                            organization_type_pending: {
+                                organization_type: string;
+                                effective_from: string;
+                            } | null;
+                            organization_type_earliest_change: string | null;
                         };
                     };
                 };
@@ -35295,6 +35457,89 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "statutoryRule.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            code: string;
+                            value: string;
+                            default_value: string | null;
+                            layer: string;
+                            enforcement: string;
+                            floor_direction: string | null;
+                            legal_reference: string | null;
+                            confirmed: boolean;
+                            effective_from: string | null;
+                            version: string | null;
+                            setting_key: string | null;
+                            editable: boolean;
+                            overridden: boolean;
+                        }[];
+                        organization_type: string | null;
+                        sector: string | null;
+                        as_of: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "statutoryRule.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        value: string | null;
+                        layer: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This rule is the law's, or one the organisation does not set here, so there is nothing to reset.
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "supportRequest.index": {

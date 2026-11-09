@@ -7,21 +7,17 @@ namespace App\Http\Controllers\Api\V1\Payroll;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ReplaceTaxBracketsRequest;
 use App\Http\Resources\TaxBracketResource;
-use App\Models\AuditLog;
 use App\Models\TaxBracket;
 use App\Services\Payroll\TaxCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Tenant income-tax ladder. A tenant that defines no brackets falls back to
- * the platform-wide (tenant_id = null) ladder — see
- * {@see TaxCalculator}.
- *
- * The ladder is replaced as a whole rather than edited bracket by bracket so
- * it can never be left with gaps or overlaps between two requests.
+ * The income-tax ladder an organisation is taxed on: the platform-wide
+ * (tenant_id = null) ladder the law sets, or a ladder the organisation saved
+ * before ladders were locked, which is still honoured for its dates — see
+ * {@see TaxCalculator}. A new ladder is refused: income tax is the law's.
  */
 class TaxBracketController extends Controller
 {
@@ -56,64 +52,13 @@ class TaxBracketController extends Controller
     {
         Gate::authorize('payroll.manageConfig');
 
-        /** @var list<array{min_amount_cents: int, max_amount_cents: int|null, rate: float|int|string, deduction_cents: int}> $input */
-        $input = $request->validated('brackets');
-        $effectiveFrom = $request->validated('effective_from');
-
-        $from = Carbon::parse($effectiveFrom);
-
-        // The rows the new ladder replaces from its start date on. Every row
-        // was deleted, whatever its dates: a ladder saved on 9 November to
-        // start on 1 January left November and December with no organisation
-        // ladder in force, so they were taxed on the platform's without a
-        // word, and so was any reprocess of an earlier period. Rows that run
-        // up to the new start are closed the day before it; rows that would
-        // only have started on or after it are removed.
-        $previous = TaxBracket::query()
-            ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $from->toDateString()))
-            ->orderBy('min_amount_cents')
-            ->get();
-
-        $brackets = DB::transaction(function () use ($input, $effectiveFrom, $previous, $from) {
-            foreach ($previous as $row) {
-                if ($row->effective_from->lt($from)) {
-                    $row->update(['effective_to' => $from->copy()->subDay()->toDateString()]);
-                } else {
-                    $row->delete();
-                }
-            }
-
-            foreach ($input as $bracket) {
-                TaxBracket::create([
-                    'min_amount_cents' => $bracket['min_amount_cents'],
-                    // 0 is the open-ended sentinel — the column is NOT NULL.
-                    'max_amount_cents' => $bracket['max_amount_cents'] ?? 0,
-                    'rate' => $bracket['rate'],
-                    'deduction_cents' => $bracket['deduction_cents'],
-                    'effective_from' => $effectiveFrom,
-                    'effective_to' => null,
-                ]);
-            }
-
-            return TaxBracket::query()->whereNull('effective_to')->orderBy('min_amount_cents')->get();
-        });
-
-        AuditLog::record('tax_brackets.replaced', null, [
-            'effective_from' => $effectiveFrom,
-            'before' => $previous->map(fn (TaxBracket $b) => [
-                'min_amount_cents' => (int) $b->min_amount_cents,
-                'max_amount_cents' => (int) $b->max_amount_cents,
-                'rate' => (float) $b->rate,
-                'deduction_cents' => (int) $b->deduction_cents,
-            ])->all(),
-            'after' => $brackets->map(fn (TaxBracket $b) => [
-                'min_amount_cents' => (int) $b->min_amount_cents,
-                'max_amount_cents' => (int) $b->max_amount_cents,
-                'rate' => (float) $b->rate,
-                'deduction_cents' => (int) $b->deduction_cents,
-            ])->all(),
-        ]);
-
-        return response()->json(['data' => TaxBracketResource::collection($brackets)]);
+        // The income tax ladder is the law's exactly: withholding less breaks
+        // it and withholding more is not more generous, it is wrong. A ladder
+        // an organisation saved before this is still honoured for its dates
+        // and flagged on its readiness checklist; no new one is accepted
+        // (docs/payroll/STATUTORY-PARAMETERS.md, decision D6).
+        abort(422, __('payroll.tax_ladder_locked', [
+            'reference' => app(TaxCalculator::class)->basis(null, Carbon::today())['legal_reference'] ?? 'the Income Tax Proclamation',
+        ]));
     }
 }

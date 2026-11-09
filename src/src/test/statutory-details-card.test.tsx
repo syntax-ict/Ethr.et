@@ -20,6 +20,11 @@ function serve() {
           employer_tin: null,
           tax_center: null,
           pension_scheme: "private",
+          pension_agency:
+            "Private Organization Employees' Social Security Agency (POESSA)",
+          pension_registration_number: null,
+          payout_method: null,
+          employer_bank_name: null,
         },
       }),
     ),
@@ -65,6 +70,52 @@ describe("<StatutoryDetailsCard>", () => {
       employer_tin: "0012345678",
       tax_center: "Bole Medium",
       pension_scheme: "public",
+      pension_registration_number: null,
+      payout_method: null,
+      employer_bank_name: null,
+    });
+  });
+
+  it("names the pension agency, and keeps the scheme out of a save that did not change it", async () => {
+    const saved = serve();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <StatutoryDetailsCard />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText(
+        "Your registration with Private Organization Employees' Social Security Agency (POESSA).",
+      ),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Pension registration number"),
+      "P-0042",
+    );
+    await user.click(
+      screen.getByRole("combobox", { name: /how salaries are paid/i }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Bank transfer" }),
+    );
+    await user.type(
+      await screen.findByLabelText("Bank you pay from"),
+      "Commercial Bank of Ethiopia",
+    );
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toEqual({
+      employer_tin: null,
+      tax_center: null,
+      pension_registration_number: "P-0042",
+      payout_method: "bank",
+      employer_bank_name: "Commercial Bank of Ethiopia",
     });
   });
 });

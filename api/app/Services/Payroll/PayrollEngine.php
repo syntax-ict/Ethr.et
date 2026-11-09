@@ -181,24 +181,14 @@ final class PayrollEngine
         $periodStart = Carbon::parse($run->period_start);
         $periodEnd = Carbon::parse($run->period_end);
 
-        $tenant = Tenant::findOrFail($tenantId);
-
-        // The statutory rules in force for this period, resolved once per run
-        // for the organisation's type: the parameters, the pension rule for its
-        // scheme and the tax ladder with its legal basis. All are written into
-        // every entry's calculation_log, so an approved run keeps saying what
-        // it applied (convention #11). A rule with no row in force refuses the
-        // run by name here, before any entry is written.
-        $rules = $this->statutoryRules->for($tenant, $periodStart);
-        $pagumenStrategy = $rules->string('pagume.proration');
-        $fiscalYearStartMonth = $rules->int('fiscal_year.start_month');
-        $pensionRule = $this->pensionCalculator->rule($tenantId, $rules->string('pension.default_scheme'), $periodStart);
-        // Since 1.4 the ladder itself travels with its basis, so a month can be
-        // re-taxed from its own log even if a tenant's rows were replaced.
-        $taxBasis = $this->taxCalculator->basis($tenantId, $periodStart)
-            + ['brackets' => $this->taxCalculator->ladder($tenantId, $periodStart)];
-
-        $pagume = $this->calendar->pagumeDaysInRange($periodStart, $periodEnd);
+        [
+            'rules' => $rules,
+            'pagumen_strategy' => $pagumenStrategy,
+            'fiscal_year_start_month' => $fiscalYearStartMonth,
+            'pension_rule' => $pensionRule,
+            'tax_basis' => $taxBasis,
+            'pagume' => $pagume,
+        ] = $this->prepare($tenantId, $periodStart, $periodEnd);
 
         // Whoever already has an entry, from an earlier call that stopped at
         // its deadline. Empty on a first call.
@@ -292,6 +282,64 @@ final class PayrollEngine
         });
 
         return $run->refresh();
+    }
+
+    /**
+     * A dry run: what a run for the period would pay, worked out by the same
+     * code a run uses (prepare() and computeEntry()) and written nowhere. No
+     * run is reserved, no lock is taken, no entry is created and no balance
+     * moves, so it can be asked again as often as needed.
+     *
+     * Paged by employee, `$limit` at a time after `$afterEmployeeId`, and it
+     * stops early once `$deadline` has passed, so a large organisation is
+     * previewed in pages that each fit the shared host's request limit.
+     * `next_after` names the last employee looked at when there are more.
+     *
+     * @return array{entries: list<array{employee: Employee, attributes: array<string, mixed>}>, next_after: int|null, rules: StatutoryRuleSet, tax_basis: array<string, mixed>, pension_rule: PensionRuleSnapshot}
+     */
+    public function preview(int $tenantId, Carbon $periodStart, Carbon $periodEnd, ?int $afterEmployeeId = null, ?float $deadline = null, int $limit = 100): array
+    {
+        [
+            'rules' => $rules,
+            'pagumen_strategy' => $pagumenStrategy,
+            'fiscal_year_start_month' => $fiscalYearStartMonth,
+            'pension_rule' => $pensionRule,
+            'tax_basis' => $taxBasis,
+            'pagume' => $pagume,
+        ] = $this->prepare($tenantId, $periodStart, $periodEnd);
+
+        $employees = $this->payableEmployees($tenantId, $periodStart, $periodEnd)
+            ->when($afterEmployeeId !== null, fn ($query) => $query->where('employees.id', '>', $afterEmployeeId))
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->orderBy('employees.id')
+            ->limit($limit + 1)
+            ->get();
+
+        $more = $employees->count() > $limit;
+        $entries = [];
+        $last = null;
+
+        foreach ($employees->take($limit)->values() as $index => $employee) {
+            $attributes = $this->computeEntry($employee, $periodStart, $periodEnd, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules);
+            $last = $employee->id;
+
+            if ($attributes !== null) {
+                $entries[] = ['employee' => $employee, 'attributes' => $attributes];
+            }
+
+            if ($deadline !== null && microtime(true) >= $deadline && $index < min($limit, $employees->count()) - 1) {
+                $more = true;
+                break;
+            }
+        }
+
+        return [
+            'entries' => $entries,
+            'next_after' => $more ? $last : null,
+            'rules' => $rules,
+            'tax_basis' => $taxBasis,
+            'pension_rule' => $pensionRule,
+        ];
     }
 
     /**
@@ -534,6 +582,42 @@ final class PayrollEngine
         return $salary !== null ? (int) $salary : null;
     }
 
+    /**
+     * The statutory rules in force for a period, resolved once for the whole
+     * period for the organisation's type: the parameters, the pension rule for
+     * its scheme and the tax ladder with its legal basis. All are written into
+     * every entry's calculation_log, so an approved run keeps saying what it
+     * applied (convention #11). A rule with no row in force refuses the run by
+     * name here, before any entry is written. Shared by a run and a preview,
+     * so the two cannot resolve differently.
+     *
+     * @return array{rules: StatutoryRuleSet, pagumen_strategy: string, fiscal_year_start_month: int, pension_rule: PensionRuleSnapshot, tax_basis: array<string, mixed>, pagume: array{days: int, ethiopian_year: int|null, pagume_length: int|null}}
+     */
+    private function prepare(int $tenantId, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $tenant = Tenant::findOrFail($tenantId);
+        $rules = $this->statutoryRules->for($tenant, $periodStart);
+
+        return [
+            'rules' => $rules,
+            'pagumen_strategy' => $rules->string('pagume.proration'),
+            'fiscal_year_start_month' => $rules->int('fiscal_year.start_month'),
+            'pension_rule' => $this->pensionCalculator->rule($tenantId, $rules->string('pension.default_scheme'), $periodStart),
+            // Since 1.4 the ladder itself travels with its basis, so a month can
+            // be re-taxed from its own log even if a tenant's rows were replaced.
+            'tax_basis' => $this->taxCalculator->basis($tenantId, $periodStart)
+                + ['brackets' => $this->taxCalculator->ladder($tenantId, $periodStart)],
+            'pagume' => $this->calendar->pagumeDaysInRange($periodStart, $periodEnd),
+        ];
+    }
+
+    /**
+     * Writes one employee's entry for a run: exactly what computeEntry()
+     * works out, with the run it belongs to.
+     *
+     * @param  array<string, mixed>  $taxBasis
+     * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
+     */
     private function processEmployee(
         Employee $employee,
         PayrollRun $run,
@@ -546,6 +630,33 @@ final class PayrollEngine
         array $taxBasis,
         StatutoryRuleSet $rules,
     ): ?PayrollEntry {
+        $attributes = $this->computeEntry($employee, $periodStart, $periodEnd, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules);
+
+        return $attributes === null ? null : PayrollEntry::create([...$attributes, 'payroll_run_id' => $run->id]);
+    }
+
+    /**
+     * One employee's pay for a period, worked out and not written: the
+     * attributes of the entry a run would create, `calculation_log` included.
+     * Null for someone with no salary to pay. A run writes it; a preview
+     * shows it. It reads and writes nothing else: no balance moves until a
+     * run is approved (PayrollBalanceService).
+     *
+     * @param  array<string, mixed>  $taxBasis
+     * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
+     * @return array<string, mixed>|null
+     */
+    private function computeEntry(
+        Employee $employee,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        string $pagumenStrategy,
+        array $pagume,
+        int $fiscalYearStartMonth,
+        PensionRuleSnapshot $pensionRule,
+        array $taxBasis,
+        StatutoryRuleSet $rules,
+    ): ?array {
         $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
         $hoursPerDay = $rules->int('payroll.hours_per_day');
         $basicSalary = $employee->salary_cents;
@@ -564,7 +675,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.7',
+            'version' => '1.8',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -680,8 +791,12 @@ final class PayrollEngine
         // tier of each day is its place in that period, so a long illness
         // moves from full to half pay across payslips without anyone acting.
         $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $workingDaysPerMonth);
-        // In thousandths of a day, as for unpaid leave: a half-pay day is 500.
-        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * 500);
+        // In thousandths of a day, as for unpaid leave. A half-pay day keeps
+        // `leave.sick.half_pay_ratio` of the daily rate, so withholds the rest:
+        // 500 at the law's one half.
+        $halfPay = $rules->list('leave.sick.half_pay_ratio');
+        $halfPayWithheld = 1000 * ((int) $halfPay['denominator'] - (int) $halfPay['numerator']) / (int) $halfPay['denominator'];
+        $sickThousandths = (int) round($sick['unpaid'] * 1000 + $sick['half'] * $halfPayWithheld);
         $sickDeduction = $sickThousandths > 0
             ? min(Cents::mulDiv($dailyRate, $sickThousandths, 1000), $proratedBasic)
             : 0;
@@ -714,7 +829,9 @@ final class PayrollEngine
             // are fixed. Cost sharing is a share of gross, not known yet, so it
             // is estimated on basic here, and the run register flags any payslip
             // whose actual total still passes the third.
-            $third = intdiv($proratedBasic, 3);
+            // The share is `payroll.deduction_cap_ratio`, one third in law.
+            $capRatio = $rules->list('payroll.deduction_cap_ratio');
+            $third = intdiv($proratedBasic * (int) $capRatio['numerator'], (int) $capRatio['denominator']);
             $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
                 + $this->costSharingService->calculateDeduction(
                     $this->costSharingService->getActiveObligation($employee),
@@ -826,7 +943,7 @@ final class PayrollEngine
             'rule' => $taxBasis,
         ];
 
-        $pension = $this->pensionCalculator->apply($pensionRule, $employee, $proratedBasic, $totalAllowances, $periodEnd);
+        $pension = $this->pensionCalculator->apply($pensionRule, $employee, $proratedBasic, $totalAllowances, $periodEnd, $rules->list('pension.applies_to'));
 
         $log['steps'][] = [
             'step' => 'pension',
@@ -920,9 +1037,8 @@ final class PayrollEngine
             $deductions[] = ['type' => 'cost_sharing', 'amount_cents' => $costSharingDeduction];
         }
 
-        return PayrollEntry::create([
+        return [
             'tenant_id' => $employee->tenant_id,
-            'payroll_run_id' => $run->id,
             'employee_id' => $employee->id,
             'basic_salary_cents' => $proratedBasic,
             'allowances' => $allowances,
@@ -938,7 +1054,7 @@ final class PayrollEngine
             'other_deductions_cents' => $loanDeduction + $costSharingDeduction,
             'net_cents' => $netSalary,
             'calculation_log' => $log,
-        ]);
+        ];
     }
 
     /**

@@ -23,6 +23,8 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
+use App\Services\Tenancy\OrganisationProfile;
+use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
@@ -74,6 +76,8 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
                 'organization_type' => $tenant->organization_type,
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
+                'organization_type_pending' => $this->pendingType($tenant),
+                'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
@@ -109,6 +113,10 @@ class SettingsController extends Controller
                 'tax_center' => StatutorySchedules::setting($tenant, 'tax_center'),
                 'pension_scheme' => $rules->string('pension.default_scheme'),
                 'pension_schemes' => array_values(array_map(strval(...), $rules->list('pension.schemes'))),
+                'pension_agency' => app(StatutorySchedules::class)->layout(StatutorySchedules::PENSION, $rules->string('pension.default_scheme'), Carbon::today())['agency'],
+                'pension_registration_number' => StatutorySchedules::setting($tenant, 'pension_registration_number'),
+                'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
+                'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
@@ -137,6 +145,28 @@ class SettingsController extends Controller
     private function organisationCalendar(Tenant $tenant): string
     {
         return CalendarPreference::forTenant($tenant);
+    }
+
+    /**
+     * A change of type scheduled after the first approved payroll, not yet in
+     * force (OrganisationProfile).
+     *
+     * @return array{organization_type: string, effective_from: string}|null
+     */
+    private function pendingType(Tenant $tenant): ?array
+    {
+        $pending = app(ProfileContext::class)->pending($tenant->id, Carbon::today());
+
+        return $pending === null ? null : [
+            'organization_type' => $pending['organization_type'],
+            'effective_from' => $pending['effective_from'],
+        ];
+    }
+
+    /** The first day a change of type may take effect; null while a change is still a correction. */
+    private function earliestTypeChange(Tenant $tenant): ?string
+    {
+        return app(OrganisationProfile::class)->earliestChange($tenant)?->toDateString();
     }
 
     public function update(UpdateSettingsRequest $request): JsonResponse
@@ -169,7 +199,6 @@ class SettingsController extends Controller
         // Choosing the organisation type, even the one it already had, is the
         // confirmation the migration asked existing organisations for.
         if (array_key_exists('organization_type', $validated)) {
-            $tenantFields['organization_type'] = $validated['organization_type'];
             $tenantFields['organization_type_needs_review'] = false;
         }
 
@@ -181,6 +210,13 @@ class SettingsController extends Controller
 
         if (! empty($tenantFields)) {
             $tenant->update($tenantFields);
+        }
+
+        // The type is the organisation's profile: dated, and written only by
+        // OrganisationProfile, which keeps the column in step.
+        if (array_key_exists('organization_type', $validated)) {
+            $from = $validated['effective_from'] ?? null;
+            app(OrganisationProfile::class)->set($tenant, (string) $validated['organization_type'], $request->user()?->id, null, is_string($from) ? Carbon::parse($from) : null);
         }
 
         // Mirror into the settings JSON as well: it was the only store before
@@ -207,6 +243,8 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
                 'organization_type' => $tenant->organization_type,
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
+                'organization_type_pending' => $this->pendingType($tenant),
+                'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
             ],
         ]);
     }
