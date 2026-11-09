@@ -6,6 +6,7 @@ return [
     'plan_changed' => 'Karoorri maallaqa hirmaannaa gara :plan jijjiirameera.',
     'invoice_paid' => 'Nagaheen akka kaffalameetti mallattaa\'eera.',
     'employee_limit_reached' => 'Daangaa hojjettootaa karoora keessaniif geessaniittu.',
+    'limit_check_busy' => 'Jijjiirraan lakkoofsa hojjettootaa biraa kuufamaa jira. Yeroo muraasa booda irra deebi\'aa yaalaa.',
     'branch_limit_reached' => 'Daangaa dameelee karoora keessaniif geessaniittu.',
     'device_limit_reached' => 'Daangaa meeshaalee karoora keessaniif geessaniittu.',
 

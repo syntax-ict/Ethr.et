@@ -6,6 +6,7 @@ return [
     'plan_changed' => 'Subscription plan changed to :plan.',
     'invoice_paid' => 'Invoice marked as paid.',
     'employee_limit_reached' => 'You have reached the employee limit for your plan.',
+    'limit_check_busy' => 'Another change to your headcount is being saved. Try again in a moment.',
     'branch_limit_reached' => 'You have reached the branch limit for your plan.',
     'device_limit_reached' => 'You have reached the device limit for your plan.',
 

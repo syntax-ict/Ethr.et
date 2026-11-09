@@ -14,6 +14,7 @@ import {
   KeyRound,
   MoreVertical,
   CheckCircle2,
+  CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ import {
   useKioskSessions,
   useRegenerateKioskToken,
   useRegisterKiosk,
+  useRenewKiosk,
   useSetKioskActive,
 } from "@/features/attendance/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -88,6 +90,7 @@ export default function KioskSessionsPage() {
   const register = useRegisterKiosk();
   const setActive = useSetKioskActive();
   const regenerate = useRegenerateKioskToken();
+  const renew = useRenewKiosk();
   const remove = useDeleteKiosk();
 
   function handleRegister() {
@@ -150,6 +153,16 @@ export default function KioskSessionsPage() {
       onError: (err) =>
         toast.error(
           apiErrorMessage(err, t("attendance.kiosks_page.regenerate_failed")),
+        ),
+    });
+  }
+
+  function handleRenew(publicId: string) {
+    renew.mutate(publicId, {
+      onSuccess: () => toast.success(t("attendance.kiosks_page.renewed")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(err, t("attendance.kiosks_page.renew_failed")),
         ),
     });
   }
@@ -272,6 +285,12 @@ export default function KioskSessionsPage() {
                             <RefreshCw className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("attendance.kiosks_page.regenerate_token")}
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleRenew(k.public_id)}
+                          >
+                            <CalendarClock className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("attendance.kiosks_page.renew")}
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
@@ -296,6 +315,20 @@ export default function KioskSessionsPage() {
                     <p>
                       {t("attendance.kiosks_page.last_active")}:{" "}
                       {formatDateTime(k.last_activity_at)}
+                    </p>
+                  )}
+                  {k.expires_at && (
+                    <p
+                      className={
+                        new Date(k.expires_at) <= new Date()
+                          ? "font-medium text-destructive"
+                          : undefined
+                      }
+                    >
+                      {new Date(k.expires_at) <= new Date()
+                        ? t("attendance.kiosks_page.expired")
+                        : t("attendance.kiosks_page.expires")}
+                      : {formatDate(k.expires_at)}
                     </p>
                   )}
                   <p>

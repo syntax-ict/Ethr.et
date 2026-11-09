@@ -47879,7 +47879,16 @@
                         "type": "string"
                     },
                     "token": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "last_activity_at": {
                         "type": [
@@ -47911,6 +47920,7 @@
                     "name",
                     "device_identifier",
                     "status",
+                    "expires_at",
                     "last_activity_at",
                     "activated_at",
                     "deactivated_at",

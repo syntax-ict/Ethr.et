@@ -98,6 +98,7 @@ class ExportTenantDataJob implements ShouldQueue
         'remember_token',
         'secret',
         'token',
+        'token_hash',
         'webhook_token',
     ];
 

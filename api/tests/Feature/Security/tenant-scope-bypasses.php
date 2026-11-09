@@ -336,10 +336,12 @@ return [
     'Listeners/NotifyPayrollProcessed.php' => 1,
     'Listeners/NotifyPayrollRunFailed.php' => 1,
     'Listeners/PushDatabaseNotification.php' => 1,
-    // Pre-authentication: the kiosk token (globally unique, 64 random hex)
-    // is the credential and selects its own tenant, which is refused if it
-    // differs from a tenant already resolved, or is not active. A shared
-    // kiosk terminal has no login to name the tenant otherwise (N47).
+    // Pre-authentication: the kiosk token (64 random hex, looked up by its
+    // SHA-256 in the globally unique `token_hash` since 2026-11-09, and only
+    // while the session is unexpired) is the credential and selects its own
+    // tenant, which is refused if it differs from a tenant already resolved,
+    // or is not active. A shared kiosk terminal has no login to name the
+    // tenant otherwise (N47).
     'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
     'Models/Subscription.php' => 1,

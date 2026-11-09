@@ -83,7 +83,8 @@
 | id | BIGINT PK | |
 | public_id | CHAR(26) UNIQUE | |
 | tenant_id | BIGINT FK→tenants | |
-| employee_id | BIGINT NULL FK→employees | |
+| employee_id | BIGINT NULL FK→employees | At most one live login per employee (below) |
+| employee_id_active | BIGINT NULL, VIRTUAL | `employee_id` while `deleted_at` is NULL, else NULL; hidden |
 | email | VARCHAR(255) | |
 | phone | VARCHAR(20) NULL | |
 | password | VARCHAR(255) | bcrypt |
@@ -96,7 +97,9 @@
 | failed_login_count | INT UNSIGNED DEFAULT 0 | |
 | email_verified_at | TIMESTAMP NULL | |
 
-**Unique:** (tenant_id, email)
+**Unique:** (tenant_id, email); `employee_id_active` (`users_live_employee_unique`, since
+2026-11-09). A deleted account's link stays, and does not block the employee's next login.
+See `BASELINE.md` §25h.
 
 ### permissions
 | Column | Type | Notes |

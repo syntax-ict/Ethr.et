@@ -4479,3 +4479,93 @@ The subquery now drops the tenant scope; the relation is already keyed on the em
 tenant-owned, and the tenant's own screens are unaffected. The lesson is the general one in
 `CLAUDE.md` §4: a `whereHas` / `whereDoesntHave` on a scoped model carries the scope into its subquery,
 so anything that can run without a tenant needs the parity test, not only the outer query.
+
+### 25h. One live login per employee — 2026-11-09
+
+A login is whose punches, payslips, salary and leave an account acts on. #670 refused a second
+login on an employee in `StoreUserRequest` and `UserProvisioningService::provision()`, but
+`users.employee_id` had no unique index. SSO and SCIM provisioning, the phone and in-person
+accounts (`provisionWithoutContact()` checks nothing itself), linking an existing account, and two
+requests racing past the same check could all still write one.
+
+**Production was not measured.** The session had no database or admin access to `www.ethr.et`, so
+whether duplicates exist there is unknown. The release therefore resolves rather than refuses:
+
+- `2026_11_09_000001_unlink_second_logins_from_employees` keeps, for each employee, the account
+  `employees.user_id` names (owner decision 2026-11-09; before #670 that column was set only when
+  empty, so it names the first login), else the oldest. The others lose only `employee_id` and
+  keep their account, role and sign-in; each unlink is an `audit_log` row,
+  `user.employee_unlinked`, in its organisation, naming the employee and the account kept. A
+  refusal would have stopped `migrate` and every later release's migration behind it on a host
+  with no shell (§25f). `SELECT * FROM audit_log WHERE action = 'user.employee_unlinked'` after the
+  deploy is the record of what it did.
+- `2026_11_09_000002_make_users_employee_id_unique` adds `employee_id_active`, VIRTUAL,
+  `CASE WHEN deleted_at IS NULL THEN employee_id ELSE NULL END`, unique as
+  `users_live_employee_unique` — the `serial_number_active` pattern (§11h), because `User`
+  soft-deletes and a plain index would let a deleted account block the employee's next login.
+  Global, not per tenant: an employee id belongs to one tenant.
+
+**Rehearsed on MariaDB 10.11.14**, the production engine, as the release runs it: `migrate:fresh`,
+roll back these two, plant duplicates, `migrate`. One employee with three live logins and one
+deleted, the record naming the second: the second kept the link, the first and third were unlinked,
+the deleted one kept its link. One with two and no `user_id`: the older kept it. Three audit rows,
+the duplicate query empty afterwards, the column `VIRTUAL GENERATED` with the expression above, a
+second login refused with SQLSTATE 23000, and a new login after a deleted one accepted. The suite's
+migration tests drop the index, which is DDL, so they run on SQLite only; this rehearsal is what
+covers the other engine.
+
+**The application had the same flaw one level up.** `StoreUserRequest::hasLogin()` and `provision()`
+counted `employees.user_id` whatever it named, and `UserController::destroy()` soft-deletes without
+clearing it, so an employee whose login was deleted could never be given another. Both now ask
+`Employee::hasLogin()`: a live account linked by either side, in the employee's tenant.
+`EmployeeLoginUniquenessTest` failed with the old check (422 where 201 was expected) and passes with
+the new one.
+
+Three existing tests gave one employee two live logins by pointing an HR account at an employee
+who already had one (`EmploymentLetterTest`, `LeaveRecallTest`, `OrgHierarchyIsolationTest`). Each
+meant "HR is this person"; each now deletes the person's own login first.
+
+### 25i. Three findings from the 2026-11-09 review — fixed 2026-11-09
+
+**Stored files kept the client's extension.** `FileStorageService::upload()` named a file
+`ULID.<getClientOriginalExtension()>`. Flysystem's MIME detector treats `text/plain` as
+inconclusive and falls back to the extension, so `x.html` with plain-text content — which
+`VerifyFileContent` and `mimes:txt` both accept — was stored as `.html` and served back from
+the signed `/api/files/...` route inline as `text/html`. Only the framework's sandbox CSP
+stood between that and script on the API origin, and whether a Plesk host keeps that header
+is unmeasured. The stored extension now comes from the detected MIME type
+(`FileStorageService::extensionFor()`, anything unlisted is `.bin`), and
+`HardenServedFiles` — global, because that route is outside the api group — answers every
+`storage.*` response `attachment` with `nosniff`, which also covers files stored before
+the change. `StoredFileTypeTest` pins both.
+
+**Kiosk tokens were plaintext and never expired.** `kiosk_sessions.token` became
+`token_hash` (SHA-256, as `api_keys.key_hash`), hashed in place by the migration so a
+terminal in service keeps its token, and each session has `expires_at`
+(`attendance.kiosk_session_days`, 90). `POST /kiosk-sessions/{id}/renew` gives another period
+and keeps the token. Assigning `token` on the model stores only the hash and keeps the
+plaintext on that instance for the one response that shows it. The token still lives in
+the terminal's `localStorage`; the expiry bounds what a copy of it is worth, and moving it
+is not done.
+
+`KioskSyncController` skipped the `KioskCheckIn` switch. It still honours the design rule
+that a punch captured while the feature was on is never discarded
+(`FEATURE-CONTROL-CENTER-DESIGN.md` §6): `authenticate` issues no offline grant while the
+feature is off, and sync refuses a punch with the feature off unless it carries a grant
+this kiosk was issued; one whose time falls outside its grant is still recorded and
+flagged, as with the feature on. **Residual, stated:** a grant issued before the switch
+still admits punches dated after it, within the offline window
+(`attendance.offline_max_age_days`); no record says when a feature went off, because the
+off can come from the plan, the platform or an override. The branch's `isMethodEnabled('kiosk')` is now
+checked for the whole batch as check-in does — `AttendanceEngine` already refused each
+punch on it, so that half changed the response, not the outcome.
+
+**Plan limits could be raced.** `PlanLimitService::withinLimit()` takes
+`Cache::lock("plan-limit:employees:{tenant}")` around the count and the create, as
+`PayrollEngine::reserve()` does; a writer that waits `LOCK_WAIT_SECONDS` without it gets a
+409. Employee create, import commit, the migration workspace commit, SCIM and SSO
+provisioning use it, and recruitment's hire takes the same lock through `serialised()`
+because it checks the cap after a replay may already have returned. The transaction must
+sit inside the lock: one still open when the lock is released hides its rows from the next
+count. One test process cannot run two requests at once, so `PlanLimitTest` pins that the
+create runs while the lock is held and that a writer without it is refused.

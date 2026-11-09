@@ -7,7 +7,6 @@ namespace App\Http\Requests\User;
 use App\Enums\UserRole;
 use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\Employee;
-use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
@@ -84,10 +83,9 @@ class StoreUserRequest extends FormRequest
         });
     }
 
-    /** Whether any account in the organisation is already this employee's login. */
+    /** Whether a live account in the organisation is already this employee's login. */
     public static function hasLogin(?Employee $employee): bool
     {
-        return $employee !== null
-            && ($employee->user_id !== null || User::query()->where('employee_id', $employee->id)->exists());
+        return $employee !== null && $employee->hasLogin();
     }
 }

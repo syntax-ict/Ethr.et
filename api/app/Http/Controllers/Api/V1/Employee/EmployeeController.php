@@ -151,8 +151,6 @@ class EmployeeController extends Controller
     {
         $this->authorize('create', Employee::class);
 
-        $planLimits->assertCanAdd(app(CurrentTenant::class)->get(), 'employees');
-
         $data = $request->validated();
 
         // Setting a salary or TIN is pay data, as on update.
@@ -184,7 +182,16 @@ class EmployeeController extends Controller
 
         // No code given: the next one in the organisation's format, so the
         // person can sign in by code and use a kiosk from the first day.
-        $employee = $numbering->create(app(CurrentTenant::class)->get(), $data);
+        // Counted and created under the organisation's seat lock, so two
+        // adds at the last free seat cannot both pass (PlanLimitService).
+        $tenant = app(CurrentTenant::class)->get();
+        $seats = $planLimits->lock($tenant, 'employees');
+        try {
+            $planLimits->assertCanAdd($tenant, 'employees');
+            $employee = $numbering->create($tenant, $data);
+        } finally {
+            $seats->release();
+        }
 
         $loginInvited = false;
         if ($createLogin && ! empty($employee->email)) {

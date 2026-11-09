@@ -66,19 +66,23 @@ class EmployeeImportController extends Controller
         // Enforced on the whole batch up front, not per row: a partial commit
         // that silently stops mid-import would leave the tenant guessing which
         // rows landed, and the importer's row-skip logic (bad code lookups,
-        // duplicates) is unrelated to plan capacity.
-        $planLimits->assertCanAdd(
-            app(CurrentTenant::class)->get(),
-            'employees',
-            count($request->validated('rows')),
-        );
+        // duplicates) is unrelated to plan capacity. Counted and committed
+        // under the organisation's seat lock: two commits sent together each
+        // counted the same headcount and both passed (review 2026-11-09).
+        $tenant = app(CurrentTenant::class)->get();
+        $seats = $planLimits->lock($tenant, 'employees');
+        try {
+            $planLimits->assertCanAdd($tenant, 'employees', count($rows));
 
-        $result = $this->importer->commit(
-            $request->validated('import_key'),
-            $request->validated('rows'),
-            (bool) $request->boolean('create_logins'),
-            $request->user(),
-        );
+            $result = $this->importer->commit(
+                $request->validated('import_key'),
+                $rows,
+                (bool) $request->boolean('create_logins'),
+                $request->user(),
+            );
+        } finally {
+            $seats->release();
+        }
 
         AuditLog::record('employee.import.committed', null, [
             'import_key' => $request->validated('import_key'),

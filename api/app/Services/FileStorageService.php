@@ -77,7 +77,7 @@ class FileStorageService
 
         $content = $file->getContent();
         $detectedMime = $file->getMimeType();
-        $extension = $file->getClientOriginalExtension();
+        $extension = self::extensionFor($detectedMime);
         $variants = [];
 
         if (in_array($detectedMime, self::IMAGE_MIME_TYPES, true)) {
@@ -111,6 +111,36 @@ class FileStorageService
             'size' => strlen($content),
             'variants' => $variants,
         ];
+    }
+
+    /**
+     * The extension a stored file is named with, for each type an upload may
+     * be. Anything else is stored as `.bin`, which serves as a download of
+     * unknown bytes.
+     */
+    private const STORED_EXTENSIONS = [
+        'application/pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'text/plain' => 'txt',
+        'text/csv' => 'csv',
+    ];
+
+    /**
+     * The stored extension, from the type the content was detected as and
+     * never from the name the client sent. The signed file route takes the
+     * served Content-Type from the extension whenever the content alone is
+     * inconclusive, which plain text always is: `x.html` declared and
+     * detected as `text/plain` was kept as `ULID.html` and served back as
+     * `text/html` (review 2026-11-09).
+     */
+    public static function extensionFor(?string $detectedMime): string
+    {
+        return self::STORED_EXTENSIONS[strtolower((string) $detectedMime)] ?? 'bin';
     }
 
     /** Longest edge of a stored organisation logo; ample for a header or a panel. */

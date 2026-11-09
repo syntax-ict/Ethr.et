@@ -1402,6 +1402,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kiosk-sessions/{publicId}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Another full period for a kiosk session, keeping its token, so the
+         *     terminal goes on working without being set up again. An expired session
+         *     can be renewed; until it is, its terminal is refused as an invalid token
+         */
+        post: operations["kioskSession.renew"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -10167,7 +10188,8 @@ export interface components {
             };
             device_identifier: string | null;
             status: string;
-            token?: string;
+            token?: string | null;
+            expires_at: string | null;
             last_activity_at: string | null;
             activated_at: string | null;
             deactivated_at: string | null;
@@ -13881,17 +13903,12 @@ export interface operations {
                                 suffix: string;
                             };
                         };
-                        /**
-                         * @description For punching through a power cut or a dropped connection: the
-                         *     key the terminal seals offline punches with, and the grant that
-                         *     bounds its clock (KioskOfflineSeal). Renewed on every start.
-                         */
                         offline: {
                             public_key: string;
                             grant: string;
                             issued_at: string;
                             server_time: string;
-                        };
+                        } | null;
                     };
                 };
             };
@@ -14177,6 +14194,11 @@ export interface operations {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
+                                detail: "Kiosk check-in is switched off, and this offline punch cannot be shown to have been made before it was. Ask HR to enter it.";
+                            } | {
+                                /** @constant */
+                                status: "error";
+                                /** @constant */
                                 detail: "This offline punch could not be read. Punch again.";
                             };
                         }[];
@@ -14197,6 +14219,23 @@ export interface operations {
                         status: 401;
                         /** @constant */
                         detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/forbidden";
+                        /** @constant */
+                        title: "Method Disabled";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "This attendance method is not enabled for your organization.";
                     };
                 };
             };
@@ -17333,6 +17372,35 @@ export interface operations {
                 content: {
                     "application/json": {
                         token: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "kioskSession.renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `KioskSessionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskSessionResource"] & {
+                        branch: {
+                            public_id: string;
+                            name: string;
+                        };
                     };
                 };
             };

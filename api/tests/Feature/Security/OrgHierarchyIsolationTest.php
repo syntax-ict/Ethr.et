@@ -172,10 +172,14 @@ describe('branch-wide dashboards', function () {
         $tenant = createTenant();
         $org = governmentOrg($tenant);
 
-        $this->actingAs(createScopedUser($tenant, $org['headA']->id, 'branch', ['dashboard.regional']));
+        $branchScoped = createScopedUser($tenant, $org['headA']->id, 'branch', ['dashboard.regional']);
+        $this->actingAs($branchScoped);
         $this->getJson('/api/v1/dashboard/executive')->assertOk();
         $this->getJson('/api/v1/analytics/departments')->assertForbidden();
 
+        // The same person with an executive role instead: one live login each.
+        $branchScoped->delete();
+        $this->app['auth']->forgetGuards();
         $this->actingAs(createUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $org['headA']->id], $tenant));
         $this->getJson('/api/v1/dashboard/executive')->assertOk();
         $this->getJson('/api/v1/analytics/departments')->assertOk();
