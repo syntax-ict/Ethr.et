@@ -46,8 +46,10 @@ function crossTenantExemptParams(): array
         'owner', 'variant', 'story', 'size', 'slot', 'kind', 'version',
         // The public lookup of an organisation by its own identifier.
         'publicId', 'subdomain',
-        // Global reference data.
-        'slug', 'schedule', 'which',
+        // Global reference data. `code` is a statutory parameter's code (a
+        // law, the same for everyone); resetting it acts on the caller's own
+        // organisation only.
+        'slug', 'schedule', 'which', 'code',
         // Caller-supplied keys and ids that name no fixture.
         'key', 'file', 'letter', 'export',
         // Keyed by the caller's own organisation and nothing else: a template

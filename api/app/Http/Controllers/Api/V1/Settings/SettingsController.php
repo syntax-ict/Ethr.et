@@ -110,6 +110,10 @@ class SettingsController extends Controller
                 'tax_center' => StatutorySchedules::setting($tenant, 'tax_center'),
                 'pension_scheme' => $rules->string('pension.default_scheme'),
                 'pension_schemes' => array_values(array_map(strval(...), $rules->list('pension.schemes'))),
+                'pension_agency' => app(StatutorySchedules::class)->layout(StatutorySchedules::PENSION, $rules->string('pension.default_scheme'), Carbon::today())['agency'],
+                'pension_registration_number' => StatutorySchedules::setting($tenant, 'pension_registration_number'),
+                'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
+                'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),

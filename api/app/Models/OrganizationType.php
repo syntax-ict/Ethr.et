@@ -65,6 +65,13 @@ class OrganizationType extends Model
     public const GROUPS = ['private', 'non_profit', 'public', 'international'];
 
     /**
+     * Types whose pension coverage the accountant has not yet confirmed
+     * (ACCOUNTANT-SIGN-OFF.md row 11, research P9): each is paid as its
+     * parent meanwhile, and its organisations see an advisory saying so.
+     */
+    public const COVERAGE_UNCONFIRMED = ['sole_proprietor', 'cooperative', 'religious_organization', 'international_organization', 'diplomatic_mission'];
+
+    /**
      * The codes a type's rules resolve through, most specific first: the
      * type, then its parent if it has one. Empty for no type. Callers memoize
      * (App\Services\Tenancy\ProfileContext); this reads the row each time.

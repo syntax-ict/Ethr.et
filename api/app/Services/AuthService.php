@@ -19,6 +19,7 @@ use App\Rules\PasswordPolicy;
 use App\Services\Auth\DeviceFingerprint;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\TrustedDeviceService;
+use App\Services\Tenancy\OrganisationProfile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,16 +49,16 @@ class AuthService
                 'name' => $data['organization_name'],
                 'subdomain' => $data['subdomain'],
                 'type' => $data['organization_type'] ?? null,
-                // The kind of organisation in law, which scopes the statutory
-                // payroll rules, is inferred from the industry picked here and
-                // left for the tenant admin to confirm in Settings, rather than
-                // asked as a second question during sign-up.
-                'organization_type' => match ($data['organization_type'] ?? null) {
+                // The kind of organisation in law scopes the statutory payroll
+                // rules. Asked at sign-up (`organization_kind`); a client that
+                // does not ask gets it inferred from the industry, left for the
+                // tenant admin to confirm in Settings.
+                'organization_type' => $data['organization_kind'] ?? match ($data['organization_type'] ?? null) {
                     'government' => 'government',
                     'ngo' => 'ngo',
                     default => 'private',
                 },
-                'organization_type_needs_review' => true,
+                'organization_type_needs_review' => ($data['organization_kind'] ?? null) === null,
                 'status' => TenantStatus::TRIAL,
                 'trial_ends_at' => now()->addMonths(6),
             ]);
@@ -99,6 +100,10 @@ class AuthService
                     'current_period_end' => $tenant->trial_ends_at,
                 ]);
             }
+
+            // Its profile from today: the type above, no sector until the
+            // configuration step names its industry.
+            app(OrganisationProfile::class)->assign($tenant, $tenant->organization_type, null, now(), $user->id);
 
             AuditLog::record('tenant.registered', $tenant, [
                 'admin_email' => $user->email,

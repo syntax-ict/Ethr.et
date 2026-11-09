@@ -32,4 +32,5 @@ return [
     'reconciliation_range' => 'Reconcile at most 92 days at a time.',
     'tax_ladder_locked' => 'Income tax follows :reference, and an organisation cannot change it. The law\'s ladder is applied to every payroll.',
     'pension_rule_locked' => 'Pension contributions follow :reference, and an organisation cannot change them. The law\'s rates are applied to every payroll.',
+    'statutory_rule_not_resettable' => 'This rule is the law\'s, or one the organisation does not set here, so there is nothing to reset.',
 ];

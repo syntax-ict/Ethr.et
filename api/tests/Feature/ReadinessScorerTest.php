@@ -50,6 +50,10 @@ describe('ReadinessScorer', function () {
         Shift::factory()->create(['tenant_id' => $tenant->id]);
         LeaveType::factory()->create(['tenant_id' => $tenant->id]);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $dept->id]);
+        // The employer's own payroll details, which the first-payroll checks
+        // ask for (2026-11-09).
+        $tenant->update(['settings' => [...$tenant->settings, 'employer_tin' => '0012345678', 'tax_center' => 'Bole',
+            'pension_registration_number' => 'P-1', 'payout_method' => 'cash']]);
 
         $report = scorer()->score($tenant->id);
 

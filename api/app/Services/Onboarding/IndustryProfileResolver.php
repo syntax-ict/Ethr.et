@@ -85,7 +85,7 @@ final class IndustryProfileResolver
         $this->applyWorkforceProfile($sections, $profile, $profileChosen);
         $this->applyPolicyProfile($sections, $policy, $policyChosen, $base, $overrides);
         $this->applySettings($sections, $base, $overrides, $signals);
-        $this->applyProfileSettings($sections, $profile, $policy);
+        $this->applyProfileSettings($sections, $profile);
 
         $review = array_values(array_unique([...$policy['review'], ...$profile['review']]));
 
@@ -184,27 +184,29 @@ final class IndustryProfileResolver
     }
 
     /**
-     * The settings the runtime actually reads. Templates have always carried a
-     * `payroll` namespace (`fiscal_year_start: 'hamle'`, pension rates, …) that
-     * nothing consumes; the payroll engine reads `fiscal_year_start_month` and
-     * `pagumen_proration_strategy`, and the leave and payroll day counts read
-     * `working_days`. Those are set here, from the profiles, and the legacy
-     * `payroll.fiscal_year_start` is aligned so the two cannot disagree.
+     * The settings the runtime reads that come from the profiles: the working
+     * week. The fiscal year's first month and Pagume proration are not set
+     * here: they are statutory parameters resolved from the organisation's
+     * type (docs/payroll/STATUTORY-PARAMETERS.md), and writing them here made
+     * them the organisation's own override of its type's defaults. The
+     * template's unread `payroll` copies of the same two values are dropped
+     * so no second copy is stored.
      *
      * @param  array<string, array{source: ConfigurationSource, items: mixed}>  $sections
      * @param  array{working_days: list<int>}  $profile
-     * @param  array{fiscal_year_start_month: int}  $policy
      */
-    private function applyProfileSettings(array &$sections, array $profile, array $policy): void
+    private function applyProfileSettings(array &$sections, array $profile): void
     {
         $settings = isset($sections['settings']) && is_array($sections['settings']['items']) ? $sections['settings']['items'] : [];
 
-        $settings['fiscal_year_start_month'] = $policy['fiscal_year_start_month'];
-        $settings['pagumen_proration_strategy'] = 'full_month';
         $settings['working_days'] = $profile['working_days'];
+        unset($settings['fiscal_year_start_month'], $settings['pagumen_proration_strategy']);
 
         if (isset($settings['payroll']) && is_array($settings['payroll'])) {
-            $settings['payroll']['fiscal_year_start'] = $policy['fiscal_year_start_month'] === 11 ? 'hamle' : 'meskerem';
+            unset($settings['payroll']['fiscal_year_start'], $settings['payroll']['pagumen_proration']);
+            if ($settings['payroll'] === []) {
+                unset($settings['payroll']);
+            }
         }
 
         $sections['settings'] = [

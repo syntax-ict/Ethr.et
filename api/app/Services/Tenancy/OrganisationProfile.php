@@ -30,15 +30,15 @@ final class OrganisationProfile
     ) {}
 
     /**
-     * Sets the organisation's type (and keeps its sector) from the settings
-     * page. Before any payroll is approved this is a correction: the type is
+     * Sets the organisation's type, and its sector when one is given (else
+     * keeps the one it has), from the settings page or onboarding. Before any payroll is approved this is a correction: the type is
      * what the organisation always was, so its history is replaced and every
      * period resolves to it. Once one is approved, it applies from today and
      * earlier periods keep the type they were paid under.
      */
-    public function set(Tenant $tenant, string $organizationType, ?int $by = null): TenantProfileAssignment
+    public function set(Tenant $tenant, string $organizationType, ?int $by = null, ?string $sector = null): TenantProfileAssignment
     {
-        $sector = $this->context->for($tenant->id, Carbon::today())['sector'];
+        $sector ??= $this->context->for($tenant->id, Carbon::today())['sector'];
 
         $approved = PayrollRun::query()
             ->withoutGlobalScope('tenant')

@@ -67,7 +67,7 @@ final class NextStepsService
             fn (NextStep $step): bool => ! $this->isAway($step, $away->get($step->id->value), $now),
         ));
 
-        return new NextStepsResult($visible, $setup->summary($user, $tenant));
+        return new NextStepsResult($visible, $setup->summary($user, $tenant), $setup->payroll($user, $tenant));
     }
 
     /**

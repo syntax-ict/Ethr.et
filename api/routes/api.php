@@ -125,6 +125,7 @@ use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
+use App\Http\Controllers\Api\V1\Payroll\StatutoryRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
@@ -749,6 +750,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/pension-rules', [PensionRuleController::class, 'store']);
         Route::get('/overtime-rates', [OvertimeRateController::class, 'show']);
         Route::put('/overtime-rates', [OvertimeRateController::class, 'update']);
+        Route::get('/statutory-rules', [StatutoryRuleController::class, 'index']);
+        Route::delete('/statutory-rules/{code}', [StatutoryRuleController::class, 'destroy'])->where('code', '[a-z0-9_.]+');
         Route::apiResource('rules', PayrollRuleController::class)->parameters(['rules' => 'payrollRule']);
     });
 

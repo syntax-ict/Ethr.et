@@ -11,6 +11,11 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-09, first-payroll checklist: four more in `ReadinessScorer`,
+ * 202/80. Whether a tax ladder or pension rule the organisation saved before
+ * they were locked is in force, whether one of its leave types grants less
+ * than the law, and whether it has linked a biometric device; each states
+ * `tenant_id` from the scored tenant, as the checks beside them do.)
  * (2026-11-09, layered settings resolver: six more, two new files, 198/80.
  * `Services/Tenancy/ProfileContext` reads one organisation's dated profile
  * assignments, stating `tenant_id` from the organisation in hand, from
@@ -384,7 +389,7 @@ return [
     'Services/Leave/SickLeaveTiers.php' => 2,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
-    'Services/Onboarding/ReadinessScorer.php' => 11,
+    'Services/Onboarding/ReadinessScorer.php' => 15,
     'Services/Payroll/AllowanceService.php' => 1,
     'Services/Payroll/OvertimeCalculator.php' => 1,
     'Services/Payroll/PayrollEngine.php' => 4,

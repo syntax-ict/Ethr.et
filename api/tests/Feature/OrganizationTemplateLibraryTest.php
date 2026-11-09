@@ -21,6 +21,8 @@ use App\Services\Onboarding\IndustryProfileResolver;
 use App\Services\Onboarding\LeaveTypeCatalog;
 use App\Services\Onboarding\PolicyProfileCatalog;
 use App\Services\Onboarding\WorkforceProfileCatalog;
+use App\Services\Payroll\StatutoryRules;
+use Carbon\Carbon;
 use Database\Seeders\OrganizationTemplateSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -151,7 +153,9 @@ describe('composing a plan', function () {
         expect($plan['plan']['leave_types'][0]['name'])->toBe('Annual Leave');
         expect(array_column($plan['plan']['allowances'], 'name'))->toContain('Transport allowance', 'Hazard allowance');
         expect($plan['plan']['settings']['working_days'])->toBe([1, 2, 3, 4, 5, 6, 7]);
-        expect($plan['plan']['settings']['fiscal_year_start_month'])->toBe(1);
+        // The fiscal year and Pagume proration are the organisation type's
+        // statutory parameters, not a copy in the plan (2026-11-09, D8).
+        expect($plan['plan']['settings'])->not->toHaveKeys(['fiscal_year_start_month', 'pagumen_proration_strategy']);
         expect(array_column($plan['review'], 'code'))->toContain('leave_private', 'allowances_inactive', 'rotation_crews');
         expect($plan['sections']['shifts']['source'])->toBe('industry_default');
         expect($plan['catalog_version'])->toBe(IndustryCatalog::VERSION);
@@ -167,8 +171,8 @@ describe('composing a plan', function () {
         expect($plan['plan'])->not->toHaveKey('rotations');
         expect($plan['sections']['shifts']['source'])->toBe('explicit');
         expect($plan['sections']['leave_types']['source'])->toBe('explicit');
-        expect($plan['plan']['settings']['fiscal_year_start_month'])->toBe(11);
-        expect($plan['plan']['settings']['payroll']['fiscal_year_start'])->toBe('hamle');
+        expect($plan['plan']['settings'])->not->toHaveKey('fiscal_year_start_month');
+        expect($plan['plan']['settings']['payroll'] ?? [])->not->toHaveKey('fiscal_year_start');
         expect(array_column($plan['review'], 'code'))->toContain('leave_public', 'payroll_public');
     });
 
@@ -247,7 +251,9 @@ describe('applying a composed plan', function () {
 
         $this->tenant->refresh();
         expect($this->tenant->settings['working_days'])->toBe([1, 2, 3, 4, 5, 6, 7]);
-        expect($this->tenant->settings['fiscal_year_start_month'])->toBe(1);
+        expect($this->tenant->settings)->not->toHaveKey('fiscal_year_start_month');
+        expect(app(StatutoryRules::class)->for($this->tenant, Carbon::today())->describe('fiscal_year.start_month'))
+            ->toMatchArray(['value' => 1, 'layer' => 'baseline']);
         expect($this->tenant->settings['configuration_profile'])->toMatchArray([
             'industry' => 'hospital',
             'workforce_profile' => 'continuous_24_7',

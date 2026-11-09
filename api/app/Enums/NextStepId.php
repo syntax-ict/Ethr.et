@@ -24,6 +24,7 @@ enum NextStepId: string
     case SetupAdminPresent = 'setup_admin_present';
     case SetupAdminActive = 'setup_admin_active';
     case OwnerPhone = 'owner_phone';
+    case StatutoryOverride = 'statutory_override';
 
     // Warnings: work waiting for a decision, or setup that is genuinely unfinished.
     case Integrity = 'integrity';
@@ -40,6 +41,12 @@ enum NextStepId: string
     case SetupEmployees = 'setup_employees';
     case SetupEmployeeDepartments = 'setup_employee_departments';
     case SetupAttendanceSource = 'setup_attendance_source';
+    case SetupEmployerTin = 'setup_employer_tin';
+    case SetupTaxCenter = 'setup_tax_center';
+    case SetupPensionRegistration = 'setup_pension_registration';
+    case SetupPayoutMethod = 'setup_payout_method';
+    case SetupEmployeeSalaries = 'setup_employee_salaries';
+    case LeaveBelowLaw = 'leave_below_law';
     case RecordsMissingTin = 'records_missing_tin';
     case RecordsMissingBank = 'records_missing_bank';
     case NationalityReview = 'nationality_review';
@@ -50,6 +57,8 @@ enum NextStepId: string
     case RecordsMissingPhone = 'records_missing_phone';
     case UnmatchedBadges = 'unmatched_badges';
     case TeamAbsent = 'team_absent';
+    case SetupDeviceLinked = 'setup_device_linked';
+    case ProfileLegalReview = 'profile_legal_review';
 
     public function group(): NextStepGroup
     {
@@ -75,7 +84,16 @@ enum NextStepId: string
             self::SetupAttendanceSource,
             self::SetupAdminPresent,
             self::SetupAdminActive,
-            self::OwnerPhone => NextStepGroup::Setup,
+            self::OwnerPhone,
+            self::StatutoryOverride,
+            self::SetupEmployerTin,
+            self::SetupTaxCenter,
+            self::SetupPensionRegistration,
+            self::SetupPayoutMethod,
+            self::SetupEmployeeSalaries,
+            self::LeaveBelowLaw,
+            self::SetupDeviceLinked,
+            self::ProfileLegalReview => NextStepGroup::Setup,
             self::PayrollFailed,
             self::PayrollApprove,
             self::Integrity,
@@ -91,12 +109,15 @@ enum NextStepId: string
             self::PayrollFailed,
             self::SetupAdminPresent,
             self::SetupAdminActive,
-            self::OwnerPhone => NextStepSeverity::Blocker,
+            self::OwnerPhone,
+            self::StatutoryOverride => NextStepSeverity::Blocker,
             self::CompleteProfile,
             self::RecordsMissingEmergencyContact,
             self::RecordsMissingPhone,
             self::UnmatchedBadges,
-            self::TeamAbsent => NextStepSeverity::Info,
+            self::TeamAbsent,
+            self::SetupDeviceLinked,
+            self::ProfileLegalReview => NextStepSeverity::Info,
             default => NextStepSeverity::Warning,
         };
     }
@@ -128,6 +149,14 @@ enum NextStepId: string
             'employees_have_department' => self::SetupEmployeeDepartments,
             'attendance_source_configured' => self::SetupAttendanceSource,
             'active_admin' => self::SetupAdminActive,
+            'employer_tin_set' => self::SetupEmployerTin,
+            'tax_center_set' => self::SetupTaxCenter,
+            'pension_registration_set' => self::SetupPensionRegistration,
+            'payout_method_set' => self::SetupPayoutMethod,
+            'employees_have_salary' => self::SetupEmployeeSalaries,
+            'statutory_law_followed' => self::StatutoryOverride,
+            'leave_types_meet_law' => self::LeaveBelowLaw,
+            'device_linked' => self::SetupDeviceLinked,
             default => null,
         };
     }
