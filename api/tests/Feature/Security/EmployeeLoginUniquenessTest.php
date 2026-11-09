@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
@@ -127,6 +128,66 @@ test('the generated column is not part of a user as serialised', function () {
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
     expect(loginFor($employee)->fresh()?->toArray())->not->toHaveKey('employee_id_active');
+});
+
+// ── The request check, which the index backs ──
+
+function inviteLogin(Tenant $tenant, Employee $employee, string $email): Illuminate\Testing\TestResponse
+{
+    return test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/users", [
+        'email' => $email,
+        'role' => UserRole::EMPLOYEE->value,
+        'employee_id' => $employee->public_id,
+        'send_activation' => false,
+    ]);
+}
+
+test('a second login on an employee is refused with a validation error, not a 500', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    inviteLogin($tenant, $employee, 'first@example.test')->assertCreated();
+    inviteLogin($tenant, $employee, 'second@example.test')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['employee_id']);
+
+    expect(User::where('employee_id', $employee->id)->count())->toBe(1);
+});
+
+test('a login named only by the employee record still counts', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    // employees.user_id set, users.employee_id not: either side of the link
+    // makes the account this employee's login.
+    $named = User::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => null]);
+    $employee->forceFill(['user_id' => $named->id])->save();
+
+    inviteLogin($tenant, $employee, 'second@example.test')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['employee_id']);
+});
+
+test('an employee whose login was deleted can be given a new one', function () {
+    $tenant = createTenant();
+    test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    inviteLogin($tenant, $employee, 'first@example.test')->assertCreated();
+    $first = User::where('employee_id', $employee->id)->sole();
+    $first->delete();
+
+    // employees.user_id still names the deleted account. Read alone, it
+    // refused this employee a login for good.
+    expect($employee->refresh()->user_id)->toBe($first->id);
+
+    inviteLogin($tenant, $employee, 'second@example.test')->assertCreated();
+
+    $second = User::where('employee_id', $employee->id)->sole();
+    expect($second->id)->not->toBe($first->id)
+        ->and($employee->refresh()->user_id)->toBe($second->id);
 });
 
 // ── The data migration, and the index migration after it ──
