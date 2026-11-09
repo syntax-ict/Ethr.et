@@ -4475,3 +4475,48 @@ The subquery now drops the tenant scope; the relation is already keyed on the em
 tenant-owned, and the tenant's own screens are unaffected. The lesson is the general one in
 `CLAUDE.md` §4: a `whereHas` / `whereDoesntHave` on a scoped model carries the scope into its subquery,
 so anything that can run without a tenant needs the parity test, not only the outer query.
+
+### 25h. Three findings from the 2026-11-09 review — fixed 2026-11-09
+
+**Stored files kept the client's extension.** `FileStorageService::upload()` named a file
+`ULID.<getClientOriginalExtension()>`. Flysystem's MIME detector treats `text/plain` as
+inconclusive and falls back to the extension, so `x.html` with plain-text content — which
+`VerifyFileContent` and `mimes:txt` both accept — was stored as `.html` and served back from
+the signed `/api/files/...` route inline as `text/html`. Only the framework's sandbox CSP
+stood between that and script on the API origin, and whether a Plesk host keeps that header
+is unmeasured. The stored extension now comes from the detected MIME type
+(`FileStorageService::extensionFor()`, anything unlisted is `.bin`), and
+`HardenServedFiles` — global, because that route is outside the api group — answers every
+`storage.*` response `attachment` with `nosniff`, which also covers files stored before
+the change. `StoredFileTypeTest` pins both.
+
+**Kiosk tokens were plaintext and never expired.** `kiosk_sessions.token` became
+`token_hash` (SHA-256, as `api_keys.key_hash`), hashed in place by the migration so a
+terminal in service keeps its token, and each session has `expires_at`
+(`attendance.kiosk_session_days`, 90). `POST /kiosk-sessions/{id}/renew` gives another period
+and keeps the token. Assigning `token` on the model stores only the hash and keeps the
+plaintext on that instance for the one response that shows it. The token still lives in
+the terminal's `localStorage`; the expiry bounds what a copy of it is worth, and moving it
+is not done.
+
+`KioskSyncController` skipped the `KioskCheckIn` switch. It still honours the design rule
+that a punch captured while the feature was on is never discarded
+(`FEATURE-CONTROL-CENTER-DESIGN.md` §6): `authenticate` issues no offline grant while the
+feature is off, and sync refuses a punch with the feature off unless it carries a grant
+this kiosk was issued; one whose time falls outside its grant is still recorded and
+flagged, as with the feature on. **Residual, stated:** a grant issued before the switch
+still admits punches dated after it, within the offline window
+(`attendance.offline_max_age_days`); no record says when a feature went off, because the
+off can come from the plan, the platform or an override. The branch's `isMethodEnabled('kiosk')` is now
+checked for the whole batch as check-in does — `AttendanceEngine` already refused each
+punch on it, so that half changed the response, not the outcome.
+
+**Plan limits could be raced.** `PlanLimitService::withinLimit()` takes
+`Cache::lock("plan-limit:employees:{tenant}")` around the count and the create, as
+`PayrollEngine::reserve()` does; a writer that waits `LOCK_WAIT_SECONDS` without it gets a
+409. Employee create, import commit, the migration workspace commit, SCIM and SSO
+provisioning use it, and recruitment's hire takes the same lock through `serialised()`
+because it checks the cap after a replay may already have returned. The transaction must
+sit inside the lock: one still open when the lock is released hides its rows from the next
+count. One test process cannot run two requests at once, so `PlanLimitTest` pins that the
+create runs while the lock is held and that a writer without it is refused.
