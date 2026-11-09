@@ -18,6 +18,11 @@ pay fields on one's own record (03, ACC-020 and ACC-022), employee code sign-in 
 activation (03, K-44), contract salaries in payroll (07, PAY-020) and the public vacancy page
 (08, VAC-004).
 
+**Since the third edition (2026-11-09).** Every stored file is now named by its detected type and
+served as a download (#679: DOC-001, DOC-011, DOC-012), and two writers at the last free seat of a
+plan are taken one at a time (#679: IMP-E-017). One login per employee (#670, #678) is file 03's
+ACC-031.
+
 **Extra test data for this file** (add it with the rest of [01, section 6](01-TEST-PLAN.md#6-test-data)):
 
 | Item | Used by |
@@ -129,6 +134,7 @@ count). Plan the cases so that a sixth call is the rate-limit case itself.
 | IMP-E-014 | P2 | X | Import with logins | Import 3 rows with team addresses and 1 with no email or phone, "create logins" ticked | The hint reads "People with an email get an invitation, sent a few a minute. People without one are activated in person. People already in ETHR are not invited again." The commit returns in seconds with `invitations_queued: 3`, `in_person: 1`; the result shows the INV-002 progress card and "1 person has no email. Activate them in person from their employee page." The 3 emails arrive after the next drain (within 10 minutes). Counts toward the 5 an hour |
 | IMP-E-015 | P2 | W | Ethiopian dates in the file (#624, #558) | On the upload step read "Dates in the file are in"; choose "Ethiopian (E.C.)" and preview a 1-row file with `hire_date` `15/04/2016`; preview the same file with "Gregorian (G.C.)" (the default) | Ethiopian: the preview shows the hire date as 25 December 2023 (Tahsas 15, 2016), and that is what a commit stores. Gregorian: 15 April 2016. The column hint reads "2024-03-15 or 15/03/2024, day first, in the calendar chosen above". Each preview counts toward the 5 an hour |
 | IMP-E-016 | P2 | R | Pay data in a file needs pay rights (#624, #560) | As the "QA Pay-less HR" login: preview and commit a 1-row file that sets `salary` (or `tin`); then the same row without either | With salary or TIN: the commit is refused with 403 and nobody is created. Without them: created. Before #560 the file wrote salary and TIN with only the create permission |
+| IMP-E-017 | P2 | W | Two commits at the last free seats (#679) | QA Isolation on Starter (10 employees) holding 9. Preview two different 1-row files, then commit both at the same moment (two tabs, or `curl … & curl …`, with different import keys). Afterwards delete what was created | One commit creates its person; the other: 403 "You have reached the employee limit for your plan.", nobody created. QA Isolation holds 10, never 11. A writer that waits more than 20 seconds for the other gets 409 "Another change to your headcount is being saved. Try again in a moment." instead. The same seat lock covers Add employee, SCIM and SSO sign-up, the device migration and a hire (REC-009). Two previews and two commits count toward the 5 an hour |
 
 ## 5. Employee lifecycle
 
@@ -166,7 +172,7 @@ expires, so never paste one into a defect or log (01, section 9, rule 3).
 
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
-| DOC-001 | P1 | W | Upload | HR uploads a 1 MB PDF as `contract` with an expiry date next year; views it | Saved; view opens the file through a link under `/api/files/` valid 15 minutes, and the file opens (200), never a 403; each view is audited (`employee.document.viewed`) |
+| DOC-001 | P1 | W | Upload | HR uploads a 1 MB PDF as `contract` with an expiry date next year; views it | Saved; view opens a link under `/api/files/` valid 15 minutes, and the file is saved as a download (200, `Content-Disposition: attachment`, since #679), never a 403 and never shown as a page in the tab; each view is audited (`employee.document.viewed`) |
 | DOC-002 | P1 | W | Types and size | Upload `.exe` renamed `.pdf`; a 2.5 MB PDF on production; a `.png`, `.docx`, `.txt` | The disguised file refused (contents checked, not the name). The 2.5 MB file refused with the limit named (host limit, 2 MB, K-16). Allowed types: pdf, jpg, jpeg, png, webp, doc, docx, txt up to 10 MB where the host allows |
 | DOC-003 | P1 | R | Sensitive types | Upload a `medical` and an `id_copy`; SUP opens the employee | Those two are hidden from users without update rights, and opening them directly gives 404 |
 | DOC-004 | P2 | R | Expiry watchlist | `GET /employees/documents/expiring?days=30` | Includes documents already expired; days clamped to 1 to 365; `per_page` up to 100 |
@@ -176,7 +182,8 @@ expires, so never paste one into a defect or log (01, section 9, rule 3).
 | DOC-008 | P3 | W | Emergency contacts | Add one with priority 1; priority 11 | Saved; then refused (1 to 10) |
 | DOC-009 | P1 | R | Child records belong to the employee | Through the API, open EMP's bank detail id under EMP2's URL (`/employees/{EMP2}/bank-details/{EMP's id}`) | 404, never EMP's data |
 | DOC-010 | P3 | W | Upload rate | More than 30 uploads in a minute | 429 |
-| DOC-011 | P2 | R | A signed link and its limits (#625, #612) | From DOC-001, copy the document's link (developer tools, network tab); open it in a private window; change one character of its `signature` and open it; open the original again after 20 minutes. On the Employees list, check a photo and its thumbnail. At most three altered requests in ten minutes (firewall, 01 section 9) | The path starts `/api/files/`. Private window: the file opens without signing in, while the link is valid. Altered signature: 404. After 20 minutes: 404. Photos and thumbnails load; none answers 403 (I-06 in the A-Z review was every one refused on production before #612) |
+| DOC-011 | P2 | R | A signed link and its limits (#625, #612) | From DOC-001, copy the document's link (developer tools, network tab); open it in a private window; change one character of its `signature` and open it; open the original again after 20 minutes. On the Employees list, check a photo and its thumbnail. At most three altered requests in ten minutes (firewall, 01 section 9) | The path starts `/api/files/`. Private window: the file downloads without signing in, while the link is valid (as an attachment, DOC-012). Altered signature: 404. After 20 minutes: 404. Photos and thumbnails load; none answers 403 (I-06 in the A-Z review was every one refused on production before #612) |
+| DOC-012 | P1 | W | A stored file keeps its real type, and downloads (#679) | Save a plain-text file containing only `QA plain text, not a page` as `qa-note.html`; HR uploads it to a `QA-` employee as a document of an allowed type (it passes as `.txt` content). View it with the network tab open; `curl -sI` the link. Then do the same for the DOC-001 PDF, a document uploaded before the release, and a profile photo's link | The upload is accepted (plain text) but stored as `<id>.txt`, never `.html`: the link's response is `Content-Type: text/plain`, `Content-Disposition: attachment; filename=…txt`, `X-Content-Type-Options: nosniff`, and the browser saves it, never renders it. Every other stored file answers `attachment` and `nosniff` too, including one stored before the release; photos and thumbnails still show in the page (an `<img>` ignores `attachment`). A file whose type is not on the list is stored as `.bin`. Before #679 the name the browser sent decided the extension, so this file was served back as `text/html` on the API's address |
 
 ## 7. Self-service profile
 
