@@ -8,8 +8,10 @@ use App\Enums\UserRole;
 use App\Events\AttendanceRecorded;
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
+use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
+use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
@@ -174,6 +176,47 @@ test('a check-out keeps where it was made', function () {
     expect($out->record->fresh()->metadata)
         ->toHaveKey('checkout_latitude', 9.03)
         ->toHaveKey('checkout_longitude', 38.7525);
+});
+
+/** A placed branch, a phone check-in inside it, a check-out 2.2 km away. */
+function outsideCheckOut(bool $required): AttendanceRecord
+{
+    [$tenant, $employee] = reviewEmployee('08:00', '17:00', ['geofence_required' => $required]);
+    $branch = Branch::factory()->create([
+        'tenant_id' => $tenant->id, 'latitude' => 9.0108, 'longitude' => 38.7613, 'geofence_radius_meters' => 100,
+    ]);
+    $employee->update(['branch_id' => $branch->id]);
+
+    $at = fn (string $type, string $utc, float $lat) => app(AttendanceEngine::class)->record(new AttendanceInput(
+        employeeId: $employee->id,
+        tenantId: $tenant->id,
+        source: AttendanceSource::MOBILE,
+        type: $type,
+        idempotencyKey: 'rv-'.uniqid('', true),
+        latitude: $lat,
+        longitude: 38.7613,
+        occurredAt: Carbon::parse($utc, 'UTC')->toIso8601String(),
+    ));
+
+    $at('check_in', '2026-11-02 05:00:00', 9.0108);
+
+    return $at('check_out', '2026-11-02 19:00:00', 9.0308)->record->fresh();
+}
+
+test('a check-out outside a required geofence is a serious finding, so payroll lists it', function () {
+    $record = outsideCheckOut(required: true);
+
+    $flag = AttendanceIntegrityFlag::query()->where('attendance_record_id', $record->id)->where('type', 'outside_geofence')->sole();
+    expect($flag->punch)->toBe('check_out')
+        ->and($flag->severity)->toBe('high')
+        ->and($record->metadata['checkout_geofence_verified'])->toBeFalse();
+});
+
+test('a check-out outside a geofence that is not required stays a medium finding', function () {
+    $record = outsideCheckOut(required: false);
+
+    expect(AttendanceIntegrityFlag::query()->where('attendance_record_id', $record->id)->where('type', 'outside_geofence')->sole()->severity)
+        ->toBe('medium');
 });
 
 test('a punch that fails after its insert leaves no record and no photo, and its retry is made afresh', function () {
