@@ -30515,6 +30515,246 @@
                 }
             }
         },
+        "/payroll/preview": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payroll.payrollPreview",
+                "summary": "Preview payroll",
+                "tags": [
+                    "Payroll"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PreviewPayrollRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "period_start": {
+                                            "type": "string"
+                                        },
+                                        "period_end": {
+                                            "type": "string"
+                                        },
+                                        "organization_type": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "sector": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rules": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "layer": {
+                                                        "type": "string"
+                                                    },
+                                                    "version": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "legal_reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "code",
+                                                    "value",
+                                                    "layer",
+                                                    "version",
+                                                    "legal_reference"
+                                                ]
+                                            }
+                                        },
+                                        "income_tax": {
+                                            "type": "object",
+                                            "properties": {
+                                                "legal_reference": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "effective_from": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "source": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "legal_reference",
+                                                "effective_from",
+                                                "source"
+                                            ]
+                                        },
+                                        "pension": {
+                                            "type": "object",
+                                            "properties": {
+                                                "scheme": {
+                                                    "type": "string"
+                                                },
+                                                "employee_rate": {
+                                                    "type": "number"
+                                                },
+                                                "employer_rate": {
+                                                    "type": "number"
+                                                },
+                                                "legal_reference": {
+                                                    "type": "string"
+                                                },
+                                                "source": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "scheme",
+                                                "employee_rate",
+                                                "employer_rate",
+                                                "legal_reference",
+                                                "source"
+                                            ]
+                                        },
+                                        "payslips": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_code": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "public_id",
+                                                            "name",
+                                                            "employee_code"
+                                                        ]
+                                                    },
+                                                    "basic_salary_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "gross_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "income_tax_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_pension_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employer_pension_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "other_deductions_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "net_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "pension_exempt_reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee",
+                                                    "basic_salary_cents",
+                                                    "gross_cents",
+                                                    "income_tax_cents",
+                                                    "employee_pension_cents",
+                                                    "employer_pension_cents",
+                                                    "other_deductions_cents",
+                                                    "net_cents",
+                                                    "pension_exempt_reason"
+                                                ]
+                                            }
+                                        },
+                                        "next_after": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "period_start",
+                                        "period_end",
+                                        "organization_type",
+                                        "sector",
+                                        "rules",
+                                        "income_tax",
+                                        "pension",
+                                        "payslips",
+                                        "next_after"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/payroll/process": {
             "post": {
                 "x-abilities": [
@@ -34961,6 +35201,30 @@
                                                 },
                                                 "organization_type_needs_review": {
                                                     "type": "boolean"
+                                                },
+                                                "organization_type_pending": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "organization_type": {
+                                                            "type": "string"
+                                                        },
+                                                        "effective_from": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "organization_type",
+                                                        "effective_from"
+                                                    ]
+                                                },
+                                                "organization_type_earliest_change": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -34970,7 +35234,9 @@
                                                 "timezone",
                                                 "locale",
                                                 "organization_type",
-                                                "organization_type_needs_review"
+                                                "organization_type_needs_review",
+                                                "organization_type_pending",
+                                                "organization_type_earliest_change"
                                             ]
                                         },
                                         "address": {
@@ -49724,6 +49990,32 @@
                     "industry"
                 ],
                 "title": "PreviewConfigurationRequest"
+            },
+            "PreviewPayrollRequest": {
+                "type": "object",
+                "properties": {
+                    "period_start": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "period_end": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "after": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "required": [
+                    "period_start",
+                    "period_end"
+                ],
+                "title": "PreviewPayrollRequest"
             },
             "ProcessPayrollRequest": {
                 "type": "object",

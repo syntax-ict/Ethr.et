@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\TenantProfileAssignment;
+use App\Services\Calendar\OrganisationMonth;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -31,38 +32,97 @@ final class OrganisationProfile
 
     /**
      * Sets the organisation's type, and its sector when one is given (else
-     * keeps the one it has), from the settings page or onboarding. Before any payroll is approved this is a correction: the type is
-     * what the organisation always was, so its history is replaced and every
-     * period resolves to it. Once one is approved, it applies from today and
-     * earlier periods keep the type they were paid under.
+     * keeps the one it has), from the settings page or onboarding. Before any
+     * payroll is approved this is a correction: the type is what the
+     * organisation always was, so its history is replaced and every period
+     * resolves to it. Once one is approved, it applies from `$from`, a month
+     * start after the last approved period that UpdateOrganizationRequest
+     * checked, and earlier periods keep the type they were paid under.
      */
-    public function set(Tenant $tenant, string $organizationType, ?int $by = null, ?string $sector = null): TenantProfileAssignment
+    public function set(Tenant $tenant, string $organizationType, ?int $by = null, ?string $sector = null, ?CarbonInterface $from = null): TenantProfileAssignment
     {
-        $sector ??= $this->context->for($tenant->id, Carbon::today())['sector'];
+        $today = $this->context->for($tenant->id, Carbon::today());
+        $sector ??= $today['sector'];
 
-        $approved = PayrollRun::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenant->id)
-            ->whereIn('status', ['approved', 'paid'])
-            ->exists();
-
-        if ($approved) {
-            return $this->assign($tenant, $organizationType, $sector, Carbon::today(), $by);
+        if ($this->lastApprovedEnd($tenant) !== null) {
+            // Never retroactive: from the future date UpdateOrganizationRequest
+            // checked, else the earliest one allowed. A change scheduled
+            // earlier and not yet in force is replaced by this one.
+            $keepThrough = Carbon::today();
+            $from ??= $organizationType === $today['organization_type']
+                ? Carbon::today()
+                : $this->earliestChange($tenant) ?? Carbon::today();
+        } else {
+            $first = TenantProfileAssignment::query()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenant->id)
+                ->min('effective_from');
+            $from = Carbon::parse($first ?? $tenant->created_at ?? Carbon::today());
+            $keepThrough = $from;
         }
-
-        $first = TenantProfileAssignment::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenant->id)
-            ->min('effective_from');
-        $from = Carbon::parse($first ?? $tenant->created_at ?? Carbon::today());
 
         TenantProfileAssignment::query()
             ->withoutGlobalScope('tenant')
             ->where('tenant_id', $tenant->id)
-            ->whereDate('effective_from', '>', $from->format('Y-m-d'))
+            ->whereDate('effective_from', '>', $keepThrough->format('Y-m-d'))
             ->delete();
+        $this->context->forget();
+
+        // A change that starts later needs the type in force until then to
+        // be on record, or the later row would be read back over today.
+        if ($from->format('Y-m-d') > Carbon::today()->format('Y-m-d') && ! $this->context->assignedBy($tenant->id, Carbon::today()) && $today['organization_type'] !== null) {
+            $this->assign($tenant, $today['organization_type'], $today['sector'], Carbon::parse($tenant->created_at ?? Carbon::today()), $by);
+        }
 
         return $this->assign($tenant, $organizationType, $sector, $from, $by);
+    }
+
+    /**
+     * The first day a change of type may take effect: null while no payroll
+     * is approved (a change is then a correction of history), else the first
+     * organisation-month start after the last approved period and not before
+     * today. Pagume is never a start: it is paid with a neighbouring month.
+     */
+    public function earliestChange(Tenant $tenant): ?CarbonInterface
+    {
+        $last = $this->lastApprovedEnd($tenant);
+        if ($last === null) {
+            return null;
+        }
+
+        $floor = Carbon::parse($last)->addDay()->max(Carbon::today())->startOfDay();
+        $month = OrganisationMonth::forTenant($tenant);
+        $of = $month->monthOf($floor);
+        $start = $month->start($of['year'], $of['month']);
+
+        while ($start->lt($floor) || ! $this->isChangeDate($tenant, $start)) {
+            $of = $month->shift($of['year'], $of['month'], 1);
+            $start = $month->start($of['year'], $of['month']);
+        }
+
+        return $start;
+    }
+
+    /** Whether a change of type may take effect on this day: the start of an organisation month other than Pagume. */
+    public function isChangeDate(Tenant $tenant, CarbonInterface $date): bool
+    {
+        $month = OrganisationMonth::forTenant($tenant);
+        $of = $month->monthOf($date);
+
+        return $month->start($of['year'], $of['month'])->isSameDay($date)
+            && ! ($month->isEthiopian() && $of['month'] === 13);
+    }
+
+    /** The last day of the latest approved or paid payroll period, or null. */
+    private function lastApprovedEnd(Tenant $tenant): ?string
+    {
+        $end = PayrollRun::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('status', ['approved', 'paid'])
+            ->max('period_end');
+
+        return $end === null ? null : (string) $end;
     }
 
     public function assign(Tenant $tenant, string $organizationType, ?string $sector, CarbonInterface $from, ?int $by = null): TenantProfileAssignment

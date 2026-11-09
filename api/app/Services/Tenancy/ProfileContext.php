@@ -63,6 +63,37 @@ final class ProfileContext
         ];
     }
 
+    /** Whether an assignment has taken effect by this date. */
+    public function assignedBy(int $tenantId, CarbonInterface $asOf): bool
+    {
+        $on = $asOf->format('Y-m-d');
+        foreach ($this->assignmentsOf($tenantId) as $row) {
+            if ($row['effective_from'] <= $on) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The next assignment that has not taken effect yet: a change of type an
+     * organisation scheduled after its first approved payroll.
+     *
+     * @return array{organization_type: string, sector: string|null, effective_from: string}|null
+     */
+    public function pending(int $tenantId, CarbonInterface $asOf): ?array
+    {
+        $on = $asOf->format('Y-m-d');
+        foreach ($this->assignmentsOf($tenantId) as $row) {
+            if ($row['effective_from'] > $on) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<string> the type, then its parent; empty for no type */
     public function lineage(?string $organizationType): array
     {

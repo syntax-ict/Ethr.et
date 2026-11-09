@@ -123,6 +123,7 @@ use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
+use App\Http\Controllers\Api\V1\Payroll\PayrollPreviewController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
 use App\Http\Controllers\Api\V1\Payroll\StatutoryRuleController;
@@ -707,6 +708,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('payroll')->group(function () {
         Route::post('/process', [PayrollController::class, 'process'])
             ->middleware(['throttle:payroll-process', RequiresFeature::class.':payroll']);
+        Route::post('/preview', PayrollPreviewController::class)
+            ->middleware([RequiresFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])

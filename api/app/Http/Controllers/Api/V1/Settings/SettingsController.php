@@ -24,6 +24,7 @@ use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
@@ -75,6 +76,8 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
                 'organization_type' => $tenant->organization_type,
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
+                'organization_type_pending' => $this->pendingType($tenant),
+                'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
@@ -144,6 +147,28 @@ class SettingsController extends Controller
         return CalendarPreference::forTenant($tenant);
     }
 
+    /**
+     * A change of type scheduled after the first approved payroll, not yet in
+     * force (OrganisationProfile).
+     *
+     * @return array{organization_type: string, effective_from: string}|null
+     */
+    private function pendingType(Tenant $tenant): ?array
+    {
+        $pending = app(ProfileContext::class)->pending($tenant->id, Carbon::today());
+
+        return $pending === null ? null : [
+            'organization_type' => $pending['organization_type'],
+            'effective_from' => $pending['effective_from'],
+        ];
+    }
+
+    /** The first day a change of type may take effect; null while a change is still a correction. */
+    private function earliestTypeChange(Tenant $tenant): ?string
+    {
+        return app(OrganisationProfile::class)->earliestChange($tenant)?->toDateString();
+    }
+
     public function update(UpdateSettingsRequest $request): JsonResponse
     {
         Gate::authorize('settings.manage');
@@ -190,7 +215,8 @@ class SettingsController extends Controller
         // The type is the organisation's profile: dated, and written only by
         // OrganisationProfile, which keeps the column in step.
         if (array_key_exists('organization_type', $validated)) {
-            app(OrganisationProfile::class)->set($tenant, (string) $validated['organization_type'], $request->user()?->id);
+            $from = $validated['effective_from'] ?? null;
+            app(OrganisationProfile::class)->set($tenant, (string) $validated['organization_type'], $request->user()?->id, null, is_string($from) ? Carbon::parse($from) : null);
         }
 
         // Mirror into the settings JSON as well: it was the only store before
@@ -217,6 +243,8 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
                 'organization_type' => $tenant->organization_type,
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
+                'organization_type_pending' => $this->pendingType($tenant),
+                'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
             ],
         ]);
     }
