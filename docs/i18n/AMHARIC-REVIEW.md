@@ -59,7 +59,7 @@ Drafts written without a native speaker; a wrong label moves no money.
 
 The Amharic of the three 2026-11-09 sections above was read again, by a fluent but
 **non-native** reviewer, against the terms the rest of `am.json` already uses. It is a second
-draft, not the native sign-off this document asks for (O7). The Afaan Oromoo was not reviewed.
+draft, not the native sign-off this document asks for (O7). The Afaan Oromoo is in the next section.
 
 **Terms aligned with the existing locale and the law's own Amharic names:**
 
@@ -96,10 +96,38 @@ placeholder (`:reference ን`). Word order and wording were also smoothed in:
 `payroll.preview`, `payroll.preview_failed`, `payroll.preview_rules`, `payroll.preview_confirm`,
 `settings.organization_kind_pending`, and `statutory_rule_not_resettable` (api).
 
-**Still for the native reviewer to decide:** pension *scheme* is ዕቅድ, as `statutory.pension_scheme`
+### Afaan Oromoo consistency review (2026-11-10)
+
+The Afaan Oromoo of the same three sections was read against the terms the rest of `om.json`
+already uses. The reviewer reads Afaan Oromoo but is **not fluent**, so this aligns terms and
+fixes words that plainly mean something else; it is not a review of naturalness, which still
+needs a native speaker.
+
+| English | Now | Was | Why |
+|---|---|---|---|
+| pension (genitive) | sooramaa | soorumaa | the stem is *soorama*; seven existing keys say *sooramaa* |
+| pension scheme | sirna sooramaa | karoora soorumaa | *karoora* is a plan; `statutory.pension_scheme` and `settings.organization_kind_help` say *sirna* |
+| overtime | sa'aatii dabalataa | yeroo dabalataa | 52 existing keys |
+| overtime rates, contribution rates | gatiiwwan … | dhibbantaa … | `payroll_config.overtime_rates`, `pension_rules.description`; overtime rates are multipliers, not percentages |
+| tax rate | dhibbeentaa gibiraa | dhibbantaa gibiraa | the spelling `payroll_config.rate_percent` uses |
+| version | vershinii | gosa | *gosa* means *type*; `operations_page` says *vershinii* |
+| preview | duraan ilaali | dursee / dursii ilaali | four existing keys; *dursii* is not a word |
+| calendar | dhaha | dhaha guyyaa | `profile.calendar` |
+| Labour Proclamation | Labsii Hojjetaa | Labsii Hojjettootaa | `payroll_config.overtime_rates_desc` |
+| employer TIN | TIN qacaraa | lakkoofsa eenyummaa gibira kaffalaa hojjechiisaa | `employee.tin` is *TIN*; employer is *qacaraa* elsewhere in these keys |
+| payroll, as what applies rules | shallaggii mindaa | kaffaltii mindaa | as in the Amharic, *the payment* applying rules read oddly |
+
+`settings.organization_kind_pending` said the earlier pay *waits for* (*eega*) the current kind;
+it now says it is *worked out under* it (*shallagama*). `settings.organization_kind_from` was a
+fragment (*Kan hojii irra oolu irraa*); it is now *Guyyaa hojiirra oolu*. In the api,
+`tax_ladder_locked`, `pension_rule_locked` and `statutory_rule_not_resettable` (`lang/om/payroll.php`)
+take the same terms. 36 frontend keys and 3 api messages changed in all.
+
+**Still for the native reviewer to decide:** Amharic pension *scheme* is ዕቅድ, as `statutory.pension_scheme`
 already had it, though ዕቅድ is also the subscription *plan*; and the ten organisation-type names other
 than `diplomatic_mission` read correctly against the Commercial Code's terms but were not checked by a
-native speaker.
+native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is also *price*
+(`admin_plans.price`); no better established word was found in `om.json`.
 
 ## Frontend (92 keys)
 
