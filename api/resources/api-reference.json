@@ -30493,12 +30493,12 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "`PensionRuleResource`",
+                    "200": {
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PensionRuleResource"
+                                    "type": "object"
                                 }
                             }
                         }
@@ -30511,6 +30511,246 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/payroll/preview": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payroll.payrollPreview",
+                "summary": "Preview payroll",
+                "tags": [
+                    "Payroll"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PreviewPayrollRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "period_start": {
+                                            "type": "string"
+                                        },
+                                        "period_end": {
+                                            "type": "string"
+                                        },
+                                        "organization_type": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "sector": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "rules": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "layer": {
+                                                        "type": "string"
+                                                    },
+                                                    "version": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "legal_reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "code",
+                                                    "value",
+                                                    "layer",
+                                                    "version",
+                                                    "legal_reference"
+                                                ]
+                                            }
+                                        },
+                                        "income_tax": {
+                                            "type": "object",
+                                            "properties": {
+                                                "legal_reference": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "effective_from": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "source": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "legal_reference",
+                                                "effective_from",
+                                                "source"
+                                            ]
+                                        },
+                                        "pension": {
+                                            "type": "object",
+                                            "properties": {
+                                                "scheme": {
+                                                    "type": "string"
+                                                },
+                                                "employee_rate": {
+                                                    "type": "number"
+                                                },
+                                                "employer_rate": {
+                                                    "type": "number"
+                                                },
+                                                "legal_reference": {
+                                                    "type": "string"
+                                                },
+                                                "source": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "scheme",
+                                                "employee_rate",
+                                                "employer_rate",
+                                                "legal_reference",
+                                                "source"
+                                            ]
+                                        },
+                                        "payslips": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_code": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "public_id",
+                                                            "name",
+                                                            "employee_code"
+                                                        ]
+                                                    },
+                                                    "basic_salary_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "gross_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "income_tax_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_pension_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employer_pension_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "other_deductions_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "net_cents": {
+                                                        "type": "integer"
+                                                    },
+                                                    "pension_exempt_reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee",
+                                                    "basic_salary_cents",
+                                                    "gross_cents",
+                                                    "income_tax_cents",
+                                                    "employee_pension_cents",
+                                                    "employer_pension_cents",
+                                                    "other_deductions_cents",
+                                                    "net_cents",
+                                                    "pension_exempt_reason"
+                                                ]
+                                            }
+                                        },
+                                        "next_after": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "period_start",
+                                        "period_end",
+                                        "organization_type",
+                                        "sector",
+                                        "rules",
+                                        "income_tax",
+                                        "pension",
+                                        "payslips",
+                                        "next_after"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -32688,6 +32928,228 @@
                 }
             }
         },
+        "/payroll/statutory-rules": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "payroll"
+                ],
+                "operationId": "statutoryRule.index",
+                "summary": "List statutory rules",
+                "tags": [
+                    "Statutory Rule"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "default_value": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "layer": {
+                                                        "type": "string"
+                                                    },
+                                                    "enforcement": {
+                                                        "type": "string"
+                                                    },
+                                                    "floor_direction": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "legal_reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "confirmed": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "effective_from": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "version": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "setting_key": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "editable": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "overridden": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "code",
+                                                    "value",
+                                                    "default_value",
+                                                    "layer",
+                                                    "enforcement",
+                                                    "floor_direction",
+                                                    "legal_reference",
+                                                    "confirmed",
+                                                    "effective_from",
+                                                    "version",
+                                                    "setting_key",
+                                                    "editable",
+                                                    "overridden"
+                                                ]
+                                            }
+                                        },
+                                        "organization_type": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "sector": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "as_of": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "organization_type",
+                                        "sector",
+                                        "as_of"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/payroll/statutory-rules/{code}": {
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "statutoryRule.destroy",
+                "summary": "Delete statutory rule",
+                "tags": [
+                    "Statutory Rule"
+                ],
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "layer": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "code",
+                                        "value",
+                                        "layer"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This rule is the law's, or one the organisation does not set here, so there is nothing to reset."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/payroll/tax-brackets": {
             "get": {
                 "x-abilities": [
@@ -32755,30 +33217,19 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/TaxBracketResource"
-                                            }
-                                        }
-                                    },
-                                    "required": [
-                                        "data"
-                                    ]
+                                    "type": "object"
                                 }
                             }
                         }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -34750,6 +35201,30 @@
                                                 },
                                                 "organization_type_needs_review": {
                                                     "type": "boolean"
+                                                },
+                                                "organization_type_pending": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "organization_type": {
+                                                            "type": "string"
+                                                        },
+                                                        "effective_from": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "organization_type",
+                                                        "effective_from"
+                                                    ]
+                                                },
+                                                "organization_type_earliest_change": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -34759,7 +35234,9 @@
                                                 "timezone",
                                                 "locale",
                                                 "organization_type",
-                                                "organization_type_needs_review"
+                                                "organization_type_needs_review",
+                                                "organization_type_pending",
+                                                "organization_type_earliest_change"
                                             ]
                                         },
                                         "address": {
@@ -35364,6 +35841,27 @@
                                                 "pension_schemes": {
                                                     "type": "array",
                                                     "items": []
+                                                },
+                                                "pension_agency": {
+                                                    "type": "string"
+                                                },
+                                                "pension_registration_number": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "payout_method": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "employer_bank_name": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -35376,7 +35874,11 @@
                                                 "employer_tin",
                                                 "tax_center",
                                                 "pension_scheme",
-                                                "pension_schemes"
+                                                "pension_schemes",
+                                                "pension_agency",
+                                                "pension_registration_number",
+                                                "payout_method",
+                                                "employer_bank_name"
                                             ]
                                         },
                                         "security": {
@@ -42215,6 +42717,48 @@
                             null
                         ]
                     },
+                    "organization_type": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "staff_band": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "1-10",
+                            "11-50",
+                            "51-200",
+                            "201-500",
+                            "501-1000",
+                            "1000+",
+                            null
+                        ]
+                    },
+                    "pay_period": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "monthly",
+                            null
+                        ]
+                    },
+                    "calendar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "ethiopian",
+                            "gregorian",
+                            null
+                        ]
+                    },
                     "plan": {
                         "type": "object",
                         "properties": {
@@ -48289,6 +48833,7 @@
                     "setup_admin_present",
                     "setup_admin_active",
                     "owner_phone",
+                    "statutory_override",
                     "integrity",
                     "payroll_approve",
                     "approvals",
@@ -48303,6 +48848,12 @@
                     "setup_employees",
                     "setup_employee_departments",
                     "setup_attendance_source",
+                    "setup_employer_tin",
+                    "setup_tax_center",
+                    "setup_pension_registration",
+                    "setup_payout_method",
+                    "setup_employee_salaries",
+                    "leave_below_law",
                     "records_missing_tin",
                     "records_missing_bank",
                     "nationality_review",
@@ -48310,7 +48861,9 @@
                     "records_missing_emergency_contact",
                     "records_missing_phone",
                     "unmatched_badges",
-                    "team_absent"
+                    "team_absent",
+                    "setup_device_linked",
+                    "profile_legal_review"
                 ],
                 "title": "NextStepId"
             },
@@ -48410,11 +48963,34 @@
                             "total",
                             "complete"
                         ]
+                    },
+                    "payroll": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "done": {
+                                "type": "integer"
+                            },
+                            "total": {
+                                "type": "integer"
+                            },
+                            "ready": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "done",
+                            "total",
+                            "ready"
+                        ]
                     }
                 },
                 "required": [
                     "steps",
-                    "setup"
+                    "setup",
+                    "payroll"
                 ],
                 "title": "NextStepsResource"
             },
@@ -49366,6 +49942,21 @@
                         "minimum": 1,
                         "maximum": 1000000
                     },
+                    "staff_band": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "1-10",
+                            "11-50",
+                            "51-200",
+                            "201-500",
+                            "501-1000",
+                            "1000+",
+                            null
+                        ]
+                    },
                     "region": {
                         "type": [
                             "string",
@@ -49409,6 +50000,32 @@
                     "industry"
                 ],
                 "title": "PreviewConfigurationRequest"
+            },
+            "PreviewPayrollRequest": {
+                "type": "object",
+                "properties": {
+                    "period_start": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "period_end": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "after": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "required": [
+                    "period_start",
+                    "period_end"
+                ],
+                "title": "PreviewPayrollRequest"
             },
             "ProcessPayrollRequest": {
                 "type": "object",

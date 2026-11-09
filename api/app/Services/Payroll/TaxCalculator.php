@@ -6,7 +6,7 @@ namespace App\Services\Payroll;
 
 use App\Exceptions\PayrollRunRefused;
 use App\Models\TaxBracket;
-use App\Models\Tenant;
+use App\Services\Tenancy\ProfileContext;
 use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -33,9 +33,6 @@ final class TaxCalculator
      * @var array<string, array{brackets: list<array{min: int, max: int|null, rate: float, deduction: int}>, legal_reference: string|null, effective_from: string|null, source: string}>
      */
     private array $cache = [];
-
-    /** @var array<int, string> tenant id => organisation type */
-    private array $types = [];
 
     /**
      * @param  CarbonInterface|null  $asOf  the date the ladder is resolved for —
@@ -110,13 +107,15 @@ final class TaxCalculator
             return $this->cache[$key];
         }
 
-        $type = $tenantId === null ? null : $this->organizationType($tenantId);
+        // The organisation's type on this date, then that type's parent: a
+        // type that owns no ladder of its own is taxed on its parent's.
+        $lineage = $tenantId === null ? [] : app(ProfileContext::class)->for($tenantId, $asOf)['lineage'];
 
         $candidates = [];
         if ($tenantId !== null) {
             $candidates[] = ['tenant', $tenantId, null];
         }
-        if ($type !== null) {
+        foreach ($lineage as $type) {
             $candidates[] = ['platform_type', null, $type];
         }
         $candidates[] = ['platform', null, null];
@@ -171,15 +170,5 @@ final class TaxCalculator
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $on))
             ->orderBy('min_amount_cents')
             ->get();
-    }
-
-    private function organizationType(int $tenantId): ?string
-    {
-        if (! array_key_exists($tenantId, $this->types)) {
-            $type = Tenant::query()->whereKey($tenantId)->value('organization_type');
-            $this->types[$tenantId] = is_string($type) ? $type : '';
-        }
-
-        return $this->types[$tenantId] !== '' ? $this->types[$tenantId] : null;
     }
 }

@@ -17,6 +17,7 @@ use App\Services\Onboarding\OrganizationProvisioner;
 use App\Services\Onboarding\PolicyProfileCatalog;
 use App\Services\Onboarding\ProvisioningResult;
 use App\Services\Onboarding\WorkforceProfileCatalog;
+use App\Services\Tenancy\OrganisationProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +38,7 @@ class ConfigurationController extends Controller
         private readonly OrganizationProvisioner $provisioner,
         private readonly WorkforceProfileCatalog $workforceProfiles,
         private readonly PolicyProfileCatalog $policyProfiles,
+        private readonly OrganisationProfile $profile,
     ) {}
 
     public function industries(): JsonResponse
@@ -55,8 +57,13 @@ class ConfigurationController extends Controller
     {
         Gate::authorize('settings.manage');
 
+        // A headcount band answers the same question as a count: its lower
+        // bound is the conservative reading for the attendance heuristic.
+        $band = $request->input('staff_band');
+        $fromBand = is_string($band) ? (int) $band : null;
+
         $signals = array_filter([
-            'employee_count' => $request->integer('employee_count') ?: null,
+            'employee_count' => ($request->integer('employee_count') ?: null) ?? $fromBand,
             'region' => $request->input('region'),
             'workforce_profile' => $request->input('workforce_profile'),
             'policy_profile' => $request->input('policy_profile'),
@@ -115,6 +122,16 @@ class ConfigurationController extends Controller
                 'catalog_version' => IndustryCatalog::VERSION,
                 'applied_at' => $settings['configuration_applied_at'],
             ];
+            if (is_string($request->input('staff_band'))) {
+                $settings['configuration_profile']['staff_band'] = $request->input('staff_band');
+            }
+            // The onboarding answers the organisation gave, kept as given: they
+            // replace the defaults sign-up wrote.
+            foreach (['calendar', 'pay_period'] as $answer) {
+                if (is_string($request->input($answer))) {
+                    $settings[$answer] = $request->input($answer);
+                }
+            }
             if ($request->boolean('save')) {
                 // A within-tenant save so the admin can revisit or re-apply. Publishing
                 // a plan as a globally reusable OrganizationTemplate is deferred — that
@@ -127,6 +144,17 @@ class ConfigurationController extends Controller
                 'type' => $industry['base'] ?? $tenant->type,
                 'settings' => $settings,
             ]);
+
+            // The profile its statutory rules resolve against: the kind of
+            // organisation in law it chose, and its industry as its sector.
+            // No statutory row is written for it; the profile is the reference.
+            $kind = $request->input('organization_type');
+            if (is_string($kind) || $industry !== null) {
+                $this->profile->set($tenant, is_string($kind) ? $kind : $tenant->organization_type, $request->user()?->id, $industry['key'] ?? null);
+                if (is_string($kind)) {
+                    $tenant->update(['organization_type_needs_review' => false]);
+                }
+            }
 
             $progress = OnboardingProgress::firstOrCreate(
                 ['tenant_id' => $tenant->id],

@@ -26,6 +26,8 @@ class OrganizationTypeController extends Controller
                 'name' => $type->name,
                 'name_am' => $type->name_am,
                 'description' => $type->description,
+                'group' => $type->group_code,
+                'parent_code' => $type->parent_code,
             ])
             ->values()
             ->all();

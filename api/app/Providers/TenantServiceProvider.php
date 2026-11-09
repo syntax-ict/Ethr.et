@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use App\Services\CurrentTenant;
 use App\Services\Features\FeatureGate;
+use App\Services\Payroll\StatutoryRules;
+use App\Services\Tenancy\ProfileContext;
 use Illuminate\Support\ServiceProvider;
 
 class TenantServiceProvider extends ServiceProvider
@@ -40,5 +42,12 @@ class TenantServiceProvider extends ServiceProvider
         // one request or job, and a switch changed in between must be seen by
         // the next one.
         $this->app->scoped(FeatureGate::class);
+
+        // Scoped too: both memoize an organisation's profile and its
+        // statutory rules for one request or job, so a profile or rule
+        // written in between is read fresh by the next one, and a long-lived
+        // worker never carries one job's resolution into another.
+        $this->app->scoped(ProfileContext::class);
+        $this->app->scoped(StatutoryRules::class);
     }
 }

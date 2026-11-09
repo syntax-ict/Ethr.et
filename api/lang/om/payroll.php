@@ -30,4 +30,7 @@ return [
     'reconciliation_open' => 'Argamni yeroo kanaa ammallee hin walsimne: waan addaa :count ammallee banaa dha ykn murtee eegaa jira. Jalqaba kutaa Walsimsiisi irratti xumuraa.',
     'reconciliation_moved' => 'Argamni yeroo kanaa erga raawwiin herregamee booda murtaa\'eera. Akka murtee irraa kaffaluuf raawwii sana irra deebi\'aa hojjedhaa.',
     'reconciliation_range' => 'Yeroo tokkotti yoo baay\'ate guyyoota 92 walsimsiisaa.',
+    'tax_ladder_locked' => 'Gibirri galii :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Sadarkaaleen gibiraa seeraa kaffaltii mindaa hunda irratti hojiirra oolu.',
+    'pension_rule_locked' => 'Gumaachi soorumaa :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Dhibbantaan seeraa kaffaltii mindaa hunda irratti hojiirra oola.',
+    'statutory_rule_not_resettable' => 'Seerri kun kan seeraati, ykn kan dhaabbatni asitti hin kaa\'inee dha; kanaaf deebisuun hin jiru.',
 ];
