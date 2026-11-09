@@ -281,7 +281,7 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast
         // (Http::timeout only caps the request once connected) — keeps status checks from
         // blocking a worker for the full read timeout on an offline device.
-        $request = Http::connectTimeout(2)->timeout(10)
+        $request = Http::connectTimeout(2)->timeout(10)->withoutRedirecting()
             ->withOptions($pin)
             ->withBasicAuth($config['username'] ?? 'admin', $config['password'] ?? '');
 

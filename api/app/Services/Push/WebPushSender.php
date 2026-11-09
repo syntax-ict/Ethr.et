@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Push;
 
 use App\Models\PushSubscription;
+use App\Support\PushEndpoint;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +38,11 @@ class WebPushSender
             return 0;
         }
 
-        $subscriptions = PushSubscription::query()->where('user_id', $userId)->get();
+        // Only endpoints at a push service: one saved before StorePushSubscriptionRequest
+        // checked is never sent to (PushEndpoint).
+        $subscriptions = PushSubscription::query()->where('user_id', $userId)->get()
+            ->filter(fn (PushSubscription $s): bool => PushEndpoint::allowed((string) $s->endpoint))
+            ->values();
         if ($subscriptions->isEmpty()) {
             return 0;
         }
@@ -84,7 +89,8 @@ class WebPushSender
     /**
      * Since web-push 11 the third argument is a PSR-18 client, not a timeout
      * in seconds: the 10-second limit is set on the Guzzle client instead.
-     * Passing the old integer is a TypeError on every send.
+     * Passing the old integer is a TypeError on every send. Redirects are not
+     * followed: a push service answers where it was asked.
      */
     protected function client(): WebPush
     {
@@ -94,6 +100,6 @@ class WebPushSender
                 'publicKey' => (string) config('webpush.public_key'),
                 'privateKey' => (string) config('webpush.private_key'),
             ],
-        ], ['TTL' => 3600, 'urgency' => 'normal'], new GuzzleClient(['timeout' => 10]));
+        ], ['TTL' => 3600, 'urgency' => 'normal'], new GuzzleClient(['timeout' => 10, 'allow_redirects' => false]));
     }
 }
