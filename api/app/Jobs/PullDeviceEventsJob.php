@@ -129,8 +129,18 @@ class PullDeviceEventsJob implements ShouldQueue
             // began, not to now: a punch recorded while the pages were being
             // read is after the last page and belongs to the next sync. If this
             // run handed work on, the continuation covers from its cursor.
+            //
+            // Handing on, it moves only as far as this run got. It moved to
+            // the start of the run, and a continuation that found the device
+            // offline returns without retrying: the punches between the
+            // cursor and that start were never pulled again. Scheduled syncs
+            // now start from the cursor; one that overlaps the continuation
+            // pulls punches already recorded, which their keys de-duplicate.
             if (! $backfill) {
-                $this->device->update(['last_sync_at' => $startedAt]);
+                $reached = $run['outcome'] === 'budget' && is_string($run['cursor'])
+                    ? Carbon::parse($run['cursor'])
+                    : $startedAt;
+                $this->device->update(['last_sync_at' => $reached]);
             }
 
             [$found, $processed, $failed] = [$run['found'], $run['processed'], $run['failed']];
