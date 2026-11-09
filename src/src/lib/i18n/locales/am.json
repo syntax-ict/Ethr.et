@@ -6653,6 +6653,7 @@
   "audit.action.user.device_trusted": "መሣሪያ ለመግቢያ ታመነ",
   "audit.action.user.device_untrusted": "መሣሪያ መታመኑ ተነሳ",
   "audit.action.user.employee_linked": "መለያ ከሠራተኛ ጋር ተያያዘ",
+  "audit.action.user.employee_unlinked": "ሁለተኛ መለያ ከሠራተኛ ጋር ያለው ትስስር ተቋረጠ",
   "audit.action.user.invite_resent": "ግብዣ እንደገና ተላከ",
   "audit.action.user.login": "ወደ ሥርዓቱ ገባ",
   "audit.action.user.login_blocked": "መግቢያ ታገደ",

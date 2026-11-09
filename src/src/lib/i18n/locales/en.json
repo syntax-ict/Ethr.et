@@ -6653,6 +6653,7 @@
   "audit.action.user.device_trusted": "Device trusted for sign-in",
   "audit.action.user.device_untrusted": "Device no longer trusted",
   "audit.action.user.employee_linked": "Account linked to an employee",
+  "audit.action.user.employee_unlinked": "Second login unlinked from an employee",
   "audit.action.user.invite_resent": "Invitation sent again",
   "audit.action.user.login": "Signed in",
   "audit.action.user.login_blocked": "Sign-in blocked",

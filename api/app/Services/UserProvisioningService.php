@@ -59,12 +59,9 @@ class UserProvisioningService
             return null;
         }
 
-        // One login per employee record: a second would read the first one's
-        // payslips and leave as its own (StoreUserRequest::hasLogin).
-        if ($employee !== null && ($employee->user_id !== null || User::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('employee_id', $employee->id)
-            ->exists())) {
+        // One live login per employee record: a second would read the first
+        // one's payslips and leave as its own. A deleted one does not count.
+        if ($employee !== null && $employee->hasLogin()) {
             return null;
         }
 

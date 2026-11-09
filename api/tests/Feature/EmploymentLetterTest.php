@@ -109,7 +109,9 @@ it('lets HR decline with a reason', function () {
 });
 
 it('never lets anyone decide a letter about themselves', function () {
-    [$tenant, $employee, , $hr] = letterSetup();
+    [$tenant, $employee, $me, $hr] = letterSetup();
+    // HR is Selam: her one login is the HR account (one live login per employee).
+    $me->delete();
     $hr->update(['employee_id' => $employee->id]);
     $letter = app(EmploymentLetters::class)->request($employee, ['purpose' => 'Mine']);
 
