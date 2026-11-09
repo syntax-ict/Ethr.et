@@ -170,7 +170,10 @@ class RecruitmentService
      */
     public function hire(JobApplication $application, array $data, User $by): array
     {
-        return DB::transaction(function () use ($application, $data, $by): array {
+        // Under the organisation's seat lock, with the transaction inside it:
+        // the cap is checked below, after a replayed hire has returned, and
+        // the next writer counts this one's employee only once it committed.
+        return $this->planLimits->serialised(app(CurrentTenant::class)->get(), 'employees', fn (): array => DB::transaction(function () use ($application, $data, $by): array {
             $application = JobApplication::query()->lockForUpdate()->findOrFail($application->id);
 
             if ($application->employee_id !== null) {
@@ -230,7 +233,7 @@ class RecruitmentService
             $this->webhook($employee->tenant_id, 'employee.created', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
             return ['employee' => $employee, 'created' => true];
-        });
+        }));
     }
 
     /**

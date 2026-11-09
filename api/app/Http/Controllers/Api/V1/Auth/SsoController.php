@@ -199,10 +199,9 @@ class SsoController extends Controller
             return null;
         }
 
-        // The plan's seat cap applies however an employee arrives.
-        app(PlanLimitService::class)->assertCanAdd($tenant, 'employees');
-
-        return DB::transaction(function () use ($tenant, $ssoUser, $ssoSettings) {
+        // The plan's seat cap applies however an employee arrives, checked
+        // under the seat lock.
+        return app(PlanLimitService::class)->withinLimit($tenant, 'employees', 1, fn () => DB::transaction(function () use ($tenant, $ssoUser, $ssoSettings) {
             $defaultRole = UserRole::tryFrom($ssoSettings->default_role) ?? UserRole::EMPLOYEE;
 
             $employee = Employee::create([
@@ -232,6 +231,6 @@ class SsoController extends Controller
             ]);
 
             return $user;
-        });
+        }));
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Employee;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Services\PlanLimitService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -152,5 +154,90 @@ describe('bulk import limit', function () {
         ])->assertForbidden();
 
         expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(4);
+    });
+});
+
+/**
+ * A count, then a create, with nothing between them: two import commits sent
+ * together each counted the same headcount, each passed, and both landed past
+ * the plan (review 2026-11-09). PHP in one test process cannot run two
+ * requests at once, so these pin the two halves of the fix: the create runs
+ * while the organisation's seat lock is held, and a writer that cannot get
+ * the lock is refused rather than let through.
+ */
+describe('the seat lock', function () {
+    it('holds the organisation\'s seat lock while an import commit counts and creates', function () {
+        $tenant = createTenant();
+        subscribeTo($tenant, ['max_employees' => 10]);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $heldDuringCreate = [];
+        Employee::creating(function () use ($tenant, &$heldDuringCreate): void {
+            $probe = Cache::lock(PlanLimitService::lockKey($tenant, 'employees'), 5);
+            $heldDuringCreate[] = ! $probe->get();
+        });
+
+        $this->postJson('/api/v1/employees/import/commit', [
+            'import_key' => 'locked-batch',
+            'rows' => [
+                ['name' => 'Row One', 'hire_date' => '2026-01-01', 'employee_code' => 'LOCK-1'],
+                ['name' => 'Row Two', 'hire_date' => '2026-01-01', 'employee_code' => 'LOCK-2'],
+            ],
+            'create_logins' => false,
+        ])->assertCreated();
+
+        expect($heldDuringCreate)->toBe([true, true]);
+    });
+
+    it('holds the seat lock while a single employee is added', function () {
+        $tenant = createTenant();
+        subscribeTo($tenant, ['max_employees' => 10]);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $heldDuringCreate = null;
+        Employee::creating(function () use ($tenant, &$heldDuringCreate): void {
+            $heldDuringCreate = ! Cache::lock(PlanLimitService::lockKey($tenant, 'employees'), 5)->get();
+        });
+
+        $this->postJson('/api/v1/employees', ['name' => 'Locked Add', 'hire_date' => '2026-01-01'])->assertCreated();
+
+        expect($heldDuringCreate)->toBeTrue();
+    });
+
+    it('counts what the writer before it created', function () {
+        $tenant = createTenant();
+        subscribeTo($tenant, ['max_employees' => 3]);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $commit = fn (string $key, array $codes) => $this->postJson('/api/v1/employees/import/commit', [
+            'import_key' => $key,
+            'rows' => array_map(fn (string $code): array => ['name' => "Person {$code}", 'hire_date' => '2026-01-01', 'employee_code' => $code], $codes),
+            'create_logins' => false,
+        ]);
+
+        $commit('first', ['A-1', 'A-2'])->assertCreated();
+        $commit('second', ['B-1', 'B-2'])->assertForbidden();
+
+        expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(2);
+    });
+
+    it('refuses a commit that cannot get the seat lock, and creates no one', function () {
+        $tenant = createTenant();
+        subscribeTo($tenant, ['max_employees' => 10]);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $other = Cache::lock(PlanLimitService::lockKey($tenant, 'employees'), 60);
+        expect($other->get())->toBeTrue();
+        app()->instance(PlanLimitService::class, new PlanLimitService(lockWaitSeconds: 0));
+
+        $this->postJson('/api/v1/employees/import/commit', [
+            'import_key' => 'blocked-batch',
+            'rows' => [['name' => 'Waits', 'hire_date' => '2026-01-01', 'employee_code' => 'WAIT-1']],
+            'create_logins' => false,
+        ])->assertStatus(409)
+            ->assertJsonPath('detail', __('billing.limit_check_busy'));
+
+        expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(0);
+
+        $other->release();
     });
 });

@@ -129,71 +129,70 @@ final class WorkforceMigrationService
 
         $tenant = Tenant::query()->findOrFail($batch->tenant_id);
 
-        // The plan's limit, as every other way of adding people applies it
-        // (A-Z review A-02). Checked on the whole batch before anything is
-        // written, as the file import does.
-        $this->planLimits->assertCanAdd(
-            $tenant,
-            'employees',
-            $batch->rows()->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
-        );
-
         $totals = ['created' => 0, 'merged' => 0, 'skipped' => 0, 'deferred' => 0];
 
         $departments = DepartmentMatch::forTenant($batch->tenant_id);
 
-        DB::transaction(function () use ($batch, $tenant, $departments, &$totals): void {
-            // Two commits of one batch (a second tab, a retry) both passed the
-            // check above and created everyone twice. The second now waits
-            // here and finds the batch committed.
-            $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
-            if ($locked->isCommitted()) {
-                $totals = $locked->totals ?? [];
+        // The plan's limit, as every other way of adding people applies it
+        // (A-Z review A-02). Checked on the whole batch before anything is
+        // written, as the file import does, and under the organisation's seat
+        // lock with the transaction inside it, so the next writer counts
+        // what this one committed.
+        $creates = $batch->rows()->where('action', MigrationStagingRow::ACTION_CREATE)->count();
+        $this->planLimits->withinLimit($tenant, 'employees', $creates, function () use ($batch, $tenant, $departments, &$totals): void {
+            DB::transaction(function () use ($batch, $tenant, $departments, &$totals): void {
+                // Two commits of one batch (a second tab, a retry) both passed the
+                // check above and created everyone twice. The second now waits
+                // here and finds the batch committed.
+                $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
+                if ($locked->isCommitted()) {
+                    $totals = $locked->totals ?? [];
 
-                return;
-            }
-
-            foreach ($batch->rows()->get() as $row) {
-                // Read via getAttribute so the array-cast's loose static type does
-                // not defeat the guard (the value is an array at runtime).
-                $rawAttr = $row->getAttribute('raw');
-                $raw = is_array($rawAttr) ? $rawAttr : [];
-                $signals = $this->signalsFromRaw($raw);
-
-                switch ($row->action) {
-                    case MigrationStagingRow::ACTION_CREATE:
-                        $employee = $this->createEmployee($raw, $tenant, $departments);
-                        $this->resolver->link($employee, $signals, 1.0, verified: true);
-                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                        $totals['created']++;
-                        break;
-
-                    case MigrationStagingRow::ACTION_MERGE:
-                        $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
-                        if ($employee !== null) {
-                            $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true);
-                            $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                            $totals['merged']++;
-                        } else {
-                            $totals['deferred']++;
-                        }
-                        break;
-
-                    case MigrationStagingRow::ACTION_SKIP:
-                        $totals['skipped']++;
-                        break;
-
-                    default: // defer, pending
-                        $totals['deferred']++;
-                        break;
+                    return;
                 }
-            }
 
-            $batch->update([
-                'status' => 'committed',
-                'committed_at' => now(),
-                'totals' => $totals,
-            ]);
+                foreach ($batch->rows()->get() as $row) {
+                    // Read via getAttribute so the array-cast's loose static type does
+                    // not defeat the guard (the value is an array at runtime).
+                    $rawAttr = $row->getAttribute('raw');
+                    $raw = is_array($rawAttr) ? $rawAttr : [];
+                    $signals = $this->signalsFromRaw($raw);
+
+                    switch ($row->action) {
+                        case MigrationStagingRow::ACTION_CREATE:
+                            $employee = $this->createEmployee($raw, $tenant, $departments);
+                            $this->resolver->link($employee, $signals, 1.0, verified: true);
+                            $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                            $totals['created']++;
+                            break;
+
+                        case MigrationStagingRow::ACTION_MERGE:
+                            $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
+                            if ($employee !== null) {
+                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true);
+                                $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                                $totals['merged']++;
+                            } else {
+                                $totals['deferred']++;
+                            }
+                            break;
+
+                        case MigrationStagingRow::ACTION_SKIP:
+                            $totals['skipped']++;
+                            break;
+
+                        default: // defer, pending
+                            $totals['deferred']++;
+                            break;
+                    }
+                }
+
+                $batch->update([
+                    'status' => 'committed',
+                    'committed_at' => now(),
+                    'totals' => $totals,
+                ]);
+            });
         });
 
         return $totals;
