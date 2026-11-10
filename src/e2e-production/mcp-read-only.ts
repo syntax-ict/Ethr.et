@@ -7,6 +7,10 @@
  * alive. Leave it off only for a Mode W session the owner has agreed to, in a
  * QA organisation.
  *
+ * It sees requests a page makes. Start the server with
+ * `--block-service-workers` as well: the app's service worker replays punches
+ * queued while offline with a request of its own (`sw.js`, `flushQueue`).
+ *
  * Kept free of imports so the MCP server can load it on its own.
  */
 type Route = {

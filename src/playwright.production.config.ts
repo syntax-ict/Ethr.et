@@ -34,6 +34,12 @@ export default defineConfig({
     trace: "off",
     video: "off",
     screenshot: "only-on-failure",
+    // The guard routes requests a page makes. The app's service worker makes
+    // one of its own: `sw.js` replays punches queued while offline with
+    // `POST /api/v1/attendance/sync`, which a route on the page is not
+    // guaranteed to see. A fresh profile has an empty queue, so this is the
+    // second lock, not the first: no worker, no replay.
+    serviceWorkers: "block",
     locale: "en-US",
     timezoneId: "Africa/Addis_Ababa",
   },
