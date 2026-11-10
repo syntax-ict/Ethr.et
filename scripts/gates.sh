@@ -11,8 +11,10 @@
 #   ./scripts/gates.sh performance the tests/Performance benchmarks only
 #   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
+#   ./scripts/gates.sh concurrency punches racing from separate processes, on MariaDB
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #   ./scripts/gates.sh e2e         Playwright over a running stack (desktop Chromium)
+#   ./scripts/gates.sh e2e-attendance  the attendance-to-payslip journeys, same stack
 #   ./scripts/gates.sh export      the Bronze shared-hosting static export build
 #   ./scripts/gates.sh evidence    host-evidence file: what is outstanding, or validate it
 #
@@ -377,6 +379,41 @@ pest_mysql_gate() {
     )
 }
 
+# Punches that reach the server in the same instant, from separate PHP
+# processes, against MySQL/MariaDB with the database cache store: the only
+# place the engine's per-person lock and its transaction are exercised as a
+# race rather than as two calls one after the other (tests/Concurrency,
+# api/phpunit.concurrency.xml).
+#
+# Opt-in like `mysql`, and for the same reason: it needs a server. It fails
+# rather than skips without one. Its fixtures are committed, so it wants a
+# scratch database of its own and refuses a name that does not say so.
+concurrency_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    (
+        cd "$API_DIR" || return 1
+
+        local host port
+        host="${DB_HOST:-127.0.0.1}"
+        port="${DB_PORT:-3306}"
+
+        if ! php -r 'exit(@fsockopen($argv[1], (int) $argv[2], $e, $s, 3) ? 0 : 1);' "$host" "$port"; then
+            printf '\033[31mNo MySQL/MariaDB reachable at %s:%s.\033[0m\n' "$host" "$port"
+            printf 'This gate races real processes against a real server, so it refuses\n'
+            printf 'to pass without one. Start a server and create the scratch database:\n\n'
+            printf '  CREATE DATABASE ethr_concurrency CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n\n'
+            printf 'Override DB_HOST/DB_PORT/DB_DATABASE/DB_USERNAME/DB_PASSWORD if yours differ.\n'
+            return 1
+        fi
+
+        php -d memory_limit=-1 vendor/bin/pest -c phpunit.concurrency.xml
+    )
+}
+
 lighthouse_gate() {
     (
         cd "$WEB_DIR" || return 1
@@ -505,6 +542,12 @@ fi
 # by name — which is why it fails rather than skips when the server is missing.
 if [[ "$SCOPE" == "mysql" ]]; then
     run_gate "Pest (backend, MySQL)" pest_mysql_gate
+fi
+
+# Opt-in for the same reason, and never part of `mysql`: it commits its
+# fixtures, so it must not share that suite's database.
+if [[ "$SCOPE" == "concurrency" ]]; then
+    run_gate "Pest (attendance, concurrent punches)" concurrency_gate
 fi
 
 # Opt-in, never part of `all` — see the comment above composer_audit_gate.
@@ -668,6 +711,60 @@ e2e_gate() {
 
 if [[ "$SCOPE" == "e2e" ]]; then
     run_gate "Playwright (E2E, desktop Chromium)" e2e_gate
+fi
+
+# The attendance-to-payslip journeys (src/e2e/attendance-payroll): punches by
+# several methods, driven through the real stack and read back from the API.
+# A scope of its own because it is meant to block a merge while `e2e` stays
+# advisory, and because it signs in to organisations of its own.
+#
+# It seeds those organisations first (E2eAttendanceSeeder, local and testing
+# only), into whichever database DB_* names, so every run starts with nobody
+# checked in. That must be the database the running API reads: export DB_* to
+# match, or set E2E_SKIP_SEED=1 and seed it yourself.
+#
+# E2E_ORIGIN is the address pattern, `{tenant}` standing for the organisation.
+e2e_attendance_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    local pattern probe
+    pattern="${E2E_ORIGIN:-http://\{tenant\}.localhost:3000}"
+    probe="${pattern//\{tenant\}/e2e-att}"
+
+    if ! node -e '
+        const { get } = require("http");
+        const u = new URL(process.argv[1]);
+        const loop = u.hostname === "localhost" || u.hostname.endsWith(".localhost");
+        const req = get({
+            host: loop ? "127.0.0.1" : u.hostname,
+            port: u.port || 80,
+            path: u.pathname,
+            headers: { Host: u.host },
+        }, (res) => process.exit(res.statusCode < 500 ? 0 : 1));
+        req.on("error", () => process.exit(1));
+        req.setTimeout(5000, () => process.exit(1));
+    ' "$probe/login"; then
+        printf '\033[31mNothing serving at %s.\033[0m\n' "$probe"
+        printf 'These journeys drive a running stack, so this gate refuses to pass\n'
+        printf 'without one:\n\n'
+        printf '  (cd api && php artisan serve) & (cd src && npm run dev)\n\n'
+        printf 'Override the address pattern with E2E_ORIGIN, e.g.\n'
+        printf '  E2E_ORIGIN="http://{tenant}.localhost:3230"\n'
+        return 1
+    fi
+
+    if [[ -z "${E2E_SKIP_SEED:-}" ]]; then
+        (cd "$API_DIR" && php artisan db:seed --class=E2eAttendanceSeeder --force) || return 1
+    fi
+
+    (cd "$WEB_DIR" && E2E_ORIGIN="$pattern" npx playwright test -c playwright.attendance.config.ts)
+}
+
+if [[ "$SCOPE" == "e2e-attendance" ]]; then
+    run_gate "Playwright (attendance to payslip)" e2e_attendance_gate
 fi
 
 printf '\n\033[1m━━━ summary ━━━\033[0m\n'
