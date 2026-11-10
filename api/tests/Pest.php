@@ -23,6 +23,10 @@ pest()->extend(TestCase::class)
     })
     ->in('Feature', 'Performance');
 
+// No RefreshDatabase: these start other processes, which only see rows that
+// were committed (phpunit.concurrency.xml).
+pest()->extend(TestCase::class)->in('Concurrency');
+
 function createTenant(array $attributes = []): Tenant
 {
     $tenant = Tenant::factory()->create($attributes);

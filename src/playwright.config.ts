@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // The attendance-to-payslip journeys sign in to organisations of their own
+  // and run under playwright.attendance.config.ts.
+  testIgnore: "**/attendance-payroll/**",
   outputDir: "./test-results",
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
