@@ -214,9 +214,14 @@ class SettingsController extends Controller
 
         // The type is the organisation's profile: dated, and written only by
         // OrganisationProfile, which keeps the column in step.
+        // A date belongs to a change of type only: with the type unchanged it
+        // is ignored, and withdrawing a scheduled change is asked for apart.
         if (array_key_exists('organization_type', $validated)) {
-            $from = $validated['effective_from'] ?? null;
+            $from = $validated['organization_type'] !== $typeBefore ? ($validated['effective_from'] ?? null) : null;
             app(OrganisationProfile::class)->set($tenant, (string) $validated['organization_type'], $request->user()?->id, null, is_string($from) ? Carbon::parse($from) : null);
+        }
+        if (! empty($validated['cancel_pending_organization_type'])) {
+            app(OrganisationProfile::class)->cancelPending($tenant, $request->user()?->id);
         }
 
         // Mirror into the settings JSON as well: it was the only store before

@@ -6,6 +6,7 @@ namespace App\Services\Onboarding;
 
 use App\Enums\ConfigurationSource;
 use App\Models\OrganizationTemplate;
+use App\Services\Tenancy\ProfileContext;
 
 /**
  * Turns an industry selection plus tenant signals into a scored, explainable
@@ -49,11 +50,13 @@ final class IndustryProfileResolver
         private readonly WorkforceProfileCatalog $workforceProfiles,
         private readonly PolicyProfileCatalog $policyProfiles,
         private readonly LeaveTypeCatalog $leaveTypes,
+        private readonly ProfileContext $profileContext,
     ) {}
 
     /**
      * @param  array<string, mixed>  $signals  e.g. ['employee_count' => 120, 'region' => 'Oromia',
-     *                                         'workforce_profile' => 'continuous_24_7', 'policy_profile' => 'ethiopia_public']
+     *                                         'workforce_profile' => 'continuous_24_7', 'policy_profile' => 'ethiopia_public',
+     *                                         'organization_type' => 'government']
      */
     public function resolve(string $industryKey, array $signals = []): ConfigurationPlan
     {
@@ -67,7 +70,12 @@ final class IndustryProfileResolver
 
         $profile = $this->workforceProfiles->find($profileChosen ? $signals['workforce_profile'] : $industry['profile'])
             ?? $this->workforceProfiles->find(WorkforceProfileCatalog::DEFAULT);
-        $policy = $this->policyProfiles->find($policyChosen ? $signals['policy_profile'] : $industry['policy'])
+        // The policy follows the kind in law before the industry: a federal
+        // office in any industry is civil service, and a private hospital is
+        // not, whatever the industry template suggests.
+        $kind = is_string($signals['organization_type'] ?? null) ? $signals['organization_type'] : null;
+        $fromKind = $this->policyProfiles->forLineage($this->profileContext->lineage($kind));
+        $policy = $this->policyProfiles->find($policyChosen ? $signals['policy_profile'] : ($fromKind ?? $industry['policy']))
             ?? $this->policyProfiles->find('ethiopia_private');
         /** @var array{key: string, label: string, label_am: string, description: string, shifts: list<array<string, mixed>>, rotations: list<array<string, mixed>>, working_days: list<int>, attendance: array<string, mixed>, review: list<string>} $profile */
         /** @var array{key: string, label: string, label_am: string, description: string, leave_types: list<string>, fiscal_year_start_month: int, allowances: list<array{name: string, name_am: string}>, review: list<string>} $policy */

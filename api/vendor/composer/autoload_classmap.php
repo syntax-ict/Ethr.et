@@ -1031,6 +1031,7 @@ return array(
     'App\\Services\\Payroll\\LoanService' => $baseDir . '/app/Services/Payroll/LoanService.php',
     'App\\Services\\Payroll\\OvertimeCalculator' => $baseDir . '/app/Services/Payroll/OvertimeCalculator.php',
     'App\\Services\\Payroll\\OvertimeClassifier' => $baseDir . '/app/Services/Payroll/OvertimeClassifier.php',
+    'App\\Services\\Payroll\\OwnStatutoryRates' => $baseDir . '/app/Services/Payroll/OwnStatutoryRates.php',
     'App\\Services\\Payroll\\PayrollBalanceService' => $baseDir . '/app/Services/Payroll/PayrollBalanceService.php',
     'App\\Services\\Payroll\\PayrollEngine' => $baseDir . '/app/Services/Payroll/PayrollEngine.php',
     'App\\Services\\Payroll\\PayrollPeriodLock' => $baseDir . '/app/Services/Payroll/PayrollPeriodLock.php',

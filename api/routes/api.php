@@ -755,6 +755,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/overtime-rates', [OvertimeRateController::class, 'show']);
         Route::put('/overtime-rates', [OvertimeRateController::class, 'update']);
         Route::get('/statutory-rules', [StatutoryRuleController::class, 'index']);
+        Route::post('/statutory-rules/use-law', [StatutoryRuleController::class, 'useLaw']);
         Route::delete('/statutory-rules/{code}', [StatutoryRuleController::class, 'destroy'])->where('code', '[a-z0-9_.]+');
         Route::apiResource('rules', PayrollRuleController::class)->parameters(['rules' => 'payrollRule']);
     });

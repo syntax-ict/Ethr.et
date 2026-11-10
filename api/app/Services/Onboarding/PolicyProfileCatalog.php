@@ -9,7 +9,8 @@ namespace App\Services\Onboarding;
  *
  * Ethiopia has two, and they are not interchangeable: Labour Proclamation
  * 1156/2019 governs private employers and explicitly excludes civil servants,
- * who are governed by the Federal Civil Servants Proclamation 1064/2017 and
+ * who are governed by the Federal Civil Servants Proclamation 1353/2024
+ * (which repealed 1064/2017; docs/EMPLOYMENT-LAW-REGISTER.md) and
  * the regions' own civil service laws. A government template that inherited
  * private-sector leave rules would be quietly wrong, so the choice is explicit
  * and every legally sensitive default it produces is flagged for review rather
@@ -80,6 +81,32 @@ final class PolicyProfileCatalog
             'review' => ['leave_custom', 'grades_illustrative', 'statutory_engine'],
         ],
     ];
+
+    /**
+     * The organisation types whose staff are outside the Labour Proclamation:
+     * federal and regional civil servants, and defence and police, who have
+     * laws of their own. A type that inherits from one (regional_government)
+     * is too. Every other kind starts from the Labour Proclamation.
+     *
+     * @var list<string>
+     */
+    public const CIVIL_SERVICE_TYPES = ['government', 'defence_police'];
+
+    /**
+     * The profile an organisation's kind in law starts from, given the kind
+     * and its parent (ProfileContext::lineage()); null when no kind is known,
+     * so the industry's suggestion stands.
+     *
+     * @param  list<string>  $lineage
+     */
+    public function forLineage(array $lineage): ?string
+    {
+        if ($lineage === []) {
+            return null;
+        }
+
+        return array_intersect($lineage, self::CIVIL_SERVICE_TYPES) === [] ? 'ethiopia_private' : 'ethiopia_public';
+    }
 
     /** @return list<string> */
     public function keys(): array

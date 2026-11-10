@@ -26,6 +26,7 @@ class UpdateOrganizationRequest extends FormRequest
             'type' => ['sometimes', 'nullable', 'string', 'max:50'],
             'organization_type' => ['sometimes', 'string', 'max:40'],
             'effective_from' => ['sometimes', 'nullable', 'date'],
+            'cancel_pending_organization_type' => ['sometimes', 'boolean'],
             'timezone' => ['sometimes', 'string', 'max:50', 'timezone:all'],
             'locale' => ['sometimes', 'string', 'in:en,am,om,ti,so'],
         ];

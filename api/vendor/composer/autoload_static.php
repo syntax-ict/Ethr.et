@@ -1765,6 +1765,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Payroll\\LoanService' => __DIR__ . '/../..' . '/app/Services/Payroll/LoanService.php',
         'App\\Services\\Payroll\\OvertimeCalculator' => __DIR__ . '/../..' . '/app/Services/Payroll/OvertimeCalculator.php',
         'App\\Services\\Payroll\\OvertimeClassifier' => __DIR__ . '/../..' . '/app/Services/Payroll/OvertimeClassifier.php',
+        'App\\Services\\Payroll\\OwnStatutoryRates' => __DIR__ . '/../..' . '/app/Services/Payroll/OwnStatutoryRates.php',
         'App\\Services\\Payroll\\PayrollBalanceService' => __DIR__ . '/../..' . '/app/Services/Payroll/PayrollBalanceService.php',
         'App\\Services\\Payroll\\PayrollEngine' => __DIR__ . '/../..' . '/app/Services/Payroll/PayrollEngine.php',
         'App\\Services\\Payroll\\PayrollPeriodLock' => __DIR__ . '/../..' . '/app/Services/Payroll/PayrollPeriodLock.php',

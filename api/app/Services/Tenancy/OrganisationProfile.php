@@ -38,20 +38,26 @@ final class OrganisationProfile
      * resolves to it. Once one is approved, it applies from `$from`, a month
      * start after the last approved period that UpdateOrganizationRequest
      * checked, and earlier periods keep the type they were paid under.
+     *
+     * Choosing the type in force today again changes no type, so it moves no
+     * date and leaves a change scheduled for later alone: only cancelPending()
+     * withdraws one. Null when nothing was written.
      */
-    public function set(Tenant $tenant, string $organizationType, ?int $by = null, ?string $sector = null, ?CarbonInterface $from = null): TenantProfileAssignment
+    public function set(Tenant $tenant, string $organizationType, ?int $by = null, ?string $sector = null, ?CarbonInterface $from = null): ?TenantProfileAssignment
     {
         $today = $this->context->for($tenant->id, Carbon::today());
         $sector ??= $today['sector'];
 
         if ($this->lastApprovedEnd($tenant) !== null) {
+            if ($organizationType === $today['organization_type']) {
+                return $sector === $today['sector'] ? null : $this->assign($tenant, $organizationType, $sector, Carbon::today(), $by);
+            }
+
             // Never retroactive: from the future date UpdateOrganizationRequest
             // checked, else the earliest one allowed. A change scheduled
             // earlier and not yet in force is replaced by this one.
             $keepThrough = Carbon::today();
-            $from ??= $organizationType === $today['organization_type']
-                ? Carbon::today()
-                : $this->earliestChange($tenant) ?? Carbon::today();
+            $from ??= $this->earliestChange($tenant) ?? Carbon::today();
         } else {
             $first = TenantProfileAssignment::query()
                 ->withoutGlobalScope('tenant')
@@ -61,12 +67,7 @@ final class OrganisationProfile
             $keepThrough = $from;
         }
 
-        TenantProfileAssignment::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenant->id)
-            ->whereDate('effective_from', '>', $keepThrough->format('Y-m-d'))
-            ->delete();
-        $this->context->forget();
+        $this->dropAfter($tenant, $keepThrough);
 
         // A change that starts later needs the type in force until then to
         // be on record, or the later row would be read back over today.
@@ -75,6 +76,40 @@ final class OrganisationProfile
         }
 
         return $this->assign($tenant, $organizationType, $sector, $from, $by);
+    }
+
+    /**
+     * Withdraws a change of type scheduled for later, if there is one. The
+     * type in force today stays, and so does every period's history.
+     */
+    public function cancelPending(Tenant $tenant, ?int $by = null): bool
+    {
+        $pending = $this->context->pending($tenant->id, Carbon::today());
+        if ($pending === null) {
+            return false;
+        }
+
+        $this->dropAfter($tenant, Carbon::today());
+        $this->rules->forget();
+
+        AuditLog::record('organization_profile.change_cancelled', $tenant, [
+            'organization_type' => $pending['organization_type'],
+            'effective_from' => $pending['effective_from'],
+            'cancelled_by' => $by,
+        ]);
+
+        return true;
+    }
+
+    /** Removes every assignment that starts after this day. */
+    private function dropAfter(Tenant $tenant, CarbonInterface $day): void
+    {
+        TenantProfileAssignment::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->whereDate('effective_from', '>', $day->format('Y-m-d'))
+            ->delete();
+        $this->context->forget();
     }
 
     /**
