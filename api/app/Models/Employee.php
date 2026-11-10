@@ -82,6 +82,7 @@ class Employee extends Model
         'photo_path',
         'tin',
         'import_key',
+        'created_via',
         'attendance_mode',
         'attendance_device_exempt_until',
     ];

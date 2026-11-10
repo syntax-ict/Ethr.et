@@ -114,6 +114,63 @@ It never throws for a holder it will not displace, because a device calls it on
 every punch. Two punches from one new number arriving together both try to
 insert; the loser re-reads the winner's row.
 
+## The gateway: `App\Services\Identity\EmployeeIntake`
+
+**The only code that creates an employee** (2026-11-11). One employee record,
+many attendance sources, one attendance engine: that holds only while a person
+has one record. Six paths made employees and asked "is this someone we already
+have?" in five different ways; SCIM and SSO did not ask at all, so a directory
+sending someone HR had already added made a second person.
+
+Every path presents the person to the gateway, which asks the resolver with
+every detail the record would be created from (`IdentitySignals::fromAttributes`)
+and answers with an `IntakeResult`:
+
+| outcome | meaning |
+|---|---|
+| `created` | nobody the organisation knows, or the caller accepted the answer; a record was made |
+| `matched` | a current employee, on an identifier strong enough to act on |
+| `needs_review` | someone who may be this person: a weaker match, a tie, or a contradicted one |
+| `former_employee` | a leaver, whether the match was certain or only likely |
+| `archived` | a deleted employee whose record is kept |
+
+`admit()` asks and creates in one call; `ask()` then `create()` is for a caller
+with a check of its own between the two (the file import's badge check).
+`admitUnattended()` is for a directory, where nobody is there to ask.
+
+What each path does with the answer:
+
+| path | `created_via` | on anything but "nobody we know" |
+|---|---|---|
+| The form, `POST /employees` | `manual`, `api` | 409. `employee-exists` for `matched`, never overruled. `employee-needs-confirmation` for the other three; the same request with `confirm_new: true` adds the person, and the audit record keeps who they were shown |
+| File import | `import` | `matched` is counted and not added, as before. Anything else is refused per row and named; the import has no review step |
+| Staged list | `migration`, `device` | A reviewer's "create" stands over everything they were shown. A certain match that appeared after the review (an earlier row of the same list, someone adding the person meanwhile) is linked to that record and counted as merged |
+| Recruitment hire | `recruitment` | Refused for a current employee (`recruitment.already_employee`). A leaver or a deleted record may be hired again as a new record, as before |
+| SCIM, SSO | `scim`, `sso` | The login goes on the existing employee when there is exactly one, they have no login, and their e-mail is this one or blank; no seat is used. A deleted record does not block. Anything else is refused: SCIM 409 `uniqueness`, SSO "no account", both audited |
+
+**A deleted record can be restored**: `POST /employees/{employee}/restore`, for
+whoever may delete, counted against the plan like a new employee.
+
+**The seat lock is the intake lock.** Every path already held
+`PlanLimitService`'s lock for the plan's limit, and it is not re-entrant, so the
+gateway takes no second one. The question and the insert sit inside it together:
+asked outside it, two requests for one person both hear "nobody we know".
+`EmployeeIntakeConcurrencyTest` pins that for each of the six paths, from the
+statements the database was sent.
+
+**Nothing else may create an employee.** `Security/EmployeeCreationInventoryTest`
+tokenises `app/` and fails on `Employee::create`, `new Employee`,
+`employees()->create`, `DB::table('employees')->insert` and the numbering
+service's creating methods anywhere but the gateway and `EmployeeNumbering`
+under it. `employees.created_via` is the other half: a record made after
+2026-11-11 with none did not come through it.
+
+**One behaviour changed for the file import.** A row that only *may* be an
+existing employee (the same phone under another name, a tie between two people)
+used to be added. It is now refused and named
+(`employee.import_possible_duplicate`), and the person adding it uses the form,
+where they can say "this is someone new". A name alone still never blocks a row.
+
 ## Where it is used
 
 - **`DevicePunchRecorder`** (webhooks, ZKTeco ADMS) and **`PullDeviceEventsJob`**
@@ -121,14 +178,16 @@ insert; the loser re-reads the winner's row.
   auto-link the mapping (unverified), and hold everything else in
   `unmatched_device_punches` for a person to assign.
 - **`DeviceEnrollmentController`** — the enrolled-users list, each with a verdict.
+- **`EmployeeIntake`** — every path that creates an employee, above.
 - **`EmployeeImporter`** — skips a row that is the same person (`matched`).
   A row that contradicts the person it looks like is refused
-  (`employee.import_needs_review`), and so is a row for an archived employee
-  (`employee.import_archived`): this import has no review step, so it neither
-  skips nor adds what it cannot be sure of.
+  (`employee.import_needs_review`), and so are a row for an archived employee
+  (`employee.import_archived`) and a row that may be an existing one
+  (`employee.import_possible_duplicate`): this import has no review step, so it
+  neither skips nor adds what it cannot be sure of.
 - **`WorkforceMigrationService`** — see [MIGRATION.md](MIGRATION.md). A match
   with a former employee, and an `archived` verdict, are both deferred to a
-  person.
+  person. A "create" row is asked again when the list is committed.
 
 Every caller passes every signal it has. The file import used to leave out the
 badge number and the migration the national ID, so the same row could be a match
@@ -152,18 +211,24 @@ hash — the strongest signal (weight 0.95) — without ever decrypting. Covered
   migration now pass.
 - `Device/DevicePunchResolutionUnchangedTest` — whose punch a number is.
 - `NationalIdMatchingTest`, `MigrationWorkspaceTest`, `Device/UnmatchedPunchTest`.
+- `Identity/EmployeeIntakeTest` — what the form, the import, a staged list and a
+  hire do with each answer; `Identity/ScimSsoAttachTest` — the two directories;
+  `Identity/EmployeeIntakeConcurrencyTest` — the lock;
+  `Security/EmployeeCreationInventoryTest` — that there is no other way in.
 
 ## Known follow-ups
 
 From the plan, in order; none is built yet:
 
-- **One gateway.** Six code paths create an employee and five of them have their
-  own duplicate rule (manual add, file import, migration, recruitment, SCIM, SSO).
-  `EmployeeIntake` becomes the only one, pinned by an inventory test.
-- **An archived match has no "restore".** The verdict exists; the action does not.
 - **A match is still not an update.** The import skips the row and a migration
   merge links an id. Filling blanks and reviewing conflicts comes with the staged
   import.
+- **A directory's refusal has no screen.** SCIM and SSO refuse a person who may
+  be an existing employee and write an audit record (`scim.user_refused`,
+  `sso.provision_refused`); nothing tells HR. The SSO sign-in page says only
+  that there is no account.
+- **A login put on an existing employee does not fill their e-mail.** The login
+  holds the directory's address; the employee record's stays blank.
 - **No database uniqueness** on badge number or national ID. Only after a
   duplicates report shows production is clean.
 - `username` login identifier (Slice 7 deferral) still needs a column.

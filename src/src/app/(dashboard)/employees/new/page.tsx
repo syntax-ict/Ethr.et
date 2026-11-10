@@ -51,6 +51,11 @@ import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { toast } from "sonner";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { ExistingEmployeeDialog } from "@/features/employees/components/existing-employee-dialog";
+import {
+  employeeLikeness,
+  type EmployeeLikeness,
+} from "@/features/employees/likeness";
 
 const EMPTY_FORM = {
   name: "",
@@ -122,6 +127,11 @@ export default function NewEmployeePage() {
 
   /** Per-field messages from the API's RFC-7807 `errors` map. */
   const [errors, setErrors] = useState<FieldErrors>({});
+
+  // The API's answer when this person looks like someone already here, and
+  // the form as it was sent, so "Add as a new person" sends the same thing.
+  const [likeness, setLikeness] = useState<EmployeeLikeness | null>(null);
+  const sent = useRef<CreateEmployeePayload | null>(null);
   const errorCount = Object.keys(errors).length;
 
   // An organisation with one branch has only one answer; it was a required
@@ -209,6 +219,11 @@ export default function NewEmployeePage() {
         : {}),
     };
 
+    sent.current = payload;
+    save(payload);
+  }
+
+  function save(payload: CreateEmployeePayload) {
     createEmployee.mutate(payload, {
       onSuccess: (created: {
         public_id?: string;
@@ -216,6 +231,7 @@ export default function NewEmployeePage() {
         meta?: { login_invited?: boolean };
       }) => {
         setHasUnsavedChanges(false);
+        setLikeness(null);
 
         if (afterSave.current === "another") {
           startNext(created?.name ?? form.name);
@@ -237,6 +253,16 @@ export default function NewEmployeePage() {
         );
       },
       onError: (err: unknown) => {
+        // Someone already here, or someone who may be: a dialog that names
+        // them and says what can be done, not a toast that is gone in
+        // seconds.
+        const like = employeeLikeness(err);
+        if (like) {
+          setLikeness(like);
+          return;
+        }
+        setLikeness(null);
+
         const fields = fieldErrors(err);
         setErrors(fields);
 
@@ -881,6 +907,15 @@ export default function NewEmployeePage() {
           </Button>
         </div>
       </form>
+
+      <ExistingEmployeeDialog
+        likeness={likeness}
+        adding={createEmployee.isPending}
+        onAddAnyway={() =>
+          sent.current && save({ ...sent.current, confirm_new: true })
+        }
+        onClose={() => setLikeness(null)}
+      />
     </>
   );
 }

@@ -17,6 +17,8 @@ const ROLE_LEVELS: Record<string, number> = {
  */
 const CAN_ABILITIES = {
   manageEmployees: "employee.create",
+  // Restoring a deleted record is undoing a delete, so it takes the same ability.
+  deleteEmployees: "employee.delete",
   manageAnnouncements: "announcement.manage",
   manageVacancies: "vacancy.manage",
   // The applicant pipeline, and approving an offer someone else made.

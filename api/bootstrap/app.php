@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Exceptions\EmployeeAlreadyExists;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
@@ -320,6 +321,28 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return response()->json($problem, 422, ['Content-Type' => 'application/problem+json']);
+        });
+
+        // Adding one employee who looks like someone already here
+        // (EmployeeIntake). 409, and `code` says whether the same request
+        // with `confirm_new` would add them. The people named belong to the
+        // caller's own organisation.
+        $exceptions->render(function (EmployeeAlreadyExists $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            $problem = [
+                'type' => 'https://ethr.et/errors/'.$e->kind,
+                'title' => 'Employee Already Exists',
+                'status' => 409,
+                'detail' => $e->getMessage(),
+                'code' => $e->kind,
+                'outcome' => $e->outcome,
+                'candidates' => $e->candidates,
+            ];
+
+            return response()->json($problem, 409, ['Content-Type' => 'application/problem+json']);
         });
 
         // A device the request depends on could not be read: unreachable,

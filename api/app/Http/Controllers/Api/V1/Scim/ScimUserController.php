@@ -8,10 +8,10 @@ use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\Employee;
 use App\Models\User;
 use App\Services\CurrentTenant;
-use App\Services\PlanLimitService;
+use App\Services\Identity\EmployeeIntake;
+use App\Services\Identity\IntakeResult;
 use App\Support\EthiopianPhone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -64,7 +64,7 @@ class ScimUserController extends Controller
         return response()->json($this->toScimUser($user));
     }
 
-    public function store(Request $request, PlanLimitService $planLimits): JsonResponse
+    public function store(Request $request, EmployeeIntake $intake): JsonResponse
     {
         $tenant = $this->currentTenant->get();
         $data = $request->all();
@@ -91,22 +91,34 @@ class ScimUserController extends Controller
         $ssoSettings = $tenant->ssoSetting;
         $defaultRole = UserRole::tryFrom($ssoSettings?->default_role ?? '') ?? UserRole::EMPLOYEE;
 
-        // The plan's seat cap applies however an employee arrives; the form and
-        // the import enforced it and SCIM did not. Checked under the seat lock.
-        $user = $planLimits->withinLimit($tenant, 'employees', 1, fn () => DB::transaction(function () use ($tenant, $data, $email, $defaultRole) {
+        // Through EmployeeIntake, under the organisation's seat lock. A
+        // directory sending someone HR already added used to make a second
+        // employee; the login now goes on the record that is there. The plan's
+        // seat cap applies only when a record is made.
+        $user = $intake->serialised($tenant, fn () => DB::transaction(function () use ($intake, $tenant, $data, $email, $defaultRole) {
             $name = $data['name'] ?? [];
             $fullName = trim(($name['givenName'] ?? '').' '.($name['familyName'] ?? '')) ?: $email;
 
             $isActive = $data['active'] ?? true;
 
-            $employee = Employee::create([
-                'tenant_id' => $tenant->id,
+            $admitted = $intake->admitUnattended($tenant, [
                 'name' => $fullName,
                 'email' => $email,
                 'phone' => EthiopianPhone::canonicalOrRaw($data['phoneNumbers'][0]['value'] ?? null),
                 'status' => $isActive ? EmployeeStatus::HIRED : EmployeeStatus::SUSPENDED,
                 'hire_date' => now(),
-            ]);
+            ], EmployeeIntake::VIA_SCIM);
+
+            // Someone who may be this person, and nobody here to ask.
+            if ($admitted->outcome === IntakeResult::NEEDS_REVIEW) {
+                AuditLog::record('scim.user_refused', $tenant, [
+                    'email' => $email,
+                    'resembles' => array_column($admitted->match->candidates, 'employee_public_id'),
+                ]);
+
+                return null;
+            }
+            $employee = $admitted->record();
 
             $user = User::create([
                 'tenant_id' => $tenant->id,
@@ -120,10 +132,15 @@ class ScimUserController extends Controller
 
             AuditLog::record('scim.user_created', $user, [
                 'email' => $email,
+                'employee' => $admitted->created() ? 'created' : 'existing',
             ]);
 
             return $user->load('employee');
         }));
+
+        if ($user === null) {
+            return $this->scimError('An employee who may be this person already exists in ETHR. Resolve it there before provisioning.', 409, 'uniqueness');
+        }
 
         return response()->json($this->toScimUser($user), 201)
             ->header('Location', url("/api/v1/scim/v2/Users/{$user->public_id}"));

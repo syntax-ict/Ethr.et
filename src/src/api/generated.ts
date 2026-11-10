@@ -3282,7 +3282,22 @@ export interface paths {
         /** List employees */
         get: operations["employees.index"];
         put?: never;
-        /** Create employee */
+        /**
+         * Add an employee
+         * @description One record per person. When the details sent match someone the
+         *     organisation already has, nothing is created and the answer is a 409
+         *     problem document whose `candidates` name them (`public_id`, `name`, and
+         *     the `reasons` they matched on):
+         *
+         *     - `code: employee-exists`: a current employee, matched on the national
+         *       ID, the e-mail, or the phone together with the name. Update that
+         *       record instead.
+         *     - `code: employee-needs-confirmation`: someone who may be this person.
+         *       `outcome` says which: `needs_review` (a weaker match, such as a shared
+         *       phone), `former_employee` (someone who has left) or `archived` (a
+         *       deleted record, which can be restored). Send the same request with
+         *       `confirm_new: true` to add them as a new person.
+         */
         post: operations["employees.store"];
         delete?: never;
         options?: never;
@@ -3304,6 +3319,29 @@ export interface paths {
         post?: never;
         /** Delete employee */
         delete: operations["employees.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted employee
+         * @description Deleting an employee keeps the record with its attendance and pay
+         *     history; this brings it back. It needs the permission to delete
+         *     employees. The person takes a seat again, so the plan's employee limit
+         *     applies. An employee who is not deleted is returned unchanged.
+         */
+        post: operations["employee.restore"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -11738,6 +11776,7 @@ export interface components {
              */
             create_login?: boolean;
             user_role?: components["schemas"]["UserRole"];
+            confirm_new?: boolean;
         };
         /** StoreGradeRequest */
         StoreGradeRequest: {
@@ -22224,6 +22263,40 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "employee.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `EmployeeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "employeeTransition.index": {
         parameters: {
             query?: never;
@@ -23527,6 +23600,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "An employee who may be this person already exists in ETHR. Resolve it there before provisioning.";
+                        /** @constant */
+                        scimType: "uniqueness";
+                        /** @constant */
+                        status: 409;
+                    } | {
                         schemas: [
                             "urn:ietf:params:scim:api:messages:2.0:Error"
                         ];

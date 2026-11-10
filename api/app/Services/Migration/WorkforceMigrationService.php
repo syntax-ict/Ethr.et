@@ -13,9 +13,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\DeviceManager;
 use App\Services\EmployeeNumbering;
+use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IntakeResult;
 use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
 use App\Support\EthiopianPhone;
@@ -38,6 +40,7 @@ final class WorkforceMigrationService
         private readonly DeviceManager $devices,
         private readonly EmployeeNumbering $numbering,
         private readonly PlanLimitService $planLimits,
+        private readonly EmployeeIntake $intake,
     ) {}
 
     /**
@@ -176,12 +179,24 @@ final class WorkforceMigrationService
 
                     switch ($row->action) {
                         case MigrationStagingRow::ACTION_CREATE:
-                            $employee = $this->createEmployee($raw, $tenant, $departments, $pool);
-                            // A reviewer chose this row's action, so the number
-                            // goes where they said, even from a confirmed holder.
-                            $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                            $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
+                            $employee = $admitted->record();
+
+                            if ($admitted->created()) {
+                                // A reviewer chose this row's action, so the number
+                                // goes where they said, even from a confirmed holder.
+                                $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                                $totals['created']++;
+                            } else {
+                                // The person is here now and was not when the
+                                // list was reviewed: an earlier row of this
+                                // list, or someone adding them meanwhile. One
+                                // record, and this source's number linked to
+                                // it, unconfirmed because nobody looked.
+                                $this->resolver->link($employee, $signals, $admitted->match->confidence);
+                                $totals['merged']++;
+                            }
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                            $totals['created']++;
                             break;
 
                         case MigrationStagingRow::ACTION_MERGE:
@@ -375,6 +390,16 @@ final class WorkforceMigrationService
     }
 
     /**
+     * A "create" row, asked again under the lock (EmployeeIntake).
+     *
+     * The verdict a reviewer saw was reached when the list was staged, and the
+     * roster has moved since: an earlier row of the same list, the form, a
+     * directory. A reviewer's "create" stands over everything they were shown
+     * (a likeness, a leaver, a deleted record, and a certain match when that
+     * is what the row said at review). What they were not shown is a certain
+     * match that appeared afterwards; that row is linked to the person, not
+     * made a second time.
+     *
      * A department is matched by code or name (DepartmentMatch). A pasted list
      * was checked when it was staged; a device's own department names are
      * not, so one the organisation does not have leaves the person unassigned.
@@ -382,12 +407,16 @@ final class WorkforceMigrationService
      * @param  array<string, mixed>  $raw
      * @param  list<string>  $pool  the batch's numbers for people who bring none
      */
-    private function createEmployee(array $raw, Tenant $tenant, DepartmentMatch $departments, array &$pool): Employee
+    private function admit(MigrationStagingRow $row, array $raw, IdentitySignals $signals, MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, array &$pool): IntakeResult
     {
+        $accept = $row->match_outcome === IdentityMatch::MATCHED
+            ? [...IntakeResult::CONFIRMABLE, IntakeResult::MATCHED]
+            : IntakeResult::CONFIRMABLE;
+
         // EmployeeNumbering gives the next number when the row brings none,
-        // as adding one person or importing a file does.
-        return $this->numbering->createFromPool($tenant, [
-            'tenant_id' => $tenant->id,
+        // as adding one person or importing a file does. The plan's limit was
+        // checked for the whole batch before the first row.
+        return $this->intake->admit($tenant, [
             'name' => $this->nameOf($raw),
             'email' => isset($raw['email']) ? (string) $raw['email'] : null,
             'phone' => EthiopianPhone::canonicalOrRaw(isset($raw['phone']) ? (string) $raw['phone'] : null),
@@ -396,6 +425,6 @@ final class WorkforceMigrationService
             'hire_date' => isset($raw['hire_date']) ? (string) $raw['hire_date'] : now()->toDateString(),
             'department_id' => $departments->id(isset($raw['department']) ? (string) $raw['department'] : null),
             'status' => EmployeeStatus::HIRED,
-        ], $pool);
+        ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
     }
 }

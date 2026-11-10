@@ -365,7 +365,8 @@ See `BASELINE.md` §25h.
 | bank_account_number | TEXT NULL | 🔒 AES-256 |
 | tin | TEXT NULL | 🔒 AES-256 |
 | search_text | TEXT NULL | Concatenated searchable fields |
-| deleted_at | TIMESTAMP NULL | Soft delete |
+| created_via | VARCHAR(20) NULL | How the record came to exist: `manual`, `api`, `import`, `migration`, `device`, `recruitment`, `scim`, `sso`. Written by `EmployeeIntake`, the only code that creates an employee. NULL on records from before 2026-11-11 |
+| deleted_at | TIMESTAMP NULL | Soft delete. `POST /employees/{employee}/restore` brings the record back |
 
 **FULLTEXT INDEX:** (first_name, last_name, first_name_am, last_name_am, employee_code, email)
 

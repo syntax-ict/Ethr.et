@@ -384,6 +384,7 @@ return [
     'Services/Features/FeatureControls.php' => 2,
     'Services/Features/FeatureGate.php' => 1,
     'Services/Holiday/HolidayService.php' => 2,
+    'Services/Identity/EmployeeIntake.php' => 1,
     'Services/Identity/IdentityResolver.php' => 2,
     'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,

@@ -61,6 +61,15 @@ row's reasons say which ([IDENTITY_RESOLUTION.md](IDENTITY_RESOLUTION.md)).
 external identity (verified); `merge` links to the resolved employee only;
 `skip`/`defer` do nothing.
 
+**A `create` row is asked again at commit, under the lock** (2026-11-11,
+`EmployeeIntake`). The verdict a reviewer saw was reached when the list was
+staged, and the roster has moved since. Their "create" stands over everything
+they were shown: a likeness, a leaver, a deleted record, and a certain match
+when that is what the row said at review. What they were not shown is a certain
+match that appeared afterwards (an earlier row of the same list naming the same
+person, or someone adding them meanwhile). That row is linked to the person's
+record, unverified, and counted under `merged`; it is not made a second time.
+
 ## Endpoints (`/api/v1/onboarding/migration`)
 
 | method | path | purpose |
