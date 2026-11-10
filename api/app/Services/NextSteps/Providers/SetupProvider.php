@@ -51,7 +51,7 @@ final class SetupProvider implements StepProvider
         }
 
         $steps = [];
-        $attendanceOn = $this->features->allows($tenant, Feature::Attendance);
+        $attendanceOn = $this->features->shows($tenant, Feature::Attendance);
         $blockers = $attendanceOn && $user->hasPermission('attendance.manage')
             ? array_values(array_filter(
                 $this->attendance->checks($tenant),
@@ -63,7 +63,7 @@ final class SetupProvider implements StepProvider
             $id = NextStepId::fromReadinessCheck($gap['id']);
             $feature = self::CHECK_FEATURE[$gap['id']] ?? null;
 
-            if ($id === null || ($feature !== null && ! $this->features->allows($tenant, $feature))) {
+            if ($id === null || ($feature !== null && ! $this->features->shows($tenant, $feature))) {
                 continue;
             }
 

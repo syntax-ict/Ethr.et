@@ -2,6 +2,7 @@
 
 import { CalendarCheck, ClipboardCheck, Users, Wallet } from "lucide-react";
 import { DashboardSection, StatCard } from "@/components/dashboard";
+import { useHiddenFeatures } from "@/features/auth/api";
 import { useManagerDashboard } from "@/features/dashboard/api";
 import {
   useExecutiveAttendance,
@@ -26,6 +27,8 @@ export function OrganisationSnapshot() {
   const overview = useExecutiveOverview();
   const attendance = useExecutiveAttendance();
   const manager = useManagerDashboard();
+  // A module the platform has Hidden loses its tile, as it loses its sidebar row.
+  const hidden = useHiddenFeatures();
 
   const heading = (
     <span>{t("dashboard.organisation_today", "Organisation today")}</span>
@@ -82,25 +85,27 @@ export function OrganisationSnapshot() {
           spark={growth.map((g) => g.hires)}
           href="/employees"
         />
-        <StatCard
-          loading={loading}
-          icon={CalendarCheck}
-          tone="success"
-          label={t("dashboard.present_today", "Present Today")}
-          // Null when no one was expected at work: a rest day or holiday.
-          value={
-            data?.attendance_rate.today == null
-              ? t("analytics_page.no_one_scheduled", "No one scheduled")
-              : `${data.attendance_rate.today}%`
-          }
-          hint={
-            data?.attendance_rate.period == null
-              ? undefined
-              : `${data.attendance_rate.period}% ${t("dashboard.this_month", "this month")}`
-          }
-          spark={presentSpark}
-          href="/attendance"
-        />
+        {!hidden.has("attendance") && (
+          <StatCard
+            loading={loading}
+            icon={CalendarCheck}
+            tone="success"
+            label={t("dashboard.present_today", "Present Today")}
+            // Null when no one was expected at work: a rest day or holiday.
+            value={
+              data?.attendance_rate.today == null
+                ? t("analytics_page.no_one_scheduled", "No one scheduled")
+                : `${data.attendance_rate.today}%`
+            }
+            hint={
+              data?.attendance_rate.period == null
+                ? undefined
+                : `${data.attendance_rate.period}% ${t("dashboard.this_month", "this month")}`
+            }
+            spark={presentSpark}
+            href="/attendance"
+          />
+        )}
         <StatCard
           loading={manager.isLoading}
           icon={ClipboardCheck}
@@ -121,41 +126,43 @@ export function OrganisationSnapshot() {
           }
           href="/approvals"
         />
-        <StatCard
-          loading={loading}
-          icon={Wallet}
-          tone="brand"
-          label={t("dashboard.payroll_gross", "Payroll (gross)")}
-          value={
-            payrollShown > 0
-              ? formatETBCompact(payrollShown)
-              : t("dashboard.payroll_not_run", "Not run yet")
-          }
-          hint={
-            payrollShown === 0
-              ? t(
-                  "dashboard.payroll_none_hint",
-                  "No payroll this month or last",
-                )
-              : thisMonth > 0
-                ? payrollDelta !== null
-                  ? undefined
-                  : t("dashboard.this_month_payroll", "This month")
-                : t(
-                    "dashboard.last_month_payroll",
-                    "Last month · this month not run yet",
+        {!hidden.has("payroll") && (
+          <StatCard
+            loading={loading}
+            icon={Wallet}
+            tone="brand"
+            label={t("dashboard.payroll_gross", "Payroll (gross)")}
+            value={
+              payrollShown > 0
+                ? formatETBCompact(payrollShown)
+                : t("dashboard.payroll_not_run", "Not run yet")
+            }
+            hint={
+              payrollShown === 0
+                ? t(
+                    "dashboard.payroll_none_hint",
+                    "No payroll this month or last",
                   )
-          }
-          delta={
-            payrollDelta !== null
-              ? {
-                  value: payrollDelta,
-                  label: t("dashboard.vs_last_month", "vs last month"),
-                }
-              : undefined
-          }
-          href="/payroll"
-        />
+                : thisMonth > 0
+                  ? payrollDelta !== null
+                    ? undefined
+                    : t("dashboard.this_month_payroll", "This month")
+                  : t(
+                      "dashboard.last_month_payroll",
+                      "Last month · this month not run yet",
+                    )
+            }
+            delta={
+              payrollDelta !== null
+                ? {
+                    value: payrollDelta,
+                    label: t("dashboard.vs_last_month", "vs last month"),
+                  }
+                : undefined
+            }
+            href="/payroll"
+          />
+        )}
       </div>
     </DashboardSection>
   );

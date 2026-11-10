@@ -15,6 +15,7 @@ return [
 
     'feature_not_overridable' => 'This feature is decided for every organisation at once, and cannot be granted or revoked for one.',
     'feature_no_rollout' => 'This feature has no organisations to roll out to. Choose Enabled or Disabled.',
+    'feature_not_hideable' => 'This feature has no page of its own to hide. Choose Enabled or Disabled.',
     'features' => [
         'attendance' => 'attendance tracking',
         'leave' => 'leave management',

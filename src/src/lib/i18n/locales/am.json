@@ -113,7 +113,7 @@
   "admin_features.consequence_disabled": "ፈቃድ የተሰጣቸውን ጨምሮ ለሁሉም ድርጅቶች ይጠፋል። መዝገቦቻቸው መነበብ ይችላሉ፣ የተጀመረ ሥራም ይጠናቀቃል።",
   "admin_features.consequence_enabled": "እያንዳንዱ ድርጅት :feature በዕቅዱ እንደተፈቀደው ይጠቀማል።",
   "admin_features.consequence_grant": ":name ዕቅዱ ምንም ቢል :feature መጠቀም ይችላል።",
-  "admin_features.consequence_hidden": "ከእያንዳንዱ ድርጅት ማያ ገጽ ይወገዳል። API መሥራቱን ይቀጥላል፣ ስለዚህ መደበቅ ምንም አያስቆምም።",
+  "admin_features.consequence_hidden": "ከእያንዳንዱ ድርጅት የጎን ምናሌ፣ ፍለጋ፣ ቀጣይ እርምጃዎች እና ዳሽቦርድ ይወገዳል። ገጾቹ በአድራሻቸው ይከፈታሉ፣ API መሥራቱን ይቀጥላል፣ ስለዚህ መደበቅ ምንም አያስቆምም።",
   "admin_features.consequence_restricted": "በገጻቸው ላይ ከፈቀዱላቸው ድርጅቶች በስተቀር ለሁሉም ድርጅቶች ይጠፋል።",
   "admin_features.consequence_revoke": ":name ዕቅዱ ቢያካትተውም :feature መጠቀም አይችልም። መዝገቦቹ መነበብ ይችላሉ።",
   "admin_features.decision": "ለዚህ ድርጅት",
@@ -6429,5 +6429,9 @@
   "analytics_page.points": "ነጥብ",
   "analytics_page.today_rate": "ዛሬ :rate%",
   "analytics_page.no_one_scheduled_today": "ዛሬ የተመደበ የለም",
-  "features.paused_banner": "ETHR :featuresን ለጊዜው አጥፍቷል። መዝገቦችዎ ተጠብቀዋል፤ በእርስዎ በኩል የሚደረግ ነገር የለም።"
+  "features.paused_banner": "ETHR :featuresን ለጊዜው አጥፍቷል። መዝገቦችዎ ተጠብቀዋል፤ በእርስዎ በኩል የሚደረግ ነገር የለም።",
+  "admin_features.sms_name": "የጽሑፍ መልዕክቶች (SMS)",
+  "admin_features.usage_loading": "የሚጠቀሙበትን ድርጅቶች በመቁጠር ላይ",
+  "admin_features.usage_unmeasured": "ስንት ድርጅቶች እንደሚጠቀሙበት አይመዘገብም።",
+  "admin_features.usage_count": "ባለፉት :days ቀናት የተጠቀሙበት ድርጅቶች፦ :count"
 }

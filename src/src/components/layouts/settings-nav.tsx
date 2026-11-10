@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { useHiddenFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
 // The Settings hub's own sub-navigation. It replaces the two collapsible
@@ -37,6 +38,8 @@ interface SettingsNavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   show: boolean;
+  /** The catalogued feature this page belongs to, so Hidden can take it away. */
+  feature?: string;
 }
 
 interface SettingsNavGroup {
@@ -74,6 +77,7 @@ function resolveActiveHref(
 export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
   const { can, isTenantAdmin, hasPermission } = usePermissions();
+  const hidden = useHiddenFeatures();
 
   const groups: SettingsNavGroup[] = [
     {
@@ -93,18 +97,21 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
         {
           label: t("nav.attendance_rules", "Attendance Rules"),
           href: "/settings/attendance",
+          feature: "attendance",
           icon: Clock,
           show: can.manageAttendance,
         },
         {
           label: t("nav.shift_config", "Shift Rules"),
           href: "/shifts",
+          feature: "attendance",
           icon: Timer,
           show: can.manageShifts,
         },
         {
           label: t("nav.leave_types", "Leave Types"),
           href: "/settings/leave-types",
+          feature: "leave",
           icon: ListChecks,
           show: can.manageLeaveTypes,
         },
@@ -129,6 +136,7 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
         {
           label: t("nav.payroll_config", "Payroll Rules"),
           href: "/settings/payroll",
+          feature: "payroll",
           icon: Coins,
           show: isTenantAdmin,
         },
@@ -167,18 +175,21 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
         {
           label: t("nav.api_keys", "API Keys"),
           href: "/settings/api-keys",
+          feature: "api_access",
           icon: KeyRound,
           show: can.manageApiKeys,
         },
         {
           label: t("nav.webhooks", "Webhooks"),
           href: "/settings/webhooks",
+          feature: "webhooks",
           icon: Webhook,
           show: can.manageWebhooks,
         },
         {
           label: t("nav.accounting", "Accounting"),
           href: "/settings/accounting",
+          feature: "payroll",
           icon: BookOpen,
           show: can.viewPayrollRuns,
         },
@@ -202,6 +213,7 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
         {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
+          feature: "audit_log",
           icon: ScrollText,
           show: can.manageSettings,
         },
@@ -216,7 +228,12 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
   ];
 
   return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (i) => i.show && !(i.feature && hidden.has(i.feature)),
+      ),
+    }))
     .filter((g) => g.items.length > 0);
 }
 

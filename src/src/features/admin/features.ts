@@ -91,6 +91,8 @@ export interface PlatformFeature {
   kind: FeatureKind;
   /** False when only the platform state decides it: no grant, no rollout. */
   overridable: boolean;
+  /** Whether Hidden is offered: a module with pages of its own to hide. */
+  hideable: boolean;
   state: FeatureState;
   default_state: FeatureState;
   reason: string | null;
@@ -136,6 +138,26 @@ export function usePlatformFeatures() {
       (await apiClient.get<{ data: PlatformFeature[] }>("/admin/features")).data
         .data,
     enabled: isSuperAdmin,
+  });
+}
+
+export interface FeatureUsage {
+  key: FeatureKey;
+  days: number;
+  /** Organisations that used it in the window, or null where nothing records use. */
+  organisations: number | null;
+}
+
+/** Asked for when a Disable is being confirmed, not with the list. */
+export function useFeatureUsage(key: FeatureKey) {
+  const { isSuperAdmin } = usePermissions();
+
+  return useQuery<FeatureUsage>({
+    queryKey: [...KEY, key, "usage"],
+    queryFn: async () =>
+      (await apiClient.get<FeatureUsage>(`/admin/features/${key}/usage`)).data,
+    enabled: isSuperAdmin,
+    staleTime: 60 * 1000,
   });
 }
 

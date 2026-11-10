@@ -78,6 +78,12 @@ export interface NavContext {
   settingsLanding: string | null;
   /** Today's date, ISO, for destinations that open one day. */
   today: string;
+  /**
+   * Feature keys the platform has Hidden for this organisation (`/me`
+   * `features`, on but not visible). Their rows leave the sidebar, the
+   * palette and the quick actions; the pages still open by address.
+   */
+  hidden?: ReadonlySet<string>;
 }
 
 export interface Destination {
@@ -88,6 +94,8 @@ export interface Destination {
   labelFallback: string;
   icon: LucideIcon;
   show: (ctx: NavContext) => boolean;
+  /** The catalogued feature this belongs to, so Hidden can take it away. */
+  feature?: string;
   /**
    * The sidebar draws a live count next to this row: decisions waiting for
    * the person, or punches waiting for an integrity review.
@@ -103,6 +111,7 @@ export interface DestinationGroup {
   labelFallback: string;
   icon: LucideIcon;
   show: (ctx: NavContext) => boolean;
+  feature?: string;
   children: Destination[];
 }
 
@@ -129,10 +138,38 @@ export interface QuickAction {
   descFallback: string;
   icon: LucideIcon;
   show: (ctx: NavContext) => boolean;
+  feature?: string;
 }
 
 const leaf = (d: Destination): NavEntryDef => ({ ...d, kind: "leaf" });
 const always = () => true;
+
+/**
+ * Folds the platform's Hidden into an entry's own `show`, so every reader
+ * of the registry (sidebar, palette, breadcrumb, tests) honours it without
+ * knowing about it.
+ */
+function honourHidden<
+  T extends { feature?: string; show: (ctx: NavContext) => boolean },
+>(entry: T): T {
+  const { feature, show } = entry;
+  if (!feature) return entry;
+  return {
+    ...entry,
+    show: (c: NavContext) => !c.hidden?.has(feature) && show(c),
+  };
+}
+
+function honourHiddenSections(sections: NavSectionDef[]): NavSectionDef[] {
+  return sections.map((section) => ({
+    ...section,
+    entries: section.entries.map((entry) =>
+      entry.kind === "group"
+        ? { ...honourHidden(entry), children: entry.children.map(honourHidden) }
+        : honourHidden(entry),
+    ),
+  }));
+}
 
 // ── Platform (super admin) ───────────────────────────────────────────────────
 //
@@ -249,7 +286,7 @@ const PLATFORM_SECTIONS: NavSectionDef[] = [
 // Attendance appears twice on purpose, and never to the same person: the
 // Workspace row is one's own record, the Operations group is everyone else's.
 
-const TENANT_SECTIONS: NavSectionDef[] = [
+const TENANT_SECTIONS: NavSectionDef[] = honourHiddenSections([
   {
     titleKey: "nav.section.workspace",
     titleFallback: "Workspace",
@@ -277,6 +314,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       // administer everyone's from Operations > Attendance > Records instead.
       leaf({
         id: "my_attendance",
+        feature: "attendance",
         href: "/attendance",
         labelKey: "nav.my_attendance",
         labelFallback: "My Attendance",
@@ -285,6 +323,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       }),
       leaf({
         id: "leave",
+        feature: "leave",
         href: "/leave",
         labelKey: "nav.leave",
         labelFallback: "Leave",
@@ -293,6 +332,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       }),
       leaf({
         id: "payslips",
+        feature: "payroll",
         href: "/payroll/payslips",
         labelKey: "nav.payslips",
         labelFallback: "My Payslips",
@@ -360,6 +400,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       {
         kind: "group",
         id: "ops-attendance",
+        feature: "attendance",
         labelKey: "nav.attendance",
         labelFallback: "Attendance",
         icon: Clock,
@@ -463,6 +504,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       },
       leaf({
         id: "shifts",
+        feature: "attendance",
         href: "/shifts",
         labelKey: "nav.shifts",
         labelFallback: "Shifts & Schedules",
@@ -471,6 +513,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       }),
       leaf({
         id: "devices",
+        feature: "attendance",
         href: "/devices",
         labelKey: "nav.devices",
         labelFallback: "Devices",
@@ -488,6 +531,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       {
         kind: "group",
         id: "fin-payroll",
+        feature: "payroll",
         labelKey: "nav.payroll",
         labelFallback: "Payroll",
         icon: Wallet,
@@ -527,6 +571,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
     entries: [
       leaf({
         id: "reports",
+        feature: "reports",
         href: "/reports",
         labelKey: "nav.reports",
         labelFallback: "Reports",
@@ -602,7 +647,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
       },
     ],
   },
-];
+]);
 
 /** The sidebar tree for this person. */
 export function navSections(ctx: NavContext): NavSectionDef[] {
@@ -614,147 +659,156 @@ export function navSections(ctx: NavContext): NavSectionDef[] {
  * person's own profile and notifications, and the settings pages the hub
  * lists. Each settings row repeats the gate `settings-nav.tsx` applies.
  */
-export const MORE_DESTINATIONS: Destination[] = [
-  {
-    id: "profile",
-    href: "/profile",
-    labelKey: "nav.my_profile",
-    labelFallback: "My Profile",
-    icon: UserCircle,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "notifications",
-    href: "/notifications",
-    labelKey: "nav.notifications",
-    labelFallback: "Notifications",
-    icon: Bell,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    // Opened from the header's Get help and the account menu.
-    id: "support",
-    href: "/support",
-    labelKey: "nav.support",
-    labelFallback: "Help requests",
-    icon: LifeBuoy,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    // Reached from the Employees toolbar, the dashboard's Next steps and
-    // here; a sidebar row of its own would crowd People for a weekly check.
-    id: "contracts_ending",
-    href: "/employees/contracts",
-    labelKey: "nav.contracts_ending",
-    labelFallback: "Contracts ending",
-    icon: CalendarClock,
-    show: (c) => c.can.manageEmployees,
-  },
-  {
-    id: "users",
-    href: "/settings/users",
-    labelKey: "nav.users",
-    labelFallback: "Users & Access",
-    icon: Users,
-    show: (c) => c.can.viewUsers,
-  },
-  {
-    id: "roles",
-    href: "/settings/roles",
-    labelKey: "nav.roles",
-    labelFallback: "Roles & Permissions",
-    icon: Shield,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "holidays",
-    href: "/settings/holidays",
-    labelKey: "nav.holidays",
-    labelFallback: "Holidays",
-    icon: Calendar,
-    show: (c) => c.can.manageHolidays,
-  },
-  {
-    id: "approval_chains",
-    href: "/settings/approval-chains",
-    labelKey: "nav.approval_chains",
-    labelFallback: "Approval chains",
-    icon: GitBranch,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "exit_clearance_checklist",
-    href: "/settings/exit-clearance",
-    labelKey: "nav.exit_clearance_checklist",
-    labelFallback: "Exit checklist",
-    icon: ClipboardCheck,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "leave_types",
-    href: "/settings/leave-types",
-    labelKey: "nav.leave_types",
-    labelFallback: "Leave Types",
-    icon: CalendarDays,
-    show: (c) => c.can.manageLeaveTypes,
-  },
-  {
-    id: "attendance_rules",
-    href: "/settings/attendance",
-    labelKey: "nav.attendance_rules",
-    labelFallback: "Attendance Rules",
-    icon: Clock,
-    show: (c) => c.can.manageAttendance,
-  },
-  {
-    id: "shift_rules",
-    href: "/shifts",
-    labelKey: "nav.shift_config",
-    labelFallback: "Shift Rules",
-    icon: CalendarRange,
-    show: (c) => c.can.manageShifts,
-  },
-  {
-    id: "payroll_rules",
-    href: "/settings/payroll",
-    labelKey: "nav.payroll_config",
-    labelFallback: "Payroll Rules",
-    icon: Wallet,
-    show: (c) => c.isTenantAdmin && !c.isSuperAdmin,
-  },
-  {
-    id: "api_keys",
-    href: "/settings/api-keys",
-    labelKey: "nav.api_keys",
-    labelFallback: "API Keys",
-    icon: KeyRound,
-    show: (c) => c.can.manageApiKeys,
-  },
-  {
-    id: "webhooks",
-    href: "/settings/webhooks",
-    labelKey: "nav.webhooks",
-    labelFallback: "Webhooks",
-    icon: Webhook,
-    show: (c) => c.can.manageWebhooks,
-  },
-  {
-    id: "audit_log",
-    href: "/settings/audit-logs",
-    labelKey: "nav.audit_log",
-    labelFallback: "Audit Log",
-    icon: ScrollText,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "data_export",
-    href: "/settings/data-export",
-    labelKey: "nav.data_export",
-    labelFallback: "Data export",
-    icon: Download,
-    show: (c) => c.can.manageSettings,
-  },
-];
+export const MORE_DESTINATIONS: Destination[] = (
+  [
+    {
+      id: "profile",
+      href: "/profile",
+      labelKey: "nav.my_profile",
+      labelFallback: "My Profile",
+      icon: UserCircle,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "notifications",
+      href: "/notifications",
+      labelKey: "nav.notifications",
+      labelFallback: "Notifications",
+      icon: Bell,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      // Opened from the header's Get help and the account menu.
+      id: "support",
+      href: "/support",
+      labelKey: "nav.support",
+      labelFallback: "Help requests",
+      icon: LifeBuoy,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      // Reached from the Employees toolbar, the dashboard's Next steps and
+      // here; a sidebar row of its own would crowd People for a weekly check.
+      id: "contracts_ending",
+      href: "/employees/contracts",
+      labelKey: "nav.contracts_ending",
+      labelFallback: "Contracts ending",
+      icon: CalendarClock,
+      show: (c) => c.can.manageEmployees,
+    },
+    {
+      id: "users",
+      href: "/settings/users",
+      labelKey: "nav.users",
+      labelFallback: "Users & Access",
+      icon: Users,
+      show: (c) => c.can.viewUsers,
+    },
+    {
+      id: "roles",
+      href: "/settings/roles",
+      labelKey: "nav.roles",
+      labelFallback: "Roles & Permissions",
+      icon: Shield,
+      show: (c) => c.can.manageSettings,
+    },
+    {
+      id: "holidays",
+      href: "/settings/holidays",
+      labelKey: "nav.holidays",
+      labelFallback: "Holidays",
+      icon: Calendar,
+      show: (c) => c.can.manageHolidays,
+    },
+    {
+      id: "approval_chains",
+      href: "/settings/approval-chains",
+      labelKey: "nav.approval_chains",
+      labelFallback: "Approval chains",
+      icon: GitBranch,
+      show: (c) => c.can.manageSettings,
+    },
+    {
+      id: "exit_clearance_checklist",
+      href: "/settings/exit-clearance",
+      labelKey: "nav.exit_clearance_checklist",
+      labelFallback: "Exit checklist",
+      icon: ClipboardCheck,
+      show: (c) => c.can.manageSettings,
+    },
+    {
+      id: "leave_types",
+      feature: "leave",
+      href: "/settings/leave-types",
+      labelKey: "nav.leave_types",
+      labelFallback: "Leave Types",
+      icon: CalendarDays,
+      show: (c) => c.can.manageLeaveTypes,
+    },
+    {
+      id: "attendance_rules",
+      feature: "attendance",
+      href: "/settings/attendance",
+      labelKey: "nav.attendance_rules",
+      labelFallback: "Attendance Rules",
+      icon: Clock,
+      show: (c) => c.can.manageAttendance,
+    },
+    {
+      id: "shift_rules",
+      feature: "attendance",
+      href: "/shifts",
+      labelKey: "nav.shift_config",
+      labelFallback: "Shift Rules",
+      icon: CalendarRange,
+      show: (c) => c.can.manageShifts,
+    },
+    {
+      id: "payroll_rules",
+      feature: "payroll",
+      href: "/settings/payroll",
+      labelKey: "nav.payroll_config",
+      labelFallback: "Payroll Rules",
+      icon: Wallet,
+      show: (c) => c.isTenantAdmin && !c.isSuperAdmin,
+    },
+    {
+      id: "api_keys",
+      feature: "api_access",
+      href: "/settings/api-keys",
+      labelKey: "nav.api_keys",
+      labelFallback: "API Keys",
+      icon: KeyRound,
+      show: (c) => c.can.manageApiKeys,
+    },
+    {
+      id: "webhooks",
+      feature: "webhooks",
+      href: "/settings/webhooks",
+      labelKey: "nav.webhooks",
+      labelFallback: "Webhooks",
+      icon: Webhook,
+      show: (c) => c.can.manageWebhooks,
+    },
+    {
+      id: "audit_log",
+      feature: "audit_log",
+      href: "/settings/audit-logs",
+      labelKey: "nav.audit_log",
+      labelFallback: "Audit Log",
+      icon: ScrollText,
+      show: (c) => c.can.manageSettings,
+    },
+    {
+      id: "data_export",
+      href: "/settings/data-export",
+      labelKey: "nav.data_export",
+      labelFallback: "Data export",
+      icon: Download,
+      show: (c) => c.can.manageSettings,
+    },
+  ] satisfies Destination[]
+).map(honourHidden);
 
 // ── Quick actions ────────────────────────────────────────────────────────────
 
@@ -772,175 +826,185 @@ function todayWithStatusHref(status: "absent" | "late") {
   };
 }
 
-export const QUICK_ACTIONS: QuickAction[] = [
-  {
-    id: "add_employee",
-    href: "/employees/new",
-    labelKey: "command.add_employee",
-    labelFallback: "Add Employee",
-    descKey: "intent.add_employee.desc",
-    descFallback:
-      "Opens the new employee form. Nothing is saved until you submit it.",
-    icon: Plus,
-    show: (c) => c.can.manageEmployees,
-  },
-  {
-    id: "absent_today",
-    href: todayWithStatusHref("absent"),
-    labelKey: "intent.absent_today.label",
-    labelFallback: "Who is absent today",
-    descKey: "intent.absent_today.desc",
-    descFallback:
-      "Opens today's attendance, filtered to the people marked absent.",
-    icon: UserX,
-    show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
-  },
-  {
-    id: "late_today",
-    href: todayWithStatusHref("late"),
-    labelKey: "intent.late_today.label",
-    labelFallback: "Who is late today",
-    descKey: "intent.late_today.desc",
-    descFallback:
-      "Opens today's attendance, filtered to the people marked late.",
-    icon: AlarmClock,
-    show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
-  },
-  {
-    id: "check_in",
-    // Someone who sees everyone's attendance gets the records list at
-    // /attendance, not a check-in button; their own punch is the punch page,
-    // where My Day's attendance tile already sends them.
-    href: (c) =>
-      c.can.viewAllAttendance ? "/attendance/mobile" : "/attendance",
-    labelKey: "intent.check_in.label",
-    labelFallback: "Check in or out",
-    descKey: "intent.check_in.desc",
-    descFallback: "Opens the page where you check in and out.",
-    icon: LogIn,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "correct_attendance",
-    href: "/attendance/corrections",
-    labelKey: "intent.correct_attendance.label",
-    labelFallback: "Correct an attendance record",
-    descKey: "intent.correct_attendance.desc",
-    descFallback:
-      "Request a fix for a missed or wrong punch, or review the requests waiting on you.",
-    icon: FilePenLine,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "pending_approvals",
-    href: "/approvals",
-    labelKey: "intent.pending_approvals.label",
-    labelFallback: "Review pending approvals",
-    descKey: "intent.pending_approvals.desc",
-    descFallback:
-      "Leave requests, corrections and profile changes waiting for your decision.",
-    icon: CheckSquare,
-    show: (c) => c.isSupervisor && !c.isSuperAdmin,
-  },
-  {
-    id: "team_leave",
-    href: "/leave?tab=team",
-    labelKey: "intent.team_leave.label",
-    labelFallback: "Who is on leave",
-    descKey: "intent.team_leave.desc",
-    descFallback: "Your team's leave requests, and who is away.",
-    icon: CalendarDays,
-    show: (c) => c.isSupervisor && !c.isSuperAdmin,
-  },
-  {
-    id: "request_leave",
-    // The leave page holds the request form; /leave/new never existed.
-    href: "/leave",
-    labelKey: "command.request_leave",
-    labelFallback: "Request Leave",
-    descKey: "intent.request_leave.desc",
-    descFallback:
-      "Opens your leave page, with the request form and your balances.",
-    icon: CalendarDays,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "update_my_details",
-    href: "/profile/personal",
-    labelKey: "intent.update_my_details.label",
-    labelFallback: "Update my phone or emergency contacts",
-    descKey: "intent.update_my_details.desc",
-    descFallback:
-      "Opens your personal details, where you change these yourself.",
-    icon: UserCircle,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "request_profile_change",
-    href: "/profile/requests",
-    labelKey: "intent.request_profile_change.label",
-    labelFallback: "Ask to change my name, TIN or bank details",
-    descKey: "intent.request_profile_change.desc",
-    descFallback:
-      "Opens your change requests. HR reviews each one before it applies.",
-    icon: FilePenLine,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "my_security",
-    href: "/profile/security",
-    labelKey: "intent.my_security.label",
-    labelFallback: "Change my password or two-factor",
-    descKey: "intent.my_security.desc",
-    descFallback:
-      "Opens your sign-in security: password, two-factor and active sessions.",
-    icon: KeyRound,
-    show: (c) => !c.isSuperAdmin,
-  },
-  {
-    id: "import_employees",
-    href: "/employees/import",
-    labelKey: "intent.import_employees.label",
-    labelFallback: "Import employees from a file",
-    descKey: "intent.import_employees.desc",
-    descFallback:
-      "Opens the import. Rows are checked and shown to you before any is saved.",
-    icon: Upload,
-    show: (c) => c.can.manageEmployees,
-  },
-  {
-    id: "run_payroll",
-    href: "/payroll",
-    labelKey: "command.run_payroll",
-    labelFallback: "Run Payroll",
-    descKey: "intent.run_payroll.desc",
-    descFallback:
-      "Opens payroll runs. A run is calculated only when you start one there, and nothing is paid until it is approved.",
-    icon: Play,
-    show: (c) => c.can.processPayroll,
-  },
-  {
-    id: "generate_report",
-    href: "/reports",
-    labelKey: "command.generate_report",
-    labelFallback: "Generate Report",
-    descKey: "intent.generate_report.desc",
-    descFallback:
-      "Opens the report builder: attendance, leave, payroll and headcount.",
-    icon: FileText,
-    show: (c) => c.can.viewReports,
-  },
-  {
-    id: "invite_user",
-    href: "/settings/users",
-    labelKey: "intent.invite_user.label",
-    labelFallback: "Invite someone to sign in",
-    descKey: "intent.invite_user.desc",
-    descFallback: "Users and access: invite a person and choose their role.",
-    icon: UserPlus,
-    show: (c) => c.can.viewUsers,
-  },
-];
+export const QUICK_ACTIONS: QuickAction[] = (
+  [
+    {
+      id: "add_employee",
+      href: "/employees/new",
+      labelKey: "command.add_employee",
+      labelFallback: "Add Employee",
+      descKey: "intent.add_employee.desc",
+      descFallback:
+        "Opens the new employee form. Nothing is saved until you submit it.",
+      icon: Plus,
+      show: (c) => c.can.manageEmployees,
+    },
+    {
+      id: "absent_today",
+      feature: "attendance",
+      href: todayWithStatusHref("absent"),
+      labelKey: "intent.absent_today.label",
+      labelFallback: "Who is absent today",
+      descKey: "intent.absent_today.desc",
+      descFallback:
+        "Opens today's attendance, filtered to the people marked absent.",
+      icon: UserX,
+      show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
+    },
+    {
+      id: "late_today",
+      feature: "attendance",
+      href: todayWithStatusHref("late"),
+      labelKey: "intent.late_today.label",
+      labelFallback: "Who is late today",
+      descKey: "intent.late_today.desc",
+      descFallback:
+        "Opens today's attendance, filtered to the people marked late.",
+      icon: AlarmClock,
+      show: (c) => c.can.viewAllAttendance || c.can.viewTeam,
+    },
+    {
+      id: "check_in",
+      feature: "attendance",
+      // Someone who sees everyone's attendance gets the records list at
+      // /attendance, not a check-in button; their own punch is the punch page,
+      // where My Day's attendance tile already sends them.
+      href: (c) =>
+        c.can.viewAllAttendance ? "/attendance/mobile" : "/attendance",
+      labelKey: "intent.check_in.label",
+      labelFallback: "Check in or out",
+      descKey: "intent.check_in.desc",
+      descFallback: "Opens the page where you check in and out.",
+      icon: LogIn,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "correct_attendance",
+      feature: "attendance",
+      href: "/attendance/corrections",
+      labelKey: "intent.correct_attendance.label",
+      labelFallback: "Correct an attendance record",
+      descKey: "intent.correct_attendance.desc",
+      descFallback:
+        "Request a fix for a missed or wrong punch, or review the requests waiting on you.",
+      icon: FilePenLine,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "pending_approvals",
+      href: "/approvals",
+      labelKey: "intent.pending_approvals.label",
+      labelFallback: "Review pending approvals",
+      descKey: "intent.pending_approvals.desc",
+      descFallback:
+        "Leave requests, corrections and profile changes waiting for your decision.",
+      icon: CheckSquare,
+      show: (c) => c.isSupervisor && !c.isSuperAdmin,
+    },
+    {
+      id: "team_leave",
+      feature: "leave",
+      href: "/leave?tab=team",
+      labelKey: "intent.team_leave.label",
+      labelFallback: "Who is on leave",
+      descKey: "intent.team_leave.desc",
+      descFallback: "Your team's leave requests, and who is away.",
+      icon: CalendarDays,
+      show: (c) => c.isSupervisor && !c.isSuperAdmin,
+    },
+    {
+      id: "request_leave",
+      feature: "leave",
+      // The leave page holds the request form; /leave/new never existed.
+      href: "/leave",
+      labelKey: "command.request_leave",
+      labelFallback: "Request Leave",
+      descKey: "intent.request_leave.desc",
+      descFallback:
+        "Opens your leave page, with the request form and your balances.",
+      icon: CalendarDays,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "update_my_details",
+      href: "/profile/personal",
+      labelKey: "intent.update_my_details.label",
+      labelFallback: "Update my phone or emergency contacts",
+      descKey: "intent.update_my_details.desc",
+      descFallback:
+        "Opens your personal details, where you change these yourself.",
+      icon: UserCircle,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "request_profile_change",
+      href: "/profile/requests",
+      labelKey: "intent.request_profile_change.label",
+      labelFallback: "Ask to change my name, TIN or bank details",
+      descKey: "intent.request_profile_change.desc",
+      descFallback:
+        "Opens your change requests. HR reviews each one before it applies.",
+      icon: FilePenLine,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "my_security",
+      href: "/profile/security",
+      labelKey: "intent.my_security.label",
+      labelFallback: "Change my password or two-factor",
+      descKey: "intent.my_security.desc",
+      descFallback:
+        "Opens your sign-in security: password, two-factor and active sessions.",
+      icon: KeyRound,
+      show: (c) => !c.isSuperAdmin,
+    },
+    {
+      id: "import_employees",
+      href: "/employees/import",
+      labelKey: "intent.import_employees.label",
+      labelFallback: "Import employees from a file",
+      descKey: "intent.import_employees.desc",
+      descFallback:
+        "Opens the import. Rows are checked and shown to you before any is saved.",
+      icon: Upload,
+      show: (c) => c.can.manageEmployees,
+    },
+    {
+      id: "run_payroll",
+      feature: "payroll",
+      href: "/payroll",
+      labelKey: "command.run_payroll",
+      labelFallback: "Run Payroll",
+      descKey: "intent.run_payroll.desc",
+      descFallback:
+        "Opens payroll runs. A run is calculated only when you start one there, and nothing is paid until it is approved.",
+      icon: Play,
+      show: (c) => c.can.processPayroll,
+    },
+    {
+      id: "generate_report",
+      feature: "reports",
+      href: "/reports",
+      labelKey: "command.generate_report",
+      labelFallback: "Generate Report",
+      descKey: "intent.generate_report.desc",
+      descFallback:
+        "Opens the report builder: attendance, leave, payroll and headcount.",
+      icon: FileText,
+      show: (c) => c.can.viewReports,
+    },
+    {
+      id: "invite_user",
+      href: "/settings/users",
+      labelKey: "intent.invite_user.label",
+      labelFallback: "Invite someone to sign in",
+      descKey: "intent.invite_user.desc",
+      descFallback: "Users and access: invite a person and choose their role.",
+      icon: UserPlus,
+      show: (c) => c.can.viewUsers,
+    },
+  ] satisfies QuickAction[]
+).map(honourHidden);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

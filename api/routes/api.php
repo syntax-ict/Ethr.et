@@ -991,6 +991,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::get('/features', [AdminFeatureController::class, 'index']);
             Route::put('/features/{key}', [AdminFeatureController::class, 'update'])
                 ->whereIn('key', $featureKeys);
+            Route::get('/features/{key}/usage', [AdminFeatureController::class, 'usage'])
+                ->whereIn('key', $featureKeys);
             Route::get('/tenants/{publicId}/features', [AdminTenantController::class, 'features']);
             Route::put('/tenants/{publicId}/features/{key}', [AdminTenantController::class, 'updateFeature'])
                 ->whereIn('key', $featureKeys);

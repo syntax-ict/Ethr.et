@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateFeatureStateRequest;
 use App\Models\PlatformFeatureState;
 use App\Services\Features\FeatureControls;
+use App\Services\Features\FeatureUsage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -25,7 +26,10 @@ use Illuminate\Support\Facades\Gate;
  */
 class AdminFeatureController extends Controller
 {
-    public function __construct(private readonly FeatureControls $controls) {}
+    public function __construct(
+        private readonly FeatureControls $controls,
+        private readonly FeatureUsage $usage,
+    ) {}
 
     public function index(): JsonResponse
     {
@@ -58,8 +62,27 @@ class AdminFeatureController extends Controller
     }
 
     /**
+     * How many organisations used the feature in the last 30 days, for the
+     * Disable confirmation; null where nothing records its use. Asked for
+     * when the dialog opens, so the list itself stays one cheap read.
+     */
+    public function usage(string $key): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $feature = Feature::from($key);
+        $organisations = $this->usage->organisationsUsing($feature);
+
+        return response()->json([
+            'key' => $feature->value,
+            'days' => FeatureUsage::DAYS,
+            'organisations' => $organisations,
+        ]);
+    }
+
+    /**
      * @param  array{grants: int, revokes: int}|null  $counts
-     * @return array{key: string, kind: string, overridable: bool, state: string, default_state: string, reason: string|null, changed_at: string|null, grants: int, revokes: int}
+     * @return array{key: string, kind: string, overridable: bool, hideable: bool, state: string, default_state: string, reason: string|null, changed_at: string|null, grants: int, revokes: int}
      */
     private function present(Feature $feature, ?PlatformFeatureState $row, ?array $counts): array
     {
@@ -67,6 +90,7 @@ class AdminFeatureController extends Controller
             'key' => $feature->value,
             'kind' => $feature->kind()->value,
             'overridable' => $feature->overridable(),
+            'hideable' => $feature->hideable(),
             'state' => ($row !== null ? $row->state : $feature->defaultState())->value,
             'default_state' => $feature->defaultState()->value,
             'reason' => $row?->reason,

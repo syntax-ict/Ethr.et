@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
+use App\Enums\Feature;
+use App\Enums\FeatureState;
 use App\Enums\LeaveStatus;
 use App\Enums\OrgScope;
 use App\Enums\ProfileUpdateStatus;
@@ -249,6 +251,21 @@ test('an organisation without payroll is not told its records lack a TIN or bank
 
     $steps = nsSteps($tenant);
 
+    expect($steps)->not->toHaveKeys(['records_missing_tin', 'records_missing_bank'])
+        ->and($steps)->toHaveKey('records_missing_emergency_contact');
+});
+
+test('payroll the platform has Hidden asks nothing about TIN or bank accounts', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN);
+    Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'tin' => null]);
+    expect(nsSteps($tenant))->toHaveKey('records_missing_tin');
+
+    // Hidden takes the module off the screen, so its hints go with it; the
+    // payroll API itself still answers.
+    switchFeature(Feature::Payroll, FeatureState::Hidden);
+
+    $steps = nsSteps($tenant);
     expect($steps)->not->toHaveKeys(['records_missing_tin', 'records_missing_bank'])
         ->and($steps)->toHaveKey('records_missing_emergency_contact');
 });

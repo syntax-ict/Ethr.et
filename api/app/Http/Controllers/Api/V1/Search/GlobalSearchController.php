@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Search;
 
+use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Search\GlobalSearchRequest;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\CurrentTenant;
+use App\Services\Features\FeatureGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -25,11 +28,19 @@ use Illuminate\Http\JsonResponse;
  * see none of it gets empty groups, not an error: the palette still searches
  * pages and actions on the client.
  *
+ * A module the platform has Hidden (FeatureGate::shows) contributes no group:
+ * the palette would otherwise lead to pages the sidebar no longer offers.
+ *
  * The tenant scope applies to every model queried here; nothing is bypassed.
  */
 class GlobalSearchController extends Controller
 {
     private const PER_GROUP = 5;
+
+    public function __construct(
+        private readonly FeatureGate $features,
+        private readonly CurrentTenant $tenant,
+    ) {}
 
     public function __invoke(GlobalSearchRequest $request): JsonResponse
     {
@@ -38,7 +49,8 @@ class GlobalSearchController extends Controller
         $term = trim((string) $request->validated('q'));
 
         $people = $this->employees($user, $term);
-        $attendancePeople = $this->canSeeAttendance($user) ? $people : new Collection;
+        $attendancePeople = $this->canSeeAttendance($user) && $this->shows(Feature::Attendance) ? $people : new Collection;
+        $leave = $this->shows(Feature::Leave) ? $this->leave($user, $term) : new Collection;
 
         return response()->json([
             'query' => $term,
@@ -54,7 +66,7 @@ class GlobalSearchController extends Controller
                 'name' => $e->name,
                 'employee_code' => $e->employee_code,
             ])->values(),
-            'leave' => $this->leave($user, $term)->map(fn (LeaveRequest $l) => [
+            'leave' => $leave->map(fn (LeaveRequest $l) => [
                 'id' => $l->public_id,
                 'employee_name' => $l->employee?->name,
                 'leave_type' => $l->leaveType?->name,
@@ -85,6 +97,13 @@ class GlobalSearchController extends Controller
             ->orderBy('name')
             ->limit(self::PER_GROUP)
             ->get();
+    }
+
+    private function shows(Feature $feature): bool
+    {
+        $tenant = $this->tenant->get();
+
+        return $tenant === null || $this->features->shows($tenant, $feature);
     }
 
     private function canSeeAttendance(User $user): bool

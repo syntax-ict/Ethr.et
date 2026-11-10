@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeDashboard } from "@/features/dashboard/api";
-import { useCurrentUser } from "@/features/auth/api";
+import { useCurrentUser, useHiddenFeatures } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,8 @@ export function QuickActions() {
   // account with no employee record (an organisation's first admin) would
   // only meet an error, and "My Day" already tells it how to get one.
   const isEmployee = user?.employee_public_id !== null;
+  // A module the platform has Hidden offers no shortcut here either.
+  const hidden = useHiddenFeatures();
 
   const actions: QuickAction[] = [
     {
@@ -58,13 +60,13 @@ export function QuickActions() {
         : t("common.check_in", "Check In"),
       href: "/attendance",
       icon: isCheckedIn ? LogOut : LogIn,
-      show: isEmployee,
+      show: isEmployee && !hidden.has("attendance"),
     },
     {
       label: t("common.apply_leave", "Apply for Leave"),
       href: "/leave",
       icon: Plus,
-      show: isEmployee,
+      show: isEmployee && !hidden.has("leave"),
     },
     {
       label: t("dashboard.review_approvals", "Review Approvals"),
@@ -82,7 +84,7 @@ export function QuickActions() {
       label: t("command.run_payroll", "Run Payroll"),
       href: "/payroll",
       icon: Wallet,
-      show: can.processPayroll,
+      show: can.processPayroll && !hidden.has("payroll"),
     },
   ]
     .filter((a) => a.show)

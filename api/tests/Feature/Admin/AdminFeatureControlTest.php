@@ -6,7 +6,9 @@ use App\Enums\Feature;
 use App\Enums\FeatureState;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\Plan;
 use App\Models\PlatformFeatureState;
 use App\Models\Subscription;
@@ -60,6 +62,7 @@ describe('platform state', function () {
                 'key' => 'payroll',
                 'kind' => 'module',
                 'overridable' => true,
+                'hideable' => true,
                 'state' => 'enabled',
                 'default_state' => 'enabled',
                 'reason' => null,
@@ -122,6 +125,46 @@ describe('platform state', function () {
 
         test()->putJson(CONSOLE.'/features/not_a_feature', ['state' => 'disabled', 'reason' => 'test'])
             ->assertNotFound();
+    });
+
+    it('offers Hidden only for a module with pages of its own to take off the screen', function () {
+        featureConsoleAdmin();
+
+        $listed = collect(test()->getJson(CONSOLE.'/features')->assertOk()->json('data'))->keyBy('key');
+        expect($listed['payroll']['hideable'])->toBeTrue()
+            ->and($listed['scim']['hideable'])->toBeFalse()
+            ->and($listed['employee_management']['hideable'])->toBeFalse();
+
+        test()->putJson(CONSOLE.'/features/scim', ['state' => 'hidden', 'reason' => 'Retiring the screen'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.state.0', __('billing.feature_not_hideable'));
+        expect(PlatformFeatureState::query()->where('key', 'scim')->exists())->toBeFalse();
+
+        test()->putJson(CONSOLE.'/features/payroll', ['state' => 'hidden', 'reason' => 'Retiring the screen'])
+            ->assertOk()
+            ->assertJsonPath('state', 'hidden');
+    });
+
+    it('counts the organisations that used a feature in the last 30 days, for the Disable confirmation', function () {
+        foreach ([2, 29, 45] as $daysAgo) {
+            $tenant = featureConsoleTenant();
+            AttendanceRecord::factory()->create([
+                'tenant_id' => $tenant->id,
+                'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+                'created_at' => now()->subDays($daysAgo),
+            ]);
+        }
+        featureConsoleAdmin();
+
+        test()->getJson(CONSOLE.'/features/attendance/usage')
+            ->assertOk()
+            ->assertExactJson(['key' => 'attendance', 'days' => 30, 'organisations' => 2]);
+
+        // Reading the audit log leaves no trace to count, so the console says
+        // it is not measured rather than showing a zero.
+        test()->getJson(CONSOLE.'/features/audit_log/usage')
+            ->assertOk()
+            ->assertJsonPath('organisations', null);
     });
 });
 

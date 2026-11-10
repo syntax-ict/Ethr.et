@@ -10,7 +10,8 @@ use App\Models\User;
 /**
  * One source of next steps. A provider guards itself: it checks the
  * permission, the org scope and the plan its own numbers need, and returns
- * nothing for someone who has no business seeing them. The endpoint has no
+ * nothing for someone who has no business seeing them. A module check uses
+ * FeatureGate::shows(), so a module the platform has Hidden drops its steps. The endpoint has no
  * single permission because there is no single audience.
  */
 interface StepProvider

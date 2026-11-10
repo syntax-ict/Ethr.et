@@ -43,7 +43,7 @@ final class OperationsProvider implements StepProvider
     /** @return list<NextStep> */
     private function integrity(User $user, Tenant $tenant): array
     {
-        if (! $user->hasPermission('attendance.viewConflicts') || ! $this->features->allows($tenant, Feature::Attendance)) {
+        if (! $user->hasPermission('attendance.viewConflicts') || ! $this->features->shows($tenant, Feature::Attendance)) {
             return [];
         }
 
@@ -64,7 +64,7 @@ final class OperationsProvider implements StepProvider
     {
         if (! $user->hasPermission('payroll.process')
             || ! $user->hasPermission('payroll.viewAll')
-            || ! $this->features->allows($tenant, Feature::Payroll)) {
+            || ! $this->features->shows($tenant, Feature::Payroll)) {
             return [];
         }
 

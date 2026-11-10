@@ -1,6 +1,6 @@
 # Platform Feature Control Center — design
 
-**Prepared:** 2026-10-28 · **Status: OWNER DECIDED, 2026-10-28** — all seven decisions in §10 taken as recommended. **Built:** PR 1 (#460) and PR 2 (#464) are merged and live; PR 3, the integration and public-surface switches, is on `feat/feature-kill-switches` (2026-10-30). PR 4, Hidden on the screen, is not started, so the console does not offer Hidden yet.
+**Prepared:** 2026-10-28 · **Status: OWNER DECIDED, 2026-10-28** — all seven decisions in §10 taken as recommended. **Built:** PR 1 (#460) and PR 2 (#464) are merged and live; PR 3, the integration and public-surface switches, is #480 (2026-10-30). PR 4, Hidden on the screen, is on `feat/feature-hidden` (2026-10-30), with the Disable dialog's 30-day count and the SMS row's state.
 
 **Method, same rule as every document in this tree:** the current state in §1 was read out of the source, with the file named so it can be checked. Nothing was measured against a running build. Where a choke point is named in §6 but was not read, it says so.
 
@@ -95,7 +95,7 @@ A new enum, `App\Enums\Feature`, is the only list of switchable features. Each c
 | `kind` | `module` (a product area), `integration` (an outside connection), `public` (a surface anonymous visitors reach), `rollout` (temporary, removed once fully on) |
 | `planFeature` | The `PlanFeature` it maps to, if any. The 11 existing keys map one to one with the same string, so `plans.features` needs no data migration |
 | `default` | The state when no row exists. `Enabled` for everything that exists today, so shipping the catalogue changes nothing |
-| `hideable` | Whether Hidden is offered |
+| `hideable` | Whether Hidden is offered. As built (PR 4): attendance, leave, payroll, reports, API access, webhooks and the audit log, the modules with pages of their own. Not employee management, which every other page is built on, nor custom reports (two tabs inside Reports), notifications, custom domains, integrations or public pages |
 | `overridable` | Whether per-organisation grant and revoke are offered. False for platform-only switches such as self-registration, which has no organisation yet |
 | `jobPosture` | What queued work does while Disabled (§6) |
 | `removeBy` | `rollout` only: the date it is meant to be fully on and deleted. The console flags it once passed. **Not a test** — a test that fails on a date turns CI red with no code change, the failure mode `./scripts/gates.sh security` was moved out of the sweep to avoid |
@@ -211,6 +211,8 @@ Scramble reads the request rules and response arrays. **No explanatory comment a
 **Organisation → Features** (a tab on the existing tenant page): every feature with its decision and the reason in words ("Off: not in the Starter plan", "On: granted until 2026-12-31 by A. Admin"). Grant and revoke from here, with reason and optional expiry. This is the "why is payroll off for this organisation" view, and it is the part support will use most.
 
 Neither screen offers anything the catalogue does not declare: no free-text keys.
+
+**As built (PR 4):** the 30-day count comes from `GET /admin/features/{key}/usage`, asked for when Disabled is chosen, and counts organisations with a dated record of use (`Services/Features/FeatureUsage`). Where nothing records use (reading reports, the audit log, the public pages, the integrations without a timestamp) it answers null and the dialog says use is not recorded, rather than showing a zero that reads as nobody.
 
 ---
 

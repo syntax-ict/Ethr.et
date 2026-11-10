@@ -37,6 +37,9 @@ class UpdateFeatureStateRequest extends FormRequest
             if ($feature !== null && ! $feature->overridable() && $this->input('state') === FeatureState::Restricted->value) {
                 $v->errors()->add('state', __('billing.feature_no_rollout'));
             }
+            if ($feature !== null && ! $feature->hideable() && $this->input('state') === FeatureState::Hidden->value) {
+                $v->errors()->add('state', __('billing.feature_not_hideable'));
+            }
         });
     }
 }

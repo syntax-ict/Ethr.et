@@ -47,7 +47,7 @@ final class RecordsProvider implements StepProvider
         }
 
         $steps = [];
-        $payroll = $this->features->allows($tenant, Feature::Payroll);
+        $payroll = $this->features->shows($tenant, Feature::Payroll);
 
         foreach (self::GAP_STEPS as $gap => $id) {
             if (! $this->mayFill($user, $gap, $payroll)) {

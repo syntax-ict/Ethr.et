@@ -10,6 +10,7 @@ import {
   sectionI18nKey,
 } from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
+import { useHiddenFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { isoToday, sidebarSectionOf } from "@/lib/navigation/registry";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ export function PageTitleBar() {
   const registerSlot = useRegisterPageActionsSlot();
   const entity = useCurrentEntityTitle();
   const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
+  const hidden = useHiddenFeatures();
 
   if (HIDDEN_PATHS.includes(pathname)) return null;
 
@@ -54,6 +56,7 @@ export function PageTitleBar() {
     isSuperAdmin,
     settingsLanding: null,
     today: isoToday(),
+    hidden,
   });
   if (section?.titleKey) {
     crumbs.push({ label: t(section.titleKey, section.titleFallback) });

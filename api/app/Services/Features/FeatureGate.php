@@ -102,6 +102,16 @@ final class FeatureGate
     }
 
     /**
+     * Whether the screen should offer the feature: on, and not Hidden by the
+     * platform. For hints that lead somewhere (Next Steps, search groups); an
+     * action is still decided by {@see allows()}.
+     */
+    public function shows(Tenant $tenant, Feature $feature): bool
+    {
+        return $this->decide($tenant, $feature)->visible;
+    }
+
+    /**
      * For a surface that may have no organisation: the self-registration form,
      * an email sign-in code asked for on the apex. With none, only the platform
      * state decides, and Restricted is off, because a rollout names

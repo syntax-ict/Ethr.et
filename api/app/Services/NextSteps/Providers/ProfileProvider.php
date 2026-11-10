@@ -49,7 +49,7 @@ final class ProfileProvider implements StepProvider
             'emergency_contact' => $employee->emergencyContacts()->exists(),
         ];
 
-        if ($this->features->allows($tenant, Feature::Payroll)) {
+        if ($this->features->shows($tenant, Feature::Payroll)) {
             $done['tin'] = filled($employee->tin) || in_array('tin', $waiting, true);
             $done['bank'] = $employee->bankDetails()->exists()
                 || array_intersect(['bank_name', 'bank_account_number'], $waiting) !== [];

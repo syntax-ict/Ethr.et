@@ -26,26 +26,31 @@ import {
 import {
   FEATURE_LABEL_FALLBACK,
   featureLabelKey,
+  useFeatureUsage,
   usePlatformFeatures,
   useUpdateFeatureState,
+  type FeatureKey,
   type FeatureKind,
   type FeatureState,
   type PlatformFeature,
 } from "@/features/admin/features";
+import { useSmsDelivery } from "@/features/admin/sms";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 
 /**
- * Hidden is left out until the screen reads `visible` (design §9, PR 4):
- * offered now, it would change nothing an organisation sees. Restricted is
- * left out for a feature no organisation can be granted, where it would mean
- * the same as Disabled.
+ * Hidden is offered only where the catalogue allows it: a module with pages
+ * of its own to take off the screen. Restricted is left out for a feature no
+ * organisation can be granted, where it would mean the same as Disabled.
  */
 function offeredStates(feature: PlatformFeature): readonly FeatureState[] {
-  return feature.overridable
-    ? ["enabled", "restricted", "disabled"]
-    : ["enabled", "disabled"];
+  return [
+    "enabled",
+    ...(feature.hideable ? (["hidden"] as const) : []),
+    ...(feature.overridable ? (["restricted"] as const) : []),
+    "disabled",
+  ];
 }
 
 const KINDS: readonly FeatureKind[] = ["module", "integration", "public"];
@@ -136,20 +141,7 @@ export default function FeatureControlsPage() {
                       features={features.filter((f) => f.kind === kind)}
                       onChange={setEditing}
                     />
-                    {kind === "integration" && (
-                      <p className="border-t px-4 py-3 text-sm text-muted-foreground">
-                        {t(
-                          "admin_features.sms_elsewhere",
-                          "Text messages are switched on their own page, with a test step and a daily cap.",
-                        )}{" "}
-                        <Link
-                          href="/admin/sms"
-                          className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                          {t("admin_features.sms_link", "Open SMS")}
-                        </Link>
-                      </p>
-                    )}
+                    {kind === "integration" && <SmsRow />}
                   </CardContent>
                 </Card>
               ))}
@@ -165,6 +157,44 @@ export default function FeatureControlsPage() {
         )}
       </div>
     </RoleGate>
+  );
+}
+
+/**
+ * Text messages keep their own switch at /admin/sms, with its test step and
+ * daily cap (owner decision D4). This row shows that switch and links to it,
+ * so the two can never disagree.
+ */
+function SmsRow() {
+  const { t } = useT();
+  const sms = useSmsDelivery();
+  const enabled = sms.data?.enabled;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-4 py-3 text-sm text-muted-foreground">
+      <span className="font-medium text-foreground">
+        {t("admin_features.sms_name", "Text messages (SMS)")}
+      </span>
+      {enabled !== undefined && (
+        <Badge variant={enabled ? "success" : "neutral"}>
+          {enabled
+            ? t("admin_features.on", "On")
+            : t("admin_features.off", "Off")}
+        </Badge>
+      )}
+      <span>
+        {t(
+          "admin_features.sms_elsewhere",
+          "Text messages are switched on their own page, with a test step and a daily cap.",
+        )}{" "}
+        <Link
+          href="/admin/sms"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t("admin_features.sms_link", "Open SMS")}
+        </Link>
+      </span>
+    </div>
   );
 }
 
@@ -332,6 +362,40 @@ function ChangeStateDialog({
           <p className="text-xs text-destructive">{errors.state}</p>
         )}
       </div>
+      {state === "disabled" && feature.state !== "disabled" && (
+        <DisableReach featureKey={feature.key} />
+      )}
     </FeatureReasonDialog>
+  );
+}
+
+/**
+ * Whom a Disable reaches, before it is thrown (design §7): organisations that
+ * used the feature in the last 30 days, where something records its use.
+ */
+function DisableReach({ featureKey }: { featureKey: FeatureKey }) {
+  const { t } = useT();
+  const usage = useFeatureUsage(featureKey);
+
+  if (usage.isError) return null;
+
+  return (
+    <p className="text-sm text-muted-foreground" aria-live="polite">
+      {usage.data === undefined
+        ? t(
+            "admin_features.usage_loading",
+            "Counting the organisations that use it",
+          )
+        : usage.data.organisations === null
+          ? t(
+              "admin_features.usage_unmeasured",
+              "How many organisations use it is not recorded.",
+            )
+          : t(
+              "admin_features.usage_count",
+              "Organisations that used it in the last :days days: :count",
+              { days: usage.data.days, count: usage.data.organisations },
+            )}
+    </p>
   );
 }

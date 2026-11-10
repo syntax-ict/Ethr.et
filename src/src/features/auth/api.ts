@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
@@ -22,9 +23,13 @@ interface MeResponse {
   paused_features?: string[];
   /**
    * Every feature's decision for this organisation (FeatureGate::decide), so
-   * a screen can tell "not in your plan" from "switched off by ETHR".
+   * a screen can tell "not in your plan" from "switched off by ETHR", and
+   * knows what the platform has Hidden (`visible: false` while on).
    */
-  features?: Record<string, { on: boolean; reason: string }> | null;
+  features?: Record<
+    string,
+    { on: boolean; visible?: boolean; reason: string }
+  > | null;
   /** The largest upload the server accepts, in bytes (PHP's own limits). */
   upload_limit_bytes?: number;
   tenant: {
@@ -89,22 +94,51 @@ export function useCurrentTenant() {
 }
 
 /**
- * Which plan features the organisation has. `has()` is true while loading and
- * for any feature when the plan restricts nothing, so a screen never hides a
- * paying customer's feature on a guess; the API still has the last word.
+ * Whether the organisation may use a feature. `has()` reads the resolver's
+ * decision from `/me` `features`, which already weighs the platform switch,
+ * any grant or revoke, and the plan. A server that predates it sends only
+ * `plan_features`, read as before. `has()` is true while loading and for
+ * any feature nobody restricts, so a screen never hides a paying customer's
+ * feature on a guess; the API still has the last word.
  */
 export function usePlanFeatures() {
   const query = useQuery({
     ...meQueryOptions,
-    select: (data: MeResponse) => data.plan_features ?? null,
+    select: (data: MeResponse) => ({
+      decisions: data.features ?? null,
+      plan: data.plan_features ?? null,
+    }),
   });
-  const features = query.data ?? null;
+  const decisions = query.data?.decisions ?? null;
+  const plan = query.data?.plan ?? null;
 
   return {
-    has: (feature: string): boolean =>
-      features === null || features.includes(feature),
+    has: (feature: string): boolean => {
+      const decision = decisions?.[feature];
+      if (decision) return decision.on;
+      return plan === null || plan.includes(feature);
+    },
     isLoading: query.isLoading,
   };
+}
+
+/**
+ * Features the platform has Hidden for this organisation: still on, and the
+ * API still answers, but the screen stops offering them in navigation, the
+ * palette and dashboard shortcuts. Empty while loading. Not a security
+ * control: a page reached by its address still works.
+ */
+export function useHiddenFeatures(): ReadonlySet<string> {
+  const { data } = useQuery({
+    ...meQueryOptions,
+    select: (me: MeResponse) =>
+      Object.entries(me.features ?? {})
+        .filter(([, d]) => d.on && d.visible === false)
+        .map(([key]) => key)
+        .sort()
+        .join(","),
+  });
+  return useMemo(() => new Set(data ? data.split(",") : []), [data]);
 }
 
 /**

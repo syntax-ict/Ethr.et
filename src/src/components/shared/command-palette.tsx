@@ -26,7 +26,7 @@ import {
   RECENT_KIND_ICON as KIND_ICON,
   useRecentSearches,
 } from "@/components/shared/recent-searches";
-import { useCurrentUser } from "@/features/auth/api";
+import { useCurrentUser, useHiddenFeatures } from "@/features/auth/api";
 import { MIN_QUERY_LENGTH, useGlobalSearch } from "@/features/search/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -131,6 +131,7 @@ export function CommandPalette() {
   // `can` is rebuilt on every render of usePermissions; its flags are what
   // matter, so the context keys on them.
   const canKey = JSON.stringify(can);
+  const hidden = useHiddenFeatures();
   const ctx: NavContext = useMemo(
     () => ({
       can,
@@ -139,9 +140,18 @@ export function CommandPalette() {
       isSuperAdmin,
       settingsLanding,
       today: isoToday(),
+      hidden,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canKey, isSupervisor, isTenantAdmin, isSuperAdmin, settingsLanding, open],
+    [
+      canKey,
+      isSupervisor,
+      isTenantAdmin,
+      isSuperAdmin,
+      settingsLanding,
+      hidden,
+      open,
+    ],
   );
 
   const actions: IntentRow[] = useMemo(() => actionRows(ctx, t), [ctx, t]);

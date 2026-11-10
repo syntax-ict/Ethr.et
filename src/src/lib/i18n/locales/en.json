@@ -113,7 +113,7 @@
   "admin_features.consequence_disabled": "Off for every organisation, grants included. Their records stay readable, and work already started finishes.",
   "admin_features.consequence_enabled": "Every organisation uses :feature as its plan allows.",
   "admin_features.consequence_grant": ":name can use :feature whatever its plan says.",
-  "admin_features.consequence_hidden": "Taken off every organisation's screen. The API keeps working, so hiding never stops anything.",
+  "admin_features.consequence_hidden": "Taken off the sidebar, search, Next Steps and dashboard of every organisation. Pages still open by their address and the API keeps working, so hiding stops nothing.",
   "admin_features.consequence_restricted": "Off for every organisation except those you grant it to on their page.",
   "admin_features.consequence_revoke": ":name cannot use :feature, even if its plan includes it. Its records stay readable.",
   "admin_features.decision": "For this organisation",
@@ -6429,5 +6429,9 @@
   "analytics_page.points": "pts",
   "analytics_page.today_rate": "Today :rate%",
   "analytics_page.no_one_scheduled_today": "No one scheduled today",
-  "features.paused_banner": "ETHR has switched off :features for now. Your records are kept, and nothing needs doing on your side."
+  "features.paused_banner": "ETHR has switched off :features for now. Your records are kept, and nothing needs doing on your side.",
+  "admin_features.sms_name": "Text messages (SMS)",
+  "admin_features.usage_loading": "Counting the organisations that use it",
+  "admin_features.usage_unmeasured": "How many organisations use it is not recorded.",
+  "admin_features.usage_count": "Organisations that used it in the last :days days: :count"
 }

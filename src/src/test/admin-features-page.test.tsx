@@ -16,14 +16,15 @@ vi.mock("@/components/shared/role-gate", () => ({
 
 /**
  * The console's feature switches: each feature's platform state, a change
- * that cannot be sent without a reason, and Hidden left out until the screen
- * honours it.
+ * that cannot be sent without a reason, Hidden offered only where a module has
+ * pages to hide, whom a Disable reaches, and the SMS switch it links to.
  */
 function feature(overrides: Partial<PlatformFeature> = {}): PlatformFeature {
   return {
     key: "payroll",
     kind: "module",
     overridable: true,
+    hideable: true,
     state: "enabled",
     default_state: "enabled",
     reason: null,
@@ -34,10 +35,16 @@ function feature(overrides: Partial<PlatformFeature> = {}): PlatformFeature {
   };
 }
 
-function serve(features: PlatformFeature[]) {
+function serve(features: PlatformFeature[], organisations: number | null = 4) {
   server.use(
     http.get("*/api/v1/admin/features", () =>
       HttpResponse.json({ data: features }),
+    ),
+    http.get("*/api/v1/admin/features/:key/usage", ({ params }) =>
+      HttpResponse.json({ key: params.key, days: 30, organisations }),
+    ),
+    http.get("*/api/v1/admin/sms", () =>
+      HttpResponse.json({ enabled: true, invitations_enabled: false }),
     ),
   );
 }
@@ -136,7 +143,7 @@ describe("feature controls page", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not offer Hidden while nothing on screen honours it", async () => {
+  it("offers Hidden for a module with pages to hide", async () => {
     serve([feature()]);
     const user = userEvent.setup();
     renderPage();
@@ -151,10 +158,73 @@ describe("feature controls page", () => {
     const options = (await screen.findAllByRole("option")).map(
       (o) => o.textContent,
     );
+    expect(options).toEqual(["Enabled", "Hidden", "Restricted", "Disabled"]);
+
+    await user.click(await screen.findByRole("option", { name: "Hidden" }));
+    expect(
+      within(screen.getByRole("dialog")).getByText(/so hiding stops nothing/),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer Hidden for an integration, which has no page to hide", async () => {
+    serve([feature({ key: "scim", kind: "integration", hideable: false })]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Change SCIM provisioning" }),
+    );
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("combobox"),
+    );
+
+    const options = (await screen.findAllByRole("option")).map(
+      (o) => o.textContent,
+    );
     expect(options).toEqual(["Enabled", "Restricted", "Disabled"]);
   });
 
-  it("groups features by kind and points to the SMS page", async () => {
+  it("says how many organisations a Disable reaches, or that use is not recorded", async () => {
+    serve([feature()], 4);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Change Payroll" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/Organisations that used it/)).toBeNull();
+
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Disabled" }));
+
+    expect(
+      await within(dialog).findByText(
+        "Organisations that used it in the last 30 days: 4",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says use is not recorded where nothing measures it", async () => {
+    serve([feature({ key: "audit_log" })], null);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Change Audit log" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Disabled" }));
+
+    expect(
+      await within(dialog).findByText(
+        "How many organisations use it is not recorded.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("groups features by kind and shows the SMS switch it points to", async () => {
     serve([
       feature(),
       feature({ key: "scim", kind: "integration" }),
@@ -177,10 +247,11 @@ describe("feature controls page", () => {
         "Public news page",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open SMS" })).toHaveAttribute(
-      "href",
-      "/admin/sms",
-    );
+    const sms = screen.getByRole("link", { name: "Open SMS" });
+    expect(sms).toHaveAttribute("href", "/admin/sms");
+    expect(
+      await within(sms.closest("div")!).findByText("On"),
+    ).toBeInTheDocument();
   });
 
   it("does not offer a rollout for sign-up, which no organisation can be granted", async () => {
@@ -189,6 +260,7 @@ describe("feature controls page", () => {
         key: "self_registration",
         kind: "integration",
         overridable: false,
+        hideable: false,
       }),
     ]);
     const user = userEvent.setup();

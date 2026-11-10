@@ -71,6 +71,24 @@ enum Feature: string
     }
 
     /**
+     * Whether the platform admin may set Hidden: off the navigation, palette,
+     * Next Steps and dashboard, while the API stays open (design §3). Only a
+     * module with its own pages and an API use qualifies. Hiding an integration
+     * or a public page hides nothing, employee records are what every other
+     * page is built on, and custom domains, custom reports (two tabs inside
+     * Reports) and notifications have no page of their own to take away, so
+     * for those Disabled is the honest switch.
+     */
+    public function hideable(): bool
+    {
+        return match ($this) {
+            self::Attendance, self::Leave, self::Payroll, self::Reports,
+            self::ApiAccess, self::Webhooks, self::AuditLog => true,
+            default => false,
+        };
+    }
+
+    /**
      * The platform state when no row says otherwise. Enabled for every feature
      * that existed before the control center, so shipping it changed nothing.
      */

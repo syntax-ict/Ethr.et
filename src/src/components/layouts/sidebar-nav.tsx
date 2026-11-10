@@ -10,6 +10,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useHiddenFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
@@ -172,6 +173,7 @@ export function SidebarNav({
   // `can` is rebuilt on every render of usePermissions; its flags are what
   // matter, so the context keys on them.
   const canKey = JSON.stringify(can);
+  const hidden = useHiddenFeatures();
   const ctx: NavContext = useMemo(
     () => ({
       can,
@@ -180,9 +182,17 @@ export function SidebarNav({
       isSuperAdmin,
       settingsLanding,
       today: isoToday(),
+      hidden,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canKey, isSupervisor, isTenantAdmin, isSuperAdmin, settingsLanding],
+    [
+      canKey,
+      isSupervisor,
+      isTenantAdmin,
+      isSuperAdmin,
+      settingsLanding,
+      hidden,
+    ],
   );
 
   const sections: NavSection[] = useMemo(() => {

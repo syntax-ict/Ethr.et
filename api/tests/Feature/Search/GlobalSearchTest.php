@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Feature;
+use App\Enums\FeatureState;
 use App\Enums\UserRole;
 use App\Models\Department;
 use App\Models\Employee;
@@ -48,6 +50,26 @@ test('an HR admin finds people by name or code, with their attendance, leave and
         ->assertJsonMissingPath('employees.0.public_id');
 
     searchAs($tenant, 'EMP-0042')->assertJsonPath('employees.0.id', $abebe->public_id);
+});
+
+test('a module the platform has Hidden adds no group, and the people are still found', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $abebe = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Abebe Kebede']);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $abebe->id,
+        'leave_type_id' => LeaveType::factory()->create(['tenant_id' => $tenant->id])->id,
+    ]);
+
+    switchFeature(Feature::Leave, FeatureState::Hidden);
+    switchFeature(Feature::Attendance, FeatureState::Hidden);
+
+    searchAs($tenant, 'Abebe')
+        ->assertOk()
+        ->assertJsonPath('employees.0.id', $abebe->public_id)
+        ->assertJsonCount(0, 'attendance')
+        ->assertJsonCount(0, 'leave');
 });
 
 test('a supervisor finds only the people they can open', function () {
