@@ -3308,6 +3308,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'Database\\Factories\\WebhookFactory' => __DIR__ . '/../..' . '/database/factories/WebhookFactory.php',
         'Database\\Seeders\\DatabaseSeeder' => __DIR__ . '/../..' . '/database/seeders/DatabaseSeeder.php',
         'Database\\Seeders\\DemoTenantSeeder' => __DIR__ . '/../..' . '/database/seeders/DemoTenantSeeder.php',
+        'Database\\Seeders\\E2eAttendanceSeeder' => __DIR__ . '/../..' . '/database/seeders/E2eAttendanceSeeder.php',
         'Database\\Seeders\\MarketingContentSeeder' => __DIR__ . '/../..' . '/database/seeders/MarketingContentSeeder.php',
         'Database\\Seeders\\MinimalTestSeeder' => __DIR__ . '/../..' . '/database/seeders/MinimalTestSeeder.php',
         'Database\\Seeders\\OrganizationTemplateSeeder' => __DIR__ . '/../..' . '/database/seeders/OrganizationTemplateSeeder.php',

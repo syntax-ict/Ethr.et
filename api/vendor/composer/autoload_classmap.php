@@ -2574,6 +2574,7 @@ return array(
     'Database\\Factories\\WebhookFactory' => $baseDir . '/database/factories/WebhookFactory.php',
     'Database\\Seeders\\DatabaseSeeder' => $baseDir . '/database/seeders/DatabaseSeeder.php',
     'Database\\Seeders\\DemoTenantSeeder' => $baseDir . '/database/seeders/DemoTenantSeeder.php',
+    'Database\\Seeders\\E2eAttendanceSeeder' => $baseDir . '/database/seeders/E2eAttendanceSeeder.php',
     'Database\\Seeders\\MarketingContentSeeder' => $baseDir . '/database/seeders/MarketingContentSeeder.php',
     'Database\\Seeders\\MinimalTestSeeder' => $baseDir . '/database/seeders/MinimalTestSeeder.php',
     'Database\\Seeders\\OrganizationTemplateSeeder' => $baseDir . '/database/seeders/OrganizationTemplateSeeder.php',
