@@ -1,27 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
+// The form's own schema. This file kept a copy, and the copy went on calling
+// the phone optional and knew no `organization_kind` after the form required
+// both, so these cases passed while describing a form that no longer existed.
+import { registerSchema } from "@/features/auth/register-schema";
 
 const loginSchema = z.object({
   tenant: z.string().min(1, "auth.enter_subdomain"),
   email: z.string().email("auth.invalid_credentials"),
   password: z.string().min(1, "auth.invalid_credentials"),
 });
-
-const registerSchema = z
-  .object({
-    organization_name: z.string().min(2, "auth.complete_org_step"),
-    organization_type: z.string().min(1),
-    subdomain: z.string().min(3, "auth.complete_org_step").max(63),
-    admin_name: z.string().min(2, "auth.complete_admin_step"),
-    admin_email: z.string().email("auth.complete_admin_step"),
-    admin_phone: z.string().max(20).optional().or(z.literal("")),
-    password: z.string().min(8, "auth.password_requirements"),
-    password_confirmation: z.string().min(8, "auth.password_requirements"),
-  })
-  .refine((data) => data.password === data.password_confirmation, {
-    message: "auth.passwords_no_match",
-    path: ["password_confirmation"],
-  });
 
 describe("Login schema validation", () => {
   it("accepts valid login data", () => {
@@ -83,6 +71,7 @@ describe("Register schema validation", () => {
   const validData = {
     organization_name: "Addis Tech Solutions",
     organization_type: "general",
+    organization_kind: "share_company",
     subdomain: "addis-tech",
     admin_name: "Abebe Kebede",
     admin_email: "abebe@addistech.et",
@@ -96,12 +85,46 @@ describe("Register schema validation", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts empty phone (optional)", () => {
+  it("requires the kind of organisation in law", () => {
+    const result = registerSchema.safeParse({
+      ...validData,
+      organization_kind: "",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("organization_kind");
+    }
+  });
+
+  it("requires a phone, which the server does too", () => {
     const result = registerSchema.safeParse({
       ...validData,
       admin_phone: "",
     });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("admin_phone");
+      expect(result.error.issues[0].message).toBe("validation.phone");
+    }
+  });
+
+  it("accepts the local format, and sends it without the spaces it was typed with", () => {
+    const result = registerSchema.safeParse({
+      ...validData,
+      admin_phone: "0911 22 33 44",
+    });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.admin_phone).toBe("0911223344");
+    }
+  });
+
+  it("rejects a number that is not an Ethiopian phone", () => {
+    const result = registerSchema.safeParse({
+      ...validData,
+      admin_phone: "12345",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects org name under 2 characters", () => {
