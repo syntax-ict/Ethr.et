@@ -87,18 +87,15 @@ class PlanSeeder extends Seeder
                 'features' => ['attendance', 'leave', 'employee_management', 'payroll', 'reports', 'notifications', 'api_access', 'webhooks', 'custom_reports', 'audit_log', 'custom_domain'],
                 'marketing_features' => [
                     'Everything in Professional',
-                    'No employee, branch or device limit',
                     'API access, webhooks and the audit log',
                 ],
                 'marketing_features_am' => [
                     'ሁሉም በProfessional ውስጥ ያለው',
-                    'የሠራተኛ፣ ቅርንጫፍ ወይም መሣሪያ ገደብ የለም',
                     'የAPI መዳረሻ፣ webhooks እና የኦዲት መዝገብ',
                 ],
                 'description_om' => 'Dhaabbata daangaa hin barbaannee fi walqabsiisa mataa isaa barbaaduuf.',
                 'marketing_features_om' => [
                     'Wanti Professional keessa jiru hundi',
-                    'Daangaa hojjetaa, damee ykn meeshaa hin qabu',
                     'Seensa API, webhooks fi galmee odiitii',
                 ],
                 'sort_order' => 3,

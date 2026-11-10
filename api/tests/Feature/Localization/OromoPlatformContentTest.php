@@ -97,7 +97,26 @@ it('seeds the plans with Oromo, and publishes it on the public catalogue', funct
 
     $plans = collect($this->getJson('/api/v1/plans')->assertOk()->json('data'))->keyBy('slug');
     expect($plans['starter']['description_om'])->toBe($starter->description_om)
-        ->and($plans['enterprise']['marketing_features_om'])->toHaveCount(3);
+        ->and($plans['enterprise']['marketing_features_om'])->toHaveCount(2);
+});
+
+it('gives Enterprise its Oromo where the operator kept the seeded English', function () {
+    $this->seed(PlanSeeder::class);
+    // As production held it on 2026-11-10: the operator had dropped a selling
+    // point from the English and the Amharic, so the English no longer
+    // matched the seeder and the Oromo was never filled in.
+    Plan::query()->where('slug', 'enterprise')->update(['marketing_features_om' => null]);
+
+    $this->seed(PlanSeeder::class);
+
+    $enterprise = Plan::query()->where('slug', 'enterprise')->firstOrFail();
+    expect($enterprise->marketing_features)->toBe([
+        'Everything in Professional',
+        'API access, webhooks and the audit log',
+    ])->and($enterprise->marketing_features_om)->toBe([
+        'Wanti Professional keessa jiru hundi',
+        'Seensa API, webhooks fi galmee odiitii',
+    ]);
 });
 
 it('gives a plan from before Oromo its Oromo, but not where the operator rewrote the English', function () {

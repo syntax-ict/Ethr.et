@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T18:59:19.311Z",
+  "generated_at": "2026-11-10T12:31:05.457Z",
   "source": "https://www.ethr.et/api/v1/plans",
   "data": [
     {
@@ -97,17 +97,14 @@
       ],
       "marketing_features": [
         "Everything in Professional",
-        "No employee, branch or device limit",
         "API access, webhooks and the audit log"
       ],
       "marketing_features_am": [
         "ሁሉም በProfessional ውስጥ ያለው",
-        "የሠራተኛ፣ ቅርንጫፍ ወይም መሣሪያ ገደብ የለም",
         "የAPI መዳረሻ፣ webhooks እና የኦዲት መዝገብ"
       ],
       "marketing_features_om": [
         "Wanti Professional keessa jiru hundi",
-        "Daangaa hojjetaa, damee ykn meeshaa hin qabu",
         "Seensa API, webhooks fi galmee odiitii"
       ],
       "is_popular": false,
