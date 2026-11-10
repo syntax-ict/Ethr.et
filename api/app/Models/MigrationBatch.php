@@ -17,6 +17,14 @@ class MigrationBatch extends Model
 {
     use BelongsToTenant, HasPublicId;
 
+    /**
+     * Days a batch is kept after anyone last touched it or one of its rows
+     * (CleanupExpiredDataJob). It was seven days from the day it was staged,
+     * whatever its state: a list of a few hundred people still being reviewed
+     * was deleted, decisions and all, a week after it was pasted.
+     */
+    public const RETENTION_DAYS = 30;
+
     protected $fillable = [
         'public_id',
         'tenant_id',

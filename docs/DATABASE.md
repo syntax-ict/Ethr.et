@@ -693,11 +693,12 @@ Added for AI-assisted onboarding & workforce migration (see
 | table | purpose | retention |
 |---|---|---|
 | `employee_external_identities` | maps an external identifier (device user id, card, …) to one master employee; unique on `(tenant_id, source_type, source_ref, identifier_type, identifier_value)` | persistent |
-| `migration_batches` | one workforce-discovery run | hard delete after 7 days |
-| `migration_staging_rows` | one staged person with resolver verdict + chosen action | hard delete after 7 days (cascade) |
+| `migration_batches` | one workforce-discovery run | hard delete 30 days after its last activity |
+| `migration_staging_rows` | one staged person with resolver verdict + chosen action | hard delete with its batch (cascade) |
 
 `organization_templates.template_data` extended with `grades` and `settings`
 (payroll defaults, attendance method, employee-number format).
 
 Staging tables are pruned by `CleanupExpiredDataJob` (daily), consistent with the
-"Import staging data — hard delete after 7 days" soft-delete policy.
+"Import staging data — hard delete 30 days after its last activity" soft-delete
+policy (seven days from staging until 2026-11-10; see `MIGRATION.md`).

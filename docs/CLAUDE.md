@@ -174,7 +174,7 @@ These are hard constraints on every slice. No exceptions.
 | Notifications | Hard delete after 90 days | Storage management |
 | Audit Logs | Never delete | Compliance requirement |
 | Webhook Deliveries | Hard delete after 30 days | Storage management |
-| Import staging data | Hard delete after 7 days | Temporary data |
+| Import staging data | Hard delete 30 days after its last activity | Temporary data; seven days from staging until 2026-11-10, which deleted lists still under review |
 
 > **NO SUCH RULE EXISTS — measured 2026-09-22.** This line read *"Enforce via a
 > custom PHPStan rule that checks all models against this table."* There is none:

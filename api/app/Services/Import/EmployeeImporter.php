@@ -259,9 +259,7 @@ class EmployeeImporter
             }
 
             try {
-                $employee = $attributes['employee_code'] === null
-                    ? $this->createNumbered($attributes, $pool)
-                    : Employee::create($attributes);
+                $employee = $this->numbering->createFromPool($tenant, $attributes, $pool);
             } catch (UniqueConstraintViolationException) {
                 // A code or badge another employee already holds: the resolver
                 // above did not call it the same person, so the row is refused
@@ -306,33 +304,6 @@ class EmployeeImporter
     public function templateCsv(): string
     {
         return implode(',', EmployeeImportRow::TEMPLATE)."\n";
-    }
-
-    /**
-     * The next number from the batch's pool, or a fresh one when another
-     * writer took it in the meantime.
-     *
-     * @param  array<string, mixed>  $attributes
-     * @param  list<string>  $pool
-     */
-    private function createNumbered(array $attributes, array &$pool): Employee
-    {
-        $code = array_shift($pool);
-        if ($code !== null) {
-            try {
-                return Employee::create([...$attributes, 'employee_code' => $code]);
-            } catch (UniqueConstraintViolationException $e) {
-                if (! str_contains($e->getMessage(), 'employee_code')) {
-                    throw $e;
-                }
-                $pool = [];
-            }
-        }
-
-        return $this->numbering->assign(
-            $this->currentTenant->get(),
-            fn (string $next): Employee => Employee::create([...$attributes, 'employee_code' => $next]),
-        );
     }
 
     /**

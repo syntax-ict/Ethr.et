@@ -310,15 +310,20 @@ describe('a device user with no name', function () {
 });
 
 describe('staging purge', function () {
-    it('hard-deletes staging batches older than seven days', function () {
+    // Thirty days from the last activity since 2026-11-10; it was seven from
+    // the day of staging. The boundary and the "still being reviewed" case are
+    // in BulkIntakeCostTest.
+    it('hard-deletes staging batches nobody has touched for thirty days', function () {
         $tenant = createTenant();
 
         $old = MigrationBatch::create(['tenant_id' => $tenant->id, 'source_type' => 'csv', 'status' => 'reviewing']);
         MigrationStagingRow::create([
             'tenant_id' => $tenant->id, 'batch_id' => $old->id, 'raw' => ['name' => 'Old'], 'action' => 'pending',
         ]);
-        // Backdate past the 7-day window.
-        DB::table('migration_batches')->where('id', $old->id)->update(['created_at' => now()->subDays(8)]);
+        // Backdate the batch and its row past the window.
+        $then = now()->subDays(MigrationBatch::RETENTION_DAYS + 1);
+        DB::table('migration_batches')->where('id', $old->id)->update(['created_at' => $then, 'updated_at' => $then]);
+        DB::table('migration_staging_rows')->where('batch_id', $old->id)->update(['created_at' => $then, 'updated_at' => $then]);
 
         $recent = MigrationBatch::create(['tenant_id' => $tenant->id, 'source_type' => 'csv', 'status' => 'reviewing']);
 

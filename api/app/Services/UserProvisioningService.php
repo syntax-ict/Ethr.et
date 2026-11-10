@@ -25,7 +25,29 @@ use Illuminate\Support\Str;
  */
 class UserProvisioningService
 {
+    /** The hash every login made by this instance starts with: unusablePassword(). */
+    private ?string $placeholder = null;
+
     public function __construct(private readonly CurrentTenant $currentTenant) {}
+
+    /**
+     * The hash of a random secret nobody is told and nothing keeps.
+     *
+     * Made once for this instance, which is one list of people: the import
+     * and "send invitations" hold one for the whole request. It was made per
+     * login, and a bcrypt hash is slow on purpose (cost 12, a quarter of a
+     * second or more on the shared host), so a thousand logins spent minutes
+     * hashing passwords that can never be typed, inside a request the host
+     * stops at thirty seconds.
+     *
+     * Sharing it gives nothing away: the logins it is on cannot be signed in
+     * to with any password, the secret is gone the moment it is hashed, and
+     * each person replaces it with their own when they activate.
+     */
+    private function unusablePassword(): string
+    {
+        return $this->placeholder ??= Hash::make(Str::random(40));
+    }
 
     /**
      * Provision a login account and (optionally) email an activation link.
@@ -77,7 +99,7 @@ class UserProvisioningService
             'phone' => $employee?->phone,
             // Unusable placeholder. The invitee never learns this value — they
             // set their own password through the activation link.
-            'password' => Hash::make(Str::random(40)),
+            'password' => $this->unusablePassword(),
             'role' => $role,
             'custom_role_id' => $customRoleId,
             'status' => 'invited',
@@ -122,7 +144,7 @@ class UserProvisioningService
             'tenant_id' => $tenant->id,
             'employee_id' => $employee->id,
             'email' => null,
-            'password' => Hash::make(Str::random(40)),
+            'password' => $this->unusablePassword(),
             'role' => UserRole::EMPLOYEE,
             'status' => 'invited',
             'invited_by' => $invitedBy,
