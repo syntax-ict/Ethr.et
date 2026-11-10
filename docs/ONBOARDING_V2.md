@@ -178,6 +178,32 @@ was held by another session during implementation).
   for the date and shows a pending change.
 - Playwright: `src/e2e/onboarding-first-payroll.spec.ts` (sign-up → answers → checklist ready).
 
+### Reuse Map — final status (2026-11-10)
+
+The brief's rule was reuse → extend → wrap → new. Every row below names what existed and what
+was done with it; nothing listed here has a parallel implementation.
+
+| Concern | Existing | Decision | Final status |
+|---|---|---|---|
+| Statutory values | `StatutoryRules`, `StatutoryRuleSet`, `statutory_parameters` | Extend: sector and parent-type layers, `enforcement`, `floor_direction`, `profile_versions` | Done; the single resolver (`docs/payroll/STATUTORY-PARAMETERS.md`) |
+| Organisation type | `OrganizationType`, `tenants.organization_type` | Extend: 10 inheriting types, `parent_code`, `group_code`; dated `tenant_profile_assignments` through `OrganisationProfile` | Done; the column is a projection of today's assignment |
+| Legacy settings keys | `SETTING_OVERRIDES` in `StatutoryRules` | Wrap: `StatutorySettingsBridge` writes the keys through to rows, audited | Done; fallback removed |
+| Tax | `TaxCalculator`, `tax_brackets` | Reuse; type lookup through `ProfileContext`; organisation writes refused | Done; math unchanged. Ladder in seeder and migration, pinned by `TaxLadderSourcesTest` |
+| Pension | `PensionCalculator`, `pension_rules` | Reuse; `ProfileContext`; `pension.applies_to` | Done; math unchanged |
+| Leave | `LeaveTypeCatalog`, `SickLeaveTiers`, leave-type requests | Extend: days, tiers and windows are rows; floors validated | Done |
+| Payroll run | `PayrollEngine` | Extend: `computeEntry()` split; `preview()` reuses it | Done; `calculation_log` 1.8 |
+| Signup | `RegisterTenantRequest`, `AuthService` | Extend: `organization_kind` | Done |
+| Onboarding | `IndustryProfileResolver`, `ConfigurationController`, `industry-config-step` | Extend: the five answers; no statutory key written; policies follow the kind | Done |
+| Readiness | `ReadinessScorer`, `NextStepId`, `SetupProvider` | Extend: payroll checks and `payroll {done,total,ready}` | Done |
+| Settings UI | payroll settings page, cards | Extend: Statutory rules tab; tax and pension cards read-only | Done |
+| Calendar, money, i18n, policies | `OrganisationMonth`, `Cents`, `useT`, `hasPermission` | Reuse | Done |
+
+**Where delivery departed from the plan, and why:**
+
+- **No general `Floor::satisfies()`.** No code an organisation can change carries a floor: the four it may set are `default`, and every floored code is `locked`. Floors are enforced where a value can be entered: leave types (`ValidatesLeaveTypeIntegrity`) and the overtime card (`OvertimeCalculator` takes the higher of the two).
+- **No `PUT/DELETE /settings/rules/{code}`.** Changes go through the existing `PUT /settings` keys, which the bridge turns into rows. Only `GET /payroll/statutory-rules` and `DELETE /payroll/statutory-rules/{code}` are new (decision P2-4).
+- **The tax ladder is still written twice**, because the migration that holds it may not be edited. `TaxLadderSourcesTest` fails if the two copies differ.
+
 ### Superseded historical slices (below) — original planning notes retained for provenance.
 
 **Slice 5 — Device enrollment discovery.**

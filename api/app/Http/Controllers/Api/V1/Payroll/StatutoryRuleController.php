@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Payroll;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\StatutoryParameter;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\OwnStatutoryRates;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySettingsBridge;
 use App\Services\Tenancy\ProfileContext;
@@ -21,15 +21,17 @@ use Illuminate\Support\Facades\Gate;
  * Payroll → Statutory rules.
  *
  * A rule the organisation may change is changed through PUT /settings, which
- * writes its own row (StatutorySettingsBridge); this lists them and resets
- * one to the value its profile gives, which deletes that row. A locked rule
- * is the law's and only listed.
+ * writes its own row (StatutorySettingsBridge, which also audits both the
+ * change and a reset); this lists them and resets one to the value its
+ * profile gives, which deletes that row. A locked rule is the law's and only
+ * listed.
  */
 class StatutoryRuleController extends Controller
 {
     public function __construct(
         private readonly StatutoryRules $rules,
         private readonly ProfileContext $profiles,
+        private readonly OwnStatutoryRates $ownRates,
     ) {}
 
     public function index(): JsonResponse
@@ -46,12 +48,35 @@ class StatutoryRuleController extends Controller
         foreach ($resolved->all() as $code => $rule) {
             $data[] = $this->present($code, $rule, $platform->describe($code)['value'] ?? null);
         }
+        $ownRates = $this->ownRates->anyInForce($tenant);
 
         return response()->json([
             'data' => $data,
             'organization_type' => $profile['organization_type'],
             'sector' => $profile['sector'],
             'as_of' => $today->toDateString(),
+            'own_rates_in_force' => $ownRates,
+        ]);
+    }
+
+    /**
+     * POST /payroll/statutory-rules/use-law: ends the organisation's own tax
+     * ladder and pension rules, saved before both became the law's alone, so
+     * payroll applies the law's from today (OwnStatutoryRates). Nothing is
+     * deleted; the periods already paid keep the rates they were paid under.
+     */
+    public function useLaw(): JsonResponse
+    {
+        Gate::authorize('payroll.manageConfig');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $ended = $this->ownRates->end($tenant);
+        $this->rules->forget();
+
+        return response()->json([
+            'tax_brackets_ended' => $ended['tax_brackets'],
+            'pension_rules_ended' => $ended['pension_rules'],
+            'own_rates_in_force' => $this->ownRates->anyInForce($tenant),
         ]);
     }
 
@@ -98,11 +123,10 @@ class StatutoryRuleController extends Controller
         // not know `settings` is an array.
         $settings = $tenant->getAttribute('settings');
         $settings = is_array($settings) ? $settings : [];
+        // StatutorySettingsBridge deletes the row and audits the reset.
         if (array_key_exists($settingKey, $settings)) {
             unset($settings[$settingKey]);
             $tenant->update(['settings' => $settings]);
-
-            AuditLog::record('statutory_parameter.reset', $tenant, ['code' => $code, 'from' => $current['value']]);
         }
 
         $this->rules->forget();

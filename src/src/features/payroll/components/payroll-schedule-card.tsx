@@ -145,12 +145,20 @@ export function PayrollScheduleCard() {
     save.mutate(
       {
         run_day: Number(form.run_day),
-        fiscal_year_start_month: form.fiscal_year_start_month,
-        pagumen_proration_strategy: form.pagumen_proration_strategy,
         retirement_age: Number(form.retirement_age),
-        // Sent only when the person changed it: saving any other field must
-        // not pin the organisation to today's platform value, which the
-        // accountant may still correct.
+        // The three statutory values are sent only when the person changed
+        // them. Each becomes the organisation's own value
+        // (StatutorySettingsBridge), so saving any other field must not pin
+        // it to today's default, which the kind of organisation decides and
+        // the accountant may still correct.
+        ...(form.fiscal_year_start_month !==
+          persisted.fiscal_year_start_month && {
+          fiscal_year_start_month: form.fiscal_year_start_month,
+        }),
+        ...(form.pagumen_proration_strategy !==
+          persisted.pagumen_proration_strategy && {
+          pagumen_proration_strategy: form.pagumen_proration_strategy,
+        }),
         ...(form.working_days_per_month !==
           persisted.working_days_per_month && {
           working_days_per_month: Number(form.working_days_per_month),

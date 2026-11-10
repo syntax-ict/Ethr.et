@@ -13,7 +13,7 @@ what turns "implemented as understood" into "checked".
 ## 1. The rules as implemented
 
 **Monthly employment income tax — Proclamation 1395/2025, from 7 July 2025**
-(`api/app/Services/Payroll/TaxCalculator.php`, `CURRENT_BRACKETS`):
+(platform `tax_brackets` rows, written by `api/database/seeders/TaxBracketSeeder.php` and migration `2026_08_29_000001`):
 
 | Taxable income (ETB / month) | Rate | Quick deduction (ETB) |
 |---|---|---|
@@ -25,9 +25,9 @@ what turns "implemented as understood" into "checked".
 | over 14,000 | 35% | 2,050 |
 
 Tax = taxable × rate − quick deduction, rounded to the cent. A period before 7 July 2025 is
-taxed on the Proclamation 979/2016 ladder (`SUPERSEDED_BRACKETS`), so re-running an old
+taxed on the Proclamation 979/2016 ladder (`TaxBracketSeeder::PROCLAMATION_979_2016`), so re-running an old
 period reproduces what was withheld then. A tenant can store its own effective-dated ladder
-(Payroll → Tax brackets); it takes precedence.
+(Payroll → Tax brackets); it takes precedence. *(Since 2026-11-09 a new organisation ladder is refused with a 422; one stored earlier is still honoured for its dates and flagged on the readiness checklist.)*
 
 **Pension** (`PensionCalculator`): employee 7% and employer 11% of **basic salary after
 proration and unpaid leave**. Allowances and overtime are not pensionable.

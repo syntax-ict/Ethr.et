@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 use App\Enums\ContractType;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
 use App\Models\PayrollEntry;
 use App\Models\PensionRule;
 use App\Models\TaxBracket;
+use App\Services\Onboarding\ReadinessScorer;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\TaxCalculator;
 use Carbon\Carbon;
+use Database\Seeders\TaxBracketSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -130,4 +133,56 @@ it('exempts a contract type pension.applies_to excludes, and only that one', fun
 
     expect($pension($people['casual']))->toMatchArray(['exempt' => true, 'exempt_reason' => 'contract_type'])
         ->and($pension($people['permanent'])['exempt'])->toBeFalse();
+});
+
+it('lets an organisation end its own ladder and pension rule, keeping their history (K-58)', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    TaxBracket::create(['min_amount_cents' => 0, 'max_amount_cents' => 0, 'rate' => 10, 'deduction_cents' => 0, 'effective_from' => '2026-01-01']);
+    PensionRule::create([
+        'scheme' => 'private', 'employee_rate' => 5, 'employer_rate' => 5,
+        'legal_reference' => 'Board resolution', 'effective_from' => '2026-01-01',
+    ]);
+    $lawFollowed = function () use ($tenant): bool {
+        $checks = app(ReadinessScorer::class)->score($tenant->id)['categories']['payroll']['checks'];
+
+        return collect($checks)->firstWhere('id', 'statutory_law_followed')['passed'];
+    };
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/payroll/statutory-rules";
+
+    expect($lawFollowed())->toBeFalse()
+        ->and($this->getJson($url)->json('own_rates_in_force'))->toBeTrue();
+
+    $this->postJson("{$url}/use-law")
+        ->assertOk()
+        ->assertJson(['tax_brackets_ended' => 1, 'pension_rules_ended' => 1, 'own_rates_in_force' => false]);
+
+    $yesterday = Carbon::yesterday()->toDateString();
+    expect($lawFollowed())->toBeTrue()
+        ->and($this->getJson($url)->json('own_rates_in_force'))->toBeFalse()
+        // Ended, not deleted: a period already paid still reproduces.
+        ->and(TaxBracket::query()->count())->toBe(1)
+        ->and(TaxBracket::query()->value('effective_to')?->toDateString())->toBe($yesterday)
+        ->and(PensionRule::query()->value('effective_to')?->toDateString())->toBe($yesterday)
+        ->and(app(TaxCalculator::class)->basis($tenant->id, Carbon::parse('2026-06-01'))['source'])->toBe('tenant')
+        ->and(app(TaxCalculator::class)->basis($tenant->id, Carbon::today())['source'])->not->toBe('tenant')
+        ->and(AuditLog::query()->where('action', 'statutory_parameter.own_rates_ended')->exists())->toBeTrue();
+});
+
+it('lets only someone who manages payroll configuration end its own rates', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+    $this->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/statutory-rules/use-law")->assertForbidden();
+});
+
+it('shows only the ladder in force as the law, not the closed 979/2016 bands (K-52)', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $this->seed(TaxBracketSeeder::class);
+
+    $bands = $this->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/tax-brackets")->assertOk()->json('data');
+
+    expect($bands)->toHaveCount(6)
+        ->and(collect($bands)->pluck('effective_to')->filter()->all())->toBe([]);
 });

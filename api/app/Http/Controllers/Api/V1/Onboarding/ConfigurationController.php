@@ -67,6 +67,7 @@ class ConfigurationController extends Controller
             'region' => $request->input('region'),
             'workforce_profile' => $request->input('workforce_profile'),
             'policy_profile' => $request->input('policy_profile'),
+            'organization_type' => $request->input('organization_type') ?? $this->currentTenant->get()?->organization_type,
         ], static fn ($value): bool => $value !== null);
 
         $plan = $this->resolver->resolve($request->string('industry')->value(), $signals);

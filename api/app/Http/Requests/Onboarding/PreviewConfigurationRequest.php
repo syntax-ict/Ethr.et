@@ -28,6 +28,7 @@ class PreviewConfigurationRequest extends FormRequest
             'region' => ['nullable', 'string', 'max:100'],
             'workforce_profile' => ['nullable', 'string', Rule::in(app(WorkforceProfileCatalog::class)->keys())],
             'policy_profile' => ['nullable', 'string', Rule::in(app(PolicyProfileCatalog::class)->keys())],
+            'organization_type' => ['nullable', 'string', Rule::exists('organization_types', 'code')->where('is_active', true)],
         ];
     }
 }

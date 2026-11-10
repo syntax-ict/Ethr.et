@@ -766,6 +766,24 @@ export function useStatutoryRules() {
   });
 }
 
+/**
+ * Ends the organisation's own tax ladder and pension rules, saved before both
+ * became the law's alone; payroll applies the law's from today, and periods
+ * already paid keep what they were paid under.
+ */
+export function useEndOwnRates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () =>
+      (await apiClient.post("/payroll/statutory-rules/use-law")).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "next-steps"] });
+    },
+  });
+}
+
 /** Back to the value the organisation's profile gives: deletes its own row. */
 export function useResetStatutoryRule() {
   const queryClient = useQueryClient();

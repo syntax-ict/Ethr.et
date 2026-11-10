@@ -69,6 +69,7 @@ export function usePreviewConfiguration() {
       region?: string;
       workforce_profile?: string;
       policy_profile?: string;
+      organization_type?: string;
     }
   >({
     mutationFn: async (payload) =>
