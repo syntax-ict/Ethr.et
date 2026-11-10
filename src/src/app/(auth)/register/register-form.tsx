@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Eye,
   EyeOff,
@@ -32,6 +31,11 @@ import {
   orgKindName,
 } from "@/features/settings/org-kind";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
+import {
+  isAdminPhone,
+  registerSchema,
+  type RegisterFormValues,
+} from "@/features/auth/register-schema";
 
 const orgTypeKeys = [
   "government",
@@ -55,23 +59,9 @@ function slugify(name: string): string {
     .slice(0, 63);
 }
 
-const registerSchema = z
-  .object({
-    organization_name: z.string().min(2, "auth.complete_org_step"),
-    organization_type: z.string().min(1),
-    organization_kind: z.string().min(1, "auth.org_kind_required"),
-    subdomain: z.string().min(3, "auth.complete_org_step").max(63),
-    admin_name: z.string().min(2, "auth.complete_admin_step"),
-    admin_email: z.string().email("auth.complete_admin_step"),
-    admin_phone: z.string().min(9, "auth.complete_admin_step").max(20),
-    password: z.string().min(8, "auth.password_requirements"),
-    password_confirmation: z.string().min(8, "auth.password_requirements"),
-  })
-  .refine((data) => data.password === data.password_confirmation, {
-    message: "auth.passwords_no_match",
-    path: ["password_confirmation"],
-  });
-type RegisterForm = z.infer<typeof registerSchema>;
+/** 44 px, the height the sign-in form uses: a 36 px control is a small target on a phone. */
+const SELECT_CLASS =
+  "flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -100,7 +90,7 @@ export function RegisterForm() {
     setValue,
     trigger,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterForm>({
+  } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       organization_name: "",
@@ -134,6 +124,9 @@ export function RegisterForm() {
   const hasError_admin_email = Boolean(
     errors.admin_email || fieldErrors.admin_email,
   );
+  const hasError_admin_phone = Boolean(
+    errors.admin_phone || fieldErrors.admin_phone,
+  );
   const hasError_password = Boolean(errors.password || fieldErrors.password);
   const hasError_password_confirmation = Boolean(errors.password_confirmation);
 
@@ -144,6 +137,7 @@ export function RegisterForm() {
   const orgKind = watch("organization_kind");
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
+  const adminPhone = watch("admin_phone");
 
   // One pending check, for the latest value only. Typing the organisation name
   // checked on every keystroke, and the subdomain field's "debounce" returned
@@ -191,8 +185,15 @@ export function RegisterForm() {
     [],
   );
 
+  // True once the address was typed by hand. The organisation name suggests
+  // an address only until then: it used to rewrite the field on every
+  // keystroke, so correcting a typo in the name threw away an address the
+  // person had chosen. Emptying the field hands it back to the name.
+  const addressEdited = useRef(false);
+
   function handleOrgNameChange(value: string) {
     setValue("organization_name", value);
+    if (addressEdited.current) return;
     const suggested = slugify(value);
     setValue("subdomain", suggested);
     scheduleSubdomainCheck(suggested);
@@ -200,6 +201,7 @@ export function RegisterForm() {
 
   function handleSubdomainChange(value: string) {
     const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    addressEdited.current = cleaned !== "";
     setValue("subdomain", cleaned);
     scheduleSubdomainCheck(cleaned);
   }
@@ -209,8 +211,14 @@ export function RegisterForm() {
     orgKind !== "" &&
     subdomain.trim().length >= 3 &&
     subdomainAvailable !== false;
+  // The phone is required by the schema and by the server. This step checked
+  // only the name and the email, so a person could reach the last step with no
+  // phone, where "Create Free Account" then did nothing and said nothing: the
+  // error belonged to a field on a step no longer on screen.
   const step2Valid =
-    adminName.trim().length >= 2 && /\S+@\S+\.\S+/.test(adminEmail);
+    adminName.trim().length >= 2 &&
+    /\S+@\S+\.\S+/.test(adminEmail) &&
+    isAdminPhone(adminPhone);
   const step3Valid = password.length >= 8 && password === passwordConfirmation;
 
   async function goNext() {
@@ -233,7 +241,7 @@ export function RegisterForm() {
       }
     }
     if (currentStep === "admin") {
-      const valid = await trigger(["admin_name", "admin_email"]);
+      const valid = await trigger(["admin_name", "admin_email", "admin_phone"]);
       if (!valid || !step2Valid) {
         setServerError(
           t(
@@ -252,7 +260,7 @@ export function RegisterForm() {
     setStepIndex((i) => Math.max(i - 1, 0));
   }
 
-  async function onSubmit(data: RegisterForm) {
+  async function onSubmit(data: RegisterFormValues) {
     setServerError("");
     setFieldErrors({});
 
@@ -417,7 +425,9 @@ export function RegisterForm() {
                   onChange: (e) => handleOrgNameChange(e.target.value),
                 })}
                 minLength={2}
+                autoComplete="organization"
                 autoFocus
+                className="h-11"
               />
               {(errors.organization_name || fieldErrors.organization_name) && (
                 <p
@@ -442,7 +452,7 @@ export function RegisterForm() {
               <select
                 id="org_type"
                 {...register("organization_type")}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className={SELECT_CLASS}
               >
                 {orgTypeKeys.map((key) => (
                   <option key={key} value={key}>
@@ -464,7 +474,7 @@ export function RegisterForm() {
                   errors.organization_kind || fieldErrors.organization_kind,
                 )}
                 disabled={orgKinds.isPending}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className={SELECT_CLASS}
               >
                 <option value="">
                   {t("auth.org_kind_choose", "Choose one")}
@@ -526,7 +536,10 @@ export function RegisterForm() {
                     })}
                     minLength={3}
                     maxLength={63}
-                    className="pr-8"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    className="h-11 pr-8"
                   />
                   <div className="absolute inset-y-0 right-2 flex items-center">
                     {checkingSubdomain && (
@@ -580,7 +593,9 @@ export function RegisterForm() {
                 }
                 {...register("admin_name")}
                 minLength={2}
+                autoComplete="name"
                 autoFocus
+                className="h-11"
               />
               {(errors.admin_name || fieldErrors.admin_name) && (
                 <p
@@ -608,6 +623,7 @@ export function RegisterForm() {
                 type="email"
                 {...register("admin_email")}
                 autoComplete="email"
+                className="h-11"
               />
               {(errors.admin_email || fieldErrors.admin_email) && (
                 <p
@@ -628,18 +644,47 @@ export function RegisterForm() {
               </Label>
               <Input
                 id="admin_phone"
-                {...register("admin_phone")}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                aria-invalid={hasError_admin_phone || undefined}
+                aria-describedby={
+                  hasError_admin_phone
+                    ? "admin_phone-hint admin_phone-error"
+                    : "admin_phone-hint"
+                }
+                {...register("admin_phone", {
+                  // Validation runs on blur, so a corrected number kept its
+                  // error until focus left the field, beside a Next button
+                  // that had already come alive.
+                  onChange: () => {
+                    if (errors.admin_phone) void trigger("admin_phone");
+                  },
+                })}
                 placeholder="0912345678"
+                className="h-11"
               />
-              <p className="text-xs text-muted-foreground">
+              <p
+                id="admin_phone-hint"
+                className="text-xs text-muted-foreground"
+              >
                 {t(
                   "auth.admin_phone_hint",
                   "Local (0912345678) or international (+251912345678) format.",
                 )}
               </p>
-              {fieldErrors.admin_phone && (
-                <p className="text-xs text-destructive">
-                  {fieldErrors.admin_phone[0]}
+              {(errors.admin_phone || fieldErrors.admin_phone) && (
+                <p
+                  id="admin_phone-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
+                  {errors.admin_phone
+                    ? t(
+                        errors.admin_phone.message!,
+                        "Enter a valid Ethiopian phone number, e.g. 0911223344",
+                      )
+                    : fieldErrors.admin_phone[0]}
                 </p>
               )}
             </div>
@@ -661,8 +706,9 @@ export function RegisterForm() {
                   type={showPassword ? "text" : "password"}
                   {...register("password")}
                   minLength={8}
+                  autoComplete="new-password"
                   autoFocus
-                  className="pr-10"
+                  className="h-11 pr-10"
                 />
                 <button
                   type="button"
@@ -712,6 +758,8 @@ export function RegisterForm() {
                 }
                 type="password"
                 {...register("password_confirmation")}
+                autoComplete="new-password"
+                className="h-11"
               />
               {passwordConfirmation.length > 0 &&
                 passwordConfirmation !== password && (
