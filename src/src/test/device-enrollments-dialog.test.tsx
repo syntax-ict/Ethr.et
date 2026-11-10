@@ -34,7 +34,11 @@ function renderDialog() {
   );
 }
 
-function enrollments(roster: Record<string, unknown>, people = 1) {
+function enrollments(
+  roster: Record<string, unknown>,
+  people = 1,
+  archived?: number,
+) {
   return HttpResponse.json({
     device: {
       public_id: "DEV1",
@@ -55,6 +59,7 @@ function enrollments(roster: Record<string, unknown>, people = 1) {
       matched: 0,
       probable: 0,
       ambiguous: 0,
+      ...(archived === undefined ? {} : { archived }),
       new: people,
     },
     roster: {
@@ -141,5 +146,30 @@ describe("<DeviceEnrollmentsDialog> for a device that reports its list", () => {
     expect(
       screen.queryByText("The device has not sent its list yet"),
     ).not.toBeInTheDocument();
+  });
+
+  // A person on the terminal who was deleted from ETHR (2026-11-10) is counted
+  // under their own heading, and the heading is there only when someone is.
+  it("counts people deleted from ETHR earlier only when the device holds one", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1/enrollments", () =>
+        enrollments({ source: "live", can_request: false }, 1, 2),
+      ),
+    );
+    renderDialog();
+
+    expect(await screen.findByText("2 deleted earlier")).toBeInTheDocument();
+  });
+
+  it("names no deleted people when the device holds none, or the answer predates the count", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1/enrollments", () =>
+        enrollments({ source: "live", can_request: false }),
+      ),
+    );
+    renderDialog();
+
+    expect(await screen.findByText("1042")).toBeInTheDocument();
+    expect(screen.queryByText(/deleted earlier/)).not.toBeInTheDocument();
   });
 });

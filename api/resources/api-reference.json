@@ -13906,10 +13906,7 @@
                                                                 "properties": {
                                                                     "outcome": {
                                                                         "type": "string",
-                                                                        "enum": [
-                                                                            "ambiguous",
-                                                                            "probable"
-                                                                        ]
+                                                                        "const": "probable"
                                                                     },
                                                                     "employee_public_id": {
                                                                         "type": "string"
@@ -13959,6 +13956,58 @@
                                                                 "properties": {
                                                                     "outcome": {
                                                                         "type": "string",
+                                                                        "const": "archived"
+                                                                    },
+                                                                    "employee_public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "confidence": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "candidates": {
+                                                                        "type": "array",
+                                                                        "prefixItems": [
+                                                                            {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                    "employee_public_id": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "employee_name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "score": {
+                                                                                        "type": "number"
+                                                                                    },
+                                                                                    "reasons": {
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                },
+                                                                                "required": [
+                                                                                    "employee_public_id",
+                                                                                    "employee_name",
+                                                                                    "score",
+                                                                                    "reasons"
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                        "minItems": 1,
+                                                                        "maxItems": 1,
+                                                                        "additionalItems": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "outcome",
+                                                                    "employee_public_id",
+                                                                    "confidence",
+                                                                    "candidates"
+                                                                ]
+                                                            },
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "outcome": {
+                                                                        "type": "string",
                                                                         "const": "new"
                                                                     },
                                                                     "employee_public_id": {
@@ -13968,7 +14017,13 @@
                                                                         "type": "number"
                                                                     },
                                                                     "candidates": {
-                                                                        "type": "string"
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "minItems": 0,
+                                                                        "maxItems": 0,
+                                                                        "additionalItems": false
                                                                     }
                                                                 },
                                                                 "required": [
@@ -14011,7 +14066,7 @@
                                                                                         "prefixItems": [
                                                                                             {
                                                                                                 "type": "string",
-                                                                                                "const": "existing_mapping"
+                                                                                                "const": "former_employee"
                                                                                             }
                                                                                         ],
                                                                                         "minItems": 1,
@@ -14068,6 +14123,9 @@
                                                 "ambiguous": {
                                                     "type": "string"
                                                 },
+                                                "archived": {
+                                                    "type": "string"
+                                                },
                                                 "new": {
                                                     "type": "string"
                                                 }
@@ -14077,6 +14135,7 @@
                                                 "matched",
                                                 "probable",
                                                 "ambiguous",
+                                                "archived",
                                                 "new"
                                             ]
                                         },

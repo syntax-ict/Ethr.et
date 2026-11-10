@@ -12,6 +12,8 @@ return [
     'import_relation_ambiguous' => 'Toora :row: :field tokkoo ol ":value" jedhama. Qooda kanaa koodii isaa fayyadamaa.',
     'import_duplicate_in_file' => 'Toora :row: :field ":value" duraan faayilii kana keessatti toora :first irratti itti fayyadamameera.',
     'import_already_taken' => 'Toora :row: koodiin hojjetaa ykn lakkoofsi baajii duraan hojjetaa biraatiin itti fayyadamameera.',
+    'import_needs_review' => 'Toora :row: kun hojjetaa duraan ETHR keessa jiru fakkaata, garuu koodiin hojjetaa ykn lakkoofsi ID biyyaalessaa wal hin simu. Toorri hin dabalamne. Galmee hojjetaa sanaa waliin wal bira qabaa ilaalaa.',
+    'import_archived' => 'Toora :row: namni kun ETHR irraa haqameera, galmeen isaa garuu ni jira. Yeroo lammaffaaf hin dabalamne.',
     'import_field_department_code' => 'muummee',
     'import_field_branch_code' => 'damee',
     'import_field_position_code' => 'gita hojii',

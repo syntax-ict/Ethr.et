@@ -361,14 +361,7 @@ class PullDeviceEventsJob implements ShouldQueue
             // employee_code / badge_number. Only an actionable match is recorded —
             // an ambiguous or unknown badge is left for manual review rather than
             // guessed at (never create/attach blindly).
-            $signals = new IdentitySignals(
-                employeeCode: $badge,
-                badgeNumber: $badge,
-                sourceType: $this->device->adapter_type,
-                sourceRef: 'device:'.$this->device->id,
-                identifierType: 'device_user_id',
-                identifierValue: $badge,
-            );
+            $signals = IdentitySignals::forDeviceUser($this->device, (string) $badge);
 
             $match = $resolver->resolve($this->device->tenant_id, $signals);
 
