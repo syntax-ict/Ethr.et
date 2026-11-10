@@ -67,9 +67,10 @@ final class RequirePasswordChange
         }
 
         // Checked by name, as BlockImpersonatedActions does: the token also
-        // holds '*', which a `can()` check would match for anything.
-        $token = $user->currentAccessToken();
-        if ($token && in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
+        // holds '*', which a `can()` check would match for anything. The `??`
+        // also covers a session with no abilities at all (a TransientToken).
+        $abilities = $user->currentAccessToken()->abilities ?? [];
+        if (in_array(ImpersonationToken::ABILITY, $abilities, true)) {
             return $next($request);
         }
 
