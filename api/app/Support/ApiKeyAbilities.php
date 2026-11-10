@@ -59,6 +59,7 @@ final class ApiKeyAbilities
      */
     private const CREDENTIAL_ROUTES = [
         ['#^employees/[^/]+/activation-code$#', true],
+        ['#^employees/starting-password$#', false],
         ['#^employees/[^/]+/kiosk-pin$#', false],
         ['#^kiosk-sessions(/.*)?$#', true],
         ['#^devices/[^/]+/regenerate-token$#', false],

@@ -29,6 +29,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property array<string, mixed>|null $preferences
  * @property Carbon|null $last_login_at
  * @property Carbon|null $email_verified_at
+ * @property Carbon|null $password_change_required_at Set while the person still has the starting password HR gave their batch.
+ * @property Carbon|null $starting_password_expires_at When that starting password stops working.
  * @property-read Employee|null $employee A user need not be an employee — `users.employee_id` is nullable.
  * @property string|null $display_name The name of an account with no employee record.
  * @property-read string $name Display name, computed — see name().
@@ -51,6 +53,8 @@ class User extends Authenticatable implements HasLocalePreference
         'phone',
         'password',
         'password_changed_at',
+        'password_change_required_at',
+        'starting_password_expires_at',
         'role',
         'custom_role_id',
         'status',
@@ -96,6 +100,8 @@ class User extends Authenticatable implements HasLocalePreference
             'mfa_secret' => 'encrypted',
             'password' => 'hashed',
             'password_changed_at' => 'datetime',
+            'password_change_required_at' => 'datetime',
+            'starting_password_expires_at' => 'datetime',
             'last_login_at' => 'datetime',
             'invited_at' => 'datetime',
             'activated_at' => 'datetime',
@@ -108,6 +114,23 @@ class User extends Authenticatable implements HasLocalePreference
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Whether the person still has the starting password HR gave their batch
+     * and must choose their own before anything else (RequirePasswordChange).
+     */
+    public function mustChangePassword(): bool
+    {
+        return $this->password_change_required_at !== null;
+    }
+
+    /** Whether that starting password has run out (StartingPasswords::expire). */
+    public function startingPasswordExpired(): bool
+    {
+        return $this->mustChangePassword()
+            && $this->starting_password_expires_at !== null
+            && $this->starting_password_expires_at->isPast();
     }
 
     /**

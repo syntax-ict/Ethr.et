@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\AccountActivationNotification;
 use App\Support\Mail\CriticalMail;
 use App\Support\PasswordTokens;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -152,6 +153,42 @@ class UserProvisioningService
     {
         $user = $this->provisionWithoutContact($employee, $invitedBy);
         $user->update(['phone' => $employee->phone]);
+
+        return $user;
+    }
+
+    /**
+     * Provision a login that is active from the start, with the starting
+     * password HR gave this person's batch (StartingPasswords). The hash is
+     * made once by the caller and shared by the batch. The person signs in
+     * with their employee number and must choose their own password first.
+     *
+     * No audit entry per person: the caller records one for the batch.
+     */
+    public function provisionWithStartingPassword(Employee $employee, string $passwordHash, Carbon $expiresAt, ?int $invitedBy = null): User
+    {
+        $tenant = $this->currentTenant->get();
+        if ($tenant === null) {
+            throw new \RuntimeException('Cannot provision a user without a resolved tenant.');
+        }
+
+        $user = User::create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'email' => null,
+            'password' => $passwordHash,
+            'role' => UserRole::EMPLOYEE,
+            'status' => 'active',
+            'invited_by' => $invitedBy,
+            'invited_at' => now(),
+            'locale' => $tenant->default_locale ?? 'en',
+            'password_change_required_at' => now(),
+            'starting_password_expires_at' => $expiresAt,
+        ]);
+
+        if ($employee->user_id === null) {
+            $employee->update(['user_id' => $user->id]);
+        }
 
         return $user;
     }

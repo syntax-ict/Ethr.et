@@ -180,6 +180,7 @@ class AuthService
                 $this->currentTenant->get(),
                 $user->password_changed_at,
             ),
+            'password_change_required' => $user->mustChangePassword(),
         ];
 
         if ($mfaRequired) {
