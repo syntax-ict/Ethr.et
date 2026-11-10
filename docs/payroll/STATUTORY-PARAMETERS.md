@@ -75,8 +75,11 @@ Settings → Payroll → Statutory rules (`GET /payroll/statutory-rules`,
 `payroll.viewConfig`) lists every code in force with its layer, enforcement,
 legal reference, batch and the default it would have without the organisation's
 own value. A `default` code is changed where it always was (`PUT /settings`) and
-reset here (`DELETE /payroll/statutory-rules/{code}`, `payroll.manageConfig`,
-audited `statutory_parameter.reset`), which deletes the organisation's own row.
+reset here (`DELETE /payroll/statutory-rules/{code}`, `payroll.manageConfig`),
+which deletes the organisation's own row. Both are audited where the row is
+written, whichever path wrote it (`StatutorySettingsBridge`):
+`statutory_parameter.overridden` with the value before and after, and
+`statutory_parameter.reset` with the value removed.
 A `locked` code is listed, never editable.
 
 ### Settings keys from before the table

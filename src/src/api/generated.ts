@@ -10868,6 +10868,7 @@ export interface components {
             workforce_profile?: "standard_office" | "six_day_week" | "flexible_hybrid" | "rotating_three_shift" | "continuous_24_7" | "extended_hours_two_shift" | "part_time" | "field_distributed" | "seasonal_agricultural" | "weekend" | null;
             /** @enum {string|null} */
             policy_profile?: "ethiopia_private" | "ethiopia_public" | "custom" | null;
+            organization_type?: string | null;
         };
         /** PreviewPayrollRequest */
         PreviewPayrollRequest: {

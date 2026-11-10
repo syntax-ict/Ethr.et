@@ -192,15 +192,15 @@ TIN «Taxpayer Identification Number»
 
 ## Where these figures come from
 
-Every number above was read from the code, not from a document:
+Every number above was read from the code, not from a document. *(Locations corrected 2026-11-10: since 2026-10-27 `TaxCalculator` carries no ladder and reads only the `tax_brackets` rows.)*
 
 | Claim | Source |
 |---|---|
-| Current ladder (1395/2025) | `api/app/Services/Payroll/TaxCalculator.php:41-52` — `CURRENT_BRACKETS` |
-| Superseded ladder (979/2016) | `api/app/Services/Payroll/TaxCalculator.php:63-71` — `SUPERSEDED_BRACKETS` |
-| Effective date `2025-07-07` | `api/app/Services/Payroll/TaxCalculator.php:74` — `AMENDMENT_1395_EFFECTIVE_FROM` |
-| Formula `(income × rate) − deduction` | `api/app/Services/Payroll/TaxCalculator.php:93` |
-| Both ladders seeded, effective-dated | `api/database/seeders/TaxBracketSeeder.php:26-39` |
+| Current ladder (1395/2025) | `api/database/seeders/TaxBracketSeeder.php` — `PROCLAMATION_1395_2025`, and migration `2026_08_29_000001` (pinned equal by `TaxLadderSourcesTest`) |
+| Superseded ladder (979/2016) | `api/database/seeders/TaxBracketSeeder.php` — `PROCLAMATION_979_2016` |
+| Effective date `2025-07-07` | `effective_from` of the platform rows (`TaxBracketSeeder`, migration `2026_08_29_000001`) |
+| Formula `(income × rate) − deduction` | `api/app/Services/Payroll/TaxCalculator.php`, `apply()` |
+| Both ladders seeded, effective-dated | `api/database/seeders/TaxBracketSeeder.php` |
 | Amendment applied to deployments | `api/database/migrations/2026_08_29_000001_apply_income_tax_proclamation_1395_2025.php` |
 | Schedule came from secondary sources | `docs/DEPLOYMENT.md:12` |
 

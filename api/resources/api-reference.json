@@ -49994,6 +49994,12 @@
                             "custom",
                             null
                         ]
+                    },
+                    "organization_type": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
