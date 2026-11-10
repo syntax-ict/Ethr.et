@@ -6,9 +6,11 @@ namespace App\Http\Requests\Auth;
 
 use App\Models\Tenant;
 use App\Rules\PasswordPolicy;
+use App\Services\Onboarding\IndustryCatalog;
 use App\Support\EthiopianPhone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class RegisterTenantRequest extends FormRequest
 {
@@ -71,6 +73,36 @@ class RegisterTenantRequest extends FormRequest
             'organization_type' => ['nullable', 'string', 'max:50'],
             'organization_kind' => ['nullable', 'string', Rule::exists('organization_types', 'code')->where('is_active', true)],
         ];
+    }
+
+    /**
+     * `organization_type` is the industry answer that picks the working week
+     * at sign-up, so it has to be an industry or one of the broad kinds the
+     * industries group under. It was any string up to 50 characters, stored as
+     * given, and one the catalogue did not know became office hours without a
+     * word to anyone.
+     *
+     * A hook rather than an `in:` rule, so `rules()` and the generated
+     * contract stay as they are. The message is Laravel's own `validation.in`
+     * line with the attribute named the way Laravel names it.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v): void {
+            $type = $this->input('organization_type');
+
+            if (! is_string($type) || $type === '') {
+                return;
+            }
+
+            $catalog = app(IndustryCatalog::class);
+
+            if (! $catalog->has($type) && ! in_array($type, $catalog->bases(), true)) {
+                $v->errors()->add('organization_type', __('validation.in', [
+                    'attribute' => 'organization type',
+                ]));
+            }
+        });
     }
 
     /** @return array<string, string> */
