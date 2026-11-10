@@ -4607,9 +4607,18 @@ punch is accepted and reported, never refused.
 **Browser journeys that read the database** (`src/e2e/attendance-payroll`,
 `gates.sh e2e-attendance`, CI job `attendance-payroll`). They sign in to organisations of
 their own (`E2eAttendanceSeeder`), drive the real stack, and assert on what the API reads
-back. Five pass. Not yet written: the kiosk screen, the
-offline phone, the refusals (unregistered phone, geofence, QR replay) and the month to a
-payslip.
+back. Six pass. Not yet written: the kiosk screen, the
+offline phone and the refusals (unregistered phone, geofence, QR replay).
+
+The sixth follows a month into pay (`month-to-payslip.spec.ts`), through the queue as
+production runs it: a day the terminal reported five times is paid once; the overtime in
+the calculation log is the overtime on that day's one record; a late arrival and a month's
+absence are listed and, with deductions off, not taken; the finance user who processed the
+run is refused its approval and the tenant admin gives it; a punch the terminal delivers
+after the approval is recorded while the stored entry stays identical; and a manual entry
+for that day is refused as `payroll-period-closed`. It passed on its first run, which is a
+result too: nothing on that path needed fixing. It needs a queue worker on the same
+database, and says so if the run never leaves `processing`.
 
 **Found by the first journey: a vendor webhook punch is lost over real HTTP.** The
 Hikvision, ZKTeco and Suprema webhook handlers in `DeviceController` find the device by its

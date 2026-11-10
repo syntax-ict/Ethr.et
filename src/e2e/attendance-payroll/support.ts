@@ -171,3 +171,77 @@ export async function recordsOf(page: Page, employee: string, from: string, to: 
 export function live(rows: AttendanceRow[]): AttendanceRow[] {
   return rows.filter((row) => row.status !== "voided");
 }
+
+export type Period = { start: string; end: string; workdays: string[] };
+
+/**
+ * Last calendar month in Addis Ababa, whole, with its Monday-to-Friday dates
+ * from the second week on. A journey that pays a month has to pay one that is
+ * over: this month's days are still being worked, and the punches for a past
+ * month can be dated by the terminal that reports them.
+ */
+export function lastMonth(now = new Date()): Period {
+  const [year, month] = addisDate(now).split("-").map(Number);
+  const first = new Date(Date.UTC(year, month - 2, 1));
+  const last = new Date(Date.UTC(year, month - 1, 0));
+  const iso = (day: Date) => day.toISOString().slice(0, 10);
+
+  const workdays: string[] = [];
+  for (let day = new Date(Date.UTC(year, month - 2, 8)); day <= last; day.setUTCDate(day.getUTCDate() + 1)) {
+    if (day.getUTCDay() >= 1 && day.getUTCDay() <= 5) workdays.push(iso(day));
+  }
+
+  return { start: iso(first), end: iso(last), workdays };
+}
+
+export type PayrollEntry = {
+  public_id: string;
+  employee_public_id: string;
+  basic_salary_cents: number;
+  gross_cents: number;
+  net_cents: number;
+  income_tax_cents: number;
+  calculation_log?: { version: string; steps: Array<Record<string, unknown> & { step: string }> };
+};
+
+export type PayrollRun = {
+  public_id: string;
+  status: string;
+  employee_count: number;
+  period_start: string;
+  period_end: string;
+  entries: PayrollEntry[];
+};
+
+/**
+ * The run once the queue has processed it, read with every entry's
+ * calculation log. Payroll is queued, as in production: if nothing drains the
+ * queue the run stays `processing`, and this says so rather than timing out
+ * with no reason.
+ */
+export async function processedRun(page: Page, run: string, timeoutMs = 180_000): Promise<PayrollRun> {
+  const deadline = Date.now() + timeoutMs;
+  let status = "unknown";
+
+  while (Date.now() < deadline) {
+    const found = await api(page, "GET", `/payroll/runs/${run}?include_log=1`);
+    expect(found.status, "payroll run").toBe(200);
+    status = found.data.status;
+    if (status === "completed") return found.data as PayrollRun;
+    expect(status, "payroll run failed while processing").not.toBe("failed");
+    await page.waitForTimeout(2000);
+  }
+
+  throw new Error(
+    `The payroll run is still "${status}" after ${timeoutMs / 1000}s. Nothing is draining the queue: start ` +
+      "php artisan queue:work --queue=attendance,notifications,default,exports against the same database.",
+  );
+}
+
+/** One step of an entry's calculation log, by name. */
+export function step(entry: PayrollEntry, name: string): Record<string, unknown> {
+  const found = entry.calculation_log?.steps.find((candidate) => candidate.step === name);
+  expect(found, `calculation log step "${name}"`).toBeTruthy();
+
+  return found!;
+}
