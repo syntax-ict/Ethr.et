@@ -233,7 +233,7 @@ Each changed case keeps its old expectation for a release without #682:
 | After the first approved run, a change of kind needs `effective_from` (a month's first day, never Pagume); pending change shown, replaced or cancelled | #682 | STAT-011 to STAT-013; STAT-002 changed |
 | Kind, statutory rules and preview in Amharic and Afaan Oromoo | #682 | L10N-021 |
 | Second-reader review of that Amharic and Afaan Oromoo; the Amharic names of the kinds corrected by a migration (the deploy needs `migrate`, S-02) | #684 | L10N-021 (read the kinds against `docs/i18n/AMHARIC-REVIEW.md`); K-62 still open |
-| Fixes from reading #682 (open, run once it is deployed): the schedule save pins nothing, a pending change of kind survives other saves and is cancelled explicitly, "Use the law's rates" ends an old own ladder or pension rule, only the ladder in force is shown as the law; civil-service policies follow the kind | [#685](https://github.com/syntax-ict/Ethr.et/pull/685) | STAT-008, STAT-010, STAT-012, STAT-013, PAY-001 changed; K-52, K-56 to K-59 |
+| Fixes from reading #682 (merged as `cb03c51af6`; run once it is deployed): the schedule save pins nothing, a pending change of kind survives other saves and is cancelled explicitly, "Use the law's rates" ends an old own ladder or pension rule, only the ladder in force is shown as the law; civil-service policies follow the kind | [#685](https://github.com/syntax-ict/Ethr.et/pull/685) | STAT-008, STAT-010, STAT-012, STAT-013, PAY-001 changed; K-52, K-56 to K-59 |
 
 ## 3. Approach
 
