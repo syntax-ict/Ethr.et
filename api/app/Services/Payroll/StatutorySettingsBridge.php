@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Models\AuditLog;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,6 +21,10 @@ use Illuminate\Support\Str;
  * the first day the platform has any row for the code. Removing the key
  * removes the row. A dated row an organisation sets on the rules page is a
  * different row and is never touched here.
+ *
+ * Every write is audited here, whichever path made it:
+ * `statutory_parameter.overridden` (from, to) and `statutory_parameter.reset`
+ * (from).
  */
 final class StatutorySettingsBridge
 {
@@ -57,7 +62,11 @@ final class StatutorySettingsBridge
                 ->where('note', self::NOTE);
 
             if (! is_scalar($value) || $value === '') {
-                $changed = $own->delete() > 0 || $changed;
+                $removed = (clone $own)->first(['value']);
+                if ($removed !== null && $own->delete() > 0) {
+                    AuditLog::record('statutory_parameter.reset', $tenant, ['code' => $code, 'from' => json_decode((string) $removed->value, true)]);
+                    $changed = true;
+                }
 
                 continue;
             }
@@ -79,6 +88,7 @@ final class StatutorySettingsBridge
             if ($existing !== null) {
                 if ($existing->value !== $encoded) {
                     DB::table('statutory_parameters')->where('id', $existing->id)->update(['value' => $encoded, 'updated_at' => $now]);
+                    AuditLog::record('statutory_parameter.overridden', $tenant, ['code' => $code, 'from' => json_decode((string) $existing->value, true), 'to' => json_decode((string) $encoded, true)]);
                     $changed = true;
                 }
 
@@ -101,6 +111,7 @@ final class StatutorySettingsBridge
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            AuditLog::record('statutory_parameter.overridden', $tenant, ['code' => $code, 'from' => null, 'to' => json_decode((string) $encoded, true)]);
             $changed = true;
         }
 

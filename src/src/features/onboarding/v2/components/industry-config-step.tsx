@@ -190,6 +190,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         region: region || undefined,
         workforce_profile: workforceProfile ?? undefined,
         policy_profile: policyProfile ?? undefined,
+        // The kind in law decides which body of employment law the policies
+        // start from (civil service or the Labour Proclamation).
+        organization_type: currentKind,
       });
       setReviewed(false);
       setPlan(result);

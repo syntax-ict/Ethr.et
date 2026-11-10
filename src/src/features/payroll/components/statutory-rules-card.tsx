@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, RotateCcw, Scale } from "lucide-react";
+import { AlertTriangle, Lock, RotateCcw, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   type StatutoryRule,
   useResetStatutoryRule,
   useStatutoryRules,
+  useEndOwnRates,
 } from "../api";
 
 type T = (
@@ -196,6 +197,7 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
   const { t } = useT();
   const query = useStatutoryRules();
   const reset = useResetStatutoryRule();
+  const endOwnRates = useEndOwnRates();
   const canManage = usePermissions().hasPermission("payroll.manageConfig");
 
   return (
@@ -220,6 +222,54 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
         >
           {(data) => (
             <div className="space-y-6">
+              {data.own_rates_in_force && (
+                <div
+                  role="status"
+                  className="flex flex-col gap-3 rounded-md border border-warning-edge bg-warning-soft p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <p className="flex items-start gap-2 text-sm text-warning-on-soft">
+                    <AlertTriangle
+                      className="mt-0.5 h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    {t(
+                      "statutory_rules.own_rates",
+                      "Payroll still applies a tax ladder or pension rule your organisation saved before these were locked to the law. Periods already paid keep it.",
+                    )}
+                  </p>
+                  {canManage && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={endOwnRates.isPending}
+                      onClick={() =>
+                        endOwnRates.mutate(undefined, {
+                          onSuccess: () =>
+                            toast.success(
+                              t(
+                                "statutory_rules.own_rates_ended",
+                                "Payroll now applies the law's rates",
+                              ),
+                            ),
+                          onError: (err) =>
+                            toast.error(
+                              apiErrorMessage(
+                                err,
+                                t(
+                                  "statutory_rules.own_rates_end_failed",
+                                  "Could not switch to the law's rates",
+                                ),
+                              ),
+                            ),
+                        })
+                      }
+                    >
+                      {t("statutory_rules.use_law", "Use the law's rates")}
+                    </Button>
+                  )}
+                </div>
+              )}
               {GROUPS.map((group) => {
                 const rules = data.data.filter(
                   (r) => groupOf(r.code) === group,

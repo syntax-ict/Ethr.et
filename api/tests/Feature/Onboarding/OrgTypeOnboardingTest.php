@@ -129,3 +129,30 @@ describe('the configuration step', function () {
             ->assertUnprocessable()->assertJsonValidationErrors('pay_period');
     })->with(['weekly', 'biweekly']);
 });
+
+it('starts the policies from the kind in law before the industry', function () {
+    $resolver = app(IndustryProfileResolver::class);
+
+    // A federal office in a private-sector industry is still civil service;
+    // a regional office inherits that from `government`.
+    expect($resolver->resolve('school', ['organization_type' => 'government'])->toArray()['profiles']['policy']['key'])->toBe('ethiopia_public')
+        ->and($resolver->resolve('school', ['organization_type' => 'regional_government'])->toArray()['profiles']['policy']['key'])->toBe('ethiopia_public')
+        // A private company in a public-sector industry is under the Labour Proclamation.
+        ->and($resolver->resolve('federal_government', ['organization_type' => 'share_company'])->toArray()['profiles']['policy']['key'])->toBe('ethiopia_private')
+        // An explicit choice still wins; with no kind, the industry's suggestion stands.
+        ->and($resolver->resolve('school', ['organization_type' => 'government', 'policy_profile' => 'custom'])->toArray()['profiles']['policy']['key'])->toBe('custom')
+        ->and($resolver->resolve('federal_government')->toArray()['profiles']['policy']['key'])->toBe('ethiopia_public');
+});
+
+it('previews the policies for the organisation\'s own kind when the wizard sends none', function () {
+    $tenant = createTenant(['organization_type' => 'government']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/onboarding/configuration/preview", ['industry' => 'school'])
+        ->assertOk()
+        ->assertJsonPath('profiles.policy.key', 'ethiopia_public');
+
+    $this->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/onboarding/configuration/preview", ['industry' => 'school', 'organization_type' => 'private_limited_company'])
+        ->assertOk()
+        ->assertJsonPath('profiles.policy.key', 'ethiopia_private');
+});

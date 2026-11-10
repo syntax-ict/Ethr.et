@@ -50,6 +50,16 @@ it('shows an organisation\'s own value beside the default, and resets it by dele
 
     $this->putJson(rulesUrl($tenant, '/settings'), ['settings' => ['working_days_per_month' => 26]])->assertOk();
 
+    expect(AuditLog::query()->where('action', 'statutory_parameter.overridden')->pluck('payload')->all())
+        ->toEqual([['code' => 'payroll.working_days_per_month', 'from' => null, 'to' => 26]]);
+
+    $this->putJson(rulesUrl($tenant, '/settings'), ['settings' => ['working_days_per_month' => 24]])->assertOk();
+
+    expect(AuditLog::query()->where('action', 'statutory_parameter.overridden')->latest('id')->value('payload'))
+        ->toEqual(['code' => 'payroll.working_days_per_month', 'from' => 26, 'to' => 24]);
+
+    $this->putJson(rulesUrl($tenant, '/settings'), ['settings' => ['working_days_per_month' => 26]])->assertOk();
+
     expect(ruleNamed($this->getJson(rulesUrl($tenant, '/payroll/statutory-rules'))->json('data'), 'payroll.working_days_per_month'))
         ->toMatchArray(['value' => 26, 'default_value' => 22, 'layer' => 'tenant', 'overridden' => true]);
 
@@ -58,8 +68,8 @@ it('shows an organisation\'s own value beside the default, and resets it by dele
 
     expect(StatutoryParameter::query()->where('code', 'payroll.working_days_per_month')->count())->toBe(0)
         ->and($tenant->fresh()->settings)->not->toHaveKey('working_days_per_month')
-        ->and(AuditLog::query()->where('action', 'statutory_parameter.reset')->value('payload'))
-        ->toEqual(['code' => 'payroll.working_days_per_month', 'from' => 26]);
+        ->and(AuditLog::query()->where('action', 'statutory_parameter.reset')->pluck('payload')->all())
+        ->toEqual([['code' => 'payroll.working_days_per_month', 'from' => 26]]);
 });
 
 it('refuses to reset the law, and does not know a rule that is not in force', function () {

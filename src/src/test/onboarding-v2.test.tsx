@@ -275,6 +275,12 @@ describe("IndustryConfigStep — composed profiles and review", () => {
     const applied: { body?: Record<string, unknown> } = {};
 
     server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: { organization_type: "government" },
+          display: { calendar: "ethiopian" },
+        }),
+      ),
       http.get("*/api/v1/onboarding/industries", () =>
         HttpResponse.json({
           data: [
@@ -393,6 +399,8 @@ describe("IndustryConfigStep — composed profiles and review", () => {
     await screen.findByText("Night 22:00–06:00");
     expect(previewBodies[0]).not.toHaveProperty("workforce_profile");
     expect(previewBodies[0]).not.toHaveProperty("policy_profile");
+    // The kind in law goes with it: it decides the policies' body of law.
+    expect(previewBodies[0]).toHaveProperty("organization_type", "government");
 
     expect(
       screen.getByText("Continuous 2-2-2-2 · 8-day cycle"),

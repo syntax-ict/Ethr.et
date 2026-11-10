@@ -81,6 +81,25 @@ describe("payroll year settings", () => {
     expect(saved[0]).not.toHaveProperty("working_days_per_month");
   });
 
+  it("pins no statutory value when only the run day changes", async () => {
+    const saved = serve(["settings.manage"]);
+    renderWith(<PayrollScheduleCard />);
+    const user = userEvent.setup();
+
+    const runDay = await screen.findByLabelText(/payroll run day/i);
+    await user.clear(runDay);
+    await user.type(runDay, "27");
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toMatchObject({ run_day: 27 });
+    // Each of these would become the organisation's own value and stop
+    // following its kind (K-56).
+    expect(saved[0]).not.toHaveProperty("fiscal_year_start_month");
+    expect(saved[0]).not.toHaveProperty("pagumen_proration_strategy");
+    expect(saved[0]).not.toHaveProperty("working_days_per_month");
+  });
+
   it("saves the organisation's own working days per month", async () => {
     const saved = serve(["settings.manage"]);
     renderWith(<PayrollScheduleCard />);

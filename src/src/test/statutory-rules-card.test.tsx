@@ -78,7 +78,7 @@ function renderCard() {
   );
 }
 
-function serve(data: unknown[] = RULES) {
+function serve(data: unknown[] = RULES, ownRatesInForce = false) {
   const deleted: string[] = [];
   server.use(
     http.get(URL, () =>
@@ -87,8 +87,17 @@ function serve(data: unknown[] = RULES) {
         organization_type: "private",
         sector: null,
         as_of: "2026-11-09",
+        own_rates_in_force: ownRatesInForce,
       }),
     ),
+    http.post(`${URL}/use-law`, () => {
+      deleted.push("use-law");
+      return HttpResponse.json({
+        tax_brackets_ended: 6,
+        pension_rules_ended: 1,
+        own_rates_in_force: false,
+      });
+    }),
     http.delete(`${URL}/:code`, ({ params }) => {
       deleted.push(String(params.code));
       return HttpResponse.json({
@@ -170,5 +179,30 @@ describe("<StatutoryRulesCard>", () => {
       screen.queryByRole("button", { name: /reset to default/i }),
     ).toBeNull();
     granted.manage = true;
+  });
+
+  it("says when an organisation's own tax or pension rates still apply, and ends them", async () => {
+    const calls = serve(RULES, true);
+    const user = userEvent.setup();
+    renderCard();
+
+    expect(
+      await screen.findByText(/still applies a tax ladder or pension rule/i),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /use the law's rates/i }),
+    );
+
+    await waitFor(() => expect(calls).toContain("use-law"));
+  });
+
+  it("says nothing about own rates when the organisation follows the law", async () => {
+    serve();
+    renderCard();
+
+    await screen.findByText("Working hours in a day");
+    expect(
+      screen.queryByRole("button", { name: /use the law's rates/i }),
+    ).toBeNull();
   });
 });

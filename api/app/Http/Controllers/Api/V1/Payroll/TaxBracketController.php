@@ -39,6 +39,7 @@ class TaxBracketController extends Controller
             $brackets = TaxBracket::query()
                 ->withoutGlobalScope('tenant')
                 ->whereNull('tenant_id')
+                ->whereNull('effective_to')
                 ->orderBy('min_amount_cents')
                 ->get();
         }

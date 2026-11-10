@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\PayrollRun;
 use App\Models\TenantProfileAssignment;
 use App\Services\Payroll\StatutoryRules;
@@ -138,13 +139,45 @@ it('replaces a change still pending with the newer one', function () {
         ->toBe(1);
 });
 
-it('cancels a pending change when the current type is chosen again', function () {
+it('keeps a pending change when anything else about the organisation is saved (K-57)', function () {
     $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
     approvedRunFor($tenant);
 
     test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government', 'effective_from' => '2027-01-01'])->assertOk();
-    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'private'])
+
+    // A rename that re-sends the kind in force today, as the settings card
+    // and the onboarding wizard both may.
+    test()->putJson(typeChangeUrl($tenant), ['name' => 'Abay Trading S.C.', 'organization_type' => 'private'])
         ->assertOk()
+        ->assertJsonPath('organization.organization_type_pending.organization_type', 'government')
+        ->assertJsonPath('organization.organization_type_pending.effective_from', '2027-01-01');
+});
+
+it('ignores a date sent with the kind in force today (K-59)', function () {
+    $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    approvedRunFor($tenant);
+    $before = TenantProfileAssignment::query()->where('tenant_id', $tenant->id)->count();
+
+    // Inside the approved October: never a date the profile may start on.
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'private', 'effective_from' => '2026-10-15'])->assertOk();
+
+    expect(TenantProfileAssignment::query()->where('tenant_id', $tenant->id)->whereDate('effective_from', '2026-10-15')->exists())->toBeFalse()
+        ->and(TenantProfileAssignment::query()->where('tenant_id', $tenant->id)->count())->toBe($before);
+});
+
+it('withdraws a pending change only when asked to', function () {
+    $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    approvedRunFor($tenant);
+
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government', 'effective_from' => '2027-01-01'])->assertOk();
+    test()->putJson(typeChangeUrl($tenant), ['cancel_pending_organization_type' => true])
+        ->assertOk()
+        ->assertJsonPath('organization.organization_type', 'private')
         ->assertJsonPath('organization.organization_type_pending', null);
+
+    expect(AuditLog::query()->where('action', 'organization_profile.change_cancelled')->value('payload'))
+        ->toMatchArray(['organization_type' => 'government', 'effective_from' => '2027-01-01']);
 });

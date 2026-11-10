@@ -129,9 +129,35 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     locale !== (organization?.locale ?? "en") ||
     kind !== (organization?.organization_type ?? "private");
 
+  // The kind is sent when it changed, or to confirm one the migration
+  // guessed. Re-sending the kind in force would say nothing, and a scheduled
+  // change is withdrawn only by its own button (K-57).
+  const kindChanged = kind !== (organization?.organization_type ?? "private");
+
+  function cancelPending() {
+    updateOrganization.mutate(
+      { cancel_pending_organization_type: true },
+      {
+        onSuccess: () =>
+          toast.success(
+            t("settings.organization_kind_cancelled", "Change cancelled"),
+          ),
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t(
+                "settings.organization_save_failed",
+                "Could not update the organisation",
+              ),
+            ),
+          ),
+      },
+    );
+  }
+
   // The hook refreshes /auth/me as well as the settings query: the tenant name
-  // is rendered from it in the sidebar and header. Sending the kind, even
-  // unchanged, is what confirms it after the migration guessed it.
+  // is rendered from it in the sidebar and header.
   function save() {
     updateOrganization.mutate(
       {
@@ -139,7 +165,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         type,
         timezone,
         locale: locale as OrganizationUpdate["locale"],
-        organization_type: kind,
+        ...(kindChanged || needsReview ? { organization_type: kind } : {}),
         ...(askDate ? { effective_from: kindFrom } : {}),
       },
       {
@@ -300,6 +326,16 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                     date: formatDate(dateFromIso(pending.effective_from)),
                   },
                 )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="link"
+                  className="h-auto p-0 text-xs"
+                  onClick={cancelPending}
+                  disabled={updateOrganization.isPending}
+                >
+                  {t("settings.organization_kind_cancel", "Cancel this change")}
+                </Button>
               </p>
             )}
           </div>

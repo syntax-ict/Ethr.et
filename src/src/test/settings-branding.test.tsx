@@ -126,12 +126,13 @@ describe("<OrganizationCard>", () => {
     fireEvent.click(screen.getByRole("button", { name: /save organisation/i }));
 
     await waitFor(() => expect(body).not.toBeNull());
+    // The kind in force is not re-sent: on the server, choosing it again
+    // would have said nothing, and once it withdrew a scheduled change (K-57).
     expect(body).toEqual({
       name: "Acme Ethiopia PLC",
       type: "private",
       timezone: "Africa/Addis_Ababa",
       locale: "en",
-      organization_type: "private",
     });
   });
 
@@ -249,6 +250,38 @@ describe("<OrganizationCard>", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       /becomes government on .*payroll before then keeps the current kind/i,
     );
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  it("withdraws a scheduled change of kind only from its own button", async () => {
+    localStorage.setItem("ethr.calendar", "gregorian");
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/organization", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Organization updated" });
+      }),
+    );
+
+    renderWithClient(
+      <OrganizationCard
+        organization={{
+          ...org,
+          organization_type: "private",
+          organization_type_needs_review: false,
+          organization_type_pending: {
+            organization_type: "government",
+            effective_from: "2027-01-01",
+          },
+          organization_type_earliest_change: "2026-12-01",
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel this change" }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({ cancel_pending_organization_type: true });
     localStorage.removeItem("ethr.calendar");
   });
 
