@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 /**
@@ -150,19 +151,61 @@ const siteContentQuery = {
   // correction reaches an open tab when the backend's own cache would have
   // served it anyway.
   staleTime: FRESH_FOR_MS,
-  // A stored copy younger than that stands in for the first answer, dated so
-  // React Query knows when it was fetched and refetches once it is stale.
-  initialData: () => {
-    const stored = storedSiteContent();
-    return stored && Date.now() - stored.at < FRESH_FOR_MS
-      ? stored.data
-      : undefined;
-  },
-  initialDataUpdatedAt: () => storedSiteContent()?.at,
 } as const;
 
+/**
+ * A stored copy younger than five minutes stands in for the first answer,
+ * dated so React Query knows when it was fetched and refetches once stale.
+ */
+function freshStoredSiteContent(): SiteContent | undefined {
+  const stored = storedSiteContent();
+  return stored && Date.now() - stored.at < FRESH_FOR_MS
+    ? stored.data
+    : undefined;
+}
+
+function storedSiteContentAt(): number | undefined {
+  return storedSiteContent()?.at;
+}
+
+const never = () => () => {};
+
+/**
+ * False while React hydrates prerendered HTML, true on every render after.
+ *
+ * The public pages are built with no site content, because the build has no
+ * browser storage. Reading the stored copy during hydration put text on the
+ * page that the HTML did not hold, and React answered with error 418 on every
+ * marketing page for a returning visitor (live site, 2026-11-10). A component
+ * mounted after hydration, which is every signed-in screen, gets true on its
+ * first render and loses nothing.
+ */
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    never,
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * The one query behind both hooks. While hydrating it holds nothing and asks
+ * for nothing, so the first client render is the prerendered one; the stored
+ * copy and the request both wait for the render that follows.
+ */
+function useSiteContentQuery() {
+  const hydrated = useHydrated();
+
+  return useQuery<SiteContent>({
+    ...siteContentQuery,
+    enabled: hydrated,
+    initialData: hydrated ? freshStoredSiteContent : undefined,
+    initialDataUpdatedAt: hydrated ? storedSiteContentAt : undefined,
+  });
+}
+
 export function useSiteContent(): SiteContent {
-  const { data } = useQuery<SiteContent>(siteContentQuery);
+  const { data } = useSiteContentQuery();
 
   // Never undefined, so no caller needs a loading branch for content that is
   // allowed to be absent anyway.
@@ -187,7 +230,7 @@ export interface ProductMark {
  * turned it off. A failed fetch falls back to the default, which is on.
  */
 export function useProductMark(locale: string): ProductMark | null {
-  const { data, isError } = useQuery<SiteContent>(siteContentQuery);
+  const { data, isError } = useSiteContentQuery();
   const site = data ?? (isError ? EMPTY_SITE_CONTENT : null);
 
   if (!site || site.product_mark_enabled === false) return null;
