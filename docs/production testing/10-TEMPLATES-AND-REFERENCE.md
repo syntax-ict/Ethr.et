@@ -54,7 +54,7 @@ with the same columns.
 
 Results: **Pass**, **Fail** (with a defect), **Blocked** (cannot run; say why), **Not run** (say why).
 The **Tester** is the person, or `Playwright` for a scripted check, or `Claude Code` (with the
-session link in the notes) for an agent's run; a person signs off every machine row, and reviews
+session link and the browser in the notes: `guarded`, or `Chrome, unguarded`) for an agent's run; a person signs off every machine row, and reviews
 every Fail and every P1 Pass first ([11, section 5.4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#54-what-the-agent-hands-back)).
 `node e2e-production/execution-log.mjs` in `src/` prints a Playwright run as rows of this table; a
 skipped check comes out as **Not run** with its reason, never Pass.
@@ -72,7 +72,9 @@ Most rows are scripted: `npm run test:e2e:production` in `src/` runs S-01, S-02,
 signed out, and S-08 to S-11 and S-13 from sessions a person saved first; S-05 only with
 `PROD_PROBE_SECRETS=1`. Each script names what it leaves for a person to check by eye
 ([11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli)).
-S-03, S-12, S-14 and S-15 stay manual.
+S-03, S-12, S-14 and S-15 stay manual. An agent in Chrome may read the signed-out rows (S-06,
+S-07); the signed-in rows go through the guarded browser or a person
+([11, section 1.1](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#11-which-browser-an-agent-uses)).
 
 | # | Check | How | Pass when |
 |---|---|---|---|
@@ -174,6 +176,9 @@ fix that is merged but not released is recorded as still open there.
 | K-66 | Localisation | *Found 2026-11-09 reading #682 before it merged; file:line on its branch.* Cosmetic. `validation.organization_type_change_future` gives `:date` as Gregorian `YYYY-MM-DD` whatever the reader's calendar (`UpdateOrganizationRequest.php:71`), while the card's help shows it in the reader's calendar | STAT-011 |
 | K-67 | Payroll | *Found 2026-11-09 reading #682 before it merged; file:line on its branch.* Low. `POST /payroll/preview` has the plan-feature middleware and no throttle (`routes/api.php:711`); each call is bounded by `RequestBudget`. Do not load-test it (01, rule 7) | STAT-014 |
 | K-68 | Readiness | *Found 2026-11-09 reading #682 before it merged; file:line on its branch.* Low. `ReadinessScorer::leaveBelowLaw()` (`:211-221`) builds an empty `where` when no `leave.*` rows are in force, which would flag any active leave type, and matches `code` exactly while the validator lowercases it | LT-006, SET-021 |
+| K-69 | Sign-up | **Fixed in [#689](https://github.com/syntax-ict/Ethr.et/pull/689) (merged as `6adc3a16c5`).** Verify once deployed. Was: *Reported in #689 from the live `/register` on 2026-11-10.* The admin step lets a person continue with no phone; the schema and the server both require one, so on the last step "Create Free Account" does nothing and shows nothing. A person who skips the phone cannot sign up and is not told why | ORG-012 |
+| K-70 | Devices | **Fixed in `86ff8df226` ([#688](https://github.com/syntax-ict/Ethr.et/pull/688), merged as `5ee91d8d69`).** Verify once deployed, with a test device. Was: *Found 2026-11-10.* A punch a terminal pushes to the vendor webhook (`/devices/webhook/zkteco`, `suprema`, `hikvision`) is answered `processed` and nothing is recorded or held: the request names no organisation, and `DeviceController::resolveWebhookDevice()` did not take it from the device. ADMS and pulled devices were not affected. High for any organisation whose terminals push: its punches were dropped without an error anywhere | DEV-007, DEV-008 |
+| K-71 | Marketing site | **Fixed in [#687](https://github.com/syntax-ict/Ethr.et/pull/687) (merged as `11943fc760`).** Verify once deployed and seeded. Was: *Seen on production at `3d2d80d107` on 2026-11-10.* The pricing page as served lists "No employee, branch or device limit" under Enterprise, a line the console dropped: the built-in copy was stale. The rendered page replaces it from the catalogue, so a visitor sees it only for a moment; a crawler reads the served page. Enterprise also has no Afaan Oromoo bullets (`marketing_features_om` null) until the seed runs | MKT-005 |
 
 ## 5. Production facts in one place
 

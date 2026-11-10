@@ -213,7 +213,7 @@ the execution log.
 | Two writers at a plan's last free seats are taken one at a time | #679 | IMP-E-017 |
 | An operator impersonating an organisation cannot rename its address or change its form or custom domain | #680 | IMP-008, IMP-004 changed |
 | Nobody below the organisation admin approves their own phone or sets their own exemption | #680 | SEC-026; SEC-027, PHN-001, PHN-015 changed |
-| Running the pack by machine: Claude Code with the Playwright MCP server, and the scripted smoke checks | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
+| Running the pack by machine: the scripted smoke checks, and Claude Code with the guarded Playwright browser or with Chrome | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 **Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
 branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
@@ -235,13 +235,34 @@ Each changed case keeps its old expectation for a release without #682:
 | Second-reader review of that Amharic and Afaan Oromoo; the Amharic names of the kinds corrected by a migration (the deploy needs `migrate`, S-02) | #684 | L10N-021 (read the kinds against `docs/i18n/AMHARIC-REVIEW.md`); K-62 still open |
 | Fixes from reading #682 (merged as `cb03c51af6`; run once it is deployed): the schedule save pins nothing, a pending change of kind survives other saves and is cancelled explicitly, "Use the law's rates" ends an old own ladder or pension rule, only the ladder in force is shown as the law; civil-service policies follow the kind | [#685](https://github.com/syntax-ict/Ethr.et/pull/685) | STAT-008, STAT-010, STAT-012, STAT-013, PAY-001 changed; K-52, K-56 to K-59 |
 
+**Fourth edition, 2026-11-10** (`main` at `6adc3a16c5`). Three different commits were in play that
+day, and each row says which one a case needs: **live** `3d2d80d107` (v2026.11.10.2, to #686),
+**built but not deployed** `5ee91d8d69` (v2026.11.10.4, to #688), **merged but not built**
+`6adc3a16c5` (#689). Read the three again before a pass (`scripts/release-status.sh
+https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, not Fail.
+
+| Change | PRs | Cases |
+|---|---|---|
+| A returning visitor's stored site content waits until the page has hydrated: no React error 418 on the marketing pages | #686 | MKT-015 (passed on production 2026-11-10) |
+| The pricing page's built-in copy and the seeder match the live Enterprise plan; the seed fills its Afaan Oromoo bullets | #687 | MKT-005 changed; K-71 |
+| A punch a terminal pushes to the vendor webhook is recorded for the device's organisation (`86ff8df226`). The PR is titled as a test harness; the fix rides in it | #688 | DEV-007, DEV-008 changed; K-70 |
+| The attendance-to-payslip journeys (`src/e2e/attendance-payroll/`) and the punch race test join the gates: L0 only, never production | #688 | Section 3, L0; [11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli) |
+| Sign-up holds the admin step until the phone is valid; the industry must be one the catalogue knows; the admin and the organisation take the form's language | #689 | ORG-012 to ORG-014; K-69 |
+| The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
+| The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
+
+**Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
+pieces in local worktrees and one pushed branch) has no case: it can still change before anyone
+tests it. Cases are written when each reaches `main`; `scripts/qa-pack-coverage.sh` will list
+them then.
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
 
 | Layer | What | Who | Time |
 |---|---|---|---|
-| **L0 Pre-production** | CI must be green on the release commit: `./scripts/gates.sh` (backend, frontend, docs, API contract) and the MariaDB gate. The automated Playwright suite (`src/e2e/`) may also be pointed at the local production rehearsal (`scripts/local-production/up.sh`, port 8081) | Developer | Before deploy |
+| **L0 Pre-production** | CI must be green on the release commit: `./scripts/gates.sh` (backend, frontend, docs, API contract) and the MariaDB gate. The automated Playwright suite (`src/e2e/`) may also be pointed at the local production rehearsal (`scripts/local-production/up.sh`, port 8081). Since #688 the gates also run the attendance-to-payslip journeys (`./scripts/gates.sh e2e-attendance`) and the punch race test, which seed and write and never run on production | Developer | Before deploy |
 | **L1 Smoke** | Release identity, health, redirects, sign-in per role, one read per module. Read-only | Tester | 30 min, after every deploy |
 | **L2 Functional E2E** | The cases in 03 to 08, in the QA organisations | Tester | 3 to 5 days for a full pass; changed areas only for a small release |
 | **L3 Non-functional** | Security, isolation, accessibility, localisation, responsive, offline, timings ([09](09-NON-FUNCTIONAL.md)) | Tester | 1 to 2 days |
@@ -262,10 +283,14 @@ Run only read-only specs there (`auth`, `marketing`, `accessibility`, `responsiv
 test:e2e:production` in `src/` runs the release smoke checklist's scriptable rows (S-01, S-02, S-04
 to S-11, S-13) against `https://www.ethr.et` and the QA organisation. It never signs in (a person
 saves each persona's session, MFA included), refuses any organisation that is not a QA one, and
-aborts every state-changing API call before it leaves the browser. Claude Code can run the read-only
-cases of 03 to 09 through the Playwright MCP server with the same guard. What each may run, and
-what stays with the tester, is in [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md). A green scripted run is
-L1 evidence only: it does not replace the sign-in, isolation or phone cases.
+aborts every state-changing API call before it leaves the browser, with service workers blocked so
+the app's own offline replay cannot send one either. Claude Code can run the read-only cases of 03
+to 09 through the Playwright MCP server with the same guard. **Claude Code can also drive the
+tester's Chrome, which has no guard:** that channel is for public pages, for Mode W sessions the
+owner has agreed to, and for cases where a person must act mid-way, in a Chrome profile kept for QA
+and never as PA. What each may run, and what stays with the tester, is in
+[11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md). A green scripted run is L1 evidence only: it does not
+replace the sign-in, isolation or phone cases.
 
 ## 4. Environments
 
