@@ -351,7 +351,7 @@ describe("Pricing page", () => {
       screen.getByText("Payroll with Ethiopian income tax and pension"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No employee, branch or device limit"),
+      screen.getByText("API access, webhooks and the audit log"),
     ).toBeInTheDocument();
   });
 
