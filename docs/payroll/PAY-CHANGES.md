@@ -37,6 +37,18 @@ by hand from the law and do not move at all.
 - No figure moved: the parameters were seeded with the values the constants held, and
   G1 to G7 and C1 to C6 are unchanged.
 
+## Also in calculation log 1.8 (2026-11-09)
+
+- `statutory_rules` gains `sector`, and every rule gains `layer` (`baseline`,
+  `parent_type`, `organization_type`, `sector`, `tenant`), `enforcement`
+  (`locked`, `default`, `advisory`), `floor_direction` and `version` (the
+  published batch of the law it came from). `source` keeps its values, with
+  `platform_sector` added and `tenant_setting` retired: a value an
+  organisation set in its settings is now its own row, `tenant`.
+- No figure moved: the leave, sick-pay, deduction-cap and pension-coverage
+  rows hold the constants the code held, and G1 to G8 and C1 to C6 are
+  unchanged.
+
 ## Also in calculation log 1.7 (2026-11-06)
 
 - A `sick_leave` step after `unpaid_leave`: `half_pay_days`, `unpaid_days`, `daily_rate_cents`, `deduction_cents`

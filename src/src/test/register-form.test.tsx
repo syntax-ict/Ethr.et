@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import RegisterPage from "@/app/(auth)/register/page";
@@ -15,6 +16,60 @@ function mockSubdomain(available: boolean) {
   server.use(http.get(CHECK_URL, () => HttpResponse.json({ available })));
 }
 
+const KINDS_URL = "*/api/v1/organization-types";
+
+/** The page as the app mounts it: inside a query client, kinds loaded. */
+function renderRegister() {
+  server.use(
+    http.get(KINDS_URL, () =>
+      HttpResponse.json({
+        data: [
+          {
+            code: "private",
+            name: "Other private employer",
+            name_am: "የግል ድርጅት",
+            description: null,
+            group: "private",
+            parent_code: null,
+          },
+          {
+            code: "share_company",
+            name: "Share company (S.C.)",
+            name_am: "አክሲዮን ማኅበር",
+            description: null,
+            group: "private",
+            parent_code: "private",
+          },
+          {
+            code: "government",
+            name: "Federal government office",
+            name_am: "የመንግሥት መሥሪያ ቤት",
+            description: null,
+            group: "public",
+            parent_code: null,
+          },
+        ],
+      }),
+    ),
+  );
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <RegisterPage />
+    </QueryClientProvider>,
+  );
+}
+
+/** Answers "Kind of organisation in law", once the list has loaded. */
+async function chooseKind(container: HTMLElement, code = "share_company") {
+  await waitFor(() =>
+    expect(
+      container.querySelector(`#org_kind option[value="${code}"]`),
+    ).not.toBeNull(),
+  );
+  fireEvent.change(field(container, "org_kind"), { target: { value: code } });
+}
+
 function field(container: HTMLElement, id: string) {
   const el = container.querySelector(`#${id}`);
   if (!el) throw new Error(`missing field #${id}`);
@@ -26,13 +81,35 @@ beforeEach(() => {
 });
 
 describe("Registration form (S07)", () => {
-  it("suggests a subdomain live from the organization name and checks availability", async () => {
+  it("asks the kind of organisation in law, grouped, and holds Next until it is chosen", async () => {
     mockSubdomain(true);
-    const { container } = render(<RegisterPage />);
+    const { container } = renderRegister();
 
     fireEvent.change(field(container, "org_name"), {
       target: { value: "Acme Corp" },
     });
+    await waitFor(() =>
+      expect(field(container, "subdomain").value).toBe("acme-corp"),
+    );
+    expect(screen.getByRole("button", { name: /Next/i })).toBeDisabled();
+    await chooseKind(container, "government");
+    expect(
+      container.querySelector('#org_kind optgroup[label="Private sector"]'),
+    ).not.toBeNull();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
+  });
+
+  it("suggests a subdomain live from the organization name and checks availability", async () => {
+    mockSubdomain(true);
+    const { container } = renderRegister();
+
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Corp" },
+    });
+    await chooseKind(container);
 
     // Subdomain preview updates live: derived slug appears in the input.
     await waitFor(() =>
@@ -47,7 +124,7 @@ describe("Registration form (S07)", () => {
 
   it("blocks progress and shows an error when the subdomain is taken", async () => {
     mockSubdomain(false);
-    const { container } = render(<RegisterPage />);
+    const { container } = renderRegister();
 
     fireEvent.change(field(container, "org_name"), {
       target: { value: "Taken Org" },
@@ -61,12 +138,13 @@ describe("Registration form (S07)", () => {
 
   it("rates password strength as the user meets more requirements", async () => {
     mockSubdomain(true);
-    const { container } = render(<RegisterPage />);
+    const { container } = renderRegister();
 
     // Step 1 — organization
     fireEvent.change(field(container, "org_name"), {
       target: { value: "Acme Corp" },
     });
+    await chooseKind(container);
     await waitFor(() =>
       expect(field(container, "subdomain").value).toBe("acme-corp"),
     );
@@ -99,11 +177,12 @@ describe("Registration form (S07)", () => {
 
   it("warns when the password confirmation does not match", async () => {
     mockSubdomain(true);
-    const { container } = render(<RegisterPage />);
+    const { container } = renderRegister();
 
     fireEvent.change(field(container, "org_name"), {
       target: { value: "Acme Corp" },
     });
+    await chooseKind(container);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
     );

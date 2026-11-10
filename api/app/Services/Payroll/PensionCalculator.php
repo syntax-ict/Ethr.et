@@ -7,8 +7,9 @@ namespace App\Services\Payroll;
 use App\Enums\NationalityStatus;
 use App\Exceptions\PayrollRunRefused;
 use App\Models\Employee;
+use App\Models\EmployeeContract;
 use App\Models\PensionRule;
-use App\Models\Tenant;
+use App\Services\Tenancy\ProfileContext;
 use App\Support\Cents;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -32,9 +33,6 @@ final class PensionCalculator
     /** @var array<string, PensionRuleSnapshot> */
     private array $ruleCache = [];
 
-    /** @var array<int, string> tenant id => organisation type */
-    private array $types = [];
-
     /**
      * The rule in force on `$asOf` for the scheme — pass the payroll period
      * start, as for tax, so reprocessing an old period reproduces it.
@@ -47,31 +45,47 @@ final class PensionCalculator
             return $this->ruleCache[$key];
         }
 
-        $type = $tenantId === null ? null : $this->organizationType($tenantId);
+        // The organisation's type on this date, then that type's parent: a
+        // type that owns no rule of its own is covered by its parent's.
+        $lineage = $tenantId === null ? [] : app(ProfileContext::class)->for($tenantId, $asOf)['lineage'];
 
-        $row = ($tenantId !== null ? $this->inForce($tenantId, null, $scheme, $asOf) : null)
-            ?? ($type !== null ? $this->inForce(null, $type, $scheme, $asOf) : null)
-            ?? $this->inForce(null, null, $scheme, $asOf);
+        $row = $tenantId !== null ? $this->inForce($tenantId, null, $scheme, $asOf) : null;
+        $source = 'tenant';
+        foreach ($lineage as $type) {
+            if ($row !== null) {
+                break;
+            }
+            $row = $this->inForce(null, $type, $scheme, $asOf);
+            $source = 'platform_type';
+        }
+        if ($row === null) {
+            $row = $this->inForce(null, null, $scheme, $asOf);
+            $source = 'platform';
+        }
 
         if ($row === null) {
             throw PayrollRunRefused::noRuleInForce("pension.{$scheme}");
         }
 
-        return $this->ruleCache[$key] = PensionRuleSnapshot::fromModel($row);
+        return $this->ruleCache[$key] = PensionRuleSnapshot::fromModel($row, $source);
     }
 
     /**
      * Apply a rule to one employee for one period.
      *
+     * `$appliesTo` is the statutory parameter `pension.applies_to`: which
+     * contract types pension covers. A type it marks false is exempt.
+     *
+     * @param  array<array-key, mixed>|null  $appliesTo
      * @return array{
      *     employee_cents: int, employer_cents: int, exempt: bool, exempt_reason: string|null,
      *     pensionable_cents: int, contributory_cents: int,
      * }
      */
-    public function apply(PensionRuleSnapshot $rule, Employee $employee, int $basicCents, int $fixedAllowancesCents, CarbonInterface $periodEnd): array
+    public function apply(PensionRuleSnapshot $rule, Employee $employee, int $basicCents, int $fixedAllowancesCents, CarbonInterface $periodEnd, ?array $appliesTo = null): array
     {
         $pensionable = $rule->base === 'regular_salary' ? $basicCents + $fixedAllowancesCents : $basicCents;
-        $reason = $this->exemption($rule, $employee, $periodEnd);
+        $reason = $this->exemption($rule, $employee, $periodEnd) ?? $this->contractExemption($employee, $periodEnd, $appliesTo);
 
         if ($reason !== null) {
             return [
@@ -131,6 +145,35 @@ final class PensionCalculator
     }
 
     /**
+     * 'contract_type' when `pension.applies_to` excludes the contract the
+     * person is on at the period's end, else null. Every contract type is
+     * covered today (research P11), so the contract is only looked up once
+     * the parameter excludes one.
+     *
+     * @param  array<array-key, mixed>|null  $appliesTo
+     */
+    private function contractExemption(Employee $employee, CarbonInterface $periodEnd, ?array $appliesTo): ?string
+    {
+        if ($appliesTo === null || ! in_array(false, $appliesTo, true)) {
+            return null;
+        }
+
+        $on = $periodEnd->format('Y-m-d');
+        $contract = EmployeeContract::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereDate('start_date', '<=', $on)
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $on))
+            ->orderByDesc('start_date')
+            ->first(['contract_type']);
+
+        $type = $contract?->contract_type->value;
+
+        return $type !== null && ($appliesTo[$type] ?? true) === false ? 'contract_type' : null;
+    }
+
+    /**
      * Whether a free-text nationality is a known Ethiopian spelling. No longer
      * decides coverage; NationalityBackfill uses it once, to map the values
      * people had typed before `nationality_status` existed.
@@ -140,16 +183,6 @@ final class PensionCalculator
         $value = mb_strtolower(trim((string) $nationality));
 
         return $value === '' || in_array($value, ['ethiopian', 'ethiopia', 'et', 'eth', 'ኢትዮጵያዊ', 'ኢትዮጵያዊት', 'ኢትዮጵያ'], true);
-    }
-
-    private function organizationType(int $tenantId): ?string
-    {
-        if (! array_key_exists($tenantId, $this->types)) {
-            $type = Tenant::query()->whereKey($tenantId)->value('organization_type');
-            $this->types[$tenantId] = is_string($type) ? $type : '';
-        }
-
-        return $this->types[$tenantId] !== '' ? $this->types[$tenantId] : null;
     }
 
     /** One owner's rule in force: an organisation's, a type's on the platform, or the platform's for every type. */

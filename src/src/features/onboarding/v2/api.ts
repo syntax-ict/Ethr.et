@@ -18,6 +18,17 @@ import type {
   StagingRow,
 } from "./types";
 
+/** The headcount bands onboarding asks for (`TenantLanding::STAFF_BANDS`). */
+export const STAFF_BANDS = [
+  "1-10",
+  "11-50",
+  "51-200",
+  "201-500",
+  "501-1000",
+  "1000+",
+] as const;
+export type StaffBand = (typeof STAFF_BANDS)[number];
+
 // ── Smart configuration ──────────────────────────────────────────
 
 // One request serves the industry picker and the two profile pickers.
@@ -54,6 +65,7 @@ export function usePreviewConfiguration() {
     {
       industry: string;
       employee_count?: number;
+      staff_band?: StaffBand;
       region?: string;
       workforce_profile?: string;
       policy_profile?: string;
@@ -75,6 +87,10 @@ export function useApplyConfiguration() {
       save?: boolean;
       workforce_profile?: string;
       policy_profile?: string;
+      organization_type?: string;
+      staff_band?: StaffBand;
+      pay_period?: "monthly";
+      calendar?: "ethiopian" | "gregorian";
     }
   >({
     mutationFn: async (payload) =>

@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Onboarding;
 
+use App\Services\Payroll\StatutoryRules;
+use Illuminate\Support\Carbon;
+
 /**
  * Statutory-leaning defaults for the leave-type codes an organization template
  * can reference by name alone.
  *
- * Day counts follow the Ethiopian Labour Proclamation No. 1156/2019 where it
- * sets a floor (annual 16 days, maternity 30 prenatal + 90 postnatal, paternity
- * 3 days, mourning 3 days). Codes the proclamation does not cover carry
+ * Where Labour Proclamation No. 1156/2019 sets a floor (annual leave and its
+ * seniority step, maternity, paternity) the days are not written here: they
+ * are the statutory parameters in force (`leave.*`, see STATUTORY_DAYS), so
+ * the law lives in one place. Codes the proclamation does not cover carry
  * conventional Ethiopian employer defaults and are expected to be edited by the
  * tenant during the review step.
  *
@@ -23,13 +27,10 @@ final class LeaveTypeCatalog
         'annual' => [
             'name' => 'Annual Leave',
             'name_am' => 'ዓመታዊ ፈቃድ',
-            'default_days' => 16,
+            // Days and the Art. 77(1) seniority step: `leave.annual.*`.
             'accrual_type' => 'monthly',
             'carry_forward' => true,
             'max_carry_days' => 16,
-            // Art. 77(1): one more working day for every additional two years.
-            'seniority_every_years' => 2,
-            'seniority_extra_days' => 1,
             'is_paid' => true,
             'min_notice_days' => 7,
             'sort_order' => 10,
@@ -48,7 +49,7 @@ final class LeaveTypeCatalog
         'maternity' => [
             'name' => 'Maternity Leave',
             'name_am' => 'የወሊድ ፈቃድ',
-            'default_days' => 120,
+            // Days: `leave.maternity.days`.
             'accrual_type' => 'one_time',
             // Art. 88: 120 consecutive days, so calendar days, not working days.
             'counts_calendar_days' => true,
@@ -60,7 +61,7 @@ final class LeaveTypeCatalog
         'paternity' => [
             'name' => 'Paternity Leave',
             'name_am' => 'የአባትነት ፈቃድ',
-            'default_days' => 3,
+            // Days: `leave.paternity.days`.
             'accrual_type' => 'one_time',
             'is_paid' => true,
             'gender_restriction' => 'male',
@@ -153,6 +154,21 @@ final class LeaveTypeCatalog
     ];
 
     /**
+     * The statutory parameter that gives a code its days: the law's floor.
+     * A leave type with one of these codes may grant more, never less
+     * (Store/UpdateLeaveTypeRequest).
+     *
+     * @var array<string, string>
+     */
+    public const STATUTORY_DAYS = [
+        'annual' => 'leave.annual.base_days',
+        'maternity' => 'leave.maternity.days',
+        'paternity' => 'leave.paternity.days',
+    ];
+
+    public function __construct(private readonly StatutoryRules $rules) {}
+
+    /**
      * Provisioned for every organisation whatever its template lists:
      * attendance reconciliation resolves trips and excused absences through
      * them.
@@ -208,6 +224,31 @@ final class LeaveTypeCatalog
             'gender_restriction' => null,
             'is_active' => true,
             'sort_order' => 0,
-        ], $base, array_diff_key($overrides, ['code' => null]));
+        ], $base, $this->statutory($code), array_diff_key($overrides, ['code' => null]));
+    }
+
+    /**
+     * The days, and for annual leave the seniority step, the law sets for a
+     * code, from the platform's statutory parameters in force today.
+     *
+     * @return array<string, int>
+     */
+    private function statutory(string $code): array
+    {
+        $parameter = self::STATUTORY_DAYS[$code] ?? null;
+        if ($parameter === null) {
+            return [];
+        }
+
+        $rules = $this->rules->platform(Carbon::today());
+        $days = ['default_days' => $rules->int($parameter)];
+
+        if ($code === 'annual') {
+            $seniority = $rules->list('leave.annual.seniority');
+            $days['seniority_every_years'] = (int) $seniority['every_years'];
+            $days['seniority_extra_days'] = (int) $seniority['extra_days'];
+        }
+
+        return $days;
     }
 }

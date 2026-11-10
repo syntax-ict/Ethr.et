@@ -244,4 +244,7 @@ return [
     'employee_minimum_age' => 'The employee must be at least 15 years old on the hire date.',
     'holiday_duplicate' => 'This holiday is already on the calendar for that date.',
     'leave_paid_needs_days' => 'A paid leave type needs at least half a day of entitlement. Use 0 only for unpaid leave.',
+    'leave_below_statutory_floor' => 'The law grants at least :days days of this leave (:reference). A leave type may give more, never less.',
+    'organization_type_change_future' => 'Payroll has been approved under the current kind of organisation, so a change applies from a later date: :date or after.',
+    'organization_type_change_month_start' => 'A change of kind of organisation starts on the first day of a month.',
 ];

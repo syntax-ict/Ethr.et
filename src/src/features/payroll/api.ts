@@ -272,6 +272,52 @@ export function useProcessPayroll() {
   });
 }
 
+type PayrollPreviewPage =
+  operations["payroll.payrollPreview"]["responses"][200]["content"]["application/json"];
+
+/** A dry run of a period: every payslip, and the rules it was worked out under. */
+export type PayrollPreview = Omit<PayrollPreviewPage, "next_after">;
+export type PreviewPayslip = PayrollPreview["payslips"][number];
+
+/**
+ * Most pages a preview walks. Each page stops at the request budget the host
+ * allows (or 100 people), so this covers some thousands of employees.
+ */
+const PREVIEW_MAX_PAGES = 100;
+
+/**
+ * POST /payroll/preview, page after page until everyone is worked out. It
+ * writes nothing: no run, no payslip, no balance. Committing is
+ * `useProcessPayroll`, and approving the run that makes stays final.
+ */
+export function usePayrollPreview() {
+  return useMutation({
+    mutationFn: async (period: {
+      period_start: string;
+      period_end: string;
+    }): Promise<PayrollPreview> => {
+      let after: string | null = null;
+      let result: PayrollPreview | null = null;
+
+      for (let page = 0; page < PREVIEW_MAX_PAGES; page++) {
+        const response: { data: PayrollPreviewPage } = await apiClient.post(
+          "/payroll/preview",
+          { ...period, ...(after ? { after } : {}) },
+        );
+        const { next_after, ...rest } = response.data;
+        result = result
+          ? { ...rest, payslips: [...result.payslips, ...rest.payslips] }
+          : rest;
+        if (!next_after) break;
+        after = next_after;
+      }
+
+      if (!result) throw new Error("preview returned nothing");
+      return result;
+    },
+  });
+}
+
 export function useApprovePayroll() {
   const queryClient = useQueryClient();
 
@@ -575,20 +621,6 @@ export function useTaxBrackets() {
   });
 }
 
-export function useReplaceTaxBrackets() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: Schemas["ReplaceTaxBracketsRequest"]) => {
-      const { data } = await apiClient.put("/payroll/tax-brackets", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "tax-brackets"] });
-    },
-  });
-}
-
 export function useOvertimeRates() {
   return useQuery<OvertimeRatesResponse>({
     queryKey: ["payroll", "overtime-rates"],
@@ -700,7 +732,6 @@ export async function downloadStatutorySchedule(
 export type PensionRule = Schemas["PensionRuleResource"];
 export type PensionRules =
   operations["pensionRule.index"]["responses"][200]["content"]["application/json"];
-export type CreatePensionRule = Schemas["StorePensionRuleRequest"];
 
 export function usePensionRules() {
   return useQuery<PensionRules>({
@@ -709,13 +740,46 @@ export function usePensionRules() {
   });
 }
 
-export function useCreatePensionRule() {
+// ── Statutory rules ─────────────────────────────────────────────────────────
+
+export type StatutoryRulesResponse =
+  operations["statutoryRule.index"]["responses"][200]["content"]["application/json"];
+
+/**
+ * One statutory rule as payroll applies it today, with where it came from.
+ * `value` is whatever the law states: a number, a word, or a small map
+ * (overtime multipliers, sick-leave months), so it is read as unknown.
+ */
+export type StatutoryRule = Omit<
+  StatutoryRulesResponse["data"][number],
+  "value" | "default_value"
+> & { value: unknown; default_value: unknown };
+
+export const STATUTORY_RULES_KEY = ["payroll", "statutory-rules"] as const;
+
+export function useStatutoryRules() {
+  return useQuery<
+    Omit<StatutoryRulesResponse, "data"> & { data: StatutoryRule[] }
+  >({
+    queryKey: STATUTORY_RULES_KEY,
+    queryFn: async () => (await apiClient.get("/payroll/statutory-rules")).data,
+  });
+}
+
+/** Back to the value the organisation's profile gives: deletes its own row. */
+export function useResetStatutoryRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: CreatePensionRule): Promise<PensionRule> =>
-      (await apiClient.post("/payroll/pension-rules", payload)).data,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["payroll", "pension-rules"] }),
+    mutationFn: async (code: string) =>
+      (
+        await apiClient.delete(
+          `/payroll/statutory-rules/${encodeURIComponent(code)}`,
+        )
+      ).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATUTORY_RULES_KEY });
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 }

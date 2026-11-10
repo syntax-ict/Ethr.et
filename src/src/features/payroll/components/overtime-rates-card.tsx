@@ -20,19 +20,6 @@ import {
 
 type RateKey = keyof OvertimeRates;
 
-/**
- * Statutory minimums — Labour Proclamation 1156/2019 Art. 68(1). The API
- * rejects anything below these. (This listed the repealed 377/2003 rates,
- * 1.25 / 1.5 / 2 / 2.5 with no weekly rest day, until 2026-10-01.)
- */
-const MINIMUMS: OvertimeRates = {
-  normal: 1.5,
-  night: 1.75,
-  rest_day: 2,
-  holiday: 2.5,
-  holiday_night: 2.5,
-};
-
 const ORDER: RateKey[] = [
   "normal",
   "night",
@@ -44,6 +31,10 @@ const ORDER: RateKey[] = [
 export function OvertimeRatesCard() {
   const { t } = useT();
   const query = useOvertimeRates();
+  // The statutory minimums (Labour Proclamation 1156/2019 Art. 68(1)), as the
+  // API resolves them for this organisation: `overtime.minimum_rates`. The
+  // API also rejects anything below them; no copy of the law is kept here.
+  const minimum = (key: RateKey): number => query.data?.defaults[key] ?? 0;
   const updateRates = useUpdateOvertimeRates();
 
   const [form, setForm] = useState<Record<RateKey, string> | null>(null);
@@ -79,7 +70,7 @@ export function OvertimeRatesCard() {
     e.preventDefault();
     if (!form) return;
 
-    // `MINIMUMS` are the statutory multipliers, not house preference: a rate
+    // The minimums are the statutory multipliers, not house preference: a rate
     // below them underpays overtime and is a labour-law problem, not a typo.
     // The `min` attribute alone left that to a browser bubble that is not
     // translated, not styled, and gone the moment the field is touched.
@@ -88,11 +79,11 @@ export function OvertimeRatesCard() {
       const value = Number(form[key]);
       if (form[key] === "" || Number.isNaN(value)) {
         next[key] = t("validation.required", "This field is required");
-      } else if (value < MINIMUMS[key]) {
+      } else if (value < minimum(key)) {
         next[key] = t(
           "payroll_config.rate_below_minimum",
           "Cannot be below the statutory minimum of :min×",
-          { min: MINIMUMS[key] },
+          { min: minimum(key) },
         );
       } else if (value > 10) {
         next[key] = t("payroll_config.rate_above_max", "Cannot be above 10×");
@@ -193,14 +184,14 @@ export function OvertimeRatesCard() {
                       label={labels[key]}
                       required
                       hint={t("payroll_config.minimum_rate", "Minimum :rate×", {
-                        rate: MINIMUMS[key],
+                        rate: minimum(key),
                       })}
                       error={errors[key]}
                     >
                       <Input
                         type="number"
                         step="0.05"
-                        min={MINIMUMS[key]}
+                        min={minimum(key)}
                         max="10"
                         value={form[key]}
                         onChange={(e) => {

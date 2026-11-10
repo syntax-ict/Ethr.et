@@ -81,6 +81,22 @@ const SelectItem = React.forwardRef<
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
+/** A group's heading inside SelectContent; announced as the group's name. */
+const SelectLabel = React.forwardRef<
+  React.ComponentRef<typeof SelectPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn(
+      "py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground",
+      className,
+    )}
+    {...props}
+  />
+));
+SelectLabel.displayName = SelectPrimitive.Label.displayName;
+
 export {
   Select,
   SelectGroup,
@@ -88,4 +104,5 @@ export {
   SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectLabel,
 };

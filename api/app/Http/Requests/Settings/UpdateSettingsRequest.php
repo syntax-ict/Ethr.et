@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Http\Requests\Onboarding\ApplyConfigurationRequest;
 use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
@@ -23,6 +24,13 @@ class UpdateSettingsRequest extends FormRequest
     {
         return true;
     }
+
+    /**
+     * How salaries leave the organisation: by bank transfer (the bank file
+     * BankExportService produces) or in cash. Mobile money waits for an
+     * export to exist.
+     */
+    public const PAYOUT_METHODS = ['bank', 'cash'];
 
     /** @return array<string, mixed> */
     public function rules(): array
@@ -51,6 +59,10 @@ class UpdateSettingsRequest extends FormRequest
             'settings.clock' => ['sometimes', 'string', Rule::in(ClockPreference::CHOICES)],
             'settings.employee_number_format' => ['sometimes', 'string', 'max:40', 'regex:'.EmployeeNumbering::SHAPE],
             'settings.invitation_reminders' => ['sometimes', 'boolean'],
+            'settings.pay_period' => ['sometimes', 'string', Rule::in(ApplyConfigurationRequest::PAY_PERIODS)],
+            'settings.pension_registration_number' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'settings.payout_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYOUT_METHODS)],
+            'settings.employer_bank_name' => ['sometimes', 'nullable', 'string', 'max:120'],
         ];
     }
 

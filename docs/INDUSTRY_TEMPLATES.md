@@ -79,6 +79,10 @@ averages **at most 48 hours a week** (Labour Proclamation 1156/2019 art. 61).
 
 ## The 3 policy profiles — `PolicyProfileCatalog`
 
+The fiscal year column is what the profile recommends; since 2026-11-09 the
+fiscal year in force comes from the organisation's type (`fiscal_year.start_month`,
+Hamle for `government`), not from this profile.
+
 | key | statutory leave | fiscal year | allowance definitions |
 |---|---|---|---|
 | `ethiopia_private` | annual, sick, maternity, paternity, marriage, bereavement, unpaid | Meskerem (1) | transport, housing, position |
@@ -136,7 +140,7 @@ together with the tenant's settings, onboarding progress and audit row:
 | allowances | `payroll_rules` (`category = allowance`) | name | **always inactive, amount 0** — an active allowance is paid to every employee |
 | holidays | `holidays` | date | this year and next |
 | attendance | `attendance_settings` | per field | a field is set only while it still holds its default |
-| settings | `tenants.settings` | top-level key | adds `fiscal_year_start_month`, `pagumen_proration_strategy`, `working_days` — the keys the runtime reads |
+| settings | `tenants.settings` | top-level key | adds `working_days`, the key the runtime reads. Since 2026-11-09 it no longer writes `fiscal_year_start_month` or `pagumen_proration_strategy`: those are statutory parameters resolved from the organisation's type, and writing them made them the organisation's own override (`docs/payroll/STATUTORY-PARAMETERS.md`) |
 
 The tenant records `settings.configuration_profile` = `{industry,
 workforce_profile, policy_profile, catalog_version, applied_at}`. Records carry no

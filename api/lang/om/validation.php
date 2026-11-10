@@ -246,4 +246,7 @@ return [
     'employee_minimum_age' => 'Hojjetaan guyyaa qacarrii irratti yoo xiqqaate umurii waggaa 15 qabaachuu qaba.',
     'holiday_duplicate' => 'Ayyaanni kun guyyaa sanaaf duraan dhaha irra jira.',
     'leave_paid_needs_days' => 'Gosni boqonnaa kaffaltii qabu yoo xiqqaate mirga walakkaa guyyaa barbaada. 0 boqonnaa kaffaltii malee qofaaf fayyadamaa.',
+    'leave_below_statutory_floor' => 'Seerri boqonnaa kanaaf yoo xiqqaate guyyaa :days kenna (:reference). Gosni boqonnaa kana caalaa kennuu danda\'a, gadi aanaa garuu hin danda\'u.',
+    'organization_type_change_future' => 'Kaffaltiin mindaa gosa dhaabbataa amma jiruun mirkanaa\'eera; kanaaf jijjiiramni guyyaa booda irraa hojiirra oola: :date ykn sana booda.',
+    'organization_type_change_month_start' => 'Jijjiiramni gosa dhaabbataa guyyaa jalqabaa ji\'aa irraa jalqaba.',
 ];

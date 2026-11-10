@@ -19,7 +19,9 @@ use Carbon\CarbonInterface;
  * Sick leave as Labour Proclamation 1156/2019 Art. 85 grants it (A-Z review
  * E-08): up to six months within twelve, counted from the first day of
  * sickness; the first month at full pay, the next two at half pay, the last
- * three without pay.
+ * three without pay. Those months and the window are statutory parameters
+ * (`leave.sick.tiers`, `leave.sick.window_months`), read for the date each
+ * period starts.
  *
  * Days are the ones the leave charges (the person's working days, or every
  * day for a type counted in calendar days), and a month is the payroll rule's
@@ -71,19 +73,17 @@ final class SickLeaveTiers
         $periodEnd = null;
         $n = 0;
 
+        $shape = null;
         foreach ($dates as $date) {
             if ($periodEnd === null || $date > $periodEnd) {
-                $periodEnd = Carbon::parse($date)->addYear()->subDay()->format('Y-m-d');
+                // Each period takes the Art. 85 shape in force on its first day.
+                $shape = $this->shape($employee, Carbon::parse($date));
+                $periodEnd = Carbon::parse($date)->addMonths($shape['window_months'])->subDay()->format('Y-m-d');
                 $n = 0;
             }
             $n++;
 
-            $tiers[$date] = match (true) {
-                $n <= $monthDays => self::FULL,
-                $n <= 3 * $monthDays => self::HALF,
-                $n <= 6 * $monthDays => self::UNPAID,
-                default => self::BEYOND,
-            };
+            $tiers[$date] = self::tierFor($n, $monthDays, $shape);
         }
 
         return $tiers;
@@ -116,7 +116,7 @@ final class SickLeaveTiers
                 break;
             }
             $start = $date;
-            $end = Carbon::parse($date)->addYear()->subDay()->format('Y-m-d');
+            $end = Carbon::parse($date)->addMonths($this->shape($employee, Carbon::parse($date))['window_months'])->subDay()->format('Y-m-d');
             $taken = 1;
         }
 
@@ -124,17 +124,14 @@ final class SickLeaveTiers
             [$start, $end, $taken] = [null, null, 0];
         }
 
+        $shape = $this->shape($employee, $start !== null ? Carbon::parse($start) : $today);
+
         return [
             'days_taken' => $taken,
-            'days_allowed' => 6 * $monthDays,
+            'days_allowed' => ($shape['full_months'] + $shape['half_months'] + $shape['unpaid_months']) * $monthDays,
             'period_start' => $start,
             'period_end' => $end,
-            'next_tier' => match (true) {
-                $taken < $monthDays => self::FULL,
-                $taken < 3 * $monthDays => self::HALF,
-                $taken < 6 * $monthDays => self::UNPAID,
-                default => self::BEYOND,
-            },
+            'next_tier' => self::tierFor($taken + 1, $monthDays, $shape),
         ];
     }
 
@@ -179,6 +176,46 @@ final class SickLeaveTiers
         }
 
         return ['half' => $half, 'unpaid' => $unpaid];
+    }
+
+    /**
+     * The Art. 85 shape in force for this person's organisation on a date:
+     * months at full, half and no pay, and the window they fall within
+     * (statutory parameters `leave.sick.tiers`, `leave.sick.window_months`).
+     *
+     * @return array{full_months: int, half_months: int, unpaid_months: int, window_months: int}
+     */
+    private function shape(Employee $employee, CarbonInterface $on): array
+    {
+        $tenant = app(CurrentTenant::class)->tenantFor($employee->tenant_id) ?? Tenant::query()->findOrFail($employee->tenant_id);
+        $rules = $this->statutoryRules->for($tenant, $on);
+        $tiers = $rules->list('leave.sick.tiers');
+
+        return [
+            'full_months' => (int) ($tiers['full_months'] ?? 0),
+            'half_months' => (int) ($tiers['half_months'] ?? 0),
+            'unpaid_months' => (int) ($tiers['unpaid_months'] ?? 0),
+            'window_months' => $rules->int('leave.sick.window_months'),
+        ];
+    }
+
+    /**
+     * The tier of the $n-th sick day of a period (1-based).
+     *
+     * @param  array{full_months: int, half_months: int, unpaid_months: int, window_months: int}  $shape
+     */
+    private static function tierFor(int $n, int $monthDays, array $shape): string
+    {
+        $full = $shape['full_months'] * $monthDays;
+        $half = $full + $shape['half_months'] * $monthDays;
+        $unpaid = $half + $shape['unpaid_months'] * $monthDays;
+
+        return match (true) {
+            $n <= $full => self::FULL,
+            $n <= $half => self::HALF,
+            $n <= $unpaid => self::UNPAID,
+            default => self::BEYOND,
+        };
     }
 
     /** @return list<string> */

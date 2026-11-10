@@ -25,6 +25,12 @@ import {
   registerTenant,
 } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { useOrganizationTypes } from "@/features/settings/api";
+import {
+  groupOrgKinds,
+  orgKindGroupLabel,
+  orgKindName,
+} from "@/features/settings/org-kind";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
 
 const orgTypeKeys = [
@@ -53,6 +59,7 @@ const registerSchema = z
   .object({
     organization_name: z.string().min(2, "auth.complete_org_step"),
     organization_type: z.string().min(1),
+    organization_kind: z.string().min(1, "auth.org_kind_required"),
     subdomain: z.string().min(3, "auth.complete_org_step").max(63),
     admin_name: z.string().min(2, "auth.complete_admin_step"),
     admin_email: z.string().email("auth.complete_admin_step"),
@@ -68,7 +75,8 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
+  const orgKinds = useOrganizationTypes();
   const [stepIndex, setStepIndex] = useState(() => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("tenant");
@@ -97,6 +105,7 @@ export function RegisterForm() {
     defaultValues: {
       organization_name: "",
       organization_type: "general",
+      organization_kind: "",
       subdomain: "",
       admin_name: "",
       admin_email: "",
@@ -132,6 +141,7 @@ export function RegisterForm() {
   const passwordConfirmation = watch("password_confirmation");
   const subdomain = watch("subdomain");
   const orgName = watch("organization_name");
+  const orgKind = watch("organization_kind");
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
 
@@ -196,6 +206,7 @@ export function RegisterForm() {
 
   const step1Valid =
     orgName.trim().length >= 2 &&
+    orgKind !== "" &&
     subdomain.trim().length >= 3 &&
     subdomainAvailable !== false;
   const step2Valid =
@@ -209,6 +220,7 @@ export function RegisterForm() {
         "organization_name",
         "subdomain",
         "organization_type",
+        "organization_kind",
       ]);
       if (!valid || !step1Valid) {
         setServerError(
@@ -260,6 +272,7 @@ export function RegisterForm() {
       await registerTenant({
         organization_name: data.organization_name,
         organization_type: data.organization_type,
+        organization_kind: data.organization_kind,
         subdomain: data.subdomain,
         admin_name: data.admin_name,
         admin_email: data.admin_email,
@@ -294,7 +307,12 @@ export function RegisterForm() {
         const errorFields = Object.keys(axiosError.response.data.errors);
         if (
           errorFields.some((f) =>
-            ["organization_name", "organization_type", "subdomain"].includes(f),
+            [
+              "organization_name",
+              "organization_type",
+              "organization_kind",
+              "subdomain",
+            ].includes(f),
           )
         ) {
           setStepIndex(0);
@@ -432,6 +450,62 @@ export function RegisterForm() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="org_kind">
+                {t("auth.org_kind", "Kind of organisation in law")}
+              </Label>
+              <select
+                id="org_kind"
+                {...register("organization_kind")}
+                aria-describedby="org_kind-help"
+                aria-invalid={Boolean(
+                  errors.organization_kind || fieldErrors.organization_kind,
+                )}
+                disabled={orgKinds.isPending}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">
+                  {t("auth.org_kind_choose", "Choose one")}
+                </option>
+                {groupOrgKinds(orgKinds.data ?? []).map((section) => (
+                  <optgroup
+                    key={section.group || "other"}
+                    label={orgKindGroupLabel(section.group, t)}
+                  >
+                    {section.kinds.map((kind) => (
+                      <option key={kind.code} value={kind.code}>
+                        {orgKindName(kind, locale)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <p id="org_kind-help" className="text-xs text-muted-foreground">
+                {t(
+                  "auth.org_kind_help",
+                  "Decides which tax, pension and labour rules apply to your payroll.",
+                )}
+              </p>
+              {orgKinds.isError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {t(
+                    "auth.org_kind_load_failed",
+                    "The list could not be loaded. Check your connection and reload the page.",
+                  )}
+                </p>
+              )}
+              {(errors.organization_kind || fieldErrors.organization_kind) && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.organization_kind
+                    ? t(
+                        errors.organization_kind.message!,
+                        "Choose the kind of organisation.",
+                      )
+                    : fieldErrors.organization_kind[0]}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

@@ -12,6 +12,7 @@ use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollEngine;
+use App\Support\RequestBudget;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -155,27 +156,12 @@ class ProcessPayrollJob implements ShouldQueue
     }
 
     /**
-     * The `microtime(true)` this job must stop at, or null to run to the end.
-     *
-     * Measured from the start of the request, not the job: a worker may have
-     * used some of the request's time already, and the host's limit is on the
-     * request. A command-line worker has no limit (`max_execution_time` is 0).
+     * The `microtime(true)` this job must stop at, or null to run to the end
+     * (App\Support\RequestBudget, shared with the dry-run preview).
      */
     private function deadline(): ?float
     {
-        $budget = config('payroll.request_budget_seconds');
-
-        if ($budget === null) {
-            $limit = (int) ini_get('max_execution_time');
-
-            if ($limit <= 0) {
-                return null;
-            }
-
-            $budget = $limit * 0.5;
-        }
-
-        return (float) ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)) + (float) $budget;
+        return RequestBudget::deadline();
     }
 
     /**

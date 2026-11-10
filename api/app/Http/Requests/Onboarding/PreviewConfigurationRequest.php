@@ -7,6 +7,7 @@ namespace App\Http\Requests\Onboarding;
 use App\Services\Onboarding\IndustryCatalog;
 use App\Services\Onboarding\PolicyProfileCatalog;
 use App\Services\Onboarding\WorkforceProfileCatalog;
+use App\Support\TenantLanding;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,6 +24,7 @@ class PreviewConfigurationRequest extends FormRequest
         return [
             'industry' => ['required', 'string', Rule::in(app(IndustryCatalog::class)->keys())],
             'employee_count' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'staff_band' => ['nullable', 'string', Rule::in(TenantLanding::STAFF_BANDS)],
             'region' => ['nullable', 'string', 'max:100'],
             'workforce_profile' => ['nullable', 'string', Rule::in(app(WorkforceProfileCatalog::class)->keys())],
             'policy_profile' => ['nullable', 'string', Rule::in(app(PolicyProfileCatalog::class)->keys())],

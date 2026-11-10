@@ -24,6 +24,9 @@ interface StatutoryForm {
   employer_tin: string;
   tax_center: string;
   pension_scheme: "private" | "public" | "public_military";
+  pension_registration_number: string;
+  payout_method: "" | "bank" | "cash";
+  employer_bank_name: string;
 }
 
 /**
@@ -44,6 +47,14 @@ export function StatutoryDetailsCard() {
       data?.payroll?.pension_scheme === "public_military"
         ? data.payroll.pension_scheme
         : "private",
+    pension_registration_number:
+      data?.payroll?.pension_registration_number ?? "",
+    payout_method:
+      data?.payroll?.payout_method === "bank" ||
+      data?.payroll?.payout_method === "cash"
+        ? data.payroll.payout_method
+        : "",
+    employer_bank_name: data?.payroll?.employer_bank_name ?? "",
   };
   const [edits, setEdits] = useState<StatutoryForm | null>(null);
   const form = edits ?? persisted;
@@ -65,7 +76,18 @@ export function StatutoryDetailsCard() {
       {
         employer_tin: form.employer_tin.trim() || null,
         tax_center: form.tax_center.trim() || null,
-        pension_scheme: form.pension_scheme,
+        // Only when changed: saving the scheme makes it the organisation's
+        // own choice over its type's default (Statutory rules).
+        ...(form.pension_scheme !== persisted.pension_scheme
+          ? { pension_scheme: form.pension_scheme }
+          : {}),
+        pension_registration_number:
+          form.pension_registration_number.trim() || null,
+        payout_method: form.payout_method || null,
+        employer_bank_name:
+          form.payout_method === "bank"
+            ? form.employer_bank_name.trim() || null
+            : null,
       },
       {
         onSuccess: () => {
@@ -188,6 +210,73 @@ export function StatutoryDetailsCard() {
                 )}
               </p>
             </div>
+            <div>
+              <Label htmlFor="pension_registration_number">
+                {t(
+                  "statutory.pension_registration_number",
+                  "Pension registration number",
+                )}
+              </Label>
+              <Input
+                id="pension_registration_number"
+                maxLength={40}
+                value={form.pension_registration_number}
+                onChange={(e) =>
+                  update("pension_registration_number", e.target.value)
+                }
+                aria-describedby="pension_registration_number-hint"
+                className="mt-1 font-mono"
+              />
+              <p
+                id="pension_registration_number-hint"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {t(
+                  "statutory.pension_registration_agency",
+                  "Your registration with :agency.",
+                  { agency: data?.payroll?.pension_agency ?? "" },
+                )}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="payout_method">
+                {t("statutory.payout_method", "How salaries are paid")}
+              </Label>
+              <Select
+                value={form.payout_method}
+                onValueChange={(v) =>
+                  update("payout_method", v === "cash" ? "cash" : "bank")
+                }
+              >
+                <SelectTrigger id="payout_method" className="mt-1">
+                  <SelectValue
+                    placeholder={t("statutory.payout_choose", "Choose one")}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bank">
+                    {t("statutory.payout_bank", "Bank transfer")}
+                  </SelectItem>
+                  <SelectItem value="cash">
+                    {t("statutory.payout_cash", "Cash")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.payout_method === "bank" && (
+              <div>
+                <Label htmlFor="employer_bank_name">
+                  {t("statutory.employer_bank_name", "Bank you pay from")}
+                </Label>
+                <Input
+                  id="employer_bank_name"
+                  maxLength={120}
+                  value={form.employer_bank_name}
+                  onChange={(e) => update("employer_bank_name", e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            )}
           </>
         )}
       </CardContent>

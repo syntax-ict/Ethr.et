@@ -14,6 +14,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\Plan;
 use App\Models\PlatformFeatureState;
 use App\Models\PlatformSetting;
+use App\Models\ProfileVersion;
 use App\Models\SmsGateway;
 use App\Models\SmsSend;
 use App\Models\SmsSetting;
@@ -39,6 +40,7 @@ const GLOBAL_MODELS = [
     Permission::class,           // global permission catalogue
     OrganizationTemplate::class, // global industry template catalogue
     OrganizationType::class,     // global catalogue of organisation types statutory rules are scoped by
+    ProfileVersion::class,       // published batches of the law; labels platform statutory rows, no tenant data
     PersonalAccessToken::class,  // Sanctum's own table
     PlatformSetting::class,      // super-admin settings; every tenant reads the same row
     // SMS is bought and switched on once for the whole platform by the super

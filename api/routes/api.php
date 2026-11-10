@@ -123,8 +123,10 @@ use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
+use App\Http\Controllers\Api\V1\Payroll\PayrollPreviewController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\PensionRuleController;
+use App\Http\Controllers\Api\V1\Payroll\StatutoryRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\PhotoConsentController;
@@ -707,6 +709,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('payroll')->group(function () {
         Route::post('/process', [PayrollController::class, 'process'])
             ->middleware(['throttle:payroll-process', RequiresFeature::class.':payroll']);
+        Route::post('/preview', PayrollPreviewController::class)
+            ->middleware([RequiresFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])
@@ -750,6 +754,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/pension-rules', [PensionRuleController::class, 'store']);
         Route::get('/overtime-rates', [OvertimeRateController::class, 'show']);
         Route::put('/overtime-rates', [OvertimeRateController::class, 'update']);
+        Route::get('/statutory-rules', [StatutoryRuleController::class, 'index']);
+        Route::delete('/statutory-rules/{code}', [StatutoryRuleController::class, 'destroy'])->where('code', '[a-z0-9_.]+');
         Route::apiResource('rules', PayrollRuleController::class)->parameters(['rules' => 'payrollRule']);
     });
 
