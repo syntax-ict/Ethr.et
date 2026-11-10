@@ -21,6 +21,7 @@ use App\Models\TaxBracket;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Features\FeatureGate;
+use App\Services\Payroll\OwnStatutoryRates;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
 use App\Support\EmployeeGaps;
@@ -198,13 +199,8 @@ final class ReadinessScorer
      */
     private function ownStatutoryRateInForce(int $tenantId): bool
     {
-        $today = Carbon::today()->toDateString();
-        $inForce = fn (Builder $q) => $q->where('tenant_id', $tenantId)
-            ->whereDate('effective_from', '<=', $today)
-            ->where(fn (Builder $open) => $open->whereNull('effective_to')->orWhereDate('effective_to', '>=', $today));
-
-        return $inForce(TaxBracket::withoutGlobalScope('tenant'))->exists()
-            || $inForce(PensionRule::withoutGlobalScope('tenant'))->exists();
+        return OwnStatutoryRates::inForce(TaxBracket::withoutGlobalScope('tenant'), $tenantId)->exists()
+            || OwnStatutoryRates::inForce(PensionRule::withoutGlobalScope('tenant'), $tenantId)->exists();
     }
 
     /** Whether a leave type the law sets days for grants fewer than it does. */

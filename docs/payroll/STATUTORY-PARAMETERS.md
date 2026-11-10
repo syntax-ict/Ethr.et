@@ -46,7 +46,12 @@ are found in the same order through the same profile: the organisation's own,
 then its type's on the platform, then its parent type's, then every type's. A
 ladder is always taken whole. Both are the law's exactly: since 2026-11-09 an
 organisation can no longer save its own ladder or rule (the API answers 422,
-citing the law). One it saved before is still honoured for its dates.
+citing the law). One it saved before is still honoured for its dates, flagged as
+a blocker on the readiness checklist (`statutory_law_followed`) and ended from
+Settings → Payroll → Statutory rules (`POST /payroll/statutory-rules/use-law`,
+`payroll.manageConfig`, `App\Services\Payroll\OwnStatutoryRates`). Ending closes
+each of its rows yesterday, never deletes one, so a period already paid still
+reproduces; it is audited `statutory_parameter.own_rates_ended`.
 
 **There is no default.** A code with no row in force refuses the run, naming
 the code: *"No statutory rule is in force for payroll.hours_per_day on this
@@ -104,8 +109,11 @@ corrects the history. After, it is never retroactive: `PUT
 organisation month (never Pagume) after the last approved period and not before
 today (`OrganisationProfile::earliestChange()`, which `GET /settings` reports as
 `organization_type_earliest_change`). The change waits as a future assignment
-(`organization_type_pending`); a newer one replaces it, and choosing the current
-type again cancels it. Every
+(`organization_type_pending`); a newer one replaces it. Choosing the type in
+force today again changes nothing (any `effective_from` sent with it is
+ignored), so saving other details never disturbs a scheduled change; it is
+withdrawn only by `cancel_pending_organization_type`, audited
+`organization_profile.change_cancelled`. Every
 organisation that existed before 2026-10-27 was given the type its settings
 suggested and asked to confirm it (`organization_type_needs_review`).
 

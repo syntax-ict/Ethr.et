@@ -33041,13 +33041,64 @@
                                         },
                                         "as_of": {
                                             "type": "string"
+                                        },
+                                        "own_rates_in_force": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": [
                                         "data",
                                         "organization_type",
                                         "sector",
-                                        "as_of"
+                                        "as_of",
+                                        "own_rates_in_force"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/payroll/statutory-rules/use-law": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "statutoryRule.useLaw",
+                "summary": "POST /payroll/statutory-rules/use-law: ends the organisation's own tax\nladder and pension rules, saved before both became the law's alone, so\npayroll applies the law's from today (OwnStatutoryRates). Nothing is\ndeleted; the periods already paid keep the rates they were paid under",
+                "tags": [
+                    "Statutory Rule"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "tax_brackets_ended": {
+                                            "type": "integer"
+                                        },
+                                        "pension_rules_ended": {
+                                            "type": "integer"
+                                        },
+                                        "own_rates_in_force": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "tax_brackets_ended",
+                                        "pension_rules_ended",
+                                        "own_rates_in_force"
                                     ]
                                 }
                             }

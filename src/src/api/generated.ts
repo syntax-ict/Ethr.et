@@ -7958,6 +7958,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/statutory-rules/use-law": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /payroll/statutory-rules/use-law: ends the organisation's own tax
+         *     ladder and pension rules, saved before both became the law's alone, so
+         *     payroll applies the law's from today (OwnStatutoryRates). Nothing is
+         *     deleted; the periods already paid keep the rates they were paid under
+         */
+        post: operations["statutoryRule.useLaw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/statutory-rules/{code}": {
         parameters: {
             query?: never;
@@ -12714,6 +12736,7 @@ export interface components {
             organization_type?: string;
             /** Format: date-time */
             effective_from?: string | null;
+            cancel_pending_organization_type?: boolean;
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
@@ -35493,6 +35516,32 @@ export interface operations {
                         organization_type: string | null;
                         sector: string | null;
                         as_of: string;
+                        own_rates_in_force: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "statutoryRule.useLaw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        tax_brackets_ended: number;
+                        pension_rules_ended: number;
+                        own_rates_in_force: boolean;
                     };
                 };
             };
