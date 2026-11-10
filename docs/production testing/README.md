@@ -12,7 +12,7 @@ to date on 2026-10-29 from `main` at `87d12d4d0` (PRs #406 to #462; the list is 
 Oromoo, the schema check in the smoke test), and stage 2 refreshed each spec file, re-tiered
 priorities so that P1 means release-blocking (about a quarter of the cases, more in payroll), and
 re-checked every known issue against the code. **The fourth edition** (2026-11-09) adds the
-cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`; rows in
+cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, then #682 and #684, up to `22587ddf8d`; rows in
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)) makes the pack runnable by
 Claude Code and Playwright ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
 configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
@@ -61,7 +61,7 @@ in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running
 
 ## Keeping this pack current
 
-<!-- qa-pack-baseline: 8431f382a8 -->
+<!-- qa-pack-baseline: 22587ddf8d -->
 
 The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
 above names the last commit of `main` the whole pack was brought up to date from. To see what has

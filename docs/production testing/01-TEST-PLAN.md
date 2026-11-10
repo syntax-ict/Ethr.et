@@ -216,7 +216,8 @@ the execution log.
 | Running the pack by machine: Claude Code with the Playwright MCP server, and the scripted smoke checks | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 **Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
-branch before it merged). **Run these only once #682 is deployed (S-01); until then record Blocked.**
+branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
+the live commit contains `7adf8dfec4`); until then record Blocked.**
 Each changed case keeps its old expectation for a release without #682:
 
 | Change | PRs | Cases |
@@ -231,6 +232,7 @@ Each changed case keeps its old expectation for a release without #682:
 | Run Payroll opens on a dry-run preview (`POST /payroll/preview`, audited `payroll.previewed`, outside the 2-an-hour limit) | #682 | STAT-014 to STAT-016; PAY-010 changed |
 | After the first approved run, a change of kind needs `effective_from` (a month's first day, never Pagume); pending change shown, replaced or cancelled | #682 | STAT-011 to STAT-013; STAT-002 changed |
 | Kind, statutory rules and preview in Amharic and Afaan Oromoo | #682 | L10N-021 |
+| Second-reader review of that Amharic and Afaan Oromoo; the Amharic names of the kinds corrected by a migration (the deploy needs `migrate`, S-02) | #684 | L10N-021 (read the kinds against `docs/i18n/AMHARIC-REVIEW.md`); K-62 still open |
 
 ## 3. Approach
 
