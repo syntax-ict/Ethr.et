@@ -46033,6 +46033,9 @@
                     "accepts_commands": {
                         "type": "boolean"
                     },
+                    "receives_only": {
+                        "type": "boolean"
+                    },
                     "sync_interval_minutes": {
                         "type": "integer"
                     },
@@ -46161,6 +46164,7 @@
                     "auto_sync",
                     "commands_enabled",
                     "accepts_commands",
+                    "receives_only",
                     "sync_interval_minutes",
                     "timezone",
                     "last_sync_at",
@@ -52568,6 +52572,13 @@
                                 ],
                                 "minimum": 1,
                                 "maximum": 65535
+                            },
+                            "mode": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 20
                             },
                             "base_url": {
                                 "type": [

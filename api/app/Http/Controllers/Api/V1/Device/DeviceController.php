@@ -19,6 +19,7 @@ use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
 use App\Models\Tenant;
+use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
@@ -150,12 +151,25 @@ class DeviceController extends Controller
         // stored value, and a key sent as null clears it. A change of adapter
         // replaces the config outright — the old adapter's keys mean nothing to
         // the new one.
+        //
+        // Switching a terminal to send to ETHR replaces it too: the address
+        // and the credentials are what that mode does without, and a merge
+        // would keep them and leave the terminal being called.
         if ($request->has('connection_config')) {
             $incoming = (array) $request->input('connection_config');
             $sameAdapter = ($data['adapter_type'] ?? $device->adapter_type) === $device->adapter_type;
-            $data['connection_config'] = $sameAdapter
-                ? array_merge($device->connection_config ?? [], $incoming)
-                : $incoming;
+            $toPush = ($incoming['mode'] ?? null) === DeviceConnectionConfig::PUSH && empty($incoming['ip']);
+
+            if ($sameAdapter && ! $toPush) {
+                $merged = array_merge($device->connection_config ?? [], $incoming);
+                // Given an address, it is a terminal ETHR calls again.
+                if (! empty($incoming['ip'])) {
+                    unset($merged['mode']);
+                }
+                $data['connection_config'] = $merged;
+            } else {
+                $data['connection_config'] = $incoming;
+            }
         }
 
         $device->update($data);
@@ -385,6 +399,13 @@ class DeviceController extends Controller
         // terminal's own `attendanceStatus` (HikvisionEvent) — this recorded
         // every event as a check-in until 2026-10-14.
         $event = HikvisionEvent::fromNotification($request->all());
+
+        // For a terminal that only sends, anything it sends is the one sign
+        // it is alive, a heartbeat included. A terminal ETHR also pulls keeps
+        // `last_sync_at` as its pull cursor, so only a punch moves it there.
+        if (DeviceManager::receivesOnly($device)) {
+            $this->markWebhookReceived($device);
+        }
 
         if ($event === null) {
             return response()->json(['status' => 'ignored'], 200);

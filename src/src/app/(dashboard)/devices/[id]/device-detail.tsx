@@ -389,6 +389,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
+                  {device.receives_only && device.webhook_url && (
+                    <PushSetup url={device.webhook_url} />
+                  )}
                   <div>
                     <Label className="text-xs text-muted-foreground">
                       {t("device_detail_page.webhook_url_hint")}
@@ -993,4 +996,63 @@ function clockLabel(
   return offset > 0
     ? t("device_clock.ahead", undefined, { minutes })
     : t("device_clock.behind", undefined, { minutes });
+}
+
+/**
+ * What to type on a terminal that sends to ETHR. Its HTTP listening screen
+ * asks for the address in parts (server, port, protocol, path), not as one
+ * URL, so the URL is shown the way the terminal wants it.
+ */
+function PushSetup({ url }: { url: string }) {
+  const { t } = useT();
+  let parts: { label: string; value: string }[] = [];
+  try {
+    const parsed = new URL(url);
+    const https = parsed.protocol === "https:";
+    parts = [
+      {
+        label: t("device_detail_page.push_host", "Server address"),
+        value: parsed.hostname,
+      },
+      {
+        label: t("device_detail_page.push_port", "Port"),
+        value: parsed.port || (https ? "443" : "80"),
+      },
+      {
+        label: t("device_detail_page.push_protocol", "Protocol"),
+        value: https ? "HTTPS" : "HTTP",
+      },
+      {
+        label: t("device_detail_page.push_path", "Path (URL)"),
+        value: parsed.pathname + parsed.search,
+      },
+    ];
+  } catch {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <p className="text-sm font-medium">
+        {t(
+          "device_detail_page.push_setup_title",
+          "Enter these on the terminal",
+        )}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {t(
+          "device_detail_page.push_setup_intro",
+          "On the terminal's own web page, open Network, then HTTP listening (some firmware calls it Event alarm or Alarm host), and enter the four values below. The terminal needs internet access and must support HTTPS. ETHR shows it as online once the first punch arrives.",
+        )}
+      </p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+        {parts.map((part) => (
+          <div key={part.label} className="contents">
+            <dt className="text-muted-foreground">{part.label}</dt>
+            <dd className="font-mono break-all">{part.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
 }

@@ -8,6 +8,7 @@ resolved per device by `App\Services\Device\DeviceManager` from `adapter_type`.
 | `adapter_type` | class | status |
 |---|---|---|
 | `hikvision` | `HikvisionAdapter` | ISAPI (events, enrollments, webhook push) |
+| `hikvision`, no address | `HikvisionPushAdapter` | The terminal sends to ETHR and is never called. The way to run Hikvision from shared hosting (below) |
 | `zkteco` | `ZktecoAdapter` | HTTP API |
 | `zkteco_adms` | `ZktecoAdmsAdapter` | ADMS push: the terminal calls ETHR (`/iclock/*`). The way to run ZKTeco from shared hosting |
 | `suprema` | `SupremaAdapter` | HTTP API |
@@ -379,6 +380,55 @@ Not yet run against a real terminal (field test O1). The formats follow the PUSH
 and attendance, and compare its enrolled list with the count on the terminal. Then
 replace the bodies in `tests/Feature/Device/AdmsRosterTest.php` with what it actually
 sent.
+
+## Hikvision that sends to ETHR (2026-11-11)
+
+A Hikvision terminal normally sits on an office network. On shared hosting ETHR cannot
+reach a private address and `DeviceHost` refuses one ("The device address points to a
+private or internal network"), and the form required an address, so such a terminal could
+not be registered at all. The push handler never needed the address: it finds the device
+by its token. A terminal may now be registered with **no address**.
+
+- **Registering.** `connection_config: {"mode": "push"}` and no `ip`. The mode has to be
+  said: an address left out by mistake is still a 422. No other vendor has it (ZKTeco has
+  ADMS). The device keeps `adapter_type` `hikvision`, so the push URL and the token lookup
+  are unchanged; `DeviceManager::receivesOnly()` reads the stored config and picks
+  `HikvisionPushAdapter`. `DeviceResource` says `receives_only`.
+- **On the terminal.** Its web page, Network, HTTP listening (some firmware: Event alarm,
+  Alarm host): the server address, port, protocol and URL the device page shows, taken
+  from `webhook_url`. **The terminal must post over HTTPS to `www`**: the host answers
+  plain HTTP and the apex with a 301, which a terminal does not follow (measured
+  2026-11-11 on `/api/v1/devices/webhook/hikvision`).
+- **Alive or not.** Anything the terminal sends counts as contact, a heartbeat included,
+  and sets `last_sync_at`. It is shown offline after
+  `HikvisionPushAdapter::OFFLINE_AFTER_HOURS` (24) of silence. That is a label, not a
+  gate: a punch from an "offline" terminal is recorded. For a terminal ETHR also pulls,
+  only a punch moves `last_sync_at`, because there it is the pull cursor.
+- **Never pulled.** `devices:sync` skips it and `PullDeviceEventsJob` returns at once. A
+  pull found nothing and moved `last_sync_at` to now, which made a silent terminal look
+  as if it had just been heard from.
+- **Switching.** An update that says `mode: push` replaces the stored config, so the
+  address and the credentials go. An update that brings an address drops the mode.
+
+**What this mode cannot do**, each because it needs a connection to the terminal: read
+the enrolled users (so "bring people in from this device" lists nobody), fetch a punch the
+terminal failed to deliver, set the clock, add or remove a person. A punch made while the
+terminal had no internet arrives only if its firmware resends it. The on-premise bridge
+(`BRIDGE-DESIGN.md`) is still what closes those.
+
+**Not run on a terminal.** `HikvisionPushModeTest` sends the two body shapes firmware is
+documented to send (JSON, and multipart with the event in `event_log`). Whether a given
+model accepts an HTTPS host name, a query string in the URL field, and this certificate
+is a field test, first owed on a DS-K1T321MFWX-B.
+
+**Found while reading, not fixed here** (they affect a terminal ETHR calls, not this mode):
+
+- `HikvisionAdapter` signs in with HTTP Basic only. Hikvision terminals commonly require
+  Digest for ISAPI, in which case every call is a 401.
+- `pushEventUrl()` is called by nothing, and its body is not the shape
+  `/ISAPI/Event/notification/httpHosts` takes, so ETHR has never configured push on a
+  terminal. It is set by hand.
+- The adapter speaks plain HTTP to the terminal; there is no HTTPS option.
 
 ## Device clocks (2026-10-14)
 

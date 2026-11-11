@@ -147,6 +147,44 @@ describe("<DeviceDetail>", () => {
   });
 });
 
+/*
+ * A terminal that sends to ETHR is set up on the terminal, whose screen asks
+ * for the address in parts. The page shows the push URL that way.
+ */
+describe("device detail for a terminal that sends to ETHR", () => {
+  it("shows what to enter on the terminal, part by part", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () =>
+        HttpResponse.json({
+          ...DEVICE,
+          adapter_type: "hikvision",
+          receives_only: true,
+          webhook_token: "tok123",
+          webhook_url:
+            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/sync-logs", () =>
+        HttpResponse.json({ data: [] }),
+      ),
+      http.get("*/api/v1/devices/DEV1/events", () =>
+        HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
+      ),
+    );
+    renderDetail();
+
+    expect(
+      await screen.findByText("Enter these on the terminal"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("www.ethr.et")).toBeInTheDocument();
+    expect(screen.getByText("443")).toBeInTheDocument();
+    expect(screen.getByText("HTTPS")).toBeInTheDocument();
+    expect(
+      screen.getByText("/api/v1/devices/webhook/hikvision?token=tok123"),
+    ).toBeInTheDocument();
+  });
+});
+
 /**
  * Every failed load used to read as the device's "not found" message. Only a
  * 404 means that; anything else is a failed request with a retry.

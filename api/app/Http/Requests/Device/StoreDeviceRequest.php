@@ -42,8 +42,9 @@ class StoreDeviceRequest extends FormRequest
             'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based
             // and needs base_url instead; mock needs neither.
-            'connection_config.ip' => ['required_unless:adapter_type,mock,generic,zkteco_adms', 'nullable', 'string'],
-            'connection_config.port' => ['required_unless:adapter_type,mock,generic,zkteco_adms', 'nullable', 'integer', 'min:1', 'max:65535'],
+            'connection_config.ip' => ['required_unless:adapter_type,mock,generic,zkteco_adms,hikvision', 'nullable', 'string'],
+            'connection_config.port' => ['required_unless:adapter_type,mock,generic,zkteco_adms,hikvision', 'nullable', 'integer', 'min:1', 'max:65535'],
+            'connection_config.mode' => ['sometimes', 'nullable', 'string', 'max:20'],
             'connection_config.base_url' => ['required_if:adapter_type,generic', 'nullable', 'url'],
             'connection_config.username' => ['nullable', 'string'],
             'connection_config.password' => ['nullable', 'string'],

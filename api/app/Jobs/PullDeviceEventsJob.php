@@ -70,6 +70,13 @@ class PullDeviceEventsJob implements ShouldQueue
         }
         $this->device = $device;
 
+        // Asked for by hand, or queued before the terminal was switched to
+        // send to ETHR: there is nothing to pull, and running on would move
+        // `last_sync_at`, which for such a terminal is when it was last heard.
+        if (DeviceManager::receivesOnly($device)) {
+            return;
+        }
+
         $startedAt = now();
         $syncLog = DeviceSyncLog::create([
             'tenant_id' => $this->device->tenant_id,
