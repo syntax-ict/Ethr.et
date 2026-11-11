@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Api\V1\Employee;
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Exceptions\EmployeeAlreadyExists;
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Requests\Employee\StoreEmployeeRequest;
 use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeReportingNodeResource;
@@ -20,6 +22,9 @@ use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\EmployeeUpdater;
+use App\Services\Identity\EmployeeIntake;
+use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IntakeResult;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
@@ -148,7 +153,24 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function store(StoreEmployeeRequest $request, UserProvisioningService $provisioning, PlanLimitService $planLimits, EmployeeNumbering $numbering): JsonResponse
+    /**
+     * Add an employee.
+     *
+     * One record per person. When the details sent match someone the
+     * organisation already has, nothing is created and the answer is a 409
+     * problem document whose `candidates` name them (`public_id`, `name`, and
+     * the `reasons` they matched on):
+     *
+     * - `code: employee-exists`: a current employee, matched on the national
+     *   ID, the e-mail, or the phone together with the name. Update that
+     *   record instead.
+     * - `code: employee-needs-confirmation`: someone who may be this person.
+     *   `outcome` says which: `needs_review` (a weaker match, such as a shared
+     *   phone), `former_employee` (someone who has left) or `archived` (a
+     *   deleted record, which can be restored). Send the same request with
+     *   `confirm_new: true` to add them as a new person.
+     */
+    public function store(StoreEmployeeRequest $request, UserProvisioningService $provisioning, PlanLimitService $planLimits, EmployeeIntake $intake): JsonResponse
     {
         $this->authorize('create', Employee::class);
 
@@ -163,7 +185,8 @@ class EmployeeController extends Controller
         // before mass-assigning the model.
         $createLogin = (bool) ($data['create_login'] ?? false);
         $requestedRole = $data['user_role'] ?? null;
-        unset($data['create_login'], $data['user_role']);
+        $confirmedNew = (bool) ($data['confirm_new'] ?? false);
+        unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
@@ -181,18 +204,36 @@ class EmployeeController extends Controller
             $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
         }
 
-        // No code given: the next one in the organisation's format, so the
-        // person can sign in by code and use a kiosk from the first day.
-        // Counted and created under the organisation's seat lock, so two
-        // adds at the last free seat cannot both pass (PlanLimitService).
+        // Through EmployeeIntake, the one way a record is made: it asks whether
+        // this is someone the organisation already has, with every detail the
+        // form sent, and only then counts the seat and creates. No code given
+        // means the next one in the organisation's format, so the person can
+        // sign in by code and use a kiosk from the first day.
+        //
+        // Asked, counted and created under the organisation's seat lock, so
+        // two adds of one person, or two at the last free seat, cannot both
+        // pass (PlanLimitService).
         $tenant = app(CurrentTenant::class)->get();
+        $via = $request->attributes->has(AuthenticateApiKey::ATTRIBUTE) ? EmployeeIntake::VIA_API : EmployeeIntake::VIA_MANUAL;
         $seats = $planLimits->lock($tenant, 'employees');
         try {
-            $planLimits->assertCanAdd($tenant, 'employees');
-            $employee = $numbering->create($tenant, $data);
+            $admitted = $intake->admit(
+                $tenant,
+                $data,
+                IdentitySignals::fromAttributes($data),
+                $via,
+                $confirmedNew ? IntakeResult::CONFIRMABLE : [],
+            );
         } finally {
             $seats->release();
         }
+
+        // Someone already here, or someone who may be: 409, naming them. The
+        // second kind is added by the same request with `confirm_new`.
+        if (! $admitted->created()) {
+            throw EmployeeAlreadyExists::from($admitted);
+        }
+        $employee = $admitted->record();
 
         $loginInvited = false;
         if ($createLogin && ! empty($employee->email)) {
@@ -228,7 +269,14 @@ class EmployeeController extends Controller
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
-        AuditLog::record('employee.created', $employee, ['login_invited' => $loginInvited]);
+        // A person said "this is someone new" over a likeness: who they were
+        // shown is part of the record.
+        $shown = $confirmedNew ? array_column($admitted->match->candidates, 'employee_public_id') : [];
+        AuditLog::record('employee.created', $employee, array_filter([
+            'login_invited' => $loginInvited,
+            'via' => $via,
+            'confirmed_new_over' => $shown,
+        ], static fn (mixed $value): bool => $value !== []));
         $this->webhook($employee->tenant_id, 'employee.created', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
         // Resources render flat (withoutWrapping). Merge the provisioning result
@@ -325,6 +373,40 @@ class EmployeeController extends Controller
         AuditLog::record('employee.deleted', $employee);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Restore a deleted employee.
+     *
+     * Deleting an employee keeps the record with its attendance and pay
+     * history; this brings it back. It needs the permission to delete
+     * employees. The person takes a seat again, so the plan's employee limit
+     * applies. An employee who is not deleted is returned unchanged.
+     */
+    public function restore(Employee $employee, PlanLimitService $planLimits): EmployeeResource
+    {
+        // Whoever may delete may undo it. This is the other answer to the 409
+        // EmployeeIntake gives when the person being added is one whose
+        // record was deleted. Counted under the seat lock, as a new employee is.
+        $this->authorize('delete', $employee);
+
+        if ($employee->trashed()) {
+            $tenant = app(CurrentTenant::class)->get();
+            $seats = $planLimits->lock($tenant, 'employees');
+            try {
+                $planLimits->assertCanAdd($tenant, 'employees');
+                $employee->restore();
+            } finally {
+                $seats->release();
+            }
+
+            AuditLog::record('employee.restored', $employee);
+            $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
+        }
+
+        $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
+
+        return new EmployeeResource($employee);
     }
 
     public function stats(Request $request): JsonResponse

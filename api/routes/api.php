@@ -587,6 +587,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
     Route::get('/exit-clearances', [ExitClearanceController::class, 'index']);
     Route::apiResource('employees', EmployeeController::class);
+    // A deleted employee's record is kept; this brings it back (EmployeeIntake
+    // names the record when the same person is added again).
+    Route::post('/employees/{employee}/restore', [EmployeeController::class, 'restore'])->withTrashed();
 
     // scopeBindings(): a child must belong to the {employee} in the path. Without it
     // Laravel resolves each child by its own key alone, so any child id in the tenant

@@ -151,6 +151,25 @@ export function useCreateEmployee() {
   });
 }
 
+/**
+ * Bring back a deleted employee's record (`POST /employees/{id}/restore`).
+ * The add form offers it when the person being added is one whose record was
+ * deleted and kept.
+ */
+export function useRestoreEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.post(`/employees/${publicId}/restore`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
+}
+
 export function useUpdateEmployee(publicId: string) {
   const queryClient = useQueryClient();
 

@@ -8,12 +8,13 @@ use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\SessionCookie;
 use App\Services\AuthService;
 use App\Services\CurrentTenant;
+use App\Services\Identity\EmployeeIntake;
+use App\Services\Identity\IntakeResult;
 use App\Services\PlanLimitService;
 use App\Services\Sso\SsoProviderInterface;
 use App\Services\Sso\SsoUser;
@@ -199,13 +200,16 @@ class SsoController extends Controller
             return null;
         }
 
-        // The plan's seat cap applies however an employee arrives, checked
-        // under the seat lock.
-        return app(PlanLimitService::class)->withinLimit($tenant, 'employees', 1, fn () => DB::transaction(function () use ($tenant, $ssoUser, $ssoSettings) {
+        // Through EmployeeIntake, under the organisation's seat lock. A first
+        // sign-in by someone HR already added used to make a second employee;
+        // the login now goes on the record that is there. The plan's seat cap
+        // applies only when a record is made.
+        $intake = app(EmployeeIntake::class);
+
+        return $intake->serialised($tenant, fn () => DB::transaction(function () use ($intake, $tenant, $ssoUser, $ssoSettings) {
             $defaultRole = UserRole::tryFrom($ssoSettings->default_role) ?? UserRole::EMPLOYEE;
 
-            $employee = Employee::create([
-                'tenant_id' => $tenant->id,
+            $admitted = $intake->admitUnattended($tenant, [
                 'name' => $ssoUser->fullName(),
                 'email' => $ssoUser->email,
                 'phone' => EthiopianPhone::canonicalOrRaw($ssoUser->phone),
@@ -213,7 +217,20 @@ class SsoController extends Controller
                 // first sign-in failed with a 500 here. HIRED, as SCIM uses.
                 'status' => EmployeeStatus::HIRED,
                 'hire_date' => now(),
-            ]);
+            ], EmployeeIntake::VIA_SSO);
+
+            // Someone who may be this person, and nobody here to ask: no
+            // account is made, and the sign-in page says to ask HR.
+            if ($admitted->outcome === IntakeResult::NEEDS_REVIEW) {
+                AuditLog::record('sso.provision_refused', $tenant, [
+                    'provider' => 'saml',
+                    'name_id' => $ssoUser->nameId,
+                    'resembles' => array_column($admitted->match->candidates, 'employee_public_id'),
+                ]);
+
+                return null;
+            }
+            $employee = $admitted->record();
 
             $user = User::create([
                 'tenant_id' => $tenant->id,
@@ -228,6 +245,7 @@ class SsoController extends Controller
             AuditLog::record('sso.user_provisioned', $user, [
                 'provider' => 'saml',
                 'name_id' => $ssoUser->nameId,
+                'employee' => $admitted->created() ? 'created' : 'existing',
             ]);
 
             return $user;

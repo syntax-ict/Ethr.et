@@ -47,21 +47,11 @@ import {
   type Problem,
 } from "../parse-people";
 import { MigrationLogins } from "./migration-logins";
+import { matchReasonLabel } from "@/features/employees/likeness";
 
 const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
 
-/** `IdentityResolver` reasons: known signal names as-is, `name~0.85` for the
- * fuzzy-name-similarity signal (score baked into the key). */
-function reasonLabel(
-  reason: string,
-  t: (key: string, fallback?: string) => string,
-): string {
-  if (reason.startsWith("name~")) {
-    const pct = Math.round(Number(reason.slice("name~".length)) * 100);
-    return `${t("setup2.reason_name", "name")} ~${pct}%`;
-  }
-  return t(`setup2.reason_${reason}`, reason.replace(/_/g, " "));
-}
+const reasonLabel = matchReasonLabel;
 
 function outcomeTone(outcome: MatchOutcome | null): string {
   switch (outcome) {

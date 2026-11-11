@@ -39,6 +39,33 @@ final readonly class IdentitySignals
     ) {}
 
     /**
+     * A person as an employee record would describe them: the same keys the
+     * record is created from, so a path cannot create with one set of details
+     * and ask "is this someone we know?" with another. File import left the
+     * badge out and the staged list left the national ID out, and each missed
+     * the matches the other found.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function fromAttributes(array $attributes): self
+    {
+        $text = static function (string $key) use ($attributes): ?string {
+            $value = $attributes[$key] ?? null;
+
+            return is_scalar($value) && trim((string) $value) !== '' ? trim((string) $value) : null;
+        };
+
+        return new self(
+            employeeCode: $text('employee_code'),
+            badgeNumber: $text('badge_number'),
+            email: $text('email'),
+            phone: $text('phone'),
+            name: $text('name'),
+            nationalId: $text('national_id'),
+        );
+    }
+
+    /**
      * A person as a terminal knows them: its own user number, tried as an
      * employee number and as a badge, and the card when the terminal has one.
      *
