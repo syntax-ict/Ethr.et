@@ -24,8 +24,17 @@ See ONBOARDING_V2.md decision D6.
   resolver verdict (`match_outcome`, `match_confidence`, `candidates`,
   `resolved_employee_id`), and the chosen `action`.
 
-Both are transient staging and are **hard-deleted after 7 days** by
-`CleanupExpiredDataJob` (CLAUDE.md soft-delete policy).
+Both are transient staging and are **hard-deleted 30 days after their last
+activity** by `CleanupExpiredDataJob` (CLAUDE.md soft-delete policy;
+`MigrationBatch::RETENTION_DAYS`). Activity is a change to the batch (staging,
+committing) or to any of its rows (choosing an action), so a list someone is
+still working through is never the one deleted. Until 2026-11-10 the rule was
+seven days from the day of staging, whatever the batch's state: a list of a few
+hundred people lost every decision a week after it was pasted, and a committed
+batch lost its "who still cannot sign in" view on the same day.
+
+The trade is that staged rows, which hold names and contact details, now stay
+longer when a batch is abandoned: up to thirty days rather than seven.
 
 ## Service — `App\Services\Migration\WorkforceMigrationService`
 

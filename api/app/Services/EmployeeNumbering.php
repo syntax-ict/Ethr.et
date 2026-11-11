@@ -105,6 +105,44 @@ final class EmployeeNumbering
     }
 
     /**
+     * Create one employee of a batch: with the code the attributes bring, or
+     * else the next from `$pool`, the codes read once for the whole batch
+     * with sequence(). When another writer took that code in the meantime,
+     * or a row of the batch brought it as its own, the pool is dropped and
+     * the rest fall back to a fresh read each.
+     *
+     * create() reads every employee code to find the next one, so a batch of
+     * three hundred people without numbers read them three hundred times.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<string>  $pool
+     */
+    public function createFromPool(Tenant $tenant, array $attributes, array &$pool): Employee
+    {
+        $code = $attributes['employee_code'] ?? null;
+        if (is_string($code) && $code !== '') {
+            return Employee::create($attributes);
+        }
+
+        $next = array_shift($pool);
+        if ($next !== null) {
+            try {
+                return Employee::create([...$attributes, 'employee_code' => $next]);
+            } catch (UniqueConstraintViolationException $e) {
+                if (! str_contains($e->getMessage(), 'employee_code')) {
+                    throw $e;
+                }
+                $pool = [];
+            }
+        }
+
+        return $this->assign(
+            $tenant,
+            fn (string $free): Employee => Employee::create([...$attributes, 'employee_code' => $free]),
+        );
+    }
+
+    /**
      * Run $create with the next free code, retrying on a collision.
      *
      * @template T

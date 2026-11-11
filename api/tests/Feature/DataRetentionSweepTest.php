@@ -22,7 +22,8 @@ use Illuminate\Support\Str;
  * check". This is that test.
  *
  * `CleanupExpiredDataJob` implements three of those rows and only one was
- * covered: `MigrationWorkspaceTest` pins import staging at 7 days, and
+ * covered: `MigrationWorkspaceTest` pins import staging (thirty days from the
+ * last activity since 2026-11-10; the boundary is in `BulkIntakeCostTest`), and
  * `JobFailureHandlingTest` pins `failed()`. Notifications (90 days) and webhook
  * deliveries (30 days) were both unasserted — a sweep that quietly stopped
  * deleting, or started deleting too much, would have broken nothing visible.

@@ -154,7 +154,20 @@ final class WorkforceMigrationService
                     return;
                 }
 
-                foreach ($batch->rows()->get() as $row) {
+                $rows = $batch->rows()->get();
+
+                // Numbers for the people who bring none, read once for the
+                // batch as the file import does. Each used to read every
+                // employee code to find the next one.
+                $unnumbered = $rows->filter(function (MigrationStagingRow $row): bool {
+                    $raw = $row->getAttribute('raw');
+
+                    return $row->action === MigrationStagingRow::ACTION_CREATE
+                        && (! is_array($raw) || trim((string) ($raw['employee_code'] ?? '')) === '');
+                })->count();
+                $pool = $unnumbered > 0 ? $this->numbering->sequence($tenant, $unnumbered) : [];
+
+                foreach ($rows as $row) {
                     // Read via getAttribute so the array-cast's loose static type does
                     // not defeat the guard (the value is an array at runtime).
                     $rawAttr = $row->getAttribute('raw');
@@ -163,7 +176,7 @@ final class WorkforceMigrationService
 
                     switch ($row->action) {
                         case MigrationStagingRow::ACTION_CREATE:
-                            $employee = $this->createEmployee($raw, $tenant, $departments);
+                            $employee = $this->createEmployee($raw, $tenant, $departments, $pool);
                             // A reviewer chose this row's action, so the number
                             // goes where they said, even from a confirmed holder.
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
@@ -367,12 +380,13 @@ final class WorkforceMigrationService
      * not, so one the organisation does not have leaves the person unassigned.
      *
      * @param  array<string, mixed>  $raw
+     * @param  list<string>  $pool  the batch's numbers for people who bring none
      */
-    private function createEmployee(array $raw, Tenant $tenant, DepartmentMatch $departments): Employee
+    private function createEmployee(array $raw, Tenant $tenant, DepartmentMatch $departments, array &$pool): Employee
     {
         // EmployeeNumbering gives the next number when the row brings none,
         // as adding one person or importing a file does.
-        return $this->numbering->create($tenant, [
+        return $this->numbering->createFromPool($tenant, [
             'tenant_id' => $tenant->id,
             'name' => $this->nameOf($raw),
             'email' => isset($raw['email']) ? (string) $raw['email'] : null,
@@ -382,6 +396,6 @@ final class WorkforceMigrationService
             'hire_date' => isset($raw['hire_date']) ? (string) $raw['hire_date'] : now()->toDateString(),
             'department_id' => $departments->id(isset($raw['department']) ? (string) $raw['department'] : null),
             'status' => EmployeeStatus::HIRED,
-        ]);
+        ], $pool);
     }
 }
