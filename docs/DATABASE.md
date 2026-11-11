@@ -695,7 +695,7 @@ Added for AI-assisted onboarding & workforce migration (see
 |---|---|---|
 | `employee_external_identities` | maps an external identifier (device user id, card, …) to one master employee; unique on `(tenant_id, source_type, source_ref, identifier_type, identifier_value)` | persistent |
 | `migration_batches` | one workforce-discovery run | hard delete 30 days after its last activity |
-| `migration_staging_rows` | one staged person with resolver verdict + chosen action | hard delete with its batch (cascade) |
+| `migration_staging_rows` | one staged person with resolver verdict + chosen action; `raw` and `changes` encrypted | hard delete with its batch (cascade) |
 
 `organization_templates.template_data` extended with `grades` and `settings`
 (payroll defaults, attendance method, employee-number format).

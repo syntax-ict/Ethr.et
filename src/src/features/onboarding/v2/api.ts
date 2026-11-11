@@ -183,25 +183,76 @@ export function useSetRowAction() {
   return useMutation<
     StagingRow,
     unknown,
-    { rowId: string; action: StagingAction; employeePublicId?: string }
+    {
+      rowId: string;
+      action: StagingAction;
+      employeePublicId?: string;
+      /** The differences to write to the matched employee; omit to leave. */
+      accept?: string[];
+    }
   >({
-    mutationFn: async ({ rowId, action, employeePublicId }) =>
+    mutationFn: async ({ rowId, action, employeePublicId, accept }) =>
       (
         await apiClient.patch(`/onboarding/migration/rows/${rowId}`, {
           action,
           employee_public_id: employeePublicId,
+          accept,
         })
       ).data,
   });
 }
 
-export function useCommitMigration() {
+/** Slices in a row that may pass without the list getting shorter. */
+const STALLED_AFTER = 3;
+
+/** A commit that kept answering without the list getting shorter. */
+export class CommitStalled extends Error {
+  constructor() {
+    super("The list stopped moving.");
+    this.name = "CommitStalled";
+  }
+}
+
+/**
+ * Add a staged list. The server works for a few seconds per request and
+ * answers `committing` with how many rows are left, so the request is sent
+ * again until it answers `committed`. Nothing is added twice: each request
+ * starts after the last row the one before it finished.
+ */
+export async function commitMigration(
+  batchId: string,
+  onProgress?: (result: CommitResult) => void,
+): Promise<CommitResult> {
+  let left = Number.POSITIVE_INFINITY;
+  let stalled = 0;
+
+  for (;;) {
+    const result: CommitResult = (
+      await apiClient.post(`/onboarding/migration/batches/${batchId}/commit`)
+    ).data;
+
+    if (result.status !== "committing") return result;
+
+    onProgress?.(result);
+
+    // A list that is not getting shorter would loop for ever.
+    stalled = result.remaining < left ? 0 : stalled + 1;
+    left = result.remaining;
+    if (stalled >= STALLED_AFTER) {
+      throw new CommitStalled();
+    }
+  }
+}
+
+export function useCommitMigration(
+  onProgress?: (result: CommitResult) => void,
+) {
   const qc = useQueryClient();
   return useMutation<CommitResult, unknown, string>({
-    mutationFn: async (batchId) =>
-      (await apiClient.post(`/onboarding/migration/batches/${batchId}/commit`))
-        .data,
-    onSuccess: (_data, batchId) => {
+    mutationFn: (batchId) => commitMigration(batchId, onProgress),
+    // Settled, not only succeeded: a list that stopped part of the way has
+    // still written rows, and the table has to show which.
+    onSettled: (_data, _error, batchId) => {
       qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
     },
   });

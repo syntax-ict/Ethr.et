@@ -220,9 +220,13 @@ hash — the strongest signal (weight 0.95) — without ever decrypting. Covered
 
 From the plan, in order; none is built yet:
 
-- **A match is still not an update.** The import skips the row and a migration
-  merge links an id. Filling blanks and reviewing conflicts comes with the staged
-  import.
+- **A match in the file import is still not an update.** A staged list fills
+  blanks and asks about differences ([MIGRATION.md](MIGRATION.md), 2026-11-11);
+  `/employees/import` still skips the row, until it becomes a staged list too.
+- **A staged list brings six fields over HTTP.** `StagedChanges` handles salary,
+  TIN, national id and badge as well, and is tested with them, but
+  `StageRowsRequest` does not accept them yet. Status is not a field of an
+  edit and is not handled at all; it will go through `EmployeeTransitionService`.
 - **A directory's refusal has no screen.** SCIM and SSO refuse a person who may
   be an existing employee and write an audit record (`scim.user_refused`,
   `sso.provision_refused`); nothing tells HR. The SSO sign-in page says only

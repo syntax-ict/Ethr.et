@@ -416,7 +416,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/migration/rows', [MigrationController::class, 'stageFromRows']);
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
-        Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit']);
+        Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
     });
 

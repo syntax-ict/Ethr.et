@@ -19,10 +19,20 @@ See ONBOARDING_V2.md decision D6.
 
 ## Model
 
-- `migration_batches` — one discovery run (`source_type`, `status`, `totals`).
+- `migration_batches` — one discovery run (`source_type`, `status`, `totals`,
+  and `commit_cursor`, the last row a commit has dealt with). `status` is
+  `reviewing`, then `committing` while a long list is being added, then
+  `committed`.
 - `migration_staging_rows` — one discovered person: the `raw` source signals, the
   resolver verdict (`match_outcome`, `match_confidence`, `candidates`,
-  `resolved_employee_id`), and the chosen `action`.
+  `resolved_employee_id`), the chosen `action`, and `changes`: what the row
+  would write to the employee it matched.
+
+`raw` and `changes` are **stored encrypted** (`App\Casts\EncryptedJson`,
+2026-11-11). They are a person's details as a file or a device gave them, kept
+for as long as the list is, and they sat in a JSON column in clear text. A row
+staged before that still reads; it is rewritten encrypted the next time it is
+saved, and there is no backfill.
 
 Both are transient staging and are **hard-deleted 30 days after their last
 activity** by `CleanupExpiredDataJob` (CLAUDE.md soft-delete policy;
@@ -58,8 +68,77 @@ is someone's employee number under a name that shares nothing with theirs. The
 row's reasons say which ([IDENTITY_RESOLUTION.md](IDENTITY_RESOLUTION.md)).
 
 `commit` honours the final action: `create` makes an employee and links its
-external identity (verified); `merge` links to the resolved employee only;
-`skip`/`defer` do nothing.
+external identity (verified); `merge` links to the resolved employee and
+writes the row's changes to their record, below; `skip`/`defer` do nothing.
+
+### A match is a reviewed update (2026-11-11)
+
+A matched row used to be a link and nothing more: the phone, department or hire
+date it carried were dropped. Owner decision 2026-11-10: **fill what ETHR has
+blank, show a person every difference, never a second employee.**
+`App\Services\Migration\StagedChanges` compares the row with the employee,
+field by field:
+
+| kind | meaning | at commit |
+|---|---|---|
+| `fill` | ETHR has nothing there | written |
+| `conflict` | ETHR has something else | written only if the reviewer accepted that field |
+
+- **Blank in ETHR** is null or empty, a salary of 0, a name ETHR made up for a
+  device user with none ("Device user 17"), and a hire date ETHR set to the day
+  an earlier list was committed because that list gave none. The last is known
+  only while that list is kept; afterwards a different date is a conflict.
+- **A blank in the row never overwrites anything.**
+- **A terminal's own number is never offered as an employee number or a badge.**
+  It is linked as that device's identity, which is what punches resolve through.
+- **A number someone else holds** (employee number, badge) is shown as `taken`
+  and never written.
+- **An acceptance holds while both values are the ones the reviewer was shown.**
+  The list is drawn up again at commit from the employee as they are then; an
+  accepted phone is not written over a phone someone corrected meanwhile.
+- **National id, TIN and salary are named and never shown**, either side.
+- **An employee with a personnel action scheduled for a later date is flagged
+  and left as they are.**
+
+The edit is `EmployeeUpdater`'s, so it leaves what an edit on the form leaves:
+the same pay gate, the same `employee.updated` audit record and webhook.
+
+**Permissions.** Staging and committing still need only `employee.create`. An
+edit made through a list takes what the same edit takes on the form:
+
+| to | needs |
+|---|---|
+| have a row's fills written | `employee.update`, with reach over that employee |
+| accept a difference (`PATCH /rows/{row}` with `accept`) | the same; 403 without |
+| write or accept salary or TIN | `employee.updateFinancial` as well |
+| see what ETHR holds today for a field | `employee.view`, with reach over that employee |
+
+Without them the row is still linked, its other fields are still written, and
+`can_apply_changes` on the row says so before the commit.
+
+### A list is committed a slice at a time (2026-11-11)
+
+One request has thirty seconds on the host and the whole list was one
+transaction, so a long list could not be added at all. `commitSlice()` works
+for `SLICE_SECONDS` (12), in chunks of `CHUNK` (50) rows that are each their
+own transaction under the organisation's seat lock, and answers with `status`
+(`committing` or `committed`), `remaining` and the totals so far. The browser
+sends the same request until it is `committed`. Each chunk starts after
+`commit_cursor`, so nothing is added twice, and a request that dies loses only
+the chunk it was in.
+
+- The plan's limit is checked, at every chunk, on everyone the list still has
+  to add. A list that does not fit is refused before its first row, as before.
+  One that stops fitting part of the way (someone else added people meanwhile)
+  is refused from there, with what was added kept and the list `committing`.
+- Once a list is `committing`, `PATCH /rows/{row}` answers 409: the list the
+  reviewer approved is the list that is added.
+- The commit has a rate limit of its own (`migration-commit`, 30 a minute per
+  person), so a loop that never ends cannot spend the account's allowance.
+- `totals` gains `updated`: how many existing employees had details filled in
+  or changed.
+- `migration.committed` is audited, and the guided setup's step marked, once,
+  when the last slice finishes.
 
 **A `create` row is asked again at commit, under the lock** (2026-11-11,
 `EmployeeIntake`). The verdict a reviewer saw was reached when the list was
@@ -77,8 +156,8 @@ record, unverified, and counted under `merged`; it is not made a second time.
 | POST | `/devices/{device}` | stage everyone enrolled on a device |
 | POST | `/rows` | stage rows from a spreadsheet/manual entry |
 | GET | `/batches/{batch}` | review queue with verdicts and summary |
-| PATCH | `/rows/{row}` | set a row's action |
-| POST | `/batches/{batch}/commit` | apply all actions; the answer also carries the two fields below |
+| PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
+| POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
 
 ## After the commit: a way to sign in (2026-10-28)

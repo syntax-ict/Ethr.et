@@ -31,6 +31,7 @@ import { departmentsApi } from "@/features/organization/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import {
+  CommitStalled,
   useCommitMigration,
   useMigrationBatch,
   useSetRowAction,
@@ -47,6 +48,7 @@ import {
   type Problem,
 } from "../parse-people";
 import { MigrationLogins } from "./migration-logins";
+import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
 
 const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
@@ -97,7 +99,9 @@ export function MigrationStep({
   const stageDevice = useStageFromDevice();
   const stageRows = useStageFromRows();
   const setAction = useSetRowAction();
-  const commit = useCommitMigration();
+  // Rows a long list still has to add, while it is being added.
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const commit = useCommitMigration((result) => setRemaining(result.remaining));
 
   const [batchId, setBatchId] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
@@ -229,9 +233,10 @@ export function MigrationStep({
     rowId: string,
     action: StagingAction,
     employeePublicId?: string,
+    accept?: string[],
   ) {
     try {
-      await setAction.mutateAsync({ rowId, action, employeePublicId });
+      await setAction.mutateAsync({ rowId, action, employeePublicId, accept });
       batchQuery.refetch();
     } catch (err) {
       toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
@@ -259,20 +264,25 @@ export function MigrationStep({
       toast.success(
         t(
           "setup2.migration_done",
-          "Migration complete: :created created, :merged merged",
+          "Migration complete: :created created, :merged merged, :updated updated",
           {
             created: result.totals.created ?? 0,
             merged: result.totals.merged ?? 0,
+            updated: result.totals.updated ?? 0,
           },
         ),
       );
     } catch (err) {
       toast.error(
-        apiErrorMessage(
-          err,
-          t("setup2.commit_failed", "Could not commit migration"),
-        ),
+        err instanceof CommitStalled
+          ? t("setup2.commit_stalled", "The list stopped moving. Try again.")
+          : apiErrorMessage(
+              err,
+              t("setup2.commit_failed", "Could not commit migration"),
+            ),
       );
+    } finally {
+      setRemaining(null);
     }
   }
 
@@ -632,6 +642,21 @@ export function MigrationStep({
                         })}
                       </ul>
                     )}
+                    <StagedChanges
+                      row={row}
+                      locked={
+                        Boolean(row.processed_at) ||
+                        batch.status !== "reviewing"
+                      }
+                      onAccept={(fields) =>
+                        changeAction(
+                          row.public_id,
+                          row.action,
+                          undefined,
+                          fields,
+                        )
+                      }
+                    />
                   </div>,
                   row.processed_at ? (
                     <span
@@ -644,6 +669,7 @@ export function MigrationStep({
                     <Select
                       key="a"
                       value={row.action}
+                      disabled={batch.status !== "reviewing"}
                       onValueChange={(v) =>
                         changeAction(row.public_id, v as StagingAction)
                       }
@@ -683,7 +709,11 @@ export function MigrationStep({
               ) : null}
               {batch.status === "committed"
                 ? t("setup2.committed", "Committed")
-                : t("setup2.commit", "Commit migration")}
+                : commit.isPending && remaining !== null
+                  ? t("setup2.committing", "Adding people, :count left", {
+                      count: remaining,
+                    })
+                  : t("setup2.commit", "Commit migration")}
             </Button>
           </div>
 

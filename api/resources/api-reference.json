@@ -25402,6 +25402,56 @@
                                                     "action": {
                                                         "type": "string"
                                                     },
+                                                    "changes": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "field": {
+                                                                    "type": "string"
+                                                                },
+                                                                "kind": {
+                                                                    "type": "string"
+                                                                },
+                                                                "current": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "incoming": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "masked": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "accepted": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "taken": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "field",
+                                                                "kind",
+                                                                "current",
+                                                                "incoming",
+                                                                "masked",
+                                                                "accepted",
+                                                                "taken"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "can_apply_changes": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "scheduled_action": {
+                                                        "type": "boolean"
+                                                    },
                                                     "processed_at": {
                                                         "type": [
                                                             "string",
@@ -25418,6 +25468,9 @@
                                                     "candidates",
                                                     "resolved_employee_public_id",
                                                     "action",
+                                                    "changes",
+                                                    "can_apply_changes",
+                                                    "scheduled_action",
                                                     "processed_at"
                                                 ]
                                             }
@@ -25454,7 +25507,8 @@
                     "write"
                 ],
                 "operationId": "migration.commit",
-                "summary": "Commit batches",
+                "description": "A long list is added a slice at a time. While `status` is `committing`,\n`remaining` rows are still to be dealt with and the same request is\nsent again; nothing is added twice. `totals` counts the whole list so\nfar, and `updated` is how many existing employees had details filled in\nor changed.",
+                "summary": "Add the list's people, as much as fits in one request",
                 "tags": [
                     "Onboarding"
                 ],
@@ -25481,38 +25535,37 @@
                                             "type": "string"
                                         },
                                         "totals": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "created": {
-                                                            "type": "integer"
-                                                        },
-                                                        "merged": {
-                                                            "type": "integer"
-                                                        },
-                                                        "skipped": {
-                                                            "type": "integer"
-                                                        },
-                                                        "deferred": {
-                                                            "type": "integer"
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "created",
-                                                        "merged",
-                                                        "skipped",
-                                                        "deferred"
-                                                    ]
+                                            "type": "object",
+                                            "properties": {
+                                                "created": {
+                                                    "type": "integer"
                                                 },
-                                                {
-                                                    "type": "array",
-                                                    "items": []
+                                                "merged": {
+                                                    "type": "integer"
+                                                },
+                                                "updated": {
+                                                    "type": "integer"
+                                                },
+                                                "skipped": {
+                                                    "type": "integer"
+                                                },
+                                                "deferred": {
+                                                    "type": "integer"
                                                 }
+                                            },
+                                            "required": [
+                                                "created",
+                                                "merged",
+                                                "updated",
+                                                "skipped",
+                                                "deferred"
                                             ]
                                         },
                                         "status": {
                                             "type": "string"
+                                        },
+                                        "remaining": {
+                                            "type": "integer"
                                         },
                                         "without_login": {
                                             "type": "array",
@@ -25554,14 +25607,14 @@
                                             }
                                         },
                                         "hire_dates_defaulted": {
-                                            "type": "integer",
-                                            "minimum": 0
+                                            "type": "integer"
                                         }
                                     },
                                     "required": [
                                         "message",
                                         "totals",
                                         "status",
+                                        "remaining",
                                         "without_login",
                                         "hire_dates_defaulted"
                                     ]
@@ -25650,8 +25703,7 @@
                                             }
                                         },
                                         "hire_dates_defaulted": {
-                                            "type": "integer",
-                                            "minimum": 0
+                                            "type": "integer"
                                         }
                                     },
                                     "required": [
@@ -25780,6 +25832,56 @@
                                                     "action": {
                                                         "type": "string"
                                                     },
+                                                    "changes": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "field": {
+                                                                    "type": "string"
+                                                                },
+                                                                "kind": {
+                                                                    "type": "string"
+                                                                },
+                                                                "current": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "incoming": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "masked": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "accepted": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "taken": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "field",
+                                                                "kind",
+                                                                "current",
+                                                                "incoming",
+                                                                "masked",
+                                                                "accepted",
+                                                                "taken"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "can_apply_changes": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "scheduled_action": {
+                                                        "type": "boolean"
+                                                    },
                                                     "processed_at": {
                                                         "type": [
                                                             "string",
@@ -25796,6 +25898,9 @@
                                                     "candidates",
                                                     "resolved_employee_public_id",
                                                     "action",
+                                                    "changes",
+                                                    "can_apply_changes",
+                                                    "scheduled_action",
                                                     "processed_at"
                                                 ]
                                             }
@@ -25931,6 +26036,56 @@
                                                     "action": {
                                                         "type": "string"
                                                     },
+                                                    "changes": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "field": {
+                                                                    "type": "string"
+                                                                },
+                                                                "kind": {
+                                                                    "type": "string"
+                                                                },
+                                                                "current": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "incoming": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "masked": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "accepted": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "taken": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "field",
+                                                                "kind",
+                                                                "current",
+                                                                "incoming",
+                                                                "masked",
+                                                                "accepted",
+                                                                "taken"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "can_apply_changes": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "scheduled_action": {
+                                                        "type": "boolean"
+                                                    },
                                                     "processed_at": {
                                                         "type": [
                                                             "string",
@@ -25947,6 +26102,9 @@
                                                     "candidates",
                                                     "resolved_employee_public_id",
                                                     "action",
+                                                    "changes",
+                                                    "can_apply_changes",
+                                                    "scheduled_action",
                                                     "processed_at"
                                                 ]
                                             }
@@ -26059,6 +26217,56 @@
                                         "action": {
                                             "type": "string"
                                         },
+                                        "changes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "field": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string"
+                                                    },
+                                                    "current": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "incoming": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "masked": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "accepted": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "taken": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "field",
+                                                    "kind",
+                                                    "current",
+                                                    "incoming",
+                                                    "masked",
+                                                    "accepted",
+                                                    "taken"
+                                                ]
+                                            }
+                                        },
+                                        "can_apply_changes": {
+                                            "type": "boolean"
+                                        },
+                                        "scheduled_action": {
+                                            "type": "boolean"
+                                        },
                                         "processed_at": {
                                             "type": [
                                                 "string",
@@ -26075,11 +26283,39 @@
                                         "candidates",
                                         "resolved_employee_public_id",
                                         "action",
+                                        "changes",
+                                        "can_apply_changes",
+                                        "scheduled_action",
                                         "processed_at"
                                     ]
                                 }
                             }
                         }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This list is already being added. Wait for it to finish."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -26089,9 +26325,6 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -55429,6 +55662,24 @@
                             "null"
                         ],
                         "description": "Lets a reviewer pick which candidate an \"ambiguous\" row merges\nwith — resolved tenant-scoped in the controller, same as every\nother `exists:employees,public_id` rule in this codebase (the\nraw validation rule does not itself see the tenant scope)."
+                    },
+                    "accept": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "email",
+                                "phone",
+                                "employee_code",
+                                "badge_number",
+                                "national_id",
+                                "tin",
+                                "hire_date",
+                                "department",
+                                "salary_cents"
+                            ]
+                        }
                     }
                 },
                 "required": [
