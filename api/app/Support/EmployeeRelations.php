@@ -18,8 +18,10 @@ use App\Models\Team;
  *
  * One map, read by two places that must not disagree:
  *
- *   - `EmployeeController::resolveRelationIds()` turns each `public_id` into an
- *     `id` with a tenant-scoped query, yielding `null` when it finds nothing;
+ *   - `resolveIds()` below turns each `public_id` into an `id` with a
+ *     tenant-scoped query, yielding `null` when it finds nothing. It is what
+ *     `EmployeeController::resolveRelationIds()` runs on create and what
+ *     `EmployeeUpdater` runs on an edit;
  *   - `ValidatesRelationTenancy` rejects a value that same query would not find,
  *     so a request that validates is a request that resolves.
  *
@@ -50,4 +52,27 @@ final class EmployeeRelations
         'cost_center_id' => CostCenter::class,
         'supervisor_id' => Employee::class,
     ];
+
+    /**
+     * The same attributes with each relation's `public_id` replaced by its
+     * `id`, or by `null` when the tenant-scoped lookup finds nothing.
+     *
+     * A field that is absent or null is left alone. This moved here from
+     * `EmployeeController` on 2026-11-10 so an edit made by `EmployeeUpdater`
+     * resolves exactly as one made through the form.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function resolveIds(array $data): array
+    {
+        foreach (self::MAP as $field => $modelClass) {
+            if (isset($data[$field])) {
+                $model = $modelClass::where('public_id', $data[$field])->first();
+                $data[$field] = $model?->id;
+            }
+        }
+
+        return $data;
+    }
 }
