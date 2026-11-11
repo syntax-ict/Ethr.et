@@ -136,6 +136,87 @@ describe("Registration form (S07)", () => {
     expect(screen.getByRole("button", { name: /Next/i })).toBeDisabled();
   });
 
+  it("keeps an address typed by hand when the organisation name changes", async () => {
+    mockSubdomain(true);
+    const { container } = renderRegister();
+
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Corp" },
+    });
+    await waitFor(() =>
+      expect(field(container, "subdomain").value).toBe("acme-corp"),
+    );
+
+    fireEvent.change(field(container, "subdomain"), {
+      target: { value: "acme" },
+    });
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Corporation" },
+    });
+    expect(field(container, "subdomain").value).toBe("acme");
+
+    // Emptying the address hands it back to the name.
+    fireEvent.change(field(container, "subdomain"), { target: { value: "" } });
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Group" },
+    });
+    await waitFor(() =>
+      expect(field(container, "subdomain").value).toBe("acme-group"),
+    );
+  });
+
+  it("holds the admin step until a phone number is given, and says what is wrong with one", async () => {
+    mockSubdomain(true);
+    const { container } = renderRegister();
+
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Corp" },
+    });
+    await chooseKind(container);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+
+    fireEvent.change(await screen.findByLabelText(/Full Name/i), {
+      target: { value: "Test Admin" },
+    });
+    fireEvent.change(screen.getByLabelText(/Email Address/i), {
+      target: { value: "admin@acme.et" },
+    });
+
+    // Name and email alone used to open the last step, where the missing
+    // phone then stopped the submit without a word.
+    const phone = screen.getByLabelText("Phone");
+    expect(screen.getByRole("button", { name: /Next/i })).toBeDisabled();
+
+    fireEvent.change(phone, { target: { value: "12345" } });
+    fireEvent.blur(phone);
+    expect(
+      await screen.findByText(
+        "Enter a valid Ethiopian phone number, e.g. 0911223344",
+      ),
+    ).toBeInTheDocument();
+    expect(phone).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: /Next/i })).toBeDisabled();
+
+    // Written the way people write a number, spaces included.
+    fireEvent.change(phone, { target: { value: "0912 345 678" } });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
+    // The error goes as the number is corrected, without leaving the field.
+    await waitFor(() =>
+      expect(
+        screen.queryByText(
+          "Enter a valid Ethiopian phone number, e.g. 0911223344",
+        ),
+      ).not.toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+    expect(await screen.findByLabelText("Password")).toBeInTheDocument();
+  });
+
   it("rates password strength as the user meets more requirements", async () => {
     mockSubdomain(true);
     const { container } = renderRegister();
@@ -159,6 +240,9 @@ describe("Registration form (S07)", () => {
     });
     fireEvent.change(screen.getByLabelText(/Email Address/i), {
       target: { value: "admin@acme.et" },
+    });
+    fireEvent.change(screen.getByLabelText("Phone"), {
+      target: { value: "0912345678" },
     });
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
@@ -194,6 +278,12 @@ describe("Registration form (S07)", () => {
     fireEvent.change(screen.getByLabelText(/Email Address/i), {
       target: { value: "admin@acme.et" },
     });
+    fireEvent.change(screen.getByLabelText("Phone"), {
+      target: { value: "0912345678" },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
 
     fireEvent.change(await screen.findByLabelText("Password"), {

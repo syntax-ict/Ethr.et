@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Tenant;
+use App\Models\User;
 
 describe('POST /api/v1/auth/register', function () {
     it('registers a new tenant and admin user', function () {
@@ -190,5 +191,74 @@ describe('POST /api/v1/auth/register', function () {
         $response->assertCreated();
         expect($response->json('user'))->not->toHaveKey('id');
         expect($response->json('tenant'))->not->toHaveKey('id');
+    });
+
+    it('takes a broad kind or an industry as the organisation type, and nothing else', function (string $type, bool $accepted) {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'organization_name' => 'Type Test',
+            'subdomain' => 'type-'.str_replace('_', '-', $type),
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@type.example',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+            'organization_type' => $type,
+        ]);
+
+        if ($accepted) {
+            $response->assertCreated();
+            expect(Tenant::query()->where('type', $type)->exists())->toBeTrue();
+
+            return;
+        }
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['organization_type']);
+        expect(Tenant::query()->where('type', $type)->exists())->toBeFalse();
+    })->with([
+        'a broad kind the form offers' => ['government', true],
+        'a broad kind that is also an industry' => ['hospital', true],
+        'an industry the form does not offer yet' => ['health_center', true],
+        'a word no catalogue knows' => ['cartel', false],
+        'a kind in law, which is a different answer' => ['share_company', false],
+    ]);
+
+    it('gives the admin and the organisation the language the form was read in', function (?string $sent, string $stored) {
+        $headers = $sent === null ? [] : ['Accept-Language' => $sent];
+
+        $this->postJson('/api/v1/auth/register', [
+            'organization_name' => 'Language Test',
+            'subdomain' => 'language-test',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@language.example',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ], $headers)->assertCreated();
+
+        $tenant = Tenant::query()->where('subdomain', 'language-test')->sole();
+        $admin = User::query()->withoutGlobalScopes()->where('tenant_id', $tenant->id)->sole();
+
+        expect($admin->locale)->toBe($stored)
+            ->and($tenant->default_locale)->toBe($stored)
+            ->and($tenant->settings['locale'])->toBe($stored)
+            ->and($admin->preferredLocale())->toBe($stored);
+    })->with([
+        'Amharic' => ['am', 'am'],
+        'Afaan Oromoo' => ['om', 'om'],
+        'English' => ['en', 'en'],
+        'a client that sends none' => [null, 'en'],
+        'a language not shipped yet' => ['ti', 'en'],
+    ]);
+
+    it('still registers a client that sends no organisation type', function () {
+        $this->postJson('/api/v1/auth/register', [
+            'organization_name' => 'No Type',
+            'subdomain' => 'no-type',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@notype.example',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ])->assertCreated();
     });
 });

@@ -11,7 +11,12 @@ to date on 2026-10-29 from `main` at `87d12d4d0` (PRs #406 to #462; the list is 
 `d4b3524ea4` (PRs to #646): stage 1 corrected the facts that had gone wrong (hosting quota, Afaan
 Oromoo, the schema check in the smoke test), and stage 2 refreshed each spec file, re-tiered
 priorities so that P1 means release-blocking (about a quarter of the cases, more in payroll), and
-re-checked every known issue against the code. The figures
+re-checked every known issue against the code. **The fourth edition** (2026-11-09) adds the
+cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, then #682, #684 and #685, up to `cb03c51af6`, then #686 to #689, up to `6adc3a16c5`; rows in
+[01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), makes the pack runnable by
+Claude Code, with Playwright or Chrome ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
+configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
+they are recorded Blocked until #682 is deployed. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
@@ -30,6 +35,7 @@ defect against one or the other and say which.** Do not silently adjust the expe
 | 8 | [08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) | Test engineer | Announcements, news, landing page and public listing, notifications, voice, search, Next steps, reports, API keys, webhooks, SCIM, SSO, platform console and operations centre, marketing site |
 | 9 | [09-NON-FUNCTIONAL.md](09-NON-FUNCTIONAL.md) | Test engineer | Security, tenant isolation, rate limits, performance, accessibility, Amharic and the Ethiopian calendar, responsive, PWA and offline, browsers |
 | 10 | [10-TEMPLATES-AND-REFERENCE.md](10-TEMPLATES-AND-REFERENCE.md) | Everyone | Defect report template, execution log, release smoke checklist, known issues to verify, glossary |
+| 11 | [11-CLAUDE-CODE-AND-PLAYWRIGHT.md](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) | Test engineer, anyone running Claude Code | Which cases a machine may run and in which browser, saving sessions without handing over a password, the scripted smoke checks (`npm run test:e2e:production`), Claude Code with the guarded Playwright browser, Claude Code with Chrome and why it is the weaker channel, and turning a run into execution-log rows |
 
 ## How a test case is written
 
@@ -46,9 +52,16 @@ Every case in documents 03 to 09 has the same columns:
 Personas used in the steps (TA, HR, FIN, DA, SUP, EMP, EMP2, PA) are defined in
 [01-TEST-PLAN.md, section 5](01-TEST-PLAN.md#5-test-accounts-and-personas).
 
+**Run by machine.** The ID at the start of each row is what links a case to a script and to the
+execution log: a Playwright test is titled with it (`S-02 …`) and tagged with its priority and mode
+(`@P1`, `@R`), and an agent reports one log row per ID. Which cases Claude Code may run, and whether in
+the guarded Playwright browser or in Chrome, follows from the Mode column and what the steps need, by the table in
+[11, section 2](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#2-which-cases-a-machine-may-run); an agent working
+in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running the pack.
+
 ## Keeping this pack current
 
-<!-- qa-pack-baseline: d4b3524ea4 -->
+<!-- qa-pack-baseline: 6adc3a16c5 -->
 
 The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
 above names the last commit of `main` the whole pack was brought up to date from. To see what has
@@ -59,12 +72,13 @@ scripts/qa-pack-coverage.sh                # since the baseline, up to origin/ma
 scripts/qa-pack-coverage.sh v2026.11.06.9  # up to the release under test
 ```
 
-It leaves out docs, chore, ci, test and build changes (`--all` shows them). A PR in its list is not
+It leaves out docs, chore, ci, test and build changes (`--all` shows them, and is worth a look
+before the marker moves: #688 was titled as a test harness and carried a fix). A PR in its list is not
 necessarily a gap: a refactor has nothing a tester can see. A user-visible change gets a case, and
 the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
 **Before a release pass, run it against the release tag:** a case for a change it lists is recorded
 as **Not covered** in the execution log, and the test summary says how many there were. Move the
-marker forward only when every file has been brought up to date (last moved 2026-11-08, third
+marker forward only when every file has been brought up to date (last moved 2026-11-10, fourth
 edition).
 
 ## The three rules that matter most on production
