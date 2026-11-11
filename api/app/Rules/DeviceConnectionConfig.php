@@ -20,6 +20,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final class DeviceConnectionConfig implements ValidationRule
 {
+    /** `connection_config.mode` of a terminal that sends to ETHR and is never called. */
+    public const PUSH = 'push';
+
     private const IP_ADAPTERS = ['hikvision', 'zkteco', 'suprema'];
 
     private const GENERIC_PATH_KEYS = ['status_path', 'events_path', 'enrollments_path'];
@@ -45,6 +48,14 @@ final class DeviceConnectionConfig implements ValidationRule
     private function validateIpAdapter(array $config, Closure $fail): void
     {
         $ip = $config['ip'] ?? null;
+
+        // A Hikvision terminal may be registered to send to ETHR, with no
+        // address at all. It has to say so: an address left out by mistake is
+        // still an error, not a terminal that quietly never syncs.
+        if ($this->adapterType === 'hikvision' && ($config['mode'] ?? null) === self::PUSH && ($ip === null || $ip === '')) {
+            return;
+        }
+
         if (! is_string($ip) || $ip === '') {
             $fail(__('validation.required', ['attribute' => 'connection_config.ip']));
 

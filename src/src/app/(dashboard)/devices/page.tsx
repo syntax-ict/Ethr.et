@@ -69,6 +69,7 @@ import {
 import {
   buildDevicePayload,
   EMPTY_DEVICE_FORM,
+  canSendToEthr,
   isIpAdapter,
   SIMULATOR_IN_FORM,
   type DeviceFormData,
@@ -229,6 +230,7 @@ export default function DevicesPage() {
       password: "",
       api_key: "",
       auto_sync: device.auto_sync,
+      sends_to_ethr: device.receives_only === true,
     });
     setEditDevice(device);
   }
@@ -709,9 +711,10 @@ function DeviceFormDialog({
 }) {
   const { t } = useT();
   const set = (
-    key: Exclude<keyof DeviceFormData, "auto_sync">,
+    key: Exclude<keyof DeviceFormData, "auto_sync" | "sends_to_ethr">,
     value: string,
   ) => setForm((p) => ({ ...p, [key]: value }));
+  const sendsToEthr = canSendToEthr(form.adapter_type) && form.sends_to_ethr;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -777,7 +780,10 @@ function DeviceFormDialog({
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
+          <div
+            className="flex items-center justify-between rounded-lg border p-3"
+            hidden={sendsToEthr}
+          >
             <div>
               <p className="text-sm font-medium">
                 {t("device_detail_page.auto_sync")}
@@ -805,10 +811,45 @@ function DeviceFormDialog({
             </div>
           )}
 
-          {isIpAdapter(form.adapter_type) && (
+          {canSendToEthr(form.adapter_type) && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {t(
+                    "devices_page.sends_to_ethr",
+                    "The terminal is on our office network",
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "devices_page.sends_to_ethr_hint",
+                    "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
+                  )}
+                </p>
+              </div>
+              <Switch
+                aria-label={t(
+                  "devices_page.sends_to_ethr",
+                  "The terminal is on our office network",
+                )}
+                checked={form.sends_to_ethr}
+                onCheckedChange={(v) =>
+                  setForm((p) => ({ ...p, sends_to_ethr: v }))
+                }
+              />
+            </div>
+          )}
+
+          {isIpAdapter(form.adapter_type) && !sendsToEthr && (
             <div className="space-y-4 rounded-lg border p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase">
                 {t("devices_page.connection_settings")}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "devices_page.public_address_hint",
+                  "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
+                )}
               </p>
               {!addressRequired && (
                 <p className="text-sm text-muted-foreground">
@@ -825,7 +866,7 @@ function DeviceFormDialog({
                     value={form.ip}
                     onChange={(e) => set("ip", e.target.value)}
                     required={addressRequired}
-                    placeholder="192.168.1.100"
+                    placeholder="203.0.113.10"
                     className="mt-1"
                   />
                 </div>

@@ -147,3 +147,44 @@ describe("the device form's default", () => {
     ).toBe(false);
   });
 });
+
+/*
+ * A Hikvision terminal on an office network (2026-11-11). ETHR cannot reach a
+ * private address from shared hosting and refuses one, and the form had no
+ * way to register a terminal without an address.
+ */
+describe("a terminal that sends to ETHR", () => {
+  const sending: DeviceFormData = {
+    ...hikvision,
+    ip: "",
+    port: "80",
+    username: "",
+    password: "",
+    sends_to_ethr: true,
+  };
+
+  it("is registered with no address, and is not put on the pull schedule", () => {
+    const payload = buildDevicePayload(sending, "create");
+
+    expect(payload.connection_config).toEqual({ mode: "push" });
+    expect(payload.auto_sync).toBe(false);
+  });
+
+  it("says so on edit as well, which is how a terminal is switched over", () => {
+    expect(buildDevicePayload(sending, "edit").connection_config).toEqual({
+      mode: "push",
+    });
+  });
+
+  it("is a Hikvision choice only: another vendor still sends its address", () => {
+    const zkteco = buildDevicePayload(
+      { ...sending, adapter_type: "zkteco", ip: "203.0.113.10", port: "4370" },
+      "create",
+    );
+
+    expect(zkteco.connection_config).toEqual({
+      ip: "203.0.113.10",
+      port: 4370,
+    });
+  });
+});

@@ -10,7 +10,8 @@ type StoreDeviceRequest = components["schemas"]["StoreDeviceRequest"];
 export type DeviceConnectionConfig =
   | StoreDeviceRequest["connection_config"]
   | { mode: "simulator" }
-  | { mode: "adms" };
+  | { mode: "adms" }
+  | { mode: "push" };
 
 export type DevicePayload = Omit<StoreDeviceRequest, "connection_config"> & {
   connection_config?: DeviceConnectionConfig;
@@ -28,6 +29,16 @@ export interface DeviceFormData {
   api_key: string;
   /** Whether the scheduler pulls this device every few minutes. */
   auto_sync: boolean;
+  /**
+   * A Hikvision terminal on an office network: it sends its punches to ETHR
+   * and has no address ETHR could reach, so none is asked for.
+   */
+  sends_to_ethr: boolean;
+}
+
+/** The adapters that can be registered to send to ETHR with no address. */
+export function canSendToEthr(adapterType: string): boolean {
+  return adapterType === "hikvision";
 }
 
 /**
@@ -49,6 +60,7 @@ export const EMPTY_DEVICE_FORM: DeviceFormData = {
   password: "",
   api_key: "",
   auto_sync: true,
+  sends_to_ethr: false,
 };
 
 /** Adapters addressed as `http://{ip}:{port}` — the only ones this form can configure. */
@@ -95,6 +107,16 @@ export function buildDevicePayload(
   }
 
   if (!isIpAdapter(form.adapter_type)) return payload;
+
+  // Sent on edit too: it is how a terminal ETHR used to call is switched
+  // over, and the server then drops the address and credentials it held.
+  if (canSendToEthr(form.adapter_type) && form.sends_to_ethr) {
+    payload.connection_config = { mode: "push" };
+    // Nothing to pull from a terminal that only sends.
+    payload.auto_sync = false;
+    return payload;
+  }
+
   if (mode === "edit" && form.ip.trim() === "") return payload;
 
   // No fallback port: a blank one goes as null and the server says so, rather

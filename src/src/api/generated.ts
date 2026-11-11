@@ -9609,6 +9609,7 @@ export interface components {
             auto_sync: boolean;
             commands_enabled: boolean;
             accepts_commands: boolean;
+            receives_only: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
@@ -11799,6 +11800,7 @@ export interface components {
                  */
                 ip?: string | null;
                 port?: number | null;
+                mode?: string | null;
                 /** Format: uri */
                 base_url?: string | null;
                 username?: string | null;
