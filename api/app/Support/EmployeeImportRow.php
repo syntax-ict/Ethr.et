@@ -57,6 +57,20 @@ final class EmployeeImportRow
     /** A list with no column names is read in this order. Only the name is required. */
     public const DEFAULT_ORDER = ['name', 'email', 'phone', 'employee_code', 'hire_date', 'department_code'];
 
+    /**
+     * Columns a spreadsheet must keep as written. Left as numbers, Excel drops
+     * the leading zero of 0911... and rounds a 16-digit national id to fifteen
+     * digits. The workbook template formats these as text, and a value that
+     * arrives already rounded is refused, not stored (ROUNDED).
+     */
+    public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id'];
+
+    /** A number a spreadsheet rounded and wrote in scientific notation: 1.23457E+15. */
+    private const ROUNDED = '/^\d(\.\d+)?e\+?\d+$/i';
+
+    /** Excel's own day numbers that fall between 1954 and 2064: a date cell saved as a number. */
+    private const SERIAL_DAYS = [20000, 60000];
+
     /** The statuses a list may bring a new person in with. Anyone who has left is not imported as new. */
     public const STATUSES = ['hired', 'probation', 'confirmed'];
 
@@ -239,6 +253,10 @@ final class EmployeeImportRow
             'external_id' => ['nullable', 'string', 'max:100'],
         ];
 
+        foreach (self::TEXT_COLUMNS as $column) {
+            $rules[$column][] = 'not_regex:'.self::ROUNDED;
+        }
+
         $prefixed = [];
         foreach ($rules as $field => $fieldRules) {
             $prefixed[$prefix.$field] = $fieldRules;
@@ -331,6 +349,13 @@ final class EmployeeImportRow
         // rule then sees only digits and an optional two-place decimal.
         if (is_string($row['salary'] ?? null)) {
             $row['salary'] = (string) preg_replace('/etb|birr|br|[\s,]/i', '', $row['salary']);
+        }
+
+        // A number cell read as text: "1001.0" is the employee number 1001.
+        foreach (self::TEXT_COLUMNS as $column) {
+            if (is_string($row[$column] ?? null) && preg_match('/^(\d+)\.0+$/', $row[$column], $m) === 1) {
+                $row[$column] = $m[1];
+            }
         }
 
         if (is_string($row['status'] ?? null)) {
@@ -490,7 +515,9 @@ final class EmployeeImportRow
      */
     public static function messages(array $row, array $rules): array
     {
-        return array_values(Validator::make($row, $rules)->errors()->all());
+        return array_values(Validator::make($row, $rules, [
+            'not_regex' => __('employee.import_excel_rounded'),
+        ])->errors()->all());
     }
 
     /**
@@ -505,11 +532,19 @@ final class EmployeeImportRow
      * is returned as written, so the date rule refuses it rather than this
      * guessing.
      *
+     * A bare five-digit number is the day number Excel keeps a date as, when
+     * the cell lost its date format (43654 is 8 July 2019). It is Gregorian
+     * whatever calendar the list is in: a spreadsheet has no other.
+     *
      * @param  'gregorian'|'ethiopian'  $calendar
      */
     private static function date(string $value, string $calendar): string
     {
         $written = $value;
+
+        if (preg_match('/^\d{5}$/', $value) === 1 && (int) $value >= self::SERIAL_DAYS[0] && (int) $value <= self::SERIAL_DAYS[1]) {
+            return Carbon::create(1899, 12, 30)->addDays((int) $value)->toDateString();
+        }
 
         if (preg_match('/^(.*\d)\s*\(?([\p{L}.]+)\)?$/u', $value, $m) === 1) {
             $named = self::CALENDAR_MARKS[self::key($m[2])] ?? null;

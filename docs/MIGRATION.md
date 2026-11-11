@@ -110,6 +110,67 @@ a caller that sends a file. They read the same column names and honour both new
 columns. They have no review: a person already in ETHR is counted and nothing
 the row brings is kept. The screen no longer uses them.
 
+### A workbook is opened in the browser (2026-11-11)
+
+The employee template is an Excel workbook, and an `.xlsx` file can be chosen
+wherever a CSV can. **Neither touches the server as a file.** The library that
+writes dropdowns on the server needs a newer PHP than the host runs, and the
+host's zip and XML extensions are unconfirmed, so the browser does the work
+(ExcelJS, loaded only when a workbook is chosen or the template downloaded;
+`features/onboarding/v2/xlsx-grid.ts`) and sends the same `grid` of cells a
+pasted list is. What a column means is still decided by `EmployeeImportRow`.
+
+**Reading.** The sheet named `Employees` is read, or the first visible sheet
+that is not the template's own `Instructions`. Each cell becomes the text a
+person sees:
+
+| cell | becomes |
+|---|---|
+| text | itself, trimmed |
+| number | as typed: `1001`, `12500.5` |
+| number of 10^15 or more | `1.23e+15`. The spreadsheet has already rounded it (a 16-digit national id keeps fifteen digits), nothing can restore the lost ones, and written like this the server refuses it with what to do |
+| date | `2019-07-08 G.C.`. A date cell is Gregorian whatever calendar the list is in, and says so, so a list of Ethiopian dates typed as text can sit beside it |
+| formula | its result |
+| rich text, link | its text |
+
+An empty row keeps its place, so a line number the server reports is the row
+number in Excel. The cells go into the list box as text, to be seen and
+corrected like a pasted list. A sheet of more than 5,000 rows and an old `.xls`
+file are refused with what to do instead.
+
+**What a spreadsheet does to a value, and the server undoes or refuses**
+(`ExcelCoercionTest`):
+
+- a phone that lost its leading zero (`911223344`) is the same number;
+- `1001.0` in an identifier column is `1001`;
+- a bare five-digit number in a date column is Excel's day count (`43654` is
+  8 July 2019), read as Gregorian;
+- `1.23457E+15` in an employee number, phone, national id, TIN, badge or
+  other-system id is refused: "format the column as text and type the whole
+  number".
+
+**The template.** `POST /employees/import/template` now also answers what a
+workbook needs: `lists` (what each choice column may hold: the fixed values,
+and this organisation's departments, branches and positions by name, by code
+where two share a name, since a shared name is refused as ambiguous),
+`text_columns`, `date_columns` and `required`. The browser builds:
+
+- `Employees`: the header row, each date column naming the calendar chosen;
+  identifier and date columns formatted as text; a dropdown on each choice
+  column for 2,000 rows. A dropdown **warns and lets a typed value through**:
+  the import reads more spellings than the list offers (a code for a name, M
+  for male).
+- `Instructions`: how to fill it in, and what each column takes, in the
+  reader's language.
+- `Lists`: hidden, the dropdowns' values. A value with a comma in it would
+  break a list typed into the rule itself.
+
+Dates are text on purpose. An Ethiopian date is not a date Excel can hold, and
+a Gregorian one typed into a date cell is shown in whatever order the
+computer's region uses. There is no example row: one left in would be imported.
+If the workbook cannot be built (its library did not load), the CSV header row
+is downloaded instead.
+
 ### Suggested action from the verdict
 
 | verdict | default action |

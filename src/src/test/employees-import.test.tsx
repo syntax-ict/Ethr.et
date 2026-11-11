@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import EmployeeImportPage from "@/app/(dashboard)/employees/import/page";
 import type { MigrationBatch } from "@/features/onboarding/v2/types";
+import { readWorkbook } from "@/features/onboarding/v2/xlsx-grid";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -26,9 +27,11 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
-const saved: { name: string; csv: string }[] = [];
+const saved: { name: string; blob: Blob }[] = [];
+const savedCsv: string[] = [];
 vi.mock("@/lib/utils/csv-export", () => ({
-  saveCsv: (name: string, csv: string) => saved.push({ name, csv }),
+  saveBlob: (name: string, blob: Blob) => saved.push({ name, blob }),
+  saveCsv: (name: string) => savedCsv.push(name),
 }));
 
 /*
@@ -127,7 +130,7 @@ describe("Employee import", () => {
     renderPage();
 
     expect(
-      screen.getByRole("button", { name: "Choose a CSV file" }),
+      screen.getByRole("button", { name: "Choose an Excel or CSV file" }),
     ).toBeEnabled();
   });
 
@@ -179,19 +182,24 @@ describe("Employee import", () => {
     expect(staged!.calendar).toBe("gregorian");
   });
 
-  it("downloads the one employee template, its date columns naming the calendar", async () => {
+  it("downloads the one employee template as a workbook, its date columns naming the calendar", async () => {
     saved.length = 0;
+    savedCsv.length = 0;
     server.use(
       http.post("*/employees/import/template", () =>
         HttpResponse.json({
-          template: "name,hire_date,date_of_birth,status,external_id\n",
+          template: "name,hire_date,date_of_birth,gender,department\n",
           headers: [
             "name",
             "hire_date",
             "date_of_birth",
-            "status",
-            "external_id",
+            "gender",
+            "department",
           ],
+          required: ["name"],
+          text_columns: [],
+          date_columns: ["hire_date", "date_of_birth"],
+          lists: { gender: ["male", "female"], department: ["Finance"] },
         }),
       ),
     );
@@ -200,11 +208,21 @@ describe("Employee import", () => {
     fireEvent.click(screen.getByText("Ethiopian (E.C.)"));
     fireEvent.click(screen.getByText("Download template"));
 
-    await waitFor(() => expect(saved).toHaveLength(1));
-    expect(saved[0].name).toBe("ethr-employee-template.csv");
-    expect(saved[0].csv.trim()).toBe(
-      "name,hire_date (E.C.),date_of_birth (E.C.),status,external_id",
-    );
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(saved[0].name).toBe("ethr-employee-template.xlsx");
+    expect(savedCsv).toEqual([]);
+
+    // It reads back as its own header row, in the calendar chosen.
+    const bytes = await saved[0].blob.arrayBuffer();
+    expect(await readWorkbook(bytes)).toEqual([
+      [
+        "name",
+        "hire_date (E.C.)",
+        "date_of_birth (E.C.)",
+        "gender",
+        "department",
+      ],
+    ]);
   });
 
   it("refuses a file over 5 MB without reading it into the page", async () => {

@@ -16120,7 +16120,8 @@
                     "employees"
                 ],
                 "operationId": "employeeImport.template",
-                "summary": "Template import",
+                "description": "`template` is the CSV header row. `lists` is what each choice column\nmay hold, for dropdowns: the fixed values, and this organisation's\ndepartments, branches and positions by name (by code where two share a\nname). `text_columns` must be formatted as text, or a spreadsheet drops\na leading zero and rounds a long number. `date_columns` hold dates.",
+                "summary": "The employee template: its columns, and what a workbook built from it\nneeds to know",
                 "tags": [
                     "Employees"
                 ],
@@ -16137,96 +16138,45 @@
                                         },
                                         "headers": {
                                             "type": "array",
-                                            "prefixItems": [
-                                                {
-                                                    "type": "string",
-                                                    "const": "name"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "name_am"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "employee_code"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "email"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "phone"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "gender"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "date_of_birth"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "hire_date"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "department"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "branch"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "position"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "salary"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "national_id"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "tin"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "badge_number"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "nationality"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "nationality_status"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "marital_status"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "status"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "external_id"
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "text_columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "date_columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "lists": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
                                                 }
-                                            ],
-                                            "minItems": 20,
-                                            "maxItems": 20,
-                                            "additionalItems": false
+                                            }
                                         }
                                     },
                                     "required": [
                                         "template",
-                                        "headers"
+                                        "headers",
+                                        "required",
+                                        "text_columns",
+                                        "date_columns",
+                                        "lists"
                                     ]
                                 }
                             }

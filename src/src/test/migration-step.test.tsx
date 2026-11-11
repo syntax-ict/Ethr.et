@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { Workbook } from "exceljs";
 import { server } from "./msw/server";
 import { MigrationStep } from "@/features/onboarding/v2/components/migration-step";
 import type {
@@ -378,6 +379,64 @@ describe("<MigrationStep>", () => {
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ skip_problems: true });
     expect(body!.grid).toHaveLength(4);
+  });
+
+  it("opens a chosen workbook in the browser and puts its people in the list", async () => {
+    const asked = reads({ people: 2, header: true, columns: ["name"] });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet("Staff");
+    sheet.addRow(["Name", "Staff ID", "Start date"]);
+    sheet.addRow(["Abebe Kebede", 1001, new Date(Date.UTC(2019, 6, 8))]);
+    sheet.addRow(["Kebede, Hanna", "EMP-2", "2011-10-30"]);
+    const file = new File([await workbook.xlsx.writeBuffer()], "staff.xlsx");
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [file] },
+    });
+
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    await waitFor(() => expect(textarea.value).toContain("Abebe Kebede"), {
+      timeout: 10_000,
+    });
+    expect(await screen.findByText(/^2 people ready/)).toBeInTheDocument();
+
+    // What the server is asked about is the workbook's cells: a number as
+    // typed, a date cell marked Gregorian, a comma kept inside its cell.
+    expect(asked[asked.length - 1].grid).toEqual([
+      ["Name", "Staff ID", "Start date"],
+      ["Abebe Kebede", "1001", "2019-07-08 G.C."],
+      ["Kebede, Hanna", "EMP-2", "2011-10-30"],
+    ]);
+  });
+
+  it("says an old .xls file is not read, and reads nothing", async () => {
+    const { toast } = await import("sonner");
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [new File(["x"], "staff.xls")] },
+    });
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("Old .xls files are not read"),
+      ),
+    );
+    expect(
+      (container.querySelector("textarea") as HTMLTextAreaElement).value,
+    ).toBe("");
   });
 
   it("reads a chosen CSV file into the list", async () => {

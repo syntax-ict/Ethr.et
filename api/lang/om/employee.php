@@ -27,6 +27,7 @@ return [
     'import_field_email' => 'imeelii',
     'import_field_badge_number' => 'lakkoofsa baajii',
     'import_field_external_id' => 'eenyummeessaa sirna biraa keessaa',
+    'import_excel_rounded' => 'Ispireedshiitiin :attribute lakkoofsa isaa naannesseera. Tarjaa akka barreeffamaatti (Text) qopheessaatii lakkoofsa guutuu barreessaa.',
     'number_format_invalid' => 'Mallattoo {SEQ:n} tokko fayyadamaa, n 1 hanga 8, naannoo isaatti qubee, dijiitii, - _ . ykn / waliin. Fakkeenyaaf EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Mindaa ykn odeeffannoo baankii keessanii nama biraa dhaabbata keessan keessaatu jijjiiruu qaba.',
     'cannot_change_own_deductions' => "Liqaa ykn hir'isa mindaa keessanii nama biraa dhaabbata keessan keessaatu galmeessuu ykn jijjiiruu qaba.",
