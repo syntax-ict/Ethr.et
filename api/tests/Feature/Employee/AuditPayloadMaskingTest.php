@@ -24,6 +24,21 @@ function storedAuditPayloads(): string
     return DB::table('audit_log')->pluck('payload')->filter()->implode("\n");
 }
 
+/**
+ * A stored object with its keys in a fixed order. MySQL 8 keeps a JSON object
+ * sorted its own way (shorter keys first), MariaDB and SQLite keep it as written,
+ * and the order of keys in an audit record means nothing.
+ *
+ * @param  array<string, mixed>  $stored
+ * @return array<string, mixed>
+ */
+function maskKeySorted(array $stored): array
+{
+    ksort($stored);
+
+    return $stored;
+}
+
 function updatedAudit(Employee $employee): AuditLog
 {
     return AuditLog::query()
@@ -79,22 +94,22 @@ it('records a first value, a cleared value and a resent value without storing an
     $this->putJson($url, ['national_id' => 'NID-FIRST-5511', 'tin' => '0055110000'])->assertOk();
     $first = updatedAudit($employee)->payload;
 
-    expect($first['before'])->toBe(['national_id' => null, 'tin' => null])
-        ->and($first['after'])->toBe(['national_id' => EmployeeAuditMask::CHANGED, 'tin' => EmployeeAuditMask::CHANGED]);
+    expect(maskKeySorted($first['before']))->toBe(['national_id' => null, 'tin' => null])
+        ->and(maskKeySorted($first['after']))->toBe(['national_id' => EmployeeAuditMask::CHANGED, 'tin' => EmployeeAuditMask::CHANGED]);
 
     // The form resends what is stored: not a change, and it says so.
     $this->putJson($url, ['national_id' => 'NID-FIRST-5511', 'tin' => '0055110000'])->assertOk();
     $resent = updatedAudit($employee)->payload;
 
-    expect($resent['before'])->toBe(['national_id' => EmployeeAuditMask::REDACTED, 'tin' => EmployeeAuditMask::REDACTED])
-        ->and($resent['after'])->toBe(['national_id' => EmployeeAuditMask::UNCHANGED, 'tin' => EmployeeAuditMask::UNCHANGED]);
+    expect(maskKeySorted($resent['before']))->toBe(['national_id' => EmployeeAuditMask::REDACTED, 'tin' => EmployeeAuditMask::REDACTED])
+        ->and(maskKeySorted($resent['after']))->toBe(['national_id' => EmployeeAuditMask::UNCHANGED, 'tin' => EmployeeAuditMask::UNCHANGED]);
 
     // Cleared: a value before, none after.
     $this->putJson($url, ['national_id' => null, 'tin' => null])->assertOk();
     $cleared = updatedAudit($employee)->payload;
 
-    expect($cleared['before'])->toBe(['national_id' => EmployeeAuditMask::REDACTED, 'tin' => EmployeeAuditMask::REDACTED])
-        ->and($cleared['after'])->toBe(['national_id' => null, 'tin' => null]);
+    expect(maskKeySorted($cleared['before']))->toBe(['national_id' => EmployeeAuditMask::REDACTED, 'tin' => EmployeeAuditMask::REDACTED])
+        ->and(maskKeySorted($cleared['after']))->toBe(['national_id' => null, 'tin' => null]);
 
     expect(storedAuditPayloads())
         ->not->toContain('NID-FIRST-5511')

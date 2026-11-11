@@ -115,12 +115,20 @@ it('leaves the same row, audit record and webhook as an edit through the route',
         ->and(array_keys($updaterAudit->payload['after']))->toBe(array_keys($routeAudit->payload['after']))
         ->and($updaterAudit->payload)->toEqual($routeAudit->payload);
 
-    // The webhook: one delivery each, carrying the same two fields.
+    // The webhook: one delivery each, carrying the same two fields. Sorted by
+    // key before comparing, because MySQL 8 does not keep a JSON object in the
+    // order it was written.
     $deliveries = WebhookDelivery::query()->where('event', 'employee.updated')->orderBy('id')->get();
+    $sent = $deliveries->map(function (WebhookDelivery $delivery): array {
+        $data = $delivery->payload['data'];
+        ksort($data);
+
+        return $data;
+    });
 
     expect($deliveries)->toHaveCount(2)
-        ->and($deliveries[0]->payload['data'])->toBe(['public_id' => $viaRoute->public_id, 'name' => 'Edited Name'])
-        ->and($deliveries[1]->payload['data'])->toBe(['public_id' => $viaUpdater->public_id, 'name' => 'Edited Name']);
+        ->and($sent[0])->toBe(['name' => 'Edited Name', 'public_id' => $viaRoute->public_id])
+        ->and($sent[1])->toBe(['name' => 'Edited Name', 'public_id' => $viaUpdater->public_id]);
 
     Queue::assertPushed(DispatchWebhookJob::class, 2);
 });
