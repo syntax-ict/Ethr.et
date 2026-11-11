@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Jobs\PullDeviceEventsJob;
 use App\Models\Device;
 use App\Models\Tenant;
+use App\Services\Device\DeviceManager;
 use Illuminate\Console\Command;
 
 class SyncDevicesCommand extends Command
@@ -34,7 +35,8 @@ class SyncDevicesCommand extends Command
                 ->get();
 
             foreach ($devices as $device) {
-                if (! $device->isDueForSync()) {
+                // A terminal that only sends has nothing to pull.
+                if (! $device->isDueForSync() || DeviceManager::receivesOnly($device)) {
                     continue;
                 }
 

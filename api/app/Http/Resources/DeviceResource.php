@@ -10,6 +10,7 @@ use App\Models\Device;
 use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceCommandQueue;
+use App\Services\Device\DeviceManager;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,7 @@ class DeviceResource extends JsonResource
             'auto_sync' => $this->auto_sync,
             'commands_enabled' => (bool) $this->commands_enabled,
             'accepts_commands' => (bool) app(DeviceCommandQueue::class)->supports($this->resource),
+            'receives_only' => DeviceManager::receivesOnly($this->resource),
             'sync_interval_minutes' => $this->sync_interval_minutes,
             'timezone' => $this->timezone,
             'webhook_ip_allowlist' => $this->when(
