@@ -12,6 +12,9 @@ use App\Models\JobApplication;
 use App\Models\JobApplicationEvent;
 use App\Models\User;
 use App\Models\Vacancy;
+use App\Services\Identity\EmployeeIntake;
+use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IntakeResult;
 use App\Support\EthiopianPhone;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +34,7 @@ class RecruitmentService
     use DispatchesWebhooks;
 
     public function __construct(
-        private readonly EmployeeNumbering $numbering,
+        private readonly EmployeeIntake $intake,
         private readonly PlanLimitService $planLimits,
     ) {}
 
@@ -196,10 +199,7 @@ class RecruitmentService
                 throw ValidationException::withMessages(['vacancy' => [__('recruitment.positions_filled', ['positions' => $vacancy->positions])]]);
             }
 
-            $this->refuseCurrentEmployee($application);
-
             $tenant = app(CurrentTenant::class)->get();
-            $this->planLimits->assertCanAdd($tenant, 'employees');
 
             $status = EmployeeStatus::from($data['status'] ?? EmployeeStatus::HIRED->value);
             $hireDate = $data['hire_date'] ?? $application->offer_start_date?->toDateString();
@@ -208,7 +208,7 @@ class RecruitmentService
                 throw ValidationException::withMessages(['probation_end_date' => [__('recruitment.probation_before_start')]]);
             }
 
-            $employee = $this->numbering->create($tenant, array_filter([
+            $attributes = array_filter([
                 'name' => $application->name,
                 'email' => $application->email,
                 'phone' => $application->phone,
@@ -218,7 +218,26 @@ class RecruitmentService
                 'department_id' => $vacancy?->department_id,
                 'branch_id' => $vacancy?->branch_id,
                 'salary_cents' => $application->offer_salary_cents,
-            ], fn ($value) => $value !== null));
+            ], fn ($value) => $value !== null);
+
+            // A current employee with the same e-mail or phone is very likely
+            // the same person, and two records for one person split their
+            // attendance and pay. HR resolves it: an internal move is a
+            // personnel action, not a hire. Asked through EmployeeIntake, as
+            // every way of adding a person asks, so `0911…` on the application
+            // finds `+251911…` on the record. Someone who has left, or whose
+            // record was deleted, may be hired again as a new record.
+            $admitted = $this->intake->admit(
+                $tenant,
+                $attributes,
+                IdentitySignals::fromAttributes($attributes),
+                EmployeeIntake::VIA_RECRUITMENT,
+                [IntakeResult::FORMER_EMPLOYEE, IntakeResult::ARCHIVED],
+            );
+            if (! $admitted->created()) {
+                throw ValidationException::withMessages(['application' => [__('recruitment.already_employee')]]);
+            }
+            $employee = $admitted->record();
 
             $application->stage = ApplicationStage::HIRED;
             $application->employee_id = $employee->id;
@@ -322,35 +341,6 @@ class RecruitmentService
             ]);
 
         return [...$applications->all(), ...$employees->all()];
-    }
-
-    /**
-     * A current employee with the same e-mail or phone is very likely the same
-     * person, and two records for one person split their attendance and pay.
-     * HR resolves it - an internal move is a personnel action, not a hire. A
-     * former employee may be hired again.
-     */
-    private function refuseCurrentEmployee(JobApplication $application): void
-    {
-        if ($application->email === null && $application->phone === null) {
-            return;
-        }
-
-        $exists = Employee::query()
-            ->whereIn('status', array_map(fn (EmployeeStatus $s) => $s->value, [...EmployeeStatus::current(), EmployeeStatus::SUSPENDED]))
-            ->where(function ($q) use ($application): void {
-                if ($application->email !== null) {
-                    $q->orWhere('email', $application->email);
-                }
-                if ($application->phone !== null) {
-                    $q->orWhere('phone', $application->phone);
-                }
-            })
-            ->exists();
-
-        if ($exists) {
-            throw ValidationException::withMessages(['application' => [__('recruitment.already_employee')]]);
-        }
     }
 
     private function email(mixed $email): ?string

@@ -13,8 +13,9 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
-use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IntakeResult;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Support\Csv;
@@ -36,7 +37,7 @@ class EmployeeImporter
     private const UNIQUE_IN_FILE = ['employee_code', 'email', 'badge_number'];
 
     public function __construct(
-        private readonly IdentityResolver $identity,
+        private readonly EmployeeIntake $intake,
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeNumbering $numbering,
         private readonly InvitationDispatcher $invitations,
@@ -181,36 +182,6 @@ class EmployeeImporter
                 continue;
             }
 
-            // Guard against importing a person who already exists under a
-            // different import batch (a re-exported file, a manual entry). Only
-            // a confident match on a strong identifier (code/email/phone) skips;
-            // a mere name resemblance never blocks a genuine new hire. See
-            // ONBOARDING_V2.md D4.
-            if ($tenantId !== null) {
-                $match = $this->identity->resolve($tenantId, new IdentitySignals(
-                    employeeCode: $row['employee_code'] ?? null,
-                    email: $row['email'] ?? null,
-                    phone: $row['phone'] ?? null,
-                    name: $row['name'] ?? null,
-                    nationalId: $row['national_id'] ?? null,
-                ));
-
-                if ($match->isMatch()) {
-                    $matched++;
-
-                    continue;
-                }
-            }
-
-            // The form refuses a badge another employee holds; the schema
-            // does not (an index, not a unique one), so the import asks too.
-            if (($row['badge_number'] ?? null) !== null
-                && Employee::withTrashed()->where('tenant_id', $tenantId)->where('badge_number', $row['badge_number'])->exists()) {
-                $errors[$i] = [__('employee.import_already_taken', ['row' => $i])];
-
-                continue;
-            }
-
             $attributes = [
                 'name' => $row['name'],
                 'name_am' => $row['name_am'] ?? null,
@@ -234,10 +205,68 @@ class EmployeeImporter
                 $attributes[$foreignKey] = $this->relationId($row[$column] ?? null, $relations[$column]);
             }
 
+            // Is this someone the organisation already has? Asked through
+            // EmployeeIntake with every detail the row brings, as each other
+            // way of adding a person asks (a re-exported file, a manual entry,
+            // a terminal's roster). A name alone never counts: it is worth
+            // too little to reach "may be this person". See ONBOARDING_V2.md D4.
+            $asked = $this->intake->ask($tenant, IdentitySignals::fromAttributes($attributes));
+
+            // A certain match, with a current employee or one who has left:
+            // the person is here, and the row is counted, not added.
+            if ($asked->match->isMatch()) {
+                $matched++;
+
+                continue;
+            }
+
+            // The row agrees with someone on one identifier and disagrees
+            // on another. Skipping it would report a different person as
+            // already here; adding it could make a second record of the
+            // same one. This import has no review step, so it does neither.
+            //
+            // A badge another person holds under a different name is left
+            // to the badge check below, whose message says exactly that.
+            if (array_diff($asked->match->conflicts, ['name_differs']) !== []) {
+                $errors[$i] = [__('employee.import_needs_review', ['row' => $i])];
+
+                continue;
+            }
+
+            // A deleted employee's record is kept, and so is their code:
+            // the insert below would be refused as "already taken", which
+            // says nothing about why.
+            if ($asked->outcome === IntakeResult::ARCHIVED) {
+                $errors[$i] = [__('employee.import_archived', ['row' => $i])];
+
+                continue;
+            }
+
+            // The form refuses a badge another employee holds; the schema
+            // does not (an index, not a unique one), so the import asks too.
+            if (($row['badge_number'] ?? null) !== null
+                && Employee::withTrashed()->where('tenant_id', $tenantId)->where('badge_number', $row['badge_number'])->exists()) {
+                $errors[$i] = [__('employee.import_already_taken', ['row' => $i])];
+
+                continue;
+            }
+
+            // Someone who may be this person: the same phone, or two people
+            // the row fits equally. Until 2026-11-11 the row was added, which
+            // is how one person came to have two records. Nobody is here to
+            // ask, so it is refused and named; the form can add them, where a
+            // person says "this is someone new".
+            if (! $asked->unknown()) {
+                $errors[$i] = [__('employee.import_possible_duplicate', [
+                    'row' => $i,
+                    'name' => $asked->employee->name ?? ($asked->match->candidates[0]['employee_name'] ?? ''),
+                ])];
+
+                continue;
+            }
+
             try {
-                $employee = $attributes['employee_code'] === null
-                    ? $this->createNumbered($attributes, $pool)
-                    : Employee::create($attributes);
+                $employee = $this->intake->create($tenant, $attributes, EmployeeIntake::VIA_IMPORT, $asked, seatChecked: true, pool: $pool)->record();
             } catch (UniqueConstraintViolationException) {
                 // A code or badge another employee already holds: the resolver
                 // above did not call it the same person, so the row is refused
@@ -282,33 +311,6 @@ class EmployeeImporter
     public function templateCsv(): string
     {
         return implode(',', EmployeeImportRow::TEMPLATE)."\n";
-    }
-
-    /**
-     * The next number from the batch's pool, or a fresh one when another
-     * writer took it in the meantime.
-     *
-     * @param  array<string, mixed>  $attributes
-     * @param  list<string>  $pool
-     */
-    private function createNumbered(array $attributes, array &$pool): Employee
-    {
-        $code = array_shift($pool);
-        if ($code !== null) {
-            try {
-                return Employee::create([...$attributes, 'employee_code' => $code]);
-            } catch (UniqueConstraintViolationException $e) {
-                if (! str_contains($e->getMessage(), 'employee_code')) {
-                    throw $e;
-                }
-                $pool = [];
-            }
-        }
-
-        return $this->numbering->assign(
-            $this->currentTenant->get(),
-            fn (string $next): Employee => Employee::create([...$attributes, 'employee_code' => $next]),
-        );
     }
 
     /**

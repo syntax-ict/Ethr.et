@@ -47,14 +47,7 @@ final class DevicePunchRecorder
      */
     public function employee(Device $device, string $badge): ?Employee
     {
-        $signals = new IdentitySignals(
-            employeeCode: $badge,
-            badgeNumber: $badge,
-            sourceType: $device->adapter_type,
-            sourceRef: 'device:'.$device->id,
-            identifierType: 'device_user_id',
-            identifierValue: $badge,
-        );
+        $signals = IdentitySignals::forDeviceUser($device, $badge);
 
         $match = $this->resolver->resolve($device->tenant_id, $signals);
 

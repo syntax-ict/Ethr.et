@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\MigrationBatch;
 use App\Services\Auth\StartingPasswords;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,10 +41,21 @@ class CleanupExpiredDataJob implements ShouldQueue
             ->where('created_at', '<', now()->subDays(30))
             ->delete();
 
-        // Import staging data — hard delete after 7 days (CLAUDE.md soft-delete
-        // policy). Staging rows cascade with their batch.
+        // Import staging data: hard delete once nobody has touched the batch
+        // or any of its rows for MigrationBatch::RETENTION_DAYS (CLAUDE.md
+        // soft-delete policy). Staging rows cascade with their batch. Counted
+        // from the last activity, not from the day it was staged: a commit
+        // updates the batch and choosing a row's action updates that row, so
+        // a list being worked on is never the one deleted.
+        $stale = now()->subDays(MigrationBatch::RETENTION_DAYS);
         $deleted += DB::table('migration_batches')
-            ->where('created_at', '<', now()->subDays(7))
+            ->where('updated_at', '<', $stale)
+            ->whereNotExists(function ($rows) use ($stale): void {
+                $rows->selectRaw('1')
+                    ->from('migration_staging_rows')
+                    ->whereColumn('migration_staging_rows.batch_id', 'migration_batches.id')
+                    ->where('migration_staging_rows.updated_at', '>=', $stale);
+            })
             ->delete();
 
         // An organisation's data export is deleted when it expires

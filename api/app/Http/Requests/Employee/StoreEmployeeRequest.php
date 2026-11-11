@@ -30,6 +30,11 @@ class StoreEmployeeRequest extends FormRequest
      * `hire_date` may be up to a year ahead, for a signed offer; 2099 is a
      * typo (QA 2026-10-13).
      *
+     * `confirm_new` answers a 409 `employee-needs-confirmation`: the person
+     * looks like someone the organisation may already have, and the caller
+     * says they are someone new (EmployeeIntake). It does not overrule a 409
+     * `employee-exists`.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -68,6 +73,7 @@ class StoreEmployeeRequest extends FormRequest
             // email; the person receives an activation link to set their password.
             'create_login' => ['sometimes', 'boolean'],
             'user_role' => ['sometimes', 'string', Rule::enum(UserRole::class)],
+            'confirm_new' => ['sometimes', 'boolean'],
         ];
     }
 

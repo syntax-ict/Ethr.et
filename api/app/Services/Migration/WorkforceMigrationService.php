@@ -13,9 +13,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\DeviceManager;
 use App\Services\EmployeeNumbering;
+use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IntakeResult;
 use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
 use App\Support\EthiopianPhone;
@@ -38,6 +40,7 @@ final class WorkforceMigrationService
         private readonly DeviceManager $devices,
         private readonly EmployeeNumbering $numbering,
         private readonly PlanLimitService $planLimits,
+        private readonly EmployeeIntake $intake,
     ) {}
 
     /**
@@ -68,6 +71,9 @@ final class WorkforceMigrationService
                 'source_ref' => 'device:'.$device->id,
                 'identifier_type' => 'device_user_id',
                 'identifier_value' => $userId,
+                // The terminal's number is tried as an employee number; nobody
+                // said it is one (IdentitySignals::forDeviceUser).
+                'code_is_guess' => true,
             ];
 
             $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId);
@@ -151,7 +157,20 @@ final class WorkforceMigrationService
                     return;
                 }
 
-                foreach ($batch->rows()->get() as $row) {
+                $rows = $batch->rows()->get();
+
+                // Numbers for the people who bring none, read once for the
+                // batch as the file import does. Each used to read every
+                // employee code to find the next one.
+                $unnumbered = $rows->filter(function (MigrationStagingRow $row): bool {
+                    $raw = $row->getAttribute('raw');
+
+                    return $row->action === MigrationStagingRow::ACTION_CREATE
+                        && (! is_array($raw) || trim((string) ($raw['employee_code'] ?? '')) === '');
+                })->count();
+                $pool = $unnumbered > 0 ? $this->numbering->sequence($tenant, $unnumbered) : [];
+
+                foreach ($rows as $row) {
                     // Read via getAttribute so the array-cast's loose static type does
                     // not defeat the guard (the value is an array at runtime).
                     $rawAttr = $row->getAttribute('raw');
@@ -160,16 +179,30 @@ final class WorkforceMigrationService
 
                     switch ($row->action) {
                         case MigrationStagingRow::ACTION_CREATE:
-                            $employee = $this->createEmployee($raw, $tenant, $departments);
-                            $this->resolver->link($employee, $signals, 1.0, verified: true);
+                            $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
+                            $employee = $admitted->record();
+
+                            if ($admitted->created()) {
+                                // A reviewer chose this row's action, so the number
+                                // goes where they said, even from a confirmed holder.
+                                $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                                $totals['created']++;
+                            } else {
+                                // The person is here now and was not when the
+                                // list was reviewed: an earlier row of this
+                                // list, or someone adding them meanwhile. One
+                                // record, and this source's number linked to
+                                // it, unconfirmed because nobody looked.
+                                $this->resolver->link($employee, $signals, $admitted->match->confidence);
+                                $totals['merged']++;
+                            }
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                            $totals['created']++;
                             break;
 
                         case MigrationStagingRow::ACTION_MERGE:
                             $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
                             if ($employee !== null) {
-                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true);
+                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
                                 $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                                 $totals['merged']++;
                             } else {
@@ -269,7 +302,7 @@ final class WorkforceMigrationService
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $match->employee?->id,
-            'action' => $this->suggestedAction($match->outcome, $displayName),
+            'action' => $this->suggestedAction($match, $displayName),
         ]);
     }
 
@@ -278,15 +311,21 @@ final class WorkforceMigrationService
      * uncertain is deferred to a human; a clear new person is created, unless
      * the source gave no name. A device often holds only an enrolment number,
      * and every such row used to become an employee called "Unnamed".
+     *
+     * A match with someone who has left is deferred too. Linking a terminal's
+     * number to a leaver is rarely what the list means: the person is back, or
+     * the number was given to someone else, and only a person can say which.
      */
-    private function suggestedAction(string $outcome, ?string $name): string
+    private function suggestedAction(IdentityMatch $match, ?string $name): string
     {
-        return match ($outcome) {
-            IdentityMatch::MATCHED => MigrationStagingRow::ACTION_MERGE,
+        return match ($match->outcome) {
+            IdentityMatch::MATCHED => $match->isFormerEmployee()
+                ? MigrationStagingRow::ACTION_DEFER
+                : MigrationStagingRow::ACTION_MERGE,
             IdentityMatch::NEW => trim((string) $name) === ''
                 ? MigrationStagingRow::ACTION_DEFER
                 : MigrationStagingRow::ACTION_CREATE,
-            default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous
+            default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous, archived
         };
     }
 
@@ -301,10 +340,12 @@ final class WorkforceMigrationService
             email: isset($raw['email']) ? (string) $raw['email'] : null,
             phone: isset($raw['phone']) ? (string) $raw['phone'] : null,
             name: isset($raw['name']) ? (string) $raw['name'] : null,
+            nationalId: isset($raw['national_id']) ? (string) $raw['national_id'] : null,
             sourceType: isset($raw['source_type']) ? (string) $raw['source_type'] : null,
             sourceRef: isset($raw['source_ref']) ? (string) $raw['source_ref'] : null,
             identifierType: isset($raw['identifier_type']) ? (string) $raw['identifier_type'] : null,
             identifierValue: isset($raw['identifier_value']) ? (string) $raw['identifier_value'] : null,
+            codeIsGuess: ($raw['code_is_guess'] ?? false) === true,
         );
     }
 
@@ -349,18 +390,33 @@ final class WorkforceMigrationService
     }
 
     /**
+     * A "create" row, asked again under the lock (EmployeeIntake).
+     *
+     * The verdict a reviewer saw was reached when the list was staged, and the
+     * roster has moved since: an earlier row of the same list, the form, a
+     * directory. A reviewer's "create" stands over everything they were shown
+     * (a likeness, a leaver, a deleted record, and a certain match when that
+     * is what the row said at review). What they were not shown is a certain
+     * match that appeared afterwards; that row is linked to the person, not
+     * made a second time.
+     *
      * A department is matched by code or name (DepartmentMatch). A pasted list
      * was checked when it was staged; a device's own department names are
      * not, so one the organisation does not have leaves the person unassigned.
      *
      * @param  array<string, mixed>  $raw
+     * @param  list<string>  $pool  the batch's numbers for people who bring none
      */
-    private function createEmployee(array $raw, Tenant $tenant, DepartmentMatch $departments): Employee
+    private function admit(MigrationStagingRow $row, array $raw, IdentitySignals $signals, MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, array &$pool): IntakeResult
     {
+        $accept = $row->match_outcome === IdentityMatch::MATCHED
+            ? [...IntakeResult::CONFIRMABLE, IntakeResult::MATCHED]
+            : IntakeResult::CONFIRMABLE;
+
         // EmployeeNumbering gives the next number when the row brings none,
-        // as adding one person or importing a file does.
-        return $this->numbering->create($tenant, [
-            'tenant_id' => $tenant->id,
+        // as adding one person or importing a file does. The plan's limit was
+        // checked for the whole batch before the first row.
+        return $this->intake->admit($tenant, [
             'name' => $this->nameOf($raw),
             'email' => isset($raw['email']) ? (string) $raw['email'] : null,
             'phone' => EthiopianPhone::canonicalOrRaw(isset($raw['phone']) ? (string) $raw['phone'] : null),
@@ -369,6 +425,6 @@ final class WorkforceMigrationService
             'hire_date' => isset($raw['hire_date']) ? (string) $raw['hire_date'] : now()->toDateString(),
             'department_id' => $departments->id(isset($raw['department']) ? (string) $raw['department'] : null),
             'status' => EmployeeStatus::HIRED,
-        ]);
+        ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
     }
 }

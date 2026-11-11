@@ -13906,10 +13906,7 @@
                                                                 "properties": {
                                                                     "outcome": {
                                                                         "type": "string",
-                                                                        "enum": [
-                                                                            "ambiguous",
-                                                                            "probable"
-                                                                        ]
+                                                                        "const": "probable"
                                                                     },
                                                                     "employee_public_id": {
                                                                         "type": "string"
@@ -13959,6 +13956,58 @@
                                                                 "properties": {
                                                                     "outcome": {
                                                                         "type": "string",
+                                                                        "const": "archived"
+                                                                    },
+                                                                    "employee_public_id": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "confidence": {
+                                                                        "type": "number"
+                                                                    },
+                                                                    "candidates": {
+                                                                        "type": "array",
+                                                                        "prefixItems": [
+                                                                            {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                    "employee_public_id": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "employee_name": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "score": {
+                                                                                        "type": "number"
+                                                                                    },
+                                                                                    "reasons": {
+                                                                                        "type": "string"
+                                                                                    }
+                                                                                },
+                                                                                "required": [
+                                                                                    "employee_public_id",
+                                                                                    "employee_name",
+                                                                                    "score",
+                                                                                    "reasons"
+                                                                                ]
+                                                                            }
+                                                                        ],
+                                                                        "minItems": 1,
+                                                                        "maxItems": 1,
+                                                                        "additionalItems": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "outcome",
+                                                                    "employee_public_id",
+                                                                    "confidence",
+                                                                    "candidates"
+                                                                ]
+                                                            },
+                                                            {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "outcome": {
+                                                                        "type": "string",
                                                                         "const": "new"
                                                                     },
                                                                     "employee_public_id": {
@@ -13968,7 +14017,13 @@
                                                                         "type": "number"
                                                                     },
                                                                     "candidates": {
-                                                                        "type": "string"
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "minItems": 0,
+                                                                        "maxItems": 0,
+                                                                        "additionalItems": false
                                                                     }
                                                                 },
                                                                 "required": [
@@ -14011,7 +14066,7 @@
                                                                                         "prefixItems": [
                                                                                             {
                                                                                                 "type": "string",
-                                                                                                "const": "existing_mapping"
+                                                                                                "const": "former_employee"
                                                                                             }
                                                                                         ],
                                                                                         "minItems": 1,
@@ -14068,6 +14123,9 @@
                                                 "ambiguous": {
                                                     "type": "string"
                                                 },
+                                                "archived": {
+                                                    "type": "string"
+                                                },
                                                 "new": {
                                                     "type": "string"
                                                 }
@@ -14077,6 +14135,7 @@
                                                 "matched",
                                                 "probable",
                                                 "ambiguous",
+                                                "archived",
                                                 "new"
                                             ]
                                         },
@@ -15186,7 +15245,8 @@
                     "employees"
                 ],
                 "operationId": "employees.store",
-                "summary": "Create employee",
+                "description": "One record per person. When the details sent match someone the\norganisation already has, nothing is created and the answer is a 409\nproblem document whose `candidates` name them (`public_id`, `name`, and\nthe `reasons` they matched on):\n\n- `code: employee-exists`: a current employee, matched on the national\n  ID, the e-mail, or the phone together with the name. Update that\n  record instead.\n- `code: employee-needs-confirmation`: someone who may be this person.\n  `outcome` says which: `needs_review` (a weaker match, such as a shared\n  phone), `former_employee` (someone who has left) or `archived` (a\n  deleted record, which can be restored). Send the same request with\n  `confirm_new: true` to add them as a new person.",
+                "summary": "Add an employee",
                 "tags": [
                     "Employees"
                 ],
@@ -19619,6 +19679,140 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/restore": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employee.restore",
+                "description": "Deleting an employee keeps the record with its attendance and pay\nhistory; this brings it back. It needs the permission to delete\nemployees. The person takes a seat again, so the plan's employee limit\napplies. An employee who is not deleted is returned unchanged.",
+                "summary": "Restore a deleted employee",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`EmployeeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/EmployeeResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "department": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/DepartmentResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "branch": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/BranchResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "position": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/PositionResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "grade": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/GradeResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "team": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/TeamResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "cost_center": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/CostCenterResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                },
+                                                "supervisor": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/EmployeeSummaryResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "department",
+                                                "branch",
+                                                "position",
+                                                "grade",
+                                                "team",
+                                                "cost_center",
+                                                "supervisor"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
@@ -52561,6 +52755,9 @@
                     },
                     "user_role": {
                         "$ref": "#/components/schemas/UserRole"
+                    },
+                    "confirm_new": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
