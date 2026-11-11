@@ -163,6 +163,7 @@ use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
 use App\Http\Controllers\Api\V1\User\EmployeeLoginController;
 use App\Http\Controllers\Api\V1\User\InvitationController;
+use App\Http\Controllers\Api\V1\User\StartingPasswordController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Vacancy\VacancyController;
 use App\Http\Controllers\Api\V1\Voice\ConcernController;
@@ -182,6 +183,7 @@ use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Http\Middleware\RequirePlatformMfa;
 use App\Http\Middleware\RequiresFeature;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
@@ -357,7 +359,7 @@ Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
 });
 
 // Authenticated routes
-Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdleTimeout::class, EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, RequireTenantMfaEnrolment::class, BlockImpersonatedActions::class, EnforceApiKeyAbilities::class])->group(function () {
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdleTimeout::class, EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, RequirePasswordChange::class, RequireTenantMfaEnrolment::class, BlockImpersonatedActions::class, EnforceApiKeyAbilities::class])->group(function () {
     // Broadcasting (Reverb) private-channel auth. Registered here — inside the
     // api/v1 group — so the httpOnly `access_token` cookie (path=/api) is sent and
     // AuthenticateFromCookie can resolve the user. The framework default lives at
@@ -577,6 +579,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
     Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
+    Route::post('/employees/starting-password', [StartingPasswordController::class, 'store']);
     Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     // The template is a header line, not an import: under `imports` it spent
     // one of the five an hour before a file was chosen.

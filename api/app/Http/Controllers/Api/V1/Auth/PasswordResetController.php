@@ -12,6 +12,7 @@ use App\Models\AuditLog;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Notifications\PasswordResetLinkNotification;
+use App\Services\Auth\StartingPasswords;
 use App\Services\CurrentTenant;
 use App\Support\Mail\CriticalMail;
 use App\Support\PasswordTokens;
@@ -134,6 +135,9 @@ class PasswordResetController extends Controller
             'password' => Hash::make($request->input('password')),
             // Starts the expiry clock for the tenant's password policy.
             'password_changed_at' => now(),
+            // The person has a password of their own now, so a starting
+            // password's hold and expiry no longer apply (StartingPasswords).
+            ...StartingPasswords::CLEARED,
         ];
 
         if ($wasInvited) {
@@ -173,10 +177,18 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($user, $request) {
+        // Someone held at this screen by a starting password
+        // (RequirePasswordChange) is let in by choosing their own: the hold and
+        // the expiry are cleared with the same write, and this is the moment
+        // the account is really theirs.
+        $wasHeld = $user->mustChangePassword();
+
+        DB::transaction(function () use ($user, $request, $wasHeld) {
             $user->update([
                 'password' => Hash::make($request->input('password')),
                 'password_changed_at' => now(),
+                'activated_at' => $wasHeld ? ($user->activated_at ?? now()) : $user->activated_at,
+                ...StartingPasswords::CLEARED,
             ]);
 
             // Revoke all other sessions but keep the current one active so the
@@ -192,6 +204,10 @@ class PasswordResetController extends Controller
         });
 
         AuditLog::record('user.password_changed', $user);
+
+        if ($wasHeld) {
+            AuditLog::record('user.activated', $user, ['via' => 'starting_password']);
+        }
 
         return response()->json([
             'message' => 'Password changed successfully. Other active sessions have been signed out.',

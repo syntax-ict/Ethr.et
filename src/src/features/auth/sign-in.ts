@@ -20,6 +20,8 @@ export async function prepareCsrfCookie(): Promise<void> {
 /** LoginController: `mfa_required` when a second factor is still owed. */
 export interface LoginResult {
   mfa_required?: boolean;
+  /** Signed in with a starting password: only the change screen is open. */
+  password_change_required?: boolean;
 }
 
 /**

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
+import { PASSWORD_CHANGE_PATH } from "@/api/client";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
@@ -247,7 +248,11 @@ export function LoginForm() {
       //
       // Authenticating starts a new session, so it starts a new cache.
       queryClient.clear();
-      router.push("/dashboard");
+      // A starting password opens one screen only; going there directly saves
+      // a dashboard load the API would refuse.
+      router.push(
+        result.password_change_required ? PASSWORD_CHANGE_PATH : "/dashboard",
+      );
     } catch (err: unknown) {
       const axiosError = err as {
         response?: {
