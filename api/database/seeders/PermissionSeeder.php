@@ -181,6 +181,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.update', 'module' => 'users', 'action' => 'update', 'description' => 'Update user roles, status and access'],
             ['name' => 'users.delete', 'module' => 'users', 'action' => 'delete', 'description' => 'Deactivate login accounts'],
             ['name' => 'users.issueActivationCode', 'module' => 'users', 'action' => 'issueActivationCode', 'description' => 'Issue a one-time activation code in person to an employee with no email or phone'],
+            ['name' => 'users.issueStartingPassword', 'module' => 'users', 'action' => 'issueStartingPassword', 'description' => 'Give a batch of employees with no email one starting password, changed at first sign-in'],
             ['name' => 'users.resetMfa', 'module' => 'users', 'action' => 'resetMfa', 'description' => 'Reset two-factor authentication for someone who lost their device'],
 
             // Announcement
@@ -310,6 +311,9 @@ class PermissionSeeder extends Seeder
             'users.viewAny', 'users.invite', 'users.update',
             // Face-to-face activation for staff with no email or phone.
             'users.issueActivationCode',
+            // One starting password for a batch of them (owner decision
+            // 2026-11-10). HR chooses it per batch; nothing gives it by default.
+            'users.issueStartingPassword',
         ];
 
         // Finance Admin: the payroll side. Approving, voiding and reprocessing a

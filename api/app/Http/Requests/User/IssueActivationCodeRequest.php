@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\User\Concerns\ConfirmsItIsThem;
 use App\Services\Auth\ActivationCodeService;
-use App\Services\MfaService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 /**
@@ -22,6 +21,8 @@ use Illuminate\Validation\Rule;
  */
 class IssueActivationCodeRequest extends FormRequest
 {
+    use ConfirmsItIsThem;
+
     public function authorize(): bool
     {
         return true;
@@ -41,27 +42,6 @@ class IssueActivationCodeRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
-        $validator->after(function (Validator $validator): void {
-            $actor = $this->user();
-
-            if ($actor === null || $validator->errors()->has('current_password')) {
-                return;
-            }
-
-            if (! Hash::check((string) $this->input('current_password'), (string) $actor->password)) {
-                $validator->errors()->add('current_password', __('validation.current_password'));
-
-                return;
-            }
-
-            if ($actor->mfa_enabled) {
-                $code = (string) $this->input('mfa_code', '');
-
-                // verifyFor counts a wrong code toward the account's lockout.
-                if ($code === '' || (string) $actor->mfa_secret === '' || ! app(MfaService::class)->verifyFor($actor, $code)) {
-                    $validator->errors()->add('mfa_code', __('validation.current_password'));
-                }
-            }
-        });
+        $this->confirmItIsThem($validator);
     }
 }

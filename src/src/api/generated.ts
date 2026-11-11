@@ -7941,6 +7941,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/starting-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Give a batch of employees one starting password
+         * @description For people with no email to be invited by. ETHR makes the password and
+         *     returns it once; it cannot be read back. Each person signs in with their
+         *     employee number and must choose their own password before anything else.
+         *     Unused after 72 hours, the account goes back to invited. Someone who
+         *     cannot be given one (already active, above the employee role, reachable
+         *     by an invitation) is left as they were and counted under `skipped`.
+         */
+        post: operations["startingPassword.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/statutory-rules": {
         parameters: {
             query?: never;
@@ -10076,6 +10101,20 @@ export interface components {
             /** @enum {string} */
             document_type: "national_id" | "kebele_id" | "passport" | "driving_licence" | "employer_id";
             note?: string | null;
+            current_password: string;
+            mfa_code?: string | null;
+        };
+        /**
+         * IssueStartingPasswordRequest
+         * @description HR names the employees and proves it is really them at the keyboard: their
+         *     own password, and their authenticator code when they have one. The starting
+         *     password itself is never sent; ETHR makes it.
+         *
+         *     Permission is checked here as well as in the controller, so someone without
+         *     it is refused before their password is looked at.
+         */
+        IssueStartingPasswordRequest: {
+            employee_ids: string[];
             current_password: string;
             mfa_code?: string | null;
         };
@@ -17498,6 +17537,7 @@ export interface operations {
                          *     Always present, so clients can branch without probing for the key.
                          */
                         password_expired: boolean;
+                        password_change_required: boolean;
                         mfa_token: string;
                         mfa_token_expires_in: string;
                     };
@@ -17509,6 +17549,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/starting-password-expired";
+                        /** @constant */
+                        title: "Starting Password Expired";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "This starting password has expired. Ask HR for a new way to sign in.";
+                    } | {
                         /** @constant */
                         type: "https://ethr.et/errors/account-inactive";
                         /** @constant */
@@ -28688,6 +28737,7 @@ export interface operations {
                          *     Always present, so clients can branch without probing for the key.
                          */
                         password_expired: boolean;
+                        password_change_required: boolean;
                         mfa_token: string;
                         mfa_token_expires_in: string;
                     };
@@ -35490,6 +35540,32 @@ export interface operations {
                         response: string;
                         verified: boolean;
                     };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "startingPassword.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueStartingPasswordRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
