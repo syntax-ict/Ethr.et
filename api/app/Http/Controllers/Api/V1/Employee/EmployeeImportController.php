@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Services\CurrentTenant;
 use App\Services\Import\EmployeeImporter;
 use App\Services\PlanLimitService;
+use App\Support\EmployeeImportChoices;
 use App\Support\EmployeeImportRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +21,18 @@ class EmployeeImportController extends Controller
 {
     public function __construct(private readonly EmployeeImporter $importer) {}
 
+    /**
+     * The employee template: its columns, and what a workbook built from it
+     * needs to know.
+     *
+     * `template` is the CSV header row. `lists` is what each choice column
+     * may hold, for dropdowns: the fixed values, and this organisation's
+     * departments, branches and positions by name (by code where two share a
+     * name). `text_columns` must be formatted as text, or a spreadsheet drops
+     * a leading zero and rounds a long number. `date_columns` hold dates.
+     *
+     * @response array{template: string, headers: list<string>, required: list<string>, text_columns: list<string>, date_columns: list<string>, lists: array<string, list<string>>}
+     */
     public function template(): JsonResponse
     {
         Gate::authorize('employee.create');
@@ -29,10 +42,15 @@ class EmployeeImportController extends Controller
         // From the same list as the template row: this was a second literal
         // that had fallen behind it and omitted `national_id`.
         $headers = EmployeeImportRow::TEMPLATE;
+        $lists = EmployeeImportChoices::forTenant(app(CurrentTenant::class)->id());
 
         return response()->json([
             'template' => $csv,
             'headers' => $headers,
+            'required' => ['name'],
+            'text_columns' => EmployeeImportRow::TEXT_COLUMNS,
+            'date_columns' => EmployeeImportRow::DATES,
+            'lists' => $lists,
         ]);
     }
 

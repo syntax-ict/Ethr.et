@@ -27,6 +27,7 @@ return [
     'import_field_email' => 'email',
     'import_field_badge_number' => 'badge number',
     'import_field_external_id' => 'ID in the other system',
+    'import_excel_rounded' => 'The :attribute was rounded by the spreadsheet. Format the column as text and type the whole number.',
     'number_format_invalid' => 'Use one {SEQ:n} token, n from 1 to 8, with letters, digits, - _ . or / around it. For example EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Someone else in your organisation must change your own pay or bank details.',
     'cannot_change_own_deductions' => 'Someone else in your organisation must set up or change your own loans and deductions.',

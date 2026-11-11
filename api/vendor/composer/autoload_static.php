@@ -1846,6 +1846,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\DocumentDownload' => __DIR__ . '/../..' . '/app/Support/DocumentDownload.php',
         'App\\Support\\EmployeeAuditMask' => __DIR__ . '/../..' . '/app/Support/EmployeeAuditMask.php',
         'App\\Support\\EmployeeGaps' => __DIR__ . '/../..' . '/app/Support/EmployeeGaps.php',
+        'App\\Support\\EmployeeImportChoices' => __DIR__ . '/../..' . '/app/Support/EmployeeImportChoices.php',
         'App\\Support\\EmployeeImportGrid' => __DIR__ . '/../..' . '/app/Support/EmployeeImportGrid.php',
         'App\\Support\\EmployeeImportRow' => __DIR__ . '/../..' . '/app/Support/EmployeeImportRow.php',
         'App\\Support\\EmployeeRelations' => __DIR__ . '/../..' . '/app/Support/EmployeeRelations.php',

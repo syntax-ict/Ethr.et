@@ -1112,6 +1112,7 @@ return array(
     'App\\Support\\DocumentDownload' => $baseDir . '/app/Support/DocumentDownload.php',
     'App\\Support\\EmployeeAuditMask' => $baseDir . '/app/Support/EmployeeAuditMask.php',
     'App\\Support\\EmployeeGaps' => $baseDir . '/app/Support/EmployeeGaps.php',
+    'App\\Support\\EmployeeImportChoices' => $baseDir . '/app/Support/EmployeeImportChoices.php',
     'App\\Support\\EmployeeImportGrid' => $baseDir . '/app/Support/EmployeeImportGrid.php',
     'App\\Support\\EmployeeImportRow' => $baseDir . '/app/Support/EmployeeImportRow.php',
     'App\\Support\\EmployeeRelations' => $baseDir . '/app/Support/EmployeeRelations.php',
