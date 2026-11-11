@@ -412,6 +412,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(2)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });
 
+        // A long list is added a slice at a time and the browser asks again
+        // until it is done: a few requests a minute, each up to twelve
+        // seconds. Thirty leaves room for short slices and stops a loop that
+        // never ends from spending the account's whole allowance.
+        RateLimiter::for('migration-commit', function (Request $request) {
+            return Limit::perMinute(30)->by('migration-commit:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('imports', function (Request $request) {
             return Limit::perHour(5)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });

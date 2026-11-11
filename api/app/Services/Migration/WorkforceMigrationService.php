@@ -13,6 +13,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\DeviceManager;
 use App\Services\EmployeeNumbering;
+use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
@@ -23,6 +24,7 @@ use App\Support\DepartmentMatch;
 use App\Support\EthiopianPhone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The workforce-migration workspace: discover people from a source, stage them
@@ -32,15 +34,36 @@ use Illuminate\Support\Facades\DB;
  * action — so an ambiguous match is never guessed and a known person is never
  * duplicated. Builds on IdentityResolver (Slice 4) and device enrollment
  * discovery (Slice 5). See ONBOARDING_V2.md decision D6.
+ *
+ * A row that matched an employee also carries what it would change on their
+ * record (StagedChanges): blanks are filled at commit, and a difference is
+ * written only where a reviewer accepted it. The edit is EmployeeUpdater's, so
+ * it leaves what an edit on the form leaves.
+ *
+ * A list is committed a slice at a time. One request has thirty seconds on
+ * the host; `commitSlice()` works for `SLICE_SECONDS`, records how far it got
+ * and says whether anything is left, and the caller asks again.
  */
 final class WorkforceMigrationService
 {
+    /** How long one request keeps committing before it answers. */
+    public const SLICE_SECONDS = 12.0;
+
+    /** Rows written per transaction, and per hold of the organisation's lock. */
+    public const CHUNK = 50;
+
+    private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
+
     public function __construct(
         private readonly IdentityResolver $resolver,
         private readonly DeviceManager $devices,
         private readonly EmployeeNumbering $numbering,
         private readonly PlanLimitService $planLimits,
         private readonly EmployeeIntake $intake,
+        private readonly StagedChanges $changes,
+        private readonly EmployeeUpdater $updater,
+        private readonly float $sliceSeconds = self::SLICE_SECONDS,
+        private readonly int $chunk = self::CHUNK,
     ) {}
 
     /**
@@ -55,6 +78,7 @@ final class WorkforceMigrationService
         // indistinguishable from a device with nobody enrolled.
         $enrollments = $this->devices->adapter($device)->pullEnrollments($device);
         $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
+        $departments = DepartmentMatch::forTenant($device->tenant_id);
 
         foreach ($enrollments as $enrollment) {
             $userId = $enrollment['device_user_id'];
@@ -76,7 +100,7 @@ final class WorkforceMigrationService
                 'code_is_guess' => true,
             ];
 
-            $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId);
+            $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId, $departments);
         }
 
         return $batch->refresh();
@@ -91,10 +115,11 @@ final class WorkforceMigrationService
     public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): MigrationBatch
     {
         $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator);
+        $departments = DepartmentMatch::forTenant($tenantId);
 
         foreach ($rows as $row) {
             $name = isset($row['name']) ? (string) $row['name'] : null;
-            $this->stageRow($batch, $row, $name, isset($row['employee_code']) ? (string) $row['employee_code'] : null);
+            $this->stageRow($batch, $row, $name, isset($row['employee_code']) ? (string) $row['employee_code'] : null, $departments);
         }
 
         return $batch->refresh();
@@ -106,13 +131,41 @@ final class WorkforceMigrationService
      * than committing being the only way that choice could ever take effect.
      * Passing null leaves any previously-resolved match untouched, so re-saving
      * just the action on an already-decided row doesn't clear it.
+     *
+     * `$accept` is the differences the reviewer wants written to the employee
+     * (StagedChanges): the fields named are accepted and every other one is
+     * not. Null leaves what was accepted as it is. Picking another employee
+     * starts the list again, since it was drawn up against someone else.
+     *
+     * @param  list<string>|null  $accept
      */
-    public function setAction(MigrationStagingRow $row, string $action, ?Employee $resolvedEmployee = null): MigrationStagingRow
+    public function setAction(MigrationStagingRow $row, string $action, ?Employee $resolvedEmployee = null, ?array $accept = null): MigrationStagingRow
     {
         $attributes = ['action' => $action];
+        $changed = $resolvedEmployee !== null && $resolvedEmployee->id !== $row->resolved_employee_id;
 
         if ($resolvedEmployee !== null) {
             $attributes['resolved_employee_id'] = $resolvedEmployee->id;
+        }
+
+        if ($changed) {
+            $attributes['changes'] = $this->changes->between(
+                $resolvedEmployee,
+                $this->rawOf($row),
+                DepartmentMatch::forTenant($row->tenant_id),
+            );
+        }
+
+        if ($accept !== null) {
+            $attributes['changes'] = array_map(
+                fn (array $change): array => [
+                    ...$change,
+                    'accepted' => ($change['kind'] ?? null) === StagedChanges::CONFLICT
+                        && ($change['taken'] ?? false) !== true
+                        && in_array($change['field'] ?? null, $accept, true),
+                ],
+                $attributes['changes'] ?? $row->changes ?? [],
+            );
         }
 
         $row->update($attributes);
@@ -121,114 +174,217 @@ final class WorkforceMigrationService
     }
 
     /**
-     * Apply every row's action. Create-only for new people, link-only for
-     * merges; skip/defer/pending do nothing. Idempotent: an already-committed
-     * batch is returned untouched.
+     * Apply every row's action, to the end of the list. Create-only for new
+     * people; a merge links the source's identity and writes the row's fills
+     * and accepted differences; skip/defer/pending do nothing. Idempotent: an
+     * already-committed batch is returned untouched.
+     *
+     * For a caller with no time limit. A request uses `commitSlice()`.
+     *
+     * `$actor` is who the changes to existing employees are made by. With
+     * none, people are created and linked and nobody's record is edited.
      *
      * @return array<string, int>
      */
-    public function commit(MigrationBatch $batch): array
+    public function commit(MigrationBatch $batch, ?User $actor = null): array
+    {
+        do {
+            $progress = $this->commitSlice($batch, $actor);
+        } while (! $progress->done);
+
+        return $progress->totals;
+    }
+
+    /**
+     * Commit as much of the list as fits in one request, in chunks that are
+     * each their own transaction under the organisation's lock. What a chunk
+     * wrote stays written: a request that dies loses the chunk it was in and
+     * the next one starts from the row after the last that was finished.
+     */
+    public function commitSlice(MigrationBatch $batch, ?User $actor = null): CommitProgress
     {
         if ($batch->isCommitted()) {
-            return $batch->totals ?? [];
+            return new CommitProgress(true, $this->totalsOf($batch), 0);
         }
 
         $tenant = Tenant::query()->findOrFail($batch->tenant_id);
-
-        $totals = ['created' => 0, 'merged' => 0, 'skipped' => 0, 'deferred' => 0];
-
         $departments = DepartmentMatch::forTenant($batch->tenant_id);
+        $started = microtime(true);
 
-        // The plan's limit, as every other way of adding people applies it
-        // (A-Z review A-02). Checked on the whole batch before anything is
-        // written, as the file import does, and under the organisation's seat
-        // lock with the transaction inside it, so the next writer counts
-        // what this one committed.
-        $creates = $batch->rows()->where('action', MigrationStagingRow::ACTION_CREATE)->count();
-        $this->planLimits->withinLimit($tenant, 'employees', $creates, function () use ($batch, $tenant, $departments, &$totals): void {
-            DB::transaction(function () use ($batch, $tenant, $departments, &$totals): void {
-                // Two commits of one batch (a second tab, a retry) both passed the
-                // check above and created everyone twice. The second now waits
-                // here and finds the batch committed.
-                $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
-                if ($locked->isCommitted()) {
-                    $totals = $locked->totals ?? [];
+        do {
+            $progress = $this->commitChunk($batch, $tenant, $departments, $actor);
+        } while (! $progress->done && microtime(true) - $started < $this->sliceSeconds);
 
-                    return;
-                }
+        $batch->refresh();
 
-                $rows = $batch->rows()->get();
+        return $progress;
+    }
 
-                // Numbers for the people who bring none, read once for the
-                // batch as the file import does. Each used to read every
-                // employee code to find the next one.
-                $unnumbered = $rows->filter(function (MigrationStagingRow $row): bool {
-                    $raw = $row->getAttribute('raw');
+    private function commitChunk(MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, ?User $actor): CommitProgress
+    {
+        // The organisation's seat lock, with the transaction inside it, so the
+        // next writer counts what this one committed (A-Z review A-02). It is
+        // also the lock every question about "is this person here already?" is
+        // asked under (EmployeeIntake).
+        return $this->planLimits->serialised($tenant, 'employees', fn (): CommitProgress => DB::transaction(function () use ($batch, $tenant, $departments, $actor): CommitProgress {
+            // Two commits of one batch (a second tab, a retry) both passed the
+            // check above and created everyone twice. The second now waits
+            // here and starts after the first one's last row.
+            $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->isCommitted()) {
+                return new CommitProgress(true, $this->totalsOf($locked), 0);
+            }
 
-                    return $row->action === MigrationStagingRow::ACTION_CREATE
-                        && (! is_array($raw) || trim((string) ($raw['employee_code'] ?? '')) === '');
-                })->count();
-                $pool = $unnumbered > 0 ? $this->numbering->sequence($tenant, $unnumbered) : [];
+            $cursor = (int) ($locked->commit_cursor ?? 0);
 
-                foreach ($rows as $row) {
-                    // Read via getAttribute so the array-cast's loose static type does
-                    // not defeat the guard (the value is an array at runtime).
-                    $rawAttr = $row->getAttribute('raw');
-                    $raw = is_array($rawAttr) ? $rawAttr : [];
-                    $signals = $this->signalsFromRaw($raw);
+            // The plan's limit, on everyone this list still has to add, before
+            // any of them is written: as the file import applies it.
+            $this->planLimits->assertCanAdd(
+                $tenant,
+                'employees',
+                $batch->rows()->where('id', '>', $cursor)->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
+            );
 
-                    switch ($row->action) {
-                        case MigrationStagingRow::ACTION_CREATE:
-                            $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
-                            $employee = $admitted->record();
+            $rows = $batch->rows()->where('id', '>', $cursor)->orderBy('id')->limit($this->chunk)->get();
+            $totals = $this->totalsOf($locked);
 
-                            if ($admitted->created()) {
-                                // A reviewer chose this row's action, so the number
-                                // goes where they said, even from a confirmed holder.
-                                $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
-                                $totals['created']++;
-                            } else {
-                                // The person is here now and was not when the
-                                // list was reviewed: an earlier row of this
-                                // list, or someone adding them meanwhile. One
-                                // record, and this source's number linked to
-                                // it, unconfirmed because nobody looked.
-                                $this->resolver->link($employee, $signals, $admitted->match->confidence);
-                                $totals['merged']++;
+            // Numbers for the people who bring none, read once for the chunk
+            // as the file import does. Each used to read every employee code
+            // to find the next one.
+            $unnumbered = $rows->filter(
+                fn (MigrationStagingRow $row): bool => $row->action === MigrationStagingRow::ACTION_CREATE
+                    && trim((string) ($this->rawOf($row)['employee_code'] ?? '')) === ''
+            )->count();
+            $pool = $unnumbered > 0 ? $this->numbering->sequence($tenant, $unnumbered) : [];
+
+            foreach ($rows as $row) {
+                $raw = $this->rawOf($row);
+                $signals = $this->signalsFromRaw($raw);
+
+                switch ($row->action) {
+                    case MigrationStagingRow::ACTION_CREATE:
+                        $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
+                        $employee = $admitted->record();
+
+                        if ($admitted->created()) {
+                            // A reviewer chose this row's action, so the number
+                            // goes where they said, even from a confirmed holder.
+                            $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                            $totals['created']++;
+                        } else {
+                            // The person is here now and was not when the
+                            // list was reviewed: an earlier row of this
+                            // list, or someone adding them meanwhile. One
+                            // record, and this source's number linked to
+                            // it, unconfirmed because nobody looked. Their
+                            // record is left as it is: nobody was shown what
+                            // this row would change on it.
+                            $this->resolver->link($employee, $signals, $admitted->match->confidence);
+                            $totals['merged']++;
+                        }
+                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                        break;
+
+                    case MigrationStagingRow::ACTION_MERGE:
+                        $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
+                        if ($employee !== null) {
+                            $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
+                            if ($this->applyChanges($row, $employee, $raw, $departments, $actor)) {
+                                $totals['updated']++;
                             }
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                            break;
-
-                        case MigrationStagingRow::ACTION_MERGE:
-                            $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
-                            if ($employee !== null) {
-                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
-                                $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
-                                $totals['merged']++;
-                            } else {
-                                $totals['deferred']++;
-                            }
-                            break;
-
-                        case MigrationStagingRow::ACTION_SKIP:
-                            $totals['skipped']++;
-                            break;
-
-                        default: // defer, pending
+                            $totals['merged']++;
+                        } else {
                             $totals['deferred']++;
-                            break;
-                    }
-                }
+                        }
+                        break;
 
-                $batch->update([
-                    'status' => 'committed',
-                    'committed_at' => now(),
-                    'totals' => $totals,
-                ]);
-            });
-        });
+                    case MigrationStagingRow::ACTION_SKIP:
+                        $totals['skipped']++;
+                        break;
+
+                    default: // defer, pending
+                        $totals['deferred']++;
+                        break;
+                }
+            }
+
+            $last = $rows->last();
+            $cursor = $last instanceof MigrationStagingRow ? (int) $last->getKey() : $cursor;
+            $remaining = $batch->rows()->where('id', '>', $cursor)->count();
+            $done = $remaining === 0;
+
+            $locked->update([
+                'status' => $done ? 'committed' : 'committing',
+                'committed_at' => $done ? now() : null,
+                'commit_cursor' => $cursor,
+                'totals' => $totals,
+            ]);
+
+            return new CommitProgress($done, $totals, $remaining);
+        }));
+    }
+
+    /**
+     * What the list has done so far, with every count present.
+     *
+     * @return array<string, int>
+     */
+    private function totalsOf(MigrationBatch $batch): array
+    {
+        $totals = self::NO_TOTALS;
+        $stored = $batch->getAttribute('totals');
+
+        foreach (is_array($stored) ? $stored : [] as $key => $value) {
+            if (is_string($key) && is_int($value)) {
+                $totals[$key] = $value;
+            }
+        }
 
         return $totals;
+    }
+
+    /**
+     * Write a merged row's fills and accepted differences to the employee it
+     * matched. True when their record changed.
+     *
+     * Nothing is written for a deleted record, for someone `$actor` may not
+     * edit, or for someone with a change already scheduled for a later date.
+     * Salary and TIN need the pay permission as well; without it the rest of
+     * the row is still written.
+     *
+     * The list is drawn up again here, from the employee as they are now. What
+     * is stored on the row says only which differences were accepted, and an
+     * acceptance holds while both values are the ones the reviewer was shown.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function applyChanges(MigrationStagingRow $row, Employee $employee, array $raw, DepartmentMatch $departments, ?User $actor): bool
+    {
+        if ($actor === null || $employee->trashed()) {
+            return false;
+        }
+
+        $gate = Gate::forUser($actor);
+        if (! $gate->allows('update', $employee) || $this->changes->scheduled($employee)) {
+            return false;
+        }
+
+        $changes = $this->changes->between($employee, $raw, $departments, $row->changes ?? []);
+        $fields = $this->changes->applicable($changes);
+
+        if (array_intersect($fields, StagedChanges::PAY) !== [] && ! $gate->inspect('updateFinancial', $employee)->allowed()) {
+            $fields = array_values(array_diff($fields, StagedChanges::PAY));
+        }
+
+        $attributes = $this->changes->attributes($employee, $changes, $fields, $departments);
+        if ($attributes === []) {
+            return false;
+        }
+
+        $this->updater->update($employee, $attributes, $actor);
+
+        return true;
     }
 
     /**
@@ -266,12 +422,21 @@ final class WorkforceMigrationService
             ->where('action', MigrationStagingRow::ACTION_CREATE)
             ->whereNotNull('processed_at')
             ->get()
-            ->filter(function (MigrationStagingRow $row): bool {
-                $raw = $row->getAttribute('raw');
-
-                return ! is_array($raw) || empty($raw['hire_date']);
-            })
+            ->filter(fn (MigrationStagingRow $row): bool => empty($this->rawOf($row)['hire_date']))
             ->count();
+    }
+
+    /**
+     * The row as the source gave it. Read via getAttribute so the cast's loose
+     * static type does not defeat the guard (the value is an array at runtime).
+     *
+     * @return array<string, mixed>
+     */
+    private function rawOf(MigrationStagingRow $row): array
+    {
+        $raw = $row->getAttribute('raw');
+
+        return is_array($raw) ? $raw : [];
     }
 
     private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
@@ -288,9 +453,10 @@ final class WorkforceMigrationService
     /**
      * @param  array<string, mixed>  $raw
      */
-    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier): void
+    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments): void
     {
         $match = $this->resolver->resolve($batch->tenant_id, $this->signalsFromRaw($raw));
+        $employee = $match->employee;
 
         MigrationStagingRow::create([
             'tenant_id' => $batch->tenant_id,
@@ -301,8 +467,11 @@ final class WorkforceMigrationService
             'match_outcome' => $match->outcome,
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
-            'resolved_employee_id' => $match->employee?->id,
+            'resolved_employee_id' => $employee?->id,
             'action' => $this->suggestedAction($match, $displayName),
+            'changes' => $employee !== null && ! $employee->trashed()
+                ? $this->changes->between($employee, $raw, $departments)
+                : null,
         ]);
     }
 
