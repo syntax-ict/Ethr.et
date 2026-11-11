@@ -59,6 +59,17 @@ return [
     'mfa_disabled_by_policy' => 'Dhaabbanni keessan mirkaneessa tarkaanfii lamaa hin dhiyeessu.',
     'session_idle_expired' => 'Seshiniin keessan erga yeroo tokkoof hojiin hin jirre booda xumurameera. Irra deebi\'aa seenaa.',
 
+    // Starting password for a batch of employees (owner decision 2026-11-10)
+    'password_change_required' => 'Itti fufuuf jecha icciitii mataa keessanii filadhaa.',
+    'starting_password_expired' => 'Jechi icciitii jalqabaa kun yeroon isaa darbeera. Karaa seensaa haaraa akka isiniif kennamu HR gaafadhaa.',
+    'starting_password_refused' => [
+        'tenant' => 'Hojjettoonni kun dhaabbata kana keessa hin jiran.',
+        'identifier' => 'Dhaabbanni kun koodii hojjetaatiin hin seenu. Jalqaba qindaa\'ina keessatti seensa koodii hojjetaatiin banaa.',
+        'nobody' => 'Namoota kana keessaa namni jecha icciitii jalqabaa argachuu danda\'u hin jiru.',
+    ],
+    'starting_password_alert_title' => 'Jechoonni Icciitii Jalqabaa Erga Seensi Irra Deddeebiin Hin Milkoofne Booda Yeroof Dhaabbataniiru',
+    'starting_password_alert_body' => 'Herregoota jecha icciitii jalqabaa qaban irratti yaaliin seenuu :failures hin milkoofne. Herregoonni sun daqiiqaa :minutes seenuu hin danda\'an. Herregoonni jecha icciitii mataa isaanii qaban hin tuqamne.',
+
     // "Find my organisation" on the apex login (2026-10-04)
     'find_organisation' => [
         'sent' => 'Teessoon sun kan dhaabbata tokkoo yoo ta\'e, liinkii seensaa isaa imeeliin isinii ergineerra.',
