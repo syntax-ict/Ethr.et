@@ -133,7 +133,7 @@ Search Console.
 subdomain from a single TXT record. It is already created and unverified; the
 record is in section 6. That ticket is the only durable fix — do it.
 
-### The defect that makes all of this moot until it is fixed
+### The defect that made all of this moot (fixed, not yet deployed)
 
 Measured 2026-11-11 on the live site. **Every organisation portal tells Google
 `noindex` once JavaScript runs.**
@@ -170,9 +170,26 @@ test says `noindex`; the indexing request was refused. Whether the pages already
 in the index survive is not known — check Search Console → Pages after the fix
 ships.
 
-Fixing it means the `noindex` must not reach the DOM on an organisation host —
-the apex `/login` still needs it. Whatever the shape, the test is the DOM and
-not the response body: `curl` cannot see this.
+**The fix.** The `noindex` is not only the head tag `inject()` strips: it is an
+entry in the page's React payload, which is what React renders from at
+hydration. `PortalHead::inject()` now writes the organisation's robots line
+over that entry as well, so the head, the `X-Robots-Tag` header and the
+hydrated DOM all say one thing. The apex `/login` is untouched — it is served
+as a file by Apache and keeps its own `noindex`, which is why the fix had to go
+here and not into the page's metadata.
+
+That rewrite reads Next's own serialisation, so a Next upgrade could change its
+shape and quietly match nothing. Two things guard against that, because a
+fixture test cannot: `statePayloadRobots()` reports any page that still says
+`noindex` after being told to be indexable, and the DOM check below. Run the
+DOM check after the release — `curl` cannot see this, which is how it survived
+three weeks.
+
+**An empty news page is now `noindex, follow` and is left out of the sitemap.**
+Nine of the ten news pages in the sitemap had no articles; once the robots line
+was honest, they would have become a shelf of identical empty pages on one
+domain. A page comes back the moment the organisation publishes something. An
+organisation that is hidden or out of use keeps `noindex, nofollow`.
 
 ### Checking an organisation after a fix
 
@@ -191,6 +208,18 @@ One entry, `index, follow`. Two entries is the defect above.
 Then Search Console → that property → URL Inspection → the `/login` address →
 **Request indexing**. A rejection with *indexing issues were detected* means the
 `noindex` is still in the DOM.
+
+### One residual, not fixed here
+
+The portal's rendered `<title>` is not the one the server writes. The head
+says `Habru Woreda Administration | ETHR`; after hydration the document title
+is `ግባ · Habru Woreda Administration` — "Sign in ·" and the organisation's
+name, set by the page itself once it knows which organisation it is. Google may
+use either. It is a different mechanism from the robots tag (a client-side
+title, not page metadata, and the organisation's name is something a shared
+static export cannot know), so it was left alone. Worth deciding on
+separately: a search result reading "Sign in · Habru Woreda Administration" is
+not wrong, only weaker than the head's version.
 
 ### What was already right, and needs no change
 

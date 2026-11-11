@@ -112,3 +112,16 @@ function switchFeature(Feature $feature, FeatureState $state = FeatureState::Dis
 
     app(FeatureGate::class)->flush();
 }
+
+/**
+ * The React payload the exported portal pages carry, in the shape Next
+ * serialises it: JSON inside a JavaScript string. Copied from the live pages
+ * on 2026-11-11 rather than written by hand, because what it pins is Next's
+ * own escaping and nothing else. React renders these tags into the DOM at
+ * hydration, so a `robots` entry left saying `noindex` reaches Google even
+ * when the head says otherwise — the defect `PortalHead::inject()` describes.
+ */
+function portalPayload(string $robots): string
+{
+    return '<script>self.__next_f.push([1,"b:[[\\"$\\",\\"link\\",\\"2\\",{\\"rel\\":\\"manifest\\",\\"href\\":\\"/manifest.json\\",\\"crossOrigin\\":\\"$undefined\\"}],[\\"$\\",\\"meta\\",\\"3\\",{\\"name\\":\\"robots\\",\\"content\\":\\"'.$robots.'\\"}],[\\"$\\",\\"meta\\",\\"4\\",{\\"name\\":\\"mobile-web-app-capable\\",\\"content\\":\\"yes\\"}]]\n"]);</script>';
+}

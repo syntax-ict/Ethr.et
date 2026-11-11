@@ -39,7 +39,7 @@ final class PortalPage
             return [PortalHead::render($tenant, $vacancies), $tenant->brandAssetUrl('mark') !== null];
         });
 
-        return self::send($file, $head, $ownIcon, TenantLanding::indexable($tenant), 200);
+        return self::send($file, $head, $ownIcon, PortalHead::robots($tenant), 200);
     }
 
     /**
@@ -64,9 +64,13 @@ final class PortalPage
             return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
-        $head = PortalHead::news($tenant);
+        // Whether there is anything on the page decides whether it is worth
+        // keeping in search; PortalHead::news() says why.
+        $hasArticles = self::withTenant($tenant, fn (): bool => Announcement::query()->publiclyListed()->exists());
+        $head = PortalHead::news($tenant, $hasArticles);
+        $robots = PortalHead::newsRobots($tenant, $hasArticles);
 
-        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, TenantLanding::indexable($tenant), 200);
+        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, $robots, 200);
     }
 
     /**
@@ -90,7 +94,7 @@ final class PortalPage
             return self::plain($file, 404);
         }
 
-        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, TenantLanding::indexable($tenant), 200);
+        return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, PortalHead::robots($tenant), 200);
     }
 
     /**
@@ -105,9 +109,11 @@ final class PortalPage
             ->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
-    private static function send(string $file, string $head, bool $ownIcon, bool $indexable, int $status): Response
+    private static function send(string $file, string $head, bool $ownIcon, string $robots, int $status): Response
     {
-        $html = PortalHead::inject((string) file_get_contents($file), $head, $ownIcon);
+        // The same line the head states, written into the page's React
+        // payload too: PortalHead::inject() says why that is not optional.
+        $html = PortalHead::inject((string) file_get_contents($file), $head, $ownIcon, $robots);
 
         return response($html, $status)
             ->header('Content-Type', 'text/html; charset=UTF-8')
@@ -116,7 +122,7 @@ final class PortalPage
             ->header('Cache-Control', 'no-cache')
             // In search results while the organisation is in use, unless it
             // switched listing off in its portal settings (default on).
-            ->header('X-Robots-Tag', $indexable ? 'index, follow' : 'noindex, nofollow');
+            ->header('X-Robots-Tag', $robots);
     }
 
     /**
