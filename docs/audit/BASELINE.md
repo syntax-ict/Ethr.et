@@ -4748,7 +4748,7 @@ access to `www.ethr.et`.
   slices of twelve seconds, fifty rows to a transaction (`StagedCommitSliceTest`). How long a
   thousand rows take on the host is still unmeasured.
 
-### 25l. Two readers of one list — fixed 2026-11-11
+### 25m. Two readers of one list — fixed 2026-11-11
 
 Read in the code while making the import one staged review (One employee identity, PR 6).
 
