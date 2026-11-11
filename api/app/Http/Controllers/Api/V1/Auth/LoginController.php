@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\AuditLog;
 use App\Models\LoginHistory;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\StartingPasswords;
 use App\Services\AuthService;
 use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
@@ -19,7 +21,10 @@ use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
-    public function __construct(private readonly AuthService $authService) {}
+    public function __construct(
+        private readonly AuthService $authService,
+        private readonly StartingPasswords $startingPasswords,
+    ) {}
 
     public function __invoke(LoginRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
@@ -48,6 +53,20 @@ class LoginController extends Controller
                 'status' => 403,
                 'detail' => __('auth.account_suspended'),
             ], 403);
+        }
+
+        // A starting password that ran out unused (StartingPasswords). Asked
+        // only after the password matched, so the answer tells a guesser
+        // nothing, and by then there is nothing left to guess: the account is
+        // back to `invited` with a password nobody knows.
+        if ($user->startingPasswordExpired()) {
+            Auth::guard('web')->logout();
+
+            $this->startingPasswords->expire($user);
+
+            LoginHistory::record($user, 'blocked', 'starting_password_expired');
+
+            return RequirePasswordChange::expired();
         }
 
         $result = $this->authService->login($user);

@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
+import { StartingPasswordDialog } from "@/features/users/components/starting-password-dialog";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toastError } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
@@ -39,6 +40,10 @@ export function MigrationLogins({
 
   const pending = query.data?.without_login ?? [];
   const defaulted = query.data?.hire_dates_defaulted ?? 0;
+  // The people no invitation can reach: the ones a starting password is for.
+  const inPerson = pending
+    .filter((p) => p.channel === "in_person")
+    .map((p) => p.employee_public_id);
 
   function channelLabel(p: PendingLogin): string {
     return {
@@ -103,7 +108,7 @@ export function MigrationLogins({
                   <p className="text-sm text-muted-foreground">
                     {t(
                       "migration_logins.desc",
-                      "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile.",
+                      "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile, or one starting password for all of them.",
                     )}
                   </p>
                   <div className="rounded-lg border">
@@ -179,6 +184,7 @@ export function MigrationLogins({
           )}
 
           <div className="flex flex-wrap justify-end gap-2">
+            <StartingPasswordDialog employeeIds={inPerson} />
             {can.inviteUsers && pending.length > 0 && !result && (
               <Button onClick={sendAll} disabled={create.isPending}>
                 {create.isPending && (

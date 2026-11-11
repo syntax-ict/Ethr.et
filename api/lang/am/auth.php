@@ -59,6 +59,17 @@ return [
     'mfa_disabled_by_policy' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ አያቀርብም።',
     'session_idle_expired' => 'ለተወሰነ ጊዜ እንቅስቃሴ ስላልነበረ ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።',
 
+    // Starting password for a batch of employees (owner decision 2026-11-10)
+    'password_change_required' => 'ለመቀጠል የራስዎን የይለፍ ቃል ይምረጡ።',
+    'starting_password_expired' => 'ይህ የመነሻ የይለፍ ቃል ጊዜው አልፎበታል። አዲስ የመግቢያ መንገድ እንዲሰጥዎ የሰው ኃይል ክፍልን ይጠይቁ።',
+    'starting_password_refused' => [
+        'tenant' => 'እነዚህ ሠራተኞች በዚህ ድርጅት ውስጥ የሉም።',
+        'identifier' => 'ይህ ድርጅት በሠራተኛ ኮድ አይገባም። መጀመሪያ በቅንብሮች ውስጥ በሠራተኛ ኮድ መግባትን ያብሩ።',
+        'nobody' => 'ከእነዚህ ሰዎች ለማንም የመነሻ የይለፍ ቃል መስጠት አይቻልም።',
+    ],
+    'starting_password_alert_title' => 'ከተደጋጋሚ ያልተሳኩ የመግቢያ ሙከራዎች በኋላ የመነሻ የይለፍ ቃሎች ለጊዜው ታግደዋል',
+    'starting_password_alert_body' => 'የመነሻ የይለፍ ቃል ባላቸው መለያዎች ላይ :failures ያልተሳኩ የመግቢያ ሙከራዎች ተደርገዋል። እነዚህ መለያዎች ለ :minutes ደቂቃዎች መግባት አይችሉም። የራሳቸው የይለፍ ቃል ያላቸው መለያዎች አልተነኩም።',
+
     // "Find my organisation" on the apex login (2026-10-04).
     'find_organisation' => [
         'sent' => 'ያ አድራሻ የአንድ ድርጅት ከሆነ የመግቢያ አገናኙን በኢሜይል ልከንልዎታል።',

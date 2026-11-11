@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MigrationBatch;
+use App\Services\Auth\StartingPasswords;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -73,6 +74,12 @@ class CleanupExpiredDataJob implements ShouldQueue
                 ->update(['status' => 'expired', 'path' => null, 'updated_at' => now()]);
             $deleted++;
         }
+
+        // A starting password nobody used in its 72 hours: the account goes
+        // back to `invited`, so it can be invited or given an in-person code
+        // again. A sign-in and RequirePasswordChange do the same for one
+        // account at the moment it is used; this catches the ones never tried.
+        $deleted += app(StartingPasswords::class)->expireOverdue();
 
         Log::info("CleanupExpiredDataJob: deleted {$deleted} expired records.");
     }

@@ -18,6 +18,7 @@ use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\HardenServedFiles;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RunBackgroundWorkAfterResponse;
@@ -207,6 +208,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: SubstituteBindings::class,
             prepend: RequireTenantMfaEnrolment::class,
+        );
+
+        // Someone still on a starting password (RequirePasswordChange) is held
+        // before the MFA policy is asked: the change-password screen is the
+        // one place they can go, and it is on both lists.
+        $middleware->prependToPriorityList(
+            before: RequireTenantMfaEnrolment::class,
+            prepend: RequirePasswordChange::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
