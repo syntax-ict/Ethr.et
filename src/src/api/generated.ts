@@ -3230,7 +3230,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Template import */
+        /**
+         * The employee template: its columns, and what a workbook built from it
+         *     needs to know
+         * @description `template` is the CSV header row. `lists` is what each choice column
+         *     may hold, for dropdowns: the fixed values, and this organisation's
+         *     departments, branches and positions by name (by code where two share a
+         *     name). `text_columns` must be formatted as text, or a spreadsheet drops
+         *     a leading zero and rounds a long number. `date_columns` hold dates.
+         */
         post: operations["employeeImport.template"];
         delete?: never;
         options?: never;
@@ -22098,28 +22106,13 @@ export interface operations {
                 content: {
                     "application/json": {
                         template: string;
-                        headers: [
-                            "name",
-                            "name_am",
-                            "employee_code",
-                            "email",
-                            "phone",
-                            "gender",
-                            "date_of_birth",
-                            "hire_date",
-                            "department",
-                            "branch",
-                            "position",
-                            "salary",
-                            "national_id",
-                            "tin",
-                            "badge_number",
-                            "nationality",
-                            "nationality_status",
-                            "marital_status",
-                            "status",
-                            "external_id"
-                        ];
+                        headers: string[];
+                        required: string[];
+                        text_columns: string[];
+                        date_columns: string[];
+                        lists: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };

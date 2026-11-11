@@ -821,7 +821,10 @@ export const SHOTS = [
     as: "admin",
     path: "/employees/import",
     markers: [
-      { target: (page) => page.getByRole("button", { name: "የCSV ፋይል ይምረጡ" }) },
+      {
+        target: (page) =>
+          page.getByRole("button", { name: "የExcel ወይም የCSV ፋይል ይምረጡ" }),
+      },
       {
         target: (page) => page.getByRole("button", { name: "አብነቱን ያውርዱ" }),
       },

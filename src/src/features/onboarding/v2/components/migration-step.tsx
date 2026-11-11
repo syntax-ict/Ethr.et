@@ -27,7 +27,7 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
-import { saveCsv } from "@/lib/utils/csv-export";
+import { saveBlob, saveCsv } from "@/lib/utils/csv-export";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
@@ -47,6 +47,15 @@ import {
   toGrid,
 } from "../parse-people";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
+import { importColumnHelp } from "@/features/employees/components/import-column-guide";
+import {
+  buildTemplate,
+  gridToText,
+  MAX_LINES,
+  NoSheet,
+  readWorkbook,
+  TooManyLines,
+} from "../xlsx-grid";
 import { MigrationLogins } from "./migration-logins";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -99,6 +108,9 @@ const PROBLEMS_SHOWN = 5;
 
 /** A file this large is not a list of people; it is not read into the page. */
 const FILE_MAX_BYTES = 5 * 1024 * 1024;
+
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /** How long the list rests before the server is asked what it makes of it. */
 const READ_AFTER_MS = 400;
@@ -208,11 +220,11 @@ export function MigrationStep({
   const [templatePending, setTemplatePending] = useState(false);
 
   async function readFile(file: File) {
-    if (/\.xlsx?$/i.test(file.name)) {
+    if (/\.xls$/i.test(file.name)) {
       toast.error(
         t(
-          "setup2.xlsx_not_read",
-          "Excel files are not read directly. Select the rows in Excel, copy them and paste them here, or save the sheet as CSV.",
+          "setup2.xls_not_read",
+          "Old .xls files are not read. Save the file as .xlsx or CSV, or copy the rows and paste them here.",
         ),
       );
       return;
@@ -226,18 +238,87 @@ export function MigrationStep({
       );
       return;
     }
-    setCsv(await file.text());
+    if (!/\.xlsx$/i.test(file.name)) {
+      setCsv(await file.text());
+      return;
+    }
+    // A workbook is opened here, not on the server. Its cells go into the
+    // box as text, to be seen and corrected like a pasted list.
+    try {
+      setCsv(gridToText(await readWorkbook(await file.arrayBuffer())));
+    } catch (err) {
+      toast.error(
+        err instanceof TooManyLines
+          ? t(
+              "setup2.xlsx_too_long",
+              "This sheet has :count rows. Bring in at most :max at a time.",
+              { count: err.lines, max: MAX_LINES },
+            )
+          : err instanceof NoSheet
+            ? t(
+                "setup2.xlsx_no_sheet",
+                "This workbook has no sheet of people to read.",
+              )
+            : t(
+                "setup2.xlsx_failed",
+                "This Excel file could not be read. Save the sheet as CSV, or copy the rows and paste them here.",
+              ),
+      );
+    }
   }
 
   /**
    * The one employee template: every column ETHR reads, from the server, so
-   * the setup, this page and the API hand out the same file.
+   * the setup, this page and the API hand out the same file. It is a
+   * workbook, with a dropdown on each choice column and the columns a
+   * spreadsheet would mangle formatted as text.
    */
   async function downloadTemplate() {
     setTemplatePending(true);
     try {
-      const { headers } = await fetchEmployeeImportTemplate();
-      saveCsv("ethr-employee-template.csv", templateCsv(headers, dateCalendar));
+      const spec = await fetchEmployeeImportTemplate();
+      try {
+        const workbook = await buildTemplate(spec, dateCalendar, {
+          title: t("setup2.template_title", "ETHR employee template"),
+          lines: [
+            t(
+              "setup2.template_line_fill",
+              "Fill in the Employees sheet, one person on each row. Only the name is required.",
+            ),
+            t(
+              "setup2.template_line_dates",
+              "Write a date year first, such as 2019-07-08, in the calendar its column name says.",
+            ),
+            t(
+              "setup2.template_line_lists",
+              "A column with a list takes one of its values. A department, branch or position can also be typed by its code.",
+            ),
+            t(
+              "setup2.template_line_upload",
+              "Save the file and choose it in ETHR. Everyone is shown to you before anyone is added.",
+            ),
+          ],
+          columnHeading: t("setup2.template_column", "Column"),
+          takesHeading: t("setup2.template_takes", "What it takes"),
+          required: t("employees_import_page.required", "required"),
+          help: importColumnHelp(t),
+          notInList: t(
+            "setup2.template_not_in_list",
+            "This is not one of the listed values. It is kept, and checked when the list is read.",
+          ),
+        });
+        saveBlob(
+          "ethr-employee-template.xlsx",
+          new Blob([workbook], { type: XLSX_MIME }),
+        );
+      } catch {
+        // The workbook could not be built (its library did not load, offline):
+        // the CSV has the same columns.
+        saveCsv(
+          "ethr-employee-template.csv",
+          templateCsv(spec.headers, dateCalendar),
+        );
+      }
     } catch (err) {
       toast.error(
         apiErrorMessage(
@@ -429,7 +510,7 @@ export function MigrationStep({
               <p className="text-xs text-muted-foreground">
                 {t(
                   "setup2.sheet_hint",
-                  "Copy the rows from Excel or Google Sheets and paste them here, or choose a CSV file. A first row of column names is recognised, in any order.",
+                  "Choose an Excel or CSV file, or copy the rows from Excel or Google Sheets and paste them here. A first row of column names is recognised, in any order.",
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -440,7 +521,7 @@ export function MigrationStep({
                   onClick={() => fileInput.current?.click()}
                 >
                   <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {t("setup2.choose_csv", "Choose a CSV file")}
+                  {t("setup2.choose_file", "Choose an Excel or CSV file")}
                 </Button>
                 <Button
                   type="button"
