@@ -45,7 +45,7 @@ export default function EmployeeImportPage() {
               )}
               description={t(
                 "employees_import_page.description",
-                "Choose a CSV file or paste the rows. Everyone is matched to the employees already in ETHR and shown to you before anyone is added, so nobody is added twice.",
+                "Choose an Excel or CSV file, or paste the rows. Everyone is matched to the employees already in ETHR and shown to you before anyone is added, so nobody is added twice.",
               )}
               onCommitted={() => router.push("/employees")}
             />

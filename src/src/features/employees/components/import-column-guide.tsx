@@ -25,10 +25,14 @@ const COLUMNS: Array<{ key: string; required?: boolean }> = [
   { key: "external_id" },
 ];
 
-/** What each column takes, in the words someone filling a spreadsheet uses. */
-export function ImportColumnGuide() {
-  const { t } = useT();
-  const help: Record<string, string> = {
+/**
+ * What each column takes, in the words someone filling a spreadsheet uses.
+ * The page's guide and the workbook's instructions sheet say the same thing.
+ */
+export function importColumnHelp(
+  t: (key: string, fallback?: string) => string,
+): Record<string, string> {
+  return {
     name: t("employees_import_page.col_name", "Full name"),
     hire_date: t(
       "employees_import_page.col_hire_date",
@@ -82,6 +86,11 @@ export function ImportColumnGuide() {
       "The person's ID in the system the list came from. A later list finds the same person by it",
     ),
   };
+}
+
+export function ImportColumnGuide() {
+  const { t } = useT();
+  const help = importColumnHelp(t);
 
   return (
     <div className="rounded-lg border bg-muted/30 p-3">
