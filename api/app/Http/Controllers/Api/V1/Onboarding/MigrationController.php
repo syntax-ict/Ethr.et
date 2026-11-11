@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Onboarding;
 
 use App\Enums\OnboardingStep;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Migration\ReadPeopleRequest;
 use App\Http\Requests\Migration\StageRowsRequest;
 use App\Http\Requests\Migration\UpdateStagingRowRequest;
 use App\Models\AuditLog;
@@ -47,6 +48,43 @@ class MigrationController extends Controller
         return response()->json($this->batchPayload($batch), 201);
     }
 
+    /**
+     * Read a list of people without staging it.
+     *
+     * `grid` is the list as lines of cells, the first line its column names
+     * or none. The answer says how many people are ready, which columns were
+     * read and which column names mean nothing here, and every line that
+     * cannot be staged, with its number as the reader counts it. Nothing is
+     * kept.
+     */
+    public function read(ReadPeopleRequest $request): JsonResponse
+    {
+        Gate::authorize('employee.create');
+
+        $read = $request->people();
+        abort_if($read === null, 422, __('general.not_found', ['resource' => 'Tenant']));
+
+        return response()->json([
+            'people' => count($read->rows),
+            'header' => $read->header,
+            'columns' => $read->columns,
+            'ignored' => $read->ignored,
+            'calendar' => $read->calendar,
+            'calendar_from_header' => $read->calendarFromHeader,
+            'without_hire_date' => $read->withoutHireDate,
+            'problems' => $read->problems,
+        ]);
+    }
+
+    /**
+     * Stage a list of people for review.
+     *
+     * Send `grid` (the list as lines of cells, read as `/migration/read`
+     * reads it) or `rows` (people already keyed by field). A grid with a line
+     * that cannot be staged is refused whole, each line named, unless
+     * `skip_problems` is set: then those lines are left out. A list that sets
+     * a salary or a TIN needs the pay permission, as the add-employee form does.
+     */
     public function stageFromRows(StageRowsRequest $request): JsonResponse
     {
         Gate::authorize('employee.create');
@@ -54,8 +92,13 @@ class MigrationController extends Controller
         $tenantId = $this->currentTenant->id();
         abort_if($tenantId === null, 422, __('general.not_found', ['resource' => 'Tenant']));
 
-        /** @var array<int, array<string, mixed>> $rows */
-        $rows = $request->validated('rows');
+        $rows = $request->staged();
+        foreach ($rows as $row) {
+            if (isset($row['salary_cents']) || isset($row['tin'])) {
+                Gate::authorize('employee.updateFinancial');
+                break;
+            }
+        }
 
         $batch = $this->migration->stageFromRows(
             $rows,

@@ -27,6 +27,7 @@ return [
     'import_field_employee_code' => 'የሰራተኛ ኮድ',
     'import_field_email' => 'ኢሜይል',
     'import_field_badge_number' => 'የባጅ ቁጥር',
+    'import_field_external_id' => 'በሌላው ሲስተም ያለ መለያ',
     'number_format_invalid' => 'አንድ {SEQ:n} ምልክት ይጠቀሙ (n ከ1 እስከ 8)፣ ዙሪያውን ፊደላት፣ ቁጥሮች፣ - _ . ወይም / ብቻ። ለምሳሌ EMP-{SEQ:4}።',
     'cannot_change_own_pay' => 'የራስዎን ደመወዝ ወይም የባንክ መረጃ በድርጅትዎ ውስጥ ሌላ ሰው መቀየር አለበት።',
     'cannot_change_own_deductions' => 'የራስዎን ብድር ወይም ተቀናሽ በድርጅትዎ ውስጥ ሌላ ሰው መመዝገብ ወይም መቀየር አለበት።',

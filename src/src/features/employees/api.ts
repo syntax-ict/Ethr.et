@@ -268,22 +268,6 @@ export function useNextEmployeeCode() {
 
 // ── CSV import (template → preview → commit) ──────────────────────
 
-/**
- * `errors` is keyed by CSV line number — the header is line 1, so data row
- * `i` is line `i + 2` — and key 0 is a file-level error (a missing required
- * column, or no data rows), which comes with no rows at all.
- */
-export type EmployeeImportPreview =
-  operations["employeeImport.preview"]["responses"][200]["content"]["application/json"];
-
-/**
- * `skipped` rows carried an import key already used; `matched` rows are a
- * person who already exists (same code, email, phone or national id). Neither
- * creates an employee.
- */
-export type EmployeeImportResult =
-  operations["employeeImport.commit"]["responses"][201]["content"]["application/json"];
-
 export type EmployeeImportTemplate =
   operations["employeeImport.template"]["responses"][200]["content"]["application/json"];
 
@@ -293,56 +277,6 @@ export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTempl
     "/employees/import/template",
   );
   return data;
-}
-
-/** Parses and validates a CSV server-side; nothing is written. */
-export function usePreviewEmployeeImport() {
-  return useMutation({
-    mutationFn: async ({
-      file,
-      calendar,
-    }: {
-      file: File;
-      /** The calendar the file's dates are written in; the server returns Gregorian. */
-      calendar: "gregorian" | "ethiopian";
-    }): Promise<EmployeeImportPreview> => {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("calendar", calendar);
-      const { data } = await apiClient.post<EmployeeImportPreview>(
-        "/employees/import/preview",
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
-      return data;
-    },
-  });
-}
-
-export function useCommitEmployeeImport() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (vars: {
-      importKey: string;
-      rows: EmployeeImportPreview["rows"];
-      /** A sign-in invitation to every imported row with an email. */
-      createLogins?: boolean;
-    }): Promise<EmployeeImportResult> => {
-      const { data } = await apiClient.post<EmployeeImportResult>(
-        "/employees/import/commit",
-        {
-          import_key: vars.importKey,
-          rows: vars.rows,
-          create_logins: vars.createLogins ?? false,
-        },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-    },
-  });
 }
 
 // ── Personnel actions (employment history) ─────────────────────────

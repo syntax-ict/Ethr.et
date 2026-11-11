@@ -21,5 +21,11 @@ return [
         'already_committing' => 'ይህ ዝርዝር በመጨመር ላይ ነው። እስኪጠናቀቅ ይጠብቁ።',
         'accept_needs_match' => 'ለውጥ ከመቀበልዎ በፊት ይህ መስመር የትኛው ሰራተኛ እንደሆነ ይምረጡ።',
         'device_user' => 'የመሳሪያ ተጠቃሚ :id',
+        'line' => 'መስመር :line፦ :message',
+        'nobody' => 'በዚህ ዝርዝር ውስጥ ማንም የለም።',
+        'too_many' => 'ይህ ዝርዝር :count ሰዎች አሉት። በአንድ ጊዜ ቢበዛ :max ያስገቡ።',
+        'relation_not_found' => ':field ":value" አልተገኘም። በETHR ውስጥ ያለውን ኮድ ወይም ስም ይጠቀሙ።',
+        'relation_ambiguous' => '":value" የሚባሉ ከአንድ በላይ :field አሉ። ኮዱን ይጠቀሙ።',
+        'duplicate_in_list' => ':field ":value" በመስመር :first ላይም አለ። እያንዳንዱ ሰው የራሱ ያስፈልገዋል።',
     ],
 ];
