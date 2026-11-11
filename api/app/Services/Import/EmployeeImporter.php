@@ -13,6 +13,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Services\Invitations\EmployeeLogins;
@@ -189,6 +190,7 @@ class EmployeeImporter
             if ($tenantId !== null) {
                 $match = $this->identity->resolve($tenantId, new IdentitySignals(
                     employeeCode: $row['employee_code'] ?? null,
+                    badgeNumber: $row['badge_number'] ?? null,
                     email: $row['email'] ?? null,
                     phone: $row['phone'] ?? null,
                     name: $row['name'] ?? null,
@@ -197,6 +199,28 @@ class EmployeeImporter
 
                 if ($match->isMatch()) {
                     $matched++;
+
+                    continue;
+                }
+
+                // The row agrees with someone on one identifier and disagrees
+                // on another. Skipping it would report a different person as
+                // already here; adding it could make a second record of the
+                // same one. This import has no review step, so it does neither.
+                //
+                // A badge another person holds under a different name is left
+                // to the badge check below, whose message says exactly that.
+                if (array_diff($match->conflicts, ['name_differs']) !== []) {
+                    $errors[$i] = [__('employee.import_needs_review', ['row' => $i])];
+
+                    continue;
+                }
+
+                // A deleted employee's record is kept, and so is their code:
+                // the insert below would be refused as "already taken", which
+                // says nothing about why.
+                if ($match->outcome === IdentityMatch::ARCHIVED) {
+                    $errors[$i] = [__('employee.import_archived', ['row' => $i])];
 
                     continue;
                 }

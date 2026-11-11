@@ -112,7 +112,8 @@ export interface GoLiveResult {
 
 // ── Migration ────────────────────────────────────────────────────
 
-export type MatchOutcome = "matched" | "probable" | "ambiguous" | "new";
+export type MatchOutcome =
+  "matched" | "probable" | "ambiguous" | "archived" | "new";
 export type StagingAction = "merge" | "create" | "skip" | "defer" | "pending";
 
 export interface StagingCandidate {

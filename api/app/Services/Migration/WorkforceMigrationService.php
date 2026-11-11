@@ -68,6 +68,9 @@ final class WorkforceMigrationService
                 'source_ref' => 'device:'.$device->id,
                 'identifier_type' => 'device_user_id',
                 'identifier_value' => $userId,
+                // The terminal's number is tried as an employee number; nobody
+                // said it is one (IdentitySignals::forDeviceUser).
+                'code_is_guess' => true,
             ];
 
             $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId);
@@ -161,7 +164,9 @@ final class WorkforceMigrationService
                     switch ($row->action) {
                         case MigrationStagingRow::ACTION_CREATE:
                             $employee = $this->createEmployee($raw, $tenant, $departments);
-                            $this->resolver->link($employee, $signals, 1.0, verified: true);
+                            // A reviewer chose this row's action, so the number
+                            // goes where they said, even from a confirmed holder.
+                            $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                             $totals['created']++;
                             break;
@@ -169,7 +174,7 @@ final class WorkforceMigrationService
                         case MigrationStagingRow::ACTION_MERGE:
                             $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
                             if ($employee !== null) {
-                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true);
+                                $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
                                 $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                                 $totals['merged']++;
                             } else {
@@ -269,7 +274,7 @@ final class WorkforceMigrationService
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $match->employee?->id,
-            'action' => $this->suggestedAction($match->outcome, $displayName),
+            'action' => $this->suggestedAction($match, $displayName),
         ]);
     }
 
@@ -278,15 +283,21 @@ final class WorkforceMigrationService
      * uncertain is deferred to a human; a clear new person is created, unless
      * the source gave no name. A device often holds only an enrolment number,
      * and every such row used to become an employee called "Unnamed".
+     *
+     * A match with someone who has left is deferred too. Linking a terminal's
+     * number to a leaver is rarely what the list means: the person is back, or
+     * the number was given to someone else, and only a person can say which.
      */
-    private function suggestedAction(string $outcome, ?string $name): string
+    private function suggestedAction(IdentityMatch $match, ?string $name): string
     {
-        return match ($outcome) {
-            IdentityMatch::MATCHED => MigrationStagingRow::ACTION_MERGE,
+        return match ($match->outcome) {
+            IdentityMatch::MATCHED => $match->isFormerEmployee()
+                ? MigrationStagingRow::ACTION_DEFER
+                : MigrationStagingRow::ACTION_MERGE,
             IdentityMatch::NEW => trim((string) $name) === ''
                 ? MigrationStagingRow::ACTION_DEFER
                 : MigrationStagingRow::ACTION_CREATE,
-            default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous
+            default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous, archived
         };
     }
 
@@ -301,10 +312,12 @@ final class WorkforceMigrationService
             email: isset($raw['email']) ? (string) $raw['email'] : null,
             phone: isset($raw['phone']) ? (string) $raw['phone'] : null,
             name: isset($raw['name']) ? (string) $raw['name'] : null,
+            nationalId: isset($raw['national_id']) ? (string) $raw['national_id'] : null,
             sourceType: isset($raw['source_type']) ? (string) $raw['source_type'] : null,
             sourceRef: isset($raw['source_ref']) ? (string) $raw['source_ref'] : null,
             identifierType: isset($raw['identifier_type']) ? (string) $raw['identifier_type'] : null,
             identifierValue: isset($raw['identifier_value']) ? (string) $raw['identifier_value'] : null,
+            codeIsGuess: ($raw['code_is_guess'] ?? false) === true,
         );
     }
 

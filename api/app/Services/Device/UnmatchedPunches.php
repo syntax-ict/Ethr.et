@@ -58,15 +58,9 @@ final class UnmatchedPunches
      */
     public function assign(Device $device, string $badge, Employee $employee, User $by, DevicePunchRecorder $recorder): array
     {
-        $signals = new IdentitySignals(
-            employeeCode: $badge,
-            badgeNumber: $badge,
-            sourceType: $device->adapter_type,
-            sourceRef: 'device:'.$device->id,
-            identifierType: 'device_user_id',
-            identifierValue: $badge,
-        );
-        $this->resolver->link($employee, $signals, 1.0, verified: true);
+        // A person is saying whose number this is, so it moves even from
+        // someone it was confirmed for; the resolver records who held it.
+        $this->resolver->link($employee, IdentitySignals::forDeviceUser($device, $badge), 1.0, verified: true, reassign: true);
 
         $replayed = 0;
         $refused = 0;

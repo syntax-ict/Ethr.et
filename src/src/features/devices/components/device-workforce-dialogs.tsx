@@ -43,8 +43,20 @@ function outcomeTone(outcome: MatchOutcome): string {
     matched: "var(--color-status-success, #047857)",
     probable: "var(--color-status-warning, #92400E)",
     ambiguous: "var(--color-status-error, #B91C1C)",
+    archived: "var(--color-status-warning, #92400E)",
     new: "var(--color-text-secondary, #64748B)",
   }[outcome];
+}
+
+/**
+ * The verdicts the summary names. "Deleted earlier" is listed only when the
+ * device holds such a person: most never do, and a permanent "0 deleted
+ * earlier" would be one more thing to read past.
+ */
+function summaryOutcomes(archived: number): MatchOutcome[] {
+  return archived > 0
+    ? ["matched", "probable", "ambiguous", "archived", "new"]
+    : ["matched", "probable", "ambiguous", "new"];
 }
 
 /**
@@ -94,17 +106,15 @@ export function DeviceEnrollmentsDialog({
                 />
               )}
               <div className="flex flex-wrap gap-2">
-                {(["matched", "probable", "ambiguous", "new"] as const).map(
-                  (k) => (
-                    <Badge
-                      key={k}
-                      variant="outline"
-                      style={{ color: outcomeTone(k) }}
-                    >
-                      {data.summary[k]} {t(`setup2.outcome_${k}`, k)}
-                    </Badge>
-                  ),
-                )}
+                {summaryOutcomes(data.summary.archived ?? 0).map((k) => (
+                  <Badge
+                    key={k}
+                    variant="outline"
+                    style={{ color: outcomeTone(k) }}
+                  >
+                    {data.summary[k]} {t(`setup2.outcome_${k}`, k)}
+                  </Badge>
+                ))}
               </div>
 
               <div className="rounded-lg border">

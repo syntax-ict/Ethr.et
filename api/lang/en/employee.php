@@ -12,6 +12,8 @@ return [
     'import_relation_ambiguous' => 'Row :row: more than one :field is called ":value". Use its code instead.',
     'import_duplicate_in_file' => 'Row :row: :field ":value" is already used on row :first of this file.',
     'import_already_taken' => 'Row :row: the employee code or badge number is already used by another employee.',
+    'import_needs_review' => 'Row :row: this looks like an employee already in ETHR, but the employee code or national ID does not agree. The row was not added. Check it against that employee.',
+    'import_archived' => 'Row :row: this person was deleted from ETHR and their record is kept. They were not added a second time.',
     'import_field_department_code' => 'department',
     'import_field_branch_code' => 'branch',
     'import_field_position_code' => 'position',

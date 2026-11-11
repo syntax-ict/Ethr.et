@@ -275,7 +275,8 @@ export function useRegenerateDeviceToken() {
 
 // ── Workforce discovery & history backfill ───────────────────────────────────
 
-export type MatchOutcome = "matched" | "probable" | "ambiguous" | "new";
+export type MatchOutcome =
+  "matched" | "probable" | "ambiguous" | "archived" | "new";
 
 export interface DeviceEnrollment {
   device_user_id: string;
@@ -299,6 +300,7 @@ export interface DeviceEnrollmentsResponse {
     matched: number;
     probable: number;
     ambiguous: number;
+    archived: number;
     new: number;
   };
   roster: DeviceRoster;

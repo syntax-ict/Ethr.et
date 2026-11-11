@@ -39,8 +39,14 @@ Both are transient staging and are **hard-deleted after 7 days** by
 | verdict | default action |
 |---|---|
 | `matched` | `merge` (link identity, no new employee) |
-| `new` | `create` |
-| `probable` / `ambiguous` | `defer` (needs a human) |
+| `matched`, and the person has left | `defer`: back, or the number was reissued? |
+| `new` | `create`; `defer` when the source gave no name |
+| `probable` / `ambiguous` / `archived` | `defer` (needs a human) |
+
+`probable` includes a match that scored as certain and was contradicted: an
+equal employee number beside a different national ID, or a terminal number that
+is someone's employee number under a name that shares nothing with theirs. The
+row's reasons say which ([IDENTITY_RESOLUTION.md](IDENTITY_RESOLUTION.md)).
 
 `commit` honours the final action: `create` makes an employee and links its
 external identity (verified); `merge` links to the resolved employee only;

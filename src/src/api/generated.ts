@@ -21009,8 +21009,8 @@ export interface operations {
                             fingerprint_count: number | null;
                             face_registered: boolean | null;
                             match: {
-                                /** @enum {string} */
-                                outcome: "ambiguous" | "probable";
+                                /** @constant */
+                                outcome: "probable";
                                 employee_public_id: string;
                                 confidence: number;
                                 candidates: unknown[];
@@ -21022,10 +21022,23 @@ export interface operations {
                                 candidates: unknown[];
                             } | {
                                 /** @constant */
+                                outcome: "archived";
+                                employee_public_id: string;
+                                confidence: number;
+                                candidates: [
+                                    {
+                                        employee_public_id: string;
+                                        employee_name: string;
+                                        score: number;
+                                        reasons: string;
+                                    }
+                                ];
+                            } | {
+                                /** @constant */
                                 outcome: "new";
                                 employee_public_id: string;
                                 confidence: number;
-                                candidates: string;
+                                candidates: string[];
                             } | {
                                 /** @constant */
                                 outcome: "matched";
@@ -21037,7 +21050,7 @@ export interface operations {
                                         employee_name: string;
                                         score: number;
                                         reasons: [
-                                            "existing_mapping"
+                                            "former_employee"
                                         ];
                                     }
                                 ];
@@ -21048,6 +21061,7 @@ export interface operations {
                             matched: string;
                             probable: string;
                             ambiguous: string;
+                            archived: string;
                             new: string;
                         };
                         roster: {

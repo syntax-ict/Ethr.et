@@ -68,6 +68,7 @@ function outcomeTone(outcome: MatchOutcome | null): string {
     case "matched":
       return "var(--color-status-success, #047857)";
     case "probable":
+    case "archived":
       return "var(--color-status-warning, #92400E)";
     case "ambiguous":
       return "var(--color-status-error, #B91C1C)";

@@ -44,6 +44,7 @@ class DeviceEnrollmentController extends Controller
             IdentityMatch::MATCHED => 0,
             IdentityMatch::PROBABLE => 0,
             IdentityMatch::AMBIGUOUS => 0,
+            IdentityMatch::ARCHIVED => 0,
             IdentityMatch::NEW => 0,
         ];
 
@@ -51,14 +52,11 @@ class DeviceEnrollmentController extends Controller
         foreach ($enrollments as $enrollment) {
             $userId = $enrollment['device_user_id'];
 
-            $match = $this->resolver->resolve($device->tenant_id, new IdentitySignals(
-                employeeCode: $userId,
-                badgeNumber: $enrollment['card_number'] ?? $userId,
-                name: $enrollment['name'] ?? null,
-                sourceType: $device->adapter_type,
-                sourceRef: 'device:'.$device->id,
-                identifierType: 'device_user_id',
-                identifierValue: $userId,
+            $match = $this->resolver->resolve($device->tenant_id, IdentitySignals::forDeviceUser(
+                $device,
+                $userId,
+                $enrollment['card_number'] ?? null,
+                $enrollment['name'] ?? null,
             ));
 
             $summary[$match->outcome] = ($summary[$match->outcome] ?? 0) + 1;
@@ -86,6 +84,7 @@ class DeviceEnrollmentController extends Controller
                 'matched' => $summary[IdentityMatch::MATCHED],
                 'probable' => $summary[IdentityMatch::PROBABLE],
                 'ambiguous' => $summary[IdentityMatch::AMBIGUOUS],
+                'archived' => $summary[IdentityMatch::ARCHIVED],
                 'new' => $summary[IdentityMatch::NEW],
             ],
             'roster' => $this->roster($device),

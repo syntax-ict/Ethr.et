@@ -13,6 +13,8 @@ return [
     'import_relation_ambiguous' => 'ረድፍ :row፦ ":value" የሚባሉ ከአንድ በላይ :field አሉ። ኮዱን ይጠቀሙ።',
     'import_duplicate_in_file' => 'ረድፍ :row፦ :field ":value" በዚህ ፋይል ረድፍ :first ላይ ተጠቅሟል።',
     'import_already_taken' => 'ረድፍ :row፦ የሰራተኛ ኮዱ ወይም የባጅ ቁጥሩ በሌላ ሰራተኛ ተይዟል።',
+    'import_needs_review' => 'ረድፍ :row፦ ይህ በETHR ውስጥ ያለ ሰራተኛ ይመስላል፣ ነገር ግን የሰራተኛ ኮዱ ወይም የመታወቂያ ቁጥሩ አይስማማም። ረድፉ አልተጨመረም። ከዚያ ሰራተኛ መዝገብ ጋር ያመሳክሩ።',
+    'import_archived' => 'ረድፍ :row፦ ይህ ሰው ከETHR ተሰርዟል፣ መዝገቡ ግን ተጠብቋል። ለሁለተኛ ጊዜ አልተጨመረም።',
     'import_field_department_code' => 'ክፍል',
     'import_field_branch_code' => 'ቅርንጫፍ',
     'import_field_position_code' => 'የስራ መደብ',
