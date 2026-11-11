@@ -415,6 +415,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         // Workforce migration (OnboardingStep::WORKFORCE_MIGRATION)
         Route::post('/migration/devices/{device}', [MigrationController::class, 'stageFromDevice']);
+        Route::post('/migration/read', [MigrationController::class, 'read']);
         Route::post('/migration/rows', [MigrationController::class, 'stageFromRows']);
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);

@@ -1,7 +1,7 @@
 :HL["/_next/static/chunks/0x_3615owpd27.css","style"]
-:HL["/_next/static/chunks/163hgf5iggzm5.css","style"]
+:HL["/_next/static/chunks/0x10t_wrnd5hz.css","style"]
 :HL["/_next/static/media/07c7676b89ed2778-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 3:[["children",{"s":"__PAGE__","h":128}]]
 2:[["children",{"s":{"n":"locale","t":"d","k":"en","s":["admin","analytics","announcements","approvals","attendance","billing","contact","dashboard","devices","directory","employees","faq","features","impersonate","kiosk","leave","login","news","notifications","offline","og.png","organization","payroll","pricing","privacy","profile","register","reports","settings","setup","shifts","support","terms","vacancies","voice"]},"h":65584,"c":"$Q3"}]]
 1:[["children",{"s":"(marketing)","h":131184,"c":"$Q2"}]]
-0:{"b":"Y6P0MqYC5_M8WW43Q7H-y","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}
+0:{"b":"tVn5GPBTEnwcXkzPqmDVg","t":{"t":{"s":"","h":131152,"c":"$Q1"}}}

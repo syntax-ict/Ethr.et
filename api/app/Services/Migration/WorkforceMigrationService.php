@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Migration;
 
-use App\Enums\EmployeeStatus;
+use App\Enums\NationalityStatus;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
@@ -21,7 +21,9 @@ use App\Services\Identity\IdentitySignals;
 use App\Services\Identity\IntakeResult;
 use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
+use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
+use App\Support\RelationMatch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -53,6 +55,12 @@ final class WorkforceMigrationService
     public const CHUNK = 50;
 
     private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
+
+    /** A new person's own details, staged under the employee column they fill. */
+    private const DETAILS = ['name_am', 'national_id', 'tin', 'gender', 'date_of_birth', 'marital_status', 'nationality'];
+
+    /** @var array<string, RelationMatch> branches and positions, read once per organisation */
+    private array $relations = [];
 
     public function __construct(
         private readonly IdentityResolver $resolver,
@@ -108,7 +116,11 @@ final class WorkforceMigrationService
 
     /**
      * Stage rows from a spreadsheet/CSV (or manual entry). Each row is a map of
-     * employee fields (name, email, phone, employee_code, hire_date, …).
+     * employee fields as EmployeeImportRow::staged() names them (name, email,
+     * phone, employee_code, hire_date, department, salary_cents, …).
+     *
+     * A row that brings an id from another system is staged with the identity
+     * it is linked as, so the same id in a later list finds the same person.
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
@@ -118,6 +130,10 @@ final class WorkforceMigrationService
         $departments = DepartmentMatch::forTenant($tenantId);
 
         foreach ($rows as $row) {
+            $row = [
+                ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
+                ...$row,
+            ];
             $name = isset($row['name']) ? (string) $row['name'] : null;
             $this->stageRow($batch, $row, $name, isset($row['employee_code']) ? (string) $row['employee_code'] : null, $departments);
         }
@@ -573,6 +589,11 @@ final class WorkforceMigrationService
      * was checked when it was staged; a device's own department names are
      * not, so one the organisation does not have leaves the person unassigned.
      *
+     * The record is made from everything the row brings. A pasted list used
+     * to bring six fields and the rest of a person (salary, national id,
+     * branch, position) went through the file import instead, which has no
+     * review. A device's roster brings a name and a number, as before.
+     *
      * @param  array<string, mixed>  $raw
      * @param  list<string>  $pool  the batch's numbers for people who bring none
      */
@@ -582,18 +603,47 @@ final class WorkforceMigrationService
             ? [...IntakeResult::CONFIRMABLE, IntakeResult::MATCHED]
             : IntakeResult::CONFIRMABLE;
 
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? (string) $raw[$key] : null;
+
+        $details = [];
+        foreach (self::DETAILS as $column) {
+            if ($text($column) !== null) {
+                $details[$column] = $text($column);
+            }
+        }
+        if ($text('branch') !== null) {
+            $details['branch_id'] = $this->relation('branch', $batch->tenant_id)->id($text('branch'));
+        }
+        if ($text('position') !== null) {
+            $details['position_id'] = $this->relation('position', $batch->tenant_id)->id($text('position'));
+        }
+        if (isset($raw['salary_cents']) && (int) $raw['salary_cents'] > 0) {
+            $details['salary_cents'] = (int) $raw['salary_cents'];
+        }
+        if ($text('nationality_status') !== null) {
+            $details['nationality_status'] = NationalityStatus::fromInput((string) $text('nationality_status'))?->value;
+        }
+
         // EmployeeNumbering gives the next number when the row brings none,
         // as adding one person or importing a file does. The plan's limit was
         // checked for the whole batch before the first row.
         return $this->intake->admit($tenant, [
             'name' => $this->nameOf($raw),
-            'email' => isset($raw['email']) ? (string) $raw['email'] : null,
-            'phone' => EthiopianPhone::canonicalOrRaw(isset($raw['phone']) ? (string) $raw['phone'] : null),
-            'employee_code' => isset($raw['employee_code']) ? (string) $raw['employee_code'] : null,
-            'badge_number' => isset($raw['badge_number']) ? (string) $raw['badge_number'] : null,
-            'hire_date' => isset($raw['hire_date']) ? (string) $raw['hire_date'] : now()->toDateString(),
-            'department_id' => $departments->id(isset($raw['department']) ? (string) $raw['department'] : null),
-            'status' => EmployeeStatus::HIRED,
+            'email' => $text('email'),
+            'phone' => EthiopianPhone::canonicalOrRaw($text('phone')),
+            'employee_code' => $text('employee_code'),
+            'badge_number' => $text('badge_number'),
+            'hire_date' => $text('hire_date') ?? now()->toDateString(),
+            'department_id' => $departments->id($text('department')),
+            ...EmployeeImportRow::employment($text('status')),
+            ...array_filter($details, fn (mixed $value): bool => $value !== null),
         ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
+    }
+
+    private function relation(string $kind, int $tenantId): RelationMatch
+    {
+        return $this->relations["{$kind}:{$tenantId}"] ??= $kind === 'branch'
+            ? RelationMatch::branches($tenantId)
+            : RelationMatch::positions($tenantId);
     }
 }

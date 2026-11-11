@@ -26,5 +26,11 @@ return [
         'already_committing' => 'Tarreen kun dabalamaa jira. Hanga xumuramutti eegaa.',
         'accept_needs_match' => 'Jijjiirama fudhachuu dura sararri kun hojjetaa kam akka ta\'e filadhaa.',
         'device_user' => 'Fayyadamaa meeshaa :id',
+        'line' => 'Sarara :line: :message',
+        'nobody' => 'Tarree kana keessa namni hin jiru.',
+        'too_many' => 'Tarreen kun namoota :count qaba. Yeroo tokkotti hanga :max qofa galchaa.',
+        'relation_not_found' => ':field ":value" hin argamne. Koodii isaa ykn maqaa isaa akkuma ETHR keessatti mul\'atutti fayyadamaa.',
+        'relation_ambiguous' => ':field tokkoo ol ":value" jedhama. Qooda kanaa koodii isaa fayyadamaa.',
+        'duplicate_in_list' => ':field ":value" sarara :first irras jira. Namni tokkoon tokkoo kan mataa isaa barbaada.',
     ],
 ];
