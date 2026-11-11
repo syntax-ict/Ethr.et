@@ -75,7 +75,7 @@ description, a link to `https://www.ethr.et/en/payroll-software`, and an offer
 of a demo account. One accepted mention is worth more than ten directory
 entries.
 
-## 6. Optional: the Ethio Telecom DNS ticket
+## 6. The Ethio Telecom DNS ticket
 
 Plesk refuses DNS editing for this account (the zone is served by
 `ns2.telecom.net.et`), so Search Console's **Domain** property for `ethr.et`
@@ -95,6 +95,114 @@ subdomains. Ticket text, ready to send from the client area:
 
 When they confirm, check with `nslookup -type=TXT ethr.et 8.8.8.8`, then open
 Search Console → `ethr.et` → Verify.
+
+## 7. Organisation subdomains in Search Console (done 2026-11-11)
+
+**What was wrong.** Only `https://www.ethr.et/` was a verified property, and a
+URL-prefix property covers nothing outside its own prefix: URL Inspection and
+*Request indexing* refuse `habru-woreda.ethr.et`. A property named
+`https://www.habru-woreda.ethr.et/` had been added by hand — that host resolves
+but has no certificate (the wildcard covers `*.ethr.et`, one label only), so it
+can never verify or be crawled. Remove it; it is not the organisation's address.
+
+**Verification needs no DNS and no release.** Every host serves the same
+document root, so `src/public/googlea91309ef8065cdc1.html` answers 200 on every
+organisation subdomain. Adding a URL-prefix property for one and choosing *HTML
+file* verifies it immediately — Search Console reported *Ownership auto
+verified* for six of the seven below, and `syntaxtech` verified on one click of
+**Verify**.
+
+Verified 2026-11-11 (one URL-prefix property each):
+
+| Property | Organisation |
+|---|---|
+| `https://afar-regional-state.ethr.et/` | Afar Regional State |
+| `https://etbm.ethr.et/` | ETBM |
+| `https://habru-woreda.ethr.et/` | Habru Woreda Administration |
+| `https://raya-kobo-woreda.ethr.et/` | Raya Kobo Woreda |
+| `https://syntaxtech.ethr.et/` | Syntax Technology |
+| `https://too-sharp-engineering-plc.ethr.et/` | Too Sharp Engineering PLC |
+| `https://wada-technologies.ethr.et/` | Wada Technologies |
+
+`alice-sec` and `bob-sec` are in the live sitemap but look like test tenants and
+were left out; hide them with Settings → Branding → listing rather than in
+Search Console.
+
+**One property per organisation does not scale, and the Domain property does.**
+`sc-domain:ethr.et` covers the apex, `www` and every present and future tenant
+subdomain from a single TXT record. It is already created and unverified; the
+record is in section 6. That ticket is the only durable fix — do it.
+
+### The defect that makes all of this moot until it is fixed
+
+Measured 2026-11-11 on the live site. **Every organisation portal tells Google
+`noindex` once JavaScript runs.**
+
+`PortalHead::inject()` strips the static export's robots meta from the served
+HTML and writes the organisation's own, so the raw response is correct:
+
+```
+X-Robots-Tag: index, follow
+<meta name="robots" content="index, follow">
+```
+
+But the stripped tag is Next.js page metadata
+(`src/src/app/(auth)/login/page.tsx`, `robots: { index: false, follow: true }`),
+and hydration puts it back. After rendering, the DOM holds **two** robots tags:
+
+| Page | Tags present after hydration |
+|---|---|
+| `…/login` | `index, follow` **and** `noindex, follow` |
+| `…/news` | `index, follow` **and** `noindex, nofollow` |
+
+Google combines multiple robots tags and takes the **most restrictive**, and it
+indexes the rendered DOM. Search Console's live test on
+`https://habru-woreda.ethr.et/login` says, in those words, *Page cannot be
+indexed: Excluded by 'noindex' tag*, and **Request indexing was rejected** for
+Habru, the one organisation tried.
+
+This is not a recent regression and there is no bad commit to hunt for. The
+`noindex` metadata arrived with PR #314 on 2026-10-19 (`git log -S "index:
+false"`), the `PortalHead` strip predates it (#263, #282), and `next` has not
+moved since. What is measured, and all that is measured: Habru's last crawl was
+27 Oct 2026 and still carries the pre-rename title "Habru woreda"; today's live
+test says `noindex`; the indexing request was refused. Whether the pages already
+in the index survive is not known — check Search Console → Pages after the fix
+ships.
+
+Fixing it means the `noindex` must not reach the DOM on an organisation host —
+the apex `/login` still needs it. Whatever the shape, the test is the DOM and
+not the response body: `curl` cannot see this.
+
+### Checking an organisation after a fix
+
+```bash
+curl -sSI https://<slug>.ethr.et/login | grep -i x-robots-tag
+```
+
+then, in a browser on that page, after hydration:
+
+```js
+[...document.querySelectorAll('meta[name="robots"]')].map((m) => m.content)
+```
+
+One entry, `index, follow`. Two entries is the defect above.
+
+Then Search Console → that property → URL Inspection → the `/login` address →
+**Request indexing**. A rejection with *indexing issues were detected* means the
+`noindex` is still in the DOM.
+
+### What was already right, and needs no change
+
+- `sitemap-organisations.xml` reads **Success, 19 discovered pages** (last read
+  9 Nov 2026), so cross-host discovery through each host's robots.txt works.
+- Organisations that are not listed or no longer in use (`kalpharmacy`,
+  `mersa-city`, `yonas-beyene`) serve `X-Robots-Tag: noindex, nofollow` and are
+  absent from the sitemap. Their stale Google entries drop out on recrawl.
+- `/otp` and `/forgot` appear in Google for some organisations at the **top
+  level**, where they now 404 — stale entries from an older route shape, which
+  also drop out on recrawl. The live routes are under `/login/`, which
+  robots.txt disallows.
 
 ---
 
