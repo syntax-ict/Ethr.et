@@ -20,6 +20,7 @@ use App\Services\Auth\DeviceFingerprint;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\TrustedDeviceService;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\Locales;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,10 +45,18 @@ class AuthService
 
     public function registerTenant(array $data): array
     {
-        return DB::transaction(function () use ($data) {
+        // The language the sign-up form was read in: the browser sends it as
+        // Accept-Language and SetLocale has applied it, `en` when a client
+        // sends none. The admin and the organisation's default were both
+        // written `en` whatever the form showed, so someone who signed up in
+        // Amharic got their welcome e-mail, and their staff's, in English.
+        $locale = Locales::orDefault(app()->getLocale());
+
+        return DB::transaction(function () use ($data, $locale) {
             $tenant = Tenant::create([
                 'name' => $data['organization_name'],
                 'subdomain' => $data['subdomain'],
+                'default_locale' => $locale,
                 'type' => $data['organization_type'] ?? null,
                 // The kind of organisation in law scopes the statutory payroll
                 // rules. Asked at sign-up (`organization_kind`); a client that
@@ -80,7 +89,7 @@ class AuthService
                 'password_changed_at' => now(),
                 'role' => UserRole::TENANT_ADMIN,
                 'status' => 'active',
-                'locale' => 'en',
+                'locale' => $locale,
             ]);
 
             // Whoever registers the organisation owns it, until they hand it on.

@@ -61,8 +61,8 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 `/release.json` (S-01) before running these cases: a merged change is not necessarily deployed.** A
 case for a change that is not live is recorded as Blocked, not Fail.
 
-**The third edition's rows follow, file by file, up to `d4b3524ea4`.** A change merged after that is
-not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+**The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
+`8431f382a8`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -185,13 +185,84 @@ the execution log.
 | Public listing, admin name, pasted hire dates, honest readiness | #481 | SET-016, SET-017; SET-006 changed |
 | A-Z review: Ethiopian dates in the import, People step limits, pay data in imports and profile reviews, structure deletions, signed file links | #624, #625 | SET-015, IMP-E-015, IMP-E-016, PRO-011, DOC-011; ORG-S-004, EMP-005, EMP-008, REC-009, DOC-001, PRO-007 changed |
 
+**Fourth edition, the 2026-11-09 review fixes** (merged after `d4b3524ea4`, up to `8431f382a8`):
+
+| Change | PRs | Cases |
+|---|---|---|
+| Team summary counts everyone present (late and early leave included); the team chart and team overtime use the organisation's week and month; voided records leave team overtime | #654 | TEAM-002, TEAM-003, TEAM-005 changed |
+| A night shift's record can be closed only until 6 h after the shift ends (or within 14 h of check-in); an Automatic punch after that is the next arrival | #659 | SHF-013 |
+| A late arrival who also leaves early is told both, and both sets of minutes count (Reconcile, lateness cap) | #659 | LATE-004, PUNCH-010 changed |
+| Check-out under a required geofence needs a location on phone and QR; a check-out outside the place is recorded and flagged high | #659 | MOB-014; 05 section 6 `outside_geofence` row changed |
+| Nobody below the organisation admin creates, changes or cancels their own loans or cost sharing | #658 | LOAN-009 changed |
+| A supervisor reads the leave balances of the people they reach | #658 | LB-008 changed |
+| A leaver recorded ahead of their last day is paid the whole period | #668 | PAY-039; 07 section 1.4, test employee E-LEAVE-1 and section 3 step 5 changed |
+| One live run per period; a reprocess is computed by the queue | #668, #669 | PAY-040; PAY-023 and section 3 step 6 changed |
+| A new tax ladder closes the old one instead of deleting it; earlier periods keep their rates | #669 | PAY-041 |
+| A write with no organisation resolved is refused (403 `tenant-required`) | #668 | TEN-027 |
+| Two leave requests sent together cannot overdraw one balance | #669 | LR-022 |
+| A scheduled task that exits non-zero makes `/cron/schedule` report `failed` (the cron run goes red) | #669 | OPS-006 |
+| A device backlog that is handed on loses no punch | #669 | DEV-017 |
+| A data export the host kills is marked failed; kiosk token hashes are left out of the archive | #669, #679 | EXP-001 changed |
+| One live login per employee; an employee whose login was deleted can get a new one; the migration unlinks second logins (audited) | #670, #678 | ACC-031 |
+| No admin role at your own level below the organisation admin (no second HR admin); resending someone's current role is not a grant | #670 | ACC-020 changed |
+| An upgrade raises an invoice for the rest of the period | #670 | PLAN-022 |
+| Push subscriptions only to browser push services | #670 | PUSH-006 |
+| Stored files are named by detected type and served as `attachment` with `nosniff` | #679 | DOC-012; DOC-001, DOC-011, SEC-016 changed |
+| Kiosk tokens are hashed and expire after 90 days; "Renew" | #679 | KIO-029, KIO-030; KIO-001, KIO-008 changed |
+| Kiosk sync obeys the kiosk check-in switch and the branch's kiosk method | #679 | KIO-031; KIO-011 changed |
+| Two writers at a plan's last free seats are taken one at a time | #679 | IMP-E-017 |
+| An operator impersonating an organisation cannot rename its address or change its form or custom domain | #680 | IMP-008, IMP-004 changed |
+| Nobody below the organisation admin approves their own phone or sets their own exemption | #680 | SEC-026; SEC-027, PHN-001, PHN-015 changed |
+| Running the pack by machine: the scripted smoke checks, and Claude Code with the guarded Playwright browser or with Chrome | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
+
+**Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
+branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
+the live commit contains `7adf8dfec4`); until then record Blocked.**
+Each changed case keeps its old expectation for a release without #682:
+
+| Change | PRs | Cases |
+|---|---|---|
+| Statutory rules are resolved by profile: the organisation's own row, then sector, kind, the kind's parent, then the law for everyone. Calculation log 1.8 (layer, enforcement, floor, version); `tenant_setting` retired | #682 | STAT-005, STAT-006, ISO-014; 07 sections 1.1, 1.2 and 11 notes, PAY-012, PAY-033, PAY-034 changed |
+| Sign-up asks the kind of organisation in law: 16 kinds in four groups; the 10 new kinds inherit their parent's rules; public catalogue | #682 | ORG-009 to ORG-011, STAT-003; STAT-001 changed |
+| Income tax ladder and pension rules locked to the law (422 cites the law); ladders saved earlier are still honoured and flagged | #682 | STAT-009, STAT-010; PAY-001, PAY-002, PAY-003, PAY-041 changed |
+| Settings → Payroll gets a "Statutory rules" tab with "Reset to default"; the four settings values become the organisation's own rows | #682 | STAT-006 to STAT-008; PAY-006, TEN-014 changed |
+| Leave types cannot grant fewer days than the law (annual 16, maternity 120, paternity 3) | #682 | LT-006 |
+| The wizard's configuration step asks headcount band, pay frequency (monthly only), calendar and kind, and records them as a profile | #682 | SET-018, SET-019; SET-002, SET-008 changed |
+| Pension registration number (POESSA/PSSSA), payout method, paying bank; "Ready for first payroll" (`GET /next-steps` → `payroll`) | #682 | SET-020 to SET-022; SET-006 changed |
+| Run Payroll opens on a dry-run preview (`POST /payroll/preview`, audited `payroll.previewed`, outside the 2-an-hour limit) | #682 | STAT-014 to STAT-016; PAY-010 changed |
+| After the first approved run, a change of kind needs `effective_from` (a month's first day, never Pagume); pending change shown, replaced or cancelled | #682 | STAT-011 to STAT-013; STAT-002 changed |
+| Kind, statutory rules and preview in Amharic and Afaan Oromoo | #682 | L10N-021 |
+| Second-reader review of that Amharic and Afaan Oromoo; the Amharic names of the kinds corrected by a migration (the deploy needs `migrate`, S-02) | #684 | L10N-021 (read the kinds against `docs/i18n/AMHARIC-REVIEW.md`); K-62 still open |
+| Fixes from reading #682 (merged as `cb03c51af6`; run once it is deployed): the schedule save pins nothing, a pending change of kind survives other saves and is cancelled explicitly, "Use the law's rates" ends an old own ladder or pension rule, only the ladder in force is shown as the law; civil-service policies follow the kind | [#685](https://github.com/syntax-ict/Ethr.et/pull/685) | STAT-008, STAT-010, STAT-012, STAT-013, PAY-001 changed; K-52, K-56 to K-59 |
+
+**Fourth edition, 2026-11-10** (`main` at `6adc3a16c5`). Three different commits were in play that
+day, and each row says which one a case needs: **live** `3d2d80d107` (v2026.11.10.2, to #686),
+**built but not deployed** `5ee91d8d69` (v2026.11.10.4, to #688), **merged but not built**
+`6adc3a16c5` (#689). Read the three again before a pass (`scripts/release-status.sh
+https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, not Fail.
+
+| Change | PRs | Cases |
+|---|---|---|
+| A returning visitor's stored site content waits until the page has hydrated: no React error 418 on the marketing pages | #686 | MKT-015 (passed on production 2026-11-10) |
+| The pricing page's built-in copy and the seeder match the live Enterprise plan; the seed fills its Afaan Oromoo bullets | #687 | MKT-005 changed; K-71 |
+| A punch a terminal pushes to the vendor webhook is recorded for the device's organisation (`86ff8df226`). The PR is titled as a test harness; the fix rides in it | #688 | DEV-007, DEV-008 changed; K-70 |
+| The attendance-to-payslip journeys (`src/e2e/attendance-payroll/`) and the punch race test join the gates: L0 only, never production | #688 | Section 3, L0; [11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli) |
+| Sign-up holds the admin step until the phone is valid; the industry must be one the catalogue knows; the admin and the organisation take the form's language | #689 | ORG-012 to ORG-014; K-69 |
+| The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
+| The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
+
+**Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
+pieces in local worktrees and one pushed branch) has no case: it can still change before anyone
+tests it. Cases are written when each reaches `main`; `scripts/qa-pack-coverage.sh` will list
+them then.
+
 ## 3. Approach
 
 Testing runs in four layers, cheapest first. A layer that fails stops the next one.
 
 | Layer | What | Who | Time |
 |---|---|---|---|
-| **L0 Pre-production** | CI must be green on the release commit: `./scripts/gates.sh` (backend, frontend, docs, API contract) and the MariaDB gate. The automated Playwright suite (`src/e2e/`) may also be pointed at the local production rehearsal (`scripts/local-production/up.sh`, port 8081) | Developer | Before deploy |
+| **L0 Pre-production** | CI must be green on the release commit: `./scripts/gates.sh` (backend, frontend, docs, API contract) and the MariaDB gate. The automated Playwright suite (`src/e2e/`) may also be pointed at the local production rehearsal (`scripts/local-production/up.sh`, port 8081). Since #688 the gates also run the attendance-to-payslip journeys (`./scripts/gates.sh e2e-attendance`) and the punch race test, which seed and write and never run on production | Developer | Before deploy |
 | **L1 Smoke** | Release identity, health, redirects, sign-in per role, one read per module. Read-only | Tester | 30 min, after every deploy |
 | **L2 Functional E2E** | The cases in 03 to 08, in the QA organisations | Tester | 3 to 5 days for a full pass; changed areas only for a small release |
 | **L3 Non-functional** | Security, isolation, accessibility, localisation, responsive, offline, timings ([09](09-NON-FUNCTIONAL.md)) | Tester | 1 to 2 days |
@@ -207,6 +278,19 @@ accounts (`src/e2e/helpers.ts`). Its defaults are demo accounts that do not exis
 Run only read-only specs there (`auth`, `marketing`, `accessibility`, `responsive`,
 `theme-switching`, `amharic-layout`, `offline`) unless the owner agrees otherwise, and run them with
 `workers: 1` (the default) so rate limits are not tripped.
+
+**On production itself, use the production suite instead** (added 2026-11-09): `npm run
+test:e2e:production` in `src/` runs the release smoke checklist's scriptable rows (S-01, S-02, S-04
+to S-11, S-13) against `https://www.ethr.et` and the QA organisation. It never signs in (a person
+saves each persona's session, MFA included), refuses any organisation that is not a QA one, and
+aborts every state-changing API call before it leaves the browser, with service workers blocked so
+the app's own offline replay cannot send one either. Claude Code can run the read-only cases of 03
+to 09 through the Playwright MCP server with the same guard. **Claude Code can also drive the
+tester's Chrome, which has no guard:** that channel is for public pages, for Mode W sessions the
+owner has agreed to, and for cases where a person must act mid-way, in a Chrome profile kept for QA
+and never as PA. What each may run, and what stays with the tester, is in
+[11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md). A green scripted run is L1 evidence only: it does not
+replace the sign-in, isolation or phone cases.
 
 ## 4. Environments
 

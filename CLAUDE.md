@@ -91,6 +91,8 @@ In an agent sandbox, set the token in the environment's own settings, not as a s
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ./scripts/gates.sh docs       # markdown link integrity
 ./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
+./scripts/gates.sh concurrency     # attendance punches racing from separate processes
+./scripts/gates.sh e2e-attendance  # browser journeys that read back what a punch saved
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ./scripts/gates.sh coverage   # backend line coverage — needs PCOV or Xdebug
 ```
@@ -100,6 +102,11 @@ Three gates sit outside the full sweep, each for a reason:
 - **`performance`** prints what it measured, not only whether it passed, so its output is a baseline to compare against (first one: BASELINE §13e).
 - **`security`** goes red when a third party publishes an advisory, not when you break something, and a permanently red gate stops being read. Expect it to go red without warning; that is its job.
 - **`mysql`** needs a database server, and the full sweep must run on a fresh clone. **It fails rather than skipping when no server is reachable**, because otherwise the suite only ever runs on SQLite while production runs on MariaDB. CI runs it on every push.
+
+Two more are opt-in for the same reason, and are the only proof of attendance above a single process (BASELINE §25j):
+
+- **`concurrency`** starts a PHP process per punch and releases them together, against MySQL or MariaDB with the `database` cache store. It commits its fixtures, so it needs a scratch database of its own (`ethr_concurrency`) and refuses any other name. `tests/Concurrency` sits outside both testsuites, like `tests/Performance`, so the collection count above is unchanged.
+- **`e2e-attendance`** drives a running stack through `src/playwright.attendance.config.ts`. It first seeds organisations of its own (`E2eAttendanceSeeder`, local and testing only) into the database `DB_*` names, which must be the one the running API reads. It never retries, and every journey asserts on what the API reads back, not on a toast. The payroll journey is queued as production is, so it needs `queue:work` running against the same database; it never uses `QUEUE_CONNECTION=sync`. **A device punch in a journey names no organisation**, as a real terminal cannot: the token finds the device and the device sets the request's organisation (`DeviceController::resolveWebhookDevice`). A backend test of a credential-authenticated route must clear what `createTenant()` left in the process first (`app()->forgetScopedInstances()`), or it passes on context a real request never has.
 
 **CI calls `gates.sh` rather than restating it**, so the two cannot drift. Node is declared once, in `.nvmrc`. Every `scripts/*.sh` must be committed executable (`git update-index --chmod=+x`) — Git on Windows does not track the bit.
 
