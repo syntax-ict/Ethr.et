@@ -75,18 +75,24 @@ export function toGrid(text: string): string[][] {
   );
 }
 
+/** The template's columns that hold a date (EmployeeImportRow::DATES). */
+const DATE_COLUMNS = ["hire_date", "date_of_birth"];
+
 /**
- * A CSV with column names the server reads, and one example person. The
- * hire date column names its calendar, so the file says how to read itself
+ * The one employee template, as a CSV header row: the server's columns, with
+ * each date column naming its calendar, so the file says how to read itself
  * wherever it is filled in.
  */
-export function peopleTemplateCsv(
+export function templateCsv(
+  headers: string[],
   calendar: DateCalendar = "gregorian",
 ): string {
-  return [
-    calendar === "ethiopian"
-      ? "Name,Email,Phone,Employee number,Hire date (E.C.),Department"
-      : "Name,Email,Phone,Employee number,Hire date (G.C.),Department",
-    `Abebe Kebede,abebe@example.et,0911223344,EMP-001,${calendar === "ethiopian" ? "2011-10-30" : "2019-07-07"},Finance`,
-  ].join("\r\n");
+  const mark = calendar === "ethiopian" ? "(E.C.)" : "(G.C.)";
+  return (
+    headers
+      .map((header) =>
+        DATE_COLUMNS.includes(header) ? `${header} ${mark}` : header,
+      )
+      .join(",") + "\r\n"
+  );
 }

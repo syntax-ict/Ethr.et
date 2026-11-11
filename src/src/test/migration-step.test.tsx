@@ -229,7 +229,7 @@ describe("<MigrationStep>", () => {
       },
     });
 
-    expect(await screen.findByText(/1 person ready/)).toBeInTheDocument();
+    expect(await screen.findByText(/^1 person ready/)).toBeInTheDocument();
     expect(
       screen.getByText(/Columns: Name, Hire date, Salary/),
     ).toBeInTheDocument();
@@ -341,6 +341,43 @@ describe("<MigrationStep>", () => {
     expect(
       screen.queryByText("Line 2: The name field is required."),
     ).not.toBeInTheDocument();
+  });
+
+  it("stages the people who are ready and leaves the bad lines out, when asked to", async () => {
+    let body: Record<string, unknown> | null = null;
+    reads({
+      people: 2,
+      header: true,
+      columns: ["name", "email"],
+      problems: [{ line: 3, message: "The email must be a valid email." }],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Name,Email\nAbebe,a@acme.et\nBad,nope\nHanna," },
+    });
+
+    fireEvent.click(
+      await screen.findByText(
+        "Stage the 2 people ready and leave those lines out",
+      ),
+    );
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ skip_problems: true });
+    expect(body!.grid).toHaveLength(4);
   });
 
   it("reads a chosen CSV file into the list", async () => {

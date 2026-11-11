@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  peopleTemplateCsv,
-  toGrid,
-} from "@/features/onboarding/v2/parse-people";
+import { templateCsv, toGrid } from "@/features/onboarding/v2/parse-people";
 
 /*
  * The browser splits a list into cells and nothing more (2026-11-11). What a
@@ -68,13 +65,14 @@ describe("splitting a list of people into cells", () => {
     ]);
   });
 
-  it("writes a template whose hire date column names its calendar", () => {
-    const ethiopian = toGrid(peopleTemplateCsv("ethiopian"));
-    const gregorian = toGrid(peopleTemplateCsv("gregorian"));
+  it("writes the template with each date column naming its calendar", () => {
+    const headers = ["name", "hire_date", "date_of_birth", "department"];
 
-    expect(ethiopian[0]).toContain("Hire date (E.C.)");
-    expect(ethiopian[1]).toContain("2011-10-30");
-    expect(gregorian[0]).toContain("Hire date (G.C.)");
-    expect(gregorian[1]).toContain("2019-07-07");
+    expect(toGrid(templateCsv(headers, "ethiopian"))).toEqual([
+      ["name", "hire_date (E.C.)", "date_of_birth (E.C.)", "department"],
+    ]);
+    expect(toGrid(templateCsv(headers, "gregorian"))).toEqual([
+      ["name", "hire_date (G.C.)", "date_of_birth (G.C.)", "department"],
+    ]);
   });
 });

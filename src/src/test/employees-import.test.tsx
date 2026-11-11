@@ -1,12 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import EmployeeImportPage from "@/app/(dashboard)/employees/import/page";
+import type { MigrationBatch } from "@/features/onboarding/v2/types";
 
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push, back: vi.fn() }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 // The page is wrapped in <RoleGate anyPermission={["manageEmployees"]}>;
@@ -20,24 +26,75 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
-const PREVIEW_URL = "*/api/v1/employees/import/preview";
-const COMMIT_URL = "*/api/v1/employees/import/commit";
-const BATCH = "01JBQ8Z6ZK3M9V2X7Y4W5T6R8S";
+const saved: { name: string; csv: string }[] = [];
+vi.mock("@/lib/utils/csv-export", () => ({
+  saveCsv: (name: string, csv: string) => saved.push({ name, csv }),
+}));
 
-// One valid row (line 2) and one row that fails validation (line 3).
-const PREVIEW = {
-  headers: ["name", "email", "hire_date"],
+/*
+ * The employee import is the staged review every list goes through (One
+ * employee identity, PR 6). It had a pipeline of its own: upload, preview,
+ * commit, no review, and a person already in ETHR was counted and skipped.
+ */
+
+const BATCH: MigrationBatch = {
+  public_id: "01HZBATCH0000000000000009",
+  source_type: "csv",
+  source_ref: null,
+  status: "reviewing",
+  totals: null,
+  summary: { new: 1, matched: 1 },
   rows: [
-    { name: "Abebe Kebede", email: "abebe@acme.et", hire_date: "2024-01-01" },
-    { name: "", email: "not-an-email", hire_date: "" },
+    {
+      public_id: "01HZROW00000000000000091",
+      display_name: "Abebe Kebede",
+      external_identifier: "EMP-1",
+      match_outcome: "matched",
+      match_confidence: 1,
+      candidates: [],
+      resolved_employee_public_id: "01HZEMP0000000000000001",
+      action: "merge",
+      changes: [
+        {
+          field: "phone",
+          kind: "fill",
+          current: null,
+          incoming: "+251911223344",
+          masked: false,
+          accepted: false,
+          taken: false,
+        },
+      ],
+      can_apply_changes: true,
+      scheduled_action: false,
+      processed_at: null,
+    },
+    {
+      public_id: "01HZROW00000000000000092",
+      display_name: "Hanna Girma",
+      external_identifier: null,
+      match_outcome: "new",
+      match_confidence: null,
+      candidates: [],
+      resolved_employee_public_id: null,
+      action: "create",
+      changes: [],
+      can_apply_changes: false,
+      scheduled_action: false,
+      processed_at: null,
+    },
   ],
-  errors: { 3: ["Name is required", "Email is invalid"] },
 };
 
 function renderPage() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  server.use(
+    http.get("*/devices", () =>
+      HttpResponse.json({ data: [], meta: {}, links: {} }),
+    ),
+  );
   return render(
     <QueryClientProvider client={qc}>
       <EmployeeImportPage />
@@ -45,319 +102,124 @@ function renderPage() {
   );
 }
 
-function uploadCsv(container: HTMLElement) {
-  const input = container.querySelector("#csv-input") as HTMLInputElement;
-  const file = new File(["name,email,hire_date\n"], "employees.csv", {
-    type: "text/csv",
+function chooseFile(text: string, name = "employees.csv") {
+  fireEvent.change(screen.getByTestId("people-file"), {
+    target: { files: [new File([text], name, { type: "text/csv" })] },
   });
-  fireEvent.change(input, { target: { files: [file] } });
 }
 
-describe("Employee CSV import (S08)", () => {
-  it("previews rows and flags validation errors", async () => {
-    server.use(http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)));
-
-    const { container } = renderPage();
-    expect(await screen.findByText("Upload CSV File")).toBeInTheDocument();
-
-    uploadCsv(container);
-
-    // Preview step: valid vs error counts are surfaced.
-    expect(await screen.findByText("Total rows")).toBeInTheDocument();
-    expect(screen.getByText("Valid rows")).toBeInTheDocument();
-    expect(screen.getByText("Rows with errors")).toBeInTheDocument();
-
-    // Green "Valid" badge for the good row, red error badge for the bad one.
-    expect(screen.getByText("Valid")).toBeInTheDocument();
-    expect(screen.getByText(/2\s+errors/i)).toBeInTheDocument();
-  });
-
-  it("sends the calendar the file's dates are written in", async () => {
-    let body = "";
-    server.use(
-      http.post(PREVIEW_URL, async ({ request }) => {
-        body = await request.text();
-        return HttpResponse.json(PREVIEW);
-      }),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    fireEvent.click(screen.getByRole("button", { name: "Ethiopian (E.C.)" }));
-    expect(
-      screen.getByRole("button", { name: "Ethiopian (E.C.)" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    uploadCsv(container);
-
-    await screen.findByText("Total rows");
-    expect(body).toMatch(/name="calendar"\s+ethiopian/);
-  });
-
-  it("commits the valid rows and shows the result", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, () =>
-        HttpResponse.json({ created: 1, skipped: 1, errors: {} }),
-      ),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-
-    const importBtn = await screen.findByRole("button", {
-      name: /Import 1 valid row/i,
-    });
-    fireEvent.click(importBtn);
-
-    expect(await screen.findByText("Import Complete")).toBeInTheDocument();
-  });
-
-  it("sends only the rows the preview passed, so one bad row cannot fail the batch", async () => {
-    // ImportCommitRequest validates every row it is sent (`rows.*.name`
-    // required, `rows.*.email` an email). Sending the flagged row too turned
-    // "rows with errors will be skipped" into a 422 for the whole file.
-    let committed: { import_key: string; rows: unknown[] } | undefined;
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, async ({ request }) => {
-        committed = (await request.json()) as typeof committed;
-        return HttpResponse.json(
-          { created: 1, skipped: 0, matched: 0, users_created: 0, errors: [] },
-          { status: 201 },
-        );
-      }),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
-
-    expect(await screen.findByText("Import Complete")).toBeInTheDocument();
-    expect(committed?.rows).toEqual([PREVIEW.rows[0]]);
-  });
-
-  it("says why a file without its required columns cannot be imported", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () =>
-        HttpResponse.json({
-          headers: ["email"],
-          rows: [],
-          errors: { 0: ["Missing required columns: name, hire_date"] },
-        }),
-      ),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-
-    expect(
-      await screen.findByText("Missing required columns: name, hire_date"),
-    ).toBeInTheDocument();
-    // It read "Import -1 valid rows", and was enabled.
-    expect(
-      screen.getByRole("button", { name: /Import 0 valid rows/i }),
-    ).toBeDisabled();
-  });
-
-  it("gives a second file its own import key", async () => {
-    // Rows without an employee_code are keyed by index under the import key,
-    // so reusing the key skipped the second file's rows as already imported.
-    const keys: string[] = [];
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, async ({ request }) => {
-        keys.push(
-          ((await request.json()) as { import_key: string }).import_key,
-        );
-        return HttpResponse.json(
-          { created: 1, skipped: 0, matched: 0, users_created: 0, errors: [] },
-          { status: 201 },
-        );
-      }),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-
-    uploadCsv(container);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Import another file" }),
-    );
-
-    uploadCsv(container);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
-    await screen.findByText("Import Complete");
-
-    expect(keys).toHaveLength(2);
-    expect(keys[0]).not.toBe(keys[1]);
-  });
-
-  it("counts rows matched to an existing employee as not created", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, () =>
-        HttpResponse.json(
-          { created: 0, skipped: 0, matched: 1, users_created: 0, errors: [] },
-          { status: 201 },
-        ),
-      ),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
-
-    const skipped = (await screen.findByText("Skipped")).parentElement!;
-    expect(skipped).toHaveTextContent("1");
-  });
-
-  it("reaches the file picker from the keyboard", async () => {
+describe("Employee import", () => {
+  it("is about a file: no attendance device, and every column explained", () => {
     renderPage();
-    expect(
-      await screen.findByRole("button", { name: "Browse files" }),
-    ).toBeInTheDocument();
-  });
-});
-
-describe("Employee CSV import, 2026-10-15", () => {
-  it("lists every problem by line, without the server's row prefix", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () =>
-        HttpResponse.json({
-          ...PREVIEW,
-          errors: {
-            3: [
-              "Row 3: The name field is required.",
-              "Row 3: Email is invalid",
-            ],
-          },
-        }),
-      ),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-
-    expect(await screen.findByText("What to fix")).toBeInTheDocument();
-    expect(screen.getByText("The name field is required.")).toBeInTheDocument();
-    expect(screen.getAllByText("Line 3")).toHaveLength(2);
-  });
-
-  it("says that a row with no code will be numbered", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.get("*/api/v1/employees/next-code", () =>
-        HttpResponse.json({ employee_code: "EMP-0007", format: "EMP-{SEQ:4}" }),
-      ),
-    );
-
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
 
     expect(
-      await screen.findByText(
-        "1 row has no employee code. It gets the next number.",
-      ),
+      screen.getByRole("heading", { name: "Import employees from a file" }),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Discover enrolled users")).toBeNull();
+    expect(screen.queryByText("Connect a device")).toBeNull();
+    // The two columns a list can now bring, beside the ones it always could.
+    expect(screen.getByText("external_id")).toBeInTheDocument();
+    expect(screen.getByText("status")).toBeInTheDocument();
+    expect(screen.getByText("salary")).toBeInTheDocument();
   });
 
-  it("sends login invitations only when the box is ticked", async () => {
-    const bodies: Array<{ create_logins?: boolean }> = [];
+  it("reaches the file picker from the keyboard", () => {
+    renderPage();
+
+    expect(
+      screen.getByRole("button", { name: "Choose a CSV file" }),
+    ).toBeEnabled();
+  });
+
+  it("reads the file on the server, then shows each person matched before anyone is added", async () => {
+    let read: { grid: string[][] } | null = null;
+    let staged: { grid: string[][]; calendar: string } | null = null;
     server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, async ({ request }) => {
-        bodies.push((await request.json()) as { create_logins?: boolean });
-        return HttpResponse.json(
-          {
-            created: 1,
-            skipped: 0,
-            matched: 0,
-            users_created: 1,
-            invitations_batch: BATCH,
-            invitations_queued: 1,
-            in_person: 0,
-            errors: [],
-          },
-          { status: 201 },
-        );
+      http.post("*/onboarding/migration/read", async ({ request }) => {
+        read = (await request.json()) as typeof read;
+        return HttpResponse.json({
+          people: 2,
+          header: true,
+          columns: ["name", "employee_code", "phone", "salary"],
+          ignored: [],
+          calendar: "gregorian",
+          calendar_from_header: false,
+          without_hire_date: 2,
+          problems: [],
+        });
       }),
-      http.get(`*/api/v1/users/invitations/${BATCH}`, () =>
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        staged = (await request.json()) as typeof staged;
+        return HttpResponse.json(BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(BATCH),
+      ),
+    );
+
+    renderPage();
+    chooseFile(
+      "Name,Staff ID,Mobile,Salary\nAbebe Kebede,EMP-1,0911223344,12500\nHanna Girma,,,",
+    );
+
+    expect(await screen.findByText(/2 people ready/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Columns: Name, Employee number, Phone, Salary/),
+    ).toBeInTheDocument();
+    // The file's own words went to the server; it said what they mean.
+    expect(read!.grid[0]).toEqual(["Name", "Staff ID", "Mobile", "Salary"]);
+
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    // Nobody has been added: this is the review.
+    expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+    expect(screen.getByText("Hanna Girma")).toBeInTheDocument();
+    expect(screen.getByText(/Fills in Phone/)).toBeInTheDocument();
+    expect(staged!.grid).toHaveLength(3);
+    expect(staged!.calendar).toBe("gregorian");
+  });
+
+  it("downloads the one employee template, its date columns naming the calendar", async () => {
+    saved.length = 0;
+    server.use(
+      http.post("*/employees/import/template", () =>
         HttpResponse.json({
-          batch: BATCH,
-          total: 1,
-          queued: 1,
-          sent: 0,
-          failed: 0,
-          skipped: 0,
-          failures: [],
+          template: "name,hire_date,date_of_birth,status,external_id\n",
+          headers: [
+            "name",
+            "hire_date",
+            "date_of_birth",
+            "status",
+            "external_id",
+          ],
         }),
       ),
     );
 
-    const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-    fireEvent.click(await screen.findByLabelText(/Send a login invitation/));
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
+    renderPage();
+    fireEvent.click(screen.getByText("Ethiopian (E.C.)"));
+    fireEvent.click(screen.getByText("Download template"));
 
-    // Sent from the server's queue, a few a minute: the page says so rather
-    // than claiming they have gone.
-    expect(
-      await screen.findByText("Invitations are being sent"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("0 of 1 sent")).toBeInTheDocument();
-    expect(bodies[0]?.create_logins).toBe(true);
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0].name).toBe("ethr-employee-template.csv");
+    expect(saved[0].csv.trim()).toBe(
+      "name,hire_date (E.C.),date_of_birth (E.C.),status,external_id",
+    );
   });
 
-  it("lists the people with no email for an in-person activation", async () => {
-    server.use(
-      http.post(PREVIEW_URL, () => HttpResponse.json(PREVIEW)),
-      http.post(COMMIT_URL, () =>
-        HttpResponse.json(
-          {
-            created: 2,
-            skipped: 0,
-            matched: 0,
-            users_created: 0,
-            invitations_batch: null,
-            invitations_queued: 0,
-            in_person: 2,
-            errors: [],
-          },
-          { status: 201 },
-        ),
-      ),
-    );
-
+  it("refuses a file over 5 MB without reading it into the page", async () => {
+    const { toast } = await import("sonner");
     const { container } = renderPage();
-    await screen.findByText("Upload CSV File");
-    uploadCsv(container);
-    fireEvent.click(await screen.findByLabelText(/Send a login invitation/));
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Import 1 valid row/i }),
-    );
+    const big = new File(["x"], "huge.csv", { type: "text/csv" });
+    Object.defineProperty(big, "size", { value: 5 * 1024 * 1024 + 1 });
 
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [big] },
+    });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(
-      await screen.findByText(
-        "2 people have no email. Activate them in person from their employee pages.",
-      ),
-    ).toBeInTheDocument();
+      (container.querySelector("textarea") as HTMLTextAreaElement).value,
+    ).toBe("");
   });
 });

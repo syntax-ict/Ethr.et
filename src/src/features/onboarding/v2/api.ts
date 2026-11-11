@@ -208,6 +208,8 @@ export function useStageFromRows() {
     | {
         grid: string[][];
         calendar: "ethiopian" | "gregorian";
+        /** Stage the lines that can be read and leave the rest out. */
+        skip_problems?: boolean;
         source_type?: string;
       }
     | { rows: Record<string, unknown>[]; source_type?: string }
@@ -292,6 +294,8 @@ export function useCommitMigration(
     // still written rows, and the table has to show which.
     onSettled: (_data, _error, batchId) => {
       qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
+      // The people it added are employees now, wherever they are listed.
+      qc.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }

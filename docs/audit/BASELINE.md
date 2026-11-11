@@ -4669,3 +4669,30 @@ access to `www.ethr.et`.
   the 2,000-row limit on staging and the host's thirty seconds. It is now committed in
   slices of twelve seconds, fifty rows to a transaction (`StagedCommitSliceTest`). How long a
   thousand rows take on the host is still unmeasured.
+
+### 25l. Two readers of one list — fixed 2026-11-11
+
+Read in the code while making the import one staged review (One employee identity, PR 6).
+
+- **A pasted list and an imported file gave the same column different meanings.** The guided
+  setup's paste box had its own table of column names in the browser
+  (`features/onboarding/v2/parse-people.ts`); the file import used
+  `App\Support\EmployeeImportRow`. "Badge" and "Badge number" were an employee number in the
+  first and a badge in the second, so the same sheet pasted and uploaded made two different
+  records. `EmployeeImportRow` is now the only table, and `PeopleListReadTest` pins fourteen
+  spellings.
+- **Amharic column names were dropped by the file import.** `header()` kept `[a-z0-9]` and
+  nothing else, so "ስም" became an empty key and the column was ignored. The file was then
+  refused for having no `name` column, which at least was loud. The rule is Unicode-aware now.
+- **A column the paste box did not recognise vanished without a word.** A sheet with
+  "Salary (birr)" staged with no salaries and nothing said so. The reader now answers with
+  the column names it did not use (`ignored`), and the screen shows them.
+- **The employee import screen had no review.** A row that matched an existing employee was
+  counted as `matched` and nothing it brought was kept; a row that only resembled one was,
+  until PR 4, added as a second person. The screen is now the staged review. The endpoints
+  behind the old screen remain for API callers and still have none.
+- **The upload limit no longer applies to the screen.** A file is read in the browser and its
+  cells are sent as JSON; nothing is uploaded, so the host's `upload_max_filesize` does not
+  bound it and its `post_max_size` does. The screen refuses a file over 5 MB before reading
+  it. How large a list's JSON is at 2,000 people, and whether that fits the host's
+  `post_max_size`, is unmeasured.

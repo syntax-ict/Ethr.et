@@ -40,7 +40,13 @@ import {
   useStageFromRows,
 } from "../api";
 import type { MatchOutcome, StagingAction } from "../types";
-import { type DateCalendar, peopleTemplateCsv, toGrid } from "../parse-people";
+import {
+  type DateCalendar,
+  MAX_PEOPLE,
+  templateCsv,
+  toGrid,
+} from "../parse-people";
+import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { MigrationLogins } from "./migration-logins";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -91,6 +97,9 @@ const COLUMN_LABELS: Record<string, [string, string]> = {
 /** Problems shown under the list before the rest are counted. */
 const PROBLEMS_SHOWN = 5;
 
+/** A file this large is not a list of people; it is not read into the page. */
+const FILE_MAX_BYTES = 5 * 1024 * 1024;
+
 /** How long the list rests before the server is asked what it makes of it. */
 const READ_AFTER_MS = 400;
 
@@ -113,16 +122,29 @@ function refusedLines(err: unknown): string[] {
 }
 
 /**
+ * The one review every list of people goes through: the guided setup, a
+ * device's roster, and the employee import.
+ *
  * @param onCommitted Called when the reviewer moves on after the commit, from
  *   the "give them a way to sign in" step, not at the commit itself.
  * @param initialDeviceId Preselects the device, when opened from that device.
+ * @param sources "list" leaves the attendance device out: the employee import
+ *   is about a file.
+ * @param title Heading, where the page is not the guided setup.
+ * @param description The line under it.
  */
 export function MigrationStep({
   onCommitted,
   initialDeviceId,
+  sources = "all",
+  title,
+  description,
 }: {
   onCommitted?: () => void;
   initialDeviceId?: string;
+  sources?: "all" | "list";
+  title?: string;
+  description?: string;
 }) {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -173,7 +195,17 @@ export function MigrationStep({
             message: p.message,
           }),
         );
-  const noDevice = devicesQuery.isSuccess && devices.length === 0;
+  const listOnly = sources === "list";
+  const noDevice = listOnly || (devicesQuery.isSuccess && devices.length === 0);
+  // The lines that cannot be staged may be left out, once the server has
+  // said who is ready: a long file is not held up by three bad rows.
+  const canLeaveOut =
+    problems.length > 0 &&
+    refused.csv !== csv &&
+    !reading &&
+    (read?.people ?? 0) > 0 &&
+    (read?.people ?? 0) <= MAX_PEOPLE;
+  const [templatePending, setTemplatePending] = useState(false);
 
   async function readFile(file: File) {
     if (/\.xlsx?$/i.test(file.name)) {
@@ -185,7 +217,40 @@ export function MigrationStep({
       );
       return;
     }
+    if (file.size > FILE_MAX_BYTES) {
+      toast.error(
+        t(
+          "employees_import_page.file_too_large",
+          "The file must be 5 MB or smaller.",
+        ),
+      );
+      return;
+    }
     setCsv(await file.text());
+  }
+
+  /**
+   * The one employee template: every column ETHR reads, from the server, so
+   * the setup, this page and the API hand out the same file.
+   */
+  async function downloadTemplate() {
+    setTemplatePending(true);
+    try {
+      const { headers } = await fetchEmployeeImportTemplate();
+      saveCsv("ethr-employee-template.csv", templateCsv(headers, dateCalendar));
+    } catch (err) {
+      toast.error(
+        apiErrorMessage(
+          err,
+          t(
+            "employees_import_page.template_download_failed",
+            "Failed to download template",
+          ),
+        ),
+      );
+    } finally {
+      setTemplatePending(false);
+    }
   }
 
   async function discoverDevice() {
@@ -205,12 +270,15 @@ export function MigrationStep({
     }
   }
 
-  async function stageCsv() {
-    if (csv.trim() === "" || problems.length > 0) return;
+  async function stageCsv(leaveOutProblems = false) {
+    if (csv.trim() === "" || (problems.length > 0 && !leaveOutProblems)) {
+      return;
+    }
     try {
       const b = await stageRows.mutateAsync({
         grid: toGrid(csv),
         calendar: dateCalendar,
+        ...(leaveOutProblems ? { skip_problems: true } : {}),
       });
       setBatchId(b.public_id);
     } catch (err) {
@@ -290,13 +358,14 @@ export function MigrationStep({
       <div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">
-            {t("setup2.migration_title", "Bring in your workforce")}
+            {title ?? t("setup2.migration_title", "Bring in your workforce")}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              "setup2.migration_desc",
-              "Discover people from an attendance device or a list. We match them to existing employees so nobody is duplicated.",
-            )}
+            {description ??
+              t(
+                "setup2.migration_desc",
+                "Discover people from an attendance device or a list. We match them to existing employees so nobody is duplicated.",
+              )}
           </p>
         </div>
       </div>
@@ -377,12 +446,8 @@ export function MigrationStep({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    saveCsv(
-                      "ethr-people-template.csv",
-                      peopleTemplateCsv(dateCalendar),
-                    )
-                  }
+                  onClick={downloadTemplate}
+                  disabled={templatePending}
                 >
                   <Download className="mr-2 h-4 w-4" aria-hidden="true" />
                   {t("setup2.download_template", "Download template")}
@@ -535,7 +600,7 @@ export function MigrationStep({
               </p>
               <Button
                 className="w-full"
-                onClick={stageCsv}
+                onClick={() => stageCsv()}
                 disabled={
                   stageRows.isPending ||
                   csv.trim() === "" ||
@@ -548,21 +613,28 @@ export function MigrationStep({
                 ) : null}
                 {t("setup2.stage_rows", "Stage for review")}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  "setup2.import_instead",
-                  "Need salaries, contracts and bank details too?",
-                )}{" "}
-                <Link
-                  href="/employees/import"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+              {canLeaveOut && (
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => stageCsv(true)}
+                  disabled={stageRows.isPending}
                 >
-                  {t("setup2.import_link", "Use the full employee import")}
-                </Link>
-              </p>
+                  {read!.people === 1
+                    ? t(
+                        "setup2.stage_ready_one",
+                        "Stage the 1 person ready and leave those lines out",
+                      )
+                    : t(
+                        "setup2.stage_ready",
+                        "Stage the :count people ready and leave those lines out",
+                        { count: read!.people },
+                      )}
+                </Button>
+              )}
             </CardContent>
           </Card>
-          {noDevice && (
+          {noDevice && !listOnly && (
             <p className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
               <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
               {t(
