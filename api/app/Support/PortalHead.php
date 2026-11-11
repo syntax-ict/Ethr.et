@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\Vacancy;
 use App\Services\PortalPreviewImage;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -53,14 +54,13 @@ final class PortalHead
         $image = FrontendUrl::to(route('organisation.preview', [$tenant->public_id, PortalPreviewImage::version($tenant)], absolute: false));
         $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
         $colour = $brand['primary_color'] ?? '#0F4C75';
-        $robots = TenantLanding::indexable($tenant) ? 'index, follow' : 'noindex, nofollow';
 
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         $tags = [
             '<title>'.$e($title).'</title>',
             '<meta name="description" content="'.$e($description).'">',
-            '<meta name="robots" content="'.$robots.'">',
+            '<meta name="robots" content="'.self::robots($tenant).'">',
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.'?lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.'?lang=am').'">',
@@ -103,7 +103,26 @@ final class PortalHead
      * The head of the organisation's news page (`/news`): its title and a
      * line saying what the page is, at its canonical address.
      */
-    public static function news(Tenant $tenant): string
+    /**
+     * The robots line of a news page, which has one more question to answer
+     * than the rest of the portal: an organisation that has published
+     * nothing has a page that says so and nothing else, the same empty page
+     * every one of them would have, and a shelf of identical empty pages on
+     * one domain is worth less than none. Such a page is kept out of search
+     * but its links are still followed, so the portal itself is reached, and
+     * it comes back the moment something is published.
+     *
+     * An organisation that is hidden or no longer in use keeps its own line.
+     * This only takes a page out of search; it never puts one back in.
+     */
+    public static function newsRobots(Tenant $tenant, bool $hasArticles): string
+    {
+        $robots = self::robots($tenant);
+
+        return $hasArticles || str_contains($robots, 'noindex') ? $robots : 'noindex, follow';
+    }
+
+    public static function news(Tenant $tenant, bool $hasArticles = true): string
     {
         $landing = TenantLanding::present($tenant);
         $name = $tenant->name;
@@ -116,6 +135,7 @@ final class PortalHead
             url: self::newsUrl($tenant),
             type: 'website',
             jsonLd: [],
+            robots: self::newsRobots($tenant, $hasArticles),
         );
     }
 
@@ -203,6 +223,7 @@ final class PortalHead
         array $jsonLd,
         ?Carbon $published = null,
         ?array $image = null,
+        ?string $robots = null,
     ): string {
         $brand = TenantBrand::present($tenant);
         $image ??= [
@@ -213,7 +234,6 @@ final class PortalHead
         ];
         $icon = $brand['mark_url'] === null ? null : FrontendUrl::to($brand['mark_url']);
         $colour = $brand['primary_color'] ?? '#0F4C75';
-        $robots = TenantLanding::indexable($tenant) ? 'index, follow' : 'noindex, nofollow';
         $joiner = str_contains($url, '?') ? '&' : '?';
 
         $e = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -221,7 +241,7 @@ final class PortalHead
         $tags = [
             '<title>'.$e($title).'</title>',
             '<meta name="description" content="'.$e($description).'">',
-            '<meta name="robots" content="'.$robots.'">',
+            '<meta name="robots" content="'.($robots ?? self::robots($tenant)).'">',
             '<link rel="canonical" href="'.$e($url).'">',
             '<link rel="alternate" hreflang="en" href="'.$e($url.$joiner.'lang=en').'">',
             '<link rel="alternate" hreflang="am" href="'.$e($url.$joiner.'lang=am').'">',
@@ -266,12 +286,44 @@ final class PortalHead
     }
 
     /**
+     * Whether this organisation's portal pages may be kept by a search
+     * engine, as the one line a head, a header and a payload all state.
+     * `TenantLanding::indexable()` decides; this is only its wording, in one
+     * place, so the three cannot disagree.
+     */
+    public static function robots(Tenant $tenant): string
+    {
+        return TenantLanding::indexable($tenant) ? 'index, follow' : 'noindex, nofollow';
+    }
+
+    /**
      * The rendered head put into the exported page: the page's own title,
      * description, robots, theme colours and (with a mark) icons give way,
      * and the rest is added before `</head>`. A page with no head is returned
      * as it is, so a broken export still serves.
+     *
+     * `$robots` is what this organisation's head states, and it is written
+     * into the page's React payload as well as its head. Removing the head's
+     * own tag is not enough: the exported pages carry `robots` in their Next
+     * metadata, the payload carries it too, and React puts it back into the
+     * DOM at hydration. The page then held two robots tags; Google takes the
+     * most restrictive of them and reads the rendered DOM, so every portal
+     * answered `noindex` to a crawler while `curl` showed `index, follow`.
+     * Measured 2026-11-11 on the live site by Search Console's live test,
+     * which refused to index a portal in those words; see
+     * `docs/operations/SEARCH-LISTINGS.md` section 7.
+     *
+     * The payload is Next's own serialisation, so a Next upgrade can change
+     * its shape and this rewrite would then quietly match nothing. A fixture
+     * test cannot see that coming — it pins today's shape. What can is the
+     * sweep in `statePayloadRobots()`, which runs on every response. The
+     * other half is the rendered-DOM check in that runbook.
+     *
+     * The `.txt` payload files beside each page are left alone. They are read
+     * only for navigation between pages once the app is running, and a
+     * crawler renders each address from its own HTML.
      */
-    public static function inject(string $html, string $head, bool $ownIcon): string
+    public static function inject(string $html, string $head, bool $ownIcon, string $robots): string
     {
         $html = (string) preg_replace('#<title>.*?</title>#s', '', $html, 1);
         $html = (string) preg_replace('#<meta name="description"[^>]*>#', '', $html, 1);
@@ -283,6 +335,7 @@ final class PortalHead
         if ($ownIcon) {
             $html = (string) preg_replace('#<link rel="(?:icon|apple-touch-icon)"[^>]*>#', '', $html);
         }
+        $html = self::statePayloadRobots($html, $robots);
 
         $at = stripos($html, '</head>');
         if ($at === false) {
@@ -290,6 +343,47 @@ final class PortalHead
         }
 
         return substr($html, 0, $at).$head."\n".substr($html, $at);
+    }
+
+    /**
+     * The organisation's robots line written over every `robots` entry in the
+     * page's React payload, so the tag React renders at hydration says what
+     * the head says. The entries are JSON inside a JavaScript string, where a
+     * quote is written as a backslash and a quote, and a robots value holds
+     * neither — so the value runs from the opening escaped quote to the next
+     * one. Scanned rather than matched with a pattern: the surrounding text
+     * is full of backslashes, and a pattern for it is unreadable and easy to
+     * get subtly wrong.
+     *
+     * The sweep at the end says nothing about where it looked, because the
+     * point is that we no longer know: anything left reading `noindex` on a
+     * page meant to be kept will reach Google, through the head, the payload,
+     * or whatever Next serialises next.
+     */
+    private static function statePayloadRobots(string $html, string $robots): string
+    {
+        $opening = '\"name\":\"robots\",\"content\":\"';
+        $closing = '\"';
+
+        $offset = 0;
+        while (($at = strpos($html, $opening, $offset)) !== false) {
+            $from = $at + strlen($opening);
+            $to = strpos($html, $closing, $from);
+            if ($to === false) {
+                break;
+            }
+            $html = substr_replace($html, $robots, $from, $to - $from);
+            $offset = $from + strlen($robots);
+        }
+
+        if (! str_contains($robots, 'noindex') && str_contains($html, 'noindex')) {
+            Log::error('A portal page still says noindex after its robots line was stated.', [
+                'robots' => $robots,
+                'likely_cause' => 'the exported page serialises robots in a shape PortalHead no longer recognises',
+            ]);
+        }
+
+        return $html;
     }
 
     /**
