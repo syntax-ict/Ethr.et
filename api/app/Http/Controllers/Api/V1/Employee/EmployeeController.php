@@ -21,6 +21,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentitySignals;
 use App\Services\Identity\IntakeResult;
@@ -348,44 +349,15 @@ class EmployeeController extends Controller
         return new EmployeeResource($employee);
     }
 
-    public function update(UpdateEmployeeRequest $request, Employee $employee): EmployeeResource
+    public function update(UpdateEmployeeRequest $request, Employee $employee, EmployeeUpdater $updater): EmployeeResource
     {
         $this->authorize('update', $employee);
 
-        $data = $request->validated();
-
-        // Salary and TIN are pay data: changing either needs
-        // employee.updateFinancial, which employee.update alone never implied
-        // (blueprint D4). A form that resends the unchanged value is not a
-        // change, so it is not refused.
-        $changesPay = (array_key_exists('salary_cents', $data) && (int) $data['salary_cents'] !== (int) $employee->salary_cents)
-            || (array_key_exists('tin', $data) && (string) $data['tin'] !== (string) $employee->tin);
-        if ($changesPay) {
-            $this->authorize('updateFinancial', $employee);
-        }
-
-        $data = $this->resolveRelationIds($data);
-
-        if (isset($data['phone'])) {
-            $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
-        }
-
-        // Saving a status is the review the 2026-10-14 backfill asked for: a
-        // person has now said whether this employee is an Ethiopian national.
-        if (($data['nationality_status'] ?? null) === null) {
-            unset($data['nationality_status']);
-        } else {
-            $data['nationality_needs_review'] = false;
-        }
-
-        $before = $employee->only(array_keys($data));
-        $employee->update($data);
-
-        AuditLog::record('employee.updated', $employee, [
-            'before' => $before,
-            'after' => $employee->only(array_keys($data)),
-        ]);
-        $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
+        // The edit itself is EmployeeUpdater: the pay gate, the stored values,
+        // the audit record and the webhook, shared with every other path that
+        // changes an existing employee. What stays here is who may edit, what
+        // is valid and the response.
+        $employee = $updater->update($employee, $request->validated(), $request->user());
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
@@ -496,14 +468,8 @@ class EmployeeController extends Controller
         // ValidatesRelationTenancy rejects exactly the values this method would
         // fail to resolve. While they were two literals, an eighth field added
         // here and not there would silently null again — the defect
-        // BASELINE.md §11f closed.
-        foreach (EmployeeRelations::MAP as $field => $modelClass) {
-            if (isset($data[$field])) {
-                $model = $modelClass::where('public_id', $data[$field])->first();
-                $data[$field] = $model?->id;
-            }
-        }
-
-        return $data;
+        // BASELINE.md §11f closed. The lookup followed it there on 2026-11-10,
+        // so an edit made by EmployeeUpdater resolves as this create does.
+        return EmployeeRelations::resolveIds($data);
     }
 }
