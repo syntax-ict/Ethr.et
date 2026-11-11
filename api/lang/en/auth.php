@@ -59,6 +59,17 @@ return [
     'mfa_disabled_by_policy' => 'Your organization does not offer two-factor authentication.',
     'session_idle_expired' => 'Your session ended after a period of inactivity. Sign in again.',
 
+    // Starting password for a batch of employees (owner decision 2026-11-10)
+    'password_change_required' => 'Choose your own password to continue.',
+    'starting_password_expired' => 'This starting password has expired. Ask HR for a new way to sign in.',
+    'starting_password_refused' => [
+        'tenant' => 'These employees are not in this organisation.',
+        'identifier' => 'This organisation does not sign in with employee numbers. Turn that on in Settings first.',
+        'nobody' => 'None of these people can be given a starting password.',
+    ],
+    'starting_password_alert_title' => 'Starting Passwords Paused After Repeated Failed Sign-Ins',
+    'starting_password_alert_body' => 'There were :failures failed sign-ins against accounts that still have a starting password. Those accounts cannot sign in for :minutes minutes. Accounts with their own password are not affected.',
+
     // "Find my organisation" on the apex login (2026-10-04)
     'find_organisation' => [
         'sent' => "If that address belongs to an organisation, we've emailed you its sign-in link.",

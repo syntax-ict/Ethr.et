@@ -296,6 +296,7 @@ it('keeps every key out of the credential routes inside the modules it may use',
         ->assertJsonPath('type', 'https://ethr.et/errors/api-key-session-only');
 })->with([
     'issue an activation code' => ['POST', fn ($e) => "/api/v1/employees/{$e->public_id}/activation-code"],
+    'give a batch a starting password' => ['POST', fn () => '/api/v1/employees/starting-password'],
     'set a kiosk PIN' => ['PUT', fn ($e) => "/api/v1/employees/{$e->public_id}/kiosk-pin"],
     'register a kiosk' => ['POST', fn () => '/api/v1/kiosk-sessions'],
     'renew a kiosk token' => ['POST', fn ($e, $d, $k) => "/api/v1/kiosk-sessions/{$k->public_id}/regenerate-token"],
