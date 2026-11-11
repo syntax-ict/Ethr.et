@@ -79,6 +79,7 @@ src/lighthouse-reports/
 # the first real run of that gate left it staged.
 src/.lighthouseci/
 src/e2e/.auth/
+src/e2e-production/.auth/
 
 # Claude Code local state (machine-specific, not team config): dev-server wiring,
 # per-user permission grants, and the worktrees the desktop app makes for subagents.
