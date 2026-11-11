@@ -4647,3 +4647,82 @@ Not deployed: until it is, a terminal on a vendor webhook in production loses it
 duplicate's voided row has a check-in and no check-out and the query does not leave voided
 rows out. And when the later of two merged check-ins wins, the first method's entry in the
 punch log stays on the voided row, so the live record's timeline names one method.
+
+### 25k. National id and TIN in the audit log, in clear text — measured and fixed 2026-11-10
+
+`employees.national_id` and `employees.tin` are `encrypted` casts: the column holds ciphertext
+and reading the attribute decrypts it. `EmployeeController::update` built its audit record from
+the model,
+
+```php
+$before = $employee->only(array_keys($data));
+$employee->update($data);
+AuditLog::record('employee.updated', $employee, ['before' => $before, 'after' => $employee->only(array_keys($data))]);
+```
+
+so every edit that named either field copied the old value and the new one into
+`audit_log.payload` decrypted. `AuditLog::record()` masks nothing. The encryption at rest held
+for the `employees` row and not for its history.
+
+**Why it matters more than one more plaintext column.** The audit log is append-only
+(Convention 5), so a value written there cannot be removed by the application. It is read
+through `GET /audit-logs`, which asks for `settings.manage` and returns the payload as `data`,
+and through the platform console's audit view; neither asks for `employee.viewFinancial`, the
+permission that shows a TIN on the employee record. It was found while planning the reviewed
+import (One employee identity, PR 5), which will change existing employees in bulk through the
+same code.
+
+**How long.** The `before` / `after` record dates from the first backend commit (`91e7acf666`,
+2026-06-28), as does the encrypted TIN; `national_id` became an encrypted cast in `1511518552`
+(2026-08-28).
+
+**The fix.** `App\Support\EmployeeAuditMask` is applied to the `employee.updated` payload,
+for `national_id` and `tin` only:
+
+| Half | No value | A value |
+|---|---|---|
+| `before` | `null` | `[redacted]` |
+| `after` | `null` | `[changed]` when it differs from the one before, `[unchanged]` when the form resent it |
+
+Neither value, nor any part of one, is stored. "Set for the first time" and "cleared" stay
+readable because an empty value stays `null`. Every other field is recorded as before,
+`salary_cents` included: it is not encrypted, and the audit record is where a pay change is
+meant to be read.
+
+**The edit moved in the same change.** The body of `EmployeeController::update` is now
+`App\Services\EmployeeUpdater::update($employee, $attributes, $actor)`: pay gate, relation
+resolution, phone canonicalisation, the update, the audit record, the webhook. The controller
+keeps authorization, validation and the response. `EmployeeUpdaterParityTest` makes the same
+edit through `PUT /employees/{public_id}` and through the class and compares the row, the audit
+record and the webhook delivery, so the reviewed import cannot drift from an ordinary edit.
+The relation lookup moved to `EmployeeRelations::resolveIds()`, beside the map it reads.
+
+**The other writers were read, and none leaks.**
+
+| Writer | Audit action | Payload |
+|---|---|---|
+| `EmployeeController::store` | `employee.created` | `login_invited` only |
+| `EmployeeImportController::commit` | `employee.import.committed` | the import key and four counts |
+| `EmployeeTransitionService` | `employee.transitioned` | `from`, `to`, `reason` |
+| `EmployeeBulkController` | `employee.bulk_updated` | department, branch and status, as public ids |
+| `PersonnelActionService` | `employee.personnel_action*` | position, grade, department and branch by name, salary and step |
+| `ProfileController::update` | `profile.updated` | phone, marital status, nationality (the self-service fields) |
+| `ProfileUpdateRequestService` | `profile.update_request_*`, `profile.sensitive_change_requested` | field names, never values |
+
+`AuditPayloadMaskingTest` reads the stored `payload` column, not the model, for the edit and
+for create, import and transition.
+
+**What this does not do.**
+
+- **Rows already written are untouched.** The task was forward-only and the log is append-only.
+  Whether production holds such rows is unmeasured: the session had no database access to
+  `www.ethr.et`. `SELECT COUNT(*) FROM audit_log WHERE action = 'employee.updated' AND
+  (payload LIKE '%"national_id"%' OR payload LIKE '%"tin"%')` counts the candidates; what to do
+  with them is an owner decision, because the only remedy is editing an append-only table.
+- **`AuditLog::record()` still masks nothing.** The mask is applied by the one writer that
+  needs it. A new writer that puts a model's attributes in a payload leaks the same way, and no
+  gate catches it.
+
+A proposed TIN waiting for HR is not a second copy of this defect: `profile_update_requests`
+holds it in `old_value` / `new_value`, both `encrypted` casts, and its audit records name the
+field only.
