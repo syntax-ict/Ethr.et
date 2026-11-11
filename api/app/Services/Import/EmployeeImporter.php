@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Import;
 
-use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Models\Branch;
 use App\Models\Department;
@@ -14,7 +13,7 @@ use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Identity\EmployeeIntake;
-use App\Services\Identity\IdentitySignals;
+use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IntakeResult;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Invitations\InvitationDispatcher;
@@ -34,7 +33,7 @@ class EmployeeImporter
     ];
 
     /** Columns two rows of one file cannot share. */
-    private const UNIQUE_IN_FILE = ['employee_code', 'email', 'badge_number'];
+    private const UNIQUE_IN_FILE = ['employee_code', 'email', 'badge_number', 'external_id'];
 
     public function __construct(
         private readonly EmployeeIntake $intake,
@@ -42,6 +41,7 @@ class EmployeeImporter
         private readonly EmployeeNumbering $numbering,
         private readonly InvitationDispatcher $invitations,
         private readonly EmployeeLogins $logins,
+        private readonly IdentityResolver $resolver,
     ) {}
 
     /**
@@ -198,7 +198,7 @@ class EmployeeImporter
                 'nationality_status' => $row['nationality_status'] ?? NationalityStatus::ETHIOPIAN->value,
                 'hire_date' => $row['hire_date'],
                 'salary_cents' => EmployeeImportRow::salaryCents($row) ?? 0,
-                'status' => EmployeeStatus::HIRED,
+                ...EmployeeImportRow::employment($row['status'] ?? null),
                 'import_key' => $rowKey,
             ];
             foreach (self::RELATIONS as $column => [, , $foreignKey]) {
@@ -210,11 +210,20 @@ class EmployeeImporter
             // way of adding a person asks (a re-exported file, a manual entry,
             // a terminal's roster). A name alone never counts: it is worth
             // too little to reach "may be this person". See ONBOARDING_V2.md D4.
-            $asked = $this->intake->ask($tenant, IdentitySignals::fromAttributes($attributes));
+            //
+            // An id from another system is asked first: it is that system's
+            // own name for the person, and finds them whatever else changed.
+            $signals = EmployeeImportRow::signals($attributes, $row['external_id'] ?? null);
+            $asked = $this->intake->ask($tenant, $signals);
 
             // A certain match, with a current employee or one who has left:
-            // the person is here, and the row is counted, not added.
+            // the person is here, and the row is counted, not added. The
+            // other system's id is noted against them, unconfirmed, so the
+            // next file finds them by it.
             if ($asked->match->isMatch()) {
+                if ($asked->employee !== null) {
+                    $this->resolver->link($asked->employee, $signals, $asked->match->confidence);
+                }
                 $matched++;
 
                 continue;
@@ -276,6 +285,7 @@ class EmployeeImporter
                 continue;
             }
 
+            $this->resolver->link($employee, $signals, 1.0, verified: true);
             $created++;
 
             // A login for every row, invited after the loop from the queue. The

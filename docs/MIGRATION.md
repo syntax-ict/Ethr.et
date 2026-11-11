@@ -49,9 +49,66 @@ longer when a batch is abandoned: up to thirty days rather than seven.
 ## Service — `App\Services\Migration\WorkforceMigrationService`
 
 - `stageFromDevice(Device)` — pulls enrollments, resolves each, stages rows.
-- `stageFromRows(rows, tenantId, sourceType)` — CSV/spreadsheet/manual.
+- `stageFromRows(rows, tenantId, sourceType)` — CSV/spreadsheet/manual. Rows
+  are keyed as `EmployeeImportRow::staged()` names them.
 - `setAction(row, action)` — reviewer override.
 - `commit(batch)` — applies actions; idempotent once committed.
+
+### One reader for every list (2026-11-11)
+
+A list of people was read in two places that disagreed. The guided setup's
+paste box read its list in the browser, with its own table of column names and
+its own date rule; the file import read its file on the server with
+`App\Support\EmployeeImportRow`. "Badge" was an employee number in one and a
+badge in the other, Amharic column names were read in one and dropped in the
+other, `15/03/2024` was refused in one and read in the other, and a pasted list
+could carry six fields.
+
+**`EmployeeImportRow` is now the only place a column name is given a meaning**,
+and `/employees/import`, the guided setup and a device's roster are one screen
+(`MigrationStep`).
+
+- The browser splits text into cells (`parse-people.ts`, `toGrid`) and nothing
+  else. It sends `grid`: lines of cells, an empty line kept in its place so a
+  line number is the one the reader counts.
+- `App\Support\EmployeeImportGrid` reads the grid. A first line is column
+  names when one of its cells names the name column and none looks like a
+  person's details; then the columns may be in any order. Otherwise they are
+  read in `EmployeeImportRow::DEFAULT_ORDER`. Only the name is required.
+- A column name that means nothing is **reported** (`ignored`), not dropped
+  without a word: a "Salary (birr)" column used to vanish.
+- Each line that cannot be staged is named with its number and left out:
+  a rule it breaks, a department, branch or position the organisation does not
+  have, an employee number, email, badge or other-system id an earlier line
+  already used.
+- **Dates.** Year first (`2019-07-08`, `2019/7/8`) or day first (`08/07/2019`),
+  in the calendar chosen, unless the column name says (`Hire date (E.C.)`) or
+  the date itself does (`2011-10-30 E.C.`). The paste box used to refuse a
+  day-first date; the file import has read one since 2026-10-15, and that is
+  now the rule for both. A date that does not exist in its calendar is refused.
+- **A hire date may be missing** from a staged list: the day the list is added
+  is used, and the screen says how many people that is, before and after.
+
+Two columns are new:
+
+| column | takes | does |
+|---|---|---|
+| `status` | `hired`, `probation`, `confirmed` ("Active" and "Permanent" are confirmed) | the status a **new** person arrives with. Confirmed sets `confirmation_date` to the day they were added: the real day is not in the list. It does not change an existing employee |
+| `external_id` | the person's id in the system the list came from | kept as an identity (`source_type` `hr_system`, `identifier_type` `external_id`), so a later list finds the same person by it whatever else about them changed |
+
+Until a list can name its source (column mapping, later in the plan), every
+`external_id` shares one source, `default`. Two other systems that both number
+their people from 1 would collide; one system does not.
+
+A staged "create" makes the person from everything the line brings: Amharic
+name, gender, birth date, branch, position, salary, national id, TIN, badge.
+**Staging a list that sets a salary or a TIN needs `employee.updateFinancial`**,
+as the file import and the add-employee form do.
+
+The older `POST /employees/import/preview` and `/commit` are still served, for
+a caller that sends a file. They read the same column names and honour both new
+columns. They have no review: a person already in ETHR is counted and nothing
+the row brings is kept. The screen no longer uses them.
 
 ### Suggested action from the verdict
 
@@ -154,7 +211,8 @@ record, unverified, and counted under `merged`; it is not made a second time.
 | method | path | purpose |
 |---|---|---|
 | POST | `/devices/{device}` | stage everyone enrolled on a device |
-| POST | `/rows` | stage rows from a spreadsheet/manual entry |
+| POST | `/read` | what the server makes of a list (`grid`): people ready, columns read, column names it does not know, lines it cannot stage. Keeps nothing |
+| POST | `/rows` | stage a list: `grid` (cells, read as `/read` reads them) or `rows` (people keyed by field). A grid with a line that cannot be staged is refused whole, unless `skip_problems` is set |
 | GET | `/batches/{batch}` | review queue with verdicts and summary |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |

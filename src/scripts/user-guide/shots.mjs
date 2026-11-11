@@ -133,14 +133,12 @@ export const SHOTS = [
     prepare: async (page) => {
       const org = page.getByPlaceholder("acme");
       if (await org.isVisible().catch(() => false)) await org.fill("namuna");
-      await page
-        .locator('#identifier')
-        .fill("selam.tesfaye@sample.ethr.et");
+      await page.locator("#identifier").fill("selam.tesfaye@sample.ethr.et");
       await page.locator('input[type="password"]').fill("password");
     },
     markers: [
       { target: (page) => page.getByPlaceholder("acme") },
-      { target: (page) => page.locator('#identifier') },
+      { target: (page) => page.locator("#identifier") },
       { target: (page) => page.locator('input[type="password"]') },
       { target: (page) => page.locator('button[type="submit"]') },
       { target: link("የይለፍ ቃል ረሳኽ?") },
@@ -823,12 +821,9 @@ export const SHOTS = [
     as: "admin",
     path: "/employees/import",
     markers: [
-      { target: text("የCSV ፋይልዎን እዚህ ይጣሉ ወይም") },
+      { target: (page) => page.getByRole("button", { name: "የCSV ፋይል ይምረጡ" }) },
       {
-        target: (page) =>
-          page
-            .getByRole("button", { name: "CSV አብነት አውርድ" })
-            .or(page.getByRole("link", { name: "CSV አብነት አውርድ" })),
+        target: (page) => page.getByRole("button", { name: "አብነቱን ያውርዱ" }),
       },
     ],
   },

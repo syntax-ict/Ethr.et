@@ -16209,10 +16209,18 @@
                                                 {
                                                     "type": "string",
                                                     "const": "marital_status"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "status"
+                                                },
+                                                {
+                                                    "type": "string",
+                                                    "const": "external_id"
                                                 }
                                             ],
-                                            "minItems": 18,
-                                            "maxItems": 18,
+                                            "minItems": 20,
+                                            "maxItems": 20,
                                             "additionalItems": false
                                         }
                                     },
@@ -25931,18 +25939,119 @@
                 }
             }
         },
+        "/onboarding/migration/read": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.read",
+                "description": "`grid` is the list as lines of cells, the first line its column names\nor none. The answer says how many people are ready, which columns were\nread and which column names mean nothing here, and every line that\ncannot be staged, with its number as the reader counts it. Nothing is\nkept.",
+                "summary": "Read a list of people without staging it",
+                "tags": [
+                    "Onboarding"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReadPeopleRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "people": {
+                                            "type": "integer"
+                                        },
+                                        "header": {
+                                            "type": "boolean"
+                                        },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "ignored": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "calendar": {
+                                            "type": "string"
+                                        },
+                                        "calendar_from_header": {
+                                            "type": "boolean"
+                                        },
+                                        "without_hire_date": {
+                                            "type": "integer"
+                                        },
+                                        "problems": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "line": {
+                                                        "type": "integer"
+                                                    },
+                                                    "message": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "line",
+                                                    "message"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "people",
+                                        "header",
+                                        "columns",
+                                        "ignored",
+                                        "calendar",
+                                        "calendar_from_header",
+                                        "without_hire_date",
+                                        "problems"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/onboarding/migration/rows": {
             "post": {
                 "x-abilities": [
                     "write"
                 ],
                 "operationId": "migration.stageFromRows",
-                "summary": "Create row",
+                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.",
+                "summary": "Stage a list of people for review",
                 "tags": [
                     "Onboarding"
                 ],
                 "requestBody": {
-                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -48000,6 +48109,25 @@
                                         "widowed",
                                         null
                                     ]
+                                },
+                                "status": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "hired",
+                                        "probation",
+                                        "confirmed",
+                                        null
+                                    ]
+                                },
+                                "external_id": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 100
                                 }
                             },
                             "required": [
@@ -50800,6 +50928,38 @@
                 ],
                 "title": "QrAttendanceRequest"
             },
+            "ReadPeopleRequest": {
+                "type": "object",
+                "properties": {
+                    "calendar": {
+                        "type": "string",
+                        "enum": [
+                            "gregorian",
+                            "ethiopian"
+                        ]
+                    },
+                    "grid": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "maxItems": 60
+                        },
+                        "minItems": 1,
+                        "maxItems": 5000
+                    }
+                },
+                "required": [
+                    "grid"
+                ],
+                "title": "ReadPeopleRequest"
+            },
             "RecallLeaveRequest": {
                 "type": "object",
                 "properties": {
@@ -51806,6 +51966,7 @@
             },
             "StageRowsRequest": {
                 "type": "object",
+                "description": "A list of people to stage, in one of two shapes.\n\n`grid` is the list as cells, the first line its column names or none: what\na person pasted or a file held. It is read as every list of people is, so\na column name, a date and a salary mean here what they mean in a file.\n\n`rows` is the list already keyed by field, for a caller that holds\nstructured values. It takes every column of the employee template, and\n`department`, `branch` and `position` by code or name.",
                 "properties": {
                     "source_type": {
                         "type": "string",
@@ -51821,12 +51982,45 @@
                         ],
                         "maxLength": 100
                     },
+                    "calendar": {
+                        "type": "string",
+                        "enum": [
+                            "gregorian",
+                            "ethiopian"
+                        ]
+                    },
+                    "grid": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 255
+                            },
+                            "maxItems": 60
+                        },
+                        "minItems": 1,
+                        "maxItems": 5000
+                    },
+                    "skip_problems": {
+                        "type": "boolean"
+                    },
                     "rows": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "name_am": {
                                     "type": [
                                         "string",
                                         "null"
@@ -51855,6 +52049,46 @@
                                     ],
                                     "maxLength": 30
                                 },
+                                "national_id": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 50
+                                },
+                                "tin": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 20
+                                },
+                                "badge_number": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^[A-Za-z0-9-]+$",
+                                    "maxLength": 32
+                                },
+                                "gender": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "male",
+                                        "female",
+                                        null
+                                    ]
+                                },
+                                "date_of_birth": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
                                 "hire_date": {
                                     "type": [
                                         "string",
@@ -51862,7 +52096,107 @@
                                     ],
                                     "format": "date"
                                 },
+                                "department_code": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "branch_code": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "position_code": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "salary": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^\\d{1,13}(\\.\\d{1,2})?$"
+                                },
+                                "salary_cents": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "minimum": 0
+                                },
+                                "nationality": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 100
+                                },
+                                "nationality_status": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "ethiopian",
+                                        "ethiopian_origin",
+                                        "foreign",
+                                        null
+                                    ]
+                                },
+                                "marital_status": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "single",
+                                        "married",
+                                        "divorced",
+                                        "widowed",
+                                        null
+                                    ]
+                                },
+                                "status": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "hired",
+                                        "probation",
+                                        "confirmed",
+                                        null
+                                    ]
+                                },
+                                "external_id": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 100
+                                },
                                 "department": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "branch": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "position": {
                                     "type": [
                                         "string",
                                         "null"
@@ -51875,9 +52209,6 @@
                         "maxItems": 2000
                     }
                 },
-                "required": [
-                    "rows"
-                ],
                 "title": "StageRowsRequest"
             },
             "StoreAlertThresholdRequest": {
