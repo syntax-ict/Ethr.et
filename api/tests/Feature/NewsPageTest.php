@@ -33,7 +33,7 @@ function serveNewsPage(string $url, string $file): TestResponse
     if (! is_dir(dirname($page))) {
         mkdir(dirname($page), 0777, true);
     }
-    file_put_contents($page, '<!doctype html><html><head><meta charset="utf-8"><title>News | ETHR</title><meta name="robots" content="noindex, nofollow"><meta name="description" content="News."></head><body><main id="news"></main></body></html>');
+    file_put_contents($page, '<!doctype html><html><head><meta charset="utf-8"><title>News | ETHR</title><meta name="robots" content="noindex, nofollow"><meta name="description" content="News."></head><body><main id="news"></main>'.portalPayload('noindex, nofollow').'</body></html>');
 
     try {
         return test()->get($url);
@@ -141,10 +141,15 @@ it('decides the organisation from the host alone', function () {
 });
 
 it('lists the news page by default, keeps it out once listing is off, and has none with the section off', function () {
-    newsTenant('acme', 'Acme Manufacturing');
-    serveNewsPage('http://acme.ethr.et/news', 'news.html')
+    publicArticle(newsTenant('acme', 'Acme Manufacturing'));
+    $html = serveNewsPage('http://acme.ethr.et/news', 'news.html')
         ->assertOk()
-        ->assertHeader('X-Robots-Tag', 'index, follow');
+        ->assertHeader('X-Robots-Tag', 'index, follow')
+        ->getContent();
+
+    // The page payload as well as the head: the export ships `noindex` for
+    // the shared host, and React renders it back into the DOM at hydration.
+    expect($html)->not->toContain('noindex');
 
     newsTenant('hidden', 'Hidden Ltd', ['listed' => false]);
     serveNewsPage('http://hidden.ethr.et/news', 'news.html')
@@ -153,6 +158,25 @@ it('lists the news page by default, keeps it out once listing is off, and has no
 
     newsTenant('quiet', 'Quiet Ltd', ['sections' => ['announcements' => false]]);
     serveNewsPage('http://quiet.ethr.et/news', 'news.html')->assertNotFound();
+});
+
+it('keeps an empty news page out of search, and lets one back in once something is published', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing');
+
+    // Nothing published: the same empty page every organisation would have.
+    // Links on it are still followed, so the portal itself is reached.
+    $html = serveNewsPage('http://acme.ethr.et/news', 'news.html')
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'noindex, follow')
+        ->getContent();
+    expect($html)->toContain('<meta name="robots" content="noindex, follow">')
+        ->toContain('\\"name\\":\\"robots\\",\\"content\\":\\"noindex, follow\\"');
+
+    publicArticle($tenant);
+
+    serveNewsPage('http://acme.ethr.et/news', 'news.html')
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'index, follow');
 });
 
 it('serves the page as exported on the apex and an unknown host', function (string $url) {
@@ -172,6 +196,7 @@ it('lists a listed organisation\'s news page and articles in the sitemap, on its
     publicArticle($tenant, ['title' => 'Secret', 'show_on_landing' => false]);
     $shared = Tenant::factory()->create(['subdomain' => 'onpath', 'address_mode' => 'path', 'landing' => ['background' => 'brand', 'listed' => true]]);
     publicArticle($shared, ['title' => 'Path story']);
+    newsTenant('quietco', 'Quiet Co', ['listed' => true]);
 
     $xml = (string) test()->get('http://ethr.et/sitemap-organisations.xml')->assertOk()->getContent();
 
@@ -182,5 +207,9 @@ it('lists a listed organisation\'s news page and articles in the sitemap, on its
         ->and(substr_count($xml, '<loc>https://acme.ethr.et/news/'))->toBe(1)
         // The shared-host organisation keeps its sign-in entry, and no news.
         ->and($xml)->toContain('https://www.ethr.et/onpath')
-        ->not->toContain('news?org=onpath');
+        ->not->toContain('news?org=onpath')
+        // An organisation that has published nothing keeps its sign-in entry
+        // and no news page: that page says `noindex` for the same reason.
+        ->and($xml)->toContain('<loc>https://quietco.ethr.et/login</loc>')
+        ->not->toContain('quietco.ethr.et/news');
 });
