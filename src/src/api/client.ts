@@ -150,6 +150,36 @@ export function mfaEnrolmentRedirect(
   return `${MFA_ENROLMENT_PATH}?mfa=required`;
 }
 
+/**
+ * The `type` the API answers with while someone still has the starting
+ * password HR gave their batch (`RequirePasswordChange`). Every endpoint but
+ * the password change, sign-out and the session refresh refuses them until
+ * they choose their own.
+ */
+export const PASSWORD_CHANGE_REQUIRED =
+  "https://ethr.et/errors/password-change-required";
+
+/** Where the change happens. It stands outside the app shell and calls nothing the API refuses. */
+export const PASSWORD_CHANGE_PATH = "/login/change-password";
+
+/**
+ * Where to send the browser for that refusal, or null when the error is
+ * something else or the person is already on the change-password screen.
+ */
+export function passwordChangeRedirect(
+  error: Pick<AxiosError<ApiError>, "response">,
+  pathname: string,
+): string | null {
+  if (
+    error.response?.status !== 403 ||
+    error.response.data?.type !== PASSWORD_CHANGE_REQUIRED
+  ) {
+    return null;
+  }
+  if (pathname.startsWith(PASSWORD_CHANGE_PATH)) return null;
+  return PASSWORD_CHANGE_PATH;
+}
+
 let redirectingToEnrolment = false;
 
 /** The refresh in flight, shared by every 401 that arrives while it runs. */
@@ -182,7 +212,11 @@ apiClient.interceptors.response.use(
     }
 
     if (typeof window !== "undefined" && !redirectingToEnrolment) {
-      const target = mfaEnrolmentRedirect(error, window.location.pathname);
+      // The password comes first: the API asks for it before it asks about
+      // two-factor, and the change screen is the one place both let through.
+      const target =
+        passwordChangeRedirect(error, window.location.pathname) ??
+        mfaEnrolmentRedirect(error, window.location.pathname);
       if (target) {
         // Several requests are refused at once on a page load; one navigation.
         redirectingToEnrolment = true;
