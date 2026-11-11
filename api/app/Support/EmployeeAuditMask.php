@@ -12,7 +12,7 @@ namespace App\Support;
  * (`$employee->only(...)`) therefore copied both values, old and new, into the
  * audit log in clear text, where they outlive the encryption, cannot be
  * removed (the log is append-only) and are read by people who hold no pay
- * permission. Measured 2026-11-10, `docs/audit/BASELINE.md` §25j.
+ * permission. Measured 2026-11-10, `docs/audit/BASELINE.md` §25k.
  *
  * The rule, for each field in `FIELDS` that an edit named:
  *

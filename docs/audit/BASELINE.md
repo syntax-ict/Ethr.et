@@ -4572,7 +4572,85 @@ sit inside the lock: one still open when the lock is released hides its rows fro
 count. One test process cannot run two requests at once, so `PlanLimitTest` pins that the
 create runs while the lock is held and that a writer without it is refused.
 
-### 25j. National id and TIN in the audit log, in clear text — measured and fixed 2026-11-10
+### 25j. Attendance proof harness: what was measured — 2026-11-10
+
+Phase 0 of the attendance upgrade (tests and CI only, no behaviour change). Three things were
+added, and each was measured before it was believed.
+
+**Punches racing from separate processes** (`api/tests/Concurrency`, `gates.sh concurrency`,
+CI job `attendance-concurrency` on MySQL 8.0.32). Every earlier duplicate test is one
+process sending two punches in turn, which proves the rule and says nothing about a race.
+This starts a PHP process per punch, holds them at a barrier and releases them together:
+12 people, two methods each, for a check-in, a retry racing its original, and a check-out;
+plus the lock's eight-second fail-open path.
+
+- As the code stands: 4 passed, 140 assertions.
+- With the lock taken out of `AttendanceEngine::serialised()`: all four red. Two live
+  records for one person; the racing retry is answered with error 1062 on
+  `attendance_records_tenant_id_idempotency_key_unique` rather than with its record; the
+  second check-out is refused. That is what a punch that outlasts the lock's eight seconds
+  can do. It was not changed here.
+- **One false result on the way, kept because it looked like a product defect.** The first
+  version of the child process re-pointed its database after the application had booted
+  (`config()` and `DB::purge()`). The cache store kept the purged connection; its first use
+  reconnected by name and closed the live connection in the middle of the punch's
+  transaction, which then reported success and saved nothing. With the lock in place the
+  first cache use is before the transaction, so that run was green for the wrong reason.
+  The child now sets its environment before the application boots. A harness that changes
+  a connection after boot is testing the harness.
+
+**Method pairs and the paid day** (`CrossMethodDayTest`, `PayrollPeriodLockTest`). A day
+opened by one method and closed by another is one record for five pairs; one arrival seen
+by three methods and a late fourth is one live record; a resent punch is answered with its
+own record for five methods. A device punch on an approved or paid day is recorded and the
+stored entry is byte-identical, which pins the owner's decision of 2026-11-10 that such a
+punch is accepted and reported, never refused.
+
+**Browser journeys that read the database** (`src/e2e/attendance-payroll`,
+`gates.sh e2e-attendance`, CI job `attendance-payroll`). They sign in to organisations of
+their own (`E2eAttendanceSeeder`), drive the real stack, and assert on what the API reads
+back. Six pass. Not yet written: the kiosk screen, the
+offline phone and the refusals (unregistered phone, geofence, QR replay).
+
+The sixth follows a month into pay (`month-to-payslip.spec.ts`), through the queue as
+production runs it: a day the terminal reported five times is paid once; the overtime in
+the calculation log is the overtime on that day's one record; a late arrival and a month's
+absence are listed and, with deductions off, not taken; the finance user who processed the
+run is refused its approval and the tenant admin gives it; a punch the terminal delivers
+after the approval is recorded while the stored entry stays identical; and a manual entry
+for that day is refused as `payroll-period-closed`. It passed on its first run, which is a
+result too: nothing on that path needed fixing. It needs a queue worker on the same
+database, and says so if the run never leaves `processing`.
+
+**Found by the first journey: a vendor webhook punch is lost over real HTTP.** The
+Hikvision, ZKTeco and Suprema webhook handlers in `DeviceController` find the device by its
+token but never give the request that device's organisation as its context, where
+`AdmsController` and `PullDeviceEventsJob` both do. The address the app gives an
+administrator (`DeviceResource::webhook_url`, built on `APP_URL`) names no organisation and
+a terminal cannot send `X-Tenant`. The engine's `Employee::findOrFail` then fails closed,
+Laravel does not report a `ModelNotFoundException`, `DevicePunchRecorder::recordBatched`
+swallows it, and the terminal is answered `{"status":"processed","count":0}` with nothing
+recorded and nothing held as unmatched. Measured on the local stack with a host that names
+no organisation; the production apex takes the same path through `ResolveTenant`, which was
+read, not run. Every backend test of these handlers passes because `createTenant()` sets the
+organisation in the test's own process.
+
+**Fixed the same day**, by the owner's delegation, as its own commit: `resolveWebhookDevice()`
+now sets the device's organisation as the request's context, as the ADMS handler does, and
+the device's organisation wins over one the host happened to name. Pinned twice, at the two
+levels that had each missed it: `DeviceWebhookTenantContextTest` clears what `createTenant()`
+left in the process and posts to the apex (3 of 6 cases red before the fix: `count 0` for
+ZKTeco and Suprema, 404 for Hikvision), and `device-webhook-address.spec.ts` posts over real
+HTTP with no organisation anywhere in the request. The journeys' `devicePunch` sends none.
+Not deployed: until it is, a terminal on a vendor webhook in production loses its punches.
+
+**Also measured, not changed:** `GET /attendance/my-shift` answered `checked_in` with
+`status_label: voided` thirty minutes after the person had checked out, because a merged
+duplicate's voided row has a check-in and no check-out and the query does not leave voided
+rows out. And when the later of two merged check-ins wins, the first method's entry in the
+punch log stays on the voided row, so the live record's timeline names one method.
+
+### 25k. National id and TIN in the audit log, in clear text — measured and fixed 2026-11-10
 
 `employees.national_id` and `employees.tin` are `encrypted` casts: the column holds ciphertext
 and reading the attribute decrypts it. `EmployeeController::update` built its audit record from
@@ -4651,7 +4729,7 @@ A proposed TIN waiting for HR is not a second copy of this defect: `profile_upda
 holds it in `old_value` / `new_value`, both `encrypted` casts, and its audit records name the
 field only.
 
-### 25k. Staged people in clear text, and a list that could not be committed — fixed 2026-11-11
+### 25l. Staged people in clear text, and a list that could not be committed — fixed 2026-11-11
 
 Two things read in the code while building the reviewed update of a matched employee (One
 employee identity, PR 5). Neither was measured on production: the session has no database

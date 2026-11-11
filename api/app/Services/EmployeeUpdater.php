@@ -40,7 +40,7 @@ use Illuminate\Support\Facades\Gate;
  * here used to copy the old and the new value into `audit_log` in clear text.
  * `EmployeeAuditMask` replaces them: no value stays `null`, a value before is
  * `[redacted]`, a value after is `[changed]` or, when the form resent the one
- * already stored, `[unchanged]`. Forward-only; `docs/audit/BASELINE.md` §25j.
+ * already stored, `[unchanged]`. Forward-only; `docs/audit/BASELINE.md` §25k.
  *
  * The audit row's `user_id` is the signed-in user (`AuditLog::record()` reads
  * the guard), which is `$actor` for every caller there is. A caller running

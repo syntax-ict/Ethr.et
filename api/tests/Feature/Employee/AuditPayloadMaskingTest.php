@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
  * `employees.national_id` and `employees.tin` are encrypted at rest. The
  * `employee.updated` audit record was built from `$employee->only(...)`, which
  * decrypts, so every edit of either copied both values, old and new, into
- * `audit_log.payload` in clear text (BASELINE §25j). The audit log is
+ * `audit_log.payload` in clear text (BASELINE §25k). The audit log is
  * append-only and is read by people who may not see pay data.
  *
  * These read the stored column, not the model, so a cast cannot hide a leak.
