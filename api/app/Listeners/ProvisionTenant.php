@@ -8,6 +8,7 @@ use App\Events\TenantCreated;
 use App\Services\Attendance\AttendanceBaseline;
 use App\Services\Leave\LeaveYear;
 use App\Services\Onboarding\OrganizationProvisioner;
+use App\Support\Locales;
 use Illuminate\Support\Facades\Log;
 
 class ProvisionTenant
@@ -29,7 +30,7 @@ class ProvisionTenant
         $tenant->update([
             'settings' => array_merge($tenant->settings ?? [], [
                 'timezone' => 'Africa/Addis_Ababa',
-                'locale' => 'en',
+                'locale' => Locales::orDefault($tenant->default_locale),
                 'calendar' => 'ethiopian',
                 // Leave runs Meskerem to Pagume for a new organisation. One
                 // that existed before the setting stays on the Gregorian year
