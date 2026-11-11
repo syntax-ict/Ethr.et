@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\EncryptedJson;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * One discovered person inside a migration batch, with the resolver's verdict
  * and the reviewer's chosen action. See ONBOARDING_V2.md D6.
+ *
+ * `raw` is the person's details as the source gave them and `changes` is what
+ * committing the row would write to the employee it matched
+ * (Services\Migration\StagedChanges). Both are stored encrypted.
+ *
+ * @property array<string, mixed> $raw
+ * @property array<int, array<string, mixed>>|null $changes
  */
 class MigrationStagingRow extends Model
 {
@@ -39,6 +47,7 @@ class MigrationStagingRow extends Model
         'candidates',
         'resolved_employee_id',
         'action',
+        'changes',
         'processed_at',
     ];
 
@@ -52,7 +61,8 @@ class MigrationStagingRow extends Model
     protected function casts(): array
     {
         return [
-            'raw' => 'array',
+            'raw' => EncryptedJson::class,
+            'changes' => EncryptedJson::class,
             'candidates' => 'array',
             'match_confidence' => 'float',
             'processed_at' => 'datetime',

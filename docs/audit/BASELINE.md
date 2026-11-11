@@ -4728,3 +4728,22 @@ for create, import and transition.
 A proposed TIN waiting for HR is not a second copy of this defect: `profile_update_requests`
 holds it in `old_value` / `new_value`, both `encrypted` casts, and its audit records name the
 field only.
+
+### 25l. Staged people in clear text, and a list that could not be committed — fixed 2026-11-11
+
+Two things read in the code while building the reviewed update of a matched employee (One
+employee identity, PR 5). Neither was measured on production: the session has no database
+access to `www.ethr.et`.
+
+- **`migration_staging_rows.raw` held a person's details in clear text** for as long as the
+  list was kept: name, e-mail, phone, and a national id when a row carried one. Thirty days
+  from the last activity since 2026-11-10, seven before. The column was JSON; it is LONGTEXT
+  and encrypted, with the new `changes` column (`App\Casts\EncryptedJson`). MariaDB's JSON is
+  LONGTEXT with a `JSON_VALID` check, so the type had to change before ciphertext would
+  store; run on scratch MariaDB, the check on `raw` is gone and the one on `candidates`
+  remains. Rows written before stay as they are until rewritten or expired. `candidates`
+  (existing employees' names and why they matched) is still clear text.
+- **A staged list was committed in one request and one transaction.** Nothing bounded it but
+  the 2,000-row limit on staging and the host's thirty seconds. It is now committed in
+  slices of twelve seconds, fifty rows to a transaction (`StagedCommitSliceTest`). How long a
+  thousand rows take on the host is still unmeasured.

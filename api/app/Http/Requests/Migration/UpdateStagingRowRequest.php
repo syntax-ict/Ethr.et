@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Migration;
 
 use App\Models\MigrationStagingRow;
+use App\Services\Migration\StagedChanges;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,6 +31,8 @@ class UpdateStagingRowRequest extends FormRequest
             // other `exists:employees,public_id` rule in this codebase (the
             // raw validation rule does not itself see the tenant scope).
             'employee_public_id' => ['nullable', 'string', 'exists:employees,public_id'],
+            'accept' => ['sometimes', 'array'],
+            'accept.*' => ['string', 'distinct', Rule::in(array_keys(StagedChanges::FIELDS))],
         ];
     }
 }

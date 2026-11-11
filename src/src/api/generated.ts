@@ -5021,7 +5021,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Commit batches */
+        /**
+         * Add the list's people, as much as fits in one request
+         * @description A long list is added a slice at a time. While `status` is `committing`,
+         *     `remaining` rows are still to be dealt with and the same request is
+         *     sent again; nothing is added twice. `totals` counts the whole list so
+         *     far, and `updated` is how many existing employees had details filled in
+         *     or changed.
+         */
         post: operations["migration.commit"];
         delete?: never;
         options?: never;
@@ -13059,6 +13066,7 @@ export interface components {
              *     raw validation rule does not itself see the tenant scope).
              */
             employee_public_id?: string | null;
+            accept?: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents")[];
         };
         /**
          * UpdateSubdomainRequest
@@ -27057,6 +27065,17 @@ export interface operations {
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
                             action: string;
+                            changes: {
+                                field: string;
+                                kind: string;
+                                current: string | null;
+                                incoming: string | null;
+                                masked: boolean;
+                                accepted: boolean;
+                                taken: boolean;
+                            }[];
+                            can_apply_changes: boolean;
+                            scheduled_action: boolean;
                             processed_at: string | null;
                         }[];
                     };
@@ -27103,6 +27122,17 @@ export interface operations {
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
                             action: string;
+                            changes: {
+                                field: string;
+                                kind: string;
+                                current: string | null;
+                                incoming: string | null;
+                                masked: boolean;
+                                accepted: boolean;
+                                taken: boolean;
+                            }[];
+                            can_apply_changes: boolean;
+                            scheduled_action: boolean;
                             processed_at: string | null;
                         }[];
                     };
@@ -27148,6 +27178,17 @@ export interface operations {
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
                             action: string;
+                            changes: {
+                                field: string;
+                                kind: string;
+                                current: string | null;
+                                incoming: string | null;
+                                masked: boolean;
+                                accepted: boolean;
+                                taken: boolean;
+                            }[];
+                            can_apply_changes: boolean;
+                            scheduled_action: boolean;
                             processed_at: string | null;
                         }[];
                     };
@@ -27188,6 +27229,17 @@ export interface operations {
                         candidates: unknown[] | null;
                         resolved_employee_public_id: string | null;
                         action: string;
+                        changes: {
+                            field: string;
+                            kind: string;
+                            current: string | null;
+                            incoming: string | null;
+                            masked: boolean;
+                            accepted: boolean;
+                            taken: boolean;
+                        }[];
+                        can_apply_changes: boolean;
+                        scheduled_action: boolean;
                         processed_at: string | null;
                     };
                 };
@@ -27195,6 +27247,21 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is already being added. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
@@ -27220,10 +27287,12 @@ export interface operations {
                         totals: {
                             created: number;
                             merged: number;
+                            updated: number;
                             skipped: number;
                             deferred: number;
-                        } | unknown[];
+                        };
                         status: string;
+                        remaining: number;
                         without_login: {
                             employee_public_id: string;
                             name: string;

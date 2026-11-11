@@ -21,6 +21,8 @@ return [
     'migration' => [
         'duplicate_code' => 'Two lines have the same employee number. Each person needs their own.',
         'duplicate_email' => 'Two lines have the same email address. Each person needs their own.',
+        'already_committing' => 'This list is already being added. Wait for it to finish.',
+        'accept_needs_match' => 'Choose which employee this line is before accepting a change.',
         'device_user' => 'Device user :id',
     ],
 ];

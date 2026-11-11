@@ -33,6 +33,7 @@ class MigrationBatch extends Model
         'source_ref',
         'status',
         'totals',
+        'commit_cursor',
         'committed_at',
     ];
 
@@ -45,6 +46,7 @@ class MigrationBatch extends Model
     {
         return [
             'totals' => 'array',
+            'commit_cursor' => 'integer',
             'committed_at' => 'datetime',
         ];
     }
@@ -58,5 +60,15 @@ class MigrationBatch extends Model
     public function isCommitted(): bool
     {
         return $this->status === 'committed';
+    }
+
+    /**
+     * Still open for review. Once the first slice of a commit has run the
+     * list is `committing`, and a decision changed after that would apply to
+     * some rows and not to others.
+     */
+    public function isReviewing(): bool
+    {
+        return $this->status === 'reviewing';
     }
 }

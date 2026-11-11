@@ -123,6 +123,23 @@ export interface StagingCandidate {
   reasons: string[];
 }
 
+/**
+ * One thing adding a matched row would change on the employee it matched.
+ * A `fill` goes into a blank; a `conflict` is written only once accepted.
+ */
+export interface StagedChange {
+  field: string;
+  kind: "fill" | "conflict";
+  /** What ETHR holds. Null when blank, masked, or not the viewer's to see. */
+  current: string | null;
+  /** What the list brings. Null for a national ID, a TIN and a salary. */
+  incoming: string | null;
+  masked: boolean;
+  accepted: boolean;
+  /** Another employee already holds this number, so it is never written. */
+  taken: boolean;
+}
+
 export interface StagingRow {
   public_id: string;
   display_name: string | null;
@@ -132,6 +149,11 @@ export interface StagingRow {
   candidates: StagingCandidate[] | null;
   resolved_employee_public_id: string | null;
   action: StagingAction;
+  changes: StagedChange[];
+  /** The viewer may edit the matched employee. */
+  can_apply_changes: boolean;
+  /** The matched employee has a change waiting for a later date. */
+  scheduled_action: boolean;
   processed_at: string | null;
 }
 
@@ -139,7 +161,7 @@ export interface MigrationBatch {
   public_id: string;
   source_type: string;
   source_ref: string | null;
-  status: "reviewing" | "committed";
+  status: "reviewing" | "committing" | "committed";
   totals: Record<string, number> | null;
   summary: Record<string, number>;
   rows: StagingRow[];
@@ -149,6 +171,8 @@ export interface CommitResult extends MigrationLogins {
   message: string;
   totals: Record<string, number>;
   status: string;
+  /** Rows still to be dealt with. The commit is sent again until it is 0. */
+  remaining: number;
 }
 
 /** A migrated employee who cannot sign in yet, and how they would be invited. */
