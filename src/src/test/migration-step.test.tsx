@@ -1,10 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { MigrationStep } from "@/features/onboarding/v2/components/migration-step";
-import type { MigrationBatch } from "@/features/onboarding/v2/types";
+import type {
+  MigrationBatch,
+  PeopleRead,
+} from "@/features/onboarding/v2/types";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -57,7 +60,35 @@ const AMBIGUOUS_BATCH: MigrationBatch = {
   ],
 };
 
+/** What the server answers about a list it can stage as it stands. */
+const READ_OK: PeopleRead = {
+  people: 1,
+  header: false,
+  columns: [],
+  ignored: [],
+  calendar: "gregorian",
+  calendar_from_header: false,
+  without_hire_date: 0,
+  problems: [],
+};
+
+/** The list is read by the server; each test says what it answers. */
+function reads(answer: Partial<PeopleRead> = {}) {
+  const asked: { grid: string[][]; calendar: string }[] = [];
+  server.use(
+    http.post("*/onboarding/migration/read", async ({ request }) => {
+      asked.push((await request.json()) as (typeof asked)[number]);
+      return HttpResponse.json({ ...READ_OK, ...answer });
+    }),
+  );
+  return asked;
+}
+
 describe("<MigrationStep>", () => {
+  beforeEach(() => {
+    reads();
+  });
+
   it("stages rows and surfaces candidate names, scores, and reasons for an ambiguous match", async () => {
     server.use(
       http.get("*/devices", () =>
@@ -167,8 +198,15 @@ describe("<MigrationStep>", () => {
     await waitFor(() => expect(staged).toBe("01HZDEV1"));
   });
 
-  it("shows who is ready and which lines need fixing, and stages nothing until they are fixed", async () => {
+  it("shows what the server made of the list and which lines need fixing, and stages nothing until they are fixed", async () => {
     let posted = false;
+    const asked = reads({
+      people: 1,
+      header: true,
+      columns: ["name", "hire_date", "salary"],
+      ignored: ["Notes"],
+      problems: [{ line: 3, message: "The hire date is not a valid date." }],
+    });
     server.use(
       http.get("*/devices", () =>
         HttpResponse.json({ data: [], meta: {}, links: {} }),
@@ -184,34 +222,40 @@ describe("<MigrationStep>", () => {
     fireEvent.change(textarea, {
       target: {
         value: [
-          "Name\tHire date",
-          "Abebe Kebede\t2019-07-08",
-          "Hanna Girma\t08/07/2019",
+          "Name\tHire date\tSalary\tNotes",
+          "Abebe Kebede\t2019-07-08\t12500\tsenior",
+          "Hanna Girma\t2019-02-30\t\t",
         ].join("\n"),
       },
     });
 
-    expect(screen.getByText(/1 person ready/)).toBeInTheDocument();
-    expect(screen.getByText(/Columns: Name, Hire date/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 person ready/)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Line 3: write the hire date 08\/07\/2019 as YYYY-MM-DD/,
-      ),
+      screen.getByText(/Columns: Name, Hire date, Salary/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Not read.*Notes/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Line 3: The hire date is not a valid date."),
+    ).toBeInTheDocument();
+
+    // The browser sent cells, not meanings: the header went as it was typed.
+    expect(asked[0].grid[0]).toEqual(["Name", "Hire date", "Salary", "Notes"]);
+
     const stage = screen.getByText("Stage for review").closest("button")!;
     expect(stage).toBeDisabled();
     fireEvent.click(stage);
     expect(posted).toBe(false);
   });
 
-  it("reads hire dates in the calendar chosen, sends them in Gregorian, and says who has none", async () => {
-    let body: { rows: Record<string, string>[] } | null = null;
+  it("sends the calendar chosen with the list as written, and says who has no hire date", async () => {
+    let body: { grid: string[][]; calendar: string } | null = null;
+    const asked = reads({ people: 2, without_hire_date: 1 });
     server.use(
       http.get("*/devices", () =>
         HttpResponse.json({ data: [], meta: {}, links: {} }),
       ),
       http.post("*/onboarding/migration/rows", async ({ request }) => {
-        body = (await request.json()) as { rows: Record<string, string>[] };
+        body = (await request.json()) as typeof body;
         return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
       }),
       http.get("*/onboarding/migration/batches/:batchId", () =>
@@ -239,16 +283,64 @@ describe("<MigrationStep>", () => {
       },
     });
 
-    expect(screen.getByText(/2 people ready/)).toBeInTheDocument();
+    expect(await screen.findByText(/2 people ready/)).toBeInTheDocument();
     expect(
       screen.getByText(/1 person has no hire date. Today will be used/),
     ).toBeInTheDocument();
+    expect(asked[asked.length - 1].calendar).toBe("ethiopian");
+
     fireEvent.click(screen.getByText("Stage for review"));
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body!.rows[0]).toMatchObject({
-      name: "Abebe Kebede",
-      hire_date: "2019-07-07",
-    });
+    // The date goes as it was written. The server reads it, once, for
+    // every list.
+    expect(body!.calendar).toBe("ethiopian");
+    expect(body!.grid).toEqual([
+      ["Name", "Hire date"],
+      ["Abebe Kebede", "2011-10-30"],
+      ["Hanna Girma", ""],
+    ]);
+  });
+
+  it("shows the lines a staging was refused for, until the list changes", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(
+          {
+            message: "The given data was invalid.",
+            errors: {
+              "grid.4": ["Line 5: The email field must be a valid email."],
+              "grid.1": ["Line 2: The name field is required."],
+            },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Name\n\nAbebe" } });
+    // Before the list has rested and been read, staging is still allowed;
+    // the server is the one that decides.
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    const first = await screen.findByText(
+      "Line 2: The name field is required.",
+    );
+    expect(first.nextElementSibling).toHaveTextContent(
+      "Line 5: The email field must be a valid email.",
+    );
+    expect(
+      screen.getByText("Stage for review").closest("button"),
+    ).toBeDisabled();
+
+    fireEvent.change(textarea, { target: { value: "Name\nAbebe" } });
+    expect(
+      screen.queryByText("Line 2: The name field is required."),
+    ).not.toBeInTheDocument();
   });
 
   it("reads a chosen CSV file into the list", async () => {
@@ -274,6 +366,6 @@ describe("<MigrationStep>", () => {
         (container.querySelector("textarea") as HTMLTextAreaElement).value,
       ).toContain("Abebe Kebede"),
     );
-    expect(screen.getByText(/1 person ready/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 person ready/)).toBeInTheDocument();
   });
 });

@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Employee;
+use App\Models\EmployeeExternalIdentity;
+use App\Support\EmployeeImportGrid;
+use App\Support\EmployeeImportRow;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
 
@@ -123,4 +127,59 @@ test('a CR-only file previews every row', function () {
 
     expect($preview->json('errors'))->toBeEmpty()
         ->and($preview->json('rows'))->toHaveCount(2);
+});
+
+/*
+ * One parser (2026-11-11). A pasted list had its own reading of a column name
+ * and a date, in the browser. A list and a file now go through the same
+ * definition, so the same line is the same person either way.
+ */
+test('a pasted list and a file read the same line the same way', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $header = ['Full name', 'Staff ID', 'Start date', 'Mobile', 'Badge', 'Salary (ETB)', 'Sex'];
+    $line = ['Abebe Kebede', 'EMP-001', '15/03/2024', '0911223344', 'B-7', '"12,500 ETB"', 'M'];
+
+    $file = previewEmployeeCsv(implode(',', $header)."\n".implode(',', $line)."\n")->assertOk();
+    expect($file->json('errors'))->toBeEmpty();
+
+    $pasted = (new EmployeeImportGrid($tenant->id))->read([$header, array_map(fn (string $cell): string => trim($cell, '"'), $line)]);
+    expect($pasted->problems)->toBeEmpty();
+
+    $fromFile = $file->json('rows.0');
+    $fromList = $pasted->rows[0];
+
+    foreach (['name', 'employee_code', 'hire_date', 'phone', 'badge_number', 'gender'] as $field) {
+        expect($fromList[$field])->toBe($fromFile[$field], $field);
+    }
+    expect($fromList['hire_date'])->toBe('2024-03-15')
+        ->and($fromList['salary_cents'])->toBe(EmployeeImportRow::salaryCents($fromFile))
+        ->and($fromList['salary_cents'])->toBe(1250000);
+});
+
+test('the file import brings a person in with the status and the other system\'s id their row names', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $preview = previewEmployeeCsv("name,hire_date,status,legacy id\nSelam Bekele,2020-01-15,Active,HR-7\n")->assertOk();
+    expect($preview->json('errors'))->toBeEmpty();
+
+    test()->postJson('/api/v1/employees/import/commit', [
+        'import_key' => 'ext-1',
+        'rows' => previewPassedRows($preview),
+    ])->assertCreated()->assertJsonPath('created', 1);
+
+    $selam = Employee::where('tenant_id', $tenant->id)->firstOrFail();
+    expect($selam->status)->toBe(EmployeeStatus::CONFIRMED)
+        ->and($selam->confirmation_date?->toDateString())->toBe(now()->toDateString())
+        ->and(EmployeeExternalIdentity::where('employee_id', $selam->id)->value('identifier_value'))->toBe('HR-7');
+
+    // The same id under another name and number is the same person.
+    test()->postJson('/api/v1/employees/import/commit', [
+        'import_key' => 'ext-2',
+        'rows' => [['name' => 'Selam B. Haile', 'hire_date' => '2020-01-15', 'employee_code' => 'NEW-9', 'external_id' => 'HR-7']],
+    ])->assertCreated()->assertJsonPath('created', 0)->assertJsonPath('matched', 1);
+
+    expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(1);
 });

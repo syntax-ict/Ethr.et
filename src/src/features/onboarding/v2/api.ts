@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type {
   AccessPolicy,
@@ -13,6 +18,7 @@ import type {
   LoginIdentifier,
   MigrationBatch,
   MigrationLogins,
+  PeopleRead,
   ReadinessReport,
   StagingAction,
   StagingRow,
@@ -168,11 +174,43 @@ export function useStageFromDevice() {
   });
 }
 
+/**
+ * What the server makes of a list, before anything is staged: who is ready,
+ * which columns were read, and each line that cannot be staged. Asked again
+ * whenever the list or the calendar changes; the last answer stays on screen
+ * meanwhile so the count does not blink.
+ */
+export function useReadPeople(
+  grid: string[][],
+  calendar: "ethiopian" | "gregorian",
+  enabled = true,
+) {
+  return useQuery<PeopleRead>({
+    queryKey: ["onboarding", "migration", "read", calendar, grid],
+    queryFn: async () =>
+      (await apiClient.post("/onboarding/migration/read", { grid, calendar }))
+        .data,
+    enabled: enabled && grid.some((line) => line.length > 0),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/**
+ * Stage a list for review: as lines of cells (`grid`), which the server reads
+ * as it reads every list, or as people already keyed by field (`rows`).
+ */
 export function useStageFromRows() {
   return useMutation<
     MigrationBatch,
     unknown,
-    { rows: Record<string, unknown>[]; source_type?: string }
+    | {
+        grid: string[][];
+        calendar: "ethiopian" | "gregorian";
+        source_type?: string;
+      }
+    | { rows: Record<string, unknown>[]; source_type?: string }
   >({
     mutationFn: async (payload) =>
       (await apiClient.post("/onboarding/migration/rows", payload)).data,

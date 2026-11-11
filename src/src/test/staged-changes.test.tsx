@@ -278,6 +278,18 @@ describe("<MigrationStep>, a matched row", () => {
       http.get("*/devices", () =>
         HttpResponse.json({ data: [], meta: {}, links: {} }),
       ),
+      http.post("*/onboarding/migration/read", () =>
+        HttpResponse.json({
+          people: 1,
+          header: false,
+          columns: [],
+          ignored: [],
+          calendar: "gregorian",
+          calendar_from_header: false,
+          without_hire_date: 0,
+          problems: [],
+        }),
+      ),
       http.post("*/onboarding/migration/rows", () =>
         HttpResponse.json(batch, { status: 201 }),
       ),

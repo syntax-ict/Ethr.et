@@ -157,6 +157,25 @@ export interface StagingRow {
   processed_at: string | null;
 }
 
+/** What the server made of a list of people, before anything is staged. */
+export interface PeopleRead {
+  /** People ready to be staged. */
+  people: number;
+  /** Whether the first line was column names. */
+  header: boolean;
+  /** The columns read, by the field each one is. */
+  columns: string[];
+  /** Column names that mean nothing here, as written. */
+  ignored: string[];
+  calendar: "ethiopian" | "gregorian";
+  /** True when the column name said which calendar, over the choice. */
+  calendar_from_header: boolean;
+  /** People ready who bring no hire date, so the day they are added is used. */
+  without_hire_date: number;
+  /** Lines that cannot be staged. `line` counts as the reader sees it. */
+  problems: { line: number; message: string }[];
+}
+
 export interface MigrationBatch {
   public_id: string;
   source_type: string;

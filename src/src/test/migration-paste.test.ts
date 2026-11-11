@@ -1,246 +1,80 @@
 import { describe, expect, it } from "vitest";
 import {
-  parsePeople,
   peopleTemplateCsv,
+  toGrid,
 } from "@/features/onboarding/v2/parse-people";
 
-describe("the guided setup's list of people", () => {
-  it("reads the documented order when there is no header, each column but the name optional", () => {
-    const { rows, problems, header } = parsePeople(
-      [
-        "Abebe Kebede, abebe@acme.et, 0911223344, EMP-1, 2019-07-08, Finance",
-        "Hanna Girma",
-        "Sara Tesfaye, , , EMP-3, , Sales",
-      ].join("\n"),
-    );
-
-    expect(header).toBeNull();
-    expect(problems).toEqual([]);
-    expect(rows).toEqual([
-      {
-        name: "Abebe Kebede",
-        email: "abebe@acme.et",
-        phone: "0911223344",
-        employee_code: "EMP-1",
-        hire_date: "2019-07-08",
-        department: "Finance",
-      },
-      { name: "Hanna Girma" },
-      { name: "Sara Tesfaye", employee_code: "EMP-3", department: "Sales" },
-    ]);
-  });
-
-  it("reads rows pasted from Excel: tab-separated, a header row, columns in any order", () => {
-    const { rows, problems, header } = parsePeople(
-      [
-        "Department\tFull name\tStart date\tStaff ID\tNotes",
-        "Finance\tAbebe Kebede\t2019/7/8\tEMP-1\tsenior",
-        "Sales\tHanna Girma\t\t\t",
-      ].join("\r\n"),
-    );
-
-    expect(header).toEqual([
-      "department",
-      "name",
-      "hire_date",
-      "employee_code",
-    ]);
-    expect(problems).toEqual([]);
-    expect(rows).toEqual([
-      {
-        department: "Finance",
-        name: "Abebe Kebede",
-        hire_date: "2019-07-08",
-        employee_code: "EMP-1",
-      },
-      { department: "Sales", name: "Hanna Girma" },
+/*
+ * The browser splits a list into cells and nothing more (2026-11-11). What a
+ * column name means, how a date is read and which lines can be staged are the
+ * server's to say, and are tested there (PeopleListReadTest).
+ */
+describe("splitting a list of people into cells", () => {
+  it("reads rows pasted from Excel: tab-separated, whatever the line endings", () => {
+    expect(
+      toGrid(
+        [
+          "Department\tFull name\tStart date\tStaff ID\tNotes",
+          "Finance\tAbebe Kebede\t2019/7/8\tEMP-1\tsenior",
+          "Sales\tHanna Girma\t\t\t",
+        ].join("\r\n"),
+      ),
+    ).toEqual([
+      ["Department", "Full name", "Start date", "Staff ID", "Notes"],
+      ["Finance", "Abebe Kebede", "2019/7/8", "EMP-1", "senior"],
+      ["Sales", "Hanna Girma", "", "", ""],
     ]);
   });
 
   it("reads a semicolon CSV with quoted cells and a byte order mark", () => {
-    const { rows } = parsePeople(
-      '﻿Name;Email;Phone\n"Kebede; Abebe";abebe@acme.et;"0911 22 33 44"',
-    );
-
-    expect(rows).toEqual([
-      { name: "Kebede; Abebe", email: "abebe@acme.et", phone: "0911 22 33 44" },
-    ]);
-  });
-
-  it("names each line it cannot send, counting the header line, instead of guessing", () => {
-    const { rows, problems } = parsePeople(
-      [
-        "Name,Email,Hire date",
-        "A,,2019-07-08",
-        "B,,08/07/2019",
-        ",c@acme.et,",
-        "D,not-an-email,",
-        "E,,2011 E.C.",
-      ].join("\n"),
-    );
-
-    expect(rows.map((r) => r.name)).toEqual(["A"]);
-    expect(problems).toEqual([
-      { line: 3, kind: "bad_date", value: "08/07/2019" },
-      { line: 4, kind: "no_name" },
-      { line: 5, kind: "bad_email", value: "not-an-email" },
-      { line: 6, kind: "bad_date", value: "2011 E.C." },
-    ]);
-  });
-
-  it("does not take a first person for a header", () => {
-    const { header, rows } = parsePeople("Name Person, name@acme.et");
-
-    expect(header).toBeNull();
-    expect(rows).toEqual([{ name: "Name Person", email: "name@acme.et" }]);
-  });
-
-  it("reads its own template back", () => {
-    const { rows, problems, header } = parsePeople(peopleTemplateCsv());
-
-    expect(problems).toEqual([]);
-    expect(header).toEqual([
-      "name",
-      "email",
-      "phone",
-      "employee_code",
-      "hire_date",
-      "department",
-    ]);
-    expect(rows).toHaveLength(1);
-  });
-
-  it("names an employee number or email used twice, pointing at the first line", () => {
-    const { rows, problems } = parsePeople(
-      [
-        "Name,Email,Employee number",
-        "A,a@acme.et,EMP-1",
-        "B,b@acme.et,emp-1",
-        "C,A@ACME.ET,EMP-3",
-      ].join("\n"),
-    );
-
-    expect(rows.map((r) => r.name)).toEqual(["A"]);
-    expect(problems).toEqual([
-      { line: 3, kind: "duplicate_code", value: "emp-1", firstLine: 2 },
-      { line: 4, kind: "duplicate_email", value: "A@ACME.ET", firstLine: 2 },
-    ]);
-  });
-
-  it("checks departments against the organisation's, by code, name or Amharic name", () => {
-    const departments = [
-      { code: "FIN", name: "Finance", name_am: "ፋይናንስ" },
-      { code: null, name: "Sales", name_am: null },
-    ];
-    const { rows, problems } = parsePeople(
-      [
-        "Name,Department",
-        "A,fin",
-        "B,ፋይናንስ",
-        "C, sales ",
-        "D,Marketing",
-        "E,",
-      ].join("\n"),
-      departments,
-    );
-
-    expect(rows.map((r) => r.name)).toEqual(["A", "B", "C", "E"]);
-    expect(problems).toEqual([
-      { line: 5, kind: "unknown_department", value: "Marketing" },
-    ]);
-
-    // Departments not loaded yet: nothing is checked, the server still is.
-    expect(parsePeople("D, , , , , Marketing").problems).toEqual([]);
-  });
-
-  it("says when a list is over the limit one staging takes", () => {
-    const text = Array.from({ length: 2001 }, (_, i) => `Person ${i}`).join(
-      "\n",
-    );
-    const { problems } = parsePeople(text);
-
-    expect(problems).toEqual([{ line: 2001, kind: "too_many", value: "2001" }]);
-  });
-
-  it("reads Ethiopian hire dates when that calendar is chosen, and sends them in Gregorian", () => {
-    const text = [
-      "Name,Hire date",
-      "A,2011-10-30",
-      "B,2011-13-06",
-      "C,2012-13-06",
-      "D,2011-14-01",
-      "E,2019-07-07 G.C.",
-    ].join("\n");
-    const { rows, problems, calendar, calendarFromHeader } = parsePeople(
-      text,
-      undefined,
-      "ethiopian",
-    );
-
-    expect(calendar).toBe("ethiopian");
-    expect(calendarFromHeader).toBe(false);
-    expect(rows).toEqual([
-      { name: "A", hire_date: "2019-07-07" },
-      // Pagume 6 exists only in a leap year: 2011 is one, 2012 is not.
-      { name: "B", hire_date: "2019-09-11" },
-      { name: "E", hire_date: "2019-07-07" },
-    ]);
-    expect(problems).toEqual([
-      { line: 4, kind: "bad_date", value: "2012-13-06" },
-      { line: 5, kind: "bad_date", value: "2011-14-01" },
-    ]);
-  });
-
-  it("takes the calendar from the column name over the choice", () => {
-    const ec = parsePeople(
-      "Name,Hire date (E.C.)\nA,2011-10-30",
-      undefined,
-      "gregorian",
-    );
-    expect(ec.calendar).toBe("ethiopian");
-    expect(ec.calendarFromHeader).toBe(true);
-    expect(ec.header).toEqual(["name", "hire_date"]);
-    expect(ec.rows).toEqual([{ name: "A", hire_date: "2019-07-07" }]);
-
-    const gc = parsePeople(
-      "Name;የተቀጠረበት ቀን GC\nA;2019-07-07",
-      undefined,
-      "ethiopian",
-    );
-    expect(gc.calendar).toBe("gregorian");
-    expect(gc.rows).toEqual([{ name: "A", hire_date: "2019-07-07" }]);
-  });
-
-  it("refuses a Gregorian day the month does not have", () => {
-    expect(parsePeople("A, , , , 2019-02-29").problems).toEqual([
-      { line: 1, kind: "bad_date", value: "2019-02-29" },
-    ]);
-    expect(parsePeople("A, , , , 2020-02-29").rows).toEqual([
-      { name: "A", hire_date: "2020-02-29" },
-    ]);
-  });
-
-  it("counts the people who will be given today as their hire date", () => {
     expect(
-      parsePeople("Name,Hire date\nA,2019-07-07\nB,\nC").withoutHireDate,
-    ).toBe(2);
+      toGrid(
+        '﻿Name;Department\r\n"Kebede; Abebe";"Say ""hi"""\r\nHanna Girma;Sales',
+      ),
+    ).toEqual([
+      ["Name", "Department"],
+      ["Kebede; Abebe", 'Say "hi"'],
+      ["Hanna Girma", "Sales"],
+    ]);
   });
 
-  it("writes a template in either calendar that reads back as the same day", () => {
-    const ec = parsePeople(
-      peopleTemplateCsv("ethiopian"),
-      undefined,
-      "gregorian",
-    );
-    const gc = parsePeople(
-      peopleTemplateCsv("gregorian"),
-      undefined,
-      "ethiopian",
-    );
+  it("reads a list typed by hand, with commas and stray spaces", () => {
+    expect(toGrid("Abebe Kebede ,  abebe@acme.et, 0911223344\nHanna")).toEqual([
+      ["Abebe Kebede", "abebe@acme.et", "0911223344"],
+      ["Hanna"],
+    ]);
+  });
 
-    expect(ec.problems).toEqual([]);
-    expect(gc.problems).toEqual([]);
-    expect(ec.rows[0].hire_date).toBe("2019-07-07");
-    expect(gc.rows[0].hire_date).toBe("2019-07-07");
+  it("keeps an empty line in its place, so a line number is the one the reader counts", () => {
+    expect(toGrid("Name\n\nAbebe Kebede\n   \nHanna Girma\n\n\n")).toEqual([
+      ["Name"],
+      [],
+      ["Abebe Kebede"],
+      [],
+      ["Hanna Girma"],
+    ]);
+  });
+
+  it("makes nothing of an empty box", () => {
+    expect(toGrid("")).toEqual([]);
+    expect(toGrid(" \n\t\n")).toEqual([]);
+  });
+
+  it("does not take a tab inside one hand-typed line for the separator of a comma list", () => {
+    // A tab anywhere means the list came from a spreadsheet.
+    expect(toGrid("Name\tEmail\nAbebe, Kebede\tabebe@acme.et")).toEqual([
+      ["Name", "Email"],
+      ["Abebe, Kebede", "abebe@acme.et"],
+    ]);
+  });
+
+  it("writes a template whose hire date column names its calendar", () => {
+    const ethiopian = toGrid(peopleTemplateCsv("ethiopian"));
+    const gregorian = toGrid(peopleTemplateCsv("gregorian"));
+
+    expect(ethiopian[0]).toContain("Hire date (E.C.)");
+    expect(ethiopian[1]).toContain("2011-10-30");
+    expect(gregorian[0]).toContain("Hire date (G.C.)");
+    expect(gregorian[1]).toContain("2019-07-07");
   });
 });

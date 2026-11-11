@@ -4961,6 +4961,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read a list of people without staging it
+         * @description `grid` is the list as lines of cells, the first line its column names
+         *     or none. The answer says how many people are ready, which columns were
+         *     read and which column names mean nothing here, and every line that
+         *     cannot be staged, with its number as the reader counts it. Nothing is
+         *     kept.
+         */
+        post: operations["migration.read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/rows": {
         parameters: {
             query?: never;
@@ -4970,7 +4994,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create row */
+        /**
+         * Stage a list of people for review
+         * @description Send `grid` (the list as lines of cells, read as `/migration/read`
+         *     reads it) or `rows` (people already keyed by field). A grid with a line
+         *     that cannot be staged is refused whole, each line named, unless
+         *     `skip_problems` is set: then those lines are left out. A list that sets
+         *     a salary or a TIN needs the pay permission, as the add-employee form does.
+         */
         post: operations["migration.stageFromRows"];
         delete?: never;
         options?: never;
@@ -10081,6 +10112,9 @@ export interface components {
                 nationality_status?: "ethiopian" | "ethiopian_origin" | "foreign" | null;
                 /** @enum {string|null} */
                 marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+                /** @enum {string|null} */
+                status?: "hired" | "probation" | "confirmed" | null;
+                external_id?: string | null;
             }[];
         };
         /**
@@ -11021,6 +11055,12 @@ export interface components {
                 };
             };
         };
+        /** ReadPeopleRequest */
+        ReadPeopleRequest: {
+            /** @enum {string} */
+            calendar?: "gregorian" | "ethiopian";
+            grid: (string | null)[][];
+        };
         /** RecallLeaveRequest */
         RecallLeaveRequest: {
             /** Format: date */
@@ -11450,20 +11490,58 @@ export interface components {
             product_mark_label_om: string | null;
             product_mark_url: string | null;
         };
-        /** StageRowsRequest */
+        /**
+         * StageRowsRequest
+         * @description A list of people to stage, in one of two shapes.
+         *
+         *     `grid` is the list as cells, the first line its column names or none: what
+         *     a person pasted or a file held. It is read as every list of people is, so
+         *     a column name, a date and a salary mean here what they mean in a file.
+         *
+         *     `rows` is the list already keyed by field, for a caller that holds
+         *     structured values. It takes every column of the employee template, and
+         *     `department`, `branch` and `position` by code or name.
+         */
         StageRowsRequest: {
             /** @enum {string} */
             source_type?: "csv" | "manual";
             source_ref?: string | null;
-            rows: {
+            /** @enum {string} */
+            calendar?: "gregorian" | "ethiopian";
+            grid?: (string | null)[][];
+            skip_problems?: boolean;
+            rows?: {
                 name?: string | null;
+                name_am?: string | null;
                 /** Format: email */
                 email?: string | null;
                 phone?: string | null;
                 employee_code?: string | null;
+                national_id?: string | null;
+                tin?: string | null;
+                badge_number?: string | null;
+                /** @enum {string|null} */
+                gender?: "male" | "female" | null;
+                /** Format: date-time */
+                date_of_birth?: string | null;
                 /** Format: date */
                 hire_date?: string | null;
+                department_code?: string | null;
+                branch_code?: string | null;
+                position_code?: string | null;
+                salary?: string | null;
+                salary_cents?: number | null;
+                nationality?: string | null;
+                /** @enum {string|null} */
+                nationality_status?: "ethiopian" | "ethiopian_origin" | "foreign" | null;
+                /** @enum {string|null} */
+                marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+                /** @enum {string|null} */
+                status?: "hired" | "probation" | "confirmed" | null;
+                external_id?: string | null;
                 department?: string | null;
+                branch?: string | null;
+                position?: string | null;
             }[];
         };
         /** StartKioskSelfServiceRequest */
@@ -21987,7 +22065,9 @@ export interface operations {
                             "badge_number",
                             "nationality",
                             "nationality_status",
-                            "marital_status"
+                            "marital_status",
+                            "status",
+                            "external_id"
                         ];
                     };
                 };
@@ -27037,7 +27117,7 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "migration.stageFromRows": {
+    "migration.read": {
         parameters: {
             query?: never;
             header?: never;
@@ -27045,6 +27125,44 @@ export interface operations {
             cookie?: never;
         };
         requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadPeopleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        people: number;
+                        header: boolean;
+                        columns: string[];
+                        ignored: string[];
+                        calendar: string;
+                        calendar_from_header: boolean;
+                        without_hire_date: number;
+                        problems: {
+                            line: number;
+                            message: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.stageFromRows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["StageRowsRequest"];
             };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Loader2,
@@ -27,26 +27,20 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
-import { departmentsApi } from "@/features/organization/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   CommitStalled,
   useCommitMigration,
   useMigrationBatch,
+  useReadPeople,
   useSetRowAction,
   useStageFromDevice,
   useStageFromRows,
 } from "../api";
 import type { MatchOutcome, StagingAction } from "../types";
-import {
-  MAX_PEOPLE,
-  type DateCalendar,
-  parsePeople,
-  peopleTemplateCsv,
-  type PersonField,
-  type Problem,
-} from "../parse-people";
+import { type DateCalendar, peopleTemplateCsv, toGrid } from "../parse-people";
 import { MigrationLogins } from "./migration-logins";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -69,17 +63,54 @@ function outcomeTone(outcome: MatchOutcome | null): string {
   }
 }
 
-const FIELD_LABELS: Record<PersonField, [string, string]> = {
+/** A column the server read, by the name it already has in the dictionary. */
+const COLUMN_LABELS: Record<string, [string, string]> = {
   name: ["setup2.col_name", "Name"],
+  name_am: ["employee.name_am", "Name in Amharic"],
   email: ["setup2.col_email", "Email"],
   phone: ["setup2.col_phone", "Phone"],
   employee_code: ["setup2.col_employee_code", "Employee number"],
+  badge_number: ["setup2.col_badge_number", "Badge number"],
   hire_date: ["setup2.col_hire_date", "Hire date"],
-  department: ["setup2.col_department", "Department"],
+  date_of_birth: ["employee.detail.date_of_birth", "Date of birth"],
+  gender: ["common.gender", "Gender"],
+  department_code: ["setup2.col_department", "Department"],
+  branch_code: ["common.branch", "Branch"],
+  position_code: ["common.position", "Position"],
+  salary: ["employee.detail.salary", "Salary"],
+  salary_cents: ["employee.detail.salary", "Salary"],
+  national_id: ["employee.national_id", "National ID"],
+  tin: ["employee.tin", "TIN"],
+  nationality: ["employee.detail.nationality", "Nationality"],
+  nationality_status: ["employee.nationality_status", "Ethiopian national?"],
+  marital_status: ["employee.detail.marital_status", "Marital status"],
+  status: ["common.status", "Status"],
+  external_id: ["setup2.col_external_id", "ID in the other system"],
 };
 
 /** Problems shown under the list before the rest are counted. */
 const PROBLEMS_SHOWN = 5;
+
+/** How long the list rests before the server is asked what it makes of it. */
+const READ_AFTER_MS = 400;
+
+/**
+ * The lines a refused staging names, from the server's validation errors
+ * (`grid.2: ["Line 3: ..."]`), in the order of the list.
+ */
+function refusedLines(err: unknown): string[] {
+  const errors = (
+    err as { response?: { data?: { errors?: Record<string, string[]> } } }
+  )?.response?.data?.errors;
+  if (!errors) return [];
+  return Object.entries(errors)
+    .filter(([key]) => key === "grid" || key.startsWith("grid."))
+    .sort(
+      ([a], [b]) =>
+        Number(a.split(".")[1] ?? -1) - Number(b.split(".")[1] ?? -1),
+    )
+    .flatMap(([, messages]) => messages);
+}
 
 /**
  * @param onCommitted Called when the reviewer moves on after the commit, from
@@ -114,9 +145,6 @@ export function MigrationStep({
   const devices = devicesQuery.data?.data ?? [];
   // One device is the device: there is nothing to choose.
   const device = deviceId || (devices.length === 1 ? devices[0].public_id : "");
-  // The departments the list may name, so one the organisation does not have
-  // is reported before staging instead of refused by the server after.
-  const departmentsQuery = departmentsApi.useList();
   // Hire dates are read in the reader's own calendar unless they say otherwise:
   // an Ethiopian 2011-10-30 read as Gregorian is eight years out.
   const preferred = useOptionalCalendar()?.calendar ?? "gregorian";
@@ -124,67 +152,28 @@ export function MigrationStep({
     null,
   );
   const dateCalendar = chosenCalendar ?? preferred;
-  const parsed = parsePeople(csv, departmentsQuery.data?.data, dateCalendar);
+  // The server reads the list: what each column is, each date, each line that
+  // cannot be staged. The browser only splits it into cells, once it rests.
+  const rested = useDebounce(csv, READ_AFTER_MS);
+  const grid = useMemo(() => toGrid(rested), [rested]);
+  const readQuery = useReadPeople(grid, dateCalendar, batchId === null);
+  const read = csv.trim() === "" ? undefined : readQuery.data;
+  const reading = csv.trim() !== "" && (rested !== csv || readQuery.isFetching);
+  // What a staging the server refused said, until the list changes.
+  const [refused, setRefused] = useState<{ csv: string; lines: string[] }>({
+    csv: "",
+    lines: [],
+  });
+  const problems =
+    refused.csv === csv && refused.lines.length > 0
+      ? refused.lines
+      : (read?.problems ?? []).map((p) =>
+          t("setup2.problem_line", "Line :line: :message", {
+            line: p.line,
+            message: p.message,
+          }),
+        );
   const noDevice = devicesQuery.isSuccess && devices.length === 0;
-
-  function problemText(problem: Problem): string {
-    switch (problem.kind) {
-      case "no_name":
-        return t("setup2.problem_no_name", "Line :line has no name.", {
-          line: problem.line,
-        });
-      case "bad_email":
-        return t(
-          "setup2.problem_bad_email",
-          "Line :line: :value is not an email address.",
-          { line: problem.line, value: problem.value ?? "" },
-        );
-      case "bad_date":
-        return parsed.calendar === "ethiopian"
-          ? t(
-              "setup2.problem_bad_date_ec",
-              "Line :line: :value is not an Ethiopian calendar date. Write it as YYYY-MM-DD, for example 2011-10-30.",
-              { line: problem.line, value: problem.value ?? "" },
-            )
-          : t(
-              "setup2.problem_bad_date",
-              "Line :line: write the hire date :value as YYYY-MM-DD, for example 2019-07-08.",
-              { line: problem.line, value: problem.value ?? "" },
-            );
-      case "duplicate_code":
-        return t(
-          "setup2.problem_duplicate_code",
-          "Line :line: employee number :value is also on line :first. Each person needs their own.",
-          {
-            line: problem.line,
-            value: problem.value ?? "",
-            first: problem.firstLine ?? "",
-          },
-        );
-      case "duplicate_email":
-        return t(
-          "setup2.problem_duplicate_email",
-          "Line :line: :value is also on line :first. Each person needs their own email address.",
-          {
-            line: problem.line,
-            value: problem.value ?? "",
-            first: problem.firstLine ?? "",
-          },
-        );
-      case "unknown_department":
-        return t(
-          "setup2.problem_unknown_department",
-          "Line :line: there is no department :value. Use a department's name or code as it is in ETHR, or leave it empty.",
-          { line: problem.line, value: problem.value ?? "" },
-        );
-      case "too_many":
-        return t(
-          "setup2.problem_too_many",
-          "This list has :value people. Bring in at most :max at a time.",
-          { value: problem.value ?? "", max: MAX_PEOPLE },
-        );
-    }
-  }
 
   async function readFile(file: File) {
     if (/\.xlsx?$/i.test(file.name)) {
@@ -217,12 +206,22 @@ export function MigrationStep({
   }
 
   async function stageCsv() {
-    const { rows, problems } = parsed;
-    if (problems.length > 0 || rows.length === 0) return;
+    if (csv.trim() === "" || problems.length > 0) return;
     try {
-      const b = await stageRows.mutateAsync({ rows });
+      const b = await stageRows.mutateAsync({
+        grid: toGrid(csv),
+        calendar: dateCalendar,
+      });
       setBatchId(b.public_id);
     } catch (err) {
+      // The list changed after it was last read, or was never read: the
+      // server names the lines it will not stage, and they are shown where
+      // the read's are.
+      const lines = refusedLines(err);
+      if (lines.length > 0) {
+        setRefused({ csv, lines });
+        return;
+      }
       toast.error(
         apiErrorMessage(err, t("setup2.stage_failed", "Could not stage rows")),
       );
@@ -441,26 +440,53 @@ export function MigrationStep({
               />
               {csv.trim() !== "" && (
                 <div className="space-y-1 text-xs" aria-live="polite">
-                  <p className="font-medium text-foreground">
-                    {parsed.rows.length === 1
-                      ? t("setup2.people_ready_one", "1 person ready")
-                      : t("setup2.people_ready", ":count people ready", {
-                          count: parsed.rows.length,
-                        })}
-                    {parsed.header && (
-                      <span className="font-normal text-muted-foreground">
-                        {" · "}
-                        {t("setup2.columns_read", "Columns: :columns", {
-                          columns: parsed.header
-                            .map((f) => t(...FIELD_LABELS[f]))
-                            .join(", "),
-                        })}
-                      </span>
-                    )}
-                  </p>
-                  {parsed.calendarFromHeader && (
+                  {read ? (
+                    <p className="font-medium text-foreground">
+                      {read.people === 1
+                        ? t("setup2.people_ready_one", "1 person ready")
+                        : t("setup2.people_ready", ":count people ready", {
+                            count: read.people,
+                          })}
+                      {read.header && (
+                        <span className="font-normal text-muted-foreground">
+                          {" · "}
+                          {t("setup2.columns_read", "Columns: :columns", {
+                            columns: read.columns
+                              .map((c) =>
+                                COLUMN_LABELS[c] ? t(...COLUMN_LABELS[c]) : c,
+                              )
+                              .join(", "),
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    reading && (
+                      <p className="text-muted-foreground">
+                        {t("setup2.checking_list", "Reading the list")}
+                      </p>
+                    )
+                  )}
+                  {readQuery.isError && !reading && (
+                    <p className="text-destructive">
+                      {apiErrorMessage(
+                        readQuery.error,
+                        t("setup2.stage_failed", "Could not read the source"),
+                      )}
+                    </p>
+                  )}
+                  {(read?.ignored.length ?? 0) > 0 && (
+                    <p className="text-warning-on-soft">
+                      {t(
+                        "setup2.columns_ignored",
+                        "Not read, because the column name is not one ETHR knows: :columns",
+                        { columns: read!.ignored.join(", ") },
+                      )}
+                    </p>
+                  )}
+                  {read?.calendar_from_header && (
                     <p className="text-muted-foreground">
-                      {parsed.calendar === "ethiopian"
+                      {read.calendar === "ethiopian"
                         ? t(
                             "setup2.dates_from_header_ec",
                             "Hire dates are read as Ethiopian (E.C.), as the column name says.",
@@ -471,9 +497,9 @@ export function MigrationStep({
                           )}
                     </p>
                   )}
-                  {parsed.withoutHireDate > 0 && (
+                  {(read?.without_hire_date ?? 0) > 0 && (
                     <p className="text-warning-on-soft">
-                      {parsed.withoutHireDate === 1
+                      {read!.without_hire_date === 1
                         ? t(
                             "setup2.no_hire_date_one",
                             "1 person has no hire date. Today will be used, which affects leave and length of service.",
@@ -481,19 +507,19 @@ export function MigrationStep({
                         : t(
                             "setup2.no_hire_date",
                             ":count people have no hire date. Today will be used, which affects leave and length of service.",
-                            { count: parsed.withoutHireDate },
+                            { count: read!.without_hire_date },
                           )}
                     </p>
                   )}
-                  {parsed.problems.length > 0 && (
+                  {problems.length > 0 && (
                     <ul className="space-y-0.5 text-destructive">
-                      {parsed.problems.slice(0, PROBLEMS_SHOWN).map((p) => (
-                        <li key={`${p.line}-${p.kind}`}>{problemText(p)}</li>
+                      {problems.slice(0, PROBLEMS_SHOWN).map((problem) => (
+                        <li key={problem}>{problem}</li>
                       ))}
-                      {parsed.problems.length > PROBLEMS_SHOWN && (
+                      {problems.length > PROBLEMS_SHOWN && (
                         <li>
                           {t("setup2.more_problems", "and :count more", {
-                            count: parsed.problems.length - PROBLEMS_SHOWN,
+                            count: problems.length - PROBLEMS_SHOWN,
                           })}
                         </li>
                       )}
@@ -512,8 +538,9 @@ export function MigrationStep({
                 onClick={stageCsv}
                 disabled={
                   stageRows.isPending ||
-                  parsed.rows.length === 0 ||
-                  parsed.problems.length > 0
+                  csv.trim() === "" ||
+                  problems.length > 0 ||
+                  (read !== undefined && !reading && read.people === 0)
                 }
               >
                 {stageRows.isPending ? (

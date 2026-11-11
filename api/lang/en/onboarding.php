@@ -24,5 +24,11 @@ return [
         'already_committing' => 'This list is already being added. Wait for it to finish.',
         'accept_needs_match' => 'Choose which employee this line is before accepting a change.',
         'device_user' => 'Device user :id',
+        'line' => 'Line :line: :message',
+        'nobody' => 'This list has nobody in it.',
+        'too_many' => 'This list has :count people. Bring in at most :max at a time.',
+        'relation_not_found' => ':field ":value" was not found. Use its code or its name as it appears in ETHR.',
+        'relation_ambiguous' => 'More than one :field is called ":value". Use its code instead.',
+        'duplicate_in_list' => ':field ":value" is also on line :first. Each person needs their own.',
     ],
 ];
