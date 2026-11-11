@@ -273,6 +273,80 @@ jobs:
           DB_PASSWORD: ethr
         run: ./scripts/gates.sh mysql
 
+  attendance-concurrency:
+    name: Attendance punches racing (MySQL 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Every duplicate test in the suites above is one process sending two
+    # punches in turn. This job starts a PHP process per punch, holds them at a
+    # barrier and releases them together, so the engine's per-person lock and
+    # its transaction are exercised as a race (api/phpunit.concurrency.xml).
+    #
+    # MySQL 8.0.32 because that is the engine production runs, started as in
+    # the job above. The cache store is `database`, as in production: with the
+    # array store each process would hold a lock of its own.
+    #
+    # Measured when written (2026-11-10): green as the code stands, and all
+    # four cases red with the lock taken out of AttendanceEngine::serialised().
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start MySQL 8.0.32
+        run: |
+          docker run -d --name mysql8 -p 3306:3306 \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -e MYSQL_DATABASE=ethr_concurrency \
+            -e MYSQL_USER=ethr \
+            -e MYSQL_PASSWORD=ethr \
+            mysql:8.0.32 \
+            --character-set-server=utf8mb4 \
+            --collation-server=utf8mb4_unicode_ci \
+            --log-bin-trust-function-creators=1 \
+            --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+          for i in $(seq 1 90); do
+            if docker exec mysql8 mysqladmin ping -h127.0.0.1 -uethr -pethr --silent 2>/dev/null; then
+              docker exec mysql8 mysql -h127.0.0.1 -uroot -proot -e "SELECT VERSION(), @@GLOBAL.sql_mode"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs mysql8
+          exit 1
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Race the punches
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr_concurrency
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: ./scripts/gates.sh concurrency
+
   frontend:
     name: Frontend (i18n, Prettier, ESLint, tsc, Vitest)
     runs-on: ubuntu-latest

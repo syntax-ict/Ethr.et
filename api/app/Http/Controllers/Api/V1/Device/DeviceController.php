@@ -520,12 +520,27 @@ class DeviceController extends Controller
     {
         $device = $this->findWebhookDevice($request, $adapterType);
 
+        if ($device === null) {
+            return null;
+        }
+
         // A deleted organisation's device authenticates nobody: its punches
         // have no organisation to belong to. Tenant::query() carries the
         // soft-delete scope, so a deleted tenant is simply not found.
-        if ($device !== null && ! Tenant::query()->whereKey($device->tenant_id)->exists()) {
+        $tenant = Tenant::query()->find($device->tenant_id);
+        if ($tenant === null) {
             return null;
         }
+
+        // The device is the only thing in the request that says whose punch
+        // this is: a terminal posts to the deployment's own address
+        // (DeviceResource::webhook_url) and cannot send X-Tenant, so nothing
+        // else resolves an organisation. Without this the engine looked the
+        // employee up with none, found nobody, and the terminal was answered
+        // `processed` with nothing recorded (found 2026-11-10; the ADMS
+        // handler and the pull job have always set it). The device's
+        // organisation also wins over one the host happened to name.
+        app(CurrentTenant::class)->set($tenant);
 
         return $device;
     }
