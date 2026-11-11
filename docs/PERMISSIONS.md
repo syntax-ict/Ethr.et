@@ -180,6 +180,7 @@ In the HR Admin set, so `hr_admin` and `tenant_admin` hold it. See [`operations/
 | `users.invite` | Invite and provision login accounts |
 | `users.update` | Update user roles, status and access |
 | `users.issueActivationCode` | Issue a one-time activation code in person to an employee with no email or phone |
+| `users.issueStartingPassword` | Give a batch of employees with no email one starting password, changed at first sign-in |
 | `users.delete` | Deactivate login accounts |
 
 ### dashboard
@@ -274,7 +275,7 @@ announcement.manage,
 recruitment.manage, recruitment.approve,
 support.manage,
 users.viewAny, users.invite, users.update,
-users.issueActivationCode
+users.issueActivationCode, users.issueStartingPassword
 ```
 
 ### Finance set

@@ -9,6 +9,7 @@ use App\Http\Middleware\ResolveTenant;
 use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\Auth\AuthIdentifierResolver;
+use App\Services\Auth\StartingPasswordSprayLimit;
 use App\Services\CurrentTenant;
 use App\Support\ThrottleIdentity;
 use Illuminate\Foundation\Http\FormRequest;
@@ -124,14 +125,31 @@ class LoginRequest extends FormRequest
             Hash::make(Str::random(40));
         }
 
-        if (! $user || ! Hash::check($this->input('password'), $user->password)) {
+        $matches = $user && Hash::check($this->input('password'), $user->password);
+
+        // An account still on the starting password HR gave its batch shares
+        // that password with every colleague in the batch, so wrong tries are
+        // counted across the organisation (StartingPasswordSprayLimit). While
+        // the organisation is cooling, even the right password is answered as
+        // a wrong one, below: a different answer would say which employee
+        // numbers still have a starting password. Asked after the hash check,
+        // so the time taken says nothing either.
+        $spray = app(StartingPasswordSprayLimit::class);
+        $onStartingPassword = $user !== null && $user->mustChangePassword();
+        $held = $onStartingPassword && $spray->cooling((int) $currentTenant->id());
+
+        if (! $matches || $held) {
             RateLimiter::hit($this->throttleKey(), 300);
 
             // Recorded only when the account resolved: `login_histories.user_id`
             // is a non-nullable FK, and writing a row for an unknown identifier
             // would also turn the history into a probe log of guessed usernames.
             if ($user) {
-                LoginHistory::record($user, 'failed', 'invalid_password');
+                LoginHistory::record($user, $held ? 'blocked' : 'failed', $held ? 'starting_password_cooldown' : 'invalid_password');
+            }
+
+            if ($onStartingPassword && ! $held) {
+                $spray->recordFailure($currentTenant->get(), (string) $this->ip());
             }
 
             // A single generic message regardless of identifier type — no user

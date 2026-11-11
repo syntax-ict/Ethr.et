@@ -214,9 +214,12 @@ final class ActivationCodeService
 
             $wasInvited = $user->status === 'invited';
 
+            // A starting password's hold and expiry end here too: the person
+            // has chosen their own (StartingPasswords).
             $updates = [
                 'password' => Hash::make($password),
                 'password_changed_at' => now(),
+                ...StartingPasswords::CLEARED,
             ];
 
             if ($wasInvited) {
