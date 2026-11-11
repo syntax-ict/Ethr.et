@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\ConflictResolutionStatus;
 use App\Enums\ConflictType;
@@ -14,6 +15,9 @@ use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
+use App\Services\Attendance\AttendanceEngine;
+use App\Services\Attendance\AttendanceInput;
+use App\Services\CurrentTenant;
 use Carbon\Carbon;
 
 // Blueprint assessment 2026-10-20, attendance acceptance test: changing an
@@ -170,6 +174,56 @@ it('refuses to void either record of a paid day when resolving a conflict', func
         ->assertJsonPath('type', LOCK_CLOSED);
 
     expect($twin->fresh()->status)->not->toBe(AttendanceStatus::VOIDED);
+});
+
+// Machine ingestion is not a human edit: a punch that reaches the server
+// after the day was paid is a fact about what happened. It is recorded, and
+// the stored entry does not move (owner decision 2026-11-10; the run is to
+// report it, which is a later change).
+describe('a device punch that arrives after the day was paid', function () {
+    it('closes the open record and leaves the entry as it was', function (string $runStatus) {
+        [$tenant, $employee, $record, $run] = lockFixture($runStatus);
+        $record->update(['check_out' => null]);
+        app(CurrentTenant::class)->set($tenant);
+        $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+        $before = $entry->getAttributes();
+
+        $result = app(AttendanceEngine::class)->record(new AttendanceInput(
+            employeeId: $employee->id,
+            tenantId: $tenant->id,
+            source: AttendanceSource::BIOMETRIC,
+            type: 'check_out',
+            idempotencyKey: 'device:late:out',
+            occurredAt: Carbon::parse(LOCK_DAY.' 19:00', 'Africa/Addis_Ababa')->toIso8601String(),
+        ));
+
+        expect($result->wasDuplicate)->toBeFalse()
+            ->and($result->record->is($record))->toBeTrue()
+            ->and($record->fresh()->check_out->equalTo(Carbon::parse(LOCK_DAY.' 19:00', 'Africa/Addis_Ababa')))->toBeTrue();
+        expect($entry->fresh()->getAttributes())->toBe($before);
+        expect($run->fresh()->status)->toBe($runStatus);
+    })->with(['approved', 'paid']);
+
+    it('is kept as a second record of the day, flagged for review, with the entry as it was', function () {
+        [$tenant, $employee, $record, $run] = lockFixture();
+        app(CurrentTenant::class)->set($tenant);
+        $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+        $before = $entry->getAttributes();
+
+        app(AttendanceEngine::class)->record(new AttendanceInput(
+            employeeId: $employee->id,
+            tenantId: $tenant->id,
+            source: AttendanceSource::BIOMETRIC,
+            type: 'check_in',
+            idempotencyKey: 'device:late:in',
+            occurredAt: Carbon::parse(LOCK_DAY.' 19:30', 'Africa/Addis_Ababa')->toIso8601String(),
+        ));
+
+        expect(AttendanceRecord::query()->where('employee_id', $employee->id)->whereDate('date', LOCK_DAY)->count())->toBe(2);
+        expect($record->fresh()->status)->not->toBe(AttendanceStatus::VOIDED);
+        expect(AttendanceConflict::query()->where('employee_id', $employee->id)->count())->toBe(1);
+        expect($entry->fresh()->getAttributes())->toBe($before);
+    });
 });
 
 it('leaves a paid day out of an import and says which row', function () {

@@ -395,6 +395,18 @@ final class IndustryCatalog
     }
 
     /**
+     * The broad kinds the industries group under: `government`, `bank`,
+     * `general` and the rest. Sign-up asks for one of these, so a tenant's
+     * `type` is either a base or an industry key.
+     *
+     * @return array<int, string>
+     */
+    public function bases(): array
+    {
+        return array_values(array_unique(array_column(self::INDUSTRIES, 'base')));
+    }
+
+    /**
      * @return array{key: string, label: string, label_am: string, base: string, icon: string, group: string, profile: string, policy: string, overrides: array<string, mixed>}|null
      */
     public function find(string $key): ?array

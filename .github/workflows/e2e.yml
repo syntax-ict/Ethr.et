@@ -138,3 +138,123 @@ jobs:
       - name: Server logs on failure
         if: failure()
         run: tail -100 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log" || true
+
+  # The attendance-to-payslip journeys (src/e2e/attendance-payroll). A job of
+  # its own, with a name of its own, because it is meant to become a REQUIRED
+  # check while the job above stays advisory: these journeys read what the
+  # database holds after a punch, they never retry, and a failure here is a
+  # regression in attendance rather than a flaky page.
+  #
+  # Not required yet. Make it so in the `main` ruleset once it has been green
+  # on five consecutive runs, for the reason the header of this file gives.
+  #
+  # It seeds organisations of its own (E2eAttendanceSeeder) after the standard
+  # seed, which it still needs for the permissions, plans and statutory rows.
+  attendance-payroll:
+    name: Playwright (attendance to payslip)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ethr_e2e
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    env:
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ethr_e2e
+      DB_USERNAME: ethr
+      DB_PASSWORD: ethr
+      # `{tenant}` is replaced by each organisation's address. Chromium resolves
+      # *.localhost to loopback; the journeys post device punches to 127.0.0.1.
+      E2E_ORIGIN: "http://{tenant}.localhost:3000"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, session, simplexml, tokenizer
+          coverage: none
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Install frontend dependencies and Chromium
+        working-directory: src
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Prepare the database
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      # The queue worker is here for the journeys that run payroll: production
+      # drains the queue over HTTP, and QUEUE_CONNECTION=sync would hide every
+      # defect that only shows on a real worker.
+      - name: Start the API, the frontend and a queue worker
+        run: |
+          (cd api && nohup php artisan serve --host=127.0.0.1 --port=8000 > "$RUNNER_TEMP/api.log" 2>&1 &)
+          (cd api && nohup php artisan queue:work --queue=attendance,notifications,default,exports > "$RUNNER_TEMP/queue.log" 2>&1 &)
+          (cd src && nohup npm run dev > "$RUNNER_TEMP/web.log" 2>&1 &)
+
+      - name: Wait for the stack, then warm the routes
+        run: |
+          origin="http://e2e-att.localhost:3000"
+          for i in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$origin/sanctum/csrf-cookie" || true)
+            [ "$code" = "204" ] && break
+            sleep 5
+          done
+          [ "$code" = "204" ] || { echo "stack never came up (last: $code)"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1; }
+          for path in /login /dashboard /attendance; do
+            curl -s -o /dev/null -m 240 -w "$path %{http_code} %{time_total}s\n" "$origin$path" || true
+          done
+
+      # Seeds its own organisations, then runs the journeys.
+      - name: Run the attendance-to-payslip journeys
+        run: ./scripts/gates.sh e2e-attendance
+
+      - name: Upload the Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-attendance-payroll
+          path: |
+            src/playwright-report/attendance-payroll
+            src/test-results/attendance-payroll
+          retention-days: 7
+
+      - name: Server logs on failure
+        if: failure()
+        run: tail -100 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/queue.log" "$RUNNER_TEMP/web.log" || true
