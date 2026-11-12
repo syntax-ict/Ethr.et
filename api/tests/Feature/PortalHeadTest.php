@@ -9,6 +9,7 @@ use App\Models\Vacancy;
 use App\Services\CurrentTenant;
 use App\Services\PortalPreviewImage;
 use App\Support\PortalHead;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 
@@ -41,13 +42,17 @@ function portalTenant(array $landing = [], array $attributes = []): Tenant
     ]);
 }
 
-/** The exported page, served for the slug with a stand-in login.html. */
-function servePortal(string $url = 'http://ethr.et/acme'): TestResponse
+/**
+ * The exported page, served for the slug with a stand-in login.html.
+ * `$payload` stands in for the React payload, so a test can serve a page
+ * whose payload this release does not recognise.
+ */
+function servePortal(string $url = 'http://ethr.et/acme', ?string $payload = null): TestResponse
 {
     $page = public_path('login.html');
     $existed = is_file($page);
     $original = $existed ? file_get_contents($page) : null;
-    file_put_contents($page, '<!doctype html><html lang="am"><head><meta charset="utf-8"><title>Sign in | ETHR</title><meta name="description" content="Sign in to your ETHR workspace."><meta name="theme-color" content="#0F4C75" media="(prefers-color-scheme: light)"><link rel="icon" href="/favicon.ico"></head><body><main id="login"></main></body></html>');
+    file_put_contents($page, '<!doctype html><html lang="am"><head><meta charset="utf-8"><title>Sign in | ETHR</title><meta name="description" content="Sign in to your ETHR workspace."><meta name="robots" content="noindex, follow"><meta name="theme-color" content="#0F4C75" media="(prefers-color-scheme: light)"><link rel="icon" href="/favicon.ico"></head><body><main id="login"></main>'.($payload ?? portalPayload('noindex, follow')).'</body></html>');
 
     try {
         return test()->get($url);
@@ -101,6 +106,46 @@ it('keeps the page out of search results once listing is switched off, or the or
     'suspended' => [[], ['status' => TenantStatus::SUSPENDED]],
     'an ended trial' => [[], ['status' => TenantStatus::TRIAL, 'trial_ends_at' => now()->subDay()]],
 ]);
+
+it('states the robots line in the page payload too, not only in the head', function (array $landing, string $robots) {
+    portalTenant($landing);
+
+    $html = servePortal()->getContent();
+
+    // Both of them, because only one of them is what a crawler reads: the
+    // head is the response, the payload is what React renders into the DOM.
+    expect($html)->toContain('<meta name="robots" content="'.$robots.'">')
+        ->toContain('\\"name\\":\\"robots\\",\\"content\\":\\"'.$robots.'\\"')
+        ->not->toContain('noindex, follow');
+})->with([
+    'listed' => [[], 'index, follow'],
+    'switched off' => [['listed' => false], 'noindex, nofollow'],
+]);
+
+it('reports a page that still says noindex, so a changed export cannot hide organisations quietly', function () {
+    Log::spy();
+    portalTenant();
+
+    // A payload this release does not recognise: the same two keys, the other
+    // way round. Next could serialise it this way after an upgrade, the
+    // rewrite would match nothing, and every portal would go back to telling
+    // Google `noindex` with no sign of it in the response. The scan is what
+    // notices, because a test pinning today's shape cannot.
+    $unknown = '<script>self.__next_f.push([1,"[\\"$\\",\\"meta\\",\\"3\\",{\\"content\\":\\"noindex, follow\\",\\"name\\":\\"robots\\"}]"]);</script>';
+
+    expect(servePortal(payload: $unknown)->getContent())->toContain('noindex');
+
+    Log::shouldHaveReceived('error')->once();
+});
+
+it('leaves the rest of the page payload exactly as exported', function () {
+    portalTenant();
+
+    $html = servePortal()->getContent();
+
+    expect($html)->toContain('\\"rel\\":\\"manifest\\",\\"href\\":\\"/manifest.json\\"')
+        ->toContain('\\"name\\":\\"mobile-web-app-capable\\",\\"content\\":\\"yes\\"');
+});
 
 it('describes the organisation and its public vacancies as structured data, and nothing internal', function () {
     $tenant = portalTenant([

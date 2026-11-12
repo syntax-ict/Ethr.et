@@ -92,6 +92,13 @@ class OrganisationSitemapController extends Controller
             $currentTenant->forget();
         }
 
+        // An organisation that has published nothing has no news page worth
+        // listing: it is the same empty page for every one of them, and it
+        // says `noindex` for that reason (PortalHead::news()).
+        if ($ids === []) {
+            return [];
+        }
+
         return [
             PortalHead::newsUrl($tenant),
             ...array_map(fn ($id): string => PortalHead::newsUrl($tenant, (string) $id), $ids),
