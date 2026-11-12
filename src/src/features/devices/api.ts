@@ -417,6 +417,23 @@ export function useEnrolEmployeeOnDevices() {
 
 // ── Unrecognised badges (UnmatchedPunchController) ─────────────────────────
 
+/**
+ * Who a held badge may be, as the resolver sees it now. Sent only to
+ * attendance managers, and naming only people they may open; `null` for the
+ * badges past the server's resolve limit.
+ */
+export interface UnmatchedBadgeMatch {
+  outcome: MatchOutcome;
+  employee_public_id: string | null;
+  confidence: number;
+  candidates: {
+    employee_public_id: string;
+    employee_name: string;
+    score: number;
+    reasons: string[];
+  }[];
+}
+
 export interface UnmatchedBadge {
   device_public_id: string;
   device_name: string;
@@ -424,6 +441,7 @@ export interface UnmatchedBadge {
   punches: number;
   first_seen: string;
   last_seen: string;
+  match?: UnmatchedBadgeMatch | null;
 }
 
 const UNMATCHED_KEY = ["devices", "unmatched-punches"];
