@@ -301,6 +301,18 @@ it('keeps the ids linked when a source is renamed', function () {
     ]);
 });
 
+it('answers the columns of a saved source key by key, whatever order the database hands them back in', function () {
+    [$tenant] = Staging::organisation();
+    $source = test()->postJson(Staging::url($tenant, 'sources'), ['name' => 'Peachtree', 'mapping' => PAYROLL_COLUMNS])->json();
+
+    // As MySQL 8 returns a stored JSON object: its keys in its own order.
+    ImportMapping::where('public_id', $source['public_id'])->firstOrFail()->update([
+        'columns' => array_map(fn (array $entry): array => ['column' => $entry['column'], 'header' => $entry['header']], PAYROLL_COLUMNS),
+    ]);
+
+    expect(test()->getJson(Staging::url($tenant, 'sources'))->assertOk()->json('data.0.columns'))->toBe(PAYROLL_COLUMNS);
+});
+
 it('refuses a second source of the same name, and one with no name column', function () {
     [$tenant] = Staging::organisation();
     $url = Staging::url($tenant, 'sources');

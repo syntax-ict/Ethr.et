@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Support\EmployeeImportRow;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -41,13 +42,6 @@ class ImportMapping extends Model
         'tenant_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'columns' => 'array',
-        ];
-    }
-
     /**
      * The name a source's ids are kept against. Latin letters and digits of
      * the name; a name with none (one written in Amharic) gets a short
@@ -58,6 +52,35 @@ class ImportMapping extends Model
         $slug = Str::limit(Str::slug($name), 50, '');
 
         return $slug !== '' ? $slug : 'source-'.substr(sha1(mb_strtolower(trim($name))), 0, 12);
+    }
+
+    /**
+     * The columns, each entry read out as header then column.
+     *
+     * MySQL 8 hands a stored JSON object back with its keys in its own order
+     * (`column` before `header`), so a source read from the database
+     * answered differently from the one just saved. MariaDB keeps the text
+     * as written. Read here, every reader of `columns` gets the same thing
+     * on every engine.
+     *
+     * @return Attribute<list<array{header: string, column: string|null}>, array<int, mixed>>
+     */
+    protected function columns(): Attribute
+    {
+        return Attribute::make(
+            get: function (?string $value): array {
+                $entries = [];
+                foreach ((array) json_decode($value ?? '[]', true) as $entry) {
+                    if (is_array($entry) && is_string($entry['header'] ?? null)) {
+                        $column = $entry['column'] ?? null;
+                        $entries[] = ['header' => $entry['header'], 'column' => is_string($column) ? $column : null];
+                    }
+                }
+
+                return $entries;
+            },
+            set: fn (array $value): string => (string) json_encode(array_values($value)),
+        );
     }
 
     /**
