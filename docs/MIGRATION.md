@@ -171,6 +171,80 @@ computer's region uses. There is no example row: one left in would be imported.
 If the workbook cannot be built (its library did not load), the CSV header row
 is downloaded instead.
 
+### Another system's column names (2026-11-12)
+
+A list exported from another HR or payroll system names its columns its own
+way: `Emp Nm`, `Pers Ref`, `DOJ`. ETHR reads none of those by itself, and used
+to take such a first line for a person. Now the reader says which column is
+which, once, and it is kept per source (`import_mappings`, `ImportMapping`;
+`ImportMappingTest`).
+
+**Matching.** `/read` and `/rows` take `mapping`, a list of `{header, column}`:
+a column name as the file writes it, and the column of
+`EmployeeImportRow::MAPPABLE` it is, or `null` for one that is left out.
+
+- With a mapping, the first line is column names **because the reader said
+  so**, whatever it looks like. A name the mapping does not mention is still
+  read as ETHR reads it.
+- A column name is compared as `EmployeeImportRow::headerKey()` writes it, so
+  `EMP NM` and `Emp. Nm` are the same column.
+- A column left out is not reported as "not recognised". That message is for
+  a name nobody has answered for.
+- A matched date column still takes its calendar from its own name:
+  `DOJ (E.C.)` is Ethiopian.
+- If none of the columns is the name, nothing is read and the answer says so
+  once (`needs_name`), not once per line. Staging is refused with a `mapping`
+  error.
+
+**What `/read` says to help.** `headers` describes the first line: each name
+as written, the column it is read as, and for one that is not read,
+`suggested`, a guess from the words in it (`EmployeeImportRow::suggest()`:
+"Emp Nm" is probably the name). A guess is **never read as an answer**; the
+matcher opens with the guesses filled in and the reader's word is what is
+sent. `header_likely` says the first line was read as a person and looks like
+column names (several cells, none with a digit or an address in it).
+
+**Saved sources** (`/sources`). Matched once, the columns are saved under the
+system's name and the next list names the source (`source`, its `public_id`)
+and nothing else. A `mapping` sent with a `source` is read over the saved
+columns for that request and changes nothing saved.
+
+- A source's name is its own within the organisation. Names that differ only
+  in case or punctuation are one source.
+- An organisation keeps at most 30.
+- `/read` answers `suggested_source` when a saved source knows which of the
+  list's columns is the name and knows more of them than any other. This
+  month's export may have a column fewer or one more, so it need not know
+  them all. The screen offers it; nothing is read as a source until the
+  reader says so.
+- Another organisation's source is answered as one that does not exist: 422
+  with the generic message on `source`, 404 on its own address.
+
+**An id belongs to the system that issued it.** Until now every
+`external_id` was linked under `hr_system` / `default`, so 1042 in the payroll
+system and 1042 in the old HR system were one person. A list read as a saved
+source links its ids under that source's `slug`
+(`employee_external_identities.source_ref`):
+
+- the slug is made from the name when the source is first saved and **never
+  changes**, so renaming "Peachtree" to "Old payroll" keeps every id linked;
+- a source forgotten and saved again under the same name finds its people;
+- a list that names no source still uses `default`, so the ETHR template and
+  the ids already linked behave as before.
+
+A name with no Latin letters or digits (one written in Amharic) gets a short
+fingerprint of itself as its slug, the same every time.
+
+**On screen** (`column-matcher.tsx`, inside `MigrationStep`). "Match columns"
+appears under any list that has been read. Each column shows its name, a value
+from the first person and a choice. The matcher keeps the reader's own answers:
+the server's reading lags a choice by one request, and answers rebuilt from it
+undid the choice made just before. Choosing another file starts again.
+
+Not done here: a source's saved calendar is applied only when the reader has
+not chosen one; there is no screen that lists sources apart from the import
+step; the older `POST /employees/import/commit` still links under `default`.
+
 ### Suggested action from the verdict
 
 | verdict | default action |
@@ -272,8 +346,12 @@ record, unverified, and counted under `merged`; it is not made a second time.
 | method | path | purpose |
 |---|---|---|
 | POST | `/devices/{device}` | stage everyone enrolled on a device |
-| POST | `/read` | what the server makes of a list (`grid`): people ready, columns read, column names it does not know, lines it cannot stage. Keeps nothing |
-| POST | `/rows` | stage a list: `grid` (cells, read as `/read` reads them) or `rows` (people keyed by field). A grid with a line that cannot be staged is refused whole, unless `skip_problems` is set |
+| POST | `/read` | what the server makes of a list (`grid`): people ready, columns read, column names it does not know, lines it cannot stage. Takes `mapping` and `source`; answers `headers`, `header_likely`, `needs_name` and `suggested_source`. Keeps nothing |
+| POST | `/rows` | stage a list: `grid` (cells, read as `/read` reads them) or `rows` (people keyed by field). A grid with a line that cannot be staged is refused whole, unless `skip_problems` is set. With a `source`, ids from the other system are kept against it |
+| GET | `/sources` | the organisation's saved sources and their column names |
+| POST | `/sources` | save a source: `name` and `mapping`, one column of which is the name |
+| PUT | `/sources/{importMapping}` | rename a source or match its columns again. The slug its ids are kept against does not change |
+| DELETE | `/sources/{importMapping}` | forget a source's column names. The people it brought and their ids stay |
 | GET | `/batches/{batch}` | review queue with verdicts and summary |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |

@@ -8,13 +8,16 @@ import { apiClient } from "@/api/client";
 import type {
   AccessPolicy,
   ApplyConfigurationResult,
+  ColumnMatch,
   CommitResult,
   ConfigurationPlan,
   ConfigurationProfile,
   CreateLoginsResult,
   GoLiveResult,
+  ImportSource,
   Industry,
   IndustryCatalogResponse,
+  ListColumns,
   LoginIdentifier,
   MigrationBatch,
   MigrationLogins,
@@ -184,16 +187,83 @@ export function useReadPeople(
   grid: string[][],
   calendar: "ethiopian" | "gregorian",
   enabled = true,
+  columns: ListColumns = {},
 ) {
+  const named = listColumns(columns);
   return useQuery<PeopleRead>({
-    queryKey: ["onboarding", "migration", "read", calendar, grid],
+    queryKey: ["onboarding", "migration", "read", calendar, grid, named],
     queryFn: async () =>
-      (await apiClient.post("/onboarding/migration/read", { grid, calendar }))
-        .data,
+      (
+        await apiClient.post("/onboarding/migration/read", {
+          grid,
+          calendar,
+          ...named,
+        })
+      ).data,
     enabled: enabled && grid.some((line) => line.length > 0),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+/** Only what was said: a list that names no source and no columns sends neither. */
+export function listColumns(columns: ListColumns): ListColumns {
+  return {
+    ...(columns.source ? { source: columns.source } : {}),
+    ...(columns.mapping ? { mapping: columns.mapping } : {}),
+  };
+}
+
+const SOURCES_KEY = ["onboarding", "migration", "sources"] as const;
+
+/** The systems the organisation has brought lists from, and their column names. */
+export function useImportSources(enabled = true) {
+  return useQuery<ImportSource[]>({
+    queryKey: SOURCES_KEY,
+    queryFn: async () =>
+      (await apiClient.get("/onboarding/migration/sources")).data.data,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Save how a source names its columns: a new source by name, or a saved one
+ * (`public_id`) matched again.
+ */
+export function useSaveImportSource() {
+  const qc = useQueryClient();
+  return useMutation<
+    ImportSource,
+    unknown,
+    {
+      public_id?: string;
+      name?: string;
+      mapping: ColumnMatch[];
+      calendar?: "ethiopian" | "gregorian";
+    }
+  >({
+    mutationFn: async ({ public_id, ...payload }) =>
+      public_id
+        ? (
+            await apiClient.put(
+              `/onboarding/migration/sources/${public_id}`,
+              payload,
+            )
+          ).data
+        : (await apiClient.post("/onboarding/migration/sources", payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: SOURCES_KEY }),
+  });
+}
+
+export function useDeleteImportSource() {
+  const qc = useQueryClient();
+  return useMutation<void, unknown, string>({
+    mutationFn: async (publicId) => {
+      await apiClient.delete(`/onboarding/migration/sources/${publicId}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: SOURCES_KEY }),
   });
 }
 
@@ -211,6 +281,10 @@ export function useStageFromRows() {
         /** Stage the lines that can be read and leave the rest out. */
         skip_problems?: boolean;
         source_type?: string;
+        /** A saved source: its column names, and what its ids are kept against. */
+        source?: string | null;
+        /** Column names matched for this list. */
+        mapping?: ColumnMatch[] | null;
       }
     | { rows: Record<string, unknown>[]; source_type?: string }
   >({

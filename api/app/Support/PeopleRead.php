@@ -19,6 +19,9 @@ final readonly class PeopleRead
      * @param  'gregorian'|'ethiopian'  $calendar  the calendar hire dates were read in
      * @param  bool  $calendarFromHeader  whether the column name said so, over the choice
      * @param  int  $withoutHireDate  people ready who bring no hire date
+     * @param  list<array{header: string, column: string|null, suggested: string|null}>  $headers  the first line as column names: each as written, the column it is read as, and for one that is not read, what it might be
+     * @param  bool  $headerLikely  the first line was read as a person and looks like column names ETHR does not know
+     * @param  bool  $needsName  the reader said which column is which and none of them is the name; nothing was read
      */
     public function __construct(
         public array $rows,
@@ -29,5 +32,8 @@ final readonly class PeopleRead
         public string $calendar,
         public bool $calendarFromHeader,
         public int $withoutHireDate,
+        public array $headers = [],
+        public bool $headerLikely = false,
+        public bool $needsName = false,
     ) {}
 }

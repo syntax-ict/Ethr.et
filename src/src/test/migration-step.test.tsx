@@ -71,6 +71,11 @@ const READ_OK: PeopleRead = {
   calendar_from_header: false,
   without_hire_date: 0,
   problems: [],
+  headers: [],
+  header_likely: false,
+  needs_name: false,
+  source: null,
+  suggested_source: null,
 };
 
 /** The list is read by the server; each test says what it answers. */

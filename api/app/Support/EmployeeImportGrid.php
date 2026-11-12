@@ -18,6 +18,11 @@ namespace App\Support;
  * in any order. Without one the columns are read in
  * EmployeeImportRow::DEFAULT_ORDER. A line that cannot be staged is reported
  * with its number as the reader counts it and left out; nothing is guessed.
+ *
+ * Another system's export names its columns its own way. The reader says
+ * which is which (`$mapping`, by column name), and then the first line is
+ * column names because they said so, whatever it looks like. A name the
+ * mapping does not mention is still read as ETHR reads it.
  */
 final class EmployeeImportGrid
 {
@@ -37,8 +42,10 @@ final class EmployeeImportGrid
     /**
      * @param  array<int, mixed>  $grid  lines of cells; an empty line keeps its place so the numbers stay the reader's
      * @param  'gregorian'|'ethiopian'  $calendar  the calendar dates are written in, unless a column name says
+     * @param  array<string, string|null>|null  $mapping  what the reader said each column name is (ImportMapping::mapOf), null for a column left out; null when they said nothing
+     * @param  string  $source  the saved source the list is read as: its ids from the other system are kept against it
      */
-    public function read(array $grid, string $calendar = 'gregorian'): PeopleRead
+    public function read(array $grid, string $calendar = 'gregorian', ?array $mapping = null, string $source = EmployeeImportRow::DEFAULT_SOURCE): PeopleRead
     {
         $lines = [];
         foreach (array_values($grid) as $index => $cells) {
@@ -56,7 +63,9 @@ final class EmployeeImportGrid
         }
 
         $first = array_key_first($lines);
-        $header = $this->headerOf($lines[$first]);
+        $named = $this->named($lines[$first], $mapping ?? []);
+        $header = $mapping !== null ? $named : $this->headerOf($lines[$first]);
+        $headers = $this->headers($lines[$first], $named, $mapping ?? []);
         $calendars = [];
         $ignored = [];
 
@@ -64,16 +73,23 @@ final class EmployeeImportGrid
             $keys = EmployeeImportRow::DEFAULT_ORDER;
         } else {
             $keys = [];
-            foreach ($header as $position => [$key, $named]) {
+            foreach ($header as $position => [$key, $calendarNamed]) {
                 $known = in_array($key, EmployeeImportRow::COLUMNS, true);
                 $keys[$position] = $known ? $key : null;
-                if ($known && $named !== null) {
-                    $calendars[$key] = $named;
+                if ($known && $calendarNamed !== null) {
+                    $calendars[$key] = $calendarNamed;
                 }
-                if (! $known && $lines[$first][$position] !== '') {
+                if (! $known && $key !== '' && $lines[$first][$position] !== '') {
                     $ignored[] = $lines[$first][$position];
                 }
             }
+
+            // Told which column is which, and none of them is the name:
+            // every line would be refused for the same reason. Say it once.
+            if (! in_array('name', $keys, true)) {
+                return new PeopleRead([], [], true, [], $ignored, $calendar, false, 0, $headers, false, true);
+            }
+
             unset($lines[$first]);
         }
 
@@ -106,7 +122,7 @@ final class EmployeeImportGrid
                 $problems[] = ['line' => $line, 'message' => $message];
             }
             if ($messages === []) {
-                $rows[] = EmployeeImportRow::staged($row);
+                $rows[] = EmployeeImportRow::staged($row, $source);
             }
         }
 
@@ -128,7 +144,99 @@ final class EmployeeImportGrid
             calendar: $hireDateCalendar ?? $calendar,
             calendarFromHeader: $hireDateCalendar !== null,
             withoutHireDate: count(array_filter($rows, fn (array $row): bool => ! isset($row['hire_date']))),
+            headers: $headers,
+            headerLikely: $header === null && $this->looksLikeNames($lines[$first]) && count($lines) > 1,
         );
+    }
+
+    /**
+     * Each cell of the first line as a column name: what the reader said it
+     * is, or what ETHR reads it as. A column the reader left out is `''`,
+     * which is no column and is not reported as unknown either.
+     *
+     * @param  list<string>  $cells
+     * @param  array<string, string|null>  $mapping
+     * @return list<array{0: string, 1: 'gregorian'|'ethiopian'|null}>
+     */
+    private function named(array $cells, array $mapping): array
+    {
+        return array_map(function (string $cell) use ($mapping): array {
+            $key = EmployeeImportRow::headerKey($cell);
+            if (! array_key_exists($key, $mapping)) {
+                return EmployeeImportRow::column($cell);
+            }
+
+            $column = $mapping[$key] ?? '';
+
+            return [$column, in_array($column, EmployeeImportRow::DATES, true) ? EmployeeImportRow::calendarMark($cell) : null];
+        }, $cells);
+    }
+
+    /**
+     * The first line described for someone matching columns: each name as
+     * written, the ETHR column it is read as, and for one that is not read,
+     * what it might be. A guess is offered once: two columns are not both
+     * suggested as the name.
+     *
+     * @param  list<string>  $cells
+     * @param  list<array{0: string, 1: 'gregorian'|'ethiopian'|null}>  $named
+     * @param  array<string, string|null>  $mapping
+     * @return list<array{header: string, column: string|null, suggested: string|null}>
+     */
+    private function headers(array $cells, array $named, array $mapping): array
+    {
+        $taken = [];
+        foreach ($named as [$key]) {
+            if (in_array($key, EmployeeImportRow::COLUMNS, true)) {
+                $taken[$key] = true;
+            }
+        }
+
+        $headers = [];
+        foreach ($cells as $position => $cell) {
+            if ($cell === '') {
+                continue;
+            }
+
+            $key = $named[$position][0];
+            $column = in_array($key, EmployeeImportRow::COLUMNS, true) ? $key : null;
+            $suggested = null;
+            if ($column === null && ! array_key_exists(EmployeeImportRow::headerKey($cell), $mapping)) {
+                $guess = EmployeeImportRow::suggest($cell);
+                if ($guess !== null && ! isset($taken[$guess])) {
+                    $suggested = $guess;
+                    $taken[$guess] = true;
+                }
+            }
+
+            $headers[] = ['header' => $cell, 'column' => $column, 'suggested' => $suggested];
+        }
+
+        return $headers;
+    }
+
+    /**
+     * A first line ETHR did not take for column names that reads like some
+     * all the same: several cells, none with a digit or an email in it. A
+     * person's line has a number, a date or an address somewhere.
+     *
+     * @param  list<string>  $cells
+     */
+    private function looksLikeNames(array $cells): bool
+    {
+        $filled = array_filter($cells, fn (string $cell): bool => $cell !== '');
+
+        if (count($filled) < 2) {
+            return false;
+        }
+
+        foreach ($filled as $cell) {
+            if (preg_match('/\d|@/', $cell) === 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

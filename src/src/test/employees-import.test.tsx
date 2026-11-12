@@ -149,6 +149,11 @@ describe("Employee import", () => {
           calendar_from_header: false,
           without_hire_date: 2,
           problems: [],
+          headers: [],
+          header_likely: false,
+          needs_name: false,
+          source: null,
+          suggested_source: null,
         });
       }),
       http.post("*/onboarding/migration/rows", async ({ request }) => {

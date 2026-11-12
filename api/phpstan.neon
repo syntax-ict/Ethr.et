@@ -41,6 +41,11 @@ parameters:
         - message: '#^Method App\\Models\\MigrationStagingRow\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # The same for import_mappings (One employee identity, PR 8). The model
+        # is correct and covered by ImportMappingTest. Model-named exact.
+        - message: '#^Method App\\Models\\ImportMapping\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation again for `employee_cost_sharing`, and here the
         # trigger is identifiable: the table name is singular (set explicitly via
         # $table, because "cost sharing" is a mass noun) so larastan's convention-

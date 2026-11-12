@@ -4985,6 +4985,15 @@ export interface paths {
          *     read and which column names mean nothing here, and every line that
          *     cannot be staged, with its number as the reader counts it. Nothing is
          *     kept.
+         *
+         *     A list from another system names its columns its own way. Send
+         *     `mapping`, a list of `{header, column}` saying what each of its column
+         *     names is (null leaves one out), or `source`, a saved source whose
+         *     column names are already matched. `headers` describes the first line
+         *     for that: each name as written, the column it is read as, and for one
+         *     that is not read, what it might be. `suggested_source` is a saved
+         *     source whose column names this list has; `needs_name` says the columns
+         *     were matched and none of them is the name.
          */
         post: operations["migration.read"];
         delete?: never;
@@ -5009,9 +5018,62 @@ export interface paths {
          *     that cannot be staged is refused whole, each line named, unless
          *     `skip_problems` is set: then those lines are left out. A list that sets
          *     a salary or a TIN needs the pay permission, as the add-employee form does.
+         *
+         *     `source` and `mapping` say how the list names its columns, as for
+         *     `/migration/read`. With a `source`, an id from the other system is kept
+         *     against that source, so the same id in its next list is the same person.
          */
         post: operations["migration.stageFromRows"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organisation's saved sources, by name */
+        get: operations["importMapping.index"];
+        put?: never;
+        /**
+         * Save a source and what each of its column names is
+         * @description `mapping` is a list of `{header, column}`: a column name as the
+         *     source's file writes it, and the ETHR column it is, or null for one
+         *     that is left out. One of them has to be the name.
+         */
+        post: operations["importMapping.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/sources/{importMapping}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rename a source or change what its column names are
+         * @description Renaming does not change what its ids from the other system are kept
+         *     against: the people already linked stay linked.
+         */
+        put: operations["importMapping.update"];
+        post?: never;
+        /**
+         * Forget a source's column names
+         * @description The people it brought stay as they are, and so do their ids from the
+         *     other system: a source saved again under the same name finds them.
+         */
+        delete: operations["importMapping.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -11108,6 +11170,12 @@ export interface components {
             /** @enum {string} */
             calendar?: "gregorian" | "ethiopian";
             grid: (string | null)[][];
+            source?: string | null;
+            mapping?: {
+                header: string;
+                /** @enum {string|null} */
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+            }[];
         };
         /** RecallLeaveRequest */
         RecallLeaveRequest: {
@@ -11385,6 +11453,30 @@ export interface components {
             secret_access_key?: string | null;
             path_style: boolean;
         };
+        /**
+         * SaveImportMappingRequest
+         * @description A source of lists and how it names its columns, saved or changed.
+         *
+         *     `mapping` is a list of {header, column}: a column name as the source's
+         *     file writes it, and the ETHR column it is, or null for one that is left
+         *     out. One of them has to be the name, or nothing the source sends could
+         *     ever be read.
+         *
+         *     A source's name is its own within the organisation. Two names that differ
+         *     only in case or punctuation are the same source: ids from the other system
+         *     are kept against the name's slug, and two sources sharing one would share
+         *     each other's people.
+         */
+        SaveImportMappingRequest: {
+            name: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
+            mapping: {
+                header: string;
+                /** @enum {string|null} */
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+            }[];
+        };
         /** SaveReportRequest */
         SaveReportRequest: {
             name: string;
@@ -11549,6 +11641,9 @@ export interface components {
          *     `rows` is the list already keyed by field, for a caller that holds
          *     structured values. It takes every column of the employee template, and
          *     `department`, `branch` and `position` by code or name.
+         *
+         *     `source` names a saved source of the organisation's: a grid is read with
+         *     its column names, and an `external_id` in either shape is kept against it.
          */
         StageRowsRequest: {
             /** @enum {string} */
@@ -11557,6 +11652,12 @@ export interface components {
             /** @enum {string} */
             calendar?: "gregorian" | "ethiopian";
             grid?: (string | null)[][];
+            source?: string | null;
+            mapping?: {
+                header: string;
+                /** @enum {string|null} */
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+            }[];
             skip_problems?: boolean;
             rows?: {
                 name?: string | null;
@@ -12738,6 +12839,21 @@ export interface components {
             recurring?: boolean;
             is_estimated?: boolean;
             is_active?: boolean;
+        };
+        /**
+         * UpdateImportMappingRequest
+         * @description A saved source renamed, or its column names matched again. Either may be
+         *     sent without the other; what is sent is held to what saving one is.
+         */
+        UpdateImportMappingRequest: {
+            name?: string;
+            /** @enum {string|null} */
+            calendar?: "gregorian" | "ethiopian" | null;
+            mapping?: {
+                header: string;
+                /** @enum {string|null} */
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+            }[];
         };
         /**
          * UpdateKioskPinRequest
@@ -27191,6 +27307,15 @@ export interface operations {
                             line: number;
                             message: string;
                         }[];
+                        headers: {
+                            header: string;
+                            column: string | null;
+                            suggested: string | null;
+                        }[];
+                        header_likely: boolean;
+                        needs_name: boolean;
+                        source: string | null;
+                        suggested_source: string | null;
                     };
                 };
             };
@@ -27254,6 +27379,136 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "importMapping.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            name: string;
+                            columns: {
+                                header: string;
+                                column: string | null;
+                            }[];
+                            calendar: string | null;
+                            updated_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "importMapping.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveImportMappingRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        columns: {
+                            header: string;
+                            column: string | null;
+                        }[];
+                        calendar: string | null;
+                        updated_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "importMapping.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The import mapping public id */
+                importMapping: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateImportMappingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        columns: {
+                            header: string;
+                            column: string | null;
+                        }[];
+                        calendar: string | null;
+                        updated_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "importMapping.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The import mapping public id */
+                importMapping: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "migration.show": {
