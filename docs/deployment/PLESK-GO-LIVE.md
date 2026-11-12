@@ -295,9 +295,19 @@ private key is a secret like `APP_KEY`; keep it out of chats and tickets.
    `firstOrCreate`, so `seed` never overwrites a plan that exists. *(Measured 2026-10-27:
    Enterprise had been raised to 8,999 ETB in the console while the seeder said 2,999, and the
    refreshed snapshot failed four backend checks on PR #444.)*
-1. Merge to `main`, and wait for **Plesk release** to go green.
-2. Plesk Git → **Pull now → Deploy now**.
-3. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
+1. Run the end-to-end suite before merging, and say what it answered — step 5 of the model
+   hard rule ([`../MODEL-ROUTING.md`](../MODEL-ROUTING.md) → *Owner decision*):
+
+   ```bash
+   ./scripts/gates.sh e2e-attendance
+   ```
+
+   It needs a running stack and `php artisan queue:work` against the same database. A release
+   that could not run it is recorded as **not run**, never as passing; CI's own sweep does not
+   include it.
+2. Merge to `main`, and wait for **Plesk release** to go green.
+3. Plesk Git → **Pull now → Deploy now**.
+4. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
    release adds) and `optimize` as in Part 5 step 3 — or the Toolkit's Artisan, if it ever
    attaches the application. Empty the token again afterwards. **Never generate the key
    again** (the endpoint refuses; the Toolkit would not).

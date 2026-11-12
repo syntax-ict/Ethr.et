@@ -10,6 +10,58 @@
 > … Do not generate commit messages", while the working rules in `CLAUDE.md` → *Local Development Policy* (rewritten
 > 2026-08-29) have agents commit in logical slices under its *Commit Convention*. Commit as those say.
 
+## Owner decision — the model hard rule, 2026-11-12
+
+**Stated by the owner on 2026-11-12 and binding on every session in this repository.** It
+supersedes nothing below it; it is the shape the rest of this file already described, with the
+review step named and the deployment gate attached.
+
+| | |
+|---|---|
+| **Default development — Sonnet** | Coding and implementation, bug fixing, testing and refactoring, documentation updates |
+| **Architecture advisory — Opus** | Multi-tenant architecture, security and tenant isolation, attendance/payroll engine design, complex debugging, critical code review |
+
+**The execution cycle:**
+
+1. Opus analyses and produces an implementation plan.
+2. Sonnet implements the approved plan.
+3. Opus reviews the implementation and identifies gaps.
+4. Sonnet fixes verified issues.
+5. End-to-end tests run before deployment.
+
+**What the cycle does not cover.** *Never use Opus for* below still holds, and the cycle holds
+with it: a rename, a translation key, a CSS change, a docs-only edit or a one-line fix is
+Sonnet start to finish with no plan-and-review round trip. The cycle is for a feature, a
+refactor, an engine change or anything touching tenancy, payroll or attendance — the work the
+*Opus (Escalate Only)* list already names. Where the two readings of a task differ, the
+escalation test under *Cost Optimization* decides.
+
+**How each step is actually executed**, because a session runs on one model:
+
+- **Steps 1 and 2 in one session:** the default model is `opusplan` — plan mode answers on
+  Opus, and everything after it on Sonnet. Plan in plan mode, then implement. `/model` changes
+  it for a single session. That default reaches terminal sessions and any session with no
+  remembered choice; **the desktop app's Code tab keeps its own remembered pick in its model
+  picker, and that wins**, so the picker is where a Code session's model is actually decided.
+- **Steps 1 and 3 from inside a Sonnet session:** the advisor tool, which is configured to
+  Opus, or an Opus subagent (`Agent` with `model: "opus"`) for planning or review only — never
+  for implementation. `/code-review` is a legitimate step 3.
+- **Step 5 in this repository** is `./scripts/gates.sh e2e-attendance`, which needs a running
+  stack and `php artisan queue:work` against the same database (root
+  [`../CLAUDE.md`](../CLAUDE.md) → *Quality gates*), plus `./scripts/gates.sh` itself. The
+  release steps in [`deployment/PLESK-GO-LIVE.md`](deployment/PLESK-GO-LIVE.md) carry it.
+  Say which journeys ran and which did not, and name the ones a session could not run at all
+  (a suite that needs credentials this machine does not hold is *not run*, not *passing*).
+  Why this rule was stated, and what it did and did not change, is in
+  [`audit/BASELINE.md`](audit/BASELINE.md) §25n.
+
+The machine-wide copy of this rule, for every other project, is `~/.claude/CLAUDE.md`, and the
+default model is set in `~/.claude/settings.json`. Neither is in this repository, so neither is
+reviewable here — this file is the reviewable statement, and **the rule is instruction, not
+enforcement**: nothing in the gates fails when a session skips step 3.
+
+---
+
 ## AI Execution Policy (Pro/Max)
 
 ### Automatic Model Routing

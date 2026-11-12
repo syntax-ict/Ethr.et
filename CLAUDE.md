@@ -127,6 +127,7 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | | |
 |---|---|
 | Conventions | [`docs/CLAUDE.md`](docs/CLAUDE.md) |
+| **Which model does what — hard rule** | **Owner decision 2026-11-12.** Sonnet is the default for implementation, fixes, tests and docs; Opus plans, reviews, and owns tenancy, security, payroll and attendance design; every build goes plan → implement → review → fix → E2E before a deploy. [`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md) → *Owner decision*. A trivial edit stays on Sonnet with no cycle |
 | How to contribute | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Measured state of the codebase | [`docs/audit/BASELINE.md`](docs/audit/BASELINE.md) |
 | Security reporting | [`SECURITY.md`](SECURITY.md) |

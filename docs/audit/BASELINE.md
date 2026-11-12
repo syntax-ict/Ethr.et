@@ -4774,3 +4774,50 @@ Read in the code while making the import one staged review (One employee identit
   bound it and its `post_max_size` does. The screen refuses a file over 5 MB before reading
   it. How large a list's JSON is at 2,000 people, and whether that fits the host's
   `post_max_size`, is unmeasured.
+
+### 25n. The model hard rule — stated by the owner 2026-11-12
+
+[`../MODEL-ROUTING.md`](../MODEL-ROUTING.md) has carried a model policy since 2026-10-01: Sonnet
+by default, Opus on an escalation list, "never use Opus for" a list of trivial work. What it did
+not carry was a **review step** or a **deployment gate** — it said which model to start a task
+on and nothing about who checks the result. The owner stated both on 2026-11-12 as a hard rule
+for every session, in five steps: Opus plans, Sonnet implements, **Opus reviews and identifies
+gaps**, Sonnet fixes verified issues, **E2E runs before deployment**.
+
+**The one contradiction, and how it was resolved.** The existing file says never to use Opus for
+documentation, renames, CSS or a small bug fix; the new cycle opens with Opus analysing. Read
+literally, every typo fix would need an Opus plan. Resolved in favour of both: the cycle governs
+a feature, a refactor, an engine change, or anything touching tenancy, payroll or attendance —
+the work the escalation list already names — and trivial edits stay on Sonnet with no round trip.
+The escalation test under *Cost Optimization* decides a borderline task. This reading is the
+agent's, stated here so that it is visible and can be overruled rather than inferred.
+
+**What is enforced and what is merely written down.** Only one lever in this is mechanical:
+
+- `~/.claude/settings.json` held `"model": "sonnet"` and `"advisorModel": "opus"` on 2026-11-12.
+  The default model was changed to **`opusplan`**, which the installed CLI defines as Opus while
+  plan mode is active and the base model (Sonnet) for everything after it — verified against the
+  shipped binary, which lists `opusplan` among the valid model settings and maps plan mode on it
+  to Opus. The previous file is kept as `settings.json.bak-2026-11-12`.
+- **That setting is weaker than it looks, and it was measured, not assumed.** The app reports the
+  settings default as `opusplan` *and* reports that "the Code tab's model picker remembers its own
+  choice per user" — which is why the session that wrote this section was running on Opus with
+  `"model": "sonnet"` in the file. So the setting governs terminal sessions and sessions with no
+  remembered pick; a desktop Code session follows the picker until the user changes it there. The
+  mechanical lever covers one of the two places work happens.
+- `~/.claude/CLAUDE.md` was created with the machine-wide copy of the rule, because this
+  repository's files reach only this repository. It also carries the one authorisation the rule
+  needs to be executable: Opus subagents for planning and review, never for implementation.
+
+Everything else — the cycle, the review, the E2E gate — is **instruction, not enforcement**. No
+test fails when a session skips step 3. Neither of those two files is in version control, so
+neither is reviewable in a pull request; `MODEL-ROUTING.md` is the reviewable statement, and if
+the machine is reinstalled the levers are gone while the document remains. That asymmetry is the
+known weakness of this rule.
+
+**On step 5.** `./scripts/gates.sh e2e-attendance` is the end-to-end suite this repository has;
+it needs a running stack and a queue worker against the same database (§25j), so it does not run
+on a bare clone and it is not part of the full sweep. A release that could not run it has not
+satisfied step 5 — the honest report is *not run*, which is what the release steps in
+[`../deployment/PLESK-GO-LIVE.md`](../deployment/PLESK-GO-LIVE.md) now ask for, rather than
+silence.
