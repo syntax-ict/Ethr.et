@@ -369,9 +369,7 @@ export default function NewEmployeePage() {
 
   return (
     <>
-      <PageActions
-        actions={<AddEmployeeMenu variant="others" />}
-      />
+      <PageActions actions={<AddEmployeeMenu variant="others" />} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <p className="text-sm text-muted-foreground">

@@ -111,7 +111,9 @@ describe("<AddEmployeeMenu>", () => {
     await openMenu();
 
     expect(
-      await screen.findByRole("menuitem", { name: "From a file or pasted rows" }),
+      await screen.findByRole("menuitem", {
+        name: "From a file or pasted rows",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "From an attendance terminal" }),
@@ -148,7 +150,9 @@ describe("<AddEmployeeMenu>", () => {
     await openMenu();
 
     expect(
-      await screen.findByRole("menuitem", { name: "From a file or pasted rows" }),
+      await screen.findByRole("menuitem", {
+        name: "From a file or pasted rows",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "From an attendance terminal" }),
@@ -163,7 +167,9 @@ describe("<AddEmployeeMenu>", () => {
     await openMenu("Other ways to add");
 
     expect(
-      await screen.findByRole("menuitem", { name: "From a file or pasted rows" }),
+      await screen.findByRole("menuitem", {
+        name: "From a file or pasted rows",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "One person" }),
