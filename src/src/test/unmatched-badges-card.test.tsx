@@ -168,6 +168,22 @@ describe("<UnmatchedBadgesCard> row states", () => {
     built.rows = [];
   });
 
+  // The Employees menu links to /devices#unmatched, and the card is not on
+  // the page until its badges arrive, so the browser's jump finds nothing.
+  it("scrolls to itself once it appears, when the address names it", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    window.history.replaceState(null, "", "/devices#unmatched");
+    try {
+      renderCard([ROW], () => {});
+      expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
+      await vi.waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+      expect(scrolled.mock.contexts[0]).toHaveProperty("id", "unmatched");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("names the holder of a badge the server now matches, and replays in one click", async () => {
     const posts: Array<[string, unknown]> = [];
     const user = userEvent.setup();

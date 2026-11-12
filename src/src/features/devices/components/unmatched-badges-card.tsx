@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BadgeHelp, Download, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,8 +68,21 @@ export function UnmatchedBadgesCard() {
   const canCreate = canManage && hasPermission("employee.create");
   const calendar = useOptionalCalendar()?.calendar ?? "gregorian";
   const [downloading, setDownloading] = useState(false);
+  const shown = !!data && data.length > 0;
 
-  if (!data || data.length === 0) return null;
+  // The Employees menu links to /devices#unmatched. The card renders nothing
+  // until its badges arrive, so the browser's own jump to the anchor finds
+  // no element and leaves the reader at the top of the page. Once the card
+  // exists, go to it, once.
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (!shown || scrolled.current) return;
+    scrolled.current = true;
+    if (window.location.hash !== "#unmatched") return;
+    document.getElementById("unmatched")?.scrollIntoView({ block: "start" });
+  }, [shown]);
+
+  if (!shown) return null;
 
   // The template with the Badge column filled, one row per badge: names are
   // typed in Excel and the file goes through the import, which shows every
