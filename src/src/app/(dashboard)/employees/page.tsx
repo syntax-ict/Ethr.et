@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AddEmployeeMenu } from "@/features/employees/components/add-employee-menu";
 import {
   Plus,
   Users,
@@ -279,12 +280,7 @@ export default function EmployeesPage() {
         <PageActions
           actions={
             <>
-              <Button asChild>
-                <Link href="/employees/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("employees.add", "Add Employee")}
-                </Link>
-              </Button>
+              <AddEmployeeMenu />
               <Button
                 variant="outline"
                 size="icon"

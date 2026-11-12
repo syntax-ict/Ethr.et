@@ -32,7 +32,7 @@ export function UnmatchedBadgesCard() {
   if (!data || data.length === 0) return null;
 
   return (
-    <Card className="border-status-warning/40">
+    <Card id="unmatched" className="scroll-mt-20 border-status-warning/40">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <BadgeHelp className="h-4 w-4 text-status-warning" />
