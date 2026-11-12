@@ -81,6 +81,10 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
+import {
+  DeviceHeardLine,
+  syncErrorHintKey,
+} from "@/features/devices/components/device-heard";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
@@ -200,14 +204,18 @@ export default function DevicesPage() {
 
   function testConnection(id: string) {
     testMutation.mutate(id, {
-      onSuccess: ({ status }) => {
+      onSuccess: ({ status, error_code }) => {
         if (status === "online") {
           toast.success(t("devices_page.online_responding"));
         } else {
+          // `status.pending` is the app-wide "Pending"; a device that is
+          // pending is "not connected yet", which is its own label.
+          const hintKey = syncErrorHintKey(error_code);
+          const hint = hintKey ? t(hintKey) : "";
           toast.error(
-            t("devices_page.device_status", "The device is :status", {
-              status: t(`status.${status}`, status),
-            }),
+            `${t("devices_page.device_status", "The device is :status", {
+              status: t(`devices_page.${status}`, status),
+            })}${hint ? ` ${hint}` : ""}`,
           );
         }
       },
@@ -481,6 +489,11 @@ function DeviceCard({
   const { formatDateTime } = useDateFormatters();
   const isOnline = device.status === "online";
   const isError = device.status === "error";
+  // A terminal that only sends is never called, so it cannot be tested, pulled
+  // from, asked for its users or asked for history: the card says what ETHR
+  // last heard from it instead.
+  const sendsOnly = device.receives_only === true;
+  const hasMenu = !sendsOnly || Boolean(onEdit) || Boolean(onDelete);
 
   const statusIcon = isOnline ? (
     <Wifi className="h-5 w-5 text-success" />
@@ -523,57 +536,68 @@ function DeviceCard({
           </div>
           <div className="flex items-center gap-1">
             <StatusBadge status={device.status} />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  aria-label={t("common.actions", "Actions")}
-                >
-                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onTest} disabled={testing}>
-                  <Signal className="mr-2 h-4 w-4" />{" "}
-                  {t("devices_page.test_connection")}
-                </DropdownMenuItem>
-                {onPull && (
-                  <DropdownMenuItem onClick={onPull} disabled={pulling}>
-                    <RefreshCw className="mr-2 h-4 w-4" />{" "}
-                    {t("devices_page.pull_records")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={onDiscover}>
-                  <Users className="mr-2 h-4 w-4" />{" "}
-                  {t("devices_page.discover_users", "Discover enrolled users")}
-                </DropdownMenuItem>
-                {onImportHistory && (
-                  <DropdownMenuItem onClick={onImportHistory}>
-                    <History className="mr-2 h-4 w-4" />{" "}
-                    {t(
-                      "devices_page.import_history",
-                      "Import attendance history",
-                    )}
-                  </DropdownMenuItem>
-                )}
-                {(onEdit || onDelete) && <DropdownMenuSeparator />}
-                {onEdit && (
-                  <DropdownMenuItem onClick={onEdit}>
-                    <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
-                  </DropdownMenuItem>
-                )}
-                {onDelete && (
-                  <DropdownMenuItem
-                    onClick={onDelete}
-                    className="text-destructive"
+            {hasMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label={t("common.actions", "Actions")}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!sendsOnly && (
+                    <DropdownMenuItem onClick={onTest} disabled={testing}>
+                      <Signal className="mr-2 h-4 w-4" />{" "}
+                      {t("devices_page.test_connection")}
+                    </DropdownMenuItem>
+                  )}
+                  {onPull && !sendsOnly && (
+                    <DropdownMenuItem onClick={onPull} disabled={pulling}>
+                      <RefreshCw className="mr-2 h-4 w-4" />{" "}
+                      {t("devices_page.pull_records")}
+                    </DropdownMenuItem>
+                  )}
+                  {!sendsOnly && (
+                    <DropdownMenuItem onClick={onDiscover}>
+                      <Users className="mr-2 h-4 w-4" />{" "}
+                      {t(
+                        "devices_page.discover_users",
+                        "Discover enrolled users",
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {onImportHistory && !sendsOnly && (
+                    <DropdownMenuItem onClick={onImportHistory}>
+                      <History className="mr-2 h-4 w-4" />{" "}
+                      {t(
+                        "devices_page.import_history",
+                        "Import attendance history",
+                      )}
+                    </DropdownMenuItem>
+                  )}
+                  {(onEdit || onDelete) && !sendsOnly && (
+                    <DropdownMenuSeparator />
+                  )}
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -596,57 +620,65 @@ function DeviceCard({
               {device.attendance_records_count.toLocaleString()}
             </p>
           )}
-          <p>
-            {t("devices_page.sync")}:{" "}
-            {device.auto_sync
-              ? t("devices_page.every_minutes", "Every :count min", {
-                  count: device.sync_interval_minutes,
-                })
-              : t("devices_page.manual_only")}
-          </p>
-          <p>
-            {t("attendance.kiosks_page.last_active")}:{" "}
-            {device.last_sync_at
-              ? formatDateTime(device.last_sync_at)
-              : t("devices_page.never")}
-          </p>
+          {sendsOnly ? (
+            <DeviceHeardLine device={device} showSetupLink />
+          ) : (
+            <>
+              <p>
+                {t("devices_page.sync")}:{" "}
+                {device.auto_sync
+                  ? t("devices_page.every_minutes", "Every :count min", {
+                      count: device.sync_interval_minutes,
+                    })
+                  : t("devices_page.manual_only")}
+              </p>
+              <p>
+                {t("attendance.kiosks_page.last_active")}:{" "}
+                {device.last_sync_at
+                  ? formatDateTime(device.last_sync_at)
+                  : t("devices_page.never")}
+              </p>
+            </>
+          )}
         </div>
 
-        <div
-          className={cn(
-            "mt-3 grid gap-2",
-            onPull ? "grid-cols-2" : "grid-cols-1",
-          )}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onTest}
-            disabled={testing}
-          >
-            {testing ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <Signal className="mr-1 h-3 w-3" />
+        {!sendsOnly && (
+          <div
+            className={cn(
+              "mt-3 grid gap-2",
+              onPull ? "grid-cols-2" : "grid-cols-1",
             )}
-            {t("devices_page.test")}
-          </Button>
-          {onPull && (
+          >
             <Button
               variant="outline"
               size="sm"
-              onClick={onPull}
-              disabled={pulling}
+              onClick={onTest}
+              disabled={testing}
             >
-              {pulling ? (
+              {testing ? (
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
               ) : (
-                <RefreshCw className="mr-1 h-3 w-3" />
+                <Signal className="mr-1 h-3 w-3" />
               )}
-              {t("devices_page.pull")}
+              {t("devices_page.test")}
             </Button>
-          )}
-        </div>
+            {onPull && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPull}
+                disabled={pulling}
+              >
+                {pulling ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                )}
+                {t("devices_page.pull")}
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -19,6 +19,7 @@ use App\Services\Device\DeviceManager;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Support\DeviceErrorCode;
 use App\Support\DeviceTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -100,7 +101,7 @@ class PullDeviceEventsJob implements ShouldQueue
 
                 $syncLog->update([
                     'status' => 'offline',
-                    'error_message' => 'Device is not reachable',
+                    'error_message' => DeviceErrorCode::scrub((string) ($status['error'] ?? 'Device is not reachable')),
                     'completed_at' => now(),
                     'duration_ms' => $startedAt->diffInMilliseconds(now()),
                 ]);

@@ -8,6 +8,7 @@ use App\Jobs\PullDeviceEventsJob;
 use App\Models\Device;
 use App\Models\Tenant;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\HikvisionPushAdapter;
 use Illuminate\Console\Command;
 
 class SyncDevicesCommand extends Command
@@ -28,15 +29,25 @@ class SyncDevicesCommand extends Command
         $totalDispatched = 0;
 
         $query->each(function (Tenant $tenant) use (&$totalDispatched) {
+            // Every device of the organisation, not only those due: a
+            // terminal that only sends is never pulled, so this run is the
+            // only thing that can move it off Online when it goes quiet.
             $devices = Device::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenant->id)
-                ->where('auto_sync', true)
-                ->whereIn('status', ['online', 'pending'])
                 ->get();
 
             foreach ($devices as $device) {
-                // A terminal that only sends has nothing to pull.
-                if (! $device->isDueForSync() || DeviceManager::receivesOnly($device)) {
+                // A terminal that only sends has nothing to pull. Its status
+                // follows from when it was last heard, whatever it was.
+                if (DeviceManager::receivesOnly($device)) {
+                    HikvisionPushAdapter::settleStatus($device);
+
+                    continue;
+                }
+
+                if (! $device->auto_sync
+                    || ! in_array($device->status, ['online', 'pending'], true)
+                    || ! $device->isDueForSync()) {
                     continue;
                 }
 

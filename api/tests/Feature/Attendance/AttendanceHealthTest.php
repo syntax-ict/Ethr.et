@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Branch;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\KioskSession;
@@ -121,4 +122,29 @@ test('an organisation punching by phone has an attendance source without any dev
     $check = collect(app(ReadinessScorer::class)->score($tenant->id)['categories']['data']['checks'])
         ->firstWhere('id', 'attendance_source_configured');
     expect($check['passed'])->toBeFalse();
+});
+
+test('a device never heard from is its own check, and is not called silent', function () {
+    $tenant = ahHealthyTenant(['enabled_methods' => ['biometric']]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => null]);
+
+    $checks = collect(test()->getJson(ahUrl($tenant))->assertOk()->json('checks'));
+
+    expect($checks->pluck('id')->all())->toContain('devices_never_heard')
+        ->not->toContain('devices_silent')
+        ->and($checks->firstWhere('id', 'devices_never_heard')['count'])->toBe(1)
+        ->and($checks->firstWhere('id', 'devices_never_heard')['severity'])->toBe('info');
+});
+
+test('a device heard from once and quiet for more than a day is silent, and one heard from today is neither', function () {
+    $tenant = ahHealthyTenant(['enabled_methods' => ['biometric']]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => now()->subDays(2)]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => now()->subHour()]);
+
+    $checks = collect(test()->getJson(ahUrl($tenant))->assertOk()->json('checks'));
+
+    expect($checks->pluck('id')->all())->toContain('devices_silent')->not->toContain('devices_never_heard')
+        ->and($checks->firstWhere('id', 'devices_silent')['count'])->toBe(1);
 });

@@ -94,6 +94,17 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
         "Punches made on them have not arrived. Check the device and its connection.",
       ),
     },
+    devices_never_heard: {
+      title: counted(
+        "devices_never_heard",
+        "1 device not heard from yet",
+        ":count devices not heard from yet",
+      ),
+      detail: t(
+        "setup_status.devices_never_heard_desc",
+        "Nothing has arrived from them. Finish setting them up: the device page shows what to enter on the terminal.",
+      ),
+    },
     kiosk_pins_missing: {
       title: t(
         "setup_status.kiosk_pins_missing",

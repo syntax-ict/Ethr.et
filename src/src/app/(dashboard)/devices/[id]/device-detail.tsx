@@ -49,6 +49,16 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
+  DeviceHeardLine,
+  SyncErrorHint,
+  syncErrorHintKey,
+} from "@/features/devices/components/device-heard";
+import {
+  buildDevicePayload,
+  canSendToEthr,
+  EMPTY_DEVICE_FORM,
+} from "@/features/devices/payload";
+import {
   useDeleteDevice,
   useDevice,
   useDeviceEvents,
@@ -156,15 +166,17 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
 
   function testConnection() {
     testMutation.mutate(id, {
-      onSuccess: ({ status }) => {
-        if (status === "online")
+      onSuccess: ({ status, error_code }) => {
+        if (status === "online") {
           toast.success(t("devices_page.online_responding"));
-        else
+        } else {
+          const hintKey = syncErrorHintKey(error_code);
           toast.error(
-            t("devices_page.device_status", "The device is :status", {
-              status: t(`status.${status}`, status),
-            }),
+            `${t("devices_page.device_status", "The device is :status", {
+              status: t(`devices_page.${status}`, status),
+            })}${hintKey ? ` ${t(hintKey)}` : ""}`,
           );
+        }
       },
       onError: (err) =>
         toast.error(apiErrorMessage(err, t("devices_page.test_failed"))),
@@ -244,6 +256,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   }
 
   const isOnline = device.status === "online";
+  // Never called, so nothing to test or pull: see DeviceHeardLine.
+  const sendsOnly = device.receives_only === true;
   const syncLogItems: DeviceSyncLog[] = syncLogs?.data ?? [];
   const eventItems: DeviceEvent[] = events?.data ?? [];
   const syncLogPages = syncLogs?.meta.last_page ?? 1;
@@ -276,37 +290,46 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ` · ${device.location_description}`}
               {device.branch?.name && ` · ${device.branch.name}`}
             </p>
+            {sendsOnly && (
+              <div className="mt-2 text-sm text-muted-foreground">
+                <DeviceHeardLine device={device} />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testConnection}
-              disabled={testMutation.isPending}
-            >
-              {testMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Signal className="mr-2 h-4 w-4" />
-              )}
-              {t("devices_page.test")}
-            </Button>
-            {/* An ADMS terminal pushes its punches; there is nothing to pull. */}
-            {canUpdate && device.adapter_type !== "zkteco_adms" && (
+            {!sendsOnly && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={pull}
-                disabled={pullMutation.isPending}
+                onClick={testConnection}
+                disabled={testMutation.isPending}
               >
-                {pullMutation.isPending ? (
+                {testMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <Signal className="mr-2 h-4 w-4" />
                 )}
-                {t("devices_page.pull")}
+                {t("devices_page.test")}
               </Button>
             )}
+            {/* A terminal that pushes its punches (ADMS, or a Hikvision on the office network) has nothing to pull. */}
+            {canUpdate &&
+              device.adapter_type !== "zkteco_adms" &&
+              !sendsOnly && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={pull}
+                  disabled={pullMutation.isPending}
+                >
+                  {pullMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {t("devices_page.pull")}
+                </Button>
+              )}
             {canUpdate && (
               <Button
                 variant="outline"
@@ -348,24 +371,30 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           />
           <InfoCard
             icon={Clock}
-            label={t("devices_dashboard_page.last_sync")}
+            label={
+              sendsOnly
+                ? t("devices_page.last_heard_label")
+                : t("devices_dashboard_page.last_sync")
+            }
             value={
               device.last_sync_at
                 ? timeAgo(device.last_sync_at)
                 : t("devices_page.never")
             }
           />
-          <InfoCard
-            icon={isOnline ? Wifi : WifiOff}
-            label={t("device_detail_page.auto_sync")}
-            value={
-              device.auto_sync
-                ? t("devices_page.every_minutes", "Every :count min", {
-                    count: device.sync_interval_minutes,
-                  })
-                : t("device_detail_page.disabled")
-            }
-          />
+          {!sendsOnly && (
+            <InfoCard
+              icon={isOnline ? Wifi : WifiOff}
+              label={t("device_detail_page.auto_sync")}
+              value={
+                device.auto_sync
+                  ? t("devices_page.every_minutes", "Every :count min", {
+                      count: device.sync_interval_minutes,
+                    })
+                  : t("device_detail_page.disabled")
+              }
+            />
+          )}
           {device.clock_checked_at && (
             <InfoCard
               icon={Clock}
@@ -509,14 +538,23 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                       rows={syncLogItems.map((log) => ({
                         key: log.public_id,
                         cells: [
-                          <div
-                            key="s"
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            {SYNC_STATUS_ICON[log.status] ?? null}
-                            <span className="capitalize">
-                              {syncStatusLabel(log.status, t)}
-                            </span>
+                          <div key="s" className="text-sm">
+                            <div className="flex items-center gap-2">
+                              {SYNC_STATUS_ICON[log.status] ?? null}
+                              <span className="capitalize">
+                                {syncStatusLabel(log.status, t)}
+                              </span>
+                            </div>
+                            {log.error_message && log.status !== "success" && (
+                              <div className="mt-1 space-y-1 text-xs break-words text-muted-foreground">
+                                <p className="font-mono">{log.error_message}</p>
+                                {syncErrorHintKey(log.error_code) && (
+                                  <p>
+                                    <SyncErrorHint code={log.error_code} />
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>,
                           <span
                             key="t"
@@ -750,10 +788,22 @@ function EditDeviceDialog({
     sync_interval_minutes: String(device.sync_interval_minutes),
     timezone: device.timezone ?? "",
     webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
+    // How the terminal reaches ETHR. The stored address is never returned (it
+    // sits beside credentials), so the fields start blank: blank keeps it.
+    sends_to_ethr: device.receives_only === true,
+    ip: "",
+    port: "",
+    username: "",
+    password: "",
   });
 
   const set = (key: string, value: string | boolean) =>
     setForm((p) => ({ ...p, [key]: value }));
+
+  const hasConnectionChoice = canSendToEthr(device.adapter_type);
+  const sendsToEthr = hasConnectionChoice && form.sends_to_ethr;
+  // A terminal switched back to an address has none stored that is usable.
+  const addressRequired = device.receives_only === true && !sendsToEthr;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -764,11 +814,28 @@ function EditDeviceDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            const connection = hasConnectionChoice
+              ? buildDevicePayload(
+                  {
+                    ...EMPTY_DEVICE_FORM,
+                    adapter_type: device.adapter_type,
+                    ip: form.ip,
+                    port: form.port,
+                    username: form.username,
+                    password: form.password,
+                    sends_to_ethr: form.sends_to_ethr,
+                  },
+                  "edit",
+                )
+              : null;
             onSubmit({
               name: form.name,
               location_description: form.location_description || null,
               serial_number: form.serial_number || null,
-              auto_sync: form.auto_sync,
+              auto_sync: sendsToEthr ? false : form.auto_sync,
+              ...(connection?.connection_config && {
+                connection_config: connection.connection_config,
+              }),
               ...(device.accepts_commands && {
                 commands_enabled: form.commands_enabled,
               }),
@@ -816,6 +883,106 @@ function EditDeviceDialog({
               className="mt-1"
             />
           </div>
+          {hasConnectionChoice && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {t(
+                      "devices_page.sends_to_ethr",
+                      "The terminal is on our office network",
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "devices_page.sends_to_ethr_hint",
+                      "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  aria-label={t(
+                    "devices_page.sends_to_ethr",
+                    "The terminal is on our office network",
+                  )}
+                  checked={form.sends_to_ethr}
+                  onCheckedChange={(v) => set("sends_to_ethr", v)}
+                />
+              </div>
+              {!sendsToEthr && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      "devices_page.public_address_hint",
+                      "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
+                    )}
+                  </p>
+                  {!addressRequired && (
+                    <p className="text-sm text-muted-foreground">
+                      {t("devices_page.keep_connection_hint")}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-ip-address">
+                        {t("devices_page.ip_address")}
+                      </Label>
+                      <Input
+                        id="edit-ip-address"
+                        value={form.ip}
+                        onChange={(e) => set("ip", e.target.value)}
+                        required={addressRequired}
+                        placeholder="203.0.113.10"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-port">
+                        {t("devices_page.port")}
+                      </Label>
+                      <Input
+                        id="edit-port"
+                        value={form.port}
+                        onChange={(e) => set("port", e.target.value)}
+                        required={addressRequired || form.ip.trim() !== ""}
+                        type="number"
+                        min={1}
+                        max={65535}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="edit-username">
+                        {t("devices_page.username")}
+                      </Label>
+                      <Input
+                        id="edit-username"
+                        value={form.username}
+                        onChange={(e) => set("username", e.target.value)}
+                        placeholder={t("leave_page.optional")}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-password">
+                        {t("auth.password")}
+                      </Label>
+                      <Input
+                        id="edit-password"
+                        type="password"
+                        value={form.password}
+                        onChange={(e) => set("password", e.target.value)}
+                        placeholder={t("leave_page.optional")}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <Label htmlFor="device-timezone">
               {t("device_detail_page.clock_zone", "Device clock time zone")}
@@ -869,7 +1036,10 @@ function EditDeviceDialog({
               )}
             </p>
           </div>
-          <div className="flex items-center justify-between rounded-lg border p-3">
+          <div
+            className="flex items-center justify-between rounded-lg border p-3"
+            hidden={sendsToEthr}
+          >
             <div>
               <p className="text-sm font-medium">
                 {t("device_detail_page.auto_sync")}
@@ -901,7 +1071,7 @@ function EditDeviceDialog({
               />
             </div>
           )}
-          {form.auto_sync && (
+          {form.auto_sync && !sendsToEthr && (
             <div>
               <Label htmlFor="sync-interval">
                 {t("device_detail_page.sync_interval")}

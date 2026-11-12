@@ -100,12 +100,18 @@ final class AttendanceHealth
 
         // Fingerprint terminals switched on with none registered, or silent.
         if ($organisation->isMethodEnabled('biometric')) {
-            $devices = Device::query()->count();
-            $silent = Device::query()
-                ->where(fn ($q) => $q->whereNull('last_sync_at')->orWhere('last_sync_at', '<', Carbon::now()->subDay()))
-                ->count();
-            if ($devices > 0 && $silent > 0) {
+            // Silent means it was heard from once and has gone quiet. A device
+            // never heard from has its own check: telling someone who
+            // registered a terminal an hour ago to check its connection
+            // advises on a connection that was never set up.
+            $silent = Device::query()->where('last_sync_at', '<', Carbon::now()->subDay())->count();
+            if ($silent > 0) {
                 $checks[] = $this->check('devices_silent', 'warning', $silent, '/devices');
+            }
+
+            $neverHeard = Device::query()->whereNull('last_sync_at')->count();
+            if ($neverHeard > 0) {
+                $checks[] = $this->check('devices_never_heard', 'info', $neverHeard, '/devices');
             }
         }
 

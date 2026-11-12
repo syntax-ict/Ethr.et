@@ -9764,6 +9764,8 @@ export interface components {
             events_processed: number;
             events_failed: number;
             error_message: string | null;
+            /** @enum {string|null} */
+            error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
             duration_ms: number | null;
             started_at: string | null;
             completed_at: string | null;
@@ -16005,6 +16007,14 @@ export interface operations {
                             fix_route: "/devices";
                         } | {
                             /** @constant */
+                            id: "devices_never_heard";
+                            /** @constant */
+                            severity: "info";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/devices";
+                        } | {
+                            /** @constant */
                             id: "kiosk_pins_missing";
                             /** @constant */
                             severity: "warning";
@@ -21156,6 +21166,8 @@ export interface operations {
                         device_public_id: string;
                         /** @enum {string} */
                         status: "online" | "offline";
+                        /** @enum {string|null} */
+                        error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
                         details: unknown[];
                         device_info: unknown[];
                     };

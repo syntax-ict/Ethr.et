@@ -185,6 +185,114 @@ describe("device detail for a terminal that sends to ETHR", () => {
   });
 });
 
+/*
+ * A terminal that only sends is never probed or pulled from, so the page does
+ * not offer to, and says what ETHR last heard from it instead (2026-11-12).
+ */
+describe("device detail for a terminal that has not been heard from", () => {
+  const PUSH = {
+    ...DEVICE,
+    adapter_type: "hikvision",
+    receives_only: true,
+    status: "pending",
+    auto_sync: false,
+    webhook_token: "tok123",
+    webhook_url:
+      "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+  };
+
+  function serveDevice(device: object, syncLogs: object[] = []) {
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () => HttpResponse.json(device)),
+      http.get("*/api/v1/devices/DEV1/sync-logs", () =>
+        HttpResponse.json({
+          data: syncLogs,
+          meta: { current_page: 1, last_page: 1, per_page: 10, total: 0 },
+          links: {},
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/events", () =>
+        HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
+      ),
+    );
+  }
+
+  it("reads Not connected yet, with the setup hint, and offers neither Test nor Pull", async () => {
+    serveDevice(PUSH);
+    renderDetail();
+
+    expect(await screen.findByText("Not connected yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing received from this terminal yet."),
+    ).toBeInTheDocument();
+    for (const name of [/^test$/i, /^pull$/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+    // Online would be a claim ETHR cannot back.
+    expect(screen.queryByText("Online")).not.toBeInTheDocument();
+  });
+
+  it("says how long an offline terminal has been silent", async () => {
+    serveDevice({
+      ...PUSH,
+      status: "offline",
+      last_sync_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    });
+    renderDetail();
+
+    expect(await screen.findByText(/^Last heard /)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^test$/i })).toBeNull();
+  });
+
+  it("offers the connection switch in Edit, so a wrong registration can be fixed here", async () => {
+    granted.abilities = null;
+    serveDevice(PUSH);
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    const toggle = within(dialog).getByRole("switch", {
+      name: "The terminal is on our office network",
+    });
+    expect(toggle).toBeChecked();
+    expect(within(dialog).queryByLabelText("IP Address")).toBeNull();
+
+    await user.click(toggle);
+    expect(await within(dialog).findByLabelText("IP Address")).toBeRequired();
+  });
+
+  it("shows why a pull failed, with advice, on a terminal ETHR calls", async () => {
+    serveDevice(
+      { ...DEVICE, adapter_type: "hikvision", receives_only: false },
+      [
+        {
+          public_id: "LOG1",
+          status: "offline",
+          triggered_by: "schedule",
+          events_found: 0,
+          events_processed: 0,
+          events_failed: 0,
+          error_message:
+            "cURL error 7: Failed to connect to 196.190.67.12 port 8000: Connection refused",
+          error_code: "sdk_port",
+          duration_ms: 12,
+          started_at: "2026-11-12T06:00:00Z",
+          completed_at: "2026-11-12T06:00:01Z",
+          created_at: "2026-11-12T06:00:00Z",
+        },
+      ],
+    );
+    renderDetail();
+
+    expect(await screen.findByText(/Connection refused/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/which is the terminal's SDK port/),
+    ).toBeInTheDocument();
+  });
+});
+
 /**
  * Every failed load used to read as the device's "not found" message. Only a
  * 404 means that; anything else is a failed request with a retry.
