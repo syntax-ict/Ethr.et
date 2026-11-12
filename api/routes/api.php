@@ -162,6 +162,7 @@ use App\Http\Controllers\Api\V1\Support\SupportRequestController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\ActivationCodeController;
+use App\Http\Controllers\Api\V1\User\ActivationCodeSheetController;
 use App\Http\Controllers\Api\V1\User\EmployeeLoginController;
 use App\Http\Controllers\Api\V1\User\InvitationController;
 use App\Http\Controllers\Api\V1\User\StartingPasswordController;
@@ -585,6 +586,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
     Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/starting-password', [StartingPasswordController::class, 'store']);
+    Route::post('/employees/activation-codes', [ActivationCodeSheetController::class, 'store']);
     Route::post('/employees/{employee}/enrol-on-devices', [DeviceCommandController::class, 'enrolEmployee']);
     // The template is a header line, not an import: under `imports` it spent
     // one of the five an hour before a file was chosen.

@@ -32,6 +32,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/activation-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a one-time activation code for each of up to 200 employees
+         * @description For people no invitation can reach. Each code is returned once, as
+         *     typed characters and as a link for a QR, and cannot be read back. HR
+         *     prints the sheet, checks each person's identity and hands them their
+         *     slip; the person redeems it on their own device and chooses their own
+         *     password. Someone who cannot be given a code (they can be invited,
+         *     they are an administrator, the organisation has no way for them to
+         *     sign in) is listed under `refused` with why, and the rest are issued.
+         *     A sheet's codes live 72 hours unless `hours` says otherwise, a week at
+         *     most.
+         */
+        post: operations["activationCodeSheet.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/activation/redeem": {
         parameters: {
             query?: never;
@@ -5129,6 +5157,11 @@ export interface paths {
          *     sent again; nothing is added twice. `totals` counts the whole list so
          *     far, and `updated` is how many existing employees had details filled in
          *     or changed.
+         *
+         *     `status` is what the list's new people arrive as: `hired` when nothing
+         *     is sent, or `probation` or `confirmed` for people who already work
+         *     here. A line that names its own status keeps it. It is read when the
+         *     list begins to be added; a later request cannot change it.
          */
         post: operations["migration.commit"];
         delete?: never;
@@ -9550,6 +9583,23 @@ export interface components {
                 line?: number | null;
             }[];
         };
+        /**
+         * CommitMigrationRequest
+         * @description Adding a staged list, and what the whole list is brought in with.
+         *
+         *     `status` is what the list's new people arrive as. People who already work
+         *     here are not newly hired: brought in as `confirmed` they can resign, be
+         *     suspended or take leave from the first day, which someone `hired` cannot.
+         *     A line that names its own status keeps it. Nothing sent leaves them
+         *     `hired`, as before.
+         *
+         *     It is read when the list begins to be added and kept with it. A request
+         *     that carries on a list already under way cannot change it.
+         */
+        CommitMigrationRequest: {
+            /** @enum {string|null} */
+            status?: "hired" | "probation" | "confirmed" | null;
+        };
         /** ConcernMessageRequest */
         ConcernMessageRequest: {
             body: string;
@@ -10251,6 +10301,27 @@ export interface components {
             /** @enum {string} */
             document_type: "national_id" | "kebele_id" | "passport" | "driving_licence" | "employer_id";
             note?: string | null;
+            current_password: string;
+            mfa_code?: string | null;
+        };
+        /**
+         * IssueActivationCodesRequest
+         * @description A sheet of activation codes, one for each employee named.
+         *
+         *     HR undertakes to check each person's identity when their slip is handed
+         *     over (`attested`), and proves it is really them at the keyboard: their own
+         *     password, and their authenticator code when they have one. `hours` is how
+         *     long the sheet's codes live; a sheet cannot be handed out in a day, so it
+         *     may be up to a week.
+         *
+         *     Permission is checked here as well as in the controller, so someone
+         *     without it is refused before their password is looked at.
+         */
+        IssueActivationCodesRequest: {
+            employee_ids: string[];
+            /** @enum {unknown} */
+            attested: "yes" | "on" | "1" | 1 | "true" | true;
+            hours?: number | null;
             current_password: string;
             mfa_code?: string | null;
         };
@@ -13706,6 +13777,49 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "activationCodeSheet.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueActivationCodesRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        batch: string | null;
+                        expires_at: string;
+                        issued: number;
+                        codes: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string;
+                            code: string;
+                            activation_url: string;
+                        }[];
+                        refused: {
+                            employee_public_id: string;
+                            name: string;
+                            reason: string;
+                            detail: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "auth.activationRedeem": {
@@ -27243,6 +27357,7 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
                             [key: string]: number;
@@ -27347,6 +27462,7 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
                             [key: string]: number;
@@ -27533,6 +27649,7 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
                             [key: string]: number;
@@ -27643,7 +27760,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CommitMigrationRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -27677,6 +27798,7 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "migration.logins": {

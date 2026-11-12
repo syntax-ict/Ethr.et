@@ -8,13 +8,17 @@ use App\Enums\UserRole;
 use App\Models\AccountActivationCode;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\InvitationSend;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\UserProvisioningService;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * In-person activation for an employee who has no email and no phone.
@@ -28,6 +32,16 @@ use Illuminate\Support\Facades\Hash;
  * under the application key. It is spent by one conditional update, so two
  * requests cannot both redeem it. Every way a redemption can fail looks the
  * same to the caller: nothing confirms that an employee or a code exists.
+ *
+ * Codes for many people at once (issueMany) are one printed sheet of slips,
+ * for a list of staff brought in with no email. Every person is held to
+ * what a single issue holds them to. The identity check moves to the moment
+ * the slip is handed over, and a sheet may live longer than a single code,
+ * because it cannot be handed out in a day.
+ *
+ * Someone invited by email who has not answered in UNANSWERED_DAYS may be
+ * given a code as well (owner decision 2026-11-10). Until then anyone with
+ * an email on file could never get one, even when the address was wrong.
  */
 final class ActivationCodeService
 {
@@ -42,6 +56,20 @@ final class ActivationCodeService
     public const MAX_TTL_HOURS = 72;
 
     public const DOCUMENT_TYPES = ['national_id', 'kebele_id', 'passport', 'driving_licence', 'employer_id'];
+
+    /** What a sheet's codes record as the document: it is checked when the slip is handed over. */
+    public const AT_HANDOVER = 'at_handover';
+
+    /** The most people one sheet covers. Each is a login made and a code written. */
+    public const SHEET_MAX = 200;
+
+    public const SHEET_DEFAULT_TTL_HOURS = 72;
+
+    /** A sheet's codes may live a week. A single code, issued face to face, stays at MAX_TTL_HOURS. */
+    public const SHEET_MAX_TTL_HOURS = 168;
+
+    /** Days an emailed invitation may go unanswered before a code may be issued instead. */
+    public const UNANSWERED_DAYS = 3;
 
     public function __construct(
         private readonly CurrentTenant $currentTenant,
@@ -59,14 +87,89 @@ final class ActivationCodeService
      */
     public function issue(Employee $employee, User $actor, string $documentType, ?string $note): array
     {
+        if (! in_array($documentType, self::DOCUMENT_TYPES, true)) {
+            // Asked before the document, as it always was: another
+            // organisation's employee is not told what else was wrong.
+            $this->tenantOf($employee);
+
+            throw new ActivationCodeRefused('document');
+        }
+
+        [$tenant, $user] = $this->eligible($employee, $actor);
+
+        return $this->write($employee, $user, $actor, $tenant, $documentType, $note, $this->ttlHours(), null);
+    }
+
+    /**
+     * Issue a code for each of these employees: one sheet of slips. Anyone a
+     * single issue would refuse is refused here for the same reason and the
+     * rest go on; nothing about one person stops the sheet.
+     *
+     * The plaintext codes are returned once and exist nowhere else.
+     *
+     * @param  iterable<Employee>  $employees
+     * @param  int|null  $hours  how long the sheet's codes live, up to SHEET_MAX_TTL_HOURS
+     * @return array{batch: string|null, expires_at: Carbon, issued: list<array{employee: Employee, code: string, record: AccountActivationCode}>, refused: list<array{employee: Employee, reason: string}>}
+     */
+    public function issueMany(iterable $employees, User $actor, ?int $hours = null): array
+    {
+        $hours = max(1, min(self::SHEET_MAX_TTL_HOURS, $hours ?? self::SHEET_DEFAULT_TTL_HOURS));
+        $batch = (string) Str::ulid();
+        $issued = [];
+        $refused = [];
+
+        foreach ($employees as $employee) {
+            try {
+                [$tenant, $user] = $this->eligible($employee, $actor);
+                $issued[] = ['employee' => $employee, ...$this->write($employee, $user, $actor, $tenant, self::AT_HANDOVER, null, $hours, $batch)];
+            } catch (ActivationCodeRefused $refusal) {
+                $refused[] = ['employee' => $employee, 'reason' => $refusal->reason];
+            }
+        }
+
+        if ($issued !== [] || $refused !== []) {
+            AuditLog::record('user.activation_codes_issued', null, [
+                'batch' => $issued !== [] ? $batch : null,
+                'issued' => count($issued),
+                'refused' => count($refused),
+                'hours' => $hours,
+            ]);
+        }
+
+        return [
+            'batch' => $issued !== [] ? $batch : null,
+            'expires_at' => Carbon::now('UTC')->addHours($hours),
+            'issued' => $issued,
+            'refused' => $refused,
+        ];
+    }
+
+    /**
+     * The employee's organisation, when it is the one signed in to.
+     *
+     * @throws ActivationCodeRefused
+     */
+    private function tenantOf(Employee $employee): Tenant
+    {
         $tenant = $this->currentTenant->get();
         if ($tenant === null || $employee->tenant_id !== $tenant->id) {
             throw new ActivationCodeRefused('tenant');
         }
 
-        if (! in_array($documentType, self::DOCUMENT_TYPES, true)) {
-            throw new ActivationCodeRefused('document');
-        }
+        return $tenant;
+    }
+
+    /**
+     * Whether this employee may be issued a code by this person, and the
+     * login they already have, if any.
+     *
+     * @return array{0: Tenant, 1: User|null}
+     *
+     * @throws ActivationCodeRefused
+     */
+    private function eligible(Employee $employee, User $actor): array
+    {
+        $tenant = $this->tenantOf($employee);
 
         $user = $employee->user_id !== null
             ? User::query()->find($employee->user_id)
@@ -82,8 +185,19 @@ final class ActivationCodeService
             throw new ActivationCodeRefused('identifier');
         }
 
+        return [$tenant, $user];
+    }
+
+    /**
+     * Make the login if there is none, withdraw any live code and write the
+     * new one, in one transaction.
+     *
+     * @return array{code: string, record: AccountActivationCode}
+     */
+    private function write(Employee $employee, ?User $user, User $actor, Tenant $tenant, string $documentType, ?string $note, int $hours, ?string $batch): array
+    {
         /** @var array{code: string, record: AccountActivationCode} $issued */
-        $issued = DB::transaction(function () use ($employee, $actor, $documentType, $note, $tenant, $user): array {
+        $issued = DB::transaction(function () use ($employee, $actor, $documentType, $note, $tenant, $user, $hours, $batch): array {
             $user ??= $this->provisioning->provisionWithoutContact($employee, $actor->id);
 
             $this->revokeLive($user);
@@ -99,9 +213,10 @@ final class ActivationCodeService
                     : AccountActivationCode::RECOVERY,
                 'code_hash' => $this->hash($plain),
                 'issued_by' => $actor->id,
+                'issued_batch' => $batch,
                 'document_type' => $documentType,
                 'note' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 255) : null,
-                'expires_at' => Carbon::now('UTC')->addHours($this->ttlHours()),
+                'expires_at' => Carbon::now('UTC')->addHours($hours),
             ]);
 
             AuditLog::record('user.activation_code_issued', $user, [
@@ -109,6 +224,7 @@ final class ActivationCodeService
                 'purpose' => $record->purpose,
                 'document_type' => $documentType,
                 'expires_at' => $record->expires_at->toIso8601String(),
+                ...($batch !== null ? ['batch' => $batch] : []),
             ]);
 
             return ['code' => $plain, 'record' => $record];
@@ -367,6 +483,12 @@ final class ActivationCodeService
      */
     private function hasContact(Employee $employee, ?User $user): bool
     {
+        // Invited days ago and never activated: the link did not reach them,
+        // or the address is wrong. A code in the hand is the way left.
+        if ($user !== null && $this->invitationUnanswered($user)) {
+            return false;
+        }
+
         foreach ([$employee->email, $user?->email] as $value) {
             if (is_string($value) && trim($value) !== '') {
                 return true;
@@ -385,6 +507,29 @@ final class ActivationCodeService
         return $user !== null && $user->status === 'active'
             ? $this->sms->isAvailable()
             : $this->sms->invitationsEnabled();
+    }
+
+    /**
+     * Invited at least UNANSWERED_DAYS ago, still not activated, and nothing
+     * sent or queued to them since. A reminder restarts the wait: the person
+     * may be about to answer it.
+     */
+    private function invitationUnanswered(User $user): bool
+    {
+        $since = Carbon::now('UTC')->subDays(self::UNANSWERED_DAYS);
+
+        $invitedAt = $user->getAttribute('invited_at');
+
+        if ($user->status !== 'invited' || ! $invitedAt instanceof CarbonInterface || $invitedAt->gt($since)) {
+            return false;
+        }
+
+        return ! InvitationSend::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->where('user_id', $user->id)
+            ->whereIn('status', [InvitationSend::QUEUED, InvitationSend::SENT])
+            ->where('queued_at', '>', $since)
+            ->exists();
     }
 
     /**

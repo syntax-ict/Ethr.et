@@ -15371,6 +15371,128 @@
                 }
             }
         },
+        "/employees/activation-codes": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "activationCodeSheet.store",
+                "description": "For people no invitation can reach. Each code is returned once, as\ntyped characters and as a link for a QR, and cannot be read back. HR\nprints the sheet, checks each person's identity and hands them their\nslip; the person redeems it on their own device and chooses their own\npassword. Someone who cannot be given a code (they can be invited,\nthey are an administrator, the organisation has no way for them to\nsign in) is listed under `refused` with why, and the rest are issued.\nA sheet's codes live 72 hours unless `hours` says otherwise, a week at\nmost.",
+                "summary": "Issue a one-time activation code for each of up to 200 employees",
+                "tags": [
+                    "Activation Code Sheet"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IssueActivationCodesRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "batch": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "expires_at": {
+                                            "type": "string"
+                                        },
+                                        "issued": {
+                                            "type": "integer"
+                                        },
+                                        "codes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_code": {
+                                                        "type": "string"
+                                                    },
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "activation_url": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "employee_code",
+                                                    "code",
+                                                    "activation_url"
+                                                ]
+                                            }
+                                        },
+                                        "refused": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string"
+                                                    },
+                                                    "detail": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "reason",
+                                                    "detail"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "batch",
+                                        "expires_at",
+                                        "issued",
+                                        "codes",
+                                        "refused"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/employees/bulk-update": {
             "post": {
                 "x-abilities": [
@@ -25298,6 +25420,12 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "arrival_status": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "totals": {
                                             "type": [
                                                 "array",
@@ -25439,6 +25567,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "arrival_status",
                                         "totals",
                                         "summary",
                                         "rows"
@@ -25465,7 +25594,7 @@
                     "write"
                 ],
                 "operationId": "migration.commit",
-                "description": "A long list is added a slice at a time. While `status` is `committing`,\n`remaining` rows are still to be dealt with and the same request is\nsent again; nothing is added twice. `totals` counts the whole list so\nfar, and `updated` is how many existing employees had details filled in\nor changed.",
+                "description": "A long list is added a slice at a time. While `status` is `committing`,\n`remaining` rows are still to be dealt with and the same request is\nsent again; nothing is added twice. `totals` counts the whole list so\nfar, and `updated` is how many existing employees had details filled in\nor changed.\n\n`status` is what the list's new people arrive as: `hired` when nothing\nis sent, or `probation` or `confirmed` for people who already work\nhere. A line that names its own status keeps it. It is read when the\nlist begins to be added; a later request cannot change it.",
                 "summary": "Add the list's people, as much as fits in one request",
                 "tags": [
                     "Onboarding"
@@ -25481,6 +25610,15 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CommitMigrationRequest"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "",
@@ -25588,6 +25726,9 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -25728,6 +25869,12 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "arrival_status": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "totals": {
                                             "type": [
                                                 "array",
@@ -25869,6 +26016,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "arrival_status",
                                         "totals",
                                         "summary",
                                         "rows"
@@ -26084,6 +26232,12 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "arrival_status": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "totals": {
                                             "type": [
                                                 "array",
@@ -26225,6 +26379,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "arrival_status",
                                         "totals",
                                         "summary",
                                         "rows"
@@ -46113,6 +46268,25 @@
                 ],
                 "title": "CommitBalanceImportRequest"
             },
+            "CommitMigrationRequest": {
+                "type": "object",
+                "description": "Adding a staged list, and what the whole list is brought in with.\n\n`status` is what the list's new people arrive as. People who already work\nhere are not newly hired: brought in as `confirmed` they can resign, be\nsuspended or take leave from the first day, which someone `hired` cannot.\nA line that names its own status keeps it. Nothing sent leaves them\n`hired`, as before.\n\nIt is read when the list begins to be added and kept with it. A request\nthat carries on a list already under way cannot change it.",
+                "properties": {
+                    "status": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "hired",
+                            "probation",
+                            "confirmed",
+                            null
+                        ]
+                    }
+                },
+                "title": "CommitMigrationRequest"
+            },
             "ConcernMessageRequest": {
                 "type": "object",
                 "properties": {
@@ -48520,6 +48694,56 @@
                     "file"
                 ],
                 "title": "ImportPreviewRequest"
+            },
+            "IssueActivationCodesRequest": {
+                "type": "object",
+                "description": "A sheet of activation codes, one for each employee named.\n\nHR undertakes to check each person's identity when their slip is handed\nover (`attested`), and proves it is really them at the keyboard: their own\npassword, and their authenticator code when they have one. `hours` is how\nlong the sheet's codes live; a sheet cannot be handed out in a day, so it\nmay be up to a week.\n\nPermission is checked here as well as in the controller, so someone\nwithout it is refused before their password is looked at.",
+                "properties": {
+                    "employee_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "minItems": 1,
+                        "maxItems": 200
+                    },
+                    "attested": {
+                        "enum": [
+                            "yes",
+                            "on",
+                            "1",
+                            1,
+                            "true",
+                            true
+                        ]
+                    },
+                    "hours": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 168
+                    },
+                    "current_password": {
+                        "type": "string"
+                    },
+                    "mfa_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 12
+                    }
+                },
+                "required": [
+                    "employee_ids",
+                    "attested",
+                    "current_password"
+                ],
+                "title": "IssueActivationCodesRequest"
             },
             "JobApplicationEventResource": {
                 "type": "object",
