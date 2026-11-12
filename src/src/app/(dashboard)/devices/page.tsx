@@ -83,7 +83,7 @@ import { cn } from "@/lib/utils";
 import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
 import {
   DeviceHeardLine,
-  syncErrorHintKey,
+  syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
@@ -202,7 +202,7 @@ export default function DevicesPage() {
     });
   }
 
-  function testConnection(id: string) {
+  function testConnection(id: string, adapterType: string) {
     testMutation.mutate(id, {
       onSuccess: ({ status, error_code }) => {
         if (status === "online") {
@@ -210,8 +210,9 @@ export default function DevicesPage() {
         } else {
           // `status.pending` is the app-wide "Pending"; a device that is
           // pending is "not connected yet", which is its own label.
-          const hintKey = syncErrorHintKey(error_code);
-          const hint = hintKey ? t(hintKey) : "";
+          const hint = syncErrorHintKeys(error_code, adapterType)
+            .map((k) => t(k))
+            .join(" ");
           toast.error(
             `${t("devices_page.device_status", "The device is :status", {
               status: t(`devices_page.${status}`, status),
@@ -357,7 +358,7 @@ export default function DevicesPage() {
                 key={d.public_id}
                 device={d}
                 onPull={canUpdate ? () => pull(d.public_id) : undefined}
-                onTest={() => testConnection(d.public_id)}
+                onTest={() => testConnection(d.public_id, d.adapter_type)}
                 onEdit={canUpdate ? () => openEdit(d) : undefined}
                 onDelete={canDelete ? () => setDeleteDevice(d) : undefined}
                 onDiscover={() => setDiscoverDevice(d)}

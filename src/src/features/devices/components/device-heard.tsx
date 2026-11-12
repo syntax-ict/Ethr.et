@@ -58,18 +58,50 @@ const HINTED_CODES = [
   "unreachable",
 ] as const;
 
-/** The dictionary key for a cause's advice, or null when there is none to give. */
-export function syncErrorHintKey(
+/**
+ * Causes after which a Hikvision terminal may simply be on an office network
+ * ETHR cannot reach, which only that vendor has a setting for.
+ */
+const OFFICE_NETWORK_CODES = [
+  "sdk_port",
+  "refused",
+  "timeout",
+  "auth",
+  "unreachable",
+];
+
+/**
+ * The dictionary keys of a cause's advice, in reading order: the
+ * vendor-neutral hint, then what is true of a Hikvision terminal only (ETHR
+ * signs in with Basic while many need Digest; the office network setting).
+ * Empty when there is nothing to advise.
+ */
+export function syncErrorHintKeys(
   code: string | null | undefined,
-): string | null {
-  return code && (HINTED_CODES as readonly string[]).includes(code)
-    ? `device_error.hint.${code}`
-    : null;
+  adapterType: string | null | undefined,
+): string[] {
+  if (!code || !(HINTED_CODES as readonly string[]).includes(code)) {
+    return [];
+  }
+  const keys = [`device_error.hint.${code}`];
+  if (adapterType === "hikvision") {
+    if (code === "auth") keys.push("device_error.hikvision.digest");
+    if (OFFICE_NETWORK_CODES.includes(code)) {
+      keys.push("device_error.hikvision.office_network");
+    }
+  }
+  return keys;
 }
 
-export function SyncErrorHint({ code }: { code: string | null | undefined }) {
+export function SyncErrorHint({
+  code,
+  adapterType,
+}: {
+  code: string | null | undefined;
+  adapterType: string | null | undefined;
+}) {
   const { t } = useT();
-  const key = syncErrorHintKey(code);
+  const keys = syncErrorHintKeys(code, adapterType);
 
-  return key ? <>{t(key)}</> : null;
+  return keys.length > 0 ? <>{keys.map((k) => t(k)).join(" ")}</> : null;
 }

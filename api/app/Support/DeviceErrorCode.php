@@ -10,8 +10,8 @@ namespace App\Support;
  * advice for it is written in the dictionaries (`device_error.hint.<code>`), so
  * a reader gets it in their own language and PHP carries no English hint.
  *
- *   sdk_port   refused or timed out on port 8000, Hikvision's SDK port; ETHR
- *              speaks ISAPI over HTTP, usually port 80
+ *   sdk_port   Hikvision only: refused or timed out on port 8000, its SDK
+ *              port; ETHR speaks ISAPI over HTTP, usually port 80
  *   refused    cURL 7, nothing answered at that address and port
  *   timeout    cURL 28
  *   dns        cURL 6, the name did not resolve
@@ -20,9 +20,11 @@ namespace App\Support;
  *   unreachable  the message older jobs wrote, which carried no cause
  *   other      anything else; the raw message is shown on its own
  *
- * A 401 deliberately has no "check the password" advice: ETHR sends Basic
- * authentication only and Hikvision ISAPI commonly requires Digest, so a
- * correct password can still be refused (docs/DEVICE_INTEGRATION.md).
+ * The codes and their dictionary hints are vendor-neutral. What is true of a
+ * Hikvision terminal only (it has an office-network setting; ETHR signs in to
+ * it with Basic while ISAPI commonly requires Digest, so a correct password
+ * can still be refused) is a separate sentence the screen adds for that
+ * adapter (docs/DEVICE_INTEGRATION.md).
  */
 final class DeviceErrorCode
 {
@@ -59,7 +61,11 @@ final class DeviceErrorCode
         return mb_substr(trim($message), 0, $limit);
     }
 
-    public static function from(?string $message): ?string
+    /**
+     * @param  string|null  $adapterType  the device's adapter; port 8000 means the
+     *                                    SDK port only on a Hikvision terminal
+     */
+    public static function from(?string $message, ?string $adapterType = null): ?string
     {
         $message = trim((string) $message);
         if ($message === '') {
@@ -78,7 +84,7 @@ final class DeviceErrorCode
                 default => self::OTHER,
             };
 
-            $onSdkPort = preg_match('/\bport (\d+)\b/i', $message, $port) === 1
+            $onSdkPort = $adapterType === 'hikvision' && preg_match('/\bport (\d+)\b/i', $message, $port) === 1
                 && $port[1] === self::SDK_PORT_NUMBER;
 
             return $onSdkPort && in_array($code, [self::REFUSED, self::TIMEOUT], true)

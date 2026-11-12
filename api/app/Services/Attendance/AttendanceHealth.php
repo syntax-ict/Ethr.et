@@ -19,6 +19,8 @@ use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
 use App\Models\Tenant;
+use App\Services\Device\AdmsDeviceResolver;
+use App\Services\Device\DeviceManager;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Illuminate\Support\Carbon;
@@ -100,18 +102,27 @@ final class AttendanceHealth
 
         // Fingerprint terminals switched on with none registered, or silent.
         if ($organisation->isMethodEnabled('biometric')) {
-            // Silent means it was heard from once and has gone quiet. A device
-            // never heard from has its own check: telling someone who
-            // registered a terminal an hour ago to check its connection
-            // advises on a connection that was never set up.
-            $silent = Device::query()->where('last_sync_at', '<', Carbon::now()->subDay())->count();
+            // Silent: heard from once and quiet for a day, or a device ETHR
+            // pulls that has never once synced a day after it was registered
+            // (every pull has failed). A terminal that sends to ETHR and has
+            // never sent anything is not silent but not set up yet: its own
+            // check, whose advice is the setup on the terminal. Which kind a
+            // device is lives in its encrypted config, so it is read in PHP.
+            $dayAgo = Carbon::now()->subDay();
+            $quiet = Device::query()->where('last_sync_at', '<', $dayAgo)->count();
+            [$waitingForTerminal, $neverPulled] = Device::query()
+                ->whereNull('last_sync_at')
+                ->get(['id', 'adapter_type', 'connection_config', 'created_at'])
+                ->partition(fn (Device $d): bool => $d->adapter_type === AdmsDeviceResolver::ADAPTER || DeviceManager::receivesOnly($d));
+
+            $silent = (int) ($quiet + $neverPulled->filter(fn (Device $d): bool => $d->created_at !== null && $d->created_at->lessThan($dayAgo))->count());
             if ($silent > 0) {
                 $checks[] = $this->check('devices_silent', 'warning', $silent, '/devices');
             }
 
-            $neverHeard = Device::query()->whereNull('last_sync_at')->count();
-            if ($neverHeard > 0) {
-                $checks[] = $this->check('devices_never_heard', 'info', $neverHeard, '/devices');
+            $notSetUp = (int) $waitingForTerminal->count();
+            if ($notSetUp > 0) {
+                $checks[] = $this->check('devices_never_heard', 'info', $notSetUp, '/devices');
             }
         }
 

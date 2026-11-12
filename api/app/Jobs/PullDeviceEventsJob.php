@@ -92,11 +92,13 @@ class PullDeviceEventsJob implements ShouldQueue
             $status = $adapter->getStatus($this->device);
 
             if (! ($status['online'] ?? false)) {
-                $wasOnline = $this->device->status !== 'offline';
-                $this->device->update(['status' => 'offline']);
+                if ($this->stillPulled()) {
+                    $wasOnline = $this->device->status !== 'offline';
+                    $this->device->update(['status' => 'offline']);
 
-                if ($wasOnline) {
-                    DeviceOffline::dispatch($this->device);
+                    if ($wasOnline) {
+                        DeviceOffline::dispatch($this->device);
+                    }
                 }
 
                 $syncLog->update([
@@ -109,7 +111,7 @@ class PullDeviceEventsJob implements ShouldQueue
                 return;
             }
 
-            if ($this->device->status !== 'online') {
+            if ($this->device->status !== 'online' && $this->stillPulled()) {
                 $this->device->update(['status' => 'online']);
             }
 
@@ -144,7 +146,7 @@ class PullDeviceEventsJob implements ShouldQueue
             // cursor and that start were never pulled again. Scheduled syncs
             // now start from the cursor; one that overlaps the continuation
             // pulls punches already recorded, which their keys de-duplicate.
-            if (! $backfill) {
+            if (! $backfill && $this->stillPulled()) {
                 $reached = $run['outcome'] === 'budget' && is_string($run['cursor'])
                     ? Carbon::parse($run['cursor'])
                     : $startedAt;
@@ -182,11 +184,13 @@ class PullDeviceEventsJob implements ShouldQueue
                 'failed' => $failed,
             ]);
         } catch (Throwable $e) {
-            $this->device->update(['status' => 'error']);
+            if ($this->stillPulled()) {
+                $this->device->update(['status' => 'error']);
+            }
 
             $syncLog->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => DeviceErrorCode::scrub($e->getMessage()),
                 'completed_at' => now(),
                 'duration_ms' => $startedAt->diffInMilliseconds(now()),
             ]);
@@ -238,6 +242,20 @@ class PullDeviceEventsJob implements ShouldQueue
      * payload's tenant is set, and the device is found only inside it.
      * CurrentTenant is a scoped binding, flushed between jobs.
      */
+    /**
+     * Whether the device is still one ETHR pulls. An administrator can switch
+     * it to send to ETHR while this runs; from then on its status and
+     * `last_sync_at` (now "last heard") belong to the push rule, and a write
+     * from here would make a terminal nobody has heard from read Online for a
+     * day, or Offline. Read again, inside the payload's tenant.
+     */
+    private function stillPulled(): bool
+    {
+        $current = Device::query()->where('tenant_id', $this->tenantId)->find($this->deviceId);
+
+        return $current !== null && ! DeviceManager::receivesOnly($current);
+    }
+
     private function resolveDevice(): ?Device
     {
         $tenant = Tenant::query()->find($this->tenantId);

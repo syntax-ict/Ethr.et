@@ -290,6 +290,36 @@ describe("device detail for a terminal that has not been heard from", () => {
     expect(
       screen.getByText(/which is the terminal's SDK port/),
     ).toBeInTheDocument();
+    // A Hikvision terminal has the office network setting to fall back on.
+    expect(
+      screen.getByText(/use the office network setting/),
+    ).toBeInTheDocument();
+  });
+
+  it("gives another vendor's refused sign-in no Hikvision advice", async () => {
+    serveDevice({ ...DEVICE, adapter_type: "suprema", receives_only: false }, [
+      {
+        public_id: "LOG2",
+        status: "offline",
+        triggered_by: "schedule",
+        events_found: 0,
+        events_processed: 0,
+        events_failed: 0,
+        error_message: "HTTP 401",
+        error_code: "auth",
+        duration_ms: 12,
+        started_at: "2026-11-12T06:00:00Z",
+        completed_at: "2026-11-12T06:00:01Z",
+        created_at: "2026-11-12T06:00:00Z",
+      },
+    ]);
+    renderDetail();
+
+    expect(
+      await screen.findByText(/refused the sign-in details ETHR sent/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Digest/)).toBeNull();
+    expect(screen.queryByText(/office network setting/)).toBeNull();
   });
 });
 

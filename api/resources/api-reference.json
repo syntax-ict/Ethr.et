@@ -8946,8 +8946,7 @@
                                                                 "const": "warning"
                                                             },
                                                             "count": {
-                                                                "type": "integer",
-                                                                "minimum": 0
+                                                                "type": "integer"
                                                             },
                                                             "fix_route": {
                                                                 "type": "string",
@@ -8973,8 +8972,7 @@
                                                                 "const": "info"
                                                             },
                                                             "count": {
-                                                                "type": "integer",
-                                                                "minimum": 0
+                                                                "type": "integer"
                                                             },
                                                             "fix_route": {
                                                                 "type": "string",
@@ -14607,7 +14605,8 @@
                                             "type": "string",
                                             "enum": [
                                                 "online",
-                                                "offline"
+                                                "offline",
+                                                "pending"
                                             ]
                                         },
                                         "error_code": {
@@ -26836,7 +26835,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -26939,7 +26938,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],

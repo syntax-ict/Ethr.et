@@ -70,13 +70,59 @@ it('moves a terminal that only sends to the rule on every run, whatever it was a
     // Online forever after its first punch, though it has been quiet for three days.
     $quiet = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subDays(3)]);
     $heard = honestPushDevice($tenant, $branch, ['status' => 'pending', 'last_sync_at' => now()->subHour()]);
+    // Another organisation's terminal, which the same run must settle on its own terms.
+    $other = createTenant();
+    $otherDevice = honestPushDevice($other, Branch::factory()->create(['tenant_id' => $other->id]), ['status' => 'pending', 'last_sync_at' => now()->subMinutes(5)]);
 
+    // The scheduler runs with no request and no organisation resolved.
+    app()->forgetScopedInstances();
     test()->artisan('devices:sync')->assertSuccessful();
 
-    expect($never->refresh()->status)->toBe('pending')
-        ->and($quiet->refresh()->status)->toBe('offline')
-        ->and($heard->refresh()->status)->toBe('online');
+    $read = fn (Device $d): string => Device::withoutGlobalScope('tenant')->findOrFail($d->id)->status;
+    expect($read($never))->toBe('pending')
+        ->and($read($quiet))->toBe('offline')
+        ->and($read($heard))->toBe('online')
+        ->and($read($otherDevice))->toBe('online');
     Queue::assertNotPushed(PullDeviceEventsJob::class);
+});
+
+it('reports a device that cannot be read and carries on with the rest of the run', function () {
+    Queue::fake();
+    [$tenant, $branch] = honestOrganisation();
+    $broken = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subDays(3)]);
+    // A config that no longer decrypts (a rotated key, a hand edit).
+    Device::withoutGlobalScope('tenant')->whereKey($broken->id)->toBase()->update(['connection_config' => 'not-ciphertext']);
+    $later = createTenant();
+    $laterDevice = honestPushDevice($later, Branch::factory()->create(['tenant_id' => $later->id]), ['status' => 'online', 'last_sync_at' => now()->subDays(3)]);
+
+    app()->forgetScopedInstances();
+    test()->artisan('devices:sync')->assertSuccessful();
+
+    expect(Device::withoutGlobalScope('tenant')->findOrFail($laterDevice->id)->status)->toBe('offline');
+});
+
+it('leaves a device alone when it is switched to send to ETHR while a pull is running', function () {
+    [$tenant, $branch] = honestOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '203.0.113.10', 'port' => 80],
+        'status' => 'pending',
+        'last_sync_at' => null,
+    ]);
+    // The terminal answers, and in that moment an administrator switches it.
+    Http::fake(function () use ($device) {
+        Device::withoutGlobalScope('tenant')->findOrFail($device->id)->update(['connection_config' => ['mode' => 'push']]);
+
+        return Http::response(['AcsEvent' => ['responseStatusStrg' => 'OK']], 200);
+    });
+
+    app()->call([new PullDeviceEventsJob($device->id, $tenant->id), 'handle']);
+
+    $after = Device::withoutGlobalScope('tenant')->findOrFail($device->id);
+    expect($after->last_sync_at)->toBeNull()
+        ->and($after->status)->toBe('pending');
 });
 
 it('does not rewrite a row whose status is already right', function () {
@@ -189,8 +235,17 @@ it('stores no credentials or query string from a transport error', function () {
         ->and(DeviceErrorCode::scrub(str_repeat('x', 900)))->toHaveLength(500);
 });
 
+it('says SDK port only for a Hikvision terminal', function () {
+    $refused = 'cURL error 7: Failed to connect to 196.190.67.12 port 8000: Connection refused';
+
+    expect(DeviceErrorCode::from($refused, 'hikvision'))->toBe('sdk_port')
+        ->and(DeviceErrorCode::from($refused, 'suprema'))->toBe('refused')
+        ->and(DeviceErrorCode::from($refused, 'zkteco'))->toBe('refused')
+        ->and(DeviceErrorCode::from($refused))->toBe('refused');
+});
+
 it('derives one code per cause', function (?string $message, ?string $code) {
-    expect(DeviceErrorCode::from($message))->toBe($code);
+    expect(DeviceErrorCode::from($message, 'hikvision'))->toBe($code);
 })->with([
     'nothing' => [null, null],
     'blank' => ['  ', null],

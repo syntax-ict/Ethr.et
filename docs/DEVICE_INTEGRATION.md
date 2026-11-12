@@ -451,15 +451,32 @@ registration on `196.190.67.12:8000`: `cURL error 7 ... Connection refused`, and
 Hikvision's SDK port, not the HTTP port ISAPI answers on). The adapter's message is now
 kept in `device_sync_logs.error_message` after `DeviceErrorCode::scrub()` removes any
 credentials and query string a transport error quotes, and `DeviceSyncLogResource` and
-`GET /devices/{id}/status` publish `error_code` derived by `DeviceErrorCode::from()`:
-`sdk_port`, `refused` (cURL 7), `timeout` (28), `dns` (6), `auth` (HTTP 401/403), `http`
-(any other status), `unreachable` (the old message), `other`. The advice is in the
-dictionaries as `device_error.hint.<code>`, not in PHP, so it is read in Amharic and
-Afaan Oromoo too.
+`GET /devices/{id}/status` publish `error_code` derived by `DeviceErrorCode::from()`, given
+the device's adapter: `sdk_port` (Hikvision only: refused or timed out on port 8000),
+`refused` (cURL 7), `timeout` (28), `dns` (6), `auth` (HTTP 401/403), `http` (any other
+status), `unreachable` (the old message), `other`. The advice is in the dictionaries, not
+in PHP, so it is read in Amharic and Afaan Oromoo too: `device_error.hint.<code>` is
+vendor-neutral, and the screen adds `device_error.hikvision.*` only for a Hikvision device,
+because only it has the office network setting and only for it does ETHR know Basic
+sign-in can be refused where Digest is required.
 
-There is deliberately **no "check your password" advice** for `auth`: ETHR signs in with
-HTTP Basic only and Hikvision ISAPI commonly requires Digest (see the known gap above), so
-a correct password can still be refused. The text says so instead.
+There is deliberately **no "check your password" advice** for a Hikvision `auth`: ETHR
+signs in with HTTP Basic only and Hikvision ISAPI commonly requires Digest (see the known
+gap above), so a correct password can still be refused. The text says so instead.
+
+A pull already running when the device is switched to send to ETHR writes neither its
+status nor `last_sync_at` (`PullDeviceEventsJob::stillPulled()` reads the device again
+first): either write would make a terminal nobody has heard from read Online for a day, or
+Offline. `devices:sync` reports and skips one device it cannot read (a config that no
+longer decrypts) rather than stopping for every organisation after it.
+
+`GET /attendance/setup-status` keeps the two kinds apart: `devices_never_heard` (info) is a
+terminal that sends to ETHR (Hikvision push, ZKTeco ADMS) and has sent nothing yet;
+`devices_silent` (warning) is a device quiet for a day, or one ETHR pulls that has never
+once synced a day after it was registered, which means every pull has failed. The console's
+tenant journey keeps its own three-day `devices_silent`, with the same registration grace,
+for both kinds: a terminal not set up three days after it was registered is a stalled setup
+the platform should see.
 
 ## Device clocks (2026-10-14)
 

@@ -37,27 +37,43 @@ class SyncDevicesCommand extends Command
                 ->get();
 
             foreach ($devices as $device) {
-                // A terminal that only sends has nothing to pull. Its status
-                // follows from when it was last heard, whatever it was.
-                if (DeviceManager::receivesOnly($device)) {
-                    HikvisionPushAdapter::settleStatus($device);
-
-                    continue;
+                // One device whose config will not decrypt, or whose write
+                // fails, is reported and skipped: it must not stop the run
+                // for every device and organisation after it.
+                try {
+                    if ($this->handleDevice($device)) {
+                        $totalDispatched++;
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
                 }
-
-                if (! $device->auto_sync
-                    || ! in_array($device->status, ['online', 'pending'], true)
-                    || ! $device->isDueForSync()) {
-                    continue;
-                }
-
-                PullDeviceEventsJob::dispatch($device->id, $device->tenant_id);
-                $totalDispatched++;
             }
         });
 
         $this->info("Dispatched sync jobs for {$totalDispatched} device(s).");
 
         return self::SUCCESS;
+    }
+
+    /** Whether a pull was dispatched for the device. */
+    private function handleDevice(Device $device): bool
+    {
+        // A terminal that only sends has nothing to pull. Its status follows
+        // from when it was last heard, whatever it was.
+        if (DeviceManager::receivesOnly($device)) {
+            HikvisionPushAdapter::settleStatus($device);
+
+            return false;
+        }
+
+        if (! $device->auto_sync
+            || ! in_array($device->status, ['online', 'pending'], true)
+            || ! $device->isDueForSync()) {
+            return false;
+        }
+
+        PullDeviceEventsJob::dispatch($device->id, $device->tenant_id);
+
+        return true;
     }
 }

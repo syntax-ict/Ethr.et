@@ -21165,7 +21165,7 @@ export interface operations {
                     "application/json": {
                         device_public_id: string;
                         /** @enum {string} */
-                        status: "online" | "offline";
+                        status: "online" | "offline" | "pending";
                         /** @enum {string|null} */
                         error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
                         details: unknown[];

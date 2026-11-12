@@ -213,19 +213,19 @@ class DeviceController extends Controller
 
         // A terminal that only sends was not probed: it answers from when it
         // was last heard, and "never heard" is its own state, not offline.
-        if (DeviceManager::receivesOnly($device)) {
-            $newStatus = HikvisionPushAdapter::settleStatus($device);
-        } else {
-            $newStatus = $online ? 'online' : 'offline';
-            if ($device->status !== $newStatus) {
-                $device->update(['status' => $newStatus]);
-            }
+        $sendsOnly = DeviceManager::receivesOnly($device);
+        /** @var 'pending'|'online'|'offline' $newStatus */
+        $newStatus = $sendsOnly
+            ? HikvisionPushAdapter::settleStatus($device)
+            : ($online ? 'online' : 'offline');
+        if (! $sendsOnly && $device->status !== $newStatus) {
+            $device->update(['status' => $newStatus]);
         }
 
         return response()->json([
             'device_public_id' => $device->public_id,
             'status' => $newStatus,
-            'error_code' => $online ? null : DeviceErrorCode::from($status['error'] ?? null),
+            'error_code' => $online ? null : DeviceErrorCode::from($status['error'] ?? null, $device->adapter_type),
             'details' => $status,
             'device_info' => $info,
         ]);
@@ -334,6 +334,10 @@ class DeviceController extends Controller
         $logs = DeviceSyncLog::where('device_id', $device->id)
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
+
+        // Every row is this device's: hand it over so the error code can be
+        // read for its adapter without a query per row.
+        $logs->getCollection()->each(fn (DeviceSyncLog $log) => $log->setRelation('device', $device));
 
         return DeviceSyncLogResource::collection($logs);
     }

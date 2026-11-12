@@ -51,7 +51,7 @@ import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
   DeviceHeardLine,
   SyncErrorHint,
-  syncErrorHintKey,
+  syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
 import {
   buildDevicePayload,
@@ -170,11 +170,13 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         if (status === "online") {
           toast.success(t("devices_page.online_responding"));
         } else {
-          const hintKey = syncErrorHintKey(error_code);
+          const hint = syncErrorHintKeys(error_code, device?.adapter_type)
+            .map((k) => t(k))
+            .join(" ");
           toast.error(
             `${t("devices_page.device_status", "The device is :status", {
               status: t(`devices_page.${status}`, status),
-            })}${hintKey ? ` ${t(hintKey)}` : ""}`,
+            })}${hint ? ` ${hint}` : ""}`,
           );
         }
       },
@@ -548,9 +550,15 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             {log.error_message && log.status !== "success" && (
                               <div className="mt-1 space-y-1 text-xs break-words text-muted-foreground">
                                 <p className="font-mono">{log.error_message}</p>
-                                {syncErrorHintKey(log.error_code) && (
+                                {syncErrorHintKeys(
+                                  log.error_code,
+                                  device.adapter_type,
+                                ).length > 0 && (
                                   <p>
-                                    <SyncErrorHint code={log.error_code} />
+                                    <SyncErrorHint
+                                      code={log.error_code}
+                                      adapterType={device.adapter_type}
+                                    />
                                   </p>
                                 )}
                               </div>
