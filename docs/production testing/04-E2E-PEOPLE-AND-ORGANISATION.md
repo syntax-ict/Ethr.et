@@ -204,6 +204,22 @@ them afterwards.
 | MASS-005 | P3 | X | An invitation nobody answered (#703) | An employee invited by email at least 3 days ago, not activated, with no reminder since: issue an in-person code (ACT-001) | Issued, where before any email on file ruled it out. One invited within 3 days, or reminded since, is still refused with the message of MASS-004 |
 | SPW-001 | P2 | X | One starting password for a batch (#691) | On the card after a commit, for people with no email: "Give a starting password" (needs `users.issueStartingPassword`); the person types their own password | The dialog warns that until a person first signs in, anyone who knows the password and their employee code could sign in as them, and that an in-person code does not have that risk. The password is shown once with the people it was given to and "It stops working after 72 hours…". At first sign-in each person is held at the change-password screen until they choose their own |
 
+### Seeing the links, and people recorded twice (#705, open)
+
+**Not live until #705 is merged and deployed: check S-01 and record Blocked before then.** No migration.
+The links are what `employee_external_identities` holds; a QA employee brought in from a device or
+from a saved source (MAP-003) has at least one.
+
+| ID | P | Mode | Scenario | Steps | Expected |
+|---|---|---|---|---|---|
+| IDN-012 | P2 | R | What a person is known as elsewhere | HR opens such an employee → Employment tab → "Known elsewhere as" | A line saying how the record was made ("Brought in from a list", "Brought in from an attendance device", "Added by hand" and so on; for a record older than 2026-11-11, "How this record was made is not known. It is older than the day ETHR began recording it."). Each link names where it is from (the terminal's name, the saved source's name, or "Another system") with "Number on device" or "Their id", and "Confirmed" or "Matched by ETHR". With none: "No attendance device or other system is linked to this employee yet." A national id is never shown |
+| IDN-013 | P2 | W | Confirm a link | On a link marked "Matched by ETHR": "Confirm" | "Link confirmed"; the mark reads "Confirmed" and the button is gone. Audit `identity.verified`. Confirming again changes nothing |
+| IDN-014 | P2 | W | Remove a wrong link | "Remove" on a link of a QA employee | Asks first: "Remove this link?", ":where will no longer know this employee as :value. Their record is not changed. The next punch or list that brings this id is matched again, or held for you to assign." "Remove the link" removes it: "Link removed". The employee's own details are unchanged. Audit `identity.unlinked`, without a national id |
+| IDN-015 | P1 | R | Who may | FIN opens the same card; EMP calls `GET /employees/{employee}/identities`; HR calls the verify address with a link that belongs to another employee, and with a QA Isolation link id | FIN sees the links and no "Confirm" or "Remove". EMP: 403. Another employee's link and another organisation's: 404, identical |
+| DUP-001 | P1 | R | The list of possible duplicates | HR: Employees → the "Possible duplicates" button, or the command palette "Find employees recorded twice" | `/employees/duplicates`, titled "Possible duplicates". Each group lists two or more **current** employees with why they are together ("Same national ID", "Same email", "Same phone number", "Same badge number", "Same name and date of birth"), each a link to the profile with employee code, department, how the record was made and when. The shared value itself is not shown. With none: "No possible duplicates". Nothing on the page changes anything |
+| DUP-002 | P2 | W | A pair appears and goes | Give two QA employees the same badge number; open the list; then change one back | The pair is listed under "Same badge number", and gone after the change. A phone written `0911…` on one and `+251911…` on the other is "Same phone number". Someone Resigned or deleted who shares a detail is not listed |
+| DUP-003 | P2 | R | Who may | SUP, FIN and EMP: `GET /employees/possible-duplicates`; and the page | 403 from the API (it needs `employee.create`); the page shows the access-denied state |
+
 ## 5. Employee lifecycle
 
 Status transitions allowed: hired → probation or confirmed; probation → confirmed or terminated;

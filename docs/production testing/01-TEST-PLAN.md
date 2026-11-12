@@ -255,6 +255,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | Another system's column names are matched once and saved as a source; its ids find the same people; a saved source's columns read the same on every database | #700, #701 | MAP-001 to MAP-003 |
 | Mass activation: a list arrives as hired, on probation or confirmed; invitations go out by default; a printable sheet of one-time codes; a code for an invitation unanswered for 3 days | #703 | MASS-001 to MASS-005; MIG-001 changed |
 | One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
+| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 (open) | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
 
