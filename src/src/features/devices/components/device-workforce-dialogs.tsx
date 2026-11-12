@@ -41,8 +41,7 @@ import {
 } from "../api";
 
 function rosterUnavailableStatus(error: unknown): number | undefined {
-  return (error as { response?: { status?: number } } | null)?.response
-    ?.status;
+  return (error as { response?: { status?: number } } | null)?.response?.status;
 }
 
 function outcomeTone(outcome: MatchOutcome): string {

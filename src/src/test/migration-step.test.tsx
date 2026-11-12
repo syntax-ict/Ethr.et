@@ -210,7 +210,11 @@ describe("<MigrationStep>", () => {
       http.get("*/devices", () =>
         HttpResponse.json({
           data: [
-            { public_id: "01HZDEVPUSH", name: "Habru gate", receives_only: true },
+            {
+              public_id: "01HZDEVPUSH",
+              name: "Habru gate",
+              receives_only: true,
+            },
           ],
           meta: {},
           links: {},
