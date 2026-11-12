@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
+import { ActivationCodeSheetDialog } from "@/features/users/components/activation-code-sheet-dialog";
 import { StartingPasswordDialog } from "@/features/users/components/starting-password-dialog";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toastError } from "@/lib/errors";
@@ -19,17 +20,28 @@ import type { CreateLoginsResult, PendingLogin } from "../types";
 
 /**
  * After a migration commits: the people who cannot sign in yet, how each would
- * be invited, and one button that gives them all a way in. Nothing is sent at
- * commit, because names read off a terminal are often wrong ("guest card",
- * "test"), so HR looks first. Also the owner's hire-date warning (2026-10-28):
- * the date was set to today, and is HR's to correct.
+ * be invited, and one button that gives them all a way in. Also the owner's
+ * hire-date warning (2026-10-28): the date was set to today, and is HR's to
+ * correct.
+ *
+ * Logins are on by default (owner decision 2026-11-10): with `autoSend`, the
+ * people an invitation can reach are invited as soon as the list is added,
+ * once, without a second button. The reviewer said so before adding the list
+ * and can untick it there: names read off a terminal are often wrong ("guest
+ * card", "test"), and someone bringing such a list in may want to look first.
+ * People no invitation can reach get a printed code each, or one starting
+ * password between them.
+ *
+ * @param autoSend Invite the reachable people as soon as the list is read.
  */
 export function MigrationLogins({
   batchId,
   onContinue,
+  autoSend = false,
 }: {
   batchId: string;
   onContinue?: () => void;
+  autoSend?: boolean;
 }) {
   const { t } = useT();
   const { can } = usePermissions();
@@ -45,6 +57,27 @@ export function MigrationLogins({
     .filter((p) => p.channel === "in_person")
     .map((p) => p.employee_public_id);
 
+  // Invited by themselves, once: the people an invitation can reach who
+  // have not been sent one. A second render, or a second look at the card,
+  // sends nothing more.
+  const sentOnce = useRef(false);
+  const toInvite = pending
+    .filter((p) => p.channel !== "in_person" && !p.invited)
+    .map((p) => p.employee_public_id);
+  const shouldSend =
+    autoSend &&
+    can.inviteUsers &&
+    query.isSuccess &&
+    toInvite.length > 0 &&
+    result === null;
+  useEffect(() => {
+    if (!shouldSend || sentOnce.current) return;
+    sentOnce.current = true;
+    void sendAll(toInvite);
+    // The list of people is read once, when the card first has it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldSend]);
+
   function channelLabel(p: PendingLogin): string {
     return {
       email: t("migration_logins.channel_email", "Email"),
@@ -53,11 +86,9 @@ export function MigrationLogins({
     }[p.channel];
   }
 
-  async function sendAll() {
+  async function sendAll(ids = pending.map((p) => p.employee_public_id)) {
     try {
-      const r = await create.mutateAsync(
-        pending.map((p) => p.employee_public_id),
-      );
+      const r = await create.mutateAsync(ids);
       setResult(r);
       setInvitationBatch(r.batch);
       toast.success(
@@ -108,7 +139,7 @@ export function MigrationLogins({
                   <p className="text-sm text-muted-foreground">
                     {t(
                       "migration_logins.desc",
-                      "Check the names first. People with an email get an invitation by email. People without one are listed for an in-person code, which you issue from their profile, or one starting password for all of them.",
+                      "People with an email get an invitation by email. People without one get a printed code each, which you hand over in person, or one starting password between them.",
                     )}
                   </p>
                   <div className="rounded-lg border">
@@ -184,9 +215,10 @@ export function MigrationLogins({
           )}
 
           <div className="flex flex-wrap justify-end gap-2">
+            <ActivationCodeSheetDialog employeeIds={inPerson} />
             <StartingPasswordDialog employeeIds={inPerson} />
             {can.inviteUsers && pending.length > 0 && !result && (
-              <Button onClick={sendAll} disabled={create.isPending}>
+              <Button onClick={() => sendAll()} disabled={create.isPending}>
                 {create.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}

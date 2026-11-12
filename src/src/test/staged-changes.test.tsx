@@ -324,7 +324,10 @@ describe("<MigrationStep>, a matched row", () => {
     });
     fireEvent.click(screen.getByText("Stage for review"));
 
-    fireEvent.click(await screen.findByRole("checkbox"));
+    // The review step has a second checkbox, for inviting the list's people.
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: /Use this list's value/ }),
+    );
 
     await waitFor(() => expect(patched).not.toBeNull());
     expect(patched).toMatchObject({ action: "merge", accept: ["phone"] });

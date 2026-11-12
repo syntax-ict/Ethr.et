@@ -41,7 +41,12 @@ import {
   useStageFromDevice,
   useStageFromRows,
 } from "../api";
-import type { ColumnMatch, MatchOutcome, StagingAction } from "../types";
+import type {
+  ArrivalStatus,
+  ColumnMatch,
+  MatchOutcome,
+  StagingAction,
+} from "../types";
 import {
   type DateCalendar,
   MAX_PEOPLE,
@@ -172,6 +177,10 @@ export function MigrationStep({
   const commit = useCommitMigration((result) => setRemaining(result.remaining));
 
   const [batchId, setBatchId] = useState<string | null>(null);
+  // What the whole list is brought in with, chosen before it is added: what
+  // its new people arrive as, and whether they are invited straight away.
+  const [arrival, setArrival] = useState<ArrivalStatus>("hired");
+  const [inviteNow, setInviteNow] = useState(true);
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -503,7 +512,7 @@ export function MigrationStep({
     });
     if (!confirmed) return;
     try {
-      const result = await commit.mutateAsync(batchId);
+      const result = await commit.mutateAsync({ batchId, status: arrival });
       toast.success(
         t(
           "setup2.migration_done",
@@ -1050,6 +1059,67 @@ export function MigrationStep({
             />
           </div>
 
+          {batch.status !== "committed" && (
+            <fieldset
+              className="space-y-3 border-t pt-4 text-sm"
+              disabled={commit.isPending || batch.status === "committing"}
+            >
+              <legend className="sr-only">
+                {t("setup2.arrival_legend", "How this list is brought in")}
+              </legend>
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="list-arrival" className="text-foreground">
+                  {t("setup2.arrival_label", "The new people on this list")}
+                </label>
+                <select
+                  id="list-arrival"
+                  value={batch.arrival_status ?? arrival}
+                  onChange={(e) => setArrival(e.target.value as ArrivalStatus)}
+                  className="h-9 rounded-md border border-border-default bg-background px-3 text-sm"
+                >
+                  <option value="hired">
+                    {t("setup2.arrival_hired", "are newly hired")}
+                  </option>
+                  <option value="probation">
+                    {t("setup2.arrival_probation", "are on probation")}
+                  </option>
+                  <option value="confirmed">
+                    {t(
+                      "setup2.arrival_confirmed",
+                      "already work here, confirmed",
+                    )}
+                  </option>
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.arrival_hint",
+                  "Someone confirmed can take leave, be suspended or resign from the first day. A line that gives its own status keeps it.",
+                )}
+              </p>
+              <label className="flex items-start gap-2 text-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4"
+                  checked={inviteNow}
+                  onChange={(e) => setInviteNow(e.target.checked)}
+                />
+                <span>
+                  {t(
+                    "setup2.invite_now",
+                    "Invite them to sign in as soon as they are added",
+                  )}
+                  <span className="block text-xs text-muted-foreground">
+                    {t(
+                      "setup2.invite_now_hint",
+                      "People with an email are sent an invitation. People without one are listed for a printed code.",
+                    )}
+                  </span>
+                </span>
+              </label>
+            </fieldset>
+          )}
+
           <div className="flex items-center justify-between gap-2 border-t pt-4">
             <Button
               variant="ghost"
@@ -1077,7 +1147,11 @@ export function MigrationStep({
           </div>
 
           {batch.status === "committed" && batchId && (
-            <MigrationLogins batchId={batchId} onContinue={onCommitted} />
+            <MigrationLogins
+              batchId={batchId}
+              onContinue={onCommitted}
+              autoSend={inviteNow}
+            />
           )}
         </div>
       )}

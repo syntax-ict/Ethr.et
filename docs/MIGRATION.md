@@ -357,10 +357,41 @@ record, unverified, and counted under `merged`; it is not made a second time.
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
 
+## What the whole list is brought in with (2026-11-12)
+
+Owner decisions of 2026-11-10 (mass activation): a list is brought in with two choices
+made once, on the review step, before it is added.
+
+**What its new people arrive as.** `POST /batches/{batch}/commit` takes `status`: `hired`
+(nothing sent, as before), `probation` or `confirmed`. Everyone a list brought in used to
+arrive as Hired, and a Hired person cannot take leave, be suspended or resign: staff who
+have worked somewhere for years were being recorded as if they had started today.
+`confirmed` sets `confirmation_date` to the day they are added, as the import's own
+`status` column does.
+
+- A line that names its own status keeps it.
+- The choice is read when the list **begins** to be added and kept with it
+  (`migration_batches.options`). A long list is added over several requests, and one
+  carried on from another tab, or by a request that says something else, goes on as it
+  began (`ImportAsConfirmedTest`).
+- The list's payload answers `arrival_status`, so a screen that comes back to a list
+  under way shows what was chosen.
+- Anything outside `EmployeeImportRow::STATUSES` is refused: nobody is brought in as a
+  leaver.
+
+**Whether they are invited straight away.** Ticked by default. When the list has been
+added, the people an invitation can reach and who have not been sent one are invited by
+one request to `POST /api/v1/employees/logins`, without a second button, once. The
+browser makes that request, not the commit: the commit's slices stay inside the host's
+thirty seconds, and nothing is sent inside any request (the invitations are queued and
+paced as before). If the tab is closed first, nothing was sent and the card below still
+offers the button. Unticked, the screen is as it was: HR looks at the names, then sends.
+
 ## After the commit: a way to sign in (2026-10-28)
 
-A migration creates employees and no logins, and sends nothing. Names read off a terminal
-are often wrong ("guest card", "test"), so HR looks first. The commit answer lists
+A migration creates employees and no logins. Names read off a terminal are often wrong
+("guest card", "test"), which is why inviting them is a choice made before the list is
+added (above) and can be left for after HR has looked. The commit answer lists
 `without_login`: each person from the batch with no login, or with one invited and not yet
 activated, and the channel they would be invited by (`email`, `sms` while text invitations
 are on, else `in_person`).
@@ -369,8 +400,32 @@ are on, else `in_person`).
 (`users.invite` and `employee.update`). `EmployeeLogins` gives each person a login as the
 employee import does (the importer uses the same class), queues one batch of invitations,
 and sends nothing inside the request. A person with no way to be reached gets no login
-yet: HR issues an in-person code from their profile. Another organisation's employee id is
-refused with the message an unknown id gets.
+yet: HR issues an in-person code from their profile, prints a sheet of codes for all of
+them, or gives them one starting password between them. Another organisation's employee
+id is refused with the message an unknown id gets.
+
+**A sheet of codes (2026-11-12).** `POST /api/v1/employees/activation-codes`
+(`users.issueActivationCode`, `BulkActivationCodeTest`) issues a one-time code for each
+of up to 200 employees no invitation can reach, and the screen shows them once as slips
+to print and cut: name, employee code, a QR and the code to type.
+
+- Every person is held to what a single issue holds them to
+  (`ActivationCodeService::eligible`). One who is refused is listed under `refused`
+  with why, and the rest are issued.
+- HR confirms it is them (password, and authenticator code when they have one) and
+  undertakes to check each person's identity **when the slip is handed over**. The
+  codes record `document_type` as `at_handover`, and one `issued_batch` between them.
+- A sheet's codes live 72 hours unless `hours` says otherwise, 168 at most. A single
+  code issued face to face stays at 72: a sheet cannot be handed out in a day.
+- When the organisation has no sign-in its people could use, everyone is refused with
+  `identifier` and the screen links to the guided setup's Access step.
+- A slip is no use to anyone else once it is with the right person, which one shared
+  starting password is not. The sheet is offered first for that reason.
+
+**An invitation nobody answered.** Someone invited by email who has not activated in
+three days, and has been sent nothing since, may be given a code, on a sheet or one at a
+time. Until now anyone with an email on file could never get one, even when the address
+was wrong. A reminder restarts the three days.
 
 **Hire dates.** `createEmployee` sets today's date when the source has none, and a device
 never has one. `hire_dates_defaulted` counts those people, and the screen asks HR to

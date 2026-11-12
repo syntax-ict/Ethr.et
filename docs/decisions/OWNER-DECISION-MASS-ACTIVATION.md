@@ -143,7 +143,11 @@ states this risk in plain words before HR confirms.
   account as active; the audit record names the batch.
 - Offering to switch on employee-code sign-in from the dialog. It says to turn it on in
   Settings.
-- Issuing at migration commit (PR 9 of the plan decides the commit-time choices).
+- Issuing at migration commit. PR 9 (2026-11-12) put the commit-time choices on the
+  review step: what the list's new people arrive as, and whether the people an
+  invitation can reach are invited straight away. People no invitation can reach are
+  offered a printed sheet of one-time codes first and this starting password second
+  ([`MIGRATION.md`](../MIGRATION.md), "What the whole list is brought in with").
 
 ## Deploying
 

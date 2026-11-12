@@ -8,6 +8,7 @@ import { apiClient } from "@/api/client";
 import type {
   AccessPolicy,
   ApplyConfigurationResult,
+  ArrivalStatus,
   ColumnMatch,
   CommitResult,
   ConfigurationPlan,
@@ -336,13 +337,20 @@ export class CommitStalled extends Error {
 export async function commitMigration(
   batchId: string,
   onProgress?: (result: CommitResult) => void,
+  status?: ArrivalStatus | null,
 ): Promise<CommitResult> {
   let left = Number.POSITIVE_INFINITY;
   let stalled = 0;
+  // What the list's new people arrive as. The server keeps it from the
+  // first request; it is sent with each so a retry of the first says it too.
+  const body = status ? { status } : undefined;
 
   for (;;) {
     const result: CommitResult = (
-      await apiClient.post(`/onboarding/migration/batches/${batchId}/commit`)
+      await apiClient.post(
+        `/onboarding/migration/batches/${batchId}/commit`,
+        body,
+      )
     ).data;
 
     if (result.status !== "committing") return result;
@@ -362,11 +370,19 @@ export function useCommitMigration(
   onProgress?: (result: CommitResult) => void,
 ) {
   const qc = useQueryClient();
-  return useMutation<CommitResult, unknown, string>({
-    mutationFn: (batchId) => commitMigration(batchId, onProgress),
+  return useMutation<
+    CommitResult,
+    unknown,
+    string | { batchId: string; status?: ArrivalStatus | null }
+  >({
+    mutationFn: (list) =>
+      typeof list === "string"
+        ? commitMigration(list, onProgress)
+        : commitMigration(list.batchId, onProgress, list.status),
     // Settled, not only succeeded: a list that stopped part of the way has
     // still written rows, and the table has to show which.
-    onSettled: (_data, _error, batchId) => {
+    onSettled: (_data, _error, list) => {
+      const batchId = typeof list === "string" ? list : list.batchId;
       qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
       // The people it added are employees now, wherever they are listed.
       qc.invalidateQueries({ queryKey: ["employees"] });

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Onboarding;
 
 use App\Enums\OnboardingStep;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Migration\CommitMigrationRequest;
 use App\Http\Requests\Migration\ReadPeopleRequest;
 use App\Http\Requests\Migration\StageRowsRequest;
 use App\Http\Requests\Migration\UpdateStagingRowRequest;
@@ -222,12 +223,17 @@ class MigrationController extends Controller
      * sent again; nothing is added twice. `totals` counts the whole list so
      * far, and `updated` is how many existing employees had details filled in
      * or changed.
+     *
+     * `status` is what the list's new people arrive as: `hired` when nothing
+     * is sent, or `probation` or `confirmed` for people who already work
+     * here. A line that names its own status keeps it. It is read when the
+     * list begins to be added; a later request cannot change it.
      */
-    public function commit(MigrationBatch $batch): JsonResponse
+    public function commit(CommitMigrationRequest $request, MigrationBatch $batch): JsonResponse
     {
         Gate::authorize('employee.create');
 
-        $progress = $this->migration->commitSlice($batch, request()->user());
+        $progress = $this->migration->commitSlice($batch, $request->user(), $request->options());
         $totals = $this->totalsPayload($progress->totals);
 
         if ($progress->done) {
@@ -305,6 +311,7 @@ class MigrationController extends Controller
             'source_type' => $batch->source_type,
             'source_ref' => $batch->source_ref,
             'status' => $batch->status,
+            'arrival_status' => $batch->arrivalStatus(),
             'totals' => $batch->totals,
             'summary' => $this->summarize($batch),
             'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled))->all(),
