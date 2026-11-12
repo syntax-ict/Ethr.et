@@ -13,6 +13,7 @@ return [
     'read_failed' => 'The device could not be read. Check that it is switched on and reachable from this server, then try again.',
     'simulator_unavailable' => 'The device simulator is only available on development servers. Choose the brand of the real device.',
     'roster' => [
-        'read_directly' => 'This device is read directly, so there is nothing to ask it for. Open the list again to read it now.',
+        'receives_only' => 'This terminal sends its punches to ETHR and cannot be asked who is enrolled on it. Unrecognised badges it has sent are listed under Devices, where each can be given to an employee.',
+        'read_directly' =>'This device is read directly, so there is nothing to ask it for. Open the list again to read it now.',
     ],
 ];

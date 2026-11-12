@@ -240,3 +240,29 @@ it('drops the address and the password when a terminal is switched to send to ET
         ->assertJsonPath('receives_only', false);
     expect($device->refresh()->connection_config)->toBe(['ip' => '203.0.113.20', 'port' => 80]);
 });
+
+it('refuses to list the roster of a terminal that only sends to ETHR, instead of answering an empty one', function () {
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['mode' => 'push'],
+    ]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+    test()->getJson("{$base}/devices/{$device->public_id}/enrollments")
+        ->assertStatus(409)
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('code', 'device-roster-unavailable')
+        ->assertJsonPath('detail', __('device.roster.receives_only'));
+
+    // The refusal comes before the batch: nothing is left behind to read as
+    // "nobody is enrolled".
+    test()->postJson("{$base}/onboarding/migration/devices/{$device->public_id}")
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'device-roster-unavailable');
+
+    expect(\App\Models\MigrationBatch::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(0);
+    Http::assertNothingSent();
+})->beforeEach(fn () => Http::fake());
