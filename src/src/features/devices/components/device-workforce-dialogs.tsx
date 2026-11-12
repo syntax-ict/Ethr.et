@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { ErrorState } from "@/components/shared/error-state";
+import { apiErrorDetail } from "@/lib/api/error-message";
 import { SimpleTable } from "@/components/shared/simple-table";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
@@ -37,6 +39,11 @@ import {
   type HistoryWindow,
   type MatchOutcome,
 } from "../api";
+
+function rosterUnavailableStatus(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } } | null)?.response
+    ?.status;
+}
 
 function outcomeTone(outcome: MatchOutcome): string {
   return {
@@ -76,6 +83,18 @@ export function DeviceEnrollmentsDialog({
   const { t } = useT();
   const { can } = usePermissions();
   const query = useDeviceEnrollments(devicePublicId);
+  // A terminal that only sends to ETHR is refused with a 409 and a reason.
+  // Trying again cannot change it, so the reason is shown without a retry.
+  const rosterUnavailable =
+    rosterUnavailableStatus(query.error) === 409 ? (
+      <ErrorState
+        title={t(
+          "devices_page.roster_unavailable",
+          "This terminal cannot be asked who is enrolled",
+        )}
+        hint={apiErrorDetail(query.error)}
+      />
+    ) : undefined;
 
   return (
     <Dialog open={!!devicePublicId} onOpenChange={(o) => !o && onClose()}>
@@ -95,7 +114,7 @@ export function DeviceEnrollmentsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <QueryBoundary query={query}>
+        <QueryBoundary query={query} error={rosterUnavailable}>
           {(data) => (
             <div className="space-y-3">
               {data.roster?.source === "reported" && devicePublicId && (

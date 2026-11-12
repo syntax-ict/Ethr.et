@@ -204,6 +204,38 @@ describe("<MigrationStep>", () => {
     await waitFor(() => expect(staged).toBe("01HZDEV1"));
   });
 
+  it("offers no device that only sends to ETHR, and says why when that is the only one", async () => {
+    let staged = false;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({
+          data: [
+            { public_id: "01HZDEVPUSH", name: "Habru gate", receives_only: true },
+          ],
+          meta: {},
+          links: {},
+        }),
+      ),
+      http.post("*/onboarding/migration/devices/:device", () => {
+        staged = true;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+    );
+    renderWithClient(<MigrationStep initialDeviceId="01HZDEVPUSH" />);
+
+    expect(
+      await screen.findByText(/cannot be asked who is enrolled on it/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Devices" })).toHaveAttribute(
+      "href",
+      "/devices",
+    );
+    // No button that would stage an empty list.
+    expect(screen.queryByText("Discover enrolled users")).toBeNull();
+    expect(screen.queryByText("Connect a device")).toBeNull();
+    expect(staged).toBe(false);
+  });
+
   it("shows what the server made of the list and which lines need fixing, and stages nothing until they are fixed", async () => {
     let posted = false;
     const asked = reads({
