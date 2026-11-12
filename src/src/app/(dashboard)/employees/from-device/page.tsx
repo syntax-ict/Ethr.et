@@ -17,23 +17,36 @@ import { useT } from "@/lib/i18n/useT";
  * device with `?device=<public id>`.
  */
 function FromDevice() {
-  const params = useSearchParams();
-
-  return <MigrationStep initialDeviceId={params.get("device") ?? undefined} />;
-}
-
-export default function EmployeesFromDevicePage() {
   const { t } = useT();
+  const params = useSearchParams();
+  const device = params.get("device") ?? undefined;
 
+  // Back to where the page was opened from: a device's own dialog passes the
+  // device, the Employees menu does not.
   return (
-    <RoleGate anyPermission={["manageEmployees"]}>
-      <div className="space-y-6">
-        <Button variant="ghost" size="sm" asChild>
+    <>
+      <Button variant="ghost" size="sm" asChild>
+        {device ? (
           <Link href="/devices">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("migration_logins.back_to_devices", "Devices")}
           </Link>
-        </Button>
+        ) : (
+          <Link href="/employees">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t("nav.employees", "Employees")}
+          </Link>
+        )}
+      </Button>
+      <MigrationStep initialDeviceId={device} />
+    </>
+  );
+}
+
+export default function EmployeesFromDevicePage() {
+  return (
+    <RoleGate anyPermission={["manageEmployees"]}>
+      <div className="space-y-6">
         <Suspense fallback={<Skeleton className="h-64" />}>
           <FromDevice />
         </Suspense>

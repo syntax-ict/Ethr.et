@@ -89,7 +89,7 @@ function isPoll(
 
 export function useDevices(
   params?: DeviceListParams,
-  options?: { refetchInterval?: number },
+  options?: { refetchInterval?: number; enabled?: boolean },
 ) {
   return useQuery<PaginatedResponse<Device>>({
     queryKey: keys.list(params),
@@ -122,6 +122,7 @@ export function useDevices(
       return { ...(last as PaginatedResponse<Device>), data: rows };
     },
     refetchInterval: options?.refetchInterval,
+    enabled: options?.enabled ?? true,
   });
 }
 

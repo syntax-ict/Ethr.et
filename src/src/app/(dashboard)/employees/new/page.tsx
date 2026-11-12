@@ -14,6 +14,7 @@ import {
 } from "@/features/organization/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AddEmployeeMenu } from "@/features/employees/components/add-employee-menu";
 import {
   AlertTriangle,
   Briefcase,
@@ -368,15 +369,7 @@ export default function NewEmployeePage() {
 
   return (
     <>
-      <PageActions
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/employees/import">
-              {t("employee.import_instead", "Import a file instead")}
-            </Link>
-          </Button>
-        }
-      />
+      <PageActions actions={<AddEmployeeMenu variant="others" />} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <p className="text-sm text-muted-foreground">
