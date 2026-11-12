@@ -35,7 +35,7 @@ class DeviceEnrollmentController extends Controller
         private readonly AdmsRoster $roster,
     ) {}
 
-    public function index(Device $device): JsonResponse
+    public function index(Request $request, Device $device): JsonResponse
     {
         Gate::authorize('device.view');
 
@@ -53,16 +53,23 @@ class DeviceEnrollmentController extends Controller
             IdentityMatch::NEW => 0,
         ];
 
-        $rows = [];
-        foreach ($enrollments as $enrollment) {
-            $userId = $enrollment['device_user_id'];
-
-            $match = $this->resolver->resolve($device->tenant_id, IdentitySignals::forDeviceUser(
+        $matches = [];
+        foreach ($enrollments as $index => $enrollment) {
+            $matches[$index] = $this->resolver->resolve($device->tenant_id, IdentitySignals::forDeviceUser(
                 $device,
-                $userId,
+                $enrollment['device_user_id'],
                 $enrollment['card_number'] ?? null,
                 $enrollment['name'] ?? null,
             ));
+        }
+
+        // Only the people this viewer may open are named (IdentityMatch::visibleTo).
+        $visible = IdentityMatch::visibleTo($matches, $request->user());
+
+        $rows = [];
+        foreach ($enrollments as $index => $enrollment) {
+            $userId = $enrollment['device_user_id'];
+            $match = $matches[$index];
 
             $summary[$match->outcome] = ($summary[$match->outcome] ?? 0) + 1;
 
@@ -73,7 +80,7 @@ class DeviceEnrollmentController extends Controller
                 'department' => $enrollment['department'] ?? null,
                 'fingerprint_count' => isset($enrollment['fingerprint_count']) ? (int) $enrollment['fingerprint_count'] : null,
                 'face_registered' => isset($enrollment['face_registered']) ? (bool) $enrollment['face_registered'] : null,
-                'match' => $match->toArray(),
+                'match' => $visible[$index],
             ];
         }
 

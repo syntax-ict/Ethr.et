@@ -5,9 +5,12 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Exceptions\DeviceRequestFailed;
 use App\Models\Branch;
+use App\Models\CustomRole;
+use App\Models\Department;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
+use App\Models\Permission;
 use App\Models\Tenant;
 use App\Services\Device\GenericHttpAdapter;
 use Illuminate\Support\Facades\Http;
@@ -60,6 +63,39 @@ describe('device enrollment discovery endpoint', function () {
         test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/enrollments")
             ->assertOk()
             ->assertJsonPath('summary.matched', 1);
+    });
+
+    // The resolver reads the whole organisation; the answer names only the
+    // people the viewer may open (2026-11-12).
+    it('names no matched employee a department-scoped viewer cannot open', function () {
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $theirs = Department::factory()->create(['tenant_id' => $tenant->id]);
+        $other = Department::factory()->create(['tenant_id' => $tenant->id]);
+        $hidden = Employee::factory()->create([
+            'tenant_id' => $tenant->id, 'department_id' => $other->id,
+            'employee_code' => 'EMP-9', 'badge_number' => '1009', 'name' => 'Hidden Person',
+        ]);
+        $manager = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $theirs->id]);
+        $role = CustomRole::query()->forceCreate(['tenant_id' => $tenant->id, 'name' => 'Dept devices', 'is_active' => true, 'org_scope' => 'department']);
+        $role->permissions()->sync(Permission::whereIn('name', ['device.view', 'device.viewAny'])->pluck('id'));
+        Permission::clearCacheForCustomRole($role->id);
+        test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $manager->id, 'custom_role_id' => $role->id], $tenant));
+        $device = Device::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'adapter_type' => 'mock',
+            'status' => 'online',
+        ]);
+
+        $enrollments = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/enrollments")
+            ->assertOk()
+            ->json('enrollments');
+        $row = collect($enrollments)->firstWhere('device_user_id', '1009');
+
+        expect($row['match']['outcome'])->toBe('matched')
+            ->and($row['match']['employee_public_id'])->toBeNull()
+            ->and(json_encode($row['match']))->not->toContain($hidden->public_id);
     });
 
     it('denies enrollment discovery to employees', function () {
