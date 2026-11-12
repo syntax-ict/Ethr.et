@@ -35,6 +35,7 @@ class MigrationBatch extends Model
         'totals',
         'commit_cursor',
         'committed_at',
+        'options',
     ];
 
     protected $hidden = [
@@ -48,6 +49,7 @@ class MigrationBatch extends Model
             'totals' => 'array',
             'commit_cursor' => 'integer',
             'committed_at' => 'datetime',
+            'options' => 'array',
         ];
     }
 
@@ -55,6 +57,18 @@ class MigrationBatch extends Model
     public function rows(): HasMany
     {
         return $this->hasMany(MigrationStagingRow::class, 'batch_id');
+    }
+
+    /**
+     * The status the list's new people arrive with, chosen when it began to
+     * be added. Null when nothing was chosen: they arrive as `hired`.
+     */
+    public function arrivalStatus(): ?string
+    {
+        $options = $this->getAttribute('options');
+        $status = is_array($options) ? ($options['status'] ?? null) : null;
+
+        return is_string($status) ? $status : null;
     }
 
     public function isCommitted(): bool

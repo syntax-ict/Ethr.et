@@ -200,12 +200,13 @@ final class WorkforceMigrationService
      * `$actor` is who the changes to existing employees are made by. With
      * none, people are created and linked and nobody's record is edited.
      *
+     * @param  array{status?: string}|null  $options  what the whole list is brought in with (commitSlice)
      * @return array<string, int>
      */
-    public function commit(MigrationBatch $batch, ?User $actor = null): array
+    public function commit(MigrationBatch $batch, ?User $actor = null, ?array $options = null): array
     {
         do {
-            $progress = $this->commitSlice($batch, $actor);
+            $progress = $this->commitSlice($batch, $actor, $options);
         } while (! $progress->done);
 
         return $progress->totals;
@@ -216,11 +217,28 @@ final class WorkforceMigrationService
      * each their own transaction under the organisation's lock. What a chunk
      * wrote stays written: a request that dies loses the chunk it was in and
      * the next one starts from the row after the last that was finished.
+     *
+     * `$options` is what the reviewer chose for the whole list: the status
+     * its new people arrive with. It is kept with the list when the first
+     * slice begins and read from there afterwards, so a list carried on from
+     * another tab, or by a request that says something else, goes on as it
+     * began.
+     *
+     * @param  array{status?: string}|null  $options
      */
-    public function commitSlice(MigrationBatch $batch, ?User $actor = null): CommitProgress
+    public function commitSlice(MigrationBatch $batch, ?User $actor = null, ?array $options = null): CommitProgress
     {
         if ($batch->isCommitted()) {
             return new CommitProgress(true, $this->totalsOf($batch), 0);
+        }
+
+        if ($options !== null) {
+            MigrationBatch::query()
+                ->whereKey($batch->getKey())
+                ->where('tenant_id', $batch->tenant_id)
+                ->where('status', 'reviewing')
+                ->update(['options' => json_encode($options)]);
+            $batch->refresh();
         }
 
         $tenant = Tenant::query()->findOrFail($batch->tenant_id);
@@ -635,7 +653,8 @@ final class WorkforceMigrationService
             'badge_number' => $text('badge_number'),
             'hire_date' => $text('hire_date') ?? now()->toDateString(),
             'department_id' => $departments->id($text('department')),
-            ...EmployeeImportRow::employment($text('status')),
+            // The line's own status, or the one chosen for the whole list.
+            ...EmployeeImportRow::employment($text('status') ?? $batch->arrivalStatus()),
             ...array_filter($details, fn (mixed $value): bool => $value !== null),
         ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
     }
