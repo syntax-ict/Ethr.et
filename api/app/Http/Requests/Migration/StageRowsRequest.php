@@ -22,6 +22,9 @@ use Illuminate\Validation\Validator;
  * `rows` is the list already keyed by field, for a caller that holds
  * structured values. It takes every column of the employee template, and
  * `department`, `branch` and `position` by code or name.
+ *
+ * `source` names a saved source of the organisation's: a grid is read with
+ * its column names, and an `external_id` in either shape is kept against it.
  */
 class StageRowsRequest extends FormRequest
 {
@@ -70,12 +73,13 @@ class StageRowsRequest extends FormRequest
         }
 
         $staged = [];
+        $source = $this->sourceName();
         foreach ((array) $this->validated('rows') as $row) {
             $row = is_array($row) ? $row : [];
             foreach (self::RELATIONS as $named => $column) {
                 $row[$column] ??= $row[$named] ?? null;
             }
-            $staged[] = EmployeeImportRow::staged($row);
+            $staged[] = EmployeeImportRow::staged($row, $source);
         }
 
         return $staged;
@@ -117,7 +121,17 @@ class StageRowsRequest extends FormRequest
                 return;
             }
 
+            $this->checkSource($validator);
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
             $read = $this->people();
+            if ($read !== null && $read->needsName) {
+                $validator->errors()->add('mapping', __('onboarding.migration.mapping_needs_name'));
+
+                return;
+            }
             if ($read !== null) {
                 foreach ($this->boolean('skip_problems') ? [] : $read->problems as $problem) {
                     $validator->errors()->add('grid.'.($problem['line'] - 1), __('onboarding.migration.line', $problem));

@@ -25895,7 +25895,7 @@
                     "write"
                 ],
                 "operationId": "migration.read",
-                "description": "`grid` is the list as lines of cells, the first line its column names\nor none. The answer says how many people are ready, which columns were\nread and which column names mean nothing here, and every line that\ncannot be staged, with its number as the reader counts it. Nothing is\nkept.",
+                "description": "`grid` is the list as lines of cells, the first line its column names\nor none. The answer says how many people are ready, which columns were\nread and which column names mean nothing here, and every line that\ncannot be staged, with its number as the reader counts it. Nothing is\nkept.\n\nA list from another system names its columns its own way. Send\n`mapping`, a list of `{header, column}` saying what each of its column\nnames is (null leaves one out), or `source`, a saved source whose\ncolumn names are already matched. `headers` describes the first line\nfor that: each name as written, the column it is read as, and for one\nthat is not read, what it might be. `suggested_source` is a saved\nsource whose column names this list has; `needs_name` says the columns\nwere matched and none of them is the name.",
                 "summary": "Read a list of people without staging it",
                 "tags": [
                     "Onboarding"
@@ -25962,6 +25962,52 @@
                                                     "message"
                                                 ]
                                             }
+                                        },
+                                        "headers": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "header": {
+                                                        "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "suggested": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "header",
+                                                    "column",
+                                                    "suggested"
+                                                ]
+                                            }
+                                        },
+                                        "header_likely": {
+                                            "type": "boolean"
+                                        },
+                                        "needs_name": {
+                                            "type": "boolean"
+                                        },
+                                        "source": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "suggested_source": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -25972,7 +26018,12 @@
                                         "calendar",
                                         "calendar_from_header",
                                         "without_hire_date",
-                                        "problems"
+                                        "problems",
+                                        "headers",
+                                        "header_likely",
+                                        "needs_name",
+                                        "source",
+                                        "suggested_source"
                                     ]
                                 }
                             }
@@ -25996,7 +26047,7 @@
                     "write"
                 ],
                 "operationId": "migration.stageFromRows",
-                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.",
+                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.",
                 "summary": "Stage a list of people for review",
                 "tags": [
                     "Onboarding"
@@ -26375,6 +26426,326 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/onboarding/migration/sources": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "importMapping.index",
+                "summary": "The organisation's saved sources, by name",
+                "tags": [
+                    "Onboarding"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "columns": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "header": {
+                                                                    "type": "string"
+                                                                },
+                                                                "column": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "header",
+                                                                "column"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "calendar": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "updated_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "name",
+                                                    "columns",
+                                                    "calendar",
+                                                    "updated_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "importMapping.store",
+                "description": "`mapping` is a list of `{header, column}`: a column name as the\nsource's file writes it, and the ETHR column it is, or null for one\nthat is left out. One of them has to be the name.",
+                "summary": "Save a source and what each of its column names is",
+                "tags": [
+                    "Onboarding"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveImportMappingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "header": {
+                                                        "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "header",
+                                                    "column"
+                                                ]
+                                            }
+                                        },
+                                        "calendar": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "name",
+                                        "columns",
+                                        "calendar",
+                                        "updated_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/onboarding/migration/sources/{importMapping}": {
+            "put": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "importMapping.update",
+                "description": "Renaming does not change what its ids from the other system are kept\nagainst: the people already linked stay linked.",
+                "summary": "Rename a source or change what its column names are",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "importMapping",
+                        "in": "path",
+                        "required": true,
+                        "description": "The import mapping public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateImportMappingRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "header": {
+                                                        "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "header",
+                                                    "column"
+                                                ]
+                                            }
+                                        },
+                                        "calendar": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "updated_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "name",
+                                        "columns",
+                                        "calendar",
+                                        "updated_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "importMapping.destroy",
+                "description": "The people it brought stay as they are, and so do their ids from the\nother system: a source saved again under the same name finds them.",
+                "summary": "Forget a source's column names",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "importMapping",
+                        "in": "path",
+                        "required": true,
+                        "description": "The import mapping public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -50907,6 +51278,60 @@
                         },
                         "minItems": 1,
                         "maxItems": 5000
+                    },
+                    "source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "mapping": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "header": {
+                                    "type": "string",
+                                    "maxLength": 255
+                                },
+                                "column": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "name",
+                                        "name_am",
+                                        "employee_code",
+                                        "email",
+                                        "phone",
+                                        "gender",
+                                        "date_of_birth",
+                                        "hire_date",
+                                        "department_code",
+                                        "branch_code",
+                                        "position_code",
+                                        "salary",
+                                        "national_id",
+                                        "tin",
+                                        "badge_number",
+                                        "nationality",
+                                        "nationality_status",
+                                        "marital_status",
+                                        "status",
+                                        "external_id",
+                                        null
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "header",
+                                "column"
+                            ]
+                        },
+                        "maxItems": 60
                     }
                 },
                 "required": [
@@ -51553,6 +51978,80 @@
                 ],
                 "title": "SaveAttendanceSiteRequest"
             },
+            "SaveImportMappingRequest": {
+                "type": "object",
+                "description": "A source of lists and how it names its columns, saved or changed.\n\n`mapping` is a list of {header, column}: a column name as the source's\nfile writes it, and the ETHR column it is, or null for one that is left\nout. One of them has to be the name, or nothing the source sends could\never be read.\n\nA source's name is its own within the organisation. Two names that differ\nonly in case or punctuation are the same source: ids from the other system\nare kept against the name's slug, and two sources sharing one would share\neach other's people.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                    },
+                    "calendar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "gregorian",
+                            "ethiopian",
+                            null
+                        ]
+                    },
+                    "mapping": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "header": {
+                                    "type": "string",
+                                    "maxLength": 255
+                                },
+                                "column": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "name",
+                                        "name_am",
+                                        "employee_code",
+                                        "email",
+                                        "phone",
+                                        "gender",
+                                        "date_of_birth",
+                                        "hire_date",
+                                        "department_code",
+                                        "branch_code",
+                                        "position_code",
+                                        "salary",
+                                        "national_id",
+                                        "tin",
+                                        "badge_number",
+                                        "nationality",
+                                        "nationality_status",
+                                        "marital_status",
+                                        "status",
+                                        "external_id",
+                                        null
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "header",
+                                "column"
+                            ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 60
+                    }
+                },
+                "required": [
+                    "name",
+                    "mapping"
+                ],
+                "title": "SaveImportMappingRequest"
+            },
             "SaveReportRequest": {
                 "type": "object",
                 "properties": {
@@ -51920,7 +52419,7 @@
             },
             "StageRowsRequest": {
                 "type": "object",
-                "description": "A list of people to stage, in one of two shapes.\n\n`grid` is the list as cells, the first line its column names or none: what\na person pasted or a file held. It is read as every list of people is, so\na column name, a date and a salary mean here what they mean in a file.\n\n`rows` is the list already keyed by field, for a caller that holds\nstructured values. It takes every column of the employee template, and\n`department`, `branch` and `position` by code or name.",
+                "description": "A list of people to stage, in one of two shapes.\n\n`grid` is the list as cells, the first line its column names or none: what\na person pasted or a file held. It is read as every list of people is, so\na column name, a date and a salary mean here what they mean in a file.\n\n`rows` is the list already keyed by field, for a caller that holds\nstructured values. It takes every column of the employee template, and\n`department`, `branch` and `position` by code or name.\n\n`source` names a saved source of the organisation's: a grid is read with\nits column names, and an `external_id` in either shape is kept against it.",
                 "properties": {
                     "source_type": {
                         "type": "string",
@@ -51958,6 +52457,60 @@
                         },
                         "minItems": 1,
                         "maxItems": 5000
+                    },
+                    "source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "mapping": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "header": {
+                                    "type": "string",
+                                    "maxLength": 255
+                                },
+                                "column": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "name",
+                                        "name_am",
+                                        "employee_code",
+                                        "email",
+                                        "phone",
+                                        "gender",
+                                        "date_of_birth",
+                                        "hire_date",
+                                        "department_code",
+                                        "branch_code",
+                                        "position_code",
+                                        "salary",
+                                        "national_id",
+                                        "tin",
+                                        "badge_number",
+                                        "nationality",
+                                        "nationality_status",
+                                        "marital_status",
+                                        "status",
+                                        "external_id",
+                                        null
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "header",
+                                "column"
+                            ]
+                        },
+                        "maxItems": 60
                     },
                     "skip_problems": {
                         "type": "boolean"
@@ -55614,6 +56167,75 @@
                     }
                 },
                 "title": "UpdateHolidayRequest"
+            },
+            "UpdateImportMappingRequest": {
+                "type": "object",
+                "description": "A saved source renamed, or its column names matched again. Either may be\nsent without the other; what is sent is held to what saving one is.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                    },
+                    "calendar": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "gregorian",
+                            "ethiopian",
+                            null
+                        ]
+                    },
+                    "mapping": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "header": {
+                                    "type": "string",
+                                    "maxLength": 255
+                                },
+                                "column": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "name",
+                                        "name_am",
+                                        "employee_code",
+                                        "email",
+                                        "phone",
+                                        "gender",
+                                        "date_of_birth",
+                                        "hire_date",
+                                        "department_code",
+                                        "branch_code",
+                                        "position_code",
+                                        "salary",
+                                        "national_id",
+                                        "tin",
+                                        "badge_number",
+                                        "nationality",
+                                        "nationality_status",
+                                        "marital_status",
+                                        "status",
+                                        "external_id",
+                                        null
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "header",
+                                "column"
+                            ]
+                        },
+                        "maxItems": 60
+                    }
+                },
+                "title": "UpdateImportMappingRequest"
             },
             "UpdateLeaveTypeRequest": {
                 "type": "object",

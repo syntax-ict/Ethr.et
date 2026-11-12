@@ -32,5 +32,8 @@ return [
         'relation_not_found' => ':field ":value" hin argamne. Koodii isaa ykn maqaa isaa akkuma ETHR keessatti mul\'atutti fayyadamaa.',
         'relation_ambiguous' => ':field tokkoo ol ":value" jedhama. Qooda kanaa koodii isaa fayyadamaa.',
         'duplicate_in_list' => ':field ":value" sarara :first irras jira. Namni tokkoon tokkoo kan mataa isaa barbaada.',
+        'mapping_needs_name' => 'Tarree maqaan namichaa keessa jiru filadhaa. Isa malee wanti dubbifamu hin jiru.',
+        'source_name_taken' => 'Maddi maqaa kanaan kuufame jira. Tarree keessaa filadhaa yookaan maqaa biraa fayyadamaa.',
+        'source_limit' => 'Dhaabbanni tokko madda kuufame :max qofa qabata. Kan hin fayyadamne tokko haqaa.',
     ],
 ];

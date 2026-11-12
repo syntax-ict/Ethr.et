@@ -228,8 +228,12 @@ From the plan, in order; none is built yet:
 - **A list's status is for new people only.** `status` sets what someone
   arrives as. It is not a field of an edit: changing an existing employee's
   status will go through `EmployeeTransitionService`.
-- **Every other-system id shares one source.** `external_id` is linked under
-  `hr_system` / `default` until a list can name where it came from.
+- **An other-system id is kept against its source only when the list names
+  one.** A list read as a saved source links `external_id` under
+  `hr_system` / that source's slug (2026-11-12, [MIGRATION.md](MIGRATION.md),
+  "Another system's column names"). A list that names no source, and the older
+  `POST /employees/import/commit`, still use `hr_system` / `default`, where two
+  systems' ids can collide.
 - **A directory's refusal has no screen.** SCIM and SSO refuse a person who may
   be an existing employee and write an audit record (`scim.user_refused`,
   `sso.provision_refused`); nothing tells HR. The SSO sign-in page says only

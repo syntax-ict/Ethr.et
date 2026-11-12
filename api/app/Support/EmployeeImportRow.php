@@ -10,6 +10,7 @@ use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Identity\IdentitySignals;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 /**
  * The one definition of a valid employee import row.
@@ -76,6 +77,51 @@ final class EmployeeImportRow
 
     /** Where an "ID in the other system" is kept: one identity per person, per source. */
     public const EXTERNAL_SOURCE = 'hr_system';
+
+    /** The source of a list that names none: the ETHR template, or a file read once. */
+    public const DEFAULT_SOURCE = 'default';
+
+    /**
+     * The columns a reader may say a column of their own file is. `salary_cents`
+     * is how a salary is kept, not something a file is asked for.
+     *
+     * @var list<string>
+     */
+    public const MAPPABLE = [
+        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'hire_date', 'department_code', 'branch_code', 'position_code', 'salary',
+        'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
+        'status', 'external_id',
+    ];
+
+    /**
+     * Words that suggest what a column nobody has named might be. A guess for
+     * the reader to accept or change (suggest()), never read as an answer:
+     * "Emp Nm" is probably the name, and "Net pay" is not the salary.
+     *
+     * @var array<string, list<string>>
+     */
+    private const HINTS = [
+        'external_id' => ['legacy', 'old_id', 'system_id', 'source_id', 'record_id', 'person_id'],
+        'name_am' => ['amharic', 'አማርኛ'],
+        'email' => ['mail'],
+        'phone' => ['phone', 'mobile', 'tel', 'cell', 'ስልክ'],
+        'date_of_birth' => ['birth', 'dob'],
+        'hire_date' => ['hire', 'join', 'start', 'doj', 'engage'],
+        'department_code' => ['dept', 'depart', 'division', 'unit', 'ክፍል'],
+        'branch_code' => ['branch', 'site', 'location', 'office'],
+        'position_code' => ['position', 'title', 'job', 'designation', 'role'],
+        'salary' => ['salary', 'basic', 'ደመወዝ'],
+        'nationality' => ['nationality', 'citizen'],
+        'national_id' => ['national', 'fayda'],
+        'tin' => ['tin', 'taxpayer'],
+        'badge_number' => ['badge', 'card', 'device', 'finger'],
+        'gender' => ['gender', 'sex', 'ጾታ'],
+        'marital_status' => ['marital', 'married'],
+        'status' => ['status'],
+        'name' => ['name', 'nm', 'ስም'],
+        'employee_code' => ['code', 'number', 'no', 'id'],
+    ];
 
     /**
      * The header row of the downloadable template: the friendly spelling of each
@@ -219,6 +265,79 @@ final class EmployeeImportRow
     private static function key(string $value): string
     {
         return trim((string) preg_replace('/[^\p{L}\p{N}]+/u', '_', mb_strtolower(trim($value))), '_');
+    }
+
+    /**
+     * The rules for a list of {header, column}: a column name as a file
+     * writes it, and the column of MAPPABLE it is, or null for one left out.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public static function mappingRules(string $presence): array
+    {
+        return [
+            'mapping' => [$presence, 'array', 'max:60'],
+            'mapping.*' => ['array'],
+            'mapping.*.header' => ['required', 'string', 'max:255'],
+            'mapping.*.column' => ['present', 'nullable', 'string', Rule::in(self::MAPPABLE)],
+        ];
+    }
+
+    /**
+     * A column name as a saved mapping keeps it, so "Emp. Name" in this
+     * month's file is the "EMP NAME" that was matched last month.
+     */
+    public static function headerKey(string $cell): string
+    {
+        return self::key($cell);
+    }
+
+    /**
+     * The calendar a column name says its dates are in, whatever the rest of
+     * it says: "DOJ (E.C.)" is Ethiopian even though ETHR has never heard of DOJ.
+     *
+     * @return 'gregorian'|'ethiopian'|null
+     */
+    public static function calendarMark(string $cell): ?string
+    {
+        $key = self::key($cell);
+
+        foreach (self::CALENDAR_MARKS as $mark => $calendar) {
+            if (str_ends_with($key, '_'.$mark)) {
+                return $calendar;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * What a column ETHR does not know might be, from the words in its name.
+     * Null when nothing in it is a hint. The reader decides; this only saves
+     * them choosing the obvious ones.
+     */
+    public static function suggest(string $cell): ?string
+    {
+        $key = self::key($cell);
+        if ($key === '') {
+            return null;
+        }
+
+        $words = explode('_', $key);
+        foreach (self::HINTS as $column => $hints) {
+            foreach ($hints as $hint) {
+                // A short hint is a whole word ("no", "id", "nm"); a longer
+                // one may be part of one ("depart" in "department").
+                $found = mb_strlen($hint) <= 3 || str_contains($hint, '_')
+                    ? (in_array($hint, $words, true) || $key === $hint || str_contains('_'.$key.'_', '_'.$hint.'_'))
+                    : str_contains($key, $hint);
+                if ($found) {
+                    return $column;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -379,9 +498,10 @@ final class EmployeeImportRow
      * row brings an id from another system, the identity it is linked as.
      *
      * @param  array<string, mixed>  $row
+     * @param  string  $source  the saved source the list was read as, when it names one
      * @return array<string, mixed>
      */
-    public static function staged(array $row): array
+    public static function staged(array $row, string $source = self::DEFAULT_SOURCE): array
     {
         $staged = [];
         foreach (self::COLUMNS as $column) {
@@ -406,7 +526,7 @@ final class EmployeeImportRow
             $staged['salary_cents'] = $salary;
         }
 
-        return [...$staged, ...self::externalIdentity($staged['external_id'] ?? null)];
+        return [...$staged, ...self::externalIdentity($staged['external_id'] ?? null, $source)];
     }
 
     /**
@@ -414,9 +534,14 @@ final class EmployeeImportRow
      * staged row and IdentitySignals share. The same id in a later list finds
      * the same person, whatever else about them has changed.
      *
+     * An id belongs to the system that issued it: 1042 in the payroll system
+     * and 1042 in the old HR system are two people. `$source` is the saved
+     * source's own name for itself (ImportMapping::slug), which does not
+     * change when the source is renamed.
+     *
      * @return array{}|array{source_type: string, source_ref: string, identifier_type: string, identifier_value: string}
      */
-    public static function externalIdentity(?string $externalId): array
+    public static function externalIdentity(?string $externalId, string $source = self::DEFAULT_SOURCE): array
     {
         if ($externalId === null || trim($externalId) === '') {
             return [];
@@ -424,7 +549,7 @@ final class EmployeeImportRow
 
         return [
             'source_type' => self::EXTERNAL_SOURCE,
-            'source_ref' => 'default',
+            'source_ref' => $source,
             'identifier_type' => 'external_id',
             'identifier_value' => trim($externalId),
         ];

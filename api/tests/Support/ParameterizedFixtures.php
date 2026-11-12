@@ -35,6 +35,7 @@ use App\Models\ExitClearanceItem;
 use App\Models\Grade;
 use App\Models\GradeSalaryStep;
 use App\Models\Holiday;
+use App\Models\ImportMapping;
 use App\Models\Invoice;
 use App\Models\JobApplication;
 use App\Models\KioskSession;
@@ -190,6 +191,10 @@ final class ParameterizedFixtures
             'publicId' => $tenant->public_id, 'employeePublicId' => $employee->public_id,
             'subdomain' => $tenant->subdomain, 'slug' => (string) $templateSlug,
             'batch' => $migrationBatch->public_id,
+            'importMapping' => ImportMapping::query()->forceCreate([
+                'tenant_id' => $tenant->id, 'name' => 'Old payroll', 'slug' => 'old-payroll',
+                'columns' => [['header' => 'Emp Nm', 'column' => 'name']],
+            ])->public_id,
             // Import status is keyed by the caller-supplied import key, not a model
             // public_id. Any string resolves — an unknown key is a well-formed 404,
             // which is a valid non-5xx outcome for this smoke sweep.

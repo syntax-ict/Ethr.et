@@ -32,14 +32,16 @@ import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   CommitStalled,
+  listColumns,
   useCommitMigration,
+  useImportSources,
   useMigrationBatch,
   useReadPeople,
   useSetRowAction,
   useStageFromDevice,
   useStageFromRows,
 } from "../api";
-import type { MatchOutcome, StagingAction } from "../types";
+import type { ColumnMatch, MatchOutcome, StagingAction } from "../types";
 import {
   type DateCalendar,
   MAX_PEOPLE,
@@ -56,6 +58,7 @@ import {
   readWorkbook,
   TooManyLines,
 } from "../xlsx-grid";
+import { ColumnMatcher } from "./column-matcher";
 import { MigrationLogins } from "./migration-logins";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -190,8 +193,59 @@ export function MigrationStep({
   // cannot be staged. The browser only splits it into cells, once it rests.
   const rested = useDebounce(csv, READ_AFTER_MS);
   const grid = useMemo(() => toGrid(rested), [rested]);
-  const readQuery = useReadPeople(grid, dateCalendar, batchId === null);
+  // A list from another system names its columns its own way. They are
+  // matched here (`matched`), or already saved under that system's name
+  // (`sourceId`), and the server reads the list as it is told.
+  const sourcesQuery = useImportSources(batchId === null);
+  const savedSources = useMemo(
+    () => sourcesQuery.data ?? [],
+    [sourcesQuery.data],
+  );
+  const [sourceId, setSourceId] = useState<string | null>(null);
+  const [matched, setMatched] = useState<ColumnMatch[] | null>(null);
+  const [matching, setMatching] = useState(false);
+  const source = savedSources.find((s) => s.public_id === sourceId) ?? null;
+  const named = useMemo(
+    () => ({ source: sourceId, mapping: matched }),
+    [sourceId, matched],
+  );
+  const readQuery = useReadPeople(grid, dateCalendar, batchId === null, named);
   const read = csv.trim() === "" ? undefined : readQuery.data;
+  // A saved source whose column names this list has, offered once the
+  // reader has not already said where the list is from.
+  const suggested =
+    sourceId === null && matched === null && read?.suggested_source
+      ? (savedSources.find((s) => s.public_id === read.suggested_source) ??
+        null)
+      : null;
+  // Each column name with its answer: the reader's own where they have
+  // given one. The server's reading lags a choice by a request, and an
+  // answer rebuilt from it would undo the choice made just before.
+  const matches = useMemo<ColumnMatch[]>(
+    () =>
+      (read?.headers ?? []).map((h) => {
+        const said = matched?.find((m) => m.header === h.header);
+        return { header: h.header, column: said ? said.column : h.column };
+      }),
+    [read, matched],
+  );
+  // The columns were matched and none of them is the name.
+  const nameless =
+    read?.needs_name === true ||
+    (matched !== null && !matches.some((m) => m.column === "name"));
+  // A value under each column name, from the first person in the list.
+  const samples = useMemo(() => {
+    const lines = grid.filter((line) => line.some((cell) => cell !== ""));
+    const [names = [], first = []] = lines;
+    const found: Record<string, string> = {};
+    names.forEach((cell, index) => {
+      const header = cell.trim();
+      if (header !== "" && found[header] === undefined) {
+        found[header] = (first[index] ?? "").trim();
+      }
+    });
+    return found;
+  }, [grid]);
   const reading = csv.trim() !== "" && (rested !== csv || readQuery.isFetching);
   // What a staging the server refused said, until the list changes.
   const [refused, setRefused] = useState<{ csv: string; lines: string[] }>({
@@ -238,6 +292,11 @@ export function MigrationStep({
       );
       return;
     }
+    // Another file is another list: what was said about the last one's
+    // columns does not carry over.
+    setSourceId(null);
+    setMatched(null);
+    setMatching(false);
     if (!/\.xlsx$/i.test(file.name)) {
       setCsv(await file.text());
       return;
@@ -265,6 +324,41 @@ export function MigrationStep({
               ),
       );
     }
+  }
+
+  /**
+   * Read the list as a saved source names its columns, or as ETHR does.
+   * What was matched by hand goes: it was about the columns as they were
+   * read before. A source saved with a calendar brings it, unless the reader
+   * has already said which calendar the dates are in.
+   */
+  function chooseSource(publicId: string | null) {
+    setSourceId(publicId);
+    setMatched(null);
+    const chosen = savedSources.find((s) => s.public_id === publicId);
+    if (
+      chosenCalendar === null &&
+      (chosen?.calendar === "ethiopian" || chosen?.calendar === "gregorian")
+    ) {
+      setChosenCalendar(chosen.calendar);
+    }
+  }
+
+  /**
+   * Open the matcher with every column answered: what the server read it
+   * as, or its guess for one it did not read. From here the reader's word
+   * is what is sent, column by column.
+   */
+  function openMatcher() {
+    if (read) {
+      setMatched(
+        read.headers.map((h) => ({
+          header: h.header,
+          column: h.column ?? h.suggested,
+        })),
+      );
+    }
+    setMatching(true);
   }
 
   /**
@@ -360,6 +454,7 @@ export function MigrationStep({
         grid: toGrid(csv),
         calendar: dateCalendar,
         ...(leaveOutProblems ? { skip_problems: true } : {}),
+        ...listColumns(named),
       });
       setBatchId(b.public_id);
     } catch (err) {
@@ -569,6 +664,34 @@ export function MigrationStep({
                   </Button>
                 ))}
               </div>
+              {savedSources.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <label
+                    htmlFor="people-source"
+                    className="text-muted-foreground"
+                  >
+                    {t("setup2.source_label", "This list comes from")}
+                  </label>
+                  <select
+                    id="people-source"
+                    value={sourceId ?? ""}
+                    onChange={(e) => chooseSource(e.target.value || null)}
+                    className="h-8 rounded-md border border-border-default bg-background px-2 text-xs"
+                  >
+                    <option value="">
+                      {t(
+                        "setup2.source_none",
+                        "The ETHR template or a one-off file",
+                      )}
+                    </option>
+                    {savedSources.map((s) => (
+                      <option key={s.public_id} value={s.public_id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <textarea
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
@@ -630,6 +753,43 @@ export function MigrationStep({
                       )}
                     </p>
                   )}
+                  {suggested && (
+                    <p className="flex flex-wrap items-center gap-2 text-foreground">
+                      {t(
+                        "setup2.source_suggested",
+                        "These look like the columns of :name.",
+                        { name: suggested.name },
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => chooseSource(suggested.public_id)}
+                      >
+                        {t("setup2.source_use", "Read it as :name", {
+                          name: suggested.name,
+                        })}
+                      </Button>
+                    </p>
+                  )}
+                  {read?.header_likely && !matching && (
+                    <p className="text-warning-on-soft">
+                      {t(
+                        "setup2.header_likely",
+                        "The first line looks like column names ETHR does not know, so it was read as a person. Match the columns and the list is read properly.",
+                      )}
+                    </p>
+                  )}
+                  {read && read.headers.length > 0 && !matching && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={openMatcher}
+                    >
+                      {t("setup2.match_columns", "Match columns")}
+                    </Button>
+                  )}
                   {read?.calendar_from_header && (
                     <p className="text-muted-foreground">
                       {read.calendar === "ethiopian"
@@ -673,6 +833,24 @@ export function MigrationStep({
                   )}
                 </div>
               )}
+              {matching && read && csv.trim() !== "" && (
+                <ColumnMatcher
+                  matches={matches}
+                  samples={samples}
+                  label={(column) =>
+                    COLUMN_LABELS[column] ? t(...COLUMN_LABELS[column]) : column
+                  }
+                  source={source}
+                  calendar={dateCalendar}
+                  needsName={nameless}
+                  onMatch={setMatched}
+                  onSaved={(saved) => {
+                    setSourceId(saved.public_id);
+                    setMatched(null);
+                  }}
+                  onForgotten={() => setSourceId(null)}
+                />
+              )}
               <p className="text-xs text-muted-foreground">
                 {t(
                   "setup2.csv_hint",
@@ -686,6 +864,7 @@ export function MigrationStep({
                   stageRows.isPending ||
                   csv.trim() === "" ||
                   problems.length > 0 ||
+                  nameless ||
                   (read !== undefined && !reading && read.people === 0)
                 }
               >

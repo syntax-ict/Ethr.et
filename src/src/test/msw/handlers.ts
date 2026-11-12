@@ -172,4 +172,9 @@ export const handlers = [
   http.get("*/api/v1/admin/tenants/:publicId/journey", () =>
     HttpResponse.json({ data: buildJourney() }),
   ),
+  // The import step asks which other systems' column names are saved
+  // (useImportSources); none, unless a test says otherwise.
+  http.get("*/onboarding/migration/sources", () =>
+    HttpResponse.json({ data: [] }),
+  ),
 ];

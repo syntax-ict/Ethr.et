@@ -174,6 +174,44 @@ export interface PeopleRead {
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
   problems: { line: number; message: string }[];
+  /**
+   * The first line as column names: each as written, the column it is read
+   * as, and for one that is not read, what it might be.
+   */
+  headers: {
+    header: string;
+    column: string | null;
+    suggested: string | null;
+  }[];
+  /** The first line was read as a person and looks like column names. */
+  header_likely: boolean;
+  /** The columns were matched and none of them is the name; nothing was read. */
+  needs_name: boolean;
+  /** The saved source the list was read as. */
+  source: string | null;
+  /** A saved source whose column names this list has. */
+  suggested_source: string | null;
+}
+
+/** What one of a file's column names is: an ETHR column, or null for one left out. */
+export interface ColumnMatch {
+  header: string;
+  column: string | null;
+}
+
+/** A system the organisation brings lists from, and how it names its columns. */
+export interface ImportSource {
+  public_id: string;
+  name: string;
+  columns: ColumnMatch[];
+  calendar: string | null;
+  updated_at: string | null;
+}
+
+/** How a list names its columns: a saved source, columns matched now, or both. */
+export interface ListColumns {
+  source?: string | null;
+  mapping?: ColumnMatch[] | null;
 }
 
 export interface MigrationBatch {
