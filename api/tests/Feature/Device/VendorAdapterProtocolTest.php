@@ -124,6 +124,32 @@ describe('HikvisionAdapter', function () {
         ]);
     });
 
+    it('reads past the first 200 people instead of truncating the roster', function () {
+        $device = hikvisionDevice();
+        $page = fn (int $from, int $count) => array_map(
+            fn (int $n) => ['employeeNo' => (string) $n, 'name' => "Person {$n}"],
+            range($from, $from + $count - 1),
+        );
+        Http::fake([
+            '10.0.0.5/ISAPI/AccessControl/UserInfo/Search*' => Http::sequence()
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(1, 200)]])
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(201, 200)]])
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(401, 50)]]),
+        ]);
+
+        $enrollments = app(HikvisionAdapter::class)->pullEnrollments($device);
+
+        expect($enrollments)->toHaveCount(450)
+            ->and($enrollments[449]['device_user_id'])->toBe('450');
+        $positions = [];
+        Http::assertSent(function ($request) use (&$positions) {
+            $positions[] = $request['UserInfoSearchCond']['searchResultPosition'];
+
+            return true;
+        });
+        expect($positions)->toBe([0, 200, 400]);
+    });
+
     it('throws on an unreachable device when pulling events, and reports false from connect', function () {
         $device = hikvisionDevice();
         Http::fake(['10.0.0.5/*' => fn () => throw new ConnectionException('timed out')]);

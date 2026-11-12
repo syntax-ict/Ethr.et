@@ -188,9 +188,18 @@ export function MigrationStep({
   const batchQuery = useMigrationBatch(batchId);
   const batch = batchQuery.data;
 
-  const devices = devicesQuery.data?.data ?? [];
+  const allDevices = devicesQuery.data?.data ?? [];
+  // Only a device ETHR can call can be asked who is enrolled on it. A
+  // terminal that only sends to ETHR answers no roster, and offering it here
+  // staged an empty list that read as "nobody is enrolled".
+  const devices = allDevices.filter((d) => d.receives_only !== true);
+  const onlySends = allDevices.length > 0 && devices.length === 0;
   // One device is the device: there is nothing to choose.
-  const device = deviceId || (devices.length === 1 ? devices[0].public_id : "");
+  const device = devices.some((d) => d.public_id === deviceId)
+    ? deviceId
+    : devices.length === 1
+      ? devices[0].public_id
+      : "";
   // Hire dates are read in the reader's own calendar unless they say otherwise:
   // an Ethiopian 2011-10-30 read as Gregorian is eight years out.
   const preferred = useOptionalCalendar()?.calendar ?? "gregorian";
@@ -903,7 +912,22 @@ export function MigrationStep({
               )}
             </CardContent>
           </Card>
-          {noDevice && !listOnly && (
+          {noDevice && !listOnly && onlySends && (
+            <p className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+              <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t(
+                "setup2.only_sends_row",
+                "Your terminal sends its punches to ETHR and cannot be asked who is enrolled on it. Badges it has sent that nobody owns yet are listed under Devices, where each can become an employee.",
+              )}
+              <Link
+                href="/devices"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t("nav.devices", "Devices")}
+              </Link>
+            </p>
+          )}
+          {noDevice && !listOnly && !onlySends && (
             <p className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
               <HardDrive className="h-4 w-4 shrink-0" aria-hidden="true" />
               {t(
