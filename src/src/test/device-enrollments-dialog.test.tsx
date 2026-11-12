@@ -173,3 +173,37 @@ describe("<DeviceEnrollmentsDialog> for a device that reports its list", () => {
     expect(screen.queryByText(/deleted earlier/)).not.toBeInTheDocument();
   });
 });
+
+describe("<DeviceEnrollmentsDialog> for a terminal that only sends to ETHR", () => {
+  it("gives the server's reason and offers no retry", async () => {
+    server.use(
+      http.get("*/api/v1/devices/DEV1/enrollments", () =>
+        HttpResponse.json(
+          {
+            type: "https://ethr.et/errors/device-roster-unavailable",
+            title: "Conflict",
+            status: 409,
+            detail:
+              "This terminal sends its punches to ETHR and cannot be asked who is enrolled on it.",
+            code: "device-roster-unavailable",
+          },
+          {
+            status: 409,
+            headers: { "Content-Type": "application/problem+json" },
+          },
+        ),
+      ),
+    );
+    renderDialog();
+
+    expect(
+      await screen.findByText("This terminal cannot be asked who is enrolled"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/sends its punches to ETHR and cannot be asked/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Try again" }),
+    ).not.toBeInTheDocument();
+  });
+});
