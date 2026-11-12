@@ -325,6 +325,17 @@ class Employee extends Model
         return $this->hasMany(DisciplinaryCase::class);
     }
 
+    /**
+     * What this person is known as outside ETHR: a terminal's number, another
+     * system's id. Also what the routes under an employee scope `{identity}` by.
+     *
+     * @return HasMany<EmployeeExternalIdentity, $this>
+     */
+    public function identities(): HasMany
+    {
+        return $this->hasMany(EmployeeExternalIdentity::class);
+    }
+
     /** @return HasMany<EmployeeContract, $this> */
     public function contracts(): HasMany
     {
