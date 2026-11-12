@@ -118,7 +118,6 @@ const PROBLEMS_SHOWN = 5;
 /** A file this large is not a list of people; it is not read into the page. */
 const FILE_MAX_BYTES = 5 * 1024 * 1024;
 
-
 /** How long the list rests before the server is asked what it makes of it. */
 const READ_AFTER_MS = 400;
 
