@@ -48,6 +48,7 @@ import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { AttendanceModeCard } from "@/features/employees/components/attendance-mode-card";
+import { IdentitiesCard } from "@/features/employees/components/identities-card";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { IssueActivationCodeButton } from "@/features/employees/components/issue-activation-code-button";
@@ -515,7 +516,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
           </div>
         </TabsContent>
 
-        <TabsContent value="employment" className="mt-4">
+        <TabsContent value="employment" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -552,6 +553,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
               </div>
             </CardContent>
           </Card>
+          <IdentitiesCard employeeId={id} />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4">

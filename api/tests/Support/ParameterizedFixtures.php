@@ -29,6 +29,7 @@ use App\Models\EmployeeCostSharing;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeEmergencyContact;
+use App\Models\EmployeeExternalIdentity;
 use App\Models\EmployeeLoan;
 use App\Models\ExitClearance;
 use App\Models\ExitClearanceItem;
@@ -191,6 +192,10 @@ final class ParameterizedFixtures
             'publicId' => $tenant->public_id, 'employeePublicId' => $employee->public_id,
             'subdomain' => $tenant->subdomain, 'slug' => (string) $templateSlug,
             'batch' => $migrationBatch->public_id,
+            'identity' => EmployeeExternalIdentity::query()->forceCreate([
+                'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'source_type' => 'zkteco',
+                'source_ref' => 'device:'.$device->id, 'identifier_type' => 'device_user_id', 'identifier_value' => '14',
+            ])->public_id,
             'importMapping' => ImportMapping::query()->forceCreate([
                 'tenant_id' => $tenant->id, 'name' => 'Old payroll', 'slug' => 'old-payroll',
                 'columns' => [['header' => 'Emp Nm', 'column' => 'name']],
