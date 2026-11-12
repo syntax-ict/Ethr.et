@@ -30,5 +30,8 @@ return [
         'relation_not_found' => ':field ":value" was not found. Use its code or its name as it appears in ETHR.',
         'relation_ambiguous' => 'More than one :field is called ":value". Use its code instead.',
         'duplicate_in_list' => ':field ":value" is also on line :first. Each person needs their own.',
+        'mapping_needs_name' => 'Choose which column holds the person\'s name. Nothing can be read without it.',
+        'source_name_taken' => 'A source with this name is already saved. Choose it from the list, or use another name.',
+        'source_limit' => 'An organisation keeps at most :max saved sources. Remove one you no longer use.',
     ],
 ];

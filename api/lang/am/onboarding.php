@@ -27,5 +27,8 @@ return [
         'relation_not_found' => ':field ":value" አልተገኘም። በETHR ውስጥ ያለውን ኮድ ወይም ስም ይጠቀሙ።',
         'relation_ambiguous' => '":value" የሚባሉ ከአንድ በላይ :field አሉ። ኮዱን ይጠቀሙ።',
         'duplicate_in_list' => ':field ":value" በመስመር :first ላይም አለ። እያንዳንዱ ሰው የራሱ ያስፈልገዋል።',
+        'mapping_needs_name' => 'የሰውየው ስም ያለበትን ዓምድ ይምረጡ። ያለ እሱ ምንም ሊነበብ አይችልም።',
+        'source_name_taken' => 'በዚህ ስም የተቀመጠ ምንጭ አለ። ከዝርዝሩ ይምረጡት ወይም ሌላ ስም ይጠቀሙ።',
+        'source_limit' => 'አንድ ድርጅት ቢበዛ :max የተቀመጡ ምንጮች ይይዛል። የማይጠቀሙበትን አንዱን ያስወግዱ።',
     ],
 ];

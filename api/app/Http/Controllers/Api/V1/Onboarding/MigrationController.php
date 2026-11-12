@@ -12,6 +12,7 @@ use App\Http\Requests\Migration\UpdateStagingRowRequest;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\ImportMapping;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\OnboardingProgress;
@@ -20,6 +21,8 @@ use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Migration\StagedChanges;
 use App\Services\Migration\WorkforceMigrationService;
+use App\Support\EmployeeImportRow;
+use App\Support\PeopleRead;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -56,6 +59,15 @@ class MigrationController extends Controller
      * read and which column names mean nothing here, and every line that
      * cannot be staged, with its number as the reader counts it. Nothing is
      * kept.
+     *
+     * A list from another system names its columns its own way. Send
+     * `mapping`, a list of `{header, column}` saying what each of its column
+     * names is (null leaves one out), or `source`, a saved source whose
+     * column names are already matched. `headers` describes the first line
+     * for that: each name as written, the column it is read as, and for one
+     * that is not read, what it might be. `suggested_source` is a saved
+     * source whose column names this list has; `needs_name` says the columns
+     * were matched and none of them is the name.
      */
     public function read(ReadPeopleRequest $request): JsonResponse
     {
@@ -63,6 +75,8 @@ class MigrationController extends Controller
 
         $read = $request->people();
         abort_if($read === null, 422, __('general.not_found', ['resource' => 'Tenant']));
+
+        $suggested = $request->columnMapping() === null ? $this->sourceFor($read) : null;
 
         return response()->json([
             'people' => count($read->rows),
@@ -73,7 +87,46 @@ class MigrationController extends Controller
             'calendar_from_header' => $read->calendarFromHeader,
             'without_hire_date' => $read->withoutHireDate,
             'problems' => $read->problems,
+            'headers' => $read->headers,
+            'header_likely' => $read->headerLikely,
+            'needs_name' => $read->needsName,
+            'source' => $request->importSource()?->public_id,
+            'suggested_source' => $suggested?->public_id,
         ]);
+    }
+
+    /**
+     * The saved source this list looks like it came from: one that knows
+     * which of these columns is the name, and knows more of them than any
+     * other does. This month's export may have a column fewer or one more
+     * than the one the source was saved from, so it need not know them all.
+     * A list ETHR reads whole needs no source and is offered none.
+     */
+    private function sourceFor(PeopleRead $read): ?ImportMapping
+    {
+        $unread = array_filter($read->headers, fn (array $header): bool => $header['column'] === null);
+        if ($unread === [] || ($read->header === false && ! $read->headerLikely)) {
+            return null;
+        }
+
+        $present = array_map(fn (array $header): string => EmployeeImportRow::headerKey($header['header']), $read->headers);
+        $best = null;
+        $most = 0;
+
+        foreach (ImportMapping::query()->orderBy('name')->limit(ImportMapping::LIMIT)->get() as $source) {
+            $known = array_intersect_key(
+                array_filter($source->map(), fn (?string $column): bool => $column !== null),
+                array_flip($present),
+            );
+            if (! in_array('name', $known, true) || count($known) <= $most) {
+                continue;
+            }
+
+            $best = $source;
+            $most = count($known);
+        }
+
+        return $best;
     }
 
     /**
@@ -84,6 +137,10 @@ class MigrationController extends Controller
      * that cannot be staged is refused whole, each line named, unless
      * `skip_problems` is set: then those lines are left out. A list that sets
      * a salary or a TIN needs the pay permission, as the add-employee form does.
+     *
+     * `source` and `mapping` say how the list names its columns, as for
+     * `/migration/read`. With a `source`, an id from the other system is kept
+     * against that source, so the same id in its next list is the same person.
      */
     public function stageFromRows(StageRowsRequest $request): JsonResponse
     {
@@ -104,7 +161,7 @@ class MigrationController extends Controller
             $rows,
             $tenantId,
             $request->string('source_type', 'csv')->value(),
-            $request->input('source_ref'),
+            $request->importSource() === null ? $request->input('source_ref') : $request->sourceName(),
             $request->user(),
         );
 
