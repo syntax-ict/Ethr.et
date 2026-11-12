@@ -120,6 +120,7 @@ return array(
     'App\\Exceptions\\DeviceBindingRefused' => $baseDir . '/app/Exceptions/DeviceBindingRefused.php',
     'App\\Exceptions\\DeviceCommandRejected' => $baseDir . '/app/Exceptions/DeviceCommandRejected.php',
     'App\\Exceptions\\DeviceRequestFailed' => $baseDir . '/app/Exceptions/DeviceRequestFailed.php',
+    'App\\Exceptions\\DeviceRosterUnavailable' => $baseDir . '/app/Exceptions/DeviceRosterUnavailable.php',
     'App\\Exceptions\\EmployeeAlreadyExists' => $baseDir . '/app/Exceptions/EmployeeAlreadyExists.php',
     'App\\Exceptions\\InvalidEmployeeTransition' => $baseDir . '/app/Exceptions/InvalidEmployeeTransition.php',
     'App\\Exceptions\\NoOpenCheckIn' => $baseDir . '/app/Exceptions/NoOpenCheckIn.php',

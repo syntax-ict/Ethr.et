@@ -854,6 +854,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Exceptions\\DeviceBindingRefused' => __DIR__ . '/../..' . '/app/Exceptions/DeviceBindingRefused.php',
         'App\\Exceptions\\DeviceCommandRejected' => __DIR__ . '/../..' . '/app/Exceptions/DeviceCommandRejected.php',
         'App\\Exceptions\\DeviceRequestFailed' => __DIR__ . '/../..' . '/app/Exceptions/DeviceRequestFailed.php',
+        'App\\Exceptions\\DeviceRosterUnavailable' => __DIR__ . '/../..' . '/app/Exceptions/DeviceRosterUnavailable.php',
         'App\\Exceptions\\EmployeeAlreadyExists' => __DIR__ . '/../..' . '/app/Exceptions/EmployeeAlreadyExists.php',
         'App\\Exceptions\\InvalidEmployeeTransition' => __DIR__ . '/../..' . '/app/Exceptions/InvalidEmployeeTransition.php',
         'App\\Exceptions\\NoOpenCheckIn' => __DIR__ . '/../..' . '/app/Exceptions/NoOpenCheckIn.php',

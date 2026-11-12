@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Exceptions\DeviceRosterUnavailable;
 use App\Exceptions\EmployeeAlreadyExists;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
@@ -370,6 +371,23 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => 502,
                 'detail' => __('device.read_failed'),
             ], 502, ['Content-Type' => 'application/problem+json']);
+        });
+
+        // A device that only sends to ETHR has no roster to read. 409 rather
+        // than 502: nothing is down, and trying again changes nothing. The
+        // detail is translated; the message names the device for the log.
+        $exceptions->render(function (DeviceRosterUnavailable $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/device-roster-unavailable',
+                'title' => 'Conflict',
+                'status' => 409,
+                'detail' => __('device.roster.receives_only'),
+                'code' => 'device-roster-unavailable',
+            ], 409, ['Content-Type' => 'application/problem+json']);
         });
 
         // Handle validation exceptions (422)
