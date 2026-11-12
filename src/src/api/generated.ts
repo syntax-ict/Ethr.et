@@ -3491,6 +3491,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ids this employee is known by elsewhere, and how their record was made
+         * @description `created_via` is where the record came from: `manual`, `api`, `import`,
+         *     `migration`, `device`, `recruitment`, `scim` or `sso`; null for a
+         *     record older than 2026-11-11. Each identity is an id in one place:
+         *     `kind` is `device` for an attendance terminal's number or
+         *     `other_system` for another system's id, and `source` names the
+         *     terminal or the system when ETHR still knows it. `verified` says a
+         *     person confirmed the link, not that ETHR inferred it.
+         */
+        get: operations["employeeIdentity.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/identities/{identity}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm that an id elsewhere is this employee
+         * @description A link ETHR made by itself (a terminal's number matched to an employee
+         *     number) is unverified, and an unverified link follows a better match
+         *     if one appears. Confirmed, it stays with this employee until a person
+         *     moves or removes it.
+         */
+        post: operations["employeeIdentity.verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/identities/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a link between this employee and an id elsewhere
+         * @description For a link that is wrong: the terminal's number 14 is somebody else.
+         *     The employee's record is not changed. The next punch or list that
+         *     brings the id is matched afresh, by the employee's own details, or
+         *     held for a person to assign.
+         */
+        delete: operations["employeeIdentity.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/attendance-mode": {
         parameters: {
             query?: never;
@@ -7129,6 +7201,32 @@ export interface paths {
         post: operations["adminMarketing.uploadItemImage"];
         /** Image items */
         delete: operations["adminMarketing.destroyItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/possible-duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current employees who may be one person recorded twice
+         * @description Read-only. Two or more records are put in a group when they share
+         *     something a person has only one of: a national id, an email address,
+         *     a phone number, a badge number, or a name together with a date of
+         *     birth. `reasons` says which; the values themselves are not returned.
+         *     Only people employed now are compared, among the employees the reader
+         *     may see. At most 100 groups are returned, the likeliest first, and
+         *     `truncated` says when there were more.
+         */
+        get: operations["employee.possibleDuplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -22876,6 +22974,99 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "employeeIdentity.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created_via: string | null;
+                        identities: {
+                            public_id: string;
+                            /** @enum {string} */
+                            kind: "device" | "other_system" | "other";
+                            source: string | null;
+                            source_type: string;
+                            identifier_type: string;
+                            identifier_value: string | null;
+                            verified: boolean;
+                            linked_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employeeIdentity.verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The identity public id */
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employeeIdentity.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The identity public id */
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "attendance.employeeAttendanceMode": {
         parameters: {
             query?: never;
@@ -33304,6 +33495,41 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["AdminMarketingItemResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employee.possibleDuplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        groups: {
+                            reasons: string[];
+                            employees: {
+                                public_id: string;
+                                name: string;
+                                employee_code: string;
+                                status: string;
+                                department: string | null;
+                                created_via: string;
+                                created_at: string | null;
+                            }[];
+                        }[];
+                        truncated: boolean;
                     };
                 };
             };

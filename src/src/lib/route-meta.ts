@@ -123,6 +123,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Import",
     description: "Bulk-import employees from a CSV file",
   },
+  "/employees/duplicates": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Possible duplicates",
+    description: "Employees who may be one person recorded twice",
+  },
   "/organization": {
     section: "People",
     label: "Organization",

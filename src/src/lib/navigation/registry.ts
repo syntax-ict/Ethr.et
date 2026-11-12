@@ -919,6 +919,17 @@ export const QUICK_ACTIONS: QuickAction[] = [
     show: (c) => c.can.manageEmployees,
   },
   {
+    id: "find_duplicates",
+    href: "/employees/duplicates",
+    labelKey: "intent.find_duplicates.label",
+    labelFallback: "Find employees recorded twice",
+    descKey: "intent.find_duplicates.desc",
+    descFallback:
+      "Opens the list of current employees who share a national ID, email, phone or badge number. Nothing is changed there.",
+    icon: UsersRound,
+    show: (c) => c.can.manageEmployees,
+  },
+  {
     id: "run_payroll",
     href: "/payroll",
     labelKey: "command.run_payroll",

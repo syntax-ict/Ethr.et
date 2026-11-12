@@ -11,6 +11,7 @@ import {
   FileSignature,
   CalendarClock,
   ClipboardCheck,
+  UsersRound,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type {
@@ -307,6 +308,17 @@ export default function EmployeesPage() {
               >
                 <Link href="/employees/import">
                   <Upload className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title={t("duplicates.title", "Possible duplicates")}
+                aria-label={t("duplicates.title", "Possible duplicates")}
+              >
+                <Link href="/employees/duplicates">
+                  <UsersRound className="h-4 w-4" />
                 </Link>
               </Button>
               <Button
