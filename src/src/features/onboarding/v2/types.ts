@@ -214,11 +214,16 @@ export interface ListColumns {
   mapping?: ColumnMatch[] | null;
 }
 
+/** What a list's new people arrive as. A line naming its own status keeps it. */
+export type ArrivalStatus = "hired" | "probation" | "confirmed";
+
 export interface MigrationBatch {
   public_id: string;
   source_type: string;
   source_ref: string | null;
   status: "reviewing" | "committing" | "committed";
+  /** Chosen when the list began to be added; null when nothing was. */
+  arrival_status?: ArrivalStatus | null;
   totals: Record<string, number> | null;
   summary: Record<string, number>;
   rows: StagingRow[];
