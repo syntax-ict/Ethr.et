@@ -14,6 +14,6 @@ return [
     'simulator_unavailable' => 'Fakkeessaan meeshaa sarvarota misoomaa irratti qofa argama. Gosa (birandii) meeshaa dhugaa filadhaa.',
     'roster' => [
         'receives_only' => 'Meeshaan kun galmeewwan isaa gara ETHR ergee, eenyu akka itti galmaa\'e gaafachuun hin danda\'amu. Baajiin hin beekamne kan inni ergee fuula Meeshaalee jala tarreeffameera; tokkoon tokkoon isaa hojjetaadhaaf kennuu dandeessa.',
-        'read_directly' =>'Meeshaan kun kallattiin dubbifama, kanaaf homaa isa gaafachuun hin barbaachisu. Amma dubbisuuf tarreeffama irra deebi\'aa banaa.',
+        'read_directly' => 'Meeshaan kun kallattiin dubbifama, kanaaf homaa isa gaafachuun hin barbaachisu. Amma dubbisuuf tarreeffama irra deebi\'aa banaa.',
     ],
 ];

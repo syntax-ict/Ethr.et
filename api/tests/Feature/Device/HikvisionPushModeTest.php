@@ -10,6 +10,7 @@ use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
 use App\Models\Employee;
+use App\Models\MigrationBatch;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
@@ -242,6 +243,7 @@ it('drops the address and the password when a terminal is switched to send to ET
 });
 
 it('refuses to list the roster of a terminal that only sends to ETHR, instead of answering an empty one', function () {
+    Http::fake();
     [$tenant, $branch] = pushModeOrganisation();
     $device = Device::factory()->create([
         'tenant_id' => $tenant->id,
@@ -263,6 +265,6 @@ it('refuses to list the roster of a terminal that only sends to ETHR, instead of
         ->assertStatus(409)
         ->assertJsonPath('code', 'device-roster-unavailable');
 
-    expect(\App\Models\MigrationBatch::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(0);
+    expect(MigrationBatch::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(0);
     Http::assertNothingSent();
-})->beforeEach(fn () => Http::fake());
+});
