@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130.35 34">
+  <title>ETHR</title>
+  <g transform="translate(-11 -15)">
+    <path d="M15 32H41" stroke="#FFFFFF" stroke-width="6.5" fill="none"/>
+    <path d="M41 32A13 13 0 1 0 37.96 40.36" stroke="#FFFFFF" stroke-width="6.5" fill="none"/>
+    <circle cx="48" cy="43.5" r="4.2" fill="#E8A838"/>
+  </g>
+  <g transform="translate(50 1.75) scale(0.655914) translate(0 14)">
+    <g stroke="#FFFFFF" stroke-width="6.5" fill="none">
+      <path d="M3.25 16.25H29.25M29.25 16.25A13 13 0 1 0 26.21 24.61"/>
+      <path d="M41.75 -8V32.5M36 3.25H52"/>
+      <path d="M59.25 -14V32.5M59.25 16.25A13 13 0 0 1 85.25 16.25V32.5"/>
+      <path d="M97.75 0V32.5M97.75 16.25A13 13 0 0 1 110.75 3.25"/>
+    </g>
+    <circle cx="118" cy="27.75" r="4.2" fill="#E8A838"/>
+  </g>
+</svg>
