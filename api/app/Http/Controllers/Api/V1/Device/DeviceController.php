@@ -26,6 +26,7 @@ use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
 use App\Services\Device\UnmatchedPunches;
+use App\Services\Device\WebhookRejections;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
 use App\Services\Features\FeatureGate;
@@ -317,7 +318,9 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.update');
 
+        $retired = $device->webhook_token;
         $device->update(['webhook_token' => Device::generateWebhookToken()]);
+        WebhookRejections::retire($device, $retired);
 
         AuditLog::record('device.token_regenerated', $device);
 
@@ -610,10 +613,16 @@ class DeviceController extends Controller
         $token = $request->query('token') ?? $request->header('X-Webhook-Token');
 
         if ($token) {
-            return Device::withoutGlobalScope('tenant')
+            $device = is_string($token) ? Device::withoutGlobalScope('tenant')
                 ->where('webhook_token', $token)
                 ->where('adapter_type', $adapterType)
-                ->first();
+                ->first() : null;
+
+            if ($device === null && is_string($token)) {
+                WebhookRejections::traceToken($adapterType, $token, $request->ip());
+            }
+
+            return $device;
         }
 
         $serialNumber = $request->input('sn')
@@ -656,6 +665,7 @@ class DeviceController extends Controller
         // stand in for the token it was issued.
         if (! empty($device->webhook_token)) {
             $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'token_required');
+            WebhookRejections::record($device, 'token_missing', $request->ip());
 
             return null;
         }
@@ -663,6 +673,7 @@ class DeviceController extends Controller
         // Token-less (legacy) device: authenticate by source IP allowlist.
         if (! $device->webhookIpAllowed($request->ip())) {
             $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'ip_not_allowlisted');
+            WebhookRejections::record($device, 'ip_not_allowed', $request->ip());
 
             return null;
         }

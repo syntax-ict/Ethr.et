@@ -296,6 +296,40 @@ describe("device detail for a terminal that has not been heard from", () => {
     ).toBeInTheDocument();
   });
 
+  it("says the terminal called and was refused, and why", async () => {
+    serveDevice({
+      ...PUSH,
+      webhook_rejected: {
+        reason: "token_retired",
+        ip: "196.190.67.12",
+        at: new Date(Date.now() - 5 * 60_000).toISOString(),
+      },
+    });
+    renderDetail();
+
+    expect(
+      await screen.findByText(/^The terminal called .* and ETHR refused it\.$/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/still sending the token from before/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows nothing for a refusal it has no words for", async () => {
+    serveDevice({
+      ...PUSH,
+      webhook_rejected: {
+        reason: "something_new",
+        ip: null,
+        at: "2026-11-13T06:00:00Z",
+      },
+    });
+    renderDetail();
+
+    expect(await screen.findByText("Not connected yet")).toBeInTheDocument();
+    expect(screen.queryByText(/ETHR refused it/)).toBeNull();
+  });
+
   it("gives another vendor's refused sign-in no Hikvision advice", async () => {
     serveDevice({ ...DEVICE, adapter_type: "suprema", receives_only: false }, [
       {

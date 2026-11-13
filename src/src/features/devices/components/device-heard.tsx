@@ -47,6 +47,52 @@ export function DeviceHeardLine({
   );
 }
 
+const REJECTION_REASONS = [
+  "token_retired",
+  "token_truncated",
+  "token_missing",
+  "ip_not_allowed",
+] as const;
+
+/**
+ * The terminal called and was refused, traced to this device by the server:
+ * it sent a token this device had before, the start of its token, or no
+ * token. Absent once the terminal has been heard from since.
+ */
+export function WebhookRejectedLine({
+  rejected,
+}: {
+  rejected: Device["webhook_rejected"];
+}) {
+  const { t } = useT();
+  const { timeAgo } = useDateFormatters();
+
+  if (
+    !rejected ||
+    !(REJECTION_REASONS as readonly string[]).includes(rejected.reason)
+  ) {
+    return null;
+  }
+
+  return (
+    <div
+      role="status"
+      className="mt-2 space-y-1 rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+    >
+      <p className="font-medium">
+        {t("devices_page.rejected.title", undefined, {
+          time: timeAgo(rejected.at),
+        })}
+      </p>
+      <p>
+        {t(`devices_page.rejected.${rejected.reason}`, undefined, {
+          ip: rejected.ip ?? "?",
+        })}
+      </p>
+    </div>
+  );
+}
+
 /** Why a pull failed, in the reader's language: the advice for a coded cause. */
 const HINTED_CODES = [
   "sdk_port",

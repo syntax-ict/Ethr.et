@@ -50,6 +50,7 @@ import { DeviceCommandsTab } from "@/features/devices/components/device-commands
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
   DeviceHeardLine,
+  WebhookRejectedLine,
   SyncErrorHint,
   syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
@@ -297,6 +298,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 <DeviceHeardLine device={device} />
               </div>
             )}
+            <WebhookRejectedLine rejected={device.webhook_rejected} />
           </div>
           <div className="flex items-center gap-2">
             {!sendsOnly && (

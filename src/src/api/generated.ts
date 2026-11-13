@@ -9843,6 +9843,11 @@ export interface components {
                     at: string;
                 } | null;
             };
+            webhook_rejected?: {
+                reason: string;
+                ip: string | null;
+                at: string;
+            } | null;
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
