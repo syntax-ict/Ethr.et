@@ -21471,53 +21471,7 @@ export interface operations {
                             department: string | null;
                             fingerprint_count: number | null;
                             face_registered: boolean | null;
-                            match: {
-                                /** @constant */
-                                outcome: "probable";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: unknown[];
-                            } | {
-                                /** @constant */
-                                outcome: "new";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: unknown[];
-                            } | {
-                                /** @constant */
-                                outcome: "archived";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: [
-                                    {
-                                        employee_public_id: string;
-                                        employee_name: string;
-                                        score: number;
-                                        reasons: string;
-                                    }
-                                ];
-                            } | {
-                                /** @constant */
-                                outcome: "new";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: string[];
-                            } | {
-                                /** @constant */
-                                outcome: "matched";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: [
-                                    {
-                                        employee_public_id: string;
-                                        employee_name: string;
-                                        score: number;
-                                        reasons: [
-                                            "former_employee"
-                                        ];
-                                    }
-                                ];
-                            };
+                            match: unknown;
                         }[];
                         summary: {
                             total: number;
@@ -37354,6 +37308,7 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
+                            match: unknown;
                         }[];
                     };
                 };

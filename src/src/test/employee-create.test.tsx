@@ -17,6 +17,7 @@ const router = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("sonner", () => ({

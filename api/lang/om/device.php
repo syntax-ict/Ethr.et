@@ -13,6 +13,8 @@ return [
     'read_failed' => 'Meeshaan dubbifamuu hin dandeenye. Banamuu isaa fi sarvara kana irraa argamuu isaa mirkaneessaa, achiis irra deebi\'aa yaalaa.',
     'simulator_unavailable' => 'Fakkeessaan meeshaa sarvarota misoomaa irratti qofa argama. Gosa (birandii) meeshaa dhugaa filadhaa.',
     'roster' => [
+        'receives_only' => 'Meeshaan kun galmeewwan isaa gara ETHR ergee, eenyu akka itti galmaa\'e gaafachuun hin danda\'amu. Baajiin hin beekamne kan inni ergee fuula Meeshaalee jala tarreeffameera; tokkoon tokkoon isaa hojjetaadhaaf kennuu dandeessa.',
+        'too_large' => 'Meeshaan kun namoota 1,000 ol tarreessa, kunis kan ETHR yeroo tokkotti irraa dubbisu caala, kanaaf tarreeffamni isaa hin fayyadamne. Qooda kanaa faayilii irraa galchaa.',
         'read_directly' => 'Meeshaan kun kallattiin dubbifama, kanaaf homaa isa gaafachuun hin barbaachisu. Amma dubbisuuf tarreeffama irra deebi\'aa banaa.',
     ],
 ];
