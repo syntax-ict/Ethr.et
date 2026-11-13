@@ -41,6 +41,14 @@ class CleanupExpiredDataJob implements ShouldQueue
             ->where('created_at', '<', now()->subDays(30))
             ->delete();
 
+        // A pushed punch already handed to the engine is kept a week for
+        // anyone asking what a terminal sent. One still waiting is never
+        // deleted.
+        $deleted += DB::table('device_inbound_punches')
+            ->whereNotNull('processed_at')
+            ->where('processed_at', '<', now()->subDays(7))
+            ->delete();
+
         // Import staging data: hard delete once nobody has touched the batch
         // or any of its rows for MigrationBatch::RETENTION_DAYS (CLAUDE.md
         // soft-delete policy). Staging rows cascade with their batch. Counted

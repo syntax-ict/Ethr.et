@@ -69,8 +69,8 @@ describe('Hikvision push', function () {
     it('closes the morning record with the evening check-out instead of opening a second one', function () {
         [$tenant, , $employee] = dirTenant();
 
-        hikPush($tenant, hikEvent('1001', '08:02:00', 'checkIn'))->assertOk()->assertJsonPath('status', 'processed');
-        hikPush($tenant, hikEvent('1001', '17:05:00', 'checkOut'))->assertOk()->assertJsonPath('status', 'processed');
+        hikPush($tenant, hikEvent('1001', '08:02:00', 'checkIn'))->assertOk()->assertJsonPath('status', 'accepted');
+        hikPush($tenant, hikEvent('1001', '17:05:00', 'checkOut'))->assertOk()->assertJsonPath('status', 'accepted');
 
         $records = AttendanceRecord::where('employee_id', $employee->id)->get();
         expect($records)->toHaveCount(1);
@@ -99,7 +99,7 @@ describe('Hikvision push', function () {
                 'event_log' => json_encode(hikEvent('1001', '07:55:00', 'checkIn')),
             ])
             ->assertOk()
-            ->assertJsonPath('status', 'processed');
+            ->assertJsonPath('status', 'accepted');
 
         $record = AttendanceRecord::where('employee_id', $employee->id)->firstOrFail();
         expect($record->check_in->setTimezone('Africa/Addis_Ababa')->format('H:i'))->toBe('07:55');
@@ -130,7 +130,7 @@ describe('Hikvision push', function () {
             identifierValue: '77',
         ), 1.0, verified: true);
 
-        hikPush($tenant, hikEvent('77', '08:10:00', 'checkIn'))->assertOk()->assertJsonPath('status', 'processed');
+        hikPush($tenant, hikEvent('77', '08:10:00', 'checkIn'))->assertOk()->assertJsonPath('status', 'accepted');
 
         expect(AttendanceRecord::where('employee_id', $mapped->id)->count())->toBe(1);
     });
