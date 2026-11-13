@@ -303,7 +303,7 @@ export function AppSidebar() {
                     <EthrLogoTile
                       logoUrl={productMark.logoUrl}
                       className="h-6 w-6 ring-1 ring-sidebar-foreground/25"
-                      letterClassName="text-xs"
+                      small
                     />
                   </a>
                 </TooltipTrigger>
@@ -320,7 +320,7 @@ export function AppSidebar() {
                 <EthrLogoTile
                   logoUrl={productMark.logoUrl}
                   className="h-5 w-5 rounded ring-1 ring-sidebar-foreground/25"
-                  letterClassName="text-[11px]"
+                  small
                 />
                 <span className="min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/75 transition-colors group-hover:text-sidebar-foreground">
                   {poweredBy}

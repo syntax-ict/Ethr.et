@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const findSchema = z.object({ email: rules.email() });
 type FindValues = z.infer<typeof findSchema>;
@@ -100,9 +101,7 @@ export function FindOrganisationForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">E</span>
-        </div>
+        <EthrSymbol className="mx-auto h-12 w-12" />
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.find_org_title", "Find your organisation")}
         </h1>
