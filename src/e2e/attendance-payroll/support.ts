@@ -15,7 +15,7 @@ import { api } from "../helpers";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export type Organisation = "e2e-att" | "e2e-pay" | "e2e-other";
+export type Organisation = "e2e-att" | "e2e-pay" | "e2e-other" | "e2e-dev";
 
 export const PASSWORD = "password";
 export const ZONE = "Africa/Addis_Ababa";
@@ -41,6 +41,7 @@ export const SESSIONS: Array<{ organisation: Organisation; login: string }> = [
   { organisation: "e2e-pay", login: "admin" },
   { organisation: "e2e-pay", login: "finance" },
   { organisation: "e2e-other", login: "admin" },
+  { organisation: "e2e-dev", login: "admin" },
 ];
 
 /**
@@ -65,9 +66,12 @@ export async function as(
 
 /** The date in Addis Ababa, `YYYY-MM-DD`: the day a record is filed under. */
 export function addisDate(moment: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    moment,
-  );
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(moment);
 }
 
 /** The wall clock in Addis Ababa, `YYYY-MM-DD HH:mm:ss`, as a terminal reports it. */
@@ -122,11 +126,101 @@ export async function devicePunch(
 
   const response = await request.post(`${target.origin}/api/v1/devices/webhook/zkteco`, {
     headers: { "X-Webhook-Token": token, Accept: "application/json" },
-    data: { records: [{ pin: badge, timestamp: addisClock(at), punch: type === "check_in" ? 0 : 1 }] },
+    data: {
+      records: [
+        {
+          pin: badge,
+          timestamp: addisClock(at),
+          punch: type === "check_in" ? 0 : 1,
+        },
+      ],
+    },
   });
   expect(response.status(), `device webhook for badge ${badge}`).toBe(200);
 
   return (await response.json()).count as number;
+}
+
+/**
+ * One punch from the organisation's Hikvision terminal in push mode, as its
+ * firmware posts it: multipart, the event as JSON in `event_log`, the person's
+ * id on the terminal in `employeeNoString`, the terminal's own wall clock with
+ * its offset in `dateTime`, and the token in the query string. As with
+ * `devicePunch`, nothing in the request names the organisation.
+ *
+ * A badge nobody holds is answered 200 `employee_not_found` and kept; one an
+ * employee holds is answered 200 `processed`. Returns the answer's `status`.
+ */
+export async function hikvisionPunch(
+  request: APIRequestContext,
+  organisation: Organisation,
+  badge: string,
+  at: Date,
+  status: "checkIn" | "checkOut",
+  token = "e2e-dev-hik-token",
+): Promise<string> {
+  const target = new URL(origin(organisation));
+  if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
+
+  const response = await request.post(`${target.origin}/api/v1/devices/webhook/hikvision?token=${token}`, {
+    headers: { Accept: "application/json" },
+    multipart: {
+      event_log: JSON.stringify({
+        dateTime: `${addisClock(at).replace(" ", "T")}+03:00`,
+        eventType: "AccessControllerEvent",
+        AccessControllerEvent: {
+          employeeNoString: badge,
+          attendanceStatus: status,
+          majorEventType: 5,
+          subEventType: 75,
+        },
+      }),
+    },
+  });
+  expect(response.status(), `hikvision webhook for badge ${badge}`).toBe(200);
+
+  return (await response.json()).status as string;
+}
+
+export type UnmatchedBadge = {
+  device_public_id: string;
+  device_name: string;
+  badge: string;
+  punches: number;
+  first_seen: string;
+  last_seen: string;
+  match: {
+    outcome: string;
+    employee_public_id: string | null;
+    candidates: Array<{ employee_public_id: string; employee_name: string }>;
+  } | null;
+};
+
+/** The badges held for nobody, as the Devices card is given them. */
+export async function unmatchedBadges(page: Page): Promise<UnmatchedBadge[]> {
+  const found = await api(page, "GET", "/devices/unmatched-punches");
+  expect(found.status, "unmatched punches").toBe(200);
+
+  return found.data.data as UnmatchedBadge[];
+}
+
+/**
+ * The two punches a badge arrives with: in 50 minutes ago and out 20 minutes
+ * ago. They must fall on the Addis date the server first sees them, which is
+ * the hire date the card offers, so a run too close to midnight is refused
+ * with the reason rather than failing on a date.
+ */
+export function heldPunchTimes(): { arrived: Date; left: Date } {
+  const arrived = minutesAgo(50);
+  const left = minutesAgo(20);
+  if (addisDate(arrived) !== addisDate(new Date())) {
+    throw new Error(
+      "It is less than 50 minutes after midnight in Addis Ababa: the punches would be dated the day before the " +
+        "server first saw them, and the hire date the card offers would fall after them. Run this journey later.",
+    );
+  }
+
+  return { arrived, left };
 }
 
 export type AttendanceRow = {
@@ -201,7 +295,10 @@ export type PayrollEntry = {
   gross_cents: number;
   net_cents: number;
   income_tax_cents: number;
-  calculation_log?: { version: string; steps: Array<Record<string, unknown> & { step: string }> };
+  calculation_log?: {
+    version: string;
+    steps: Array<Record<string, unknown> & { step: string }>;
+  };
 };
 
 export type PayrollRun = {

@@ -27,12 +27,17 @@ use RuntimeException;
  *
  *     php artisan db:seed --class=E2eAttendanceSeeder
  *
- * Three small organisations, each with a fixed address, fixed sign-ins and a
+ * Four small organisations, each with a fixed address, fixed sign-ins and a
  * biometric device whose webhook token the journeys know:
  *
  *   e2e-att    punches by several methods, read back from the API
  *   e2e-pay    a month of attendance paid through a payroll run
  *   e2e-other  somebody else's organisation, for the cross-tenant journey
+ *   e2e-dev    one Hikvision terminal that only sends its punches (push mode),
+ *              for the journeys that turn an unrecognised badge into a person
+ *              and for the roster such a terminal refuses. An organisation of
+ *              its own because "Discover enrolled users" is hidden only when
+ *              every terminal an organisation has is send-only.
  *
  * Not the demo tenant: that one holds months of random attendance and three
  * payroll runs, and a journey that asserts "one record today" or "one run for
@@ -50,7 +55,7 @@ class E2eAttendanceSeeder extends Seeder
 {
     public const PASSWORD = 'password';
 
-    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>}> */
+    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}> */
     private const ORGANISATIONS = [
         'e2e-att' => [
             'name' => 'E2E Attendance',
@@ -76,6 +81,22 @@ class E2eAttendanceSeeder extends Seeder
                 ['code' => 'OTH-0001', 'name' => 'Meron Tadesse', 'badge' => '9201', 'login' => null, 'salary_cents' => 1000000],
             ],
             'staff' => ['admin' => UserRole::TENANT_ADMIN],
+        ],
+        'e2e-dev' => [
+            'name' => 'E2E Devices',
+            'people' => [
+                ['code' => 'DEV-0001', 'name' => 'Kebede Worku', 'badge' => '9301', 'login' => null, 'salary_cents' => 1000000],
+            ],
+            'staff' => ['admin' => UserRole::TENANT_ADMIN],
+            // The only terminal this organisation has sends its punches and
+            // cannot be asked who is enrolled on it, so "Discover enrolled
+            // users" must not be offered and nobody is held up by it.
+            'device' => [
+                'serial' => 'E2E-E2E-DEV-HIK',
+                'adapter' => 'hikvision',
+                'config' => ['mode' => 'push'],
+                'token' => 'e2e-dev-hik-token',
+            ],
         ],
     ];
 
@@ -122,7 +143,7 @@ class E2eAttendanceSeeder extends Seeder
     }
 
     /**
-     * @param  array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>}  $organisation
+     * @param  array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}  $organisation
      */
     private function create(string $subdomain, array $organisation): void
     {
@@ -202,16 +223,23 @@ class E2eAttendanceSeeder extends Seeder
             }
         }
 
+        $device = $organisation['device'] ?? [
+            'serial' => 'E2E-'.Str::upper($subdomain),
+            'adapter' => 'zkteco',
+            'config' => ['ip' => '192.0.2.10', 'port' => 4370],
+            'token' => self::deviceToken($subdomain),
+        ];
+
         Device::create([
             'public_id' => (string) Str::ulid(),
             'tenant_id' => $tenant->id,
             'branch_id' => $branch->id,
             'name' => 'Front Door Terminal',
-            'serial_number' => 'E2E-'.Str::upper($subdomain),
-            'adapter_type' => 'zkteco',
-            'connection_config' => ['ip' => '192.0.2.10', 'port' => 4370],
+            'serial_number' => $device['serial'],
+            'adapter_type' => $device['adapter'],
+            'connection_config' => $device['config'],
             'status' => 'online',
-            'webhook_token' => self::deviceToken($subdomain),
+            'webhook_token' => $device['token'],
             // Nothing answers at that address; the journeys push, never pull.
             'auto_sync' => false,
             'timezone' => 'Africa/Addis_Ababa',
