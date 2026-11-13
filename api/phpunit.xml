@@ -45,8 +45,15 @@
             the whole serialised report after the last test. That report grows
             with the codebase; at 1G the coverage job died there with every
             test green, on the approval engine PR (#359).
+
+            3G, not 2G (2026-11-13): the same death at 2G, on the PR that added
+            the unrecognised-badge cards (#710). Every test passed (5428), then
+            PHP failed allocating 437 MB for the report, in Pest's
+            Coverage.php. Main had passed at 2G the day before, so the report
+            sits at the edge and a few dozen tests tip it. The runner has the
+            memory; the job's 25-minute limit is the other ceiling to watch.
         -->
-        <ini name="memory_limit" value="2G"/>
+        <ini name="memory_limit" value="3G"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>

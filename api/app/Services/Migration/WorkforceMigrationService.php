@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Migration;
 
 use App\Enums\NationalityStatus;
+use App\Exceptions\DeviceRosterUnavailable;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
@@ -84,6 +85,10 @@ final class WorkforceMigrationService
         // DeviceRequestFailed, and a batch created first would be left behind
         // empty — which is what a down device used to produce, as a batch
         // indistinguishable from a device with nobody enrolled.
+        if (DeviceManager::receivesOnly($device)) {
+            throw DeviceRosterUnavailable::receivesOnly($device);
+        }
+
         $enrollments = $this->devices->adapter($device)->pullEnrollments($device);
         $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
         $departments = DepartmentMatch::forTenant($device->tenant_id);

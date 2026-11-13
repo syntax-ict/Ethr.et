@@ -30,6 +30,9 @@ use Throwable;
  */
 class DeviceRequestFailed extends RuntimeException
 {
+    /** The translation key bootstrap/app.php gives the client as the detail. */
+    public string $detailKey = 'device.read_failed';
+
     /**
      * The transport error is chained, not quoted: a cURL message carries the
      * full URL, and a generic adapter's `base_url` may embed `user:pass@`.
@@ -42,6 +45,19 @@ class DeviceRequestFailed extends RuntimeException
     public static function status(string $vendor, Response $response): self
     {
         return new self("{$vendor} device answered HTTP {$response->status()}");
+    }
+
+    /**
+     * The device was still listing when the read stopped, so what was read
+     * is part of the list. Handed on as all of it, it would read as everyone
+     * on the device, and a migration would leave the rest out unseen.
+     */
+    public static function incomplete(string $vendor, int $read): self
+    {
+        $e = new self("{$vendor} device listed more than the {$read} people read in one request");
+        $e->detailKey = 'device.roster.too_large';
+
+        return $e;
     }
 
     public static function unreadable(string $vendor): self

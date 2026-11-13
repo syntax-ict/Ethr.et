@@ -124,6 +124,66 @@ describe('HikvisionAdapter', function () {
         ]);
     });
 
+    it('reads past the first 200 people instead of truncating the roster', function () {
+        $device = hikvisionDevice();
+        $page = fn (int $from, int $count) => array_map(
+            fn (int $n) => ['employeeNo' => (string) $n, 'name' => "Person {$n}"],
+            range($from, $from + $count - 1),
+        );
+        Http::fake([
+            '10.0.0.5/ISAPI/AccessControl/UserInfo/Search*' => Http::sequence()
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(1, 200)]])
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(201, 200)]])
+                ->push(['UserInfoSearch' => ['UserInfo' => $page(401, 50)]]),
+        ]);
+
+        $enrollments = app(HikvisionAdapter::class)->pullEnrollments($device);
+
+        expect($enrollments)->toHaveCount(450)
+            ->and($enrollments[449]['device_user_id'])->toBe('450');
+        $positions = [];
+        Http::assertSent(function ($request) use (&$positions) {
+            $positions[] = $request['UserInfoSearchCond']['searchResultPosition'];
+
+            return true;
+        });
+        expect($positions)->toBe([0, 200, 400]);
+    });
+
+    it('follows the device saying MORE, and stops when it says OK even on a full page', function () {
+        $device = hikvisionDevice();
+        $page = fn (int $from, int $count) => array_map(
+            fn (int $n) => ['employeeNo' => (string) $n],
+            range($from, $from + $count - 1),
+        );
+        Http::fake([
+            '10.0.0.5/ISAPI/AccessControl/UserInfo/Search*' => Http::sequence()
+                ->push(['UserInfoSearch' => ['responseStatusStrg' => 'MORE', 'UserInfo' => $page(1, 200)]])
+                ->push(['UserInfoSearch' => ['responseStatusStrg' => 'OK', 'UserInfo' => $page(201, 200)]]),
+        ]);
+
+        expect(app(HikvisionAdapter::class)->pullEnrollments($device))->toHaveCount(400);
+        Http::assertSentCount(2);
+    });
+
+    // A list still unfinished at the cap is part of the list. Answered as
+    // all of it, a migration would leave the rest out without a word.
+    it('throws instead of answering part of a roster longer than it reads', function () {
+        $device = hikvisionDevice();
+        Http::fake([
+            '10.0.0.5/ISAPI/AccessControl/UserInfo/Search*' => fn () => Http::response([
+                'UserInfoSearch' => [
+                    'responseStatusStrg' => 'MORE',
+                    'UserInfo' => array_map(fn (int $n) => ['employeeNo' => (string) $n], range(1, 200)),
+                ],
+            ]),
+        ]);
+
+        expect(fn () => app(HikvisionAdapter::class)->pullEnrollments($device))
+            ->toThrow(DeviceRequestFailed::class, 'listed more than the 1000 people read');
+        Http::assertSentCount(5);
+    });
+
     it('throws on an unreachable device when pulling events, and reports false from connect', function () {
         $device = hikvisionDevice();
         Http::fake(['10.0.0.5/*' => fn () => throw new ConnectionException('timed out')]);
