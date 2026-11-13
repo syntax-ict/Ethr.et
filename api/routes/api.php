@@ -84,10 +84,12 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeBulkController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeContractController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
+use App\Http\Controllers\Api\V1\Employee\EmployeeIdentityController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
 use App\Http\Controllers\Api\V1\Employee\LetterRequestController;
 use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
+use App\Http\Controllers\Api\V1\Employee\PossibleDuplicatesController;
 use App\Http\Controllers\Api\V1\Employee\RetirementCaseController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Holiday\HolidayController;
@@ -584,6 +586,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::get('/employees/possible-duplicates', PossibleDuplicatesController::class);
     Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/starting-password', [StartingPasswordController::class, 'store']);
     Route::post('/employees/activation-codes', [ActivationCodeSheetController::class, 'store']);
@@ -633,6 +636,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
+        Route::get('/identities', [EmployeeIdentityController::class, 'index']);
+        Route::post('/identities/{identity}/verify', [EmployeeIdentityController::class, 'verify']);
+        Route::delete('/identities/{identity}', [EmployeeIdentityController::class, 'destroy']);
         Route::get('/activation-code', [ActivationCodeController::class, 'show']);
         Route::post('/activation-code', [ActivationCodeController::class, 'store']);
         Route::delete('/activation-code', [ActivationCodeController::class, 'destroy']);

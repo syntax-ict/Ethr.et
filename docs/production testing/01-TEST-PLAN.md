@@ -62,7 +62,7 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 case for a change that is not live is recorded as Blocked, not Fail.
 
 **The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
-`8431f382a8`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+`8431f382a8`, and the fifth edition's, up to `c8cc3a4b2d`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -248,7 +248,26 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | A punch a terminal pushes to the vendor webhook is recorded for the device's organisation (`86ff8df226`). The PR is titled as a test harness; the fix rides in it | #688 | DEV-007, DEV-008 changed; K-70 |
 | The attendance-to-payslip journeys (`src/e2e/attendance-payroll/`) and the punch race test join the gates: L0 only, never production | #688 | Section 3, L0; [11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli) |
 | Sign-up holds the admin step until the phone is valid; the industry must be one the catalogue knows; the admin and the organisation take the form's language | #689 | ORG-012 to ORG-014; K-69 |
+| One employee, however they arrive: adding someone who is already here is refused or asked about; a deleted record is restored, not remade; a contradicted match goes to review; a phone in another spelling is the same person | #692, #694 | IDN-001 to IDN-004, IDN-006, IDN-007 |
+| The import screen is the staged review: lines are read on the server, shown matched, and added only on commit; a matched line fills blanks and asks about differences; a long list is added in parts; staged lists are kept 30 days from their last activity | #693, #695, #696 | IDN-005, IDN-008 to IDN-011; IMP-E-002 to IMP-E-006 and IMP-E-014 now describe the API only |
+| National ID and TIN are kept out of the `employee.updated` audit record, and out of a staged review | #690 | IDN-009 |
+| The employee template is an Excel workbook with dropdowns, and an `.xlsx` file is read in the browser | #699 | XLS-001 to XLS-003; IMP-E-001 lists 18 of the 20 columns |
+| Another system's column names are matched once and saved as a source; its ids find the same people; a saved source's columns read the same on every database | #700, #701 | MAP-001 to MAP-003 |
+| Mass activation: a list arrives as hired, on probation or confirmed; invitations go out by default; a printable sheet of one-time codes; a code for an invitation unanswered for 3 days | #703 | MASS-001 to MASS-005; MIG-001 changed |
+| One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
+| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 (open) | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
+| National ID and TIN are recorded in the `employee.updated` audit entry as `[redacted]`, `[changed]` or `[unchanged]`, never by value | #690 | EMP-022 |
+| An impersonating platform operator cannot issue a starting password: the action joins `BlockImpersonatedActions`, so the step-up is no longer the only thing in the way. Measured: without the guard the request answers 201 (K-72) | #706 | STP-011 changed |
+| One starting password for a batch of employees with no email, 12 characters from an alphabet without I, L, O, 0 or 1, 200 at a time, forced change at first sign-in, unused after 72 hours; 20 failed tries pause them all for 15 minutes | #691 | Section 5c of [03](03-E2E-AUTH-TENANCY-ACCESS.md), STP-001 to STP-012; MIG-001 changed |
+| One gateway creates every employee and asks before making a second record, as a 409 `employee-exists` (not overruled) or `employee-needs-confirmation` (overruled with `confirm_new`); SCIM and SSO attach the login to the employee already there, and provision nothing when it is uncertain | #694, #692 | Section 3a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), EMP-017 to EMP-021, EMP-023 |
+| One reader for every list of people, and the import **is** the staged review: a matched row fills blanks and asks about differences, and a list is committed in slices | #696, #695 | Section 4a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), STG-001 to STG-007, STG-017, STG-018 |
+| The employee template is a workbook (`Employees`, `Instructions`, `Lists`) with dropdowns, and an uploaded Excel file is read in the browser; a number the spreadsheet rounded is refused | #699 | STG-008 to STG-010, STG-019 |
+| Another system's column names are matched once, saved per source (at most 30) and answered key by key afterwards | #700, #701 | STG-011 to STG-016 |
+| A staged list is kept while anyone is working on it and deleted after 30 days of no activity; one number read and one placeholder hash per list | #693 | STG-020 |
+| The CSV import refuses, rather than skipping or adding, a row that contradicts the person it matches, one for a deleted employee, and one that may be someone already here; the template gains `status` and `external_id` | #692, #699, #700 | IMP-E-001 changed; IMP-E-018 to IMP-E-021, STG-021 |
+| A Hikvision terminal on an office network sends to ETHR instead of being called: no address, four values typed on the terminal, and the scheduled pull skips it so a silent terminal no longer looks healthy | #697 | DEV-018 to DEV-023 |
+| An organisation's robots line is written into the page's React payload too, so the tag after hydration agrees with the head and the header; a news page with no story is `noindex, follow` | #698 | LAND-010, LAND-011, NEWS-004 |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three

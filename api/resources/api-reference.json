@@ -8946,8 +8946,33 @@
                                                                 "const": "warning"
                                                             },
                                                             "count": {
-                                                                "type": "integer",
-                                                                "minimum": 0
+                                                                "type": "integer"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/devices"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "devices_never_heard"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
                                                             },
                                                             "fix_route": {
                                                                 "type": "string",
@@ -13156,7 +13181,8 @@
                                                     },
                                                     "last_seen": {
                                                         "type": "string"
-                                                    }
+                                                    },
+                                                    "match": []
                                                 },
                                                 "required": [
                                                     "device_public_id",
@@ -13164,7 +13190,8 @@
                                                     "badge",
                                                     "punches",
                                                     "first_seen",
-                                                    "last_seen"
+                                                    "last_seen",
+                                                    "match"
                                                 ]
                                             }
                                         }
@@ -13899,203 +13926,7 @@
                                                             "null"
                                                         ]
                                                     },
-                                                    "match": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "probable"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": []
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "new"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": []
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "archived"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "prefixItems": [
-                                                                            {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "employee_public_id": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "employee_name": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "score": {
-                                                                                        "type": "number"
-                                                                                    },
-                                                                                    "reasons": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "employee_public_id",
-                                                                                    "employee_name",
-                                                                                    "score",
-                                                                                    "reasons"
-                                                                                ]
-                                                                            }
-                                                                        ],
-                                                                        "minItems": 1,
-                                                                        "maxItems": 1,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "new"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "minItems": 0,
-                                                                        "maxItems": 0,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "matched"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "prefixItems": [
-                                                                            {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "employee_public_id": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "employee_name": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "score": {
-                                                                                        "type": "number"
-                                                                                    },
-                                                                                    "reasons": {
-                                                                                        "type": "array",
-                                                                                        "prefixItems": [
-                                                                                            {
-                                                                                                "type": "string",
-                                                                                                "const": "former_employee"
-                                                                                            }
-                                                                                        ],
-                                                                                        "minItems": 1,
-                                                                                        "maxItems": 1,
-                                                                                        "additionalItems": false
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "employee_public_id",
-                                                                                    "employee_name",
-                                                                                    "score",
-                                                                                    "reasons"
-                                                                                ]
-                                                                            }
-                                                                        ],
-                                                                        "minItems": 1,
-                                                                        "maxItems": 1,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
+                                                    "match": []
                                                 },
                                                 "required": [
                                                     "device_user_id",
@@ -14580,7 +14411,25 @@
                                             "type": "string",
                                             "enum": [
                                                 "online",
-                                                "offline"
+                                                "offline",
+                                                "pending"
+                                            ]
+                                        },
+                                        "error_code": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "enum": [
+                                                "other",
+                                                "auth",
+                                                "http",
+                                                "sdk_port",
+                                                "refused",
+                                                "timeout",
+                                                "dns",
+                                                "unreachable",
+                                                null
                                             ]
                                         },
                                         "details": {
@@ -14595,6 +14444,7 @@
                                     "required": [
                                         "device_public_id",
                                         "status",
+                                        "error_code",
                                         "details",
                                         "device_info"
                                     ]
@@ -16802,6 +16652,109 @@
                                     "required": [
                                         "employee_code",
                                         "format"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/possible-duplicates": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "employee.possibleDuplicates",
+                "description": "Read-only. Two or more records are put in a group when they share\nsomething a person has only one of: a national id, an email address,\na phone number, a badge number, or a name together with a date of\nbirth. `reasons` says which; the values themselves are not returned.\nOnly people employed now are compared, among the employees the reader\nmay see. At most 100 groups are returned, the likeliest first, and\n`truncated` says when there were more.",
+                "summary": "Current employees who may be one person recorded twice",
+                "tags": [
+                    "Possible Duplicates"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "groups": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "reasons": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "employees": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_code": {
+                                                                    "type": "string"
+                                                                },
+                                                                "status": {
+                                                                    "type": "string"
+                                                                },
+                                                                "department": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "created_via": {
+                                                                    "type": "string"
+                                                                },
+                                                                "created_at": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "public_id",
+                                                                "name",
+                                                                "employee_code",
+                                                                "status",
+                                                                "department",
+                                                                "created_via",
+                                                                "created_at"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "reasons",
+                                                    "employees"
+                                                ]
+                                            }
+                                        },
+                                        "truncated": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "groups",
+                                        "truncated"
                                     ]
                                 }
                             }
@@ -19585,6 +19538,231 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/identities": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "employeeIdentity.index",
+                "description": "`created_via` is where the record came from: `manual`, `api`, `import`,\n`migration`, `device`, `recruitment`, `scim` or `sso`; null for a\nrecord older than 2026-11-11. Each identity is an id in one place:\n`kind` is `device` for an attendance terminal's number or\n`other_system` for another system's id, and `source` names the\nterminal or the system when ETHR still knows it. `verified` says a\nperson confirmed the link, not that ETHR inferred it.",
+                "summary": "The ids this employee is known by elsewhere, and how their record was made",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "created_via": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "identities": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "device",
+                                                            "other_system",
+                                                            "other"
+                                                        ]
+                                                    },
+                                                    "source": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "source_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "identifier_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "identifier_value": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "verified": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "linked_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "kind",
+                                                    "source",
+                                                    "source_type",
+                                                    "identifier_type",
+                                                    "identifier_value",
+                                                    "verified",
+                                                    "linked_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "created_via",
+                                        "identities"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/identities/{identity}": {
+            "delete": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employeeIdentity.destroy",
+                "description": "For a link that is wrong: the terminal's number 14 is somebody else.\nThe employee's record is not changed. The next punch or list that\nbrings the id is matched afresh, by the employee's own details, or\nheld for a person to assign.",
+                "summary": "Remove a link between this employee and an id elsewhere",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "identity",
+                        "in": "path",
+                        "required": true,
+                        "description": "The identity public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/{employee}/identities/{identity}/verify": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employeeIdentity.verify",
+                "description": "A link ETHR made by itself (a terminal's number matched to an employee\nnumber) is unverified, and an unverified link follows a better match\nif one appears. Confirmed, it stays with this employee until a person\nmoves or removes it.",
+                "summary": "Confirm that an id elsewhere is this employee",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "employee",
+                        "in": "path",
+                        "required": true,
+                        "description": "The employee public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "identity",
+                        "in": "path",
+                        "required": true,
+                        "description": "The identity public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "verified": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "verified"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -46807,6 +46985,23 @@
                             "null"
                         ]
                     },
+                    "error_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "other",
+                            "auth",
+                            "http",
+                            "sdk_port",
+                            "refused",
+                            "timeout",
+                            "dns",
+                            "unreachable",
+                            null
+                        ]
+                    },
                     "duration_ms": {
                         "type": [
                             "integer",
@@ -46841,6 +47036,7 @@
                     "events_processed",
                     "events_failed",
                     "error_message",
+                    "error_code",
                     "duration_ms",
                     "started_at",
                     "completed_at",

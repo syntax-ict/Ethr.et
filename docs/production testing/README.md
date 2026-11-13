@@ -16,7 +16,12 @@ cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, the
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), makes the pack runnable by
 Claude Code, with Playwright or Chrome ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
 configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
-they are recorded Blocked until #682 is deployed. The figures
+they are recorded Blocked until #682 is deployed. **The fifth edition** (2026-11-12) adds the
+employee identity and import slice (#690 to #701, up to `c8cc3a4b2d`): one gateway that asks
+before creating a second employee, one reader for every list of people with the import as its
+staged review, the workbook template and saved column names, one starting password for a batch,
+a Hikvision terminal that sends to ETHR instead of being called, and the robots line that
+survives hydration. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
@@ -61,7 +66,7 @@ in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running
 
 ## Keeping this pack current
 
-<!-- qa-pack-baseline: 6adc3a16c5 -->
+<!-- qa-pack-baseline: c8cc3a4b2d -->
 
 The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
 above names the last commit of `main` the whole pack was brought up to date from. To see what has
@@ -78,7 +83,7 @@ necessarily a gap: a refactor has nothing a tester can see. A user-visible chang
 the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
 **Before a release pass, run it against the release tag:** a case for a change it lists is recorded
 as **Not covered** in the execution log, and the test summary says how many there were. Move the
-marker forward only when every file has been brought up to date (last moved 2026-11-10, fourth
+marker forward only when every file has been brought up to date (last moved 2026-11-12, fifth
 edition).
 
 ## The three rules that matter most on production

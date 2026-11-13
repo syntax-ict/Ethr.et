@@ -60,9 +60,19 @@ class HealthController extends Controller
         // worth nothing when the site really is down.
         //
         // The liveness picture is still published, under `queue_detail`, for
-        // anything that wants it. The thing that acts on it is
-        // `ethr:queue:check`, which runs from cron and exits non-zero — see
-        // docs/operations/QUEUE-MONITORING.md.
+        // anything that wants it, and `/admin/operations` is where a person
+        // reads it.
+        //
+        // What ACTS on it is an off-host uptime monitor polling this endpoint.
+        // This comment used to say "the thing that acts on it is
+        // `ethr:queue:check`, which runs from cron" — corrected 2026-11-13:
+        // nothing in this repository runs that command. It is in neither
+        // routes/console.php nor .github/workflows/cron.yml, and this host has
+        // no cron and no shell to run it from. Driving it from the scheduler
+        // would be circular anyway: a watchdog the scheduler starts cannot
+        // report that the scheduler stopped. See
+        // docs/operations/QUEUE-MONITORING.md, "What watches it, and what does
+        // not".
         try {
             DB::table('jobs')->count();
             $services['queue'] = 'healthy';

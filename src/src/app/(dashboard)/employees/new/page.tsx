@@ -4,7 +4,7 @@ import {
   NationalityStatusSelect,
   type NationalityStatus,
 } from "@/features/employees/components/nationality-status-select";
-import { useRef, useState, type ReactNode } from "react";
+import { Suspense, useRef, useState, type ReactNode } from "react";
 import {
   branchesApi,
   departmentsApi,
@@ -12,10 +12,19 @@ import {
   teamsApi,
   costCentersApi,
 } from "@/features/organization/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AddEmployeeMenu } from "@/features/employees/components/add-employee-menu";
+import {
+  useAssignUnmatchedBadge,
+  useUnmatchedBadges,
+} from "@/features/devices/api";
+import { apiErrorDetail } from "@/lib/api/error-message";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle,
+  BadgeHelp,
   Briefcase,
   Loader2,
   Mail,
@@ -96,11 +105,64 @@ type EmployeeForm = typeof EMPTY_FORM;
  * person filling it in knows at once (who, how to reach them, the job, the
  * pay), with the actions in a bar that stays in reach on a long form.
  */
+/**
+ * A badge a terminal sent that nobody has, opened from Unrecognised badges
+ * on Devices: `?badge=&device=&hire_date=`. Read inside a Suspense boundary,
+ * which the static export needs for search params.
+ */
+interface BadgeOrigin {
+  badge: string;
+  device: string;
+  hireDate: string;
+}
+
+function FromBadgeParams() {
+  const params = useSearchParams();
+  const badge = params.get("badge");
+  const device = params.get("device");
+  const hireDate = params.get("hire_date") ?? "";
+  const origin =
+    badge && device
+      ? {
+          badge,
+          device,
+          hireDate: /^\d{4}-\d{2}-\d{2}$/.test(hireDate) ? hireDate : "",
+        }
+      : null;
+
+  return <NewEmployeeForm origin={origin} />;
+}
+
 export default function NewEmployeePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96" />}>
+      <FromBadgeParams />
+    </Suspense>
+  );
+}
+
+function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const { t } = useT();
   const router = useRouter();
   const createEmployee = useCreateEmployee();
   const nextCode = useNextEmployeeCode();
+  const { hasPermission } = usePermissions();
+  // The held punches are replayed by whoever may assign a badge, the same
+  // check the assign endpoint makes.
+  const canReplay = origin !== null && hasPermission("attendance.manage");
+  const assignBadge = useAssignUnmatchedBadge();
+  const { data: heldBadges } = useUnmatchedBadges(
+    origin !== null && hasPermission("device.viewAny"),
+  );
+  const held = origin
+    ? heldBadges?.find(
+        (b) => b.badge === origin.badge && b.device_public_id === origin.device,
+      )
+    : undefined;
+  // Spent once the badge has been given to someone, so "Save and add
+  // another" does not move it to the next person.
+  const [badgeUsed, setBadgeUsed] = useState(false);
+  const fromBadge = origin !== null && !badgeUsed ? origin : null;
 
   const { data: depts } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
@@ -109,7 +171,15 @@ export default function NewEmployeePage() {
   const { data: costCenters } = costCentersApi.useList();
   const { data: employeeOptions } = useEmployeeOptions();
 
-  const [form, setForm] = useState<EmployeeForm>(EMPTY_FORM);
+  const [form, setForm] = useState<EmployeeForm>(() =>
+    origin
+      ? {
+          ...EMPTY_FORM,
+          badge_number: origin.badge,
+          hire_date: origin.hireDate,
+        }
+      : EMPTY_FORM,
+  );
   // Bumped by "Save and add another" so every control, including the ones
   // that keep their own text, starts empty.
   const [formKey, setFormKey] = useState(0);
@@ -223,15 +293,68 @@ export default function NewEmployeePage() {
     save(payload);
   }
 
+  /**
+   * Give the badge to the person just added, which records its held punches
+   * through the same endpoint the Devices card uses. A failure leaves the
+   * employee in place and the badge on the card, where it now shows whose it
+   * is and offers the replay again.
+   */
+  async function replayHeldPunches(origin: BadgeOrigin, employeeId: string) {
+    setBadgeUsed(true);
+    try {
+      const result = await assignBadge.mutateAsync({
+        device_public_id: origin.device,
+        badge: origin.badge,
+        employee_public_id: employeeId,
+      });
+      if (result.refused > 0) {
+        toast.warning(
+          t(
+            "employee.badge_replayed_some",
+            ":replayed held punches were recorded for them. :refused were refused, and are listed on their attendance.",
+            { replayed: result.replayed, refused: result.refused },
+          ),
+        );
+      } else {
+        toast.success(
+          t(
+            "employee.badge_replayed",
+            ":count held punches were recorded for them.",
+            { count: result.replayed },
+          ),
+        );
+      }
+    } catch (err) {
+      toast.error(
+        apiErrorDetail(err) ||
+          t(
+            "employee.badge_replay_failed",
+            "The employee was added, but the held punches were not recorded. The badge is still under Unrecognised badges on Devices, where they can be recorded.",
+          ),
+      );
+    }
+  }
+
   function save(payload: CreateEmployeePayload) {
     createEmployee.mutate(payload, {
-      onSuccess: (created: {
+      onSuccess: async (created: {
         public_id?: string;
         name?: string;
         meta?: { login_invited?: boolean };
       }) => {
         setHasUnsavedChanges(false);
         setLikeness(null);
+
+        // Only when the badge saved is the one that was held: a person who
+        // changed or cleared it has said this is not that badge.
+        if (
+          fromBadge &&
+          canReplay &&
+          created?.public_id &&
+          payload.badge_number === fromBadge.badge
+        ) {
+          await replayHeldPunches(fromBadge, created.public_id);
+        }
 
         if (afterSave.current === "another") {
           startNext(created?.name ?? form.name);
@@ -368,20 +491,48 @@ export default function NewEmployeePage() {
 
   return (
     <>
-      <PageActions
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/employees/import">
-              {t("employee.import_instead", "Import a file instead")}
-            </Link>
-          </Button>
-        }
-      />
+      <PageActions actions={<AddEmployeeMenu variant="others" />} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <p className="text-sm text-muted-foreground">
           {t("employee.required_note", "Fields marked * are required.")}
         </p>
+
+        {fromBadge && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm"
+          >
+            <BadgeHelp
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p>
+              {held
+                ? t(
+                    "employee.from_badge_held",
+                    "Badge :badge from :device, with :count punches held.",
+                    {
+                      badge: fromBadge.badge,
+                      device: held.device_name,
+                      count: held.punches,
+                    },
+                  )
+                : t("employee.from_badge", "Badge :badge from a terminal.", {
+                    badge: fromBadge.badge,
+                  })}{" "}
+              {canReplay
+                ? t(
+                    "employee.from_badge_replay",
+                    "Its held punches are recorded for this person when you save.",
+                  )
+                : t(
+                    "employee.from_badge_no_replay",
+                    "Someone who manages attendance can record its held punches from Devices once the person is added.",
+                  )}
+            </p>
+          </div>
+        )}
 
         {errorCount > 0 && (
           <div
@@ -631,6 +782,14 @@ export default function NewEmployeePage() {
               label={t("employee.hire_date", "Hire Date")}
               required
               error={errors.hire_date}
+              hint={
+                fromBadge?.hireDate && form.hire_date > fromBadge.hireDate
+                  ? t(
+                      "employee.hire_after_badge",
+                      "The badge was first seen before this date. Punches before the hire date fall outside this person's expected days.",
+                    )
+                  : undefined
+              }
             >
               <DualCalendarDateInput
                 value={form.hire_date}

@@ -27,6 +27,9 @@ export const MAX_LINES = 5000;
 /** Rows of the template that carry the dropdowns: the most people one list brings. */
 const TEMPLATE_ROWS = 2000;
 
+export const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 /** A workbook with more lines than one staging takes. */
 export class TooManyLines extends Error {
   constructor(public readonly lines: number) {
@@ -191,6 +194,9 @@ export async function buildTemplate(
   spec: TemplateSpec,
   calendar: DateCalendar,
   text: TemplateText,
+  // Rows already known, written under the header by column name and the
+  // rest left blank: the badges a terminal sent, each waiting for a name.
+  rows: Record<string, string>[] = [],
 ): Promise<ArrayBuffer> {
   const { Workbook } = await loadExcel();
   const workbook: ExcelWorkbook = new Workbook();
@@ -236,6 +242,15 @@ export async function buildTemplate(
       errorStyle: "warning",
       errorTitle: header,
       error: text.notInList,
+    });
+  });
+
+  rows.forEach((row, offset) => {
+    spec.headers.forEach((header, index) => {
+      const value = row[header];
+      if (value !== undefined && value !== "") {
+        people.getCell(offset + 2, index + 1).value = value;
+      }
     });
   });
 
