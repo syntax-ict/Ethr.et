@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\CustomRole;
+use App\Models\Department;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
+use App\Services\Migration\WorkforceMigrationService;
 use Carbon\Carbon;
 use Illuminate\Testing\TestResponse;
 
@@ -138,4 +143,106 @@ it('never shows one organisation another\'s held badges', function () {
     actingAsUser(['role' => UserRole::HR_ADMIN], $other);
 
     test()->getJson(unmatchedUrl($other))->assertOk()->assertJsonCount(0, 'data');
+});
+
+// The card tells the truth about each badge (2026-11-12). The table holds the
+// badge, not the verdict it had when it arrived, so the index asks again.
+
+it('says a badge nobody has is new', function () {
+    [$tenant] = unmatchedSetup();
+    unmatchedPost(UNMATCHED_DAY);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->getJson(unmatchedUrl($tenant))
+        ->assertOk()
+        ->assertJsonPath('data.0.match.outcome', 'new')
+        ->assertJsonPath('data.0.match.employee_public_id', null);
+});
+
+it('says whose a badge is once its holder arrived by import, so the punches can be replayed', function () {
+    [$tenant] = unmatchedSetup();
+    unmatchedPost(UNMATCHED_DAY);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $migration = app(WorkforceMigrationService::class);
+    $migration->commit($migration->stageFromRows([
+        ['name' => 'Dawit Bekele', 'badge_number' => '7777', 'hire_date' => '2026-10-01'],
+    ], $tenant->id));
+    $dawit = Employee::where('name', 'Dawit Bekele')->sole();
+
+    test()->getJson(unmatchedUrl($tenant))
+        ->assertOk()
+        ->assertJsonPath('data.0.match.outcome', 'matched')
+        ->assertJsonPath('data.0.match.employee_public_id', $dawit->public_id)
+        ->assertJsonPath('data.0.match.candidates.0.employee_name', 'Dawit Bekele');
+
+    // Linking is not replaying: the held punches wait for a person to say so.
+    expect(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::PENDING)->count())->toBe(2);
+});
+
+it('suggests nothing to someone who cannot act on it', function () {
+    [$tenant] = unmatchedSetup();
+    unmatchedPost(UNMATCHED_DAY);
+    $role = CustomRole::query()->forceCreate(['tenant_id' => $tenant->id, 'name' => 'Device viewer', 'is_active' => true, 'org_scope' => 'all']);
+    $role->permissions()->sync(Permission::whereIn('name', ['device.viewAny'])->pluck('id'));
+    Permission::clearCacheForCustomRole($role->id);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'custom_role_id' => $role->id], $tenant));
+
+    test()->getJson(unmatchedUrl($tenant))
+        ->assertOk()
+        ->assertJsonPath('data.0.badge', '7777')
+        ->assertJsonPath('data.0.match', null);
+});
+
+it('names nobody a department-scoped manager cannot open', function () {
+    [$tenant, , $selam] = unmatchedSetup();
+    unmatchedPost(UNMATCHED_DAY);
+    $selam->update(['badge_number' => '7777']);
+    $theirs = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $other = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $selam->update(['department_id' => $other->id]);
+    $manager = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $theirs->id]);
+    $role = CustomRole::query()->forceCreate(['tenant_id' => $tenant->id, 'name' => 'Dept attendance', 'is_active' => true, 'org_scope' => 'department']);
+    $role->permissions()->sync(Permission::whereIn('name', ['device.viewAny', 'attendance.manage'])->pluck('id'));
+    Permission::clearCacheForCustomRole($role->id);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $manager->id, 'custom_role_id' => $role->id], $tenant));
+
+    $row = test()->getJson(unmatchedUrl($tenant))->assertOk()->json('data.0');
+
+    expect($row['match']['employee_public_id'])->toBeNull()
+        ->and($row['match']['candidates'])->toBe([])
+        ->and(json_encode($row))->not->toContain('Selam')
+        ->and(json_encode($row))->not->toContain($selam->public_id);
+
+    // Moved into their department, the same person is named.
+    $selam->update(['department_id' => $theirs->id]);
+    test()->getJson(unmatchedUrl($tenant))
+        ->assertOk()
+        ->assertJsonPath('data.0.match.employee_public_id', $selam->public_id);
+});
+
+it('resolves only the most recent badges, and lists the rest without a suggestion', function () {
+    [$tenant, $device] = unmatchedSetup();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $limit = UnmatchedPunchController::RESOLVE_LIMIT;
+    foreach (range(1, $limit + 1) as $n) {
+        UnmatchedDevicePunch::create([
+            'tenant_id' => $tenant->id,
+            'device_id' => $device->id,
+            'badge' => "B{$n}",
+            'punch_type' => 'check_in',
+            'occurred_raw' => '2026-10-14 08:00:00',
+            'idempotency_key' => "cap-{$n}",
+            'status' => UnmatchedDevicePunch::PENDING,
+        ])->forceFill(['created_at' => now()->subMinutes($n)])->save();
+    }
+
+    $data = test()->getJson(unmatchedUrl($tenant))->assertOk()->json('data');
+
+    expect($data)->toHaveCount($limit + 1)
+        ->and($data[0]['badge'])->toBe('B1')
+        ->and($data[0]['match']['outcome'])->toBe('new')
+        ->and($data[$limit - 1]['match'])->not->toBeNull()
+        ->and($data[$limit]['badge'])->toBe('B'.($limit + 1))
+        ->and($data[$limit]['match'])->toBeNull();
 });

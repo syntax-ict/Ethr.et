@@ -206,4 +206,46 @@ describe("<DeviceEnrollmentsDialog> for a terminal that only sends to ETHR", () 
       screen.queryByRole("button", { name: "Try again" }),
     ).not.toBeInTheDocument();
   });
+
+  // The link opened the migration page for a terminal it then could not
+  // read (review of #707): with nobody listed there is nobody to bring in.
+  it("offers to bring people in only from a list that was read", async () => {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "U1", role: "hr_admin" },
+          permissions: ["employee.create", "device.view"],
+          tenant: { timezone: "Africa/Addis_Ababa" },
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/enrollments", () =>
+        enrollments({ source: "live", can_request: false }),
+      ),
+    );
+    const read = renderDialog();
+    expect(
+      await screen.findByRole("link", { name: "Bring these people into ETHR" }),
+    ).toBeInTheDocument();
+    read.unmount();
+
+    server.use(
+      http.get("*/api/v1/devices/DEV1/enrollments", () =>
+        HttpResponse.json(
+          {
+            status: 409,
+            detail: "Cannot be asked.",
+            code: "device-roster-unavailable",
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    renderDialog();
+    expect(
+      await screen.findByText("This terminal cannot be asked who is enrolled"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Bring these people into ETHR" }),
+    ).not.toBeInTheDocument();
+  });
 });

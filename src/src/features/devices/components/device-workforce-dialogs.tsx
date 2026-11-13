@@ -179,7 +179,7 @@ export function DeviceEnrollmentsDialog({
           <Button variant="outline" onClick={onClose}>
             {t("common.close", "Close")}
           </Button>
-          {can.manageEmployees && devicePublicId && (
+          {can.manageEmployees && devicePublicId && query.isSuccess && (
             <Button asChild>
               <Link href={`/employees/from-device?device=${devicePublicId}`}>
                 {t("devices_page.bring_in", "Bring these people into ETHR")}

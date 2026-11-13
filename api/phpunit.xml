@@ -46,11 +46,19 @@
             with the codebase; at 1G the coverage job died there with every
             test green, on the approval engine PR (#359).
 
-            4G, not 2G (2026-11-13): the same death, the same place, again
-            with every test green (5446 passed), on the device state PR (#709).
-            Pest tried to allocate another 418 MB on top of 2G while loading
-            the report. The CI runner has 16 GB; the next raise is due when
-            the report grows by about as much again.
+            3G, not 2G (2026-11-13): the same death at 2G, on the PR that added
+            the unrecognised-badge cards (#710). Every test passed (5428), then
+            PHP failed allocating 437 MB for the report, in Pest's
+            Coverage.php. Main had passed at 2G the day before, so the report
+            sits at the edge and a few dozen tests tip it. The runner has the
+            memory; the job's 25-minute limit is the other ceiling to watch.
+
+            4G, not 3G (2026-11-13): the device state PR (#709) died the same
+            way at 2G on its own, every test green (5446), needing another
+            418 MB. Main at 3G already carried #710's extra tests; #709 adds
+            its own on top, and each PR alone needed over 400 MB beyond 2G,
+            so 3G leaves too little room. The next raise is due when the
+            report grows by about as much again.
         -->
         <ini name="memory_limit" value="4G"/>
         <env name="APP_ENV" value="testing" force="true"/>
