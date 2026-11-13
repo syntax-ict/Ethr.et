@@ -5951,6 +5951,7 @@
   "setup2.no_hire_date": "Namoonni :count guyyaa qacarrii hin qaban. Har'a fayyadamama; kunis boqonnaa fi dheerina tajaajilaa irratti dhiibbaa qaba.",
   "setup2.no_device_row": "Meeshaa ashaaraa quba yookaan fuulaa fayyadamtuu? Meeshaa ZKTeco walqabsiisaa, namni irratti galmaa'e hundi asii galchamuu danda'a.",
   "setup2.only_sends_row": "Meeshaan keessan galmeewwan isaa gara ETHR erga, eenyu akka itti galmaa'e gaafachuun hin danda'amu. Baajiiwwan inni erge kan eenyullee ofii hin taane fuula Meeshaalee jala tarreeffamaniiru; tokkoon tokkoon isaanii hojjetaa ta'uu danda'a.",
+  "setup2.device_refused": ":name galmeewwan isaa gara ETHR erga, eenyu akka itti galmaa'e gaafachuun hin danda'amu. Meeshaa biraa filadhaa.",
   "setup2.col_name": "Maqaa",
   "setup2.col_email": "Imeelii",
   "setup2.col_phone": "Bilbila",

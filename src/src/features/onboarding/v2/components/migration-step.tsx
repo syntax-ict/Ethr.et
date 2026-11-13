@@ -192,10 +192,20 @@ export function MigrationStep({
   // staged an empty list that read as "nobody is enrolled".
   const devices = allDevices.filter((d) => d.receives_only !== true);
   const onlySends = allDevices.length > 0 && devices.length === 0;
+  // The terminal the page was opened for, when it is one that cannot be read.
+  // Another is not put in its place without a word: with a readable terminal
+  // elsewhere, the default below would choose it, and the list staged would
+  // be another terminal's.
+  const refusedDevice =
+    deviceId !== "" && deviceId === initialDeviceId
+      ? allDevices.find(
+          (d) => d.public_id === deviceId && d.receives_only === true,
+        )
+      : undefined;
   // One device is the device: there is nothing to choose.
   const device = devices.some((d) => d.public_id === deviceId)
     ? deviceId
-    : devices.length === 1
+    : devices.length === 1 && !refusedDevice
       ? devices[0].public_id
       : "";
   // Hire dates are read in the reader's own calendar unless they say otherwise:
@@ -553,6 +563,15 @@ export function MigrationStep({
                     "Everyone enrolled on the device is listed with their badge number, ready to match.",
                   )}
                 </p>
+                {refusedDevice && (
+                  <p role="status" className="text-xs text-status-warning">
+                    {t(
+                      "setup2.device_refused",
+                      ":name sends its punches to ETHR and cannot be asked who is enrolled on it. Choose another terminal.",
+                      { name: refusedDevice.name },
+                    )}
+                  </p>
+                )}
                 <>
                   <Select value={device} onValueChange={setDeviceId}>
                     <SelectTrigger

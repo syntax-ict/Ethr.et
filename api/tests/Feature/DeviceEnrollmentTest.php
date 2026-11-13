@@ -226,6 +226,31 @@ describe('a device that cannot be read', function () {
             ->assertJsonMissingPath('enrollments');
     });
 
+    it('says a roster too long to read in one go is not used, rather than that the device is down', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        config(['devices.allow_private_hosts' => true]);
+        $device = Device::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id,
+            'adapter_type' => 'hikvision',
+            'connection_config' => ['ip' => '10.0.0.5', 'port' => 80, 'username' => 'admin', 'password' => 'secret'],
+        ]);
+        Http::fake([
+            '10.0.0.5/ISAPI/AccessControl/UserInfo/Search*' => fn () => Http::response([
+                'UserInfoSearch' => [
+                    'responseStatusStrg' => 'MORE',
+                    'UserInfo' => array_map(fn (int $n) => ['employeeNo' => (string) $n], range(1, 200)),
+                ],
+            ]),
+        ]);
+
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/enrollments")
+            ->assertStatus(502)
+            ->assertJsonPath('detail', __('device.roster.too_large'))
+            ->assertJsonMissingPath('enrollments');
+    });
+
     it('does not put the vendor, status or address in the client-facing detail', function () {
         [$host, $device] = unreadableDevice();
 
