@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>ETHR</title>
+  <rect width="64" height="64" rx="15" fill="#0F4C75"/>
+  <path d="M15 32H41" stroke="#FFFFFF" stroke-width="6.5" fill="none"/>
+  <path d="M40.59 35.26A13 13 0 1 0 37.96 40.36" stroke="#FFFFFF" stroke-width="6.5" fill="none"/>
+  <circle cx="48" cy="43.5" r="4.2" fill="#E8A838"/>
+</svg>

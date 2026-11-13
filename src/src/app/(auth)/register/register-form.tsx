@@ -37,6 +37,7 @@ import {
   registerSchema,
   type RegisterFormValues,
 } from "@/features/auth/register-schema";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const orgTypeKeys = [
   "government",
@@ -373,9 +374,7 @@ export function RegisterForm() {
   return (
     <div className="w-full max-w-lg mx-auto">
       <div className="mb-8">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
-          <span className="text-base font-bold text-primary-foreground">E</span>
-        </div>
+        <EthrSymbol className="h-11 w-11" />
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
           {t("auth.create_account", "Create your account")}
         </h1>

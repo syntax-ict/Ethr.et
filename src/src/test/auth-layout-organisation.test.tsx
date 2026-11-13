@@ -135,6 +135,34 @@ describe("organisation sign-in page", () => {
   });
 });
 
+describe("generic sign-in", () => {
+  it("shows the reversed ETHR lockup in the link to home, not a letter E", () => {
+    hostContextValue.mockReturnValue({
+      ...organisation,
+      context: "platform" as HostCtx["context"],
+      tenantSlug: null,
+      tenantName: null,
+      tenantBrand: null,
+      tenantLanding: null,
+    });
+
+    renderLayout();
+
+    const mark = screen.getByRole("img", { name: "ETHR" });
+    expect(mark.closest("a")).toHaveAttribute("href", "/");
+    expect(screen.queryByText("E")).not.toBeInTheDocument();
+
+    // The reversed glyph and the dark-theme tile are both drawn, each hidden by
+    // class; jsdom cannot evaluate the variant. Both are decorative, so the
+    // wordmark is the link's only accessible name.
+    const link = mark.closest("a") as HTMLElement;
+    const svgs = link.querySelectorAll("svg");
+    expect(svgs).toHaveLength(3);
+    expect(link.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(2);
+    expect(link.querySelectorAll('svg[role="img"]')).toHaveLength(1);
+  });
+});
+
 describe("panel background", () => {
   it("is the brand colour by default", () => {
     expect(panelBackground(landing, "#14b8a6")).toBeUndefined();

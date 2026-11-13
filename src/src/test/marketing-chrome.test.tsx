@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
+import { EMPTY_SITE_CONTENT } from "@/features/marketing/site-content";
+import type { SiteContent } from "@/features/marketing/site-content";
 
 /**
  * The header and footer every public page carries.
@@ -16,10 +18,20 @@ import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
  * landing page's invented metrics — something stated on a public page that
  * is not true — in control and link form.
  */
-function renderChrome(ui: React.ReactElement, locale?: string) {
+function renderChrome(
+  ui: React.ReactElement,
+  locale?: string,
+  site?: Partial<SiteContent>,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  if (site) {
+    queryClient.setQueryData(["site-content"], {
+      ...EMPTY_SITE_CONTENT,
+      ...site,
+    });
+  }
   const tree = locale ? (
     <RouteLocaleProvider locale={locale}>{ui}</RouteLocaleProvider>
   ) : (
@@ -87,6 +99,35 @@ describe("Marketing header", () => {
     expect(
       document.getElementById(opened.getAttribute("aria-controls") ?? ""),
     ).not.toBeNull();
+  });
+});
+
+describe("Marketing footer brand", () => {
+  it("falls back to the drawn symbol and wordmark when nothing is set", () => {
+    const { container } = renderChrome(<MarketingFooter />);
+
+    expect(container.querySelector("svg circle")).not.toBeNull();
+    expect(screen.getByRole("img", { name: "ETHR" })).toBeInTheDocument();
+  });
+
+  it("shows the operator's name as text, not the wordmark", () => {
+    renderChrome(<MarketingFooter />, undefined, {
+      platform_name: "Acme HR",
+    });
+
+    expect(screen.getByText("Acme HR")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "ETHR" })).not.toBeInTheDocument();
+  });
+
+  it("shows the operator's logo when one is set", () => {
+    const { container } = renderChrome(<MarketingFooter />, undefined, {
+      logo_url: "https://cdn.ethr.et/logo.png",
+    });
+
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://cdn.ethr.et/logo.png",
+    );
   });
 });
 

@@ -19,6 +19,7 @@ import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
 import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const forgotSchema = z.object({
   // Optional in the schema because the field is not always rendered: on a
@@ -159,9 +160,7 @@ export function ForgotForm() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.forgot_title", "Forgot your password?")}

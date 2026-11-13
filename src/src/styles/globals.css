@@ -263,6 +263,11 @@
      (#7c5306, 6.30:1), the same split the high-contrast theme makes below. */
   --brand-accent: #e8a838;
   --brand-accent-foreground: #0f172a; /* 8.58:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Gold dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
 
   /* Status colours double as text (`text-status-success`, 120 call sites) and
      as fills with white text. The original 500-level shades failed WCAG AA as
@@ -391,6 +396,11 @@
   --interactive-focus: #4a9fd8;
   --brand-accent: #fbbf24;
   --brand-accent-foreground: #0f172a; /* 10.69:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Gold dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
   --status-success: #34d399;
   --status-warning: #fbbf24;
   --status-error: #f87171;
@@ -491,6 +501,11 @@
   --interactive-focus: #003366;
   --brand-accent: #b8860b;
   --brand-accent-foreground: #000000; /* 6.45:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Gold dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
   --status-success: #006400;
   --status-warning: #8b4513;
   --status-error: #8b0000;
