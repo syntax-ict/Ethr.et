@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";
 import { api } from "../helpers";
@@ -207,18 +207,18 @@ export async function unmatchedBadges(page: Page): Promise<UnmatchedBadge[]> {
 /**
  * The two punches a badge arrives with: in 50 minutes ago and out 20 minutes
  * ago. They must fall on the Addis date the server first sees them, which is
- * the hire date the card offers, so a run too close to midnight is refused
- * with the reason rather than failing on a date.
+ * the hire date the card offers, so a run in the 50 minutes after midnight
+ * skips with the reason. It does not fail: the gate blocks a merge, and a push
+ * between 21:00 and 21:50 UTC would otherwise go red for the time of day.
  */
 export function heldPunchTimes(): { arrived: Date; left: Date } {
   const arrived = minutesAgo(50);
   const left = minutesAgo(20);
-  if (addisDate(arrived) !== addisDate(new Date())) {
-    throw new Error(
-      "It is less than 50 minutes after midnight in Addis Ababa: the punches would be dated the day before the " +
-        "server first saw them, and the hire date the card offers would fall after them. Run this journey later.",
-    );
-  }
+  test.skip(
+    addisDate(arrived) !== addisDate(new Date()),
+    "It is less than 50 minutes after midnight in Addis Ababa: the punches would be dated the day before the " +
+      "server first saw them, and the hire date the card offers would fall after them.",
+  );
 
   return { arrived, left };
 }
