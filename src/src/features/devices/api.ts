@@ -352,6 +352,11 @@ const enrollmentsKey = (publicId: string) => [
  * Read the people enrolled on a device, each with a suggested employee match.
  * While a reported list has been asked for and not yet answered, it is read
  * again every 10 seconds; the device answers at its next check-in.
+ *
+ * A 409 is not asked again. It means the terminal only sends to ETHR and has
+ * no roster to give, which another request cannot change; the app-wide retry
+ * held the dialog's reason back by a second request and its delay. Other
+ * failures keep the default single retry.
  */
 export function useDeviceEnrollments(publicId: string | null) {
   return useQuery<DeviceEnrollmentsResponse>({
@@ -359,6 +364,9 @@ export function useDeviceEnrollments(publicId: string | null) {
     queryFn: async () =>
       (await apiClient.get(`/devices/${publicId}/enrollments`)).data,
     enabled: !!publicId,
+    retry: (failureCount, error) =>
+      (error as { response?: { status?: number } } | null)?.response?.status !==
+        409 && failureCount < 1,
     refetchInterval: (query) =>
       query.state.data?.roster?.requested_at ? 10_000 : false,
   });
