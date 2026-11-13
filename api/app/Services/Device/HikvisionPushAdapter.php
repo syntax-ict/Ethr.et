@@ -76,7 +76,44 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
 
     private function recentlyHeardFrom(Device $device): bool
     {
-        return $device->last_sync_at !== null
-            && $device->last_sync_at->greaterThan(now()->subHours(self::OFFLINE_AFTER_HOURS));
+        return self::statusFor($device) === 'online';
+    }
+
+    /**
+     * What the stored `status` of a terminal that only sends must read. One
+     * rule, so the badge, the list filter and the health counts cannot
+     * disagree: `online` means ETHR heard from the terminal inside the last
+     * 24 hours, `pending` that it has never been heard from (configured, not
+     * yet contacted), `offline` that it has gone quiet. The pull job never
+     * touches such a device, so without this a first punch left it Online
+     * for good, whatever happened to the terminal afterwards.
+     *
+     * @return 'pending'|'online'|'offline'
+     */
+    public static function statusFor(Device $device): string
+    {
+        if ($device->last_sync_at === null) {
+            return 'pending';
+        }
+
+        return $device->last_sync_at->greaterThan(now()->subHours(self::OFFLINE_AFTER_HOURS))
+            ? 'online'
+            : 'offline';
+    }
+
+    /**
+     * Write the rule's answer onto the row, and only when it differs, so a
+     * run every five minutes does not touch `updated_at` on every terminal.
+     * Returns the status the device now has.
+     */
+    public static function settleStatus(Device $device): string
+    {
+        $status = self::statusFor($device);
+
+        if ($device->status !== $status) {
+            $device->update(['status' => $status]);
+        }
+
+        return $status;
     }
 }

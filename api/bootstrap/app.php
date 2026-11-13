@@ -369,7 +369,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'type' => 'https://ethr.et/errors/device-unreachable',
                 'title' => 'Bad Gateway',
                 'status' => 502,
-                'detail' => __('device.read_failed'),
+                'detail' => __($e->detailKey),
             ], 502, ['Content-Type' => 'application/problem+json']);
         });
 

@@ -89,7 +89,7 @@ function isPoll(
 
 export function useDevices(
   params?: DeviceListParams,
-  options?: { refetchInterval?: number; enabled?: boolean },
+  options?: { refetchInterval?: number },
 ) {
   return useQuery<PaginatedResponse<Device>>({
     queryKey: keys.list(params),
@@ -122,7 +122,31 @@ export function useDevices(
       return { ...(last as PaginatedResponse<Device>), data: rows };
     },
     refetchInterval: options?.refetchInterval,
-    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Whether the organisation has a device ETHR can ask who is enrolled on it:
+ * one that is not `receives_only`. Pages through the list only until it
+ * finds one, which is the first request for nearly every organisation; the
+ * Employees menu asks this on every load and needs nothing else from the list.
+ */
+export function useHasReadableDevice(enabled = true) {
+  return useQuery<boolean>({
+    queryKey: [...keys.all, "has-readable"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      for (let page = 1; page <= 50; page++) {
+        const { data } = await apiClient.get<PaginatedResponse<Device>>(
+          "/devices",
+          { params: { per_page: 100, page } },
+        );
+        if (data.data.some((d) => d.receives_only !== true)) return true;
+        if (page >= (data.meta?.last_page ?? 1)) return false;
+      }
+      return false;
+    },
   });
 }
 
@@ -328,6 +352,11 @@ const enrollmentsKey = (publicId: string) => [
  * Read the people enrolled on a device, each with a suggested employee match.
  * While a reported list has been asked for and not yet answered, it is read
  * again every 10 seconds; the device answers at its next check-in.
+ *
+ * A 409 is not asked again. It means the terminal only sends to ETHR and has
+ * no roster to give, which another request cannot change; the app-wide retry
+ * held the dialog's reason back by a second request and its delay. Other
+ * failures keep the default single retry.
  */
 export function useDeviceEnrollments(publicId: string | null) {
   return useQuery<DeviceEnrollmentsResponse>({
@@ -335,6 +364,9 @@ export function useDeviceEnrollments(publicId: string | null) {
     queryFn: async () =>
       (await apiClient.get(`/devices/${publicId}/enrollments`)).data,
     enabled: !!publicId,
+    retry: (failureCount, error) =>
+      (error as { response?: { status?: number } } | null)?.response?.status !==
+        409 && failureCount < 1,
     refetchInterval: (query) =>
       query.state.data?.roster?.requested_at ? 10_000 : false,
   });
@@ -417,6 +449,23 @@ export function useEnrolEmployeeOnDevices() {
 
 // ── Unrecognised badges (UnmatchedPunchController) ─────────────────────────
 
+/**
+ * Who a held badge may be, as the resolver sees it now. Sent only to
+ * attendance managers, and naming only people they may open; `null` for the
+ * badges past the server's resolve limit.
+ */
+export interface UnmatchedBadgeMatch {
+  outcome: MatchOutcome;
+  employee_public_id: string | null;
+  confidence: number;
+  candidates: {
+    employee_public_id: string;
+    employee_name: string;
+    score: number;
+    reasons: string[];
+  }[];
+}
+
 export interface UnmatchedBadge {
   device_public_id: string;
   device_name: string;
@@ -424,6 +473,7 @@ export interface UnmatchedBadge {
   punches: number;
   first_seen: string;
   last_seen: string;
+  match?: UnmatchedBadgeMatch | null;
 }
 
 const UNMATCHED_KEY = ["devices", "unmatched-punches"];

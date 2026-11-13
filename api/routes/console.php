@@ -168,15 +168,47 @@ Schedule::call(function () {
     });
 })->dailyAt('06:05')->name('send-expiry-reminders')->withoutOverlapping();
 
+// The three billing-and-cleanup entries below carry a ->name() and, unlike every
+// other entry in this file, deliberately NOT ->withoutOverlapping(). Both halves
+// were decided on 2026-11-13; the names were simply missing, and the absent
+// mutex needs the reasoning written down so it is not "fixed" later.
+//
+// Why a name: `schedule:list` showed these three as `App\Jobs\…` while every
+// neighbour showed a readable slug, and the per-task run ledger this file is
+// heading for (OPERATIONS-CENTRE-SPEC.md G3) keys on the event name. A ledger
+// half-keyed on class names is a ledger nobody can read.
+//
+// Why no mutex. For a Schedule::job() the event's "run" is only the dispatch, so
+// the mutex is held for microseconds and guards nothing that is not already
+// guarded twice over:
+//
+//   1. CronRunner::exclusively() holds a `cron:schedule` cache lock around the
+//      WHOLE scheduler run, shared by the /cron/schedule endpoint and the
+//      after-response hook, so two scheduler runs cannot overlap at all.
+//   2. Each of these three is re-run safe in its own right, which is the
+//      property that actually matters, because the lock has a 110 s TTL and a
+//      run that outlives it (ethr:backup is in the same sweep) could in
+//      principle let a second caller replay the window — ethr:schedule-run only
+//      writes its last-run marker at the end. generateMonthlyInvoice() is
+//      idempotent per calendar month and says so; HandleOverdueInvoicesJob
+//      advances invoices by status, so a second pass selects nothing; and
+//      CleanupExpiredDataJob deletes expired rows, where a repeat is a no-op.
+//
+// Against that, Laravel's default mutex expiry is 1440 minutes. A process killed
+// between creating the mutex and releasing it — this host kills long web
+// requests — would block a DAILY entry for 24 hours. That trades a harmless
+// repeat for a skipped day of dunning or cleanup, which is the worse failure.
+// If one of these ever stops being re-run safe, fix the job, not this line.
+
 // Generate monthly invoices on the 1st of each month at 03:00 UTC (06:00 EAT)
-Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00');
+Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00')->name('generate-monthly-invoices');
 
 // Handle overdue invoices daily at 04:00 UTC (07:00 EAT)
-Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00');
+Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00')->name('handle-overdue-invoices');
 
 // Cleanup expired data daily at 02:00 UTC (05:00 EAT)
 // Notifications: 90 days, Webhook deliveries: 30 days, Import staging: 7 days
-Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');
+Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00')->name('cleanup-expired-data');
 
 // Full backup daily at 01:00 UTC (04:00 EAT) — before the 02:00 cleanup, so a
 // backup always exists from before data was pruned rather than after.
@@ -203,9 +235,15 @@ Schedule::command('ethr:backup')
 // Scheduler heartbeat — the cheapest entry here and the one that makes the rest
 // observable. Everything asynchronous in ETHR arrives through an external caller
 // POSTing to /api/v1/cron/schedule on a timer; if that stops, jobs stop and
-// nothing says so. This records that the scheduler ran, so `ethr:queue:check` and
-// the health endpoint can tell "quiet" from "dead". Because the caller is
-// off-host, there is no cron entry to inspect and this beat is the ONLY signal.
+// nothing says so. This records that the scheduler ran, so the health endpoint,
+// /admin/operations and `ethr:queue:check` can tell "quiet" from "dead".
+// Because the caller is off-host, there is no cron entry to inspect and this
+// beat is the ONLY signal the host has.
+//
+// Which of those three is watched in production: the health endpoint, polled by
+// an off-host monitor. `ethr:queue:check` is a command for a terminal — nothing
+// here runs it, and nothing should, since a watchdog this scheduler starts
+// cannot report that this scheduler stopped (docs/operations/QUEUE-MONITORING.md).
 //
 // `everyMinute()` is correct and is not a cadence claim: it means "beat on every
 // scheduler invocation". With the */5 caller that is a beat every five minutes,

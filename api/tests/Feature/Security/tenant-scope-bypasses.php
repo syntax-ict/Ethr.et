@@ -11,6 +11,9 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-13, webhook refusals: two in `Services/Device/WebhookRejections`,
+ * 205/82. A refused terminal call is traced to the device it was meant for by
+ * a retired token's hash or a cut-off token's prefix; see the entry below.)
  * (2026-11-09, first-payroll checklist: four more in `ReadinessScorer`,
  * 202/80. Whether a tax ladder or pension rule the organisation saved before
  * they were locked is in force, whether one of its leave types grants less
@@ -376,6 +379,13 @@ return [
     // request (fail-closed when empty). It states no `tenant_id` — the tenant
     // is what it finds out — and two rows for one serial authenticate neither.
     'Services/Device/AdmsDeviceResolver.php' => 1,
+    // Webhook refusals traced to a device (2026-11-13). Pre-authentication,
+    // after the token lookup above has already refused the call: a token this
+    // device had before it was regenerated (found by a device id the rotation
+    // itself stored), or the start of this device's token (hex only, one match
+    // only). The tenant is what each finds out, so neither states `tenant_id`;
+    // what they find is only ever written to that device's own trace.
+    'Services/Device/WebhookRejections.php' => 2,
     // Feature control center (2026-10-28): an organisation's grants and
     // revokes, read for the tenant in hand, stating `tenant_id` on the chain.
     // Feature control console (2026-10-28): one organisation's overrides,

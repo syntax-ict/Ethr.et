@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\Branch;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\KioskSession;
@@ -121,4 +122,47 @@ test('an organisation punching by phone has an attendance source without any dev
     $check = collect(app(ReadinessScorer::class)->score($tenant->id)['categories']['data']['checks'])
         ->firstWhere('id', 'attendance_source_configured');
     expect($check['passed'])->toBeFalse();
+});
+
+test('a terminal that sends to ETHR and has never sent anything is its own check, and is not called silent', function () {
+    $tenant = ahHealthyTenant(['enabled_methods' => ['biometric']]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $at = ['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => null, 'created_at' => now()->subDays(5)];
+    Device::factory()->create([...$at, 'adapter_type' => 'hikvision', 'connection_config' => ['mode' => 'push']]);
+    Device::factory()->create([...$at, 'adapter_type' => 'zkteco_adms', 'connection_config' => ['mode' => 'adms']]);
+
+    $checks = collect(test()->getJson(ahUrl($tenant))->assertOk()->json('checks'));
+
+    expect($checks->pluck('id')->all())->toContain('devices_never_heard')
+        ->not->toContain('devices_silent')
+        ->and($checks->firstWhere('id', 'devices_never_heard')['count'])->toBe(2)
+        ->and($checks->firstWhere('id', 'devices_never_heard')['severity'])->toBe('info');
+});
+
+test('a device ETHR pulls that has never synced is silent once a day has passed, and nothing before that', function () {
+    $tenant = ahHealthyTenant(['enabled_methods' => ['biometric']]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $pulled = ['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'hikvision', 'last_sync_at' => null];
+    // Every pull has failed since it was registered two days ago (Habru before its switch).
+    Device::factory()->create([...$pulled, 'created_at' => now()->subDays(2)]);
+    // Registered an hour ago: the first pull may not have run yet.
+    Device::factory()->create([...$pulled, 'created_at' => now()->subHour()]);
+
+    $checks = collect(test()->getJson(ahUrl($tenant))->assertOk()->json('checks'));
+
+    expect($checks->pluck('id')->all())->toContain('devices_silent')->not->toContain('devices_never_heard')
+        ->and($checks->firstWhere('id', 'devices_silent')['count'])->toBe(1)
+        ->and($checks->firstWhere('id', 'devices_silent')['severity'])->toBe('warning');
+});
+
+test('a device heard from once and quiet for more than a day is silent, and one heard from today is neither', function () {
+    $tenant = ahHealthyTenant(['enabled_methods' => ['biometric']]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => now()->subDays(2)]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => now()->subHour()]);
+
+    $checks = collect(test()->getJson(ahUrl($tenant))->assertOk()->json('checks'));
+
+    expect($checks->pluck('id')->all())->toContain('devices_silent')->not->toContain('devices_never_heard')
+        ->and($checks->firstWhere('id', 'devices_silent')['count'])->toBe(1);
 });

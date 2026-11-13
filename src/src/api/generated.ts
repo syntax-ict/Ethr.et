@@ -9843,6 +9843,11 @@ export interface components {
                     at: string;
                 } | null;
             };
+            webhook_rejected?: {
+                reason: string;
+                ip: string | null;
+                at: string;
+            } | null;
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
@@ -9862,6 +9867,8 @@ export interface components {
             events_processed: number;
             events_failed: number;
             error_message: string | null;
+            /** @enum {string|null} */
+            error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
             duration_ms: number | null;
             started_at: string | null;
             completed_at: string | null;
@@ -16103,6 +16110,14 @@ export interface operations {
                             fix_route: "/devices";
                         } | {
                             /** @constant */
+                            id: "devices_never_heard";
+                            /** @constant */
+                            severity: "info";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/devices";
+                        } | {
+                            /** @constant */
                             id: "kiosk_pins_missing";
                             /** @constant */
                             severity: "warning";
@@ -21253,7 +21268,9 @@ export interface operations {
                     "application/json": {
                         device_public_id: string;
                         /** @enum {string} */
-                        status: "online" | "offline";
+                        status: "online" | "offline" | "pending";
+                        /** @enum {string|null} */
+                        error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
                         details: unknown[];
                         device_info: unknown[];
                     };
@@ -21471,53 +21488,7 @@ export interface operations {
                             department: string | null;
                             fingerprint_count: number | null;
                             face_registered: boolean | null;
-                            match: {
-                                /** @constant */
-                                outcome: "probable";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: unknown[];
-                            } | {
-                                /** @constant */
-                                outcome: "new";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: unknown[];
-                            } | {
-                                /** @constant */
-                                outcome: "archived";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: [
-                                    {
-                                        employee_public_id: string;
-                                        employee_name: string;
-                                        score: number;
-                                        reasons: string;
-                                    }
-                                ];
-                            } | {
-                                /** @constant */
-                                outcome: "new";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: string[];
-                            } | {
-                                /** @constant */
-                                outcome: "matched";
-                                employee_public_id: string;
-                                confidence: number;
-                                candidates: [
-                                    {
-                                        employee_public_id: string;
-                                        employee_name: string;
-                                        score: number;
-                                        reasons: [
-                                            "former_employee"
-                                        ];
-                                    }
-                                ];
-                            };
+                            match: unknown;
                         }[];
                         summary: {
                             total: number;
@@ -29489,6 +29460,9 @@ export interface operations {
                             description: string | null;
                             group: string;
                             parent_code: string | null;
+                            suggested_for: string[];
+                            /** @enum {string|null} */
+                            policy_profile: "ethiopia_private" | "ethiopia_public" | null;
                         }[];
                     };
                 };
@@ -37354,6 +37328,7 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
+                            match: unknown;
                         }[];
                     };
                 };

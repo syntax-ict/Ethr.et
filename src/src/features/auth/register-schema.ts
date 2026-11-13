@@ -29,7 +29,7 @@ export function isAdminPhone(value: string): boolean {
 export const registerSchema = z
   .object({
     organization_name: z.string().min(2, "auth.complete_org_step"),
-    organization_type: z.string().min(1),
+    organization_type: z.string().min(1, "auth.org_type_required"),
     organization_kind: z.string().min(1, "auth.org_kind_required"),
     subdomain: z.string().min(3, "auth.complete_org_step").max(63),
     admin_name: z.string().min(2, "auth.complete_admin_step"),

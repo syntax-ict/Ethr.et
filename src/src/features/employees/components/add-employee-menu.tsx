@@ -16,7 +16,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDevices, useUnmatchedBadges } from "@/features/devices/api";
+import {
+  useHasReadableDevice,
+  useUnmatchedBadges,
+} from "@/features/devices/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 
@@ -43,16 +46,14 @@ export function AddEmployeeMenu({
 }) {
   const { t } = useT();
   const { can } = usePermissions();
-  const devicesQuery = useDevices(undefined, { enabled: can.viewDevices });
+  // A terminal that only sends to ETHR cannot be asked who is enrolled on it,
+  // so it does not make "from an attendance terminal" a way in.
+  const readableQuery = useHasReadableDevice(can.viewDevices);
   const badgesQuery = useUnmatchedBadges(
     can.viewDevices && can.manageAttendance,
   );
 
-  // A terminal that only sends to ETHR cannot be asked who is enrolled on it,
-  // so it does not make "from an attendance terminal" a way in.
-  const readableDevice = (devicesQuery.data?.data ?? []).some(
-    (d) => d.receives_only !== true,
-  );
+  const readableDevice = can.viewDevices && readableQuery.data === true;
   const badges =
     can.viewDevices && can.manageAttendance
       ? (badgesQuery.data?.length ?? 0)

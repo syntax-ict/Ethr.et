@@ -9,9 +9,15 @@ use App\Http\Requests\Device\AssignUnmatchedBadgeRequest;
 use App\Http\Requests\Device\DismissUnmatchedBadgeRequest;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\User;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\UnmatchedPunches;
+use App\Services\Identity\IdentityMatch;
+use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\IdentitySignals;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -21,20 +27,33 @@ use Illuminate\Support\Facades\Gate;
  */
 class UnmatchedPunchController extends Controller
 {
-    public function __construct(private readonly UnmatchedPunches $unmatched) {}
+    /**
+     * How many badges, most recent first, are resolved for a suggestion. Each
+     * one is a resolver query; the badges past it are listed with no `match`.
+     */
+    public const RESOLVE_LIMIT = 100;
 
-    public function index(): JsonResponse
+    public function __construct(
+        private readonly UnmatchedPunches $unmatched,
+        private readonly IdentityResolver $resolver,
+    ) {}
+
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('device.viewAny');
 
         $groups = $this->unmatched->groups();
         $devices = Device::query()
             ->whereIn('id', array_unique(array_column($groups, 'device_id')))
-            ->get(['id', 'public_id', 'name'])
+            ->get(['id', 'tenant_id', 'public_id', 'name', 'adapter_type'])
             ->keyBy('id');
 
+        $matches = Gate::allows('attendance.manage')
+            ? $this->suggestions($groups, $devices, $request->user())
+            : [];
+
         $data = [];
-        foreach ($groups as $group) {
+        foreach ($groups as $index => $group) {
             $device = $devices->get($group['device_id']);
             if (! $device instanceof Device) {
                 continue;
@@ -46,10 +65,41 @@ class UnmatchedPunchController extends Controller
                 'punches' => $group['punches'],
                 'first_seen' => $group['first_seen'],
                 'last_seen' => $group['last_seen'],
+                'match' => $matches[$index] ?? null,
             ];
         }
 
         return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Who each badge may be now, as the resolver sees it today. The table
+     * holds the badge, not the verdict it had when it arrived, so a badge
+     * whose holder has since been imported or typed into a record comes back
+     * `matched`, and the card can offer to replay its punches.
+     *
+     * Offered only to those who can act on it (`attendance.manage`, which
+     * `assign` requires), and naming only people they may open: the resolver
+     * reads the whole organisation, archived people included.
+     *
+     * @param  list<array{device_id: int, badge: string, punches: int, first_seen: string, last_seen: string}>  $groups
+     * @param  Collection<int, Device>  $devices
+     * @return array<int, array{outcome: string, employee_public_id: string|null, confidence: float, candidates: list<array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}>}>
+     */
+    private function suggestions(array $groups, Collection $devices, User $viewer): array
+    {
+        $matches = [];
+        foreach (array_slice($groups, 0, self::RESOLVE_LIMIT, true) as $index => $group) {
+            $device = $devices->get($group['device_id']);
+            if ($device instanceof Device) {
+                $matches[$index] = $this->resolver->resolve(
+                    $device->tenant_id,
+                    IdentitySignals::forDeviceUser($device, $group['badge']),
+                );
+            }
+        }
+
+        return IdentityMatch::visibleTo($matches, $viewer);
     }
 
     public function assign(AssignUnmatchedBadgeRequest $request, DevicePunchRecorder $recorder): JsonResponse

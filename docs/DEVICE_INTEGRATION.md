@@ -399,14 +399,27 @@ by its token. A terminal may now be registered with **no address**.
   from `webhook_url`. **The terminal must post over HTTPS to `www`**: the host answers
   plain HTTP and the apex with a 301, which a terminal does not follow (measured
   2026-11-11 on `/api/v1/devices/webhook/hikvision`).
-- **Alive or not.** Anything the terminal sends counts as contact, a heartbeat included,
-  and sets `last_sync_at`. It is shown offline after
-  `HikvisionPushAdapter::OFFLINE_AFTER_HOURS` (24) of silence. That is a label, not a
-  gate: a punch from an "offline" terminal is recorded. For a terminal ETHR also pulls,
-  only a punch moves `last_sync_at`, because there it is the pull cursor.
-- **Never pulled.** `devices:sync` skips it and `PullDeviceEventsJob` returns at once. A
-  pull found nothing and moved `last_sync_at` to now, which made a silent terminal look
-  as if it had just been heard from.
+- **Alive or not (three states, 2026-11-12).** Anything the terminal sends counts as
+  contact, a heartbeat included, and sets `last_sync_at`. The stored `status` then follows
+  one rule, `HikvisionPushAdapter::statusFor()`: `last_sync_at` null is `pending` (shown
+  "Not connected yet": configured, never heard from), within
+  `HikvisionPushAdapter::OFFLINE_AFTER_HOURS` (24) is `online`, older is `offline` (shown
+  with "Last heard 3 days ago"). Online therefore means ETHR heard from the terminal; it
+  never means only that the terminal was set up. That is a label, not a gate: a punch from
+  an "offline" terminal is recorded. For a terminal ETHR also pulls, only a punch moves
+  `last_sync_at`, because there it is the pull cursor.
+- **Who writes it.** The rule is written by `devices:sync` on every run for every such
+  device (nothing else moves a terminal off `online` when it goes quiet, because it is
+  never pulled), by `PUT /devices/{id}` when the mode changes, and by
+  `GET /devices/{id}/status`. A terminal switched from pulling to sending has its
+  `last_sync_at` cleared, since it was the pull cursor and would read as "heard just now";
+  switched back to an address it is `pending`. `DeviceOffline` is **not** raised for these
+  devices: a 24-hour threshold plus a weekend closure would alarm every Saturday unless the
+  terminal sends heartbeats, which nobody has observed this model do.
+- **Never pulled.** `devices:sync` does not dispatch it and `PullDeviceEventsJob` returns
+  at once. A pull found nothing and moved `last_sync_at` to now, which made a silent
+  terminal look as if it had just been heard from. The device page and list card offer no
+  Test, Pull, enrolled users or history for it, and say when it was last heard instead.
 - **Switching.** An update that says `mode: push` replaces the stored config, so the
   address and the credentials go. An update that brings an address drops the mode.
 
@@ -429,6 +442,66 @@ is a field test, first owed on a DS-K1T321MFWX-B.
   `/ISAPI/Event/notification/httpHosts` takes, so ETHR has never configured push on a
   terminal. It is set by hand.
 - The adapter speaks plain HTTP to the terminal; there is no HTTPS option.
+
+## Why a pull failed (2026-11-12)
+
+`PullDeviceEventsJob` stored the literal "Device is not reachable" and threw away the
+adapter's reason, which cost a morning of diagnosis on the Habru terminal (a pull-mode
+registration on `196.190.67.12:8000`: `cURL error 7 ... Connection refused`, and 8000 is
+Hikvision's SDK port, not the HTTP port ISAPI answers on). The adapter's message is now
+kept in `device_sync_logs.error_message` after `DeviceErrorCode::scrub()` removes any
+credentials and query string a transport error quotes, and `DeviceSyncLogResource` and
+`GET /devices/{id}/status` publish `error_code` derived by `DeviceErrorCode::from()`, given
+the device's adapter: `sdk_port` (Hikvision only: refused or timed out on port 8000),
+`refused` (cURL 7), `timeout` (28), `dns` (6), `auth` (HTTP 401/403), `http` (any other
+status), `unreachable` (the old message), `other`. The advice is in the dictionaries, not
+in PHP, so it is read in Amharic and Afaan Oromoo too: `device_error.hint.<code>` is
+vendor-neutral, and the screen adds `device_error.hikvision.*` only for a Hikvision device,
+because only it has the office network setting and only for it does ETHR know Basic
+sign-in can be refused where Digest is required.
+
+There is deliberately **no "check your password" advice** for a Hikvision `auth`: ETHR
+signs in with HTTP Basic only and Hikvision ISAPI commonly requires Digest (see the known
+gap above), so a correct password can still be refused. The text says so instead.
+
+A pull already running when the device is switched to send to ETHR writes neither its
+status nor `last_sync_at` (`PullDeviceEventsJob::stillPulled()` reads the device again
+first): either write would make a terminal nobody has heard from read Online for a day, or
+Offline. `devices:sync` reports and skips one device it cannot read (a config that no
+longer decrypts) rather than stopping for every organisation after it.
+
+`GET /attendance/setup-status` keeps the two kinds apart: `devices_never_heard` (info) is a
+terminal that sends to ETHR (Hikvision push, ZKTeco ADMS) and has sent nothing yet;
+`devices_silent` (warning) is a device quiet for a day, or one ETHR pulls that has never
+once synced a day after it was registered, which means every pull has failed. The console's
+tenant journey keeps its own three-day `devices_silent`, with the same registration grace,
+for both kinds: a terminal not set up three days after it was registered is a stalled setup
+the platform should see.
+
+## Why a terminal's calls were refused (2026-11-13)
+
+A refused webhook used to leave only a log line, so a terminal with a stale or cut-off
+address read "Nothing received from this terminal yet", exactly like one that never called.
+`Services/Device/WebhookRejections` now keeps the last refusal for a week on the device it
+can be traced to, and the device page says when the terminal called and why it was refused
+(`webhook_rejected` on the device, shown to organisation admins, never through an
+integration key). It stops showing once the terminal has been heard from since.
+
+| Reason | How the call is traced to the device |
+|---|---|
+| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation stores a hash of the old token against the device, never the token. |
+| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, so no `LIKE` wildcard reaches the match, and only when exactly one device of that vendor matches. |
+| `token_missing` | The request named the device by its serial and carried no token, and the device has one. |
+| `ip_not_allowed` | A device without a token called from an address not on its allowlist. |
+
+**What is not traced: a token mistyped from the start.** Nothing else in a Hikvision push
+names the device (the push carries no device serial), and the source address cannot stand in:
+terminals of two organisations can share one public address behind carrier NAT, and a wrong
+match would show one organisation another's terminal. Such a terminal still reads "Nothing
+received from this terminal yet"; re-enter the address from the device page.
+
+A terminal retrying every few seconds is written once a minute, and a cache that cannot be
+reached never turns the 401 into a 500.
 
 ## Device clocks (2026-10-14)
 

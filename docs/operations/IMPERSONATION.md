@@ -179,15 +179,27 @@ platform audit view shows it, the tenant's own view does not. The claim and the 
 recorded on the tenant host and filed under the tenant, tagged `impersonated_by`. That split is
 unchanged by N19; it is stated here because it is not obvious.
 
-**Still only provable on the real host** — none of this has run outside the test suite:
+**Still only provable on the real host.** *(Narrowed 2026-11-13 against the host work recorded
+in [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md), 2026-10-11: `admin.ethr.et` was
+pointed at `ethr/api/public`, a wildcard `*.ethr.et` site was created with the same root, the
+main certificate was reissued to cover it, and `{slug}.ethr.et` was measured presenting that
+certificate and resolving the organisation by hostname. One item below is answered by that and
+is struck; two are narrowed to the half it does not reach. Nothing here was converted on the
+strength of a session's recollection — `AGENTS.md` forbids turning `NOT VERIFIED` into verified
+without a measurement, and the measurement is the checklist entry.)*
 
-- that `{tenant}.ethr.et/impersonate/claim` is served by the static export's rewrite rules, and
-  `/sanctum/csrf-cookie` and `/api/*` reach Laravel on every tenant host;
-- that the `access_token` cookie set by the claim response is accepted by the browser on the
-  tenant host (it is `Secure` in production, so this needs the real certificate);
-- that `admin.ethr.et/admin` is where the console is served, since `return_url` names it;
+- ~~that `admin.ethr.et/admin` is where the console is served, since `return_url` names it~~ —
+  **answered.** `admin.ethr.et` serves `ethr/api/public` and the console answers there.
+- that `{tenant}.ethr.et/impersonate/claim` is served by the **static export's rewrite rules**.
+  The API half is answered: a tenant host resolves the organisation by hostname, so `/api/*` and
+  `/sanctum/csrf-cookie` reach Laravel. Whether the claim **page** is served there by the
+  export's rewrites has not been exercised.
+- that the `access_token` cookie set by the claim response is **accepted by the browser** on the
+  tenant host. Its precondition is answered — the wildcard certificate is served, so a `Secure`
+  cookie is possible — but no browser has been through the handoff on the host.
 - that `SANCTUM_STATEFUL_DOMAINS` on the host really includes `*.ethr.et` — without it the
-  claim answers 200 and sets **no** cookie, silently.
+  claim answers 200 and sets **no** cookie, silently. Unmeasured, and the quietest of the four.
 
-Until then, treat production impersonation as **built and tested, not verified on the host**.
-The 30-minute expiry still bounds every session.
+So treat production impersonation as **built, tested, and partly verified on the host**: the
+hosts and the certificate are real and measured, the browser handoff across them is not. The
+30-minute expiry still bounds every session.

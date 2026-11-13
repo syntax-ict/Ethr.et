@@ -107,9 +107,12 @@ sign-in page and carries **no link and no token**. They sign in with their phone
 code, and that first sign-in activates the account (`OtpController::verify`). A person with an
 email is still activated by their link, never by a code.
 
-**Not done yet:** a person activated this way has no password. They keep signing in by code,
-which is fine, but setting a password afterwards needs a "set a password" step for signed-in
-accounts with no usable one. Build it before switching this on.
+**Not done yet, re-checked 2026-11-13 and still true:** a person activated this way has no
+password. They keep signing in by code, which is fine, but setting one afterwards needs a "set a
+password" step for a signed-in account that has no usable password. The only route that sets a
+password for a signed-in person is `POST /auth/password/change`, and it refuses unless
+`current_password` hashes to the stored one (`PasswordResetController::change`), which an account
+that never had a password cannot satisfy. Build the step before switching this on.
 
 ## Out of scope: SMPP and SS7
 

@@ -62,7 +62,7 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 case for a change that is not live is recorded as Blocked, not Fail.
 
 **The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
-`8431f382a8`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+`8431f382a8`, and the fifth edition's, up to `c8cc3a4b2d`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -257,6 +257,17 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
 | What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 (open) | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
+| National ID and TIN are recorded in the `employee.updated` audit entry as `[redacted]`, `[changed]` or `[unchanged]`, never by value | #690 | EMP-022 |
+| An impersonating platform operator cannot issue a starting password: the action joins `BlockImpersonatedActions`, so the step-up is no longer the only thing in the way. Measured: without the guard the request answers 201 (K-72) | #706 | STP-011 changed |
+| One starting password for a batch of employees with no email, 12 characters from an alphabet without I, L, O, 0 or 1, 200 at a time, forced change at first sign-in, unused after 72 hours; 20 failed tries pause them all for 15 minutes | #691 | Section 5c of [03](03-E2E-AUTH-TENANCY-ACCESS.md), STP-001 to STP-012; MIG-001 changed |
+| One gateway creates every employee and asks before making a second record, as a 409 `employee-exists` (not overruled) or `employee-needs-confirmation` (overruled with `confirm_new`); SCIM and SSO attach the login to the employee already there, and provision nothing when it is uncertain | #694, #692 | Section 3a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), EMP-017 to EMP-021, EMP-023 |
+| One reader for every list of people, and the import **is** the staged review: a matched row fills blanks and asks about differences, and a list is committed in slices | #696, #695 | Section 4a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), STG-001 to STG-007, STG-017, STG-018 |
+| The employee template is a workbook (`Employees`, `Instructions`, `Lists`) with dropdowns, and an uploaded Excel file is read in the browser; a number the spreadsheet rounded is refused | #699 | STG-008 to STG-010, STG-019 |
+| Another system's column names are matched once, saved per source (at most 30) and answered key by key afterwards | #700, #701 | STG-011 to STG-016 |
+| A staged list is kept while anyone is working on it and deleted after 30 days of no activity; one number read and one placeholder hash per list | #693 | STG-020 |
+| The CSV import refuses, rather than skipping or adding, a row that contradicts the person it matches, one for a deleted employee, and one that may be someone already here; the template gains `status` and `external_id` | #692, #699, #700 | IMP-E-001 changed; IMP-E-018 to IMP-E-021, STG-021 |
+| A Hikvision terminal on an office network sends to ETHR instead of being called: no address, four values typed on the terminal, and the scheduled pull skips it so a silent terminal no longer looks healthy | #697 | DEV-018 to DEV-023 |
+| An organisation's robots line is written into the page's React payload too, so the tag after hydration agrees with the head and the header; a news page with no story is `noindex, follow` | #698 | LAND-010, LAND-011, NEWS-004 |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three

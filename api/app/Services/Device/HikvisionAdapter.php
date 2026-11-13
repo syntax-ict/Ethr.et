@@ -8,6 +8,7 @@ use App\Contracts\AcceptsDeviceCommands;
 use App\Contracts\DeviceAdapter;
 use App\Enums\DeviceCommandType;
 use App\Exceptions\DeviceCommandRejected;
+use App\Exceptions\DeviceRequestFailed;
 use App\Models\Device;
 use App\Models\DeviceCommand;
 use App\Services\Device\Concerns\ReadsFromDevice;
@@ -51,7 +52,7 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
                 ];
             }
 
-            return ['online' => false, 'error' => 'Non-200 response'];
+            return ['online' => false, 'error' => 'HTTP '.$response->status()];
         } catch (\Throwable $e) {
             return ['online' => false, 'error' => $e->getMessage()];
         }
@@ -134,16 +135,25 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
 
     /**
      * Everyone enrolled on the terminal, paged with `searchResultPosition`
-     * until a page comes back short. It used to read one page of 200, so a
+     * while the device answers `MORE`. It used to read one page of 200, so a
      * roster above that was truncated without a word, which is the same fault
      * as an empty roster: the caller takes what it is given for everyone.
+     *
+     * The device says when it has finished (`responseStatusStrg` `OK`); a
+     * device that does not say is taken at its page length, a short page
+     * being the last. A roster still unfinished at the cap throws rather than
+     * answer part of the list as all of it.
      */
     public function pullEnrollments(Device $device): array
     {
         $searchId = (string) Str::uuid();
         $enrollments = [];
 
-        for ($page = 0; $page < self::ROSTER_MAX_PAGES; $page++) {
+        for ($page = 0; ; $page++) {
+            if ($page === self::ROSTER_MAX_PAGES) {
+                throw DeviceRequestFailed::incomplete('Hikvision', count($enrollments));
+            }
+
             $body = [
                 'UserInfoSearchCond' => [
                     'searchID' => $searchId,
@@ -157,6 +167,7 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
             ));
 
             $users = $response->json('UserInfoSearch.UserInfo') ?? [];
+            $status = $response->json('UserInfoSearch.responseStatusStrg');
 
             foreach ($users as $user) {
                 $enrollments[] = [
@@ -169,7 +180,11 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
                 ];
             }
 
-            if (count($users) < self::ROSTER_PAGE_SIZE) {
+            $more = is_string($status)
+                ? $status === 'MORE'
+                : count($users) === self::ROSTER_PAGE_SIZE;
+
+            if (! $more || $users === []) {
                 break;
             }
         }
