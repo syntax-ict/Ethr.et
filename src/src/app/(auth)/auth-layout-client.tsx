@@ -17,6 +17,7 @@ import { isAvailableLocale, setLocale } from "@/lib/i18n/translations";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { ProductStoryAnimation } from "@/components/shared/product-story-animation";
 import { OrgMark } from "@/components/shared/org-mark";
+import { EthrGlyph, EthrWordmark } from "@/components/shared/ethr-logo";
 import {
   useAuthHostContext,
   type TenantLanding,
@@ -163,13 +164,10 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
               <Link
                 prefetch={false}
                 href="/"
-                className="inline-flex items-center gap-2.5"
+                className="inline-flex items-center gap-3"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-foreground/20 backdrop-blur-sm">
-                  <span className="text-xl font-bold text-primary-foreground">
-                    E
-                  </span>
-                </div>
+                <EthrGlyph className="h-12 w-auto text-primary-foreground" />
+                <EthrWordmark className="h-11 w-auto text-primary-foreground" />
               </Link>
               <h2 className="mt-8 text-3xl font-bold leading-tight text-primary-foreground">
                 {t("auth.layout_title", "Ethiopian Workforce Operating System")}

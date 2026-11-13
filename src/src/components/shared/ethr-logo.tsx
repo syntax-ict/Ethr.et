@@ -59,6 +59,29 @@ export function EthrSymbol({
 }
 
 /**
+ * The reversed mark: the e and its Gold dot with no tile, for blue or dark
+ * grounds, where the tile would vanish into its own blue. The strokes take the
+ * current text colour; the dot is the fixed mark colour. Same geometry as
+ * `EthrSymbol`, cropped to the glyph.
+ */
+export function EthrGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="11 15 42 34"
+      aria-hidden="true"
+      focusable="false"
+      className={cn("shrink-0", className)}
+    >
+      <g fill="none" stroke="currentColor" strokeWidth="6.5">
+        <path d="M15 32H41" />
+        <path d="M40.59 35.26A13 13 0 1 0 37.96 40.36" />
+      </g>
+      <circle cx="48" cy="43.5" r="4.2" fill="var(--brand-mark-dot)" />
+    </svg>
+  );
+}
+
+/**
  * The drawn "ethr" wordmark with its Gold dot. The letters take the current
  * text colour so the header follows the theme; the dot is the fixed mark colour.
  * Never retype it in a font.

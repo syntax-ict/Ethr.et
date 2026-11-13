@@ -6,8 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * An organisation's mark on the sign-in pages: its logo when it has an https
- * one that loads, else its initial on the brand colour - the same tile ETHR's
- * own "E" occupies on the generic sign-in.
+ * one that loads, else its initial on the brand colour.
  *
  * The logo sits on a white tile, so it reads on any background. With a logo
  * for dark surfaces uploaded (`darkLogoUrl`) and the page in dark mode, or

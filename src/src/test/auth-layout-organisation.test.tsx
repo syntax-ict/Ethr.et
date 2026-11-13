@@ -135,6 +135,25 @@ describe("organisation sign-in page", () => {
   });
 });
 
+describe("generic sign-in", () => {
+  it("shows the reversed ETHR lockup in the link to home, not a letter E", () => {
+    hostContextValue.mockReturnValue({
+      ...organisation,
+      context: "platform" as HostCtx["context"],
+      tenantSlug: null,
+      tenantName: null,
+      tenantBrand: null,
+      tenantLanding: null,
+    });
+
+    renderLayout();
+
+    const mark = screen.getByRole("img", { name: "ETHR" });
+    expect(mark.closest("a")).toHaveAttribute("href", "/");
+    expect(screen.queryByText("E")).not.toBeInTheDocument();
+  });
+});
+
 describe("panel background", () => {
   it("is the brand colour by default", () => {
     expect(panelBackground(landing, "#14b8a6")).toBeUndefined();
