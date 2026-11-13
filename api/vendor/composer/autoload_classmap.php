@@ -1150,6 +1150,7 @@ return array(
     'App\\Support\\NotificationMessage' => $baseDir . '/app/Support/NotificationMessage.php',
     'App\\Support\\NotificationTemplates' => $baseDir . '/app/Support/NotificationTemplates.php',
     'App\\Support\\OrganisationHost' => $baseDir . '/app/Support/OrganisationHost.php',
+    'App\\Support\\OrganisationSectors' => $baseDir . '/app/Support/OrganisationSectors.php',
     'App\\Support\\OutboundHost' => $baseDir . '/app/Support/OutboundHost.php',
     'App\\Support\\PasswordTokens' => $baseDir . '/app/Support/PasswordTokens.php',
     'App\\Support\\PeopleRead' => $baseDir . '/app/Support/PeopleRead.php',

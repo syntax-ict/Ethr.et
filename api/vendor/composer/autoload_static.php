@@ -1884,6 +1884,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\NotificationMessage' => __DIR__ . '/../..' . '/app/Support/NotificationMessage.php',
         'App\\Support\\NotificationTemplates' => __DIR__ . '/../..' . '/app/Support/NotificationTemplates.php',
         'App\\Support\\OrganisationHost' => __DIR__ . '/../..' . '/app/Support/OrganisationHost.php',
+        'App\\Support\\OrganisationSectors' => __DIR__ . '/../..' . '/app/Support/OrganisationSectors.php',
         'App\\Support\\OutboundHost' => __DIR__ . '/../..' . '/app/Support/OutboundHost.php',
         'App\\Support\\PasswordTokens' => __DIR__ . '/../..' . '/app/Support/PasswordTokens.php',
         'App\\Support\\PeopleRead' => __DIR__ . '/../..' . '/app/Support/PeopleRead.php',
