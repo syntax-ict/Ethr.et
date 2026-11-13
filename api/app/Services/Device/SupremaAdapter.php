@@ -50,7 +50,7 @@ final class SupremaAdapter implements DeviceAdapter
             $response = $this->request($device, 'GET', '/api/devices/'.$this->deviceId($device).'/status');
 
             if (! $response->successful()) {
-                return ['online' => false, 'error' => 'Non-200 response'];
+                return ['online' => false, 'error' => 'HTTP '.$response->status()];
             }
 
             $data = $response->json();

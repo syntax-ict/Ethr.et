@@ -24,11 +24,13 @@ use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
+use App\Services\Device\HikvisionPushAdapter;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
 use App\Services\Features\FeatureGate;
 use App\Services\PlanLimitService;
+use App\Support\DeviceErrorCode;
 use App\Support\FeatureUnavailable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,7 +174,11 @@ class DeviceController extends Controller
             }
         }
 
+        $wasPush = DeviceManager::receivesOnly($device);
+
         $device->update($data);
+
+        $this->settleStatusAfterModeChange($device, $wasPush);
 
         AuditLog::record('device.updated', $device);
 
@@ -205,17 +211,46 @@ class DeviceController extends Controller
         // the request (and worker) for no useful data.
         $info = $online ? $adapter->getDeviceInfo($device) : [];
 
-        $newStatus = $online ? 'online' : 'offline';
-        if ($device->status !== $newStatus) {
+        // A terminal that only sends was not probed: it answers from when it
+        // was last heard, and "never heard" is its own state, not offline.
+        $sendsOnly = DeviceManager::receivesOnly($device);
+        /** @var 'pending'|'online'|'offline' $newStatus */
+        $newStatus = $sendsOnly
+            ? HikvisionPushAdapter::settleStatus($device)
+            : ($online ? 'online' : 'offline');
+        if (! $sendsOnly && $device->status !== $newStatus) {
             $device->update(['status' => $newStatus]);
         }
 
         return response()->json([
             'device_public_id' => $device->public_id,
             'status' => $newStatus,
+            'error_code' => $online ? null : DeviceErrorCode::from($status['error'] ?? null, $device->adapter_type),
             'details' => $status,
             'device_info' => $info,
         ]);
+    }
+
+    /**
+     * Keep the stored status honest when a Hikvision terminal changes how it
+     * reaches ETHR. Switched to sending: the old status described a pull that
+     * no longer happens, so the rule decides, and `last_sync_at`, which was
+     * the pull cursor, is cleared, since it would otherwise read as a terminal
+     * heard from a moment ago. Switched back to an address: nothing has tried
+     * that address yet, so it is `pending`, not whatever the push rule said.
+     */
+    private function settleStatusAfterModeChange(Device $device, bool $wasPush): void
+    {
+        $isPush = DeviceManager::receivesOnly($device);
+
+        if ($isPush) {
+            if (! $wasPush && $device->last_sync_at !== null) {
+                $device->update(['last_sync_at' => null]);
+            }
+            HikvisionPushAdapter::settleStatus($device);
+        } elseif ($wasPush && $device->status !== 'pending') {
+            $device->update(['status' => 'pending']);
+        }
     }
 
     public function pull(Request $request, Device $device): JsonResponse
@@ -299,6 +334,10 @@ class DeviceController extends Controller
         $logs = DeviceSyncLog::where('device_id', $device->id)
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
+
+        // Every row is this device's: hand it over so the error code can be
+        // read for its adapter without a query per row.
+        $logs->getCollection()->each(fn (DeviceSyncLog $log) => $log->setRelation('device', $device));
 
         return DeviceSyncLogResource::collection($logs);
     }
