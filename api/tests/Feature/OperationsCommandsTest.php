@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Services\Backup\BackupService;
 use App\Services\Observability\QueueHealth;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -377,5 +378,41 @@ describe('health:check', function () {
             config(['database.default' => $default]);
             DB::purge('ops_broken');
         }
+    });
+});
+
+describe('the schedule itself', function () {
+    it('gives every entry a readable name, so a run ledger can key on it', function () {
+        // Three entries carried no ->name() until 2026-11-13 and showed as
+        // `App\Jobs\GenerateMonthlyInvoicesJob` in `schedule:list` while every
+        // neighbour showed a slug. The per-task ledger in
+        // docs/operations/OPERATIONS-CENTRE-SPEC.md G3 keys on the event name,
+        // and one half-keyed on class names is unreadable.
+        $unnamed = collect(app(Schedule::class)->events())
+            ->map(fn ($event) => $event->getSummaryForDisplay())
+            // An unnamed Schedule::job() summarises as its own class name,
+            // which is the exact thing being ruled out here.
+            ->filter(fn (string $summary) => class_exists($summary))
+            ->values()
+            ->all();
+
+        expect($unnamed)->toBe([]);
+    });
+
+    it('never schedules its own watchdog', function () {
+        // `ethr:queue:check` reports that the scheduler has stopped. Running it
+        // FROM the scheduler is circular: if the scheduler is dead the check
+        // never runs, and the one state it exists to detect is the one state it
+        // cannot report. Production is watched by an off-host monitor polling
+        // /api/v1/health instead.
+        //
+        // This is pinned because the opposite reading was in three docblocks —
+        // HealthController said the command "runs from cron" — and the obvious
+        // way to make those true was to add the entry.
+        $commands = collect(app(Schedule::class)->events())
+            ->map(fn ($event) => $event->command ?? $event->getSummaryForDisplay())
+            ->implode(' ');
+
+        expect($commands)->not->toContain('queue:check');
     });
 });
