@@ -990,6 +990,7 @@ return array(
     'App\\Services\\Device\\MockAdapter' => $baseDir . '/app/Services/Device/MockAdapter.php',
     'App\\Services\\Device\\SupremaAdapter' => $baseDir . '/app/Services/Device/SupremaAdapter.php',
     'App\\Services\\Device\\UnmatchedPunches' => $baseDir . '/app/Services/Device/UnmatchedPunches.php',
+    'App\\Services\\Device\\WebhookRejections' => $baseDir . '/app/Services/Device/WebhookRejections.php',
     'App\\Services\\Device\\ZktecoAdapter' => $baseDir . '/app/Services/Device/ZktecoAdapter.php',
     'App\\Services\\Device\\ZktecoAdmsAdapter' => $baseDir . '/app/Services/Device/ZktecoAdmsAdapter.php',
     'App\\Services\\DisciplinaryCaseService' => $baseDir . '/app/Services/DisciplinaryCaseService.php',
