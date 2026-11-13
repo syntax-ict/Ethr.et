@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Device;
 
+use App\Exceptions\DeviceRosterUnavailable;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Device;
@@ -37,6 +38,10 @@ class DeviceEnrollmentController extends Controller
     public function index(Device $device): JsonResponse
     {
         Gate::authorize('device.view');
+
+        if (DeviceManager::receivesOnly($device)) {
+            throw DeviceRosterUnavailable::receivesOnly($device);
+        }
 
         $enrollments = $this->manager->adapter($device)->pullEnrollments($device);
 

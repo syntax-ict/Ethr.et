@@ -127,30 +127,51 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
         return $events;
     }
 
+    /** Rows per roster page, and the most pages one read follows: 1000 people in all. */
+    private const ROSTER_PAGE_SIZE = 200;
+
+    private const ROSTER_MAX_PAGES = 5;
+
+    /**
+     * Everyone enrolled on the terminal, paged with `searchResultPosition`
+     * until a page comes back short. It used to read one page of 200, so a
+     * roster above that was truncated without a word, which is the same fault
+     * as an empty roster: the caller takes what it is given for everyone.
+     */
     public function pullEnrollments(Device $device): array
     {
-        $body = [
-            'UserInfoSearchCond' => [
-                'searchID' => (string) Str::uuid(),
-                'searchResultPosition' => 0,
-                'maxResults' => 200,
-            ],
-        ];
-
-        $response = $this->readDevice('Hikvision', fn () => $this->request(
-            $device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body,
-        ));
-
+        $searchId = (string) Str::uuid();
         $enrollments = [];
-        foreach ($response->json('UserInfoSearch.UserInfo') ?? [] as $user) {
-            $enrollments[] = [
-                'device_user_id' => (string) ($user['employeeNo'] ?? ''),
-                'name' => $user['name'] ?? null,
-                'card_number' => $user['cardNo'] ?? null,
-                'department' => $user['belongGroup'] ?? null,
-                'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
-                'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
+
+        for ($page = 0; $page < self::ROSTER_MAX_PAGES; $page++) {
+            $body = [
+                'UserInfoSearchCond' => [
+                    'searchID' => $searchId,
+                    'searchResultPosition' => $page * self::ROSTER_PAGE_SIZE,
+                    'maxResults' => self::ROSTER_PAGE_SIZE,
+                ],
             ];
+
+            $response = $this->readDevice('Hikvision', fn () => $this->request(
+                $device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body,
+            ));
+
+            $users = $response->json('UserInfoSearch.UserInfo') ?? [];
+
+            foreach ($users as $user) {
+                $enrollments[] = [
+                    'device_user_id' => (string) ($user['employeeNo'] ?? ''),
+                    'name' => $user['name'] ?? null,
+                    'card_number' => $user['cardNo'] ?? null,
+                    'department' => $user['belongGroup'] ?? null,
+                    'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
+                    'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
+                ];
+            }
+
+            if (count($users) < self::ROSTER_PAGE_SIZE) {
+                break;
+            }
         }
 
         return $enrollments;

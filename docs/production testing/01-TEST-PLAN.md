@@ -248,6 +248,14 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | A punch a terminal pushes to the vendor webhook is recorded for the device's organisation (`86ff8df226`). The PR is titled as a test harness; the fix rides in it | #688 | DEV-007, DEV-008 changed; K-70 |
 | The attendance-to-payslip journeys (`src/e2e/attendance-payroll/`) and the punch race test join the gates: L0 only, never production | #688 | Section 3, L0; [11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli) |
 | Sign-up holds the admin step until the phone is valid; the industry must be one the catalogue knows; the admin and the organisation take the form's language | #689 | ORG-012 to ORG-014; K-69 |
+| One employee, however they arrive: adding someone who is already here is refused or asked about; a deleted record is restored, not remade; a contradicted match goes to review; a phone in another spelling is the same person | #692, #694 | IDN-001 to IDN-004, IDN-006, IDN-007 |
+| The import screen is the staged review: lines are read on the server, shown matched, and added only on commit; a matched line fills blanks and asks about differences; a long list is added in parts; staged lists are kept 30 days from their last activity | #693, #695, #696 | IDN-005, IDN-008 to IDN-011; IMP-E-002 to IMP-E-006 and IMP-E-014 now describe the API only |
+| National ID and TIN are kept out of the `employee.updated` audit record, and out of a staged review | #690 | IDN-009 |
+| The employee template is an Excel workbook with dropdowns, and an `.xlsx` file is read in the browser | #699 | XLS-001 to XLS-003; IMP-E-001 lists 18 of the 20 columns |
+| Another system's column names are matched once and saved as a source; its ids find the same people; a saved source's columns read the same on every database | #700, #701 | MAP-001 to MAP-003 |
+| Mass activation: a list arrives as hired, on probation or confirmed; invitations go out by default; a printable sheet of one-time codes; a code for an invitation unanswered for 3 days | #703 | MASS-001 to MASS-005; MIG-001 changed |
+| One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
+| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 (open) | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
 

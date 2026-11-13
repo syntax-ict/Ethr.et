@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AddEmployeeMenu } from "@/features/employees/components/add-employee-menu";
 import {
   Plus,
   Users,
@@ -11,6 +12,7 @@ import {
   FileSignature,
   CalendarClock,
   ClipboardCheck,
+  UsersRound,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type {
@@ -278,12 +280,7 @@ export default function EmployeesPage() {
         <PageActions
           actions={
             <>
-              <Button asChild>
-                <Link href="/employees/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("employees.add", "Add Employee")}
-                </Link>
-              </Button>
+              <AddEmployeeMenu />
               <Button
                 variant="outline"
                 size="icon"
@@ -307,6 +304,17 @@ export default function EmployeesPage() {
               >
                 <Link href="/employees/import">
                   <Upload className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title={t("duplicates.title", "Possible duplicates")}
+                aria-label={t("duplicates.title", "Possible duplicates")}
+              >
+                <Link href="/employees/duplicates">
+                  <UsersRound className="h-4 w-4" />
                 </Link>
               </Button>
               <Button
