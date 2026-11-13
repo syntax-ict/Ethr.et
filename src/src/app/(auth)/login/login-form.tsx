@@ -32,6 +32,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 import { cn } from "@/lib/utils";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 /**
  * What a person may type in the sign-in field, as AuthIdentifierResolver
@@ -496,16 +497,7 @@ export function LoginForm() {
         {/* The tile beside the heading, not above it: on a phone it took a
             line of its own and pushed the form down. */}
         <div className="flex items-center gap-3">
-          {showMark && (
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm lg:hidden"
-              aria-hidden="true"
-            >
-              <span className="text-base font-bold text-primary-foreground">
-                E
-              </span>
-            </div>
-          )}
+          {showMark && <EthrSymbol className="h-10 w-10 lg:hidden" />}
           <h1 className="min-w-0 text-title text-balance text-foreground">
             {heading}
           </h1>
