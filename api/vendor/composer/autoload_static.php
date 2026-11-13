@@ -1850,6 +1850,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\Csv' => __DIR__ . '/../..' . '/app/Support/Csv.php',
         'App\\Support\\DepartmentMatch' => __DIR__ . '/../..' . '/app/Support/DepartmentMatch.php',
         'App\\Support\\DeviceClock' => __DIR__ . '/../..' . '/app/Support/DeviceClock.php',
+        'App\\Support\\DeviceErrorCode' => __DIR__ . '/../..' . '/app/Support/DeviceErrorCode.php',
         'App\\Support\\DeviceProof' => __DIR__ . '/../..' . '/app/Support/DeviceProof.php',
         'App\\Support\\DeviceSimulator' => __DIR__ . '/../..' . '/app/Support/DeviceSimulator.php',
         'App\\Support\\DeviceTime' => __DIR__ . '/../..' . '/app/Support/DeviceTime.php',

@@ -19,6 +19,7 @@ use App\Services\Device\DeviceManager;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
+use App\Support\DeviceErrorCode;
 use App\Support\DeviceTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -91,6 +92,17 @@ class PullDeviceEventsJob implements ShouldQueue
             $status = $adapter->getStatus($this->device);
 
             if (! ($status['online'] ?? false)) {
+                $pulled = $this->stillPulled();
+
+                if (! $pulled) {
+                    // Switched to send to ETHR while this run probed its old
+                    // address. The pull stopped applying; that is not a
+                    // failure of a terminal that is sending punches normally.
+                    $syncLog->delete();
+
+                    return;
+                }
+
                 $wasOnline = $this->device->status !== 'offline';
                 $this->device->update(['status' => 'offline']);
 
@@ -100,16 +112,12 @@ class PullDeviceEventsJob implements ShouldQueue
 
                 $syncLog->update([
                     'status' => 'offline',
-                    'error_message' => 'Device is not reachable',
+                    'error_message' => DeviceErrorCode::scrub((string) ($status['error'] ?? 'Device is not reachable')),
                     'completed_at' => now(),
                     'duration_ms' => $startedAt->diffInMilliseconds(now()),
                 ]);
 
                 return;
-            }
-
-            if ($this->device->status !== 'online') {
-                $this->device->update(['status' => 'online']);
             }
 
             // `full` is a history import with no start date, so whether this is
@@ -130,6 +138,10 @@ class PullDeviceEventsJob implements ShouldQueue
                 self::dispatch($this->deviceId, $this->tenantId, $this->triggeredBy, $run['cursor']);
             }
 
+            // One read after the drain, which can last the whole time budget
+            // and is the window a mode switch actually lands in, covers both
+            // writes: Online if it was not, and the cursor below.
+            //
             // A history backfill must not move the incremental cursor, or the
             // next scheduled sync would skip everything between the backfill
             // window and now. An incremental sync moves it to when this run
@@ -143,11 +155,22 @@ class PullDeviceEventsJob implements ShouldQueue
             // cursor and that start were never pulled again. Scheduled syncs
             // now start from the cursor; one that overlaps the continuation
             // pulls punches already recorded, which their keys de-duplicate.
-            if (! $backfill) {
-                $reached = $run['outcome'] === 'budget' && is_string($run['cursor'])
-                    ? Carbon::parse($run['cursor'])
-                    : $startedAt;
-                $this->device->update(['last_sync_at' => $reached]);
+            if ($this->stillPulled()) {
+                $attributes = [];
+
+                if ($this->device->status !== 'online') {
+                    $attributes['status'] = 'online';
+                }
+
+                if (! $backfill) {
+                    $attributes['last_sync_at'] = $run['outcome'] === 'budget' && is_string($run['cursor'])
+                        ? Carbon::parse($run['cursor'])
+                        : $startedAt;
+                }
+
+                if ($attributes !== []) {
+                    $this->device->update($attributes);
+                }
             }
 
             [$found, $processed, $failed] = [$run['found'], $run['processed'], $run['failed']];
@@ -181,11 +204,25 @@ class PullDeviceEventsJob implements ShouldQueue
                 'failed' => $failed,
             ]);
         } catch (Throwable $e) {
+            if (! $this->stillPulled()) {
+                // A pull that stopped applying is not a failure, and a retry
+                // would return at the receivesOnly check anyway. Rethrowing
+                // would end in failed() telling an admin about a terminal
+                // that is fine.
+                $syncLog->delete();
+
+                Log::info('Device pull dropped: the device now sends to ETHR', [
+                    'device_id' => $this->device->id,
+                ]);
+
+                return;
+            }
+
             $this->device->update(['status' => 'error']);
 
             $syncLog->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => DeviceErrorCode::scrub($e->getMessage()),
                 'completed_at' => now(),
                 'duration_ms' => $startedAt->diffInMilliseconds(now()),
             ]);
@@ -228,6 +265,21 @@ class PullDeviceEventsJob implements ShouldQueue
         if ($device !== null) {
             DeviceSyncFailed::dispatch($device, $e->getMessage());
         }
+    }
+
+    /**
+     * Whether the device is still one ETHR pulls. An administrator can switch
+     * it to send to ETHR while this runs; from then on its status and
+     * `last_sync_at` (now "last heard") belong to the push rule, and a write
+     * from here would make a terminal nobody has heard from read Online for a
+     * day, or Offline. Read again, inside the payload's tenant, once per run
+     * and after the adapter call it guards, since each call is a query.
+     */
+    private function stillPulled(): bool
+    {
+        $current = Device::query()->where('tenant_id', $this->tenantId)->find($this->deviceId);
+
+        return $current !== null && ! DeviceManager::receivesOnly($current);
     }
 
     /**

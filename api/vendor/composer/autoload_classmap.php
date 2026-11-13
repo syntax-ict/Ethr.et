@@ -1116,6 +1116,7 @@ return array(
     'App\\Support\\Csv' => $baseDir . '/app/Support/Csv.php',
     'App\\Support\\DepartmentMatch' => $baseDir . '/app/Support/DepartmentMatch.php',
     'App\\Support\\DeviceClock' => $baseDir . '/app/Support/DeviceClock.php',
+    'App\\Support\\DeviceErrorCode' => $baseDir . '/app/Support/DeviceErrorCode.php',
     'App\\Support\\DeviceProof' => $baseDir . '/app/Support/DeviceProof.php',
     'App\\Support\\DeviceSimulator' => $baseDir . '/app/Support/DeviceSimulator.php',
     'App\\Support\\DeviceTime' => $baseDir . '/app/Support/DeviceTime.php',

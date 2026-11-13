@@ -8946,8 +8946,33 @@
                                                                 "const": "warning"
                                                             },
                                                             "count": {
-                                                                "type": "integer",
-                                                                "minimum": 0
+                                                                "type": "integer"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/devices"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "devices_never_heard"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "info"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
                                                             },
                                                             "fix_route": {
                                                                 "type": "string",
@@ -14386,7 +14411,25 @@
                                             "type": "string",
                                             "enum": [
                                                 "online",
-                                                "offline"
+                                                "offline",
+                                                "pending"
+                                            ]
+                                        },
+                                        "error_code": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "enum": [
+                                                "other",
+                                                "auth",
+                                                "http",
+                                                "sdk_port",
+                                                "refused",
+                                                "timeout",
+                                                "dns",
+                                                "unreachable",
+                                                null
                                             ]
                                         },
                                         "details": {
@@ -14401,6 +14444,7 @@
                                     "required": [
                                         "device_public_id",
                                         "status",
+                                        "error_code",
                                         "details",
                                         "device_info"
                                     ]
@@ -46941,6 +46985,23 @@
                             "null"
                         ]
                     },
+                    "error_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "other",
+                            "auth",
+                            "http",
+                            "sdk_port",
+                            "refused",
+                            "timeout",
+                            "dns",
+                            "unreachable",
+                            null
+                        ]
+                    },
                     "duration_ms": {
                         "type": [
                             "integer",
@@ -46975,6 +47036,7 @@
                     "events_processed",
                     "events_failed",
                     "error_message",
+                    "error_code",
                     "duration_ms",
                     "started_at",
                     "completed_at",
