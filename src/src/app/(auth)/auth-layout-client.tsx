@@ -18,6 +18,11 @@ import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { ProductStoryAnimation } from "@/components/shared/product-story-animation";
 import { OrgMark } from "@/components/shared/org-mark";
 import {
+  EthrGlyph,
+  EthrSymbol,
+  EthrWordmark,
+} from "@/components/shared/ethr-logo";
+import {
   useAuthHostContext,
   type TenantLanding,
 } from "@/lib/auth/use-auth-host-context";
@@ -163,13 +168,14 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
               <Link
                 prefetch={false}
                 href="/"
-                className="inline-flex items-center gap-2.5"
+                className="inline-flex items-center gap-3"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-foreground/20 backdrop-blur-sm">
-                  <span className="text-xl font-bold text-primary-foreground">
-                    E
-                  </span>
-                </div>
+                {/* The class-based variant, not Tailwind's \`dark:\`, which follows the
+                    OS setting; the amber dot is 1.39:1 on the dark panel, so the
+                    full-colour tile stands in there. */}
+                <EthrGlyph className="h-12 w-auto text-primary-foreground [.dark_&]:hidden" />
+                <EthrSymbol className="hidden h-12 w-12 [.dark_&]:block" />
+                <EthrWordmark className="h-11 w-auto text-primary-foreground" />
               </Link>
               <h2 className="mt-8 text-3xl font-bold leading-tight text-primary-foreground">
                 {t("auth.layout_title", "Ethiopian Workforce Operating System")}

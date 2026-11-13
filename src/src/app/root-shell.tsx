@@ -69,8 +69,11 @@ export const baseMetadata: Metadata = {
   description:
     "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/app-icons/icon-192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/app-icons/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/app-icons/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {

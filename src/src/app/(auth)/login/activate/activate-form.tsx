@@ -18,6 +18,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { queryOrganisation, signInHref } from "@/lib/auth/entry-organisation";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const activateSchema = z
   .object({
@@ -183,9 +184,7 @@ function Activate() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.activate_title", "Activate your account")}
