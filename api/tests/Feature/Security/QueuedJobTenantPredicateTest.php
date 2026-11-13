@@ -6,6 +6,7 @@ use App\Jobs\ApplyDuePersonnelActionsJob;
 use App\Jobs\DeliverDeviceCommandsJob;
 use App\Jobs\DispatchWebhookJob;
 use App\Jobs\NotifyAnnouncementAudienceJob;
+use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Jobs\ProcessPayrollJob;
 use App\Jobs\PullDeviceEventsJob;
 use App\Jobs\SendInvitationJob;
@@ -17,10 +18,12 @@ use App\Models\Employee;
 use App\Models\PayrollRun;
 use App\Models\PersonnelAction;
 use App\Models\Tenant;
+use App\Models\UnmatchedDevicePunch;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollEngine;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 
@@ -224,6 +227,7 @@ test('the tenant id is required on every job that scopes by it', function (strin
     ApplyDuePersonnelActionsJob::class,
     PullDeviceEventsJob::class,
     DeliverDeviceCommandsJob::class,
+    ProcessDeviceInboundPunchesJob::class,
 ]);
 
 // ── Device jobs: the tenant comes from the payload, never the device row ──
@@ -247,6 +251,25 @@ test('a device sync does nothing for a device of another tenant', function () {
     app()->call([new PullDeviceEventsJob($device->id, $other->id), 'handle']);
 
     expect(DeviceSyncLog::withoutGlobalScopes()->where('device_id', $device->id)->exists())->toBeFalse();
+});
+
+test('an inbox run does nothing for a device of another tenant', function () {
+    $owner = Tenant::factory()->create();
+    $other = Tenant::factory()->create();
+    $device = otherTenantDevice($owner);
+    DB::table('device_inbound_punches')->insert([
+        'tenant_id' => $owner->id, 'device_id' => $device->id, 'badge' => '1', 'punch_type' => 'auto',
+        'occurred_raw' => '2026-11-13T09:00:00+03:00', 'idempotency_key' => 'predicate-1',
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    app(CurrentTenant::class)->forget();
+
+    // Right device id, wrong tenant: the device is not found inside it, so
+    // the owner's waiting punch is not touched.
+    app()->call([new ProcessDeviceInboundPunchesJob($device->id, $other->id), 'handle']);
+
+    expect(DB::table('device_inbound_punches')->whereNull('processed_at')->count())->toBe(1)
+        ->and(UnmatchedDevicePunch::withoutGlobalScopes()->count())->toBe(0);
 });
 
 test('a command delivery does nothing for a device of another tenant', function () {

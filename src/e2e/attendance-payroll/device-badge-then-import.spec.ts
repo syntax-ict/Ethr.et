@@ -28,12 +28,22 @@ test("a badge held before the import is recorded for the person it names when as
   const { arrived, left } = heldPunchTimes();
   const hired = addisDate(arrived);
 
-  expect(await hikvisionPunch(request, "e2e-dev", badge, arrived, "checkIn")).toBe("employee_not_found");
-  expect(await hikvisionPunch(request, "e2e-dev", badge, left, "checkOut")).toBe("employee_not_found");
+  expect(await hikvisionPunch(request, "e2e-dev", badge, arrived, "checkIn")).toBe("accepted");
+  expect(await hikvisionPunch(request, "e2e-dev", badge, left, "checkOut")).toBe("accepted");
 
   const admin = await as(browser, "e2e-dev", "admin");
   try {
     const { page } = admin;
+
+    // The terminal is answered `accepted` at once; the queue worker (the one
+    // the payroll journey already needs) holds the punches, so wait for them.
+    await expect
+      .poll(
+        async () =>
+          (await unmatchedBadges(page)).filter((row) => row.badge === badge).reduce((n, row) => n + row.punches, 0),
+        { timeout: 60_000 },
+      )
+      .toBe(2);
 
     const held = (await unmatchedBadges(page)).filter((row) => row.badge === badge);
     expect(held).toHaveLength(1);

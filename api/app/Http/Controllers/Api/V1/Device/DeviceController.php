@@ -12,6 +12,7 @@ use App\Http\Requests\Device\StoreDeviceRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Http\Resources\DeviceResource;
 use App\Http\Resources\DeviceSyncLogResource;
+use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Jobs\PullDeviceEventsJob;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
@@ -25,7 +26,6 @@ use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
-use App\Services\Device\UnmatchedPunches;
 use App\Services\Device\WebhookRejections;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
@@ -37,6 +37,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 
@@ -460,28 +461,27 @@ class DeviceController extends Controller
             return response()->json(['status' => 'no_badge'], 200);
         }
 
-        $employee = $this->punches->employee($device, $badge);
+        // One insert and an answer: the terminal sends again anything not
+        // answered 200, and the host has five PHP workers, so the engine's
+        // work is done by ProcessDeviceInboundPunchesJob, in arrival order.
+        // The key is the one the punch is recorded under, so a re-sent event
+        // is one row, and the job is queued only for a row that is new.
+        $queued = DB::table('device_inbound_punches')->insertOrIgnore([
+            'tenant_id' => $device->tenant_id,
+            'device_id' => $device->id,
+            'badge' => mb_substr($badge, 0, 64),
+            'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
+            'occurred_raw' => mb_substr((string) $timestamp, 0, 64),
+            'idempotency_key' => mb_substr("webhook:hik:{$device->id}:{$badge}:{$timestamp}", 0, 191),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        if (! $employee) {
-            // Held, not dropped: replayed once someone says whose badge it is.
-            app(UnmatchedPunches::class)->hold($device, $badge, HikvisionEvent::direction($event), "webhook:hik:{$device->id}:{$badge}:{$timestamp}", (string) $timestamp);
-
-            return response()->json(['status' => 'employee_not_found'], 200);
+        if ($queued === 1) {
+            ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
         }
 
-        // A single event, so an engine failure is the request's failure: unlike
-        // the batch handlers this does not catch and skip.
-        $this->punches->record(
-            $device,
-            $employee,
-            HikvisionEvent::direction($event),
-            "webhook:hik:{$device->id}:{$badge}:{$timestamp}",
-            $timestamp,
-        );
-
-        $this->markWebhookReceived($device);
-
-        return response()->json(['status' => 'processed'], 200);
+        return response()->json(['status' => 'accepted'], 200);
     }
 
     public function webhookZkteco(Request $request): JsonResponse
@@ -558,13 +558,25 @@ class DeviceController extends Controller
      */
     private function inboundDecision(Device $device): ?FeatureDecision
     {
-        $tenant = Tenant::query()->find($device->tenant_id);
+        // resolveWebhookDevice() has just found the tenant and made it current.
+        $tenant = app(CurrentTenant::class)->get() ?? Tenant::query()->find($device->tenant_id);
 
         return $tenant === null ? null : app(FeatureGate::class)->decide($tenant, Feature::DeviceWebhooksInbound);
     }
 
+    /** A device heard from this recently is not stamped again. */
+    private const RECEIVED_STAMP_SECONDS = 60;
+
     private function markWebhookReceived(Device $device): void
     {
+        $fresh = $device->status === 'online'
+            && $device->last_sync_at !== null
+            && $device->last_sync_at->gte(now()->subSeconds(self::RECEIVED_STAMP_SECONDS));
+
+        if ($fresh) {
+            return;
+        }
+
         $device->update(['last_sync_at' => now(), 'status' => 'online']);
     }
 

@@ -341,8 +341,10 @@ Route::prefix('scim/v2')->middleware([ScimAuth::class, 'throttle:api'])->group(f
     Route::delete('/Groups/{publicId}', [ScimGroupController::class, 'destroy']);
 });
 
-// Device webhooks (public endpoints, verified by webhook_token or serial_number)
-Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () {
+// Device webhooks (public endpoints, verified by webhook_token or serial_number).
+// Their own limiter: `throttle:api` allowed 60 a minute per address and a
+// terminal answered 429 sends the same event again at once.
+Route::prefix('devices/webhook')->middleware('throttle:device-webhook')->group(function () {
     Route::post('/hikvision', [DeviceController::class, 'webhookHikvision']);
     Route::post('/zkteco', [DeviceController::class, 'webhookZkteco']);
     Route::post('/suprema', [DeviceController::class, 'webhookSuprema']);

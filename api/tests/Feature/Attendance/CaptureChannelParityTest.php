@@ -269,7 +269,7 @@ function parityHikvision(array $ctx): void
             'employeeNoString' => PARITY_BADGE,
             'attendanceStatus' => $type === 'check_in' ? 'checkIn' : 'checkOut',
         ],
-    ])->assertJsonPath('status', 'processed'), delayMinutes: 1);
+    ])->assertJsonPath('status', 'accepted'), delayMinutes: 1);
 }
 
 function parityZkteco(array $ctx): void

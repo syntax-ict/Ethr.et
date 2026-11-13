@@ -21010,10 +21010,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @constant */
-                        status: "processed";
-                    } | {
-                        /** @constant */
-                        status: "employee_not_found";
+                        status: "accepted";
                     } | {
                         /** @constant */
                         status: "no_badge";

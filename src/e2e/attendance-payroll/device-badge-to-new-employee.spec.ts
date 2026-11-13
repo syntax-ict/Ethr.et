@@ -24,14 +24,24 @@ test("a badge nobody owns becomes a new employee and its held punches are record
   const badge = "7701";
   const { arrived, left } = heldPunchTimes();
 
-  expect(await hikvisionPunch(request, "e2e-dev", badge, arrived, "checkIn")).toBe("employee_not_found");
-  expect(await hikvisionPunch(request, "e2e-dev", badge, left, "checkOut")).toBe("employee_not_found");
+  expect(await hikvisionPunch(request, "e2e-dev", badge, arrived, "checkIn")).toBe("accepted");
+  expect(await hikvisionPunch(request, "e2e-dev", badge, left, "checkOut")).toBe("accepted");
 
   const admin = await as(browser, "e2e-dev", "admin");
   try {
     const { page } = admin;
 
     // What the server holds, and what it makes of it.
+    // The terminal is answered `accepted` at once; the queue worker (the one
+    // the payroll journey already needs) holds the punches, so wait for them.
+    await expect
+      .poll(
+        async () =>
+          (await unmatchedBadges(page)).filter((row) => row.badge === badge).reduce((n, row) => n + row.punches, 0),
+        { timeout: 60_000 },
+      )
+      .toBe(2);
+
     const held = (await unmatchedBadges(page)).filter((row) => row.badge === badge);
     expect(held).toHaveLength(1);
     expect(held[0].device_name).toBe("Front Door Terminal");

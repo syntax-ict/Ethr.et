@@ -408,6 +408,25 @@ by its token. A terminal may now be registered with **no address**.
   never means only that the terminal was set up. That is a label, not a gate: a punch from
   an "offline" terminal is recorded. For a terminal ETHR also pulls, only a punch moves
   `last_sync_at`, because there it is the pull cursor.
+- **The push inbox (2026-11-13).** A terminal re-sends any event not answered 200, at once and
+  without backing off, and production has five PHP workers. So the post does one insert into
+  `device_inbound_punches` (unique on the same idempotency key as before, so a re-sent event
+  is one row) and answers `200 {"status":"accepted"}`. **The 200 is the acknowledgement**:
+  anything else, a 429 included, makes the terminal send the same event again and adds
+  requests without removing work. `ProcessDeviceInboundPunchesJob` then works the device's
+  rows in arrival order (`id`) on the `attendance` queue, one run at a time per device: the
+  badge is resolved, and the punch is recorded or held in `unmatched_device_punches`. The
+  engine's `auto` direction reads the open record, so order is what makes an evening scan
+  close the morning one. A database error leaves the row pending and the rows behind it wait
+  for the retry; a refused punch is marked processed with its reason in `error`; a row that
+  has failed five times is marked processed rather than retried for ever. Processed rows are
+  deleted after seven days by `CleanupExpiredDataJob`, waiting rows never. The route's own
+  `device-webhook` limiter allows 600 posts a minute per address (a ceiling against a broken
+  sender, not a delivery pace), and the global API limiter does not count these posts a second
+  time. Because the work is queued, a punch is recorded only once something drains the queue
+  (production: `RunBackgroundWorkAfterResponse` after any API response, the terminal's own
+  posts included, at most once a minute, and the cron caller), and a heartbeat or punch stamps the device row at most once a
+  minute.
 - **Who writes it.** The rule is written by `devices:sync` on every run for every such
   device (nothing else moves a terminal off `online` when it goes quiet, because it is
   never pulled), by `PUT /devices/{id}` when the mode changes, and by
