@@ -203,6 +203,11 @@ parameters:
         - message: '#^Method App\\Models\\RetirementCase\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # Same larastan limitation for device_inbound_punches (the push inbox,
+        # 2026-11-13).
+        - message: '#^Method App\\Models\\DeviceInboundPunch\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # `HasFactory`'s generic isn't specified anywhere in this codebase —
         # every other model using it (Employee, Announcement, Branch, …) has
         # the identical message baselined in phpstan-baseline.neon instead.
