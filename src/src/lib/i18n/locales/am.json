@@ -7351,5 +7351,10 @@
   "setup_status.devices_never_heard_one": "እስካሁን ያልተሰማ 1 መሣሪያ",
   "setup_status.devices_never_heard_desc": "ከእነሱ ምንም አልደረሰም። ማዋቀሩን ይጨርሱ፤ የመሣሪያው ገጽ በመሣሪያው ላይ ምን እንደሚገባ ያሳያል።",
   "device_error.hikvision.office_network": "መሣሪያው በቢሮዎ አውታረ መረብ ላይ ከሆነ ETHR ከበይነመረብ ሊደርስበት አይችልም፤ በምትኩ የቢሮ አውታረ መረብ ቅንብሩን ይጠቀሙ።",
-  "device_error.hikvision.digest": "ETHR ወደ Hikvision መሣሪያዎች የሚገባው በBasic ማረጋገጫ ብቻ ነው፤ ብዙዎቹ Digest ይጠይቃሉ፣ ስለዚህ ትክክለኛ የይለፍ ቃልም ሊከለከል ይችላል።"
+  "device_error.hikvision.digest": "ETHR ወደ Hikvision መሣሪያዎች የሚገባው በBasic ማረጋገጫ ብቻ ነው፤ ብዙዎቹ Digest ይጠይቃሉ፣ ስለዚህ ትክክለኛ የይለፍ ቃልም ሊከለከል ይችላል።",
+  "devices_page.rejected.title": "መሣሪያው :time ደውሎ ETHR ውድቅ አድርጎታል።",
+  "devices_page.rejected.token_retired": "ቶከኑ ዳግም ከመፈጠሩ በፊት የነበረውን ቶከን አሁንም እየላከ ነው። በዚህ ገጽ ላይ የሚታየውን የአሁኑን አድራሻ በመሣሪያው ላይ ያስገቡ።",
+  "devices_page.rejected.token_truncated": "የቶከኑን መጀመሪያ ብቻ ልኳል፣ ስለዚህ በመሣሪያው ላይ ያለው አድራሻ ተቆርጧል። በዚህ ገጽ ላይ የሚታየውን ሙሉ አድራሻ ያስገቡ፣ መሣሪያውም ሙሉውን መያዙን ያረጋግጡ።",
+  "devices_page.rejected.token_missing": "ያለ ቶከን ደውሏል። በዚህ ገጽ ላይ የሚታየውን ሙሉ አድራሻ፣ ከ ?token= በኋላ ያለውን ክፍል ጨምሮ፣ ያስገቡ።",
+  "devices_page.rejected.ip_not_allowed": "ከ :ip ደውሏል፣ ይህ አድራሻ በዚህ መሣሪያ የተፈቀዱ አድራሻዎች ዝርዝር ውስጥ የለም።"
 }

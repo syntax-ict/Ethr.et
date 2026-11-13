@@ -7351,5 +7351,10 @@
   "setup_status.devices_never_heard_one": "Meeshaan 1 hanga ammaatti hin dhaga'amne",
   "setup_status.devices_never_heard_desc": "Isaan irraa homaatu hin dhufne. Qophii xumuraa; fuulli meeshaa wanta teerminaalicha irratti galchitan agarsiisa.",
   "device_error.hikvision.office_network": "Teerminaalichi network waajjira keessanii irra yoo jiraate, ETHR interneetii irraa itti ga'uu hin danda'u: qindaa'ina network waajjiraa fayyadamaa.",
-  "device_error.hikvision.digest": "ETHR teerminaalota Hikvision irratti mirkaneessa Basic qofaan seena, baay'een isaanii immoo Digest barbaadu, kanaaf jecha iccitii sirrii ta'ellee ukkaamfamuu danda'a."
+  "device_error.hikvision.digest": "ETHR teerminaalota Hikvision irratti mirkaneessa Basic qofaan seena, baay'een isaanii immoo Digest barbaadu, kanaaf jecha iccitii sirrii ta'ellee ukkaamfamuu danda'a.",
+  "devices_page.rejected.title": "Teerminaalichi :time bilbilee ETHR dideera.",
+  "devices_page.rejected.token_retired": "Ammallee tookanii osoo tookaniin hin haaromsamin dura ture erguu irra jira. Teessoo ammaa fuula kana irratti mul'atu teerminaalicha irratti galchaa.",
+  "devices_page.rejected.token_truncated": "Jalqaba tookanii qofa erge, kanaaf teessoon teerminaalicha irra jiru gabaabbateera. Teessoo guutuu fuula kana irratti mul'atu galchaatii teerminaalichi hunda isaa qabachuu isaa mirkaneessaa.",
+  "devices_page.rejected.token_missing": "Tookanii malee bilbile. Teessoo guutuu fuula kana irratti mul'atu, kutaa ?token= booda jiru dabalatee, galchaa.",
+  "devices_page.rejected.ip_not_allowed": "Teessoo :ip irraa bilbile, kunis tarree teessoowwan meeshaa kanaaf hayyamamanii keessa hin jiru."
 }

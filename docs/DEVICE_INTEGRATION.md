@@ -478,6 +478,31 @@ tenant journey keeps its own three-day `devices_silent`, with the same registrat
 for both kinds: a terminal not set up three days after it was registered is a stalled setup
 the platform should see.
 
+## Why a terminal's calls were refused (2026-11-13)
+
+A refused webhook used to leave only a log line, so a terminal with a stale or cut-off
+address read "Nothing received from this terminal yet", exactly like one that never called.
+`Services/Device/WebhookRejections` now keeps the last refusal for a week on the device it
+can be traced to, and the device page says when the terminal called and why it was refused
+(`webhook_rejected` on the device, shown to organisation admins, never through an
+integration key). It stops showing once the terminal has been heard from since.
+
+| Reason | How the call is traced to the device |
+|---|---|
+| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation stores a hash of the old token against the device, never the token. |
+| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, so no `LIKE` wildcard reaches the match, and only when exactly one device of that vendor matches. |
+| `token_missing` | The request named the device by its serial and carried no token, and the device has one. |
+| `ip_not_allowed` | A device without a token called from an address not on its allowlist. |
+
+**What is not traced: a token mistyped from the start.** Nothing else in a Hikvision push
+names the device (the push carries no device serial), and the source address cannot stand in:
+terminals of two organisations can share one public address behind carrier NAT, and a wrong
+match would show one organisation another's terminal. Such a terminal still reads "Nothing
+received from this terminal yet"; re-enter the address from the device page.
+
+A terminal retrying every few seconds is written once a minute, and a cache that cannot be
+reached never turns the 401 into a 500.
+
 ## Device clocks (2026-10-14)
 
 `devices.clock_offset_seconds` is how far a device's clock is from the server's, read off
