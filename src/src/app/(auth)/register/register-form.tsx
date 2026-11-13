@@ -27,6 +27,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useOrganizationTypes } from "@/features/settings/api";
 import {
   groupOrgKinds,
+  narrowOrgKinds,
   orgKindGroupLabel,
   orgKindName,
 } from "@/features/settings/org-kind";
@@ -47,6 +48,17 @@ const orgTypeKeys = [
   "university",
   "general",
 ] as const;
+
+const ORG_TYPE_FALLBACKS: Record<(typeof orgTypeKeys)[number], string> = {
+  government: "Government Office",
+  bank: "Bank / Financial",
+  hospital: "Hospital / Healthcare",
+  manufacturing: "Manufacturing",
+  ngo: "NGO",
+  hotel: "Hotel / Hospitality",
+  university: "University / Education",
+  general: "General Company",
+};
 
 const steps = ["organization", "admin", "security"] as const;
 type Step = (typeof steps)[number];
@@ -87,6 +99,7 @@ export function RegisterForm() {
     register,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     trigger,
     formState: { errors, isSubmitting },
@@ -94,7 +107,7 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       organization_name: "",
-      organization_type: "general",
+      organization_type: "",
       organization_kind: "",
       subdomain: "",
       admin_name: "",
@@ -135,6 +148,10 @@ export function RegisterForm() {
   const subdomain = watch("subdomain");
   const orgName = watch("organization_name");
   const orgKind = watch("organization_kind");
+  const orgType = watch("organization_type");
+  const [showAllKinds, setShowAllKinds] = useState(false);
+  const kindSplit = narrowOrgKinds(orgKinds.data ?? [], orgType, orgKind);
+  const kindsNarrowed = kindSplit.rest.length > 0 && !showAllKinds;
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
   const adminPhone = watch("admin_phone");
@@ -208,6 +225,7 @@ export function RegisterForm() {
 
   const step1Valid =
     orgName.trim().length >= 2 &&
+    orgType !== "" &&
     orgKind !== "" &&
     subdomain.trim().length >= 3 &&
     subdomainAvailable !== false;
@@ -451,15 +469,44 @@ export function RegisterForm() {
               </Label>
               <select
                 id="org_type"
-                {...register("organization_type")}
+                {...register("organization_type", {
+                  onChange: (event: { target: { value: string } }) => {
+                    // A kind the new type does not suggest is cleared, not
+                    // kept hidden: the person chooses again from what fits.
+                    const next = narrowOrgKinds(
+                      orgKinds.data ?? [],
+                      event.target.value,
+                    );
+                    if (
+                      next.rest.some(
+                        (kind) => kind.code === getValues("organization_kind"),
+                      )
+                    ) {
+                      setValue("organization_kind", "");
+                    }
+                    setShowAllKinds(false);
+                  },
+                })}
+                aria-invalid={Boolean(errors.organization_type)}
                 className={SELECT_CLASS}
               >
+                <option value="">
+                  {t("auth.org_kind_choose", "Choose one")}
+                </option>
                 {orgTypeKeys.map((key) => (
                   <option key={key} value={key}>
-                    {t(`auth.org_type_${key}`)}
+                    {t(`auth.org_type_${key}`, ORG_TYPE_FALLBACKS[key])}
                   </option>
                 ))}
               </select>
+              {errors.organization_type && (
+                <p role="alert" className="text-xs text-destructive">
+                  {t(
+                    errors.organization_type.message!,
+                    "Choose the type of organisation.",
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -479,7 +526,9 @@ export function RegisterForm() {
                 <option value="">
                   {t("auth.org_kind_choose", "Choose one")}
                 </option>
-                {groupOrgKinds(orgKinds.data ?? []).map((section) => (
+                {groupOrgKinds(
+                  kindsNarrowed ? kindSplit.suggested : (orgKinds.data ?? []),
+                ).map((section) => (
                   <optgroup
                     key={section.group || "other"}
                     label={orgKindGroupLabel(section.group, t)}
@@ -498,6 +547,23 @@ export function RegisterForm() {
                   "Decides which tax, pension and labour rules apply to your payroll.",
                 )}
               </p>
+              {kindSplit.rest.length > 0 && (
+                <button
+                  type="button"
+                  className="text-sm text-primary underline-offset-4 hover:underline"
+                  onClick={() => setShowAllKinds((all) => !all)}
+                >
+                  {kindsNarrowed
+                    ? t(
+                        "settings.org_kind_show_all",
+                        "Show every kind of organisation in law",
+                      )
+                    : t(
+                        "settings.org_kind_show_suggested",
+                        "Show only the kinds that match your type of organisation",
+                      )}
+                </button>
+              )}
               {orgKinds.isError && (
                 <p role="alert" className="text-xs text-destructive">
                   {t(

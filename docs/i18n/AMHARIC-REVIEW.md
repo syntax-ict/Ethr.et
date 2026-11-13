@@ -47,6 +47,12 @@ Drafts written without a native speaker; a wrong label moves no money.
 `setup_payout_method`, `setup_employee_salaries`, `leave_below_law`,
 `setup_device_linked` and `profile_legal_review`.
 
+### Type-aware narrowing (2026-11-12)
+
+5 keys drafted in Amharic and Afaan Oromoo without a native speaker:
+`settings.org_kind_show_all`, `settings.org_kind_show_suggested`, `setup2.show_all_profiles`,
+`setup2.show_typical_profiles` and `auth.org_type_required`.
+
 ### Dry-run payroll and future-dated kind changes (2026-11-09)
 
 24 keys drafted in Amharic and Afaan Oromoo without a native speaker:

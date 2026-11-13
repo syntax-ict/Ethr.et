@@ -21,6 +21,7 @@ use App\Services\Auth\SessionCookie;
 use App\Services\Auth\TrustedDeviceService;
 use App\Services\Tenancy\OrganisationProfile;
 use App\Support\Locales;
+use App\Support\OrganisationSectors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,7 +53,9 @@ class AuthService
         // Amharic got their welcome e-mail, and their staff's, in English.
         $locale = Locales::orDefault(app()->getLocale());
 
-        return DB::transaction(function () use ($data, $locale) {
+        $sectors = app(OrganisationSectors::class);
+
+        return DB::transaction(function () use ($data, $locale, $sectors) {
             $tenant = Tenant::create([
                 'name' => $data['organization_name'],
                 'subdomain' => $data['subdomain'],
@@ -62,12 +65,9 @@ class AuthService
                 // rules. Asked at sign-up (`organization_kind`); a client that
                 // does not ask gets it inferred from the industry, left for the
                 // tenant admin to confirm in Settings.
-                'organization_type' => $data['organization_kind'] ?? match ($data['organization_type'] ?? null) {
-                    'government' => 'government',
-                    'ngo' => 'ngo',
-                    default => 'private',
-                },
-                'organization_type_needs_review' => ($data['organization_kind'] ?? null) === null,
+                'organization_type' => $data['organization_kind'] ?? $sectors->defaultKindFor($data['organization_type'] ?? null),
+                'organization_type_needs_review' => ($data['organization_kind'] ?? null) === null
+                    || ! $sectors->isPlausible($data['organization_type'] ?? null, $data['organization_kind'] ?? null),
                 'status' => TenantStatus::TRIAL,
                 'trial_ends_at' => now()->addMonths(6),
             ]);
