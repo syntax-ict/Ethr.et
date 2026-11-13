@@ -13156,7 +13156,8 @@
                                                     },
                                                     "last_seen": {
                                                         "type": "string"
-                                                    }
+                                                    },
+                                                    "match": []
                                                 },
                                                 "required": [
                                                     "device_public_id",
@@ -13164,7 +13165,8 @@
                                                     "badge",
                                                     "punches",
                                                     "first_seen",
-                                                    "last_seen"
+                                                    "last_seen",
+                                                    "match"
                                                 ]
                                             }
                                         }
@@ -13899,203 +13901,7 @@
                                                             "null"
                                                         ]
                                                     },
-                                                    "match": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "probable"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": []
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "new"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": []
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "archived"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "prefixItems": [
-                                                                            {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "employee_public_id": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "employee_name": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "score": {
-                                                                                        "type": "number"
-                                                                                    },
-                                                                                    "reasons": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "employee_public_id",
-                                                                                    "employee_name",
-                                                                                    "score",
-                                                                                    "reasons"
-                                                                                ]
-                                                                            }
-                                                                        ],
-                                                                        "minItems": 1,
-                                                                        "maxItems": 1,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "new"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "items": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "minItems": 0,
-                                                                        "maxItems": 0,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            },
-                                                            {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "outcome": {
-                                                                        "type": "string",
-                                                                        "const": "matched"
-                                                                    },
-                                                                    "employee_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "confidence": {
-                                                                        "type": "number"
-                                                                    },
-                                                                    "candidates": {
-                                                                        "type": "array",
-                                                                        "prefixItems": [
-                                                                            {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "employee_public_id": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "employee_name": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "score": {
-                                                                                        "type": "number"
-                                                                                    },
-                                                                                    "reasons": {
-                                                                                        "type": "array",
-                                                                                        "prefixItems": [
-                                                                                            {
-                                                                                                "type": "string",
-                                                                                                "const": "former_employee"
-                                                                                            }
-                                                                                        ],
-                                                                                        "minItems": 1,
-                                                                                        "maxItems": 1,
-                                                                                        "additionalItems": false
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "employee_public_id",
-                                                                                    "employee_name",
-                                                                                    "score",
-                                                                                    "reasons"
-                                                                                ]
-                                                                            }
-                                                                        ],
-                                                                        "minItems": 1,
-                                                                        "maxItems": 1,
-                                                                        "additionalItems": false
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "outcome",
-                                                                    "employee_public_id",
-                                                                    "confidence",
-                                                                    "candidates"
-                                                                ]
-                                                            }
-                                                        ]
-                                                    }
+                                                    "match": []
                                                 },
                                                 "required": [
                                                     "device_user_id",
