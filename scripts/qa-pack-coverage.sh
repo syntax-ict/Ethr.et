@@ -19,6 +19,10 @@
 # nothing a tester can see. Read the title and decide. A user-visible change gets
 # a case, and the case names the PR in 01-TEST-PLAN.md section 2.3.
 #
+# It reads the pack in THIS working tree, so a case waiting in an open pull
+# request does not count as covered. Where `gh` is installed, the open pull
+# requests that change the pack are listed at the end for that reason.
+#
 # READ-ONLY. Exit status: 0 when nothing is uncovered, 1 when something is,
 # 2 when the repository or the marker is unusable.
 
@@ -91,4 +95,29 @@ if [ "$skipped" -gt 0 ]; then
   left_out="; $skipped docs/chore/ci/test/build change(s) left out (--all shows them)"
 fi
 echo "baseline ${BASE:0:10}..$REF: $uncovered PR(s) not cited in the pack$left_out"
+
+# Cases waiting in an open pull request are invisible above: the loop reads the
+# pack in this working tree, so a PR number another branch has already written a
+# case for still counts as uncovered here. On 2026-11-12 that cost two sessions
+# a duplicate pass over #699 to #701, found only when the branches were merged.
+#
+# Advisory: it needs `gh`, it is silent without it, and it never changes the
+# exit status.
+if command -v gh >/dev/null 2>&1; then
+  HEAD_REF="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  OPEN_PRS="$(gh pr list --state open --limit 50 \
+    --json number,title,headRefName,files \
+    --jq "[.[]
+            | select(.headRefName != \"$HEAD_REF\")
+            | select([.files[].path | select(startswith(\"$PACK\"))] | length > 0)
+            | \"  #\(.number)  \(.headRefName)  \(.title)\"]
+          | .[]" 2>/dev/null || true)"
+  if [ -n "$OPEN_PRS" ]; then
+    echo
+    echo "Open pull request(s) that also change the pack. Read their cases before"
+    echo "writing your own, and leave the PRs they cite to them:"
+    printf '%s\n' "$OPEN_PRS"
+  fi
+fi
+
 [ "$uncovered" -eq 0 ]
