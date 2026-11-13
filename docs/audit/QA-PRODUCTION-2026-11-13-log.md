@@ -54,6 +54,37 @@ logger in `guard.ts`) were reverted.
 Observation, not yet a defect: the page subtitle reads "from a CSV file" (ሰራተኞችን ከ CSV ፋይል በጅምላ ያስገቡ) while the body
 accepts Excel or CSV.
 
+## Signed-out cases, built-in browser (23:30 to 23:55)
+
+The desktop app's built-in browser, on the owner's instruction: it has no write guard, so only pages were opened and
+read (rule 3). Header cases used the single `curl -I` each case names (rule 5).
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| SEC-002 | Pass | Claude, `curl -I` | 23:32 | | | `/api/v1/ping`: `X-Frame-Options: DENY`, `nosniff`, HSTS one year with includeSubDomains, CSP with `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(), geolocation=(self)`. Observation: a second `Strict-Transport-Security: max-age=15768000` (six months) follows, added by the host; browsers keep the first |
+| SEC-003 | Pass | Claude, `curl -I` | 23:32 | | | `/en`, `/features` and `/` all carry CSP `default-src 'self'`, HSTS, `X-Frame-Options: DENY`; `X-Powered-By: PleskLin` only. **Pack is out of date:** `/` now carries the headers too, where SEC-003 says the host answers it without them |
+| LAND-010 | Pass | Claude, built-in | 23:35 | | am | Hydrated DOM holds one robots tag each: `habru-woreda.ethr.et/login` `index, follow` (listed), `qa-audit.ethr.et/login` `noindex, nofollow` (hidden). Each matches its `X-Robots-Tag` |
+| LAND-011 | Pass (part) | Claude, built-in | 23:35 | | am | Habru `/news`: one tag, `index, follow`, as its header. Vacancy page and the sitemap's page not checked |
+| TEN-002 | Pass | Claude, `curl -I` | 23:36 | | | `https://ethr.et/qa-audit` 301 to `https://www.ethr.et/qa-audit` |
+| MKT-002 | Pass | Claude, built-in | 23:37 | | en | `https://www.ethr.et/` to `/en` in a browser whose language is `en-US` and had no saved choice on this host |
+| MKT-007 | Pass | Claude, built-in | 23:38 | | en | The home page's Trusted by lists the same nine organisations as `GET /api/v1/trusted-by`, in order, each linking to its sign-in page. **Owner action:** two of them, "Alice secasdas" (`alice-sec`) and "Bob sec" (`bob-sec`), read as test organisations named in public; hide them in the console (CON-P-008) if they are not customers |
+| MKT-005 | Pass | Claude, built-in | 23:40 | | en, om | `GET /api/v1/plans` and the rendered `/en/pricing` and `/om/pricing` agree: Enterprise lists "Everything in Professional" and "API access, webhooks and the audit log", in Oromo "Wanti Professional keessa jiru hundi" and "Seensa API, webhooks fi galmee odiitii". K-71 is closed on production. Served HTML not compared |
+| NEWS-001 | Pass (part) | Claude, built-in | 23:44 | | en | `syntaxtech.ethr.et/news`: its one public story, featured, one robots tag `index, follow`. Nine per page, search and a non-public story's 404 not exercised (one story). **Pack is wrong on the step:** `www.ethr.et/news` is an organisation's page with no organisation, and by design (`news-listing.tsx`, `host.context !== "tenant"`) shows "No news here" without asking the API. Observation (P3 copy): on ETHR's own site it says "This organisation does not publish news on this page." and offers "Back to the organisation's page" |
+| ISO-008 | Pass | Claude, built-in | 23:46 | | en | QA Audit's public feed (`/auth/tenant-landing/feed`) holds its own branch and four holidays, no announcements or vacancies; its news page is empty. Nothing of another organisation's. Weak: QA Audit publishes nothing to leak beside |
+| PERF-009 | **Fail** | Claude, built-in | 23:50 | | en | `/en` loads `/_next/static/chunks/1jm-5dwy7-al5.js`, the **whole of `am.json`** (604,002 bytes unpacked, about 110,000 Ethiopic characters, `accounting_page.account_code` "የሂሳብ ኮድ" among them). Cause: the home page prefetches `/register` in view, a route in the `(auth)` group, whose layout imports `amharic-dictionary.tsx`. A background prefetch, so not on first paint, but the bytes are spent on every visit to the home page. `/en/pricing` and `/en/no-such-page`: not found. Draft defect below |
+| PERF-009 (404) | **Fail** | Claude, built-in | 23:51 | | am | `/am/no-such-page` is served in Amharic ("ገጹ አልተገኘም") and then switches to English after hydration, because this browser's saved language was `en`. `/am/pricing` with the same saved choice stays Amharic and saves `am`: only the 404 page lets the saved choice outrank the address. P3 |
+
+### Draft defect: the home page fetches the whole Amharic dictionary (PERF-009)
+
+| | |
+|---|---|
+| Severity | P3, performance; a regression of #491 / #500 for the home page |
+| Release | `v2026.11.13.10`, live `53fbe82b0b` |
+| Steps | Signed out, a browser that has not visited the site: open `https://www.ethr.et/en` and wait for it to settle; list the scripts it loaded and search them for "የሂሳብ ኮድ" |
+| Expected | Not found (09, PERF-009); a public page carries only the public projection (`public-dictionary.ts`) |
+| Actual | Found in a 604 KB chunk loaded by the prefetch of `/register` |
+| Likely fix | No prefetch on marketing links into the `(auth)` group (`/register`, `/login`), or keep `amharic-dictionary.tsx` out of the `(auth)` layout for the register page. Verify with PERF-009 after |
+
 ## Carried from the 2026-11-08 pass (still open)
 
 Waiting on a signed-in QA Audit pass: K-05, K-46, K-47, K-48, K-49, K-50, and the supervisor half of K-51
@@ -61,6 +92,10 @@ Waiting on a signed-in QA Audit pass: K-05, K-46, K-47, K-48, K-49, K-50, and th
 
 ## Summary
 
-Signed out (QA Audit): 7 passed, 0 failed. Signed in (Habru, TA only): 10 passed, 0 failed. Not run: S-05, S-09,
-S-11, S-13 and the other personas' S-08. No failures, but not a release sign-off: one persona, in an organisation that
-is not a QA one, and the seven carried-over cases are still open.
+Signed out (QA Audit): 7 passed, 0 failed. Signed in (Habru, TA only): 10 passed, 0 failed. Signed-out cases in the
+built-in browser: 11 passed (two in part), 2 failed (PERF-009 on `/en`, and the 404 page's language), both P3. Not
+run: S-05, S-09, S-11, S-13 and the other personas' S-08; and every signed-in case in QA Audit, because the built-in
+browser was never signed in (an agent may not type a production password). Not a release sign-off: no P1 or P2
+failure, but one persona, in an organisation that is not a QA one, and the seven carried-over cases are still open.
+K-46 (SICK-004) and K-47 (LOAN-009) are Mode W and K-49 (SET-008) needs a fresh registration: none of the three can
+be run read-only.
