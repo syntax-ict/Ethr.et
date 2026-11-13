@@ -45,8 +45,14 @@
             the whole serialised report after the last test. That report grows
             with the codebase; at 1G the coverage job died there with every
             test green, on the approval engine PR (#359).
+
+            4G, not 2G (2026-11-13): the same death, the same place, again
+            with every test green (5446 passed), on the device state PR (#709).
+            Pest tried to allocate another 418 MB on top of 2G while loading
+            the report. The CI runner has 16 GB; the next raise is due when
+            the report grows by about as much again.
         -->
-        <ini name="memory_limit" value="2G"/>
+        <ini name="memory_limit" value="4G"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
