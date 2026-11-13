@@ -218,6 +218,21 @@ describe("the employee template as a workbook", () => {
     expect(gregorian[0][1]).toBe("hire_date (G.C.)");
   });
 
+  it("writes rows already known under their columns and leaves the rest blank", async () => {
+    const data = await buildTemplate(SPEC, "gregorian", TEXT, [
+      { employee_code: "7777" },
+      { employee_code: "8888", name: "Hana" },
+    ]);
+    const sheet = (await readWorkbook(data)) as string[][];
+    const code = SPEC.headers.indexOf("employee_code");
+
+    expect(sheet).toHaveLength(3);
+    expect(sheet[1][code]).toBe("7777");
+    expect(sheet[1][0] ?? "").toBe("");
+    expect(sheet[2][0]).toBe("Hana");
+    expect(sheet[2][code]).toBe("8888");
+  });
+
   it("formats as text the columns a spreadsheet would mangle, dates included", async () => {
     const sheet = (await template("gregorian")).getWorksheet(SHEET_PEOPLE)!;
     const format = (header: string) =>

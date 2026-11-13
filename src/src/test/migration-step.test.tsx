@@ -204,6 +204,48 @@ describe("<MigrationStep>", () => {
     await waitFor(() => expect(staged).toBe("01HZDEV1"));
   });
 
+  // Opened for the main gate, which only sends, in an organisation with a
+  // readable back door: the back door was chosen in its place without a
+  // word, and its list staged as the main gate's (review of #707).
+  it("does not put another terminal in place of the one it was opened for", async () => {
+    let staged = false;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({
+          data: [
+            {
+              public_id: "01HZDEVPUSH",
+              name: "Main gate",
+              receives_only: true,
+            },
+            {
+              public_id: "01HZDEVBACK",
+              name: "Back door",
+              receives_only: false,
+            },
+          ],
+          meta: {},
+          links: {},
+        }),
+      ),
+      http.post("*/onboarding/migration/devices/:device", () => {
+        staged = true;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+    );
+    renderWithClient(<MigrationStep initialDeviceId="01HZDEVPUSH" />);
+
+    expect(
+      await screen.findByText(
+        "Main gate sends its punches to ETHR and cannot be asked who is enrolled on it. Choose another terminal.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Discover enrolled users").closest("button"),
+    ).toBeDisabled();
+    expect(staged).toBe(false);
+  });
+
   it("offers no device that only sends to ETHR, and says why when that is the only one", async () => {
     let staged = false;
     server.use(

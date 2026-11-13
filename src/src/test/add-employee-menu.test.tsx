@@ -43,14 +43,36 @@ function serve(devices: unknown[], badges: unknown[]) {
   );
 }
 
+let queryClient: QueryClient;
+
 function renderMenu(variant?: "split" | "others") {
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
   return render(<AddEmployeeMenu variant={variant} />, { wrapper: Wrapper });
+}
+
+/**
+ * Whether a query under `key` was ever started. A disabled query sits in the
+ * cache idle with nothing fetched; one that was allowed to run is fetching,
+ * or has data or an error, from the moment it mounts. Asked of the cache
+ * rather than of the network, so a request that has not landed yet cannot
+ * make a missing guard pass.
+ */
+function started(key: string): boolean {
+  return queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["devices"] })
+    .filter((q) => JSON.stringify(q.queryKey).includes(key))
+    .some(
+      (q) =>
+        q.state.fetchStatus !== "idle" ||
+        q.state.dataUpdatedAt > 0 ||
+        q.state.errorUpdatedAt > 0,
+    );
 }
 
 const BADGE = {
@@ -84,7 +106,9 @@ describe("<AddEmployeeMenu>", () => {
       "/employees/new",
     );
 
-    await vi.waitFor(() => expect(asked).toContain("badges"));
+    await vi.waitFor(() =>
+      expect(asked).toEqual(expect.arrayContaining(["devices", "badges"])),
+    );
     await openMenu();
 
     expect(
@@ -127,6 +151,7 @@ describe("<AddEmployeeMenu>", () => {
     perms.can = { viewDevices: true, manageAttendance: false };
     serve([{ public_id: "D1", name: "Gate", receives_only: false }], [BADGE]);
     renderMenu();
+    expect(started("unmatched-punches")).toBe(false);
 
     await vi.waitFor(() => expect(asked).toContain("devices"));
     await openMenu();
@@ -139,6 +164,7 @@ describe("<AddEmployeeMenu>", () => {
     expect(
       screen.queryByRole("menuitem", { name: /Unrecognised badges/ }),
     ).not.toBeInTheDocument();
+    expect(started("unmatched-punches")).toBe(false);
     expect(asked).not.toContain("badges");
   });
 
@@ -146,6 +172,11 @@ describe("<AddEmployeeMenu>", () => {
     perms.can = { viewDevices: false, manageAttendance: true };
     serve([{ public_id: "D1", name: "Gate", receives_only: false }], [BADGE]);
     renderMenu();
+    // Mounted with both queries in the cache, neither started.
+    expect(
+      queryClient.getQueryCache().findAll({ queryKey: ["devices"] }),
+    ).toHaveLength(2);
+    expect(started("")).toBe(false);
 
     await openMenu();
 
@@ -157,6 +188,7 @@ describe("<AddEmployeeMenu>", () => {
     expect(
       screen.queryByRole("menuitem", { name: "From an attendance terminal" }),
     ).not.toBeInTheDocument();
+    expect(started("")).toBe(false);
     expect(asked).toEqual([]);
   });
 

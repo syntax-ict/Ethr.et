@@ -54,7 +54,7 @@ import {
   toGrid,
 } from "../parse-people";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
-import { importColumnHelp } from "@/features/employees/components/import-column-guide";
+import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import {
   buildTemplate,
   gridToText,
@@ -62,6 +62,7 @@ import {
   NoSheet,
   readWorkbook,
   TooManyLines,
+  XLSX_MIME,
 } from "../xlsx-grid";
 import { ColumnMatcher } from "./column-matcher";
 import { MigrationLogins } from "./migration-logins";
@@ -116,9 +117,6 @@ const PROBLEMS_SHOWN = 5;
 
 /** A file this large is not a list of people; it is not read into the page. */
 const FILE_MAX_BYTES = 5 * 1024 * 1024;
-
-const XLSX_MIME =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /** How long the list rests before the server is asked what it makes of it. */
 const READ_AFTER_MS = 400;
@@ -194,10 +192,20 @@ export function MigrationStep({
   // staged an empty list that read as "nobody is enrolled".
   const devices = allDevices.filter((d) => d.receives_only !== true);
   const onlySends = allDevices.length > 0 && devices.length === 0;
+  // The terminal the page was opened for, when it is one that cannot be read.
+  // Another is not put in its place without a word: with a readable terminal
+  // elsewhere, the default below would choose it, and the list staged would
+  // be another terminal's.
+  const refusedDevice =
+    deviceId !== "" && deviceId === initialDeviceId
+      ? allDevices.find(
+          (d) => d.public_id === deviceId && d.receives_only === true,
+        )
+      : undefined;
   // One device is the device: there is nothing to choose.
   const device = devices.some((d) => d.public_id === deviceId)
     ? deviceId
-    : devices.length === 1
+    : devices.length === 1 && !refusedDevice
       ? devices[0].public_id
       : "";
   // Hire dates are read in the reader's own calendar unless they say otherwise:
@@ -390,35 +398,11 @@ export function MigrationStep({
     try {
       const spec = await fetchEmployeeImportTemplate();
       try {
-        const workbook = await buildTemplate(spec, dateCalendar, {
-          title: t("setup2.template_title", "ETHR employee template"),
-          lines: [
-            t(
-              "setup2.template_line_fill",
-              "Fill in the Employees sheet, one person on each row. Only the name is required.",
-            ),
-            t(
-              "setup2.template_line_dates",
-              "Write a date year first, such as 2019-07-08, in the calendar its column name says.",
-            ),
-            t(
-              "setup2.template_line_lists",
-              "A column with a list takes one of its values. A department, branch or position can also be typed by its code.",
-            ),
-            t(
-              "setup2.template_line_upload",
-              "Save the file and choose it in ETHR. Everyone is shown to you before anyone is added.",
-            ),
-          ],
-          columnHeading: t("setup2.template_column", "Column"),
-          takesHeading: t("setup2.template_takes", "What it takes"),
-          required: t("employees_import_page.required", "required"),
-          help: importColumnHelp(t),
-          notInList: t(
-            "setup2.template_not_in_list",
-            "This is not one of the listed values. It is kept, and checked when the list is read.",
-          ),
-        });
+        const workbook = await buildTemplate(
+          spec,
+          dateCalendar,
+          employeeTemplateText(t),
+        );
         saveBlob(
           "ethr-employee-template.xlsx",
           new Blob([workbook], { type: XLSX_MIME }),
@@ -579,6 +563,15 @@ export function MigrationStep({
                     "Everyone enrolled on the device is listed with their badge number, ready to match.",
                   )}
                 </p>
+                {refusedDevice && (
+                  <p role="status" className="text-xs text-status-warning">
+                    {t(
+                      "setup2.device_refused",
+                      ":name sends its punches to ETHR and cannot be asked who is enrolled on it. Choose another terminal.",
+                      { name: refusedDevice.name },
+                    )}
+                  </p>
+                )}
                 <>
                   <Select value={device} onValueChange={setDeviceId}>
                     <SelectTrigger
