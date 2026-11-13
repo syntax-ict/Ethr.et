@@ -6,9 +6,12 @@ adopt. **The legal points below follow the Personal Data Protection
 Proclamation No. 1321/2024 as read for this product; have counsel confirm them
 before relying on them.**
 
-Related: [`ON-CALL.md`](ON-CALL.md) for outages, [`CUSTODY.md`](CUSTODY.md)
+Related: [`README.md`](README.md) for where to start on anything,
+[`ON-CALL.md`](ON-CALL.md) for outages, [`CUSTODY.md`](CUSTODY.md)
 for who holds which credential, [`IMPERSONATION.md`](IMPERSONATION.md) for the
-only sanctioned way to look inside an organisation.
+only sanctioned way to look inside an organisation, and
+[`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) → *the platform audit trail*, which is where the
+scope of an incident is assessed.
 
 ## Who is responsible for what
 
@@ -90,8 +93,17 @@ what is known and follow up.
 
 ## Not yet in place
 
+*(Kept as one register so these are not rediscovered each time; also listed in
+[`README.md`](README.md), *What is waiting on the owner*.)*
+
+- **Adoption.** This procedure is still drafted rather than adopted, and the reading of
+  Proclamation 1321/2024 above has not been confirmed by counsel. Both are owner actions.
 - **ECA registration (Art. 33)** is an owner action, not yet done.
 - **A named contact** for breach reports: [`SECURITY.md`](../../SECURITY.md)
   deliberately publishes no address until one is monitored.
 - **Log retention** is 14 days, which can be short for an investigation that
-  starts late. Lengthening it costs disk space against the 5 GB plan.
+  starts late. *(Corrected 2026-11-13: this said lengthening it "costs disk space
+  against the 5 GB plan". The account is Linux Gold with 50 GB, 643 MB of it used
+  when it was read on 2026-11-02 — [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md)
+  §Quotas. Disk is no longer the reason to keep the window short, so the decision
+  is open on its merits.)*
