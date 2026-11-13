@@ -18,6 +18,7 @@ use App\Services\Onboarding\PolicyProfileCatalog;
 use App\Services\Onboarding\ProvisioningResult;
 use App\Services\Onboarding\WorkforceProfileCatalog;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\OrganisationSectors;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +40,7 @@ class ConfigurationController extends Controller
         private readonly WorkforceProfileCatalog $workforceProfiles,
         private readonly PolicyProfileCatalog $policyProfiles,
         private readonly OrganisationProfile $profile,
+        private readonly OrganisationSectors $sectors,
     ) {}
 
     public function industries(): JsonResponse
@@ -153,7 +155,7 @@ class ConfigurationController extends Controller
             if (is_string($kind) || $industry !== null) {
                 $this->profile->set($tenant, is_string($kind) ? $kind : $tenant->organization_type, $request->user()?->id, $industry['key'] ?? null);
                 if (is_string($kind)) {
-                    $tenant->update(['organization_type_needs_review' => false]);
+                    $tenant->update(['organization_type_needs_review' => ! $this->sectors->isPlausible($industry['base'] ?? $tenant->type, $kind)]);
                 }
             }
 

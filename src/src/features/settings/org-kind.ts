@@ -57,3 +57,31 @@ export function groupOrgKinds(
 
   return sections.filter((section) => section.kinds.length > 0);
 }
+
+/**
+ * Splits the kinds into those suggested for a sector and the rest. A
+ * suggestion, never a removal: `keep` (the kind already chosen) is always
+ * suggested, and a sector no kind lists suggests everything.
+ */
+export function narrowOrgKinds(
+  kinds: OrganizationTypeOption[],
+  sector: string | null | undefined,
+  keep?: string | null,
+): { suggested: OrganizationTypeOption[]; rest: OrganizationTypeOption[] } {
+  // An older API sends no `suggested_for`: nothing is narrowed then.
+  const suggests = (kind: OrganizationTypeOption, base: string) =>
+    (kind.suggested_for ?? []).includes(base);
+  if (!sector || !kinds.some((kind) => suggests(kind, sector))) {
+    return { suggested: kinds, rest: [] };
+  }
+  const suggested: OrganizationTypeOption[] = [];
+  const rest: OrganizationTypeOption[] = [];
+  for (const kind of kinds) {
+    if (suggests(kind, sector) || kind.code === keep) {
+      suggested.push(kind);
+    } else {
+      rest.push(kind);
+    }
+  }
+  return { suggested, rest };
+}

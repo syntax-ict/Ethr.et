@@ -62,6 +62,10 @@ function renderRegister() {
 
 /** Answers "Kind of organisation in law", once the list has loaded. */
 async function chooseKind(container: HTMLElement, code = "share_company") {
+  // The type comes first, and nothing is chosen for the person.
+  fireEvent.change(field(container, "org_type"), {
+    target: { value: "general" },
+  });
   await waitFor(() =>
     expect(
       container.querySelector(`#org_kind option[value="${code}"]`),
@@ -296,5 +300,110 @@ describe("Registration form (S07)", () => {
     expect(
       await screen.findByText("Passwords do not match"),
     ).toBeInTheDocument();
+  });
+
+  describe("type-aware narrowing", () => {
+    function kindsWithSectors() {
+      server.use(
+        http.get(KINDS_URL, () =>
+          HttpResponse.json({
+            data: [
+              {
+                code: "government",
+                name: "Federal government office",
+                name_am: "a",
+                description: null,
+                group: "public",
+                parent_code: null,
+                suggested_for: ["government", "general"],
+                policy_profile: "ethiopia_public",
+              },
+              {
+                code: "sole_proprietor",
+                name: "Sole proprietor",
+                name_am: "b",
+                description: null,
+                group: "private",
+                parent_code: null,
+                suggested_for: ["general"],
+                policy_profile: "ethiopia_private",
+              },
+            ],
+          }),
+        ),
+      );
+    }
+
+    it("hides the private kinds from a government office until every kind is asked for", async () => {
+      mockSubdomain(true);
+      kindsWithSectors();
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      const { container } = render(
+        <QueryClientProvider client={qc}>
+          <RegisterPage />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.change(field(container, "org_type"), {
+        target: { value: "government" },
+      });
+      await waitFor(() =>
+        expect(
+          container.querySelector('#org_kind option[value="government"]'),
+        ).not.toBeNull(),
+      );
+      expect(
+        container.querySelector('#org_kind option[value="sole_proprietor"]'),
+      ).toBeNull();
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Show every kind of organisation in law",
+        }),
+      );
+      expect(
+        container.querySelector('#org_kind option[value="sole_proprietor"]'),
+      ).not.toBeNull();
+    });
+
+    it("does not advance from the first step while no type of organisation is chosen", async () => {
+      mockSubdomain(true);
+      const { container } = renderRegister();
+
+      fireEvent.change(field(container, "org_name"), {
+        target: { value: "Acme Corp" },
+      });
+      await waitFor(() =>
+        expect(field(container, "subdomain").value).toBe("acme-corp"),
+      );
+      // With no type chosen every kind is listed. Choose a legal kind but
+      // leave the type on its empty "Choose one" value.
+      await waitFor(() =>
+        expect(
+          container.querySelector('#org_kind option[value="share_company"]'),
+        ).not.toBeNull(),
+      );
+      fireEvent.change(field(container, "org_kind"), {
+        target: { value: "share_company" },
+      });
+      expect(field(container, "org_type").value).toBe("");
+      await waitFor(() =>
+        expect(field(container, "org_kind").value).toBe("share_company"),
+      );
+      expect(screen.getByRole("button", { name: /Next/i })).toBeDisabled();
+
+      fireEvent.change(field(container, "org_type"), {
+        target: { value: "general" },
+      });
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Next/i }),
+        ).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+      expect(await screen.findByLabelText(/Full Name/i)).toBeInTheDocument();
+    });
   });
 });
