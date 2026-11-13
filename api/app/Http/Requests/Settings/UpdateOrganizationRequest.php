@@ -7,6 +7,7 @@ namespace App\Http\Requests\Settings;
 use App\Models\OrganizationType;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\OrganisationSectors;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Validator;
@@ -46,6 +47,15 @@ class UpdateOrganizationRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
+            // The industry must be one the catalogue knows, as at sign-up. Only a
+            // change is checked: an organisation whose stored industry is an old
+            // trade, or none, saves its other fields without it being refused.
+            $industry = $this->input('type');
+            $current = app(CurrentTenant::class)->get();
+            if (is_string($industry) && $industry !== '' && $industry !== $current?->type && app(OrganisationSectors::class)->baseOf($industry) === null) {
+                $v->errors()->add('type', __('validation.in', ['attribute' => 'industry']));
+            }
+
             $type = $this->input('organization_type');
 
             if (is_string($type) && ! in_array($type, OrganizationType::activeCodes(), true)) {

@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\WebhookRejections;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -53,6 +54,10 @@ class DeviceResource extends JsonResource
                     'server' => AdmsDeviceResolver::serverAddress(Tenant::query()->find($this->tenant_id)),
                     'last_rejected' => AdmsDeviceResolver::lastRejection($this->resource),
                 ],
+            ),
+            'webhook_rejected' => $this->when(
+                $this->showsToken($request) && in_array($this->adapter_type, ['hikvision', 'zkteco', 'suprema'], true),
+                fn () => WebhookRejections::last($this->resource),
             ),
             'branch' => new BranchResource($this->whenLoaded('branch')),
             'branch_public_id' => $this->branch?->public_id,

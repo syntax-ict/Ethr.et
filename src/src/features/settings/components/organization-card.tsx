@@ -54,7 +54,6 @@ import { orgKindName } from "@/features/settings/org-kind";
 // empty Type field.
 const ORG_TYPES = [
   "general",
-  "private",
   "government",
   "university",
   "ngo",
@@ -97,7 +96,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
   const organizationTypes = useOrganizationTypes();
 
   const [name, setName] = useState(organization?.name ?? "");
-  const [type, setType] = useState(organization?.type ?? "private");
+  const [type, setType] = useState(organization?.type ?? "");
   const [timezone, setTimezone] = useState(
     organization?.timezone ?? "Africa/Addis_Ababa",
   );
@@ -122,9 +121,11 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     return found ? orgKindName(found, uiLocale) : code;
   };
 
+  const storedType = organization?.type ?? "";
+  const typeChanged = type !== (organization?.type ?? "");
   const dirty =
     name !== (organization?.name ?? "") ||
-    type !== (organization?.type ?? "private") ||
+    typeChanged ||
     timezone !== (organization?.timezone ?? "Africa/Addis_Ababa") ||
     locale !== (organization?.locale ?? "en") ||
     kind !== (organization?.organization_type ?? "private");
@@ -162,7 +163,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     updateOrganization.mutate(
       {
         name,
-        type,
+        ...(typeChanged ? { type } : {}),
         timezone,
         locale: locale as OrganizationUpdate["locale"],
         ...(kindChanged || needsReview ? { organization_type: kind } : {}),
@@ -279,6 +280,8 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                   value={kind}
                   onChange={setKind}
                   disabled={organizationTypes.isPending}
+                  sector={type}
+                  keep={organization?.organization_type}
                 />
               </div>
             )}
@@ -353,6 +356,12 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                     {orgTypeLabel(value, t)}
                   </SelectItem>
                 ))}
+                {storedType &&
+                  !(ORG_TYPES as readonly string[]).includes(storedType) && (
+                    <SelectItem value={storedType}>
+                      {orgTypeLabel(storedType, t) ?? storedType}
+                    </SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </div>

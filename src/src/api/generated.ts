@@ -9843,6 +9843,11 @@ export interface components {
                     at: string;
                 } | null;
             };
+            webhook_rejected?: {
+                reason: string;
+                ip: string | null;
+                at: string;
+            } | null;
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
@@ -29455,6 +29460,9 @@ export interface operations {
                             description: string | null;
                             group: string;
                             parent_code: string | null;
+                            suggested_for: string[];
+                            /** @enum {string|null} */
+                            policy_profile: "ethiopia_private" | "ethiopia_public" | null;
                         }[];
                     };
                 };
