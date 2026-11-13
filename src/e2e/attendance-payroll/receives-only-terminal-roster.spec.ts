@@ -51,9 +51,9 @@ test("a terminal that only sends is refused a roster, and nothing offers to read
     await page.goto("/devices");
     await page.getByRole("button", { name: "Actions" }).first().click();
     await page.getByRole("menuitem", { name: "Discover enrolled users" }).click();
-    // The refusal is asked for once more before it is shown.
+    // Shown from the first refusal: a 409 is not asked again.
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("This terminal cannot be asked who is enrolled")).toBeVisible({ timeout: 30_000 });
+    await expect(dialog.getByText("This terminal cannot be asked who is enrolled")).toBeVisible();
     await expect(dialog.getByText(roster.data.detail)).toBeVisible();
     await expect(page.getByRole("link", { name: "Bring these people into ETHR" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Bring these people into ETHR" })).toHaveCount(0);
