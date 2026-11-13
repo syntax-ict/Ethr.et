@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\User\StartingPasswordController;
 use App\Services\Auth\ImpersonationToken;
 use Closure;
 use Illuminate\Http\Request;
@@ -28,6 +29,11 @@ class BlockImpersonatedActions
         // looking at an organisation as it sees itself must not move it.
         SettingsController::class.'@updateSubdomain',
         SettingsController::class.'@updateAddress',
+        // A sign-in credential for the organisation's own staff. The step-up
+        // already asks for the impersonated account's own password, which an
+        // operator does not have, but that is the only thing in the way:
+        // this refuses by name, as it does for the address above.
+        StartingPasswordController::class.'@store',
     ];
 
     public function handle(Request $request, Closure $next): Response
