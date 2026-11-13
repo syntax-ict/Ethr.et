@@ -534,7 +534,7 @@
   "auth.org_kind_choose": "Choose one",
   "auth.org_kind_help": "Decides which tax, pension and labour rules apply to your payroll.",
   "auth.org_kind_load_failed": "The list could not be loaded. Check your connection and reload the page.",
-  "auth.org_kind_required": "Choose the kind of organisation.",
+  "auth.org_kind_required": "Choose the kind of organisation in law.",
   "auth.org_type_required": "Choose the type of organisation.",
   "next_steps.payroll_ready_done": "Ready for first payroll",
   "next_steps.payroll_ready_label": "First payroll readiness",

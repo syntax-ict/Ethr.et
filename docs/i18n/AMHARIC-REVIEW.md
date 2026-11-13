@@ -53,6 +53,8 @@ Drafts written without a native speaker; a wrong label moves no money.
 `settings.org_kind_show_all`, `settings.org_kind_show_suggested`, `setup2.show_all_profiles`,
 `setup2.show_typical_profiles` and `auth.org_type_required`.
 
+The two sign-up errors, `auth.org_type_required` and `auth.org_kind_required`, read identically in Amharic and Afaan Oromoo. Each now repeats the wording of the label it sits under, so the legal-kind error carries ሕጋዊ and *seeraan* as its label does, and the industry error matches its own label; `settings.org_kind_show_all` in Afaan Oromoo now uses the label's *seeraan*. Drafted by a non-native reviewer from terms the locale already uses; a native speaker's reading is still owed.
+
 ### Dry-run payroll and future-dated kind changes (2026-11-09)
 
 24 keys drafted in Amharic and Afaan Oromoo without a native speaker:

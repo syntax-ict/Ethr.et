@@ -577,7 +577,7 @@ export function RegisterForm() {
                   {errors.organization_kind
                     ? t(
                         errors.organization_kind.message!,
-                        "Choose the kind of organisation.",
+                        "Choose the kind of organisation in law.",
                       )
                     : fieldErrors.organization_kind[0]}
                 </p>

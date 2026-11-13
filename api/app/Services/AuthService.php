@@ -54,8 +54,10 @@ class AuthService
         $locale = Locales::orDefault(app()->getLocale());
 
         $sectors = app(OrganisationSectors::class);
+        $industry = $data['organization_type'] ?? null;
+        $kind = $data['organization_kind'] ?? null;
 
-        return DB::transaction(function () use ($data, $locale, $sectors) {
+        return DB::transaction(function () use ($data, $locale, $sectors, $industry, $kind) {
             $tenant = Tenant::create([
                 'name' => $data['organization_name'],
                 'subdomain' => $data['subdomain'],
@@ -65,9 +67,8 @@ class AuthService
                 // rules. Asked at sign-up (`organization_kind`); a client that
                 // does not ask gets it inferred from the industry, left for the
                 // tenant admin to confirm in Settings.
-                'organization_type' => $data['organization_kind'] ?? $sectors->defaultKindFor($data['organization_type'] ?? null),
-                'organization_type_needs_review' => ($data['organization_kind'] ?? null) === null
-                    || ! $sectors->isPlausible($data['organization_type'] ?? null, $data['organization_kind'] ?? null),
+                'organization_type' => $kind ?? $sectors->defaultKindFor($industry),
+                'organization_type_needs_review' => $kind === null || ! $sectors->isPlausible($industry, $kind),
                 'status' => TenantStatus::TRIAL,
                 'trial_ends_at' => now()->addMonths(6),
             ]);
