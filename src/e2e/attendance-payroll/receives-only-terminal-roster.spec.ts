@@ -11,8 +11,10 @@ import { as } from "./support";
  * which read as "nobody is enrolled". The API now refuses with 409
  * `device-roster-unavailable`, "Discover enrolled users" is not offered where
  * every terminal an organisation has is of that kind, the page says why and
- * points at Devices, and the terminal's own Enrollments dialog shows the
- * refusal's reason with no way to bring anyone in.
+ * points at Devices, and the terminal's own menu on Devices does not offer to
+ * read a roster at all (#709). Its Enrollments dialog, opened only from that
+ * menu, is not reached; how it shows a 409 is pinned by
+ * src/src/test/device-enrollments-retry.test.tsx.
  */
 test("a terminal that only sends is refused a roster, and nothing offers to read one", async ({ browser }) => {
   // A development server compiles each page the first time it is asked for.
@@ -47,15 +49,16 @@ test("a terminal that only sends is refused a roster, and nothing offers to read
       page.getByText("Your terminal sends its punches to ETHR and cannot be asked who is enrolled on it."),
     ).toBeVisible();
 
-    // The terminal's own Enrollments dialog shows the refusal's reason.
+    // The terminal's own menu on Devices: it opens, and offers no roster.
     await page.goto("/devices");
-    await page.getByRole("button", { name: "Actions" }).first().click();
-    await page.getByRole("menuitem", { name: "Discover enrolled users" }).click();
-    // Shown from the first refusal: a 409 is not asked again.
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("This terminal cannot be asked who is enrolled")).toBeVisible();
-    await expect(dialog.getByText(roster.data.detail)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Bring these people into ETHR" })).toHaveCount(0);
+    await expect(page.getByText("S/N: E2E-E2E-DEV-HIK")).toBeVisible();
+    // The organisation's one terminal, so the page's one Actions menu is its.
+    const actions = page.getByRole("button", { name: "Actions" });
+    await expect(actions).toHaveCount(1);
+    await actions.click();
+    const menu = page.getByRole("menu", { name: "Actions" });
+    await expect(menu.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Discover enrolled users" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Bring these people into ETHR" })).toHaveCount(0);
   } finally {
     await admin.context.close();
