@@ -120,6 +120,14 @@ class E2eAttendanceSeeder extends Seeder
         return "{$subdomain}-zk-token";
     }
 
+    /**
+     * The token of e2e-att's second terminal: a Hikvision registered with no
+     * address, which only sends to ETHR (DeviceManager::receivesOnly), as the
+     * reference organisation's does. Its unknown badges are held, and ETHR
+     * cannot ask it who is enrolled.
+     */
+    public const PUSH_TOKEN = 'e2e-att-hik-token';
+
     /** An earlier run's organisation at this address steps aside for the new one. */
     private function retire(string $subdomain): void
     {
@@ -244,6 +252,22 @@ class E2eAttendanceSeeder extends Seeder
             'auto_sync' => false,
             'timezone' => 'Africa/Addis_Ababa',
         ]);
+
+        if ($subdomain === 'e2e-att') {
+            Device::create([
+                'public_id' => (string) Str::ulid(),
+                'tenant_id' => $tenant->id,
+                'branch_id' => $branch->id,
+                'name' => 'Main Gate Terminal',
+                'serial_number' => 'E2E-HIK-'.Str::upper($subdomain),
+                'adapter_type' => 'hikvision',
+                'connection_config' => ['mode' => 'push'],
+                'status' => 'online',
+                'webhook_token' => self::PUSH_TOKEN,
+                'auto_sync' => false,
+                'timezone' => 'Africa/Addis_Ababa',
+            ]);
+        }
     }
 
     private function user(Tenant $tenant, string $subdomain, string $login, UserRole $role, ?int $employeeId): void

@@ -1,4 +1,11 @@
-import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";
 import { api } from "../helpers";
@@ -22,7 +29,10 @@ export const ZONE = "Africa/Addis_Ababa";
 
 /** `http://{tenant}.localhost:3000` unless E2E_ORIGIN says otherwise. */
 export function origin(organisation: Organisation): string {
-  return (process.env.E2E_ORIGIN ?? "http://{tenant}.localhost:3000").replace("{tenant}", organisation);
+  return (process.env.E2E_ORIGIN ?? "http://{tenant}.localhost:3000").replace(
+    "{tenant}",
+    organisation,
+  );
 }
 
 export function email(organisation: Organisation, login: string): string {
@@ -124,18 +134,21 @@ export async function devicePunch(
   const target = new URL(origin(organisation));
   if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
 
-  const response = await request.post(`${target.origin}/api/v1/devices/webhook/zkteco`, {
-    headers: { "X-Webhook-Token": token, Accept: "application/json" },
-    data: {
-      records: [
-        {
-          pin: badge,
-          timestamp: addisClock(at),
-          punch: type === "check_in" ? 0 : 1,
-        },
-      ],
+  const response = await request.post(
+    `${target.origin}/api/v1/devices/webhook/zkteco`,
+    {
+      headers: { "X-Webhook-Token": token, Accept: "application/json" },
+      data: {
+        records: [
+          {
+            pin: badge,
+            timestamp: addisClock(at),
+            punch: type === "check_in" ? 0 : 1,
+          },
+        ],
+      },
     },
-  });
+  );
   expect(response.status(), `device webhook for badge ${badge}`).toBe(200);
 
   return (await response.json()).count as number;
@@ -162,21 +175,24 @@ export async function hikvisionPunch(
   const target = new URL(origin(organisation));
   if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
 
-  const response = await request.post(`${target.origin}/api/v1/devices/webhook/hikvision?token=${token}`, {
-    headers: { Accept: "application/json" },
-    multipart: {
-      event_log: JSON.stringify({
-        dateTime: `${addisClock(at).replace(" ", "T")}+03:00`,
-        eventType: "AccessControllerEvent",
-        AccessControllerEvent: {
-          employeeNoString: badge,
-          attendanceStatus: status,
-          majorEventType: 5,
-          subEventType: 75,
-        },
-      }),
+  const response = await request.post(
+    `${target.origin}/api/v1/devices/webhook/hikvision?token=${token}`,
+    {
+      headers: { Accept: "application/json" },
+      multipart: {
+        event_log: JSON.stringify({
+          dateTime: `${addisClock(at).replace(" ", "T")}+03:00`,
+          eventType: "AccessControllerEvent",
+          AccessControllerEvent: {
+            employeeNoString: badge,
+            attendanceStatus: status,
+            majorEventType: 5,
+            subEventType: 75,
+          },
+        }),
+      },
     },
-  });
+  );
   expect(response.status(), `hikvision webhook for badge ${badge}`).toBe(200);
 
   return (await response.json()).status as string;
@@ -223,6 +239,83 @@ export function heldPunchTimes(): { arrived: Date; left: Date } {
   return { arrived, left };
 }
 
+/** e2e-att's push-only Hikvision terminal: `E2eAttendanceSeeder::PUSH_TOKEN`. */
+export const PUSH_TERMINAL = {
+  name: "Main Gate Terminal",
+  token: "e2e-att-hik-token",
+};
+
+/**
+ * One punch from e2e-att's Hikvision terminal that only sends to ETHR, as its
+ * firmware posts it: multipart, the event as JSON in `event_log`, the token
+ * in the address. Like a real terminal it names no organisation. A badge no
+ * employee has is held, not recorded, and the answer says so.
+ *
+ * Returns the server's `status`: `processed`, or `employee_not_found` for a
+ * badge it held.
+ */
+export async function pushTerminalPunch(
+  request: APIRequestContext,
+  badge: string,
+  type: "check_in" | "check_out",
+  at: Date,
+): Promise<string> {
+  const target = new URL(origin("e2e-att"));
+  if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
+
+  const response = await request.post(
+    `${target.origin}/api/v1/devices/webhook/hikvision?token=${PUSH_TERMINAL.token}`,
+    {
+      headers: { Accept: "application/json" },
+      multipart: {
+        event_log: JSON.stringify({
+          dateTime: `${addisClock(at).replace(" ", "T")}+03:00`,
+          eventType: "AccessControllerEvent",
+          AccessControllerEvent: {
+            employeeNoString: badge,
+            attendanceStatus: type === "check_in" ? "checkIn" : "checkOut",
+            majorEventType: 5,
+            subEventType: 75,
+          },
+        }),
+      },
+    },
+  );
+  expect(response.status(), `push terminal webhook for badge ${badge}`).toBe(
+    200,
+  );
+
+  return (await response.json()).status as string;
+}
+
+/** The device's public id, found by name as an administrator. */
+export async function deviceId(page: Page, name: string): Promise<string> {
+  const found = await api(page, "GET", "/devices");
+  expect(found.status, "device list").toBe(200);
+  const match = (
+    found.data.data as Array<{ public_id: string; name: string }>
+  ).find((row) => row.name === name);
+  expect(match, `device ${name}`).toBeTruthy();
+
+  return match!.public_id;
+}
+
+/** The badges held right now, as the Unrecognised badges card reads them. */
+export async function heldBadges(
+  page: Page,
+): Promise<
+  Array<{
+    badge: string;
+    punches: number;
+    match: { outcome: string; employee_public_id: string | null } | null;
+  }>
+> {
+  const found = await api(page, "GET", "/devices/unmatched-punches");
+  expect(found.status, "unrecognised badges").toBe(200);
+
+  return found.data.data;
+}
+
 export type AttendanceRow = {
   public_id: string;
   date: string;
@@ -237,11 +330,15 @@ export type AttendanceRow = {
 
 /** The employee's public id, looked up by their code as an administrator. */
 export async function employeeId(page: Page, code: string): Promise<string> {
-  const found = await api(page, "GET", `/employees?search=${encodeURIComponent(code)}`);
-  expect(found.status, `employee search for ${code}`).toBe(200);
-  const match = (found.data.data as Array<{ public_id: string; employee_code: string }>).find(
-    (row) => row.employee_code === code,
+  const found = await api(
+    page,
+    "GET",
+    `/employees?search=${encodeURIComponent(code)}`,
   );
+  expect(found.status, `employee search for ${code}`).toBe(200);
+  const match = (
+    found.data.data as Array<{ public_id: string; employee_code: string }>
+  ).find((row) => row.employee_code === code);
   expect(match, `employee ${code}`).toBeTruthy();
 
   return match!.public_id;
@@ -251,7 +348,12 @@ export async function employeeId(page: Page, code: string): Promise<string> {
  * What the database holds for one employee between two dates, voided rows
  * included, read as an administrator of their organisation.
  */
-export async function recordsOf(page: Page, employee: string, from: string, to: string): Promise<AttendanceRow[]> {
+export async function recordsOf(
+  page: Page,
+  employee: string,
+  from: string,
+  to: string,
+): Promise<AttendanceRow[]> {
   const found = await api(
     page,
     "GET",
@@ -281,7 +383,11 @@ export function lastMonth(now = new Date()): Period {
   const iso = (day: Date) => day.toISOString().slice(0, 10);
 
   const workdays: string[] = [];
-  for (let day = new Date(Date.UTC(year, month - 2, 8)); day <= last; day.setUTCDate(day.getUTCDate() + 1)) {
+  for (
+    let day = new Date(Date.UTC(year, month - 2, 8));
+    day <= last;
+    day.setUTCDate(day.getUTCDate() + 1)
+  ) {
     if (day.getUTCDay() >= 1 && day.getUTCDay() <= 5) workdays.push(iso(day));
   }
 
@@ -316,7 +422,11 @@ export type PayrollRun = {
  * queue the run stays `processing`, and this says so rather than timing out
  * with no reason.
  */
-export async function processedRun(page: Page, run: string, timeoutMs = 180_000): Promise<PayrollRun> {
+export async function processedRun(
+  page: Page,
+  run: string,
+  timeoutMs = 180_000,
+): Promise<PayrollRun> {
   const deadline = Date.now() + timeoutMs;
   let status = "unknown";
 
@@ -336,8 +446,13 @@ export async function processedRun(page: Page, run: string, timeoutMs = 180_000)
 }
 
 /** One step of an entry's calculation log, by name. */
-export function step(entry: PayrollEntry, name: string): Record<string, unknown> {
-  const found = entry.calculation_log?.steps.find((candidate) => candidate.step === name);
+export function step(
+  entry: PayrollEntry,
+  name: string,
+): Record<string, unknown> {
+  const found = entry.calculation_log?.steps.find(
+    (candidate) => candidate.step === name,
+  );
   expect(found, `calculation log step "${name}"`).toBeTruthy();
 
   return found!;
