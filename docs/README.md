@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 36 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 48 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. **`operations/` has its own section below, and its own index at [`operations/README.md`](operations/README.md).** *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -139,28 +139,6 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 |---|---|
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The forensic baseline — §1–§18 of measured state. The deepest reference in this tree |
-| [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
-| [`operations/METRIC-DEFINITIONS.md`](operations/METRIC-DEFINITIONS.md) | What each dashboard and analytics figure counts: headcount, turnover, attendance and leave rates, and which CSVs carry a byte-order mark |
-| [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
-| [`operations/TRUSTED-BY.md`](operations/TRUSTED-BY.md) | **Trusted by**: which organisations the public site names (consented, active, not hidden by the platform), where each decision is made, and how the list is served |
-| [`operations/DATA-EXPORT.md`](operations/DATA-EXPORT.md) | **Organisation data export**: an administrator downloads every record and uploaded document from Settings, what is left out (secrets, encrypted identity numbers, attendance photos), the 7-day expiry, and the host limits the job is built for |
-| [`operations/SUPPORT.md`](operations/SUPPORT.md) | **Get help**: how a question goes from an employee to their HR and on to ETHR, what the screen sends with it, who sees what, and where ETHR answers in the console |
-| [`operations/TENANT-DELETION.md`](operations/TENANT-DELETION.md) | **Deleting an organisation**: what the console's Delete does (closes it, keeps every record, ends sessions, reserves the address), the safeguards (cancel first, reason, platform MFA at sign-in), and Restore |
-| [`operations/ORGANISATION-ADDRESS-RENAME.md`](operations/ORGANISATION-ADDRESS-RENAME.md) | **Renaming an organisation's address**: a tenant admin changes the name in ethr.et/{name}; the old name keeps working, forwards, and stays reserved for the organisation |
-| [`operations/DATA-BREACH-RESPONSE.md`](operations/DATA-BREACH-RESPONSE.md) | **Data breach response**: the first hour (evidence, containment), telling affected organisations within 24 hours, and the 72-hour notice under Proclamation 1321/2024. Drafted for the owner to adopt |
-| [`operations/SEARCH-LISTINGS.md`](operations/SEARCH-LISTINGS.md) | **Search listings**: the off-site steps that get ETHR found (contact details, Google Business Profile, software directories, outreach, the DNS ticket), with the approved copy to paste into every listing |
-| [`operations/ATTENDANCE-PHOTO-RETENTION.md`](operations/ATTENDANCE-PHOTO-RETENTION.md) | **Attendance photo retention**: selfies at most 1.5 MB, kept for the organisation's retention period, a 48-hour review with holds for complaints, then the photo files deleted and the attendance record kept |
-| [`operations/ATTENDANCE-PHOTO-CONSENT.md`](operations/ATTENDANCE-PHOTO-CONSENT.md) | **Attendance photo consent**: why a selfie needs the employee's consent under Proclamation 1321/2024, what the phone and the profile show, what the server enforces, and how the consent record is kept |
-| [`operations/ORGANISATION-NEWS.md`](operations/ORGANISATION-NEWS.md) | **Organisation news pages**: where `/news` lives on each kind of address, what makes a story public, the publishing actions and their audit entries, search-engine rules, and what deploying it needs |
-| [`operations/ORGANISATION-FAQ.md`](operations/ORGANISATION-FAQ.md) | **Organisation questions (FAQ)**: where an organisation writes its questions and answers, what the public sees, and the rules the server applies on save and serve |
-| [`operations/ORGANISATION-SERVICES.md`](operations/ORGANISATION-SERVICES.md) | **Organisation services**: what an organisation offers on its public page, the rules on save and serve, and where a section added later lands in a saved order |
-| [`operations/MARKETING-SITE.md`](operations/MARKETING-SITE.md) | **The landing page**: which sections and rows the platform console edits, the claims the server refuses, how pictures are stored and served, first-run seeding, and the snapshot step every release needs |
-| [`operations/MARKETING-VISUALS.md`](operations/MARKETING-VISUALS.md) | **Landing page illustrations**: the three production routes (drawn scenes ship regardless, the generator script with a provider key, a web UI export placed with `--import`), the rendered prompt pack, export settings, provider costs and the review checklist |
-| [`operations/marketing-deck/README.md`](operations/marketing-deck/README.md) | **Sales deck for HR buyers**: the 13 slides and their source, the claims it may make, where the prices come from, and what its live panels do |
-| [`operations/social-kit/README.md`](operations/social-kit/README.md) | **Social media kit**: profile images and bios, 62 posts, carousel slides, stories and link cards in English and Amharic, captions per platform, a launch calendar, video scripts, and the check that keeps every sentence inside the claims the site may make |
-| [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
-| [`operations/SMS-DELIVERY.md`](operations/SMS-DELIVERY.md) | **SMS on subscription day.** Configured in the platform console, not `.env`; any HTTP gateway, both networks, test before switching on, daily cap. SMPP is out of scope on this host |
-| [`operations/IMPERSONATION.md`](operations/IMPERSONATION.md) | How a platform super admin acts as a tenant admin: MFA re-check, 30-minute token, cross-host handoff, audit tagging, what is blocked. **Ends with three findings on the production (hostname) path that no test covers** |
 
 ### The Bronze/Plesk migration audit — Phases 0–2, 2026-09-25
 
@@ -178,6 +156,45 @@ a measured figure is how figures drift.
 | [`audit/CODE-VS-DOCUMENTATION.md`](audit/CODE-VS-DOCUMENTATION.md) | The reconciliation table. Executable evidence outranks prose |
 | [`audit/TENANT-ISOLATION-AUDIT.md`](audit/TENANT-ISOLATION-AUDIT.md) | The isolation mechanism end to end — including the surfaces the global scope does not cover: cache keys, file paths, broadcast channels, sessions |
 | [`audit/MIGRATION-DOCUMENT-INVENTORY.md`](audit/MIGRATION-DOCUMENT-INVENTORY.md) | Which migration document to trust: CURRENT / HISTORICAL / PROPOSED / OBSOLETE / CONTRADICTORY |
+
+## Operations
+
+**Entry point: [`operations/README.md`](operations/README.md)** — it routes by situation rather
+than by document. *(This section was added 2026-11-13. Its rows had been sitting at the foot of
+*Decisions and audit*, which is where an operator looking for a runbook would not think to look,
+and two of them — the operations centre's specification and the tenant journey — were in no table
+at all while being cited from sixteen and six places in the code.)*
+
+| Document | What it is |
+|---|---|
+| [`operations/README.md`](operations/README.md) | **Start here when something needs doing.** Routes by situation — the site is down, nothing asynchronous is happening, data is wrong, personal data may have leaked, a customer wants their data or is leaving, releasing today — plus the routine calendar. Links only, so it cannot drift |
+| [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
+| [`operations/OPERATIONS-CENTRE.md`](operations/OPERATIONS-CENTRE.md) | **Reading `/admin/operations`**: the six areas, every state and reason code it can show, what to do about each, and which of them actually reach a human |
+| [`operations/PLATFORM-CONSOLE.md`](operations/PLATFORM-CONSOLE.md) | **What each platform console page is for**: the ten pages under `/admin`, who may open them, the actions that carry consequences, and where each is documented in depth |
+| [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
+| [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
+| [`operations/OPERATIONS-CENTRE-SPEC.md`](operations/OPERATIONS-CENTRE-SPEC.md) | The operations centre's **design and gap list**: why the page exists, the principles behind every state, the eight panels, and G1–G14 with what is built and what is not. A design document, not a runbook |
+| [`operations/CUSTODY.md`](operations/CUSTODY.md) | **Who holds which credential** — names and places, never values — with a quarterly two-holder review |
+| [`operations/DATA-BREACH-RESPONSE.md`](operations/DATA-BREACH-RESPONSE.md) | **Data breach response**: the first hour (evidence, containment), telling affected organisations within 24 hours, and the 72-hour notice under Proclamation 1321/2024. Drafted for the owner to adopt |
+| [`operations/TENANT-JOURNEY.md`](operations/TENANT-JOURNEY.md) | **Where each organisation is between sign-up and using ETHR**: the six stages, the health reason codes, what the hourly snapshot stores, and what it deliberately does not cover |
+| [`operations/TENANT-DELETION.md`](operations/TENANT-DELETION.md) | **Deleting an organisation**: what the console's Delete does (closes it, keeps every record, ends sessions, reserves the address), the safeguards (cancel first, reason, platform MFA at sign-in), and Restore |
+| [`operations/DATA-EXPORT.md`](operations/DATA-EXPORT.md) | **Organisation data export**: an administrator downloads every record and uploaded document from Settings, what is left out (secrets, encrypted identity numbers, attendance photos), the 7-day expiry, and the host limits the job is built for |
+| [`operations/SUPPORT.md`](operations/SUPPORT.md) | **Get help**: how a question goes from an employee to their HR and on to ETHR, what the screen sends with it, who sees what, and where ETHR answers in the console |
+| [`operations/ORGANISATION-ADDRESS-RENAME.md`](operations/ORGANISATION-ADDRESS-RENAME.md) | **Renaming an organisation's address**: a tenant admin changes the name in ethr.et/{name}; the old name keeps working, forwards, and stays reserved for the organisation |
+| [`operations/IMPERSONATION.md`](operations/IMPERSONATION.md) | How a platform super admin acts as a tenant admin: MFA re-check, 30-minute token, cross-host handoff, audit tagging, what is blocked. **Ends with three findings on the production (hostname) path that no test covers** |
+| [`operations/ATTENDANCE-PHOTO-RETENTION.md`](operations/ATTENDANCE-PHOTO-RETENTION.md) | **Attendance photo retention**: selfies at most 1.5 MB, kept for the organisation's retention period, a 48-hour review with holds for complaints, then the photo files deleted and the attendance record kept |
+| [`operations/ATTENDANCE-PHOTO-CONSENT.md`](operations/ATTENDANCE-PHOTO-CONSENT.md) | **Attendance photo consent**: why a selfie needs the employee's consent under Proclamation 1321/2024, what the phone and the profile show, what the server enforces, and how the consent record is kept |
+| [`operations/METRIC-DEFINITIONS.md`](operations/METRIC-DEFINITIONS.md) | What each dashboard and analytics figure counts: headcount, turnover, attendance and leave rates, and which CSVs carry a byte-order mark |
+| [`operations/SMS-DELIVERY.md`](operations/SMS-DELIVERY.md) | **SMS on subscription day.** Configured in the platform console, not `.env`; any HTTP gateway, both networks, test before switching on, daily cap. SMPP is out of scope on this host |
+| [`operations/MARKETING-SITE.md`](operations/MARKETING-SITE.md) | **The landing page**: which sections and rows the platform console edits, the claims the server refuses, how pictures are stored and served, first-run seeding, and the snapshot step every release needs |
+| [`operations/MARKETING-VISUALS.md`](operations/MARKETING-VISUALS.md) | **Landing page illustrations**: the three production routes (drawn scenes ship regardless, the generator script with a provider key, a web UI export placed with `--import`), the rendered prompt pack, export settings, provider costs and the review checklist |
+| [`operations/SEARCH-LISTINGS.md`](operations/SEARCH-LISTINGS.md) | **Search listings**: the off-site steps that get ETHR found (contact details, Google Business Profile, software directories, outreach, the DNS ticket), with the approved copy to paste into every listing |
+| [`operations/TRUSTED-BY.md`](operations/TRUSTED-BY.md) | **Trusted by**: which organisations the public site names (consented, active, not hidden by the platform), where each decision is made, and how the list is served |
+| [`operations/ORGANISATION-NEWS.md`](operations/ORGANISATION-NEWS.md) | **Organisation news pages**: where `/news` lives on each kind of address, what makes a story public, the publishing actions and their audit entries, search-engine rules, and what deploying it needs |
+| [`operations/ORGANISATION-FAQ.md`](operations/ORGANISATION-FAQ.md) | **Organisation questions (FAQ)**: where an organisation writes its questions and answers, what the public sees, and the rules the server applies on save and serve |
+| [`operations/ORGANISATION-SERVICES.md`](operations/ORGANISATION-SERVICES.md) | **Organisation services**: what an organisation offers on its public page, the rules on save and serve, and where a section added later lands in a saved order |
+| [`operations/marketing-deck/README.md`](operations/marketing-deck/README.md) | **Sales deck for HR buyers**: the 13 slides and their source, the claims it may make, where the prices come from, and what its live panels do |
+| [`operations/social-kit/README.md`](operations/social-kit/README.md) | **Social media kit**: profile images and bios, 62 posts, carousel slides, stories and link cards in English and Amharic, captions per platform, a launch calendar, video scripts, and the check that keeps every sentence inside the claims the site may make |
 
 ## Archive
 

@@ -1,6 +1,14 @@
 # Operations centre — specification and gap list
 
-**Status:** written 2026-10-28. **Phase 1 is built** on branch `feat/operations-centre`; phases 2 and 3 are not. Owner decisions are marked **OWNER**.
+**Status:** written 2026-10-28. **Phase 1 is merged and live** — `v2026.10.28.6`, with backups
+added `v2026.11.01`; phases 2 and 3 are not built. Owner decisions are marked **OWNER**.
+*(Corrected 2026-11-13: this said "built on branch `feat/operations-centre`", which had not been
+true since the day it merged. The gap list at the foot of this file was still written in the
+present tense for gaps phase 1 closed, so it now carries a **Status** column read from the code
+rather than from this banner.)*
+
+**This is a design document, not a runbook.** For what each state and reason code on the live
+page means and what to do about it, see [`OPERATIONS-CENTRE.md`](OPERATIONS-CENTRE.md).
 
 **What phase 1 shipped, and where it differs from the text below:**
 
@@ -226,7 +234,10 @@ Booleans and limits only. Never a secret's value or length.
 
 Disk free (exists), database size and its five largest tables, private storage per
 organisation (top 10), row counts of `jobs`, `failed_jobs`, `cache` and `webhook_deliveries`.
-On a 5 GB plan, growth shows up here first.
+Growth shows up here first. *(Corrected 2026-11-13: this read "on a 5 GB plan". The account is
+Linux Gold with 50 GB, 643 MB used on 2026-11-02, so the panel is about trend rather than an
+imminent ceiling. The thresholds it would draw against are `DISK_QUOTA_MB`, which production
+sets to 51200 and the shipped default leaves at 5120.)*
 
 ---
 
@@ -270,22 +281,27 @@ real alarm.
 
 Ordered by value per effort. S ≈ under a day, M ≈ 1–3 days, L ≈ a week.
 
-| # | Gap | Size | Schema? |
-|---|---|---|---|
-| G1 | Admin health ignores `QueueHealth::snapshot()`: heartbeat, oldest waiting job and problems never reach the console | S | no |
-| G2 | Scheduler beats do not record their source, so an external caller that has stopped is invisible while people use the app. Record `last_external_tick_at` in `CronRunController`, and `last_opportunistic_tick_at` in the middleware (cache keys, same pattern as `QueueHealth`). | S | no |
-| G3 | No per-task run ledger. Use Laravel's `ScheduledTaskStarting/Finished/Failed` events to write `scheduled_task_runs` (task, started, finished, outcome, ms), pruned to 30 days. | M | yes |
-| G4 | `ethr:backup` records nothing. Write the outcome (name, bytes, ms, off-host yes/no) to a ledger or cache key; read the rehearsal outcome the same way. | S | optional |
-| G5 | `sms_sends` has no outcome, so an SMS success rate cannot be computed. Add `status` + `error_code` (no message text). | S | yes |
-| G6 | `MailHealth` is shown only on public `/health` | S | no |
-| G7 | Live release, pending migrations, cache state and `MAINTENANCE_TOKEN` are not visible anywhere on the host side | S | no |
-| G8 | Stuck-work queries (payroll, exports, devices, domains), cross-tenant, with inventory entries | M | no |
-| G9 | Failed jobs not grouped, no organisation column, no retry-safety badge | M | no |
-| G10 | `GET /ops/status` dead-man's endpoint + cron-job.org monitor | S | no |
-| G11 | Console actions: drain now, catch-up now, allow-listed run-now | M | no |
-| G12 | Capacity panel: table sizes, storage per organisation | M | no |
-| G13 | `SystemHealthService` returns raw exception messages (`$e->getMessage()`) for database, cache and storage. Admin-only, but a connection error can name the host and database. Return a fixed message and log the detail. | S | no |
-| G14 | Off-host backup copy is not configured (`--off-host` deliberately absent) | — | **OWNER** (needs a destination and credentials) |
+**Status read from the code on 2026-11-13**, not from this file's own header — one document
+restating another is how this list came to contradict its banner. Sources:
+`api/app/Services/Admin/OperationsStatusService.php`, `api/app/Support/BackupHealth.php`,
+`api/app/Support/DiskUsage.php`, and the `sms_sends` migration.
+
+| # | Gap | Size | Schema? | Status |
+|---|---|---|---|---|
+| G1 | Admin health ignores `QueueHealth::snapshot()`: heartbeat, oldest waiting job and problems never reach the console | S | no | **Closed** by phase 1. `background()` reads `QueueHealth`: heartbeat age, per-queue oldest waiting job, `last_drain_at` |
+| G2 | Scheduler beats do not record their source, so an external caller that has stopped is invisible while people use the app. Record `last_external_tick_at` in `CronRunController`, and `last_opportunistic_tick_at` in the middleware (cache keys, same pattern as `QueueHealth`). | S | no | **Closed** by phase 1. Both ticks recorded in `HealthSignals` and reported apart, so a dead timer shows while traffic keeps the heartbeat fresh |
+| G3 | No per-task run ledger. Use Laravel's `ScheduledTaskStarting/Finished/Failed` events to write `scheduled_task_runs` (task, started, finished, outcome, ms), pruned to 30 days. | M | yes | **Open.** No `scheduled_task_runs` table exists. Per-task last-run is the one part of panel 2 still missing |
+| G4 | `ethr:backup` records nothing. Write the outcome (name, bytes, ms, off-host yes/no) to a ledger or cache key; read the rehearsal outcome the same way. | S | optional | **Closed 2026-11-01** by `Support/BackupHealth`, from the backup manifests and `HealthSignals` — no ledger. Size and duration are still not shown |
+| G5 | `sms_sends` has no outcome, so an SMS success rate cannot be computed. Add `status` + `error_code` (no message text). | S | yes | **Open.** `sms_sends` is still `slot`, `purpose`, `created_at` only, so no success rate can be computed |
+| G6 | `MailHealth` is shown only on public `/health` | S | no | **Closed** by phase 1. `delivery()` carries `MailHealth` plus the day's `MailBudget` counters |
+| G7 | Live release, pending migrations, cache state and `MAINTENANCE_TOKEN` are not visible anywhere on the host side | S | no | **Closed** by phase 1. `release()` reports commit, `built_at`, pending migrations, stale or absent config and route caches, `debug_on`, `queue_sync` and whether `CRON_TOKEN` is set — booleans only, never a value |
+| G8 | Stuck-work queries (payroll, exports, devices, domains), cross-tenant, with inventory entries | M | no | **Open.** Panel 6 is not built; [`TENANT-JOURNEY.md`](TENANT-JOURNEY.md) now records per-organisation `reasons` a later panel can read |
+| G9 | Failed jobs not grouped, no organisation column, no retry-safety badge | M | no | **Open.** `failedJobs()` returns a count, a state and the last failure time; no grouping, organisation column or retry-safety badge |
+| G10 | `GET /ops/status` dead-man's endpoint + cron-job.org monitor | S | no | **Done for backups only.** `GET /api/v1/cron/backup` answers 503 while `BackupHealth` is critical, and the cron-job.org monitor watches it. There is no `/ops/status`, and background work has no 503 of its own |
+| G11 | Console actions: drain now, catch-up now, allow-listed run-now | M | no | **Open.** The page is read-only apart from the failed-job actions it inherited |
+| G12 | Capacity panel: table sizes, storage per organisation | M | no | **Part done.** Disk use and its breakdown are on the page, measured by the nightly backup (`DiskUsage`). Table sizes and storage per organisation are not |
+| G13 | `SystemHealthService` returns raw exception messages (`$e->getMessage()`) for database, cache and storage. Admin-only, but a connection error can name the host and database. Return a fixed message and log the detail. | S | no | **Closed** by phase 1. `services()` returns the reason code `service_unhealthy` and logs the driver's message |
+| G14 | Off-host backup copy is not configured (`--off-host` deliberately absent) | — | **OWNER** (needs a destination and credentials) | **Code done, destination outstanding.** The nightly run copies an encrypted archive whenever storage and a key are set, and storage is configured in the console (`/admin/backups`). No destination is set, so the reason reads `off_host_not_configured` — a warning by design, not an alarm. Still **OWNER** |
 
 ## Phasing
 
@@ -316,6 +332,11 @@ Ordered by value per effort. S ≈ under a day, M ≈ 1–3 days, L ≈ a week.
 ## Open questions for the owner
 
 1. Off-host backup destination (G14): which provider, and who holds the credentials?
+   *(Partly answered 2026-11-01: the **mechanism** is settled — storage is configured in the
+   platform console at `/admin/backups`, with a connection test and a generated archive key, so
+   no `.env` edit and no deploy is needed. What is still open is the question itself: no
+   destination has been chosen, which is why the backups area reads
+   `off_host_not_configured`.)*
 2. Who receives transition emails: the platform owner only, or a list?
 3. Should organisation admins see a reduced version, such as "your payroll is processing,
    last background run 2 min ago"? It would cut support calls, but it is a separate decision.
