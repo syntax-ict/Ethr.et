@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Events\DeviceOffline;
 use App\Jobs\PullDeviceEventsJob;
 use App\Models\Branch;
 use App\Models\Device;
@@ -12,6 +13,7 @@ use App\Services\Device\HikvisionPushAdapter;
 use App\Support\DeviceErrorCode;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -72,17 +74,27 @@ it('moves a terminal that only sends to the rule on every run, whatever it was a
     $heard = honestPushDevice($tenant, $branch, ['status' => 'pending', 'last_sync_at' => now()->subHour()]);
     // Another organisation's terminal, which the same run must settle on its own terms.
     $other = createTenant();
+    // Neither Hikvision nor auto-synced: nothing for this run, so it must not be loaded, which also keeps its encrypted config from being decrypted every run.
+    $manual = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'zkteco', 'auto_sync' => false, 'status' => 'online']);
     $otherDevice = honestPushDevice($other, Branch::factory()->create(['tenant_id' => $other->id]), ['status' => 'pending', 'last_sync_at' => now()->subMinutes(5)]);
 
     // The scheduler runs with no request and no organisation resolved.
     app()->forgetScopedInstances();
+    // The ids of the devices the run hydrates: handleDevice() would leave $manual alone anyway, so only this shows it was never fetched.
+    $loaded = [];
+    Device::retrieved(function (Device $device) use (&$loaded) {
+        $loaded[] = $device->id;
+    });
     test()->artisan('devices:sync')->assertSuccessful();
 
     $read = fn (Device $d): string => Device::withoutGlobalScope('tenant')->findOrFail($d->id)->status;
-    expect($read($never))->toBe('pending')
+    expect($loaded)->toContain($never->id, $quiet->id, $heard->id, $otherDevice->id)
+        ->and($loaded)->not->toContain($manual->id)
+        ->and($read($never))->toBe('pending')
         ->and($read($quiet))->toBe('offline')
         ->and($read($heard))->toBe('online')
-        ->and($read($otherDevice))->toBe('online');
+        ->and($read($otherDevice))->toBe('online')
+        ->and($read($manual))->toBe('online');
     Queue::assertNotPushed(PullDeviceEventsJob::class);
 });
 
@@ -123,6 +135,58 @@ it('leaves a device alone when it is switched to send to ETHR while a pull is ru
     $after = Device::withoutGlobalScope('tenant')->findOrFail($device->id);
     expect($after->last_sync_at)->toBeNull()
         ->and($after->status)->toBe('pending');
+
+    $log = DeviceSyncLog::withoutGlobalScope('tenant')->where('device_id', $device->id)->sole();
+    expect($log->status)->toBe('success');
+});
+
+function honestPulledDevice(Tenant $tenant, Branch $branch): Device
+{
+    return Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '203.0.113.10', 'port' => 80],
+        'status' => 'online',
+        'last_sync_at' => null,
+    ]);
+}
+
+it('records no failed sync when the terminal is switched to send to ETHR while a pull cannot reach it', function () {
+    Event::fake([DeviceOffline::class]);
+    [$tenant, $branch] = honestOrganisation();
+    $device = honestPulledDevice($tenant, $branch);
+    Http::fake(function () use ($device) {
+        Device::withoutGlobalScope('tenant')->findOrFail($device->id)->update(['connection_config' => ['mode' => 'push']]);
+
+        return Http::response('', 503);
+    });
+
+    app()->call([new PullDeviceEventsJob($device->id, $tenant->id), 'handle']);
+
+    expect(DeviceSyncLog::withoutGlobalScope('tenant')->where('device_id', $device->id)->count())->toBe(0)
+        ->and(Device::withoutGlobalScope('tenant')->findOrFail($device->id)->status)->toBe('online');
+    Event::assertNotDispatched(DeviceOffline::class);
+});
+
+it('drops a pull that fails after the terminal is switched to send to ETHR, without a failure or a retry', function () {
+    [$tenant, $branch] = honestOrganisation();
+    $device = honestPulledDevice($tenant, $branch);
+    $calls = 0;
+    Http::fake(function () use ($device, &$calls) {
+        // The status probe answers; the event search is where it breaks.
+        if (++$calls === 1) {
+            return Http::response(['AcsEvent' => ['responseStatusStrg' => 'OK']], 200);
+        }
+        Device::withoutGlobalScope('tenant')->findOrFail($device->id)->update(['connection_config' => ['mode' => 'push']]);
+
+        throw new ConnectionException('cURL error 7');
+    });
+
+    app()->call([new PullDeviceEventsJob($device->id, $tenant->id), 'handle']);
+
+    expect(DeviceSyncLog::withoutGlobalScope('tenant')->where('device_id', $device->id)->count())->toBe(0)
+        ->and(Device::withoutGlobalScope('tenant')->findOrFail($device->id)->status)->toBe('online');
 });
 
 it('does not rewrite a row whose status is already right', function () {

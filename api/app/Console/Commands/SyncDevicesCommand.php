@@ -29,11 +29,16 @@ class SyncDevicesCommand extends Command
         $totalDispatched = 0;
 
         $query->each(function (Tenant $tenant) use (&$totalDispatched) {
-            // Every device of the organisation, not only those due: a
-            // terminal that only sends is never pulled, so this run is the
-            // only thing that can move it off Online when it goes quiet.
+            // Not only the devices due, since a terminal that only sends is
+            // never pulled and this run is the only thing that can move it
+            // off Online when it goes quiet. Only a Hikvision terminal can
+            // be one (DeviceManager::receivesOnly reads the encrypted config,
+            // so it cannot be filtered in SQL). A device that is neither
+            // Hikvision nor auto-synced has nothing for this run, so it stays
+            // in the database rather than being decrypted every five minutes.
             $devices = Device::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenant->id)
+                ->where(fn ($q) => $q->where('auto_sync', true)->orWhere('adapter_type', 'hikvision'))
                 ->get();
 
             foreach ($devices as $device) {
