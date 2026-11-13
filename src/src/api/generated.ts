@@ -29460,6 +29460,9 @@ export interface operations {
                             description: string | null;
                             group: string;
                             parent_code: string | null;
+                            suggested_for: string[];
+                            /** @enum {string|null} */
+                            policy_profile: "ethiopia_private" | "ethiopia_public" | null;
                         }[];
                     };
                 };

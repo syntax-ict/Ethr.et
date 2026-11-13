@@ -31,6 +31,13 @@ import { SourceLabel } from "./source-label";
 import { useCurrentTenant } from "@/features/auth/api";
 import { useOrganizationTypes, useSettings } from "@/features/settings/api";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
+import {
+  industriesOfType,
+  preselectedIndustry,
+  signupTypeOf,
+  typicalPolicies,
+  typicalWorkforce,
+} from "../../sector";
 
 const SECTION_TITLES: Record<string, [string, string]> = {
   branches: ["setup2.section_branches", "Branches"],
@@ -82,6 +89,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const [plan, setPlan] = useState<ConfigurationPlan | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [showAllTypes, setShowAllTypes] = useState(false);
+  const [showAllWorkforce, setShowAllWorkforce] = useState(false);
+  const [showAllPolicy, setShowAllPolicy] = useState(false);
 
   // Sign-up already asked what kind of organisation this is, so only the
   // industries of that kind are offered: Government shows the ministries,
@@ -89,15 +98,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   // A sign-up type is an industry key (bank, hospital) or the base several
   // industries share (government). "General" names no kind and keeps them all,
   // although ten catalogue industries carry the base `general` (K-49).
-  const rawSignupType = tenant?.type ?? null;
-  const signupType = rawSignupType === "general" ? null : rawSignupType;
+  const signupType = signupTypeOf(tenant?.type);
   const allIndustries = industriesQuery.data ?? [];
-  const ofSignupType =
-    signupType === null
-      ? []
-      : allIndustries.filter(
-          (ind) => ind.key === signupType || ind.base === signupType,
-        );
+  const ofSignupType = industriesOfType(allIndustries, signupType);
   const narrowed = !showAllTypes && ofSignupType.length > 0;
   const shown = narrowed ? ofSignupType : allIndustries;
 
@@ -109,9 +112,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   // The sign-up answer starts selected where it names one industry: the
   // industry with that key, or the only one of that kind (onboarding review
   // 2026-10-30), so the question is not asked twice.
-  const suggested =
-    ofSignupType.find((ind) => ind.key === signupType)?.key ??
-    (ofSignupType.length === 1 ? ofSignupType[0].key : null);
+  const suggested = preselectedIndustry(ofSignupType, signupType);
   const selected = chosen ?? suggested;
 
   const selectedIndustry = (industriesQuery.data ?? []).find(
@@ -119,6 +120,13 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   );
   const currentKind =
     kind ?? settingsQuery.data?.organization.organization_type ?? undefined;
+  const currentKindRow = (kindsQuery.data ?? []).find(
+    (k) => k.code === currentKind,
+  );
+  // The server applies the legal kind's rules before the industry's, so the
+  // default shown is the kind's, then the industry's.
+  const defaultPolicy =
+    currentKindRow?.policy_profile ?? selectedIndustry?.policy;
   const currentCalendar =
     calendar ?? settingsQuery.data?.display.calendar ?? "ethiopian";
   const workforceOptions = profilesQuery.data?.workforce ?? [];
@@ -267,8 +275,20 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     options: ConfigurationProfile[],
     value: string | undefined,
     onChange: (key: string) => void,
+    narrowing: {
+      typical: Set<string>;
+      showAll: boolean;
+      onToggle: () => void;
+    },
   ) {
     const current = options.find((o) => o.key === value);
+    // Narrowing is presentational: the usual options plus the current value.
+    const usual = options.filter(
+      (o) => narrowing.typical.has(o.key) || o.key === value,
+    );
+    const canNarrow =
+      narrowing.typical.size > 0 && usual.length < options.length;
+    const visible = canNarrow && !narrowing.showAll ? usual : options;
     return (
       <div>
         <Label htmlFor={id}>{title}</Label>
@@ -277,13 +297,28 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {options.map((o) => (
+            {visible.map((o) => (
               <SelectItem key={o.key} value={o.key}>
                 {label(o)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {canNarrow && (
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto px-0 text-sm"
+            onClick={narrowing.onToggle}
+          >
+            {narrowing.showAll
+              ? t(
+                  "setup2.show_typical_profiles",
+                  "Show only the usual options for your type of organisation",
+                )
+              : t("setup2.show_all_profiles", "Show every option")}
+          </Button>
+        )}
         {current && (
           <p className="mt-1 text-xs text-muted-foreground">
             {locale === "am" && current.description_am
@@ -426,14 +461,32 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                         workforceOptions,
                         workforceProfile ?? selectedIndustry.profile,
                         setWorkforceProfile,
+                        {
+                          typical: typicalWorkforce(
+                            allIndustries,
+                            selectedIndustry.base,
+                          ),
+                          showAll: showAllWorkforce,
+                          onToggle: () => setShowAllWorkforce((all) => !all),
+                        },
                       )}
                     {policyOptions.length > 0 &&
                       profileSelect(
                         "policy-profile",
                         t("setup2.policy_profile", "Which rules apply"),
                         policyOptions,
-                        policyProfile ?? selectedIndustry.policy,
+                        policyProfile ??
+                          defaultPolicy ??
+                          selectedIndustry.policy,
                         setPolicyProfile,
+                        {
+                          typical: typicalPolicies(
+                            selectedIndustry,
+                            currentKindRow,
+                          ),
+                          showAll: showAllPolicy,
+                          onToggle: () => setShowAllPolicy((all) => !all),
+                        },
                       )}
                     <div>
                       <Label htmlFor="staff-band">
@@ -503,6 +556,12 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                           value={currentKind}
                           onChange={setKind}
                           disabled={kindsQuery.isPending}
+                          sector={
+                            selectedIndustry?.base ?? signupTypeOf(tenant?.type)
+                          }
+                          keep={
+                            settingsQuery.data?.organization.organization_type
+                          }
                         />
                       </div>
                     </div>
