@@ -119,9 +119,21 @@ scheduler's own process rather than dispatching a job.
 | monthly, 1st 01:30 | roll next year's holidays forward, per organisation | default |
 | monthly, 1st 03:00 | `GenerateMonthlyInvoicesJob` | default |
 
-Three of those entries — `GenerateMonthlyInvoicesJob`, `HandleOverdueInvoicesJob` and
-`CleanupExpiredDataJob` — carry neither a `->name()` nor `withoutOverlapping()`, unlike every
-entry around them. Recorded here as observed, not defended; it is a code question.
+Three of those entries — now `generate-monthly-invoices`, `handle-overdue-invoices` and
+`cleanup-expired-data` — carried **no `->name()`** until 2026-11-13 and summarised in
+`schedule:list` as their own job class while every neighbour showed a slug. They are named now,
+because the per-task run ledger this is heading for
+([`OPERATIONS-CENTRE-SPEC.md`](OPERATIONS-CENTRE-SPEC.md) G3) keys on the event name.
+
+They still carry **no `withoutOverlapping()`**, deliberately, and the reasoning is in
+`api/routes/console.php` above them so it is not "fixed" later. In short: for a
+`Schedule::job()` the event's run is only the dispatch, `CronRunner` already holds a
+`cron:schedule` lock around the whole scheduler run, and each of the three is re-run safe in its
+own right — the monthly invoice is idempotent per calendar month, dunning advances invoices by
+status so a second pass selects nothing, and the cleanup deletes expired rows. Against that,
+Laravel's default mutex expiry is 24 hours, so a process killed mid-dispatch would block a
+*daily* entry for a day. That trades a harmless repeat for a skipped day of dunning or
+cleanup.
 
 ### Leave carry-forward is daily, and it is not 1 January
 
@@ -171,10 +183,16 @@ around it — that hides every bug only a real worker exposes.
 Worth stating plainly, because this page and
 [`QUEUE-MONITORING.md`](QUEUE-MONITORING.md) both used to imply otherwise:
 
-- **`ethr:queue:check` is scheduled nowhere.** It is absent from `api/routes/console.php` and
-  from `.github/workflows/cron.yml`; the only mentions in the repository are comments and these
-  documents, and `HealthController` says it "runs from cron". On this host there is no cron and
-  no shell, so it is a command to run locally and nothing more.
+- **`ethr:queue:check` is scheduled nowhere, on purpose.** It is absent from
+  `api/routes/console.php` and from `.github/workflows/cron.yml`. Scheduling it would be
+  circular: a watchdog the scheduler starts cannot report that the scheduler stopped, so the one
+  state it exists to detect is the one state it could never reach. It is a command for a terminal,
+  and for any deployment that does have a runner.
+
+  Until 2026-11-13 three docblocks said otherwise — `HealthController` claimed "the thing that
+  acts on it is `ethr:queue:check`, which runs from cron" — which made adding the entry look like
+  the obvious fix. All three now state the reasoning, and
+  `OperationsCommandsTest` pins that no scheduled entry mentions `queue:check`.
 - **What watches the service is off-host**: the uptime monitor polling `GET /api/v1/health` and
   reading `queue_detail`, and the same account polling `GET /api/v1/cron/backup`, which answers
   503 while `BackupHealth` is critical — a failing backup, or disk above 85%.
