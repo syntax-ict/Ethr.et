@@ -79,8 +79,10 @@ scripts/qa-pack-coverage.sh v2026.11.06.9  # up to the release under test
 
 It leaves out docs, chore, ci, test and build changes (`--all` shows them, and is worth a look
 before the marker moves: #688 was titled as a test harness and carried a fix). A PR in its list is not
-necessarily a gap: a refactor has nothing a tester can see. A user-visible change gets a case, and
-the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
+necessarily a gap: a refactor has nothing a tester can see, and another branch may already be
+covering it. The script ends by naming the open pull requests that also change the pack, because
+cases waiting in one of those are invisible to the count above. A user-visible change gets a case,
+and the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
 **Before a release pass, run it against the release tag:** a case for a change it lists is recorded
 as **Not covered** in the execution log, and the test summary says how many there were. Move the
 marker forward only when every file has been brought up to date (last moved 2026-11-12, fifth
