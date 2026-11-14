@@ -84,10 +84,12 @@ export function MarketingHeader() {
             className="text-muted-foreground hover:text-foreground"
             asChild
           >
-            <Link href="/login">{t("marketing.nav.login", "Log In")}</Link>
+            <Link href="/login" prefetch={false}>
+              {t("marketing.nav.login", "Log In")}
+            </Link>
           </Button>
           <Button size="sm" className="shadow-sm" asChild>
-            <Link href="/register">
+            <Link href="/register" prefetch={false}>
               {t("marketing.nav.start_trial", "Start Free Trial")}
             </Link>
           </Button>
@@ -149,12 +151,20 @@ export function MarketingHeader() {
 
             <div className="flex flex-col gap-2 px-3 pt-1">
               <Button variant="outline" asChild>
-                <Link href="/login" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/login"
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                >
                   {t("marketing.nav.login", "Log In")}
                 </Link>
               </Button>
               <Button asChild>
-                <Link href="/register" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/register"
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                >
                   {t("marketing.nav.start_trial", "Start Free Trial")}
                 </Link>
               </Button>

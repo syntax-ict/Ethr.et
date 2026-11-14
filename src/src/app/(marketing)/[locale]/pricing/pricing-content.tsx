@@ -295,7 +295,7 @@ export function PricingContent() {
                         claim the code does not make. */}
                     <div className="mt-8">
                       <Button className="h-11 w-full" variant="outline" asChild>
-                        <Link href="/register">
+                        <Link href="/register" prefetch={false}>
                           {t(
                             "marketing.pricing.start_trial",
                             "Start Free Trial",
