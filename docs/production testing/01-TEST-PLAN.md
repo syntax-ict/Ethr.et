@@ -62,7 +62,7 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 case for a change that is not live is recorded as Blocked, not Fail.
 
 **The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
-`8431f382a8`, and the fifth edition's, up to `c8cc3a4b2d`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+`8431f382a8`, the fifth edition's, up to `c8cc3a4b2d`, and the sixth edition's (2026-11-14), up to `d591fb2ad33c` (`v2026.11.14.3`).** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -216,8 +216,8 @@ the execution log.
 | Running the pack by machine: the scripted smoke checks, and Claude Code with the guarded Playwright browser or with Chrome | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 **Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
-branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
-the live commit contains `7adf8dfec4`); until then record Blocked.**
+branch before it merged on 2026-11-09 as `7adf8dfec4`). **#682 is deployed (live since `v2026.11.10.1` at the latest;
+contained in `d591fb2ad33c`): run these. On an older release, S-01 says whether the live commit contains `7adf8dfec4`.**
 Each changed case keeps its old expectation for a release without #682:
 
 | Change | PRs | Cases |
@@ -255,7 +255,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | Another system's column names are matched once and saved as a source; its ids find the same people; a saved source's columns read the same on every database | #700, #701 | MAP-001 to MAP-003 |
 | Mass activation: a list arrives as hired, on probation or confirmed; invitations go out by default; a printable sheet of one-time codes; a code for an invitation unanswered for 3 days | #703 | MASS-001 to MASS-005; MIG-001 changed |
 | One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
-| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 (open) | IDN-012 to IDN-015; DUP-001 to DUP-003 |
+| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
 | National ID and TIN are recorded in the `employee.updated` audit entry as `[redacted]`, `[changed]` or `[unchanged]`, never by value | #690 | EMP-022 |
 | An impersonating platform operator cannot issue a starting password: the action joins `BlockImpersonatedActions`, so the step-up is no longer the only thing in the way. Measured: without the guard the request answers 201 (K-72) | #706 | STP-011 changed |
@@ -269,6 +269,21 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | A Hikvision terminal on an office network sends to ETHR instead of being called: no address, four values typed on the terminal, and the scheduled pull skips it so a silent terminal no longer looks healthy | #697 | DEV-018 to DEV-023 |
 | An organisation's robots line is written into the page's React payload too, so the tag after hydration agrees with the head and the header; a news page with no story is `noindex, follow` | #698 | LAND-010, LAND-011, NEWS-004 |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
+| **Sixth edition (2026-11-14).** A receives-only (push) terminal is not offered for reading its roster: 409 `device-roster-unavailable`, no empty batch; Hikvision's roster is read page by page | #707, #710 | DEV-024 to DEV-027 |
+| The Add Employee split button lists every way in (one person, a file, a terminal, unrecognised badges), each shown only to who can use it; "Other ways to add"; the from-device Back link | #708, #710 | EMP-024 to EMP-027 |
+| A push terminal reads "Not connected yet" until heard, Online within 24 hours of last contact, then Offline; a failed pull says why, with advice per error; Test, Pull, Discover and Import history hidden for a push terminal | #709 | DEV-028 to DEV-032 |
+| An unrecognised badge resolves again on every read (matched, probable, new), is assigned with its punches replayed, becomes a new employee with the badge and hire date prefilled, or is downloaded as a workbook; suggestions only for `attendance.manage` within the viewer's reach | #710 | DEV-033 to DEV-038; EMP-028 to EMP-030; XLS-004 |
+| A refused terminal call (retired, cut-off or missing token, address not allowed) shows on the device page for a week, to organisation admins only | #712 | DEV-039, DEV-040 |
+| Three schedule entries named (`generate-monthly-invoices`, `handle-overdue-invoices`, `cleanup-expired-data`) and `ethr:queue:check` deliberately unscheduled; nothing on production shows either | #714 | OPC-010 |
+| The kind of organisation narrows the lists after it: sign-up kinds by industry, the wizard's workforce and policy, Settings; an odd pair is accepted and flagged; "Private company" leaves the industry list | #715 | ORG-015 to ORG-017; SET-023 to SET-028; ORG-009 and SET-018 changed |
+| One browser holds at most three API requests at once; a read the host turns away (502, 503, 504) is asked again, never a write | #717 | PERF-013 |
+| The new ETHR mark: icons, favicon, manifest, public header, sign-in panel, sidebar and loading screen | #719 | PWA-011, UI-010, MKT-016; UI-009 and AUTH-034 changed |
+| A Hikvision push is answered with one insert and a 200; the queue records the punch; a re-sent event is one punch; a 600-a-minute limiter replaces the shared 60 | #720 | DEV-041 to DEV-044 |
+| A saved session with no sign-in, an expired one, or one for another host is skipped with the reason | #721 | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) section 3 |
+| Public pages no longer prefetch the sign-in shell and its Amharic dictionary | #722 | PERF-009 changed |
+| The 404 page reads in the language its address names | #723 | L10N-022; SEC-003 and NEWS-001 changed |
+| The organisations sitemap is expected to name `om` as the page does (product defect D-1, 2026-11-14 log) | pack correction | MKT-006 changed |
+| The UAT guide brought up to date with what shipped since 2026-10-29 | this edition | [02](02-UAT-GUIDE.md): UAT-E14, E15, H14 to H18, F6, A8, P1 steps 10 and 11; twelve scenarios changed |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone
