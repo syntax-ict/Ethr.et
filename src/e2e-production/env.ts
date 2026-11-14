@@ -54,17 +54,75 @@ export function sessionFile(role: Role): string {
   return path.join(AUTH_DIR, `${role}.json`);
 }
 
+/**
+ * The cookie a signed-in browser carries (`App\Services\Auth\SessionCookie`):
+ * set by sign-in, scoped to `/api`, absent from a window that never signed in.
+ */
+const SIGN_IN_COOKIE = "access_token";
+
+type SignInCookie = { domain: string; expires: number };
+
+/**
+ * The sign-in cookies in a saved session: where they belong and when they
+ * expire, never their values. `playwright open --save-storage` writes the file
+ * when the browser process ends, Ctrl-C included, with whatever the window
+ * holds: a window stopped before anyone signed in leaves a fresh file with no
+ * sign-in in it, which the age check alone passes (2026-11-13).
+ */
+function signInCookies(file: string): SignInCookie[] | null {
+  try {
+    const state = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      cookies?: { name?: string; domain?: string; path?: string; expires?: number }[];
+    };
+    return (state.cookies ?? [])
+      .filter((c) => c.name === SIGN_IN_COOKIE && (c.path ?? "").startsWith("/api"))
+      .map((c) => ({ domain: c.domain ?? "", expires: c.expires ?? -1 }));
+  } catch {
+    return null;
+  }
+}
+
+function cookieCovers(domain: string, host: string): boolean {
+  const bare = domain.replace(/^\./, "").toLowerCase();
+  const h = host.toLowerCase();
+  return h === bare || (domain.startsWith(".") && h.endsWith(`.${bare}`));
+}
+
 /** Null when the session is usable, or the reason it is not. */
 export function sessionProblem(role: Role): string | null {
   const file = sessionFile(role);
+  const who = role.toUpperCase();
   let ageMs: number;
   try {
     ageMs = Date.now() - fs.statSync(file).mtimeMs;
   } catch {
-    return `No saved session for ${role.toUpperCase()} at ${file}. Save one first (11, section 3).`;
+    return `No saved session for ${who} at ${file}. Save one first (11, section 3).`;
   }
   if (ageMs > SESSION_IDLE_LIMIT_MS) {
-    return `The saved ${role.toUpperCase()} session is ${Math.round(ageMs / 60000)} minutes old, past the 15-minute idle limit. Save it again (11, section 3).`;
+    return `The saved ${who} session is ${Math.round(ageMs / 60000)} minutes old, past the 15-minute idle limit. Save it again (11, section 3).`;
+  }
+  const cookies = signInCookies(file);
+  if (cookies === null) {
+    return `The saved ${who} session at ${file} is not a Playwright storage file. Save it again (11, section 3).`;
+  }
+  if (cookies.length === 0) {
+    return `The saved ${who} session holds no sign-in: the window was closed or stopped before anyone signed in. Save it again, and wait for the terminal to return to its prompt (11, section 3).`;
+  }
+  const nowSeconds = Date.now() / 1000;
+  if (cookies.every((c) => c.expires > 0 && c.expires < nowSeconds)) {
+    return `The saved ${who} session's sign-in has expired. Save it again (11, section 3).`;
   }
   return null;
+}
+
+/**
+ * Null when the saved session signed in on `host`, or the reason it did not.
+ * Asked once the organisation's address is known: a window saved on another
+ * organisation, or on the apex, is signed in somewhere the run never goes.
+ */
+export function sessionHostProblem(role: Role, host: string): string | null {
+  const cookies = signInCookies(sessionFile(role)) ?? [];
+  if (cookies.some((c) => cookieCovers(c.domain, host))) return null;
+  const where = [...new Set(cookies.map((c) => c.domain.replace(/^\./, "")))].join(", ");
+  return `The saved ${role.toUpperCase()} session signed in on ${where || "no host"}, not ${host}. Save it again from ${host} (11, section 3).`;
 }

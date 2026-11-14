@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { api } from "../helpers";
-import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } from "./support";
+import { addisDate, as, devicePunch, earlierToday, employeeId, live, minutesAgo, recordsOf } from "./support";
 
 /**
  * J3, acceptance matrix A5 and A7: one arrival reported again and again. The
@@ -13,7 +13,7 @@ import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } f
  * planned after this suite.
  */
 test("one arrival reported four times is one live record", async ({ browser, request }) => {
-  const arrived = minutesAgo(120);
+  const arrived = earlierToday(120);
   const seenAgain = new Date(arrived.getTime() + 60_000);
 
   expect(await devicePunch(request, "e2e-att", "9002", "check_in", arrived)).toBe(1);

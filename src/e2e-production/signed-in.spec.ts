@@ -14,6 +14,7 @@ import {
   PROD_PLATFORM,
   QA_SLUG,
   sessionFile,
+  sessionHostProblem,
   sessionProblem,
   type Role,
 } from "./env";
@@ -53,6 +54,20 @@ function asPersona(role: Role) {
   const problem = sessionProblem(role);
   test.skip(problem !== null, problem ?? "");
   test.use({ storageState: sessionFile(role) });
+  if (role === "pa") {
+    const consoleHost = sessionHostProblem(
+      role,
+      new URL(PROD_PLATFORM).hostname,
+    );
+    test.skip(problem === null && consoleHost !== null, consoleHost ?? "");
+    return;
+  }
+  // Skipped rather than failed: a session saved on the wrong host is a
+  // tester's mistake, and run anyway it reads as a sign-in defect.
+  test.beforeEach(({ orgURL }) => {
+    const hostProblem = sessionHostProblem(role, new URL(orgURL).hostname);
+    test.skip(hostProblem !== null, hostProblem ?? "");
+  });
 }
 
 const TENANT_ROLES: Role[] = ["ta", "hr", "fin", "sup", "emp"];
