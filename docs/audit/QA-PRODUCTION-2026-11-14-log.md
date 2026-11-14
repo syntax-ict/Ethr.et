@@ -108,6 +108,8 @@ is over (11, section 6.1).
 
 ## Defect drafts (10, section 1), for the tester to file
 
+**All four are fixed by [#727](https://github.com/syntax-ict/Ethr.et/pull/727)** (D-2 apart from the missing Oromo text, which is wider than this defect). Re-run MKT-006, DEV-030 and the D-3 dialog on production once #727 is live; until then they stand as found.
+
 **D-1. The organisations sitemap leaves out Afaan Oromoo.** P3, search listing.
 
 - Where: `https://www.ethr.et/sitemap-organisations.xml`, built by
