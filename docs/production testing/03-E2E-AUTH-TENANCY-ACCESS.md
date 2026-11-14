@@ -242,7 +242,7 @@ no phone: **E-NC** (EMP-014) and **E-NC2**, a second one created the same way.
 
 ### 6a. Kind of organisation at sign-up (#682)
 
-**Run only once #682 is deployed (check S-01); until then record Blocked.**
+**#682 is deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`): run these; check S-01 for the release under test.**
 
 The kind of organisation in law (`organization_kind`, one of the sixteen active rows of
 `organization_types`) decides which statutory payroll rules apply (07, section 13). It is separate

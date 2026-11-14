@@ -16,7 +16,7 @@ cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, the
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), makes the pack runnable by
 Claude Code, with Playwright or Chrome ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
 configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
-they are recorded Blocked until #682 is deployed. **The fifth edition** (2026-11-12) adds the
+#682 has since been deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`), so they are run, no longer recorded Blocked. **The fifth edition** (2026-11-12) adds the
 employee identity and import slice (#690 to #701, up to `c8cc3a4b2d`): one gateway that asks
 before creating a second employee, one reader for every list of people with the import as its
 staged review, the workbook template and saved column names, one starting password for a batch,

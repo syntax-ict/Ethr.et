@@ -216,8 +216,8 @@ the execution log.
 | Running the pack by machine: the scripted smoke checks, and Claude Code with the guarded Playwright browser or with Chrome | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 **Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
-branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
-the live commit contains `7adf8dfec4`); until then record Blocked.**
+branch before it merged on 2026-11-09 as `7adf8dfec4`). **#682 is deployed (live since `v2026.11.10.1` at the latest;
+contained in `d591fb2ad33c`): run these. On an older release, S-01 says whether the live commit contains `7adf8dfec4`.**
 Each changed case keeps its old expectation for a release without #682:
 
 | Change | PRs | Cases |
@@ -274,7 +274,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | A push terminal reads "Not connected yet" until heard, Online within 24 hours of last contact, then Offline; a failed pull says why, with advice per error; Test, Pull, Discover and Import history hidden for a push terminal | #709 | DEV-028 to DEV-032 |
 | An unrecognised badge resolves again on every read (matched, probable, new), is assigned with its punches replayed, becomes a new employee with the badge and hire date prefilled, or is downloaded as a workbook; suggestions only for `attendance.manage` within the viewer's reach | #710 | DEV-033 to DEV-038; EMP-028 to EMP-030; XLS-004 |
 | A refused terminal call (retired, cut-off or missing token, address not allowed) shows on the device page for a week, to organisation admins only | #712 | DEV-039, DEV-040 |
-| Two schedule entries named and `ethr:queue:check` deliberately unscheduled; nothing on production shows either | #714 | OPC-010 |
+| Three schedule entries named (`generate-monthly-invoices`, `handle-overdue-invoices`, `cleanup-expired-data`) and `ethr:queue:check` deliberately unscheduled; nothing on production shows either | #714 | OPC-010 |
 | The kind of organisation narrows the lists after it: sign-up kinds by industry, the wizard's workforce and policy, Settings; an odd pair is accepted and flagged; "Private company" leaves the industry list | #715 | ORG-015 to ORG-017; SET-023 to SET-028; ORG-009 and SET-018 changed |
 | One browser holds at most three API requests at once; a read the host turns away (502, 503, 504) is asked again, never a write | #717 | PERF-013 |
 | The new ETHR mark: icons, favicon, manifest, public header, sign-in panel, sidebar and loading screen | #719 | PWA-011, UI-010, MKT-016; UI-009 and AUTH-034 changed |

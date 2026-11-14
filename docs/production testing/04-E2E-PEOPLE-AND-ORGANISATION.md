@@ -85,7 +85,7 @@ more people is named in public (SET-017), and QA organisations must stay off the
 
 ## 1a. Organisation profile and first payroll (#682)
 
-**Run only once #682 is deployed (check S-01); until then record Blocked.**
+**#682 is deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`): run these; check S-01 for the release under test.**
 
 On uat-setup (kind "Government office (civil service)"), unless a case says otherwise. The
 configuration step's apply records the organisation's profile, its kind and its industry as its

@@ -311,8 +311,8 @@ who was at work.
 | 4 | Try a date of birth that makes the person 14 on the hire date | Refused: "The employee must be at least 15 years old on the hire date." |
 | 5 | Add someone who is already an employee (same email and national ID, another spelling of the name) | Not created: "is already an employee here. Open their record to make changes." The only choices are Close and Open their record |
 
-Changed 2026-11-14: the arrow beside Add employee and step 5 (see 04 EMP-017 to EMP-021, IDN-001 to
-IDN-004; more in UAT-H14).
+Changed 2026-11-14: the arrow beside Add employee and step 5 (see 04 EMP-017 to EMP-021, EMP-024 to
+EMP-027, IDN-001 to IDN-004; more in UAT-H14).
 
 **Done when:** a new hire can be registered and signed in within minutes, and nobody is added twice.
 
@@ -753,7 +753,7 @@ Only on a new `uat-` organisation, registered for this test.
 | 5 | In the **People** step paste a list (UAT-H2) | The staged review in the set-up, with Ethiopian hire dates read correctly, and people already counted as done |
 | 6 | Switch to Amharic and then Afaan Oromoo | The kind, rules and preview read in each language |
 
-Changed 2026-11-14: new (see 03 ORG-009 to ORG-014; 04 SET-008 to SET-022; 09 L10N-021).
+Changed 2026-11-14: new (see 03 ORG-009 to ORG-017; 04 SET-008 to SET-028; 09 L10N-021).
 
 **Done when:** a new organisation can be registered, set up and shown ready for its first payroll
 without being offered choices that make no sense for its kind.

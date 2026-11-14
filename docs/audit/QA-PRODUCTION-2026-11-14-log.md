@@ -6,7 +6,7 @@ Pack: [`docs/production testing/`](<../production testing/README.md>), sixth edi
 |---|---|
 | Release under test | `v2026.11.14.3`, `release.json` commit `d591fb2ad33c` (#723), built 2026-11-14 05:23:47Z. `production` carries `v2026.11.14.4` (#724, docs only), not deployed and not needed |
 | Organisation | None signed in. Public pages of QA Audit (`qa-audit`), Syntax Technology (`syntaxtech`) and the marketing site |
-| Persona | None. No saved sessions under `src/e2e-production/.auth/`; Chrome was signed out of every organisation |
+| Persona | None. No saved sessions under `src/e2e-production/.auth/`. In Chrome, checked by reading only: `qa-audit.ethr.et/login`, `www.ethr.et/login` and `admin.ethr.et` (13:25) each showed their sign-in form, so no QA Audit, apex or platform session was held. Other organisations' hosts were not checked. This is the owner's everyday Chrome, used today for Plesk; it is not the dedicated ETHR QA profile of 11, section 6.1, which is why only public pages were read in it |
 | Browser | Scripted: guarded Playwright (`playwright.production.config.ts`, `PW_CHANNEL=chrome`, service workers blocked). Agent: Chrome, unguarded, signed out, public pages only. A single `curl` GET or HEAD where a case asks for one |
 | Tester | Playwright and Claude Code; to be signed by the owner |
 
@@ -45,7 +45,7 @@ this machine, so nothing was sent. The rows below are the re-run on the installe
 | SEC-007 | Pass (signed out) | Claude Code | 12:51 | | | `/api/docs`: 403 `application/problem+json`. Signed-in half not run |
 | SEC-008 | Pass (headers only) | Claude Code | 13:15 | | | `/login` sends `X-Frame-Options: DENY` and `frame-ancestors 'none'`. The iframe itself was not loaded |
 | SEC-021 | Pass (one route) | Claude Code | 12:51 | | | `/api/v1/employees` with `X-Tenant: qa-audit` and no `Accept`: 401 problem+json "You are not authenticated." The other routes were not repeated |
-| MKT-001 | Pass (served HTML) | Claude Code | 12:58 | | en, am, om | All 33 pages (11 × 3) answer 200 with `<html lang>` matching the address and no raw translation key in the served text; `/ti`, `/so`, `/sid` answer 404. Translation completeness and images not read by eye |
+| MKT-001 | Pass (served HTML) | Claude Code | 12:58 | | en, am, om | Read as 36 sequential `curl` GETs, 1.5 s apart (one per page, no retries), not opened in a browser. All 33 pages (11 × 3) answer 200 with `<html lang>` matching the address and no raw translation key in the served text; `/ti`, `/so`, `/sid` answer 404. Translation completeness and images not read by eye |
 | MKT-006 | **Fail** | Claude Code | 13:05 | | | robots.txt as expected; `sitemap.xml` has 33 entries with x-default; the organisations sitemap has `max-age=3600`. **The organisations sitemap names `en` and `am` alternates only, while every portal page declares `en`, `am`, `om` and x-default.** Defect D-1 below. The pack row expected the same two languages, so it is corrected too |
 | MKT-007 | Pass | Claude Code | 13:00 | | | `GET /api/v1/trusted-by`: 7 organisations; Alice sec and Bob sec absent since they were hidden on 2026-11-14 |
 | LAND-005 | Pass | Claude Code | 13:08 | | | syntaxtech `/login`: canonical, `hreflang` en, am, om, x-default, one JSON-LD block, `X-Robots-Tag: index, follow` |
