@@ -245,7 +245,14 @@ final class WorkforceMigrationService
             $rows = $batch->rows()->whereNull('match_outcome')->orderBy('id')->limit($this->chunk)->get();
 
             foreach ($rows as $row) {
-                $row->update($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments));
+                // Written only while the row is still unmatched: a request
+                // that was slow behind another must not overwrite a decision
+                // made on a row the other had already finished.
+                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments));
+                MigrationStagingRow::query()
+                    ->whereKey($row->getKey())
+                    ->whereNull('match_outcome')
+                    ->update([...$row->getDirty(), 'updated_at' => now()]);
             }
 
             $remaining = $batch->rows()->whereNull('match_outcome')->count();

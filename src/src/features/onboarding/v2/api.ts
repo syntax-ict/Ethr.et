@@ -268,29 +268,137 @@ export function useDeleteImportSource() {
   });
 }
 
+/** Where a list that is still being matched stands. */
+export interface StagingProgress {
+  public_id: string;
+  status: "staging" | "reviewing";
+  /** People matched so far. */
+  staged: number;
+  /** People still to match. The request is sent again until it is 0. */
+  remaining: number;
+}
+
+/** Slices in a row that may pass without the list getting shorter. */
+const STALLED_AFTER = 3;
+
+/** A matching or a commit that kept answering without the list getting shorter. */
+export class StagingStalled extends Error {
+  constructor() {
+    super("The list stopped moving.");
+    this.name = "StagingStalled";
+  }
+}
+
+/**
+ * Matching a list stopped after its people were stored. The list is kept, so
+ * `batchId` is enough to carry on; `cause` is what stopped it.
+ */
+export class StagingInterrupted extends Error {
+  constructor(
+    readonly batchId: string,
+    readonly cause: unknown,
+    readonly progress: StagingProgress | null,
+  ) {
+    super("Matching the list stopped before it finished.");
+    this.name = "StagingInterrupted";
+  }
+}
+
+/**
+ * Match a stored list's people. The server works for a few seconds per
+ * request and answers `staging` with how many are left, so the request is
+ * sent again until it answers `reviewing`; then the list is read once.
+ * Matching a person twice writes the same answer twice, so carrying on after
+ * a failure is safe.
+ */
+export async function carryOnStaging(
+  first: StagingProgress,
+  onProgress?: (progress: StagingProgress) => void,
+): Promise<MigrationBatch> {
+  const batchId = first.public_id;
+  let progress = first;
+  let left = Number.POSITIVE_INFINITY;
+  let stalled = 0;
+
+  try {
+    while (progress.status === "staging") {
+      onProgress?.(progress);
+
+      // A list that is not getting shorter would loop for ever.
+      stalled = progress.remaining < left ? 0 : stalled + 1;
+      left = progress.remaining;
+      if (stalled >= STALLED_AFTER) {
+        throw new StagingStalled();
+      }
+
+      progress = (
+        await apiClient.post(`/onboarding/migration/batches/${batchId}/stage`)
+      ).data;
+    }
+
+    return (await apiClient.get(`/onboarding/migration/batches/${batchId}`))
+      .data;
+  } catch (err) {
+    throw new StagingInterrupted(batchId, err, progress);
+  }
+}
+
+type StageRowsPayload =
+  | {
+      grid: string[][];
+      calendar: "ethiopian" | "gregorian";
+      /** Stage the lines that can be read and leave the rest out. */
+      skip_problems?: boolean;
+      source_type?: string;
+      /** A saved source: its column names, and what its ids are kept against. */
+      source?: string | null;
+      /** Column names matched for this list. */
+      mapping?: ColumnMatch[] | null;
+    }
+  | { rows: Record<string, unknown>[]; source_type?: string };
+
+/**
+ * Stage a list: every person is stored by the first request, which answers
+ * the whole list when it is short and otherwise how far matching got.
+ * A refusal of the list itself is thrown as it came; anything after the list
+ * was stored is a `StagingInterrupted`.
+ */
+export async function stageMigration(
+  payload: StageRowsPayload,
+  onProgress?: (progress: StagingProgress) => void,
+): Promise<MigrationBatch> {
+  const answer: MigrationBatch | StagingProgress = (
+    await apiClient.post("/onboarding/migration/rows", payload)
+  ).data;
+
+  if ("rows" in answer) return answer;
+
+  return carryOnStaging(answer, onProgress);
+}
+
 /**
  * Stage a list for review: as lines of cells (`grid`), which the server reads
- * as it reads every list, or as people already keyed by field (`rows`).
+ * as it reads every list, or as people already keyed by field (`rows`). A long
+ * list is matched a slice at a time; `onProgress` hears each.
  */
-export function useStageFromRows() {
-  return useMutation<
-    MigrationBatch,
-    unknown,
-    | {
-        grid: string[][];
-        calendar: "ethiopian" | "gregorian";
-        /** Stage the lines that can be read and leave the rest out. */
-        skip_problems?: boolean;
-        source_type?: string;
-        /** A saved source: its column names, and what its ids are kept against. */
-        source?: string | null;
-        /** Column names matched for this list. */
-        mapping?: ColumnMatch[] | null;
-      }
-    | { rows: Record<string, unknown>[]; source_type?: string }
-  >({
-    mutationFn: async (payload) =>
-      (await apiClient.post("/onboarding/migration/rows", payload)).data,
+export function useStageFromRows(
+  onProgress?: (progress: StagingProgress) => void,
+) {
+  return useMutation<MigrationBatch, unknown, StageRowsPayload>({
+    mutationFn: (payload) => stageMigration(payload, onProgress),
+  });
+}
+
+/** Carry on matching a list whose matching stopped. */
+export function useCarryOnStaging(
+  onProgress?: (progress: StagingProgress) => void,
+) {
+  return useMutation<MigrationBatch, unknown, string>({
+    mutationFn: (batchId) =>
+      carryOnStaging(
+        { public_id: batchId, status: "staging", staged: 0, remaining: 1 },
+        onProgress,
+      ),
   });
 }
 
@@ -316,9 +424,6 @@ export function useSetRowAction() {
       ).data,
   });
 }
-
-/** Slices in a row that may pass without the list getting shorter. */
-const STALLED_AFTER = 3;
 
 /** A commit that kept answering without the list getting shorter. */
 export class CommitStalled extends Error {
