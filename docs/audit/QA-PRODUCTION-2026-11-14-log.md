@@ -169,3 +169,38 @@ latest release running and no migration waiting. No release step was needed: no 
 | DEV-030 | Pass | Chrome, unguarded | ~16:43 | TA | en | D-4 fixed: the push terminal's Sync History reads "This terminal sends each punch as it happens, so there are no scheduled pulls to list. Its punches are under Attendance Events." |
 | D-3 dialog | Pass | Chrome, unguarded | ~16:44 | TA | en | Register Device: "Branch *", `aria-required`, QA Branch filled in (the only branch), Register enabled; closed without registering. The server's "The branch field is required." is no longer reachable from the dialog here and is pinned by `DeviceManagementTest` |
 | D-2 | Pass | Chrome, unguarded | ~16:45 | TA | en, am | `GET /api/v1/onboarding/industries`: "Ethiopian private sector", "Ethiopian public sector (civil service)" and their Amharic, no dash. Afaan Oromoo text for the wizard's lists is still missing (a wider gap, not this defect) |
+
+## L10N-023 after #729 went live (v2026.11.14.9, about 20:00 EAT)
+
+Deployed 2026-11-14 at about 16:58Z: Plesk Pull now, then Deploy now (the pull alone did not deploy,
+again). `release.json` reads `2fa790d5fbcc`, built 16:01:42Z; `scripts/release-status.sh` reports
+the latest release running and no migration waiting.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| L10N-023 | Pass, one step not run | Chrome, unguarded | ~20:05 | TA | om, am, en | QA Audit, `/setup/guided`, Bank chosen, Apply not pressed. Afaan Oromoo: all 35 industry cards and their group headings, "Torban Guyyaa Jahaa (Sanbata Ganama)" and "Kutaa Dhuunfaa Itoophiyaa" with the line under each, the shifts ("Guyyaa Hojii 08:00–17:00", "Sanbata 08:00–12:00"), the rotation, the seven leave types ("Boqonnaa Waggaa" first) and the three allowances ("Abbaltii Geejjibaa" first) are in Oromo; none is in English or Amharic. Amharic and English read as before. **Not run:** reading the body of `GET /api/v1/onboarding/industries`. The screen made the call (200) but this browser's tool shows no response body, and the same address typed in the address bar answers 401 `unauthenticated`, as it should; the call was not sent again with the session's token. The Oromo on screen is the evidence that `label_om` and `description_om` arrive, since the screen has no Oromo of its own for these lists. O-1 and O-2 below |
+
+Two things seen on the way. Neither is part of #729, and neither is filed.
+
+**O-1. The proposal's notes keep the language the proposal was opened in.** P4, usability.
+
+- Where: the "Confirm before you apply" list on the proposal. Its four notes are text in the answer
+  to `POST /api/v1/onboarding/configuration/preview`, which the screen keeps
+  (`usePreviewConfiguration`, `src/src/features/onboarding/v2/api.ts:86`) and does not ask for
+  again when the header language changes.
+- Seen on production, about 20:08: proposal opened in Afaan Oromoo, header switched to አማርኛ and then
+  to English. Everything else on the screen followed; the four notes stayed in Oromo. Pressing Change
+  and Review proposal again brought them back in English.
+- Expected: the notes follow the header language like the rest of the screen, or the proposal is
+  asked for again when the language changes.
+
+**O-2. Names the wizard has in English only.** Copy gap, for the register in
+`docs/i18n/AMHARIC-REVIEW.md`.
+
+- The proposed departments, positions and grades (Operations, Credit, President, Grade I) read in
+  English in all three languages. They have no Amharic either, so this is as before and outside
+  L10N-023, which lists industries, profiles, shifts, leave types and allowances.
+- "Private organisation" under the organisation's kind in law read in English on the Afaan Oromoo
+  screen. It was not read in Amharic.
+
+Left as found: header language back to English, nothing applied, QA Audit still signed in as TA.
