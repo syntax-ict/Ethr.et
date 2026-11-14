@@ -232,6 +232,22 @@ describe("device detail for a terminal that has not been heard from", () => {
     expect(screen.queryByText("Online")).not.toBeInTheDocument();
   });
 
+  // QA 2026-11-14, D-4: the Sync History tab of a Hikvision push terminal
+  // still said to pull records; only ZKTeco ADMS had the push wording.
+  it("says a terminal that sends has no scheduled pulls, not to pull records", async () => {
+    serveDevice(PUSH);
+    renderDetail();
+
+    expect(
+      await screen.findByText(
+        "This terminal sends each punch as it happens, so there are no scheduled pulls to list. Its punches are under Attendance Events.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/pull records or wait for the automatic sync/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("says how long an offline terminal has been silent", async () => {
     serveDevice({
       ...PUSH,

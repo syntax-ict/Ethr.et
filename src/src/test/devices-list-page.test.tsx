@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -43,7 +44,10 @@ const base = {
   updated_at: "2026-11-12T06:00:00Z",
 };
 
-function serve(devices: object[]) {
+function serve(
+  devices: object[],
+  branches: { public_id: string; name: string }[] = [],
+) {
   server.use(
     http.get("*/api/v1/devices", () =>
       HttpResponse.json({
@@ -52,10 +56,18 @@ function serve(devices: object[]) {
         links: { next: null, prev: null },
       }),
     ),
-    http.get("*/api/v1/branches", () =>
+    http.get("*/api/v1/devices/unmatched-punches", () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get("*/api/v1/organization/branches", () =>
       HttpResponse.json({
-        data: [],
-        meta: { current_page: 1, last_page: 1, per_page: 25, total: 0 },
+        data: branches,
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: 25,
+          total: branches.length,
+        },
         links: { next: null, prev: null },
       }),
     ),
@@ -125,5 +137,50 @@ describe("<DevicesPage> cards", () => {
     expect(
       within(pull).getByRole("button", { name: /^pull$/i }),
     ).toBeInTheDocument();
+  });
+});
+
+// QA 2026-11-14, D-3: Register with no branch answered "The branch public id
+// field is required.", from a form that did not say a branch was needed.
+describe("<DevicesPage> register dialog", () => {
+  it("asks for a branch before Register when there is a choice to make", async () => {
+    serve(
+      [],
+      [
+        { public_id: "B1", name: "Head office" },
+        { public_id: "B2", name: "Kombolcha" },
+      ],
+    );
+    renderPage();
+
+    await userEvent.click(
+      (await screen.findAllByRole("button", { name: /add device/i }))[0],
+    );
+    const dialog = await screen.findByRole("dialog");
+
+    expect(await within(dialog).findByText("Branch *")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("combobox", { name: /branch/i }),
+    ).toHaveAttribute("aria-required", "true");
+    expect(
+      within(dialog).getByRole("button", { name: /^register$/i }),
+    ).toBeDisabled();
+  });
+
+  it("fills in the only branch, so Register is not held back", async () => {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    renderPage();
+
+    await userEvent.click(
+      (await screen.findAllByRole("button", { name: /add device/i }))[0],
+    );
+    const dialog = await screen.findByRole("dialog");
+
+    expect(
+      (await within(dialog).findAllByText("Head office")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(dialog).getByRole("button", { name: /^register$/i }),
+    ).toBeEnabled();
   });
 });

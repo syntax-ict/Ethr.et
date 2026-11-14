@@ -55,6 +55,22 @@ Drafts written without a native speaker; a wrong label moves no money.
 
 The two sign-up errors, `auth.org_type_required` and `auth.org_kind_required`, read identically in Amharic and Afaan Oromoo. Each now repeats the wording of the label it sits under, so the legal-kind error carries ሕጋዊ and *seeraan* as its label does, and the industry error matches its own label; `settings.org_kind_show_all` in Afaan Oromoo now uses the label's *seeraan*. Drafted by a non-native reviewer from terms the locale already uses; a native speaker's reading is still owed.
 
+### QA defects D-2 and D-3 (2026-11-14)
+
+Drafted, not native-reviewed. The policy names in the setup wizard
+(`PolicyProfileCatalog`) lost their em dash, which house style forbids, by
+becoming one noun phrase instead of two parts:
+
+| Where | English | Amharic |
+|---|---|---|
+| `ethiopia_private.label` | Ethiopian private sector | የኢትዮጵያ የግል ዘርፍ |
+| `ethiopia_public.label` | Ethiopian public sector (civil service) | የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ) |
+| `validation.attributes.branch_public_id` | branch | ቅርንጫፍ (Afaan Oromoo: damee) |
+
+The attribute name reuses the word the branch field already shows
+(`attendance.kiosks_page.branch`). The wizard's catalogues still carry no
+Afaan Oromoo text at all; that is a wider gap than this fix.
+
 ### Dry-run payroll and future-dated kind changes (2026-11-09)
 
 24 keys drafted in Amharic and Afaan Oromoo without a native speaker:
