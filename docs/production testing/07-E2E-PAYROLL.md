@@ -442,7 +442,7 @@ employee's behalf (`employee_public_id`); someone else approves.
 
 ## 13. Statutory rules by profile (#682)
 
-**Run only once #682 is deployed (check S-01); until then record Blocked.**
+**#682 is deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`): run these; check S-01 for the release under test.**
 
 An organisation's profile is its kind of organisation in law and its sector (the industry its
 configuration step chose), dated. Each statutory code is resolved for a date: the organisation's own

@@ -16,12 +16,12 @@ cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, the
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), makes the pack runnable by
 Claude Code, with Playwright or Chrome ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
 configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
-they are recorded Blocked until #682 is deployed. **The fifth edition** (2026-11-12) adds the
+#682 has since been deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`), so they are run, no longer recorded Blocked. **The fifth edition** (2026-11-12) adds the
 employee identity and import slice (#690 to #701, up to `c8cc3a4b2d`): one gateway that asks
 before creating a second employee, one reader for every list of people with the import as its
 staged review, the workbook template and saved column names, one starting password for a batch,
 a Hikvision terminal that sends to ETHR instead of being called, and the robots line that
-survives hydration. The figures
+survives hydration. **The sixth edition** (2026-11-14) adds cases for #707 to #723, up to `d591fb2ad33c` (`v2026.11.14.3`): push terminals that say what state they are in and why a call was refused, an unrecognised badge to a person with its punches replayed, the Add Employee menu, the kind of organisation narrowing the lists after it, the three-request cap, the new ETHR mark and the 404 page's language. It also brings the [UAT guide](02-UAT-GUIDE.md) up to date with everything shipped since 2026-10-29; its first run is `docs/audit/QA-PRODUCTION-2026-11-14-log.md`. The baseline marker below stays at the fifth edition because [10](10-TEMPLATES-AND-REFERENCE.md) was not re-audited in this pass. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.

@@ -88,8 +88,15 @@ signed in or not. So start each persona's save in a terminal of its own, and nev
 start another under the same file name. On 2026-11-13 that overwrote a TA session with a QA Audit window
 that was never signed in, and every page answered `/login`. The scripts now skip a persona whose file
 holds no sign-in, or signed in on a host other than the one under test, and say why
-(`sessionProblem` and `sessionHostProblem` in `src/e2e-production/env.ts`). They read only where each
-sign-in cookie belongs and when it expires, never its value.
+(`sessionProblem` and `sessionHostProblem` in `src/e2e-production/env.ts`, #721). They read only where each
+sign-in cookie belongs and when it expires, never its value. Four things make a persona skip, each with its own reason
+in the log: no file (or one that is not a Playwright storage file); a file older than the 15-minute idle limit; a file
+holding no `access_token` cookie scoped to `/api` (a window closed or stopped before anyone signed in); and a file whose
+`access_token` has expired. After the organisation's address is known, `sessionHostProblem` also skips a persona whose
+cookie does not cover that host (saved on another organisation, or on the apex when the run goes to the console):
+"signed in on X, not Y. Save it again from Y". A skipped persona is Blocked in the log, not Failed, and the fix is to save
+the session again from the host under test (added 2026-11-14, sixth edition). This is the script reading the file's
+metadata; an agent still never opens or prints the file (rule 4 of `CLAUDE.md`).
 
 - `src/e2e-production/.auth/` is ignored by Git. **Never commit, attach, upload or paste a session
   file.** It is a signed-in session: anyone holding it is that persona until it expires.
