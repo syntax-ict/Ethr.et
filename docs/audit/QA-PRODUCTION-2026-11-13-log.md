@@ -74,6 +74,13 @@ read (rule 3). Header cases used the single `curl -I` each case names (rule 5).
 | PERF-009 | **Fail** | Claude, built-in | 23:50 | | en | `/en` loads `/_next/static/chunks/1jm-5dwy7-al5.js`, the **whole of `am.json`** (604,002 bytes unpacked, about 110,000 Ethiopic characters, `accounting_page.account_code` "የሂሳብ ኮድ" among them). Cause: the home page prefetches `/register` in view, a route in the `(auth)` group, whose layout imports `amharic-dictionary.tsx`. A background prefetch, so not on first paint, but the bytes are spent on every visit to the home page. `/en/pricing` and `/en/no-such-page`: not found. Draft defect below |
 | PERF-009 (404) | **Fail** | Claude, built-in | 23:51 | | am | `/am/no-such-page` is served in Amharic ("ገጹ አልተገኘም") and then switches to English after hydration, because this browser's saved language was `en`. `/am/pricing` with the same saved choice stays Amharic and saves `am`: only the 404 page lets the saved choice outrank the address. P3 |
 
+### Re-run after the fix, 2026-11-14 (v2026.11.14.3, live `d591fb2ad33c`)
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| PERF-009 | Pass | Claude, built-in | 10:57 | | en | `/en`: 22 scripts, none holds "የሂሳብ ኮድ", and no `/register` prefetch (#722) |
+| PERF-009 (404) | Pass | Claude, built-in | 10:58 | | am | `/am/no-such-page` with `en` saved stays Amharic after hydration, `lang="am"` (#723) |
+
 ### Draft defect: the home page fetches the whole Amharic dictionary (PERF-009)
 
 | | |
