@@ -284,6 +284,8 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The 404 page reads in the language its address names | #723 | L10N-022; SEC-003 and NEWS-001 changed |
 | The organisations sitemap is expected to name `om` as the page does (product defect D-1, 2026-11-14 log) | pack correction | MKT-006 changed |
 | The UAT guide brought up to date with what shipped since 2026-10-29 | this edition | [02](02-UAT-GUIDE.md): UAT-E14, E15, H14 to H18, F6, A8, P1 steps 10 and 11; twelve scenarios changed |
+| The wizard's policy names lose their em dash; the organisations sitemap names `om`; a device with no branch is refused in plain words and the dialog asks for one; a Hikvision push terminal's Sync History has the push wording | #727 | SET-023, SET-024, MKT-006, DEV-030 (expectations already as fixed) |
+| The setup wizard's industries, profiles, shifts, leave types and allowances read in Afaan Oromoo | #729 | L10N-023 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone
