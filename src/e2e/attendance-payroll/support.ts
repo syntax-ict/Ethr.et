@@ -223,6 +223,23 @@ export function heldPunchTimes(): { arrived: Date; left: Date } {
   return { arrived, left };
 }
 
+/**
+ * A punch `minutes` ago that must fall on today's Addis date, because the
+ * journey then reads today's shift (my-shift, a kiosk punch today). In the
+ * hours after midnight it would be dated yesterday and the journey would fail
+ * for the time of day: a push at 21:02 UTC did (#721, 2026-11-13). Skipped
+ * with the reason instead, as `heldPunchTimes` does.
+ */
+export function earlierToday(minutes: number): Date {
+  const moment = minutesAgo(minutes);
+  test.skip(
+    addisDate(moment) !== addisDate(new Date()),
+    `It is less than ${minutes} minutes after midnight in Addis Ababa: the punch would be dated yesterday, ` +
+      "and the journey reads today's shift.",
+  );
+  return moment;
+}
+
 export type AttendanceRow = {
   public_id: string;
   date: string;
