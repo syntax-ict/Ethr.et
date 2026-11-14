@@ -5,6 +5,7 @@ export interface Industry {
   key: string;
   label: string;
   label_am: string;
+  label_om?: string;
   base: string;
   icon: string;
   group: string;
@@ -19,8 +20,10 @@ export interface ConfigurationProfile {
   key: string;
   label: string;
   label_am: string;
+  label_om?: string;
   description: string;
   description_am?: string;
+  description_om?: string;
 }
 
 export interface IndustryCatalogResponse {
@@ -45,14 +48,30 @@ export interface ConfigurationSection {
 }
 
 export interface ConfigurationPlan {
-  industry: { key: string; label: string; label_am: string; base: string };
+  industry: {
+    key: string;
+    label: string;
+    label_am: string;
+    label_om?: string;
+    base: string;
+  };
   signals: Record<string, unknown>;
   overall_confidence: number;
   sections: Record<string, ConfigurationSection>;
   plan: Record<string, unknown>;
   profiles?: {
-    workforce?: { key: string; label: string; label_am: string };
-    policy?: { key: string; label: string; label_am: string };
+    workforce?: {
+      key: string;
+      label: string;
+      label_am: string;
+      label_om?: string;
+    };
+    policy?: {
+      key: string;
+      label: string;
+      label_am: string;
+      label_om?: string;
+    };
   };
   /** Sensitive defaults the admin confirms before applying. */
   review?: ConfigurationReviewNote[];

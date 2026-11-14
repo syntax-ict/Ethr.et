@@ -27244,6 +27244,7 @@ export interface operations {
                             key: string;
                             label: string;
                             label_am: string;
+                            label_om: string;
                             base: string;
                             icon: string;
                             group: string;
@@ -27254,15 +27255,19 @@ export interface operations {
                             key: string;
                             label: string;
                             label_am: string;
+                            label_om: string;
                             description: string;
                             description_am: string;
+                            description_om: string;
                         }[];
                         policy_profiles: {
                             key: string;
                             label: string;
                             label_am: string;
+                            label_om: string;
                             description: string;
                             description_am: string;
+                            description_om: string;
                         }[];
                         /** @constant */
                         catalog_version: "2026.10.1";
@@ -27296,6 +27301,7 @@ export interface operations {
                             key: string;
                             label: string;
                             label_am: string;
+                            label_om: string;
                             base: string;
                         };
                         signals: unknown[];
@@ -27309,11 +27315,13 @@ export interface operations {
                                 key: string;
                                 label: string;
                                 label_am: string;
+                                label_om: string;
                             };
                             policy: {
                                 key: string;
                                 label: string;
                                 label_am: string;
+                                label_om: string;
                             };
                         };
                         review: unknown[];

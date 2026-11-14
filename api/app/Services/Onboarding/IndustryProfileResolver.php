@@ -61,7 +61,7 @@ final class IndustryProfileResolver
     public function resolve(string $industryKey, array $signals = []): ConfigurationPlan
     {
         $industry = $this->catalog->find($industryKey) ?? $this->catalog->find('custom');
-        /** @var array{key: string, label: string, label_am: string, base: string, icon: string, group: string, profile: string, policy: string, overrides: array<string, mixed>} $industry */
+        /** @var array{key: string, label: string, label_am: string, label_om: string, base: string, icon: string, group: string, profile: string, policy: string, overrides: array<string, mixed>} $industry */
         $base = $this->baseTemplateData($industry['base']);
         $overrides = $industry['overrides'];
 
@@ -77,8 +77,8 @@ final class IndustryProfileResolver
         $fromKind = $this->policyProfiles->forLineage($this->profileContext->lineage($kind));
         $policy = $this->policyProfiles->find($policyChosen ? $signals['policy_profile'] : ($fromKind ?? $industry['policy']))
             ?? $this->policyProfiles->find('ethiopia_private');
-        /** @var array{key: string, label: string, label_am: string, description: string, shifts: list<array<string, mixed>>, rotations: list<array<string, mixed>>, working_days: list<int>, attendance: array<string, mixed>, review: list<string>} $profile */
-        /** @var array{key: string, label: string, label_am: string, description: string, leave_types: list<string>, fiscal_year_start_month: int, allowances: list<array{name: string, name_am: string}>, review: list<string>} $policy */
+        /** @var array{key: string, label: string, label_am: string, label_om: string, description: string, shifts: list<array<string, mixed>>, rotations: list<array<string, mixed>>, working_days: list<int>, attendance: array<string, mixed>, review: list<string>} $profile */
+        /** @var array{key: string, label: string, label_am: string, label_om: string, description: string, leave_types: list<string>, fiscal_year_start_month: int, allowances: list<array{name: string, name_am: string, name_om: string}>, review: list<string>} $policy */
         $sections = [];
 
         foreach (self::LIST_SECTIONS as $key) {
@@ -102,8 +102,8 @@ final class IndustryProfileResolver
             $signals,
             $sections,
             [
-                'workforce' => ['key' => $profile['key'], 'label' => $profile['label'], 'label_am' => $profile['label_am']],
-                'policy' => ['key' => $policy['key'], 'label' => $policy['label'], 'label_am' => $policy['label_am']],
+                'workforce' => ['key' => $profile['key'], 'label' => $profile['label'], 'label_am' => $profile['label_am'], 'label_om' => $profile['label_om']],
+                'policy' => ['key' => $policy['key'], 'label' => $policy['label'], 'label_am' => $policy['label_am'], 'label_om' => $policy['label_om']],
             ],
             array_map(static fn (string $code): array => ['code' => $code, 'message' => __('onboarding.review.'.$code)], $review),
         );
@@ -139,7 +139,7 @@ final class IndustryProfileResolver
      * the industry's.
      *
      * @param  array<string, array{source: ConfigurationSource, items: mixed}>  $sections
-     * @param  array{leave_types: list<string>, allowances: list<array{name: string, name_am: string}>}  $policy
+     * @param  array{leave_types: list<string>, allowances: list<array{name: string, name_am: string, name_om: string}>}  $policy
      * @param  array<string, mixed>  $base
      * @param  array<string, mixed>  $overrides
      */
@@ -168,7 +168,7 @@ final class IndustryProfileResolver
             $definition = $this->leaveTypes->resolve($code);
             $items[] = $definition === null
                 ? $code
-                : ['code' => $definition['code'], 'name' => $definition['name'] ?? $code, 'name_am' => $definition['name_am'] ?? null];
+                : ['code' => $definition['code'], 'name' => $definition['name'] ?? $code, 'name_am' => $definition['name_am'] ?? null, 'name_om' => $definition['name_om'] ?? null];
         }
 
         $sections['leave_types'] = [
@@ -246,6 +246,7 @@ final class IndustryProfileResolver
             'items' => [[
                 'name' => 'Headquarters',
                 'name_am' => 'ዋና መስሪያ ቤት',
+                'name_om' => 'Waajjira Guddaa',
                 'city' => $region,
                 'code' => 'HQ',
             ]],

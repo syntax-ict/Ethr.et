@@ -797,3 +797,89 @@ describe("ReadinessStep", () => {
     expect(posts).toBe(1);
   });
 });
+
+describe("IndustryConfigStep — catalogue text follows the locale", () => {
+  const catalogue = () =>
+    http.get("*/api/v1/onboarding/industries", () =>
+      HttpResponse.json({
+        data: [
+          {
+            key: "hospital",
+            label: "Hospital",
+            label_am: "ሆስፒታል",
+            label_om: "Hospitaala",
+            base: "hospital",
+            icon: "x",
+            group: "healthcare",
+            profile: "continuous_24_7",
+            policy: "ethiopia_private",
+          },
+          {
+            key: "bank",
+            label: "Bank",
+            label_am: "ባንክ",
+            label_om: "",
+            base: "bank",
+            icon: "x",
+            group: "financial",
+          },
+        ],
+        workforce_profiles: [
+          {
+            key: "continuous_24_7",
+            label: "Round the clock (24/7)",
+            label_am: "ሌት ተቀን (24/7)",
+            label_om: "Halkanii fi Guyyaa (24/7)",
+            description: "Four crews.",
+            description_am: "አራት ቡድኖች።",
+            description_om: "Gareewwan afur.",
+          },
+        ],
+        policy_profiles: [],
+      }),
+    );
+
+  it("shows the Afaan Oromoo industry, profile and description for om", async () => {
+    localStorage.setItem("locale", "om");
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      catalogue(),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospitaala"));
+
+    expect(await screen.findByText("Halkanii fi Guyyaa (24/7)")).toBeVisible();
+    expect(screen.getByText("Gareewwan afur.")).toBeVisible();
+    expect(screen.queryByText("Hospital")).not.toBeInTheDocument();
+    // An empty Oromo text falls back to English, never a blank card.
+    expect(screen.getByText("Bank")).toBeVisible();
+    expect(screen.queryByText("Four crews.")).not.toBeInTheDocument();
+  });
+
+  it("shows English for en, and English where the Oromo text is empty", async () => {
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      catalogue(),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+
+    expect(await screen.findByText("Round the clock (24/7)")).toBeVisible();
+    expect(screen.getByText("Four crews.")).toBeVisible();
+    expect(screen.queryByText("Hospitaala")).not.toBeInTheDocument();
+  });
+});

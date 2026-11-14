@@ -249,3 +249,21 @@ native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is 
 | `webhooks_page.edit_webhook` | Edit webhook | ዌብሁኩን አርትዕ |
 | `webhooks_page.enabled` | Webhook enabled | ዌብሁኩ ነቅቷል |
 | `webhooks_page.updated` | Webhook updated | ዌብሁኩ ተዘምኗል |
+
+## Setup wizard catalogues in Afaan Oromoo (2026-11-14)
+
+The setup wizard shows catalogue text that comes from the backend, not from the dictionaries, and it picked Amharic with an `am` check, so an Afaan Oromoo reader saw English. Every `label_am`, `description_am` and `name_am` in the wizard catalogues now has an `_om` beside it, and the frontend picks `field_<locale>` for any shipped locale (`features/onboarding/v2/localized.ts`), falling back to English when the Oromo text is empty.
+
+**Drafted, not native-reviewed.** The text was written by a non-native reviewer from terms the product already ships in `om.json` and `api/lang/om/` (*boqonnaa* leave, *abbaltii* allowance, *damee* branch, *hojjetaa* employee, *shiftii* shift, *Fulbaana* and *Adoolessa* for Meskerem and Hamle, *Labsii Hojjetaa* for the Labour Proclamation). A native speaker's reading is still owed (O7). The names that are least certain are marked below.
+
+| Catalogue | File | `_om` strings |
+|---|---|---|
+| Industries (labels, and the allowance names in their overrides) | `api/app/Services/Onboarding/IndustryCatalog.php` | 35 labels, 4 allowance names |
+| Workforce profiles (labels, descriptions, shift and rotation names) | `api/app/Services/Onboarding/WorkforceProfileCatalog.php` | 10 labels, 10 descriptions, 21 names |
+| Policy profiles (labels, descriptions, allowance names) | `api/app/Services/Onboarding/PolicyProfileCatalog.php` | 3 labels, 3 descriptions, 6 names |
+| Leave types | `api/app/Services/Onboarding/LeaveTypeCatalog.php` | 13 names |
+| The proposed head-office branch | `api/app/Services/Onboarding/IndustryProfileResolver.php` | 1 name |
+
+`OnboardingCatalogCopyTest` fails when an `_am` text has no `_om`, an empty one, or one equal to the English or the Amharic.
+
+Terms to check first, because the English has no settled Oromo equivalent in the product yet: *Sektara Mootummaa* (government sector), *Telekoominikeeshinii*, *Boqonnaa Qorannoo* (sabbatical), *Boqonnaa Gaddaa* (bereavement), *Boqonnaa Gaa'elaa* (marriage), *Hafuu Hayyamamaa* (excused absence), *Waaree Booda* (afternoon and swing shift) and *Torban Guyyaa Jahaa* (six-day week).

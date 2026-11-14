@@ -479,7 +479,9 @@ final class OrganizationProvisioner
             }
 
             $this->createOrSkip($result, 'leave_types', LeaveType::class, $tenant, 'code', $definition['code'], function () use ($tenant, $definition) {
-                return array_merge($definition, ['tenant_id' => $tenant->id]);
+                // `name_om` is display text for the wizard; leave_types has no such column, and an
+                // unknown attribute throws outside production.
+                return array_merge(array_diff_key($definition, ['name_om' => true]), ['tenant_id' => $tenant->id]);
             });
         }
     }
