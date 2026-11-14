@@ -25229,6 +25229,9 @@
                                                 "label_am": {
                                                     "type": "string"
                                                 },
+                                                "label_om": {
+                                                    "type": "string"
+                                                },
                                                 "base": {
                                                     "type": "string"
                                                 }
@@ -25237,6 +25240,7 @@
                                                 "key",
                                                 "label",
                                                 "label_am",
+                                                "label_om",
                                                 "base"
                                             ]
                                         },
@@ -25268,12 +25272,16 @@
                                                         },
                                                         "label_am": {
                                                             "type": "string"
+                                                        },
+                                                        "label_om": {
+                                                            "type": "string"
                                                         }
                                                     },
                                                     "required": [
                                                         "key",
                                                         "label",
-                                                        "label_am"
+                                                        "label_am",
+                                                        "label_om"
                                                     ]
                                                 },
                                                 "policy": {
@@ -25287,12 +25295,16 @@
                                                         },
                                                         "label_am": {
                                                             "type": "string"
+                                                        },
+                                                        "label_om": {
+                                                            "type": "string"
                                                         }
                                                     },
                                                     "required": [
                                                         "key",
                                                         "label",
-                                                        "label_am"
+                                                        "label_am",
+                                                        "label_om"
                                                     ]
                                                 }
                                             },
@@ -25442,6 +25454,9 @@
                                                     "label_am": {
                                                         "type": "string"
                                                     },
+                                                    "label_om": {
+                                                        "type": "string"
+                                                    },
                                                     "base": {
                                                         "type": "string"
                                                     },
@@ -25462,6 +25477,7 @@
                                                     "key",
                                                     "label",
                                                     "label_am",
+                                                    "label_om",
                                                     "base",
                                                     "icon",
                                                     "group",
@@ -25484,10 +25500,16 @@
                                                     "label_am": {
                                                         "type": "string"
                                                     },
+                                                    "label_om": {
+                                                        "type": "string"
+                                                    },
                                                     "description": {
                                                         "type": "string"
                                                     },
                                                     "description_am": {
+                                                        "type": "string"
+                                                    },
+                                                    "description_om": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -25495,8 +25517,10 @@
                                                     "key",
                                                     "label",
                                                     "label_am",
+                                                    "label_om",
                                                     "description",
-                                                    "description_am"
+                                                    "description_am",
+                                                    "description_om"
                                                 ]
                                             }
                                         },
@@ -25514,10 +25538,16 @@
                                                     "label_am": {
                                                         "type": "string"
                                                     },
+                                                    "label_om": {
+                                                        "type": "string"
+                                                    },
                                                     "description": {
                                                         "type": "string"
                                                     },
                                                     "description_am": {
+                                                        "type": "string"
+                                                    },
+                                                    "description_om": {
                                                         "type": "string"
                                                     }
                                                 },
@@ -25525,8 +25555,10 @@
                                                     "key",
                                                     "label",
                                                     "label_am",
+                                                    "label_om",
                                                     "description",
-                                                    "description_am"
+                                                    "description_am",
+                                                    "description_om"
                                                 ]
                                             }
                                         },

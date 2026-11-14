@@ -27,6 +27,7 @@ final class LeaveTypeCatalog
         'annual' => [
             'name' => 'Annual Leave',
             'name_am' => 'ዓመታዊ ፈቃድ',
+            'name_om' => 'Boqonnaa Waggaa',
             // Days and the Art. 77(1) seniority step: `leave.annual.*`.
             'accrual_type' => 'monthly',
             'carry_forward' => true,
@@ -38,6 +39,7 @@ final class LeaveTypeCatalog
         'sick' => [
             'name' => 'Sick Leave',
             'name_am' => 'የሕመም ፈቃድ',
+            'name_om' => 'Boqonnaa Dhukkubaa',
             'default_days' => 30,
             'accrual_type' => 'annual',
             'is_paid' => true,
@@ -49,6 +51,7 @@ final class LeaveTypeCatalog
         'maternity' => [
             'name' => 'Maternity Leave',
             'name_am' => 'የወሊድ ፈቃድ',
+            'name_om' => 'Boqonnaa Da\'umsaa',
             // Days: `leave.maternity.days`.
             'accrual_type' => 'one_time',
             // Art. 88: 120 consecutive days, so calendar days, not working days.
@@ -61,6 +64,7 @@ final class LeaveTypeCatalog
         'paternity' => [
             'name' => 'Paternity Leave',
             'name_am' => 'የአባትነት ፈቃድ',
+            'name_om' => 'Boqonnaa Abbummaa',
             // Days: `leave.paternity.days`.
             'accrual_type' => 'one_time',
             'is_paid' => true,
@@ -70,6 +74,7 @@ final class LeaveTypeCatalog
         'bereavement' => [
             'name' => 'Bereavement Leave',
             'name_am' => 'የሐዘን ፈቃድ',
+            'name_om' => 'Boqonnaa Gaddaa',
             'default_days' => 3,
             'accrual_type' => 'annual',
             'is_paid' => true,
@@ -78,6 +83,7 @@ final class LeaveTypeCatalog
         'marriage' => [
             'name' => 'Marriage Leave',
             'name_am' => 'የጋብቻ ፈቃድ',
+            'name_om' => 'Boqonnaa Gaa\'elaa',
             'default_days' => 3,
             'accrual_type' => 'one_time',
             'is_paid' => true,
@@ -86,6 +92,7 @@ final class LeaveTypeCatalog
         'study' => [
             'name' => 'Study Leave',
             'name_am' => 'የትምህርት ፈቃድ',
+            'name_om' => 'Boqonnaa Barnootaa',
             'default_days' => 10,
             'accrual_type' => 'annual',
             'is_paid' => true,
@@ -96,6 +103,7 @@ final class LeaveTypeCatalog
         'sabbatical' => [
             'name' => 'Sabbatical Leave',
             'name_am' => 'የምርምር እረፍት',
+            'name_om' => 'Boqonnaa Qorannoo',
             'default_days' => 180,
             'accrual_type' => 'one_time',
             'is_paid' => true,
@@ -106,6 +114,7 @@ final class LeaveTypeCatalog
         'injury' => [
             'name' => 'Work Injury Leave',
             'name_am' => 'የስራ ላይ አደጋ ፈቃድ',
+            'name_om' => 'Boqonnaa Miidhaa Hojii',
             'default_days' => 30,
             'accrual_type' => 'one_time',
             'is_paid' => true,
@@ -115,6 +124,7 @@ final class LeaveTypeCatalog
         'r_and_r' => [
             'name' => 'Rest & Recuperation',
             'name_am' => 'የእረፍትና ማገገሚያ ፈቃድ',
+            'name_om' => 'Boqonnaa Boqachuu fi Fayyuu',
             'default_days' => 5,
             'accrual_type' => 'annual',
             'is_paid' => true,
@@ -123,6 +133,7 @@ final class LeaveTypeCatalog
         'unpaid' => [
             'name' => 'Unpaid Leave',
             'name_am' => 'ያለክፍያ ፈቃድ',
+            'name_om' => 'Boqonnaa Mindaa Hin Qabne',
             'default_days' => 0,
             'accrual_type' => 'annual',
             'is_paid' => false,
@@ -134,6 +145,7 @@ final class LeaveTypeCatalog
         'official_duty' => [
             'name' => 'Official Duty / Business Trip',
             'name_am' => 'የሥራ ጉዞ / ተልዕኮ',
+            'name_om' => 'Imala Hojii / Ergama',
             'kind' => 'duty',
             'default_days' => 0,
             'accrual_type' => 'annual',
@@ -145,6 +157,7 @@ final class LeaveTypeCatalog
         'excused' => [
             'name' => 'Excused Absence',
             'name_am' => 'የተፈቀደ መቅረት',
+            'name_om' => 'Hafuu Hayyamamaa',
             'kind' => 'excused',
             'default_days' => 0,
             'accrual_type' => 'annual',
@@ -213,6 +226,7 @@ final class LeaveTypeCatalog
             'code' => substr($code, 0, 30),
             'kind' => 'leave',
             'name_am' => null,
+            'name_om' => null,
             'carry_forward' => false,
             'max_carry_days' => null,
             'seniority_every_years' => null,
