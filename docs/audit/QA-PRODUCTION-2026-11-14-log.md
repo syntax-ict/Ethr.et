@@ -155,3 +155,17 @@ signed-in, writable organisation).
 - Expected (DEV-030, #709): "This terminal sends each punch as it happens, so there are no scheduled
   pulls to list. Its punches are under Attendance Events." The same file already has
   `sendsOnly = device.receives_only === true` (line 263); the condition should use it as well.
+
+## Re-run after #727 went live (v2026.11.14.7, about 16:40 EAT)
+
+Deployed 2026-11-14 13:38Z: Plesk Pull now, then Deploy now (the pull alone did not deploy).
+`release.json` reads `b23a491d6dcc`, built 13:38:34Z; `scripts/release-status.sh` reports the
+latest release running and no migration waiting. No release step was needed: no migration, and
+`optimize` does not cache translations.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| MKT-006 | Pass | Claude Code | ~16:42 | | | D-1 fixed: the organisations sitemap names `en`, `am`, `om` and x-default for each entry |
+| DEV-030 | Pass | Chrome, unguarded | ~16:43 | TA | en | D-4 fixed: the push terminal's Sync History reads "This terminal sends each punch as it happens, so there are no scheduled pulls to list. Its punches are under Attendance Events." |
+| D-3 dialog | Pass | Chrome, unguarded | ~16:44 | TA | en | Register Device: "Branch *", `aria-required`, QA Branch filled in (the only branch), Register enabled; closed without registering. The server's "The branch field is required." is no longer reachable from the dialog here and is pinned by `DeviceManagementTest` |
+| D-2 | Pass | Chrome, unguarded | ~16:45 | TA | en, am | `GET /api/v1/onboarding/industries`: "Ethiopian private sector", "Ethiopian public sector (civil service)" and their Amharic, no dash. Afaan Oromoo text for the wizard's lists is still missing (a wider gap, not this defect) |
