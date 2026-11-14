@@ -5,12 +5,14 @@ Pack: [`docs/production testing/`](<../production testing/README.md>), sixth edi
 | | |
 |---|---|
 | Release under test | `v2026.11.14.3`, `release.json` commit `d591fb2ad33c` (#723), built 2026-11-14 05:23:47Z. `production` carries `v2026.11.14.4` (#724, docs only), not deployed and not needed |
-| Organisation | None signed in. Public pages of QA Audit (`qa-audit`), Syntax Technology (`syntaxtech`) and the marketing site |
-| Persona | None. No saved sessions under `src/e2e-production/.auth/`. In Chrome, checked by reading only: `qa-audit.ethr.et/login`, `www.ethr.et/login` and `admin.ethr.et` (13:25) each showed their sign-in form, so no QA Audit, apex or platform session was held. Other organisations' hosts were not checked. This is the owner's everyday Chrome, used today for Plesk; it is not the dedicated ETHR QA profile of 11, section 6.1, which is why only public pages were read in it |
+| Organisation | Public pages of QA Audit (`qa-audit`), Syntax Technology (`syntaxtech`) and the marketing site; then QA Audit signed in, writes agreed by the owner |
+| Persona | TA in QA Audit, from about 13:25 (signed in by the owner). Before that none: no saved sessions under `src/e2e-production/.auth/`. In Chrome, checked by reading only: `qa-audit.ethr.et/login`, `www.ethr.et/login` and `admin.ethr.et` (13:25) each showed their sign-in form, so no QA Audit, apex or platform session was held. Other organisations' hosts were not checked. This is the owner's everyday Chrome, used today for Plesk; it is not the dedicated ETHR QA profile of 11, section 6.1, which is why only public pages were read in it |
 | Browser | Scripted: guarded Playwright (`playwright.production.config.ts`, `PW_CHANNEL=chrome`, service workers blocked). Agent: Chrome, unguarded, signed out, public pages only. A single `curl` GET or HEAD where a case asks for one |
 | Tester | Playwright and Claude Code; to be signed by the owner |
 
-Read-only. Nothing was written to production in this pass: no POST, no form submitted, no secret path
+Times: the scripted smoke's are the script's own; the other rows' times were noted after the fact and are approximate (within about ten minutes).
+
+Until the owner agreed to writes (see the QA Audit section), read-only. Nothing was written to production in that part: no POST, no form submitted, no secret path
 probed (S-05, SEC-004 and SEC-006 are left to a person, 01 rule 10).
 
 **Coverage before this pass.** `scripts/qa-pack-coverage.sh d591fb2ad33c` listed 13 user-visible PRs
@@ -64,14 +66,43 @@ the rules: the sitemap follows "List this page in search engines" (LAND-005), an
 showcase veto (CON-P-008) governs Trusted by only. To take them out of search as well, switch their
 listing off or suspend them.
 
+## QA Audit, signed in as TA, writes agreed (about 13:25 to 13:40)
+
+After 13:25 the owner agreed in chat to writes in QA Audit for this session and signed Chrome in to
+QA Audit. The header read "QA Audit, Organisation Admin" (`syntaxict01+qa-audit`) before each step.
+The Chrome is the one connected all day; the console was confirmed signed out at 13:25. Rows say
+`Chrome, unguarded`.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| S-08 | Pass | Claude Code | ~13:30 | TA | en | `/dashboard` as Organisation Admin; no console error |
+| S-10 | Pass | Claude Code | ~13:30 | TA | en | `/employees` (2 rows), `/attendance`, `/leave`, `/payroll`, `/reports`, `/announcements`, `/settings`, `/billing`, `/devices`: each its own heading, no error state, console clean |
+| UI-010 | Pass (sidebar, light) | Claude Code | ~13:30 | TA | en | Sidebar footer: the new mark (lowercase e, amber dot) beside "Powered by ETHR"; its svg is `aria-hidden`. Loading screen, dark theme and the console not checked |
+| EMP-024 | Pass | Claude Code | ~13:30 | TA | en | "Add Employee" goes to `/employees/new`; "More ways to add" lists "One person", "From a file or pasted rows" |
+| EMP-025 | Pass (b, d) | Claude Code | ~13:30 | TA | en | (d) no device: two items and no `/devices` request from the menu. (b) after the push-only terminal below: still two items. (a) and (c) need a readable terminal and the Pay-less HR login |
+| EMP-026 | Pass | Claude Code | ~13:30 | TA | en | `/employees/new` shows "Other ways to add" |
+| EMP-027 | Pass (a) | Claude Code | ~13:30 | TA | en | `/employees/from-device` with no `?device=`: Back reads "Employees", `/employees` |
+| DEV-028 | Pass (a) | Claude Code | ~13:30 | TA | en | **Record created:** device "QA push terminal 2026-11-14", Hikvision, office network on, QA Branch (`01M7CSY250T9JMD5RCS67AQWET`). Card and page read "Not connected yet". The first Register answered 422 (D-3) |
+| DEV-024 | Pass (a, b) | Claude Code | ~13:30 | TA | en | Card menu: Edit and Delete only. `/employees/from-device`: "Your terminal sends its punches to ETHR and cannot be asked who is enrolled on it. Badges it has sent that nobody owns yet are listed under Devices, where each can become an employee." with a Devices link, nothing staged. (c) needs a second, pulled device that ETHR would call |
+| DEV-030 | **Fail** | Claude Code | ~13:30 | TA | en | Card and page: no Test, Pull, Discover or Import history; "Nothing received from this terminal yet." and its advice; the page's Edit dialog has "The terminal is on our office network" (on). **Sync History reads "No sync history yet. Pull records or wait for the automatic sync."**, not the push wording. D-4 |
+| DEV-032 | Pass (push half) | Claude Code | ~13:30 | TA | en | Settings, Attendance: "1 device not heard from yet" and "Nothing has arrived from them. Finish setting them up: the device page shows what to enter on the terminal." No pulled device, so the "silent" half was not run |
+| UAT-H1 | Pass (steps 1, 4, 5) | Claude Code | ~13:30 | TA | en | Step 4: born 2012-06-01, hired 2026-11-14: 422 "The employee must be at least 15 years old on the hire date." Step 1: **record created**, "QA UAT Hire Abebe Tesfaye" (`01M7CT5HW3VMRF4X7D55Z6K55B`), number EMP-0001 given, toast "Employee created successfully". Step 5: "QA UAT Hire Abebe Tesfay", same national ID: 409 "Already an employee", "QA UAT Hire Abebe Tesfaye is already an employee here. Open their record to make changes.", choices Close and Open their record; nothing created. Steps 2 and 3 need a mailbox the team controls (an invitation is an email); "Create a login to activate in person" was unticked so no activation code was made |
+| PERF-013 | Pass | Claude Code | ~13:30 | TA | en | One load of `/dashboard`: 12 `/api/v1` calls, at most 3 in flight (from the browser's resource timings), page complete |
+| SET-026 | Pass (QA Audit) | Claude Code | ~13:30 | TA | en | Run on QA Audit, not uat-setup. Industry lists the eight, no "Private company". With "General company" all 16 kinds in four groups and no link. Industry changed to "Government" in the form, not saved: "Public enterprise", "Government office (civil service)", "Regional or city government office", "Defence or police" plus the stored "Private organisation", and "Show every kind of organisation in law". Put back to "General company"; Save went back to disabled; nothing saved |
+
+**Left in QA Audit on purpose (01, section 12):** the device "QA push terminal 2026-11-14", for the
+push cases a real terminal can finish (DEV-029, DEV-033 onward), and the employee "QA UAT Hire
+Abebe Tesfaye" (EMP-0001), which QA Audit's thin data can use. Both can be deleted from their pages.
+QA Audit still shows "Confirm the kind of organisation below": it was not confirmed, because that is a
+write the cases did not call for. **The owner should sign that Chrome out of QA Audit** when the pass
+is over (11, section 6.1).
+
 ## Not run, and why
 
-- **Every signed-in case.** There was no saved session and no QA persona signed in to Chrome. The
-  sixth edition's signed-in reads (UI-010, PERF-013, DEV-032, DEV-037, the #708 menu cases, S-08 to
-  S-13) wait for the owner to save sessions (11, section 3) or to sign the ETHR QA Chrome profile in
-  to a QA Audit persona.
-- **Mode W and X cases**, including every #707 to #720 device case that registers a device, assigns
-  a badge or needs a terminal. Writes were not agreed for this session (01, section 9).
+- **Signed-in cases as HR, FIN, SUP, EMP and PA**, and the TA cases above marked partial. Only TA
+  was signed in.
+- **Mode X cases, and the device cases that need a real terminal, a pulled device ETHR would
+  call, or a token** (DEV-025 to DEV-027, DEV-029, DEV-031, DEV-033 onward).
 - **QA Audit's data still blocks K-05, K-48 and K-50** (2 employees, no supervisor, no Sick Leave
   type, payroll runs with no entries), as recorded on 2026-11-13.
 
@@ -102,3 +133,23 @@ signed-in, writable organisation).
   Afaan Oromoo is a shipped language.
 - Fix: "Ethiopia, private sector" or "Ethiopia: private sector" (and the Amharic equivalent), plus
   `label_om`. SET-024 quotes the labels as they are today.
+
+**D-3. Registering a device without a branch answers with the field's internal name.** P3, usability.
+
+- Where: Devices, Register Device. `api/app/Http/Requests/Device/StoreDeviceRequest.php:31` requires
+  `branch_public_id`; the dialog marks Branch as neither required nor chosen, and
+  `api/lang/en/validation.php` names no attribute for it.
+- Seen on production, about 13:30: Register with no branch chosen gives 422 and the toast "The branch public
+  id field is required."; the dialog stays open with no mark on the Branch field.
+- Expected: Branch shown as required (or chosen for the person when the organisation has one), and a
+  message a person understands ("Choose a branch.") under the field, in en, am and om.
+
+**D-4. A Hikvision push terminal's Sync History says to pull records.** P3, #709 not fully applied.
+
+- Where: `src/src/app/(dashboard)/devices/[id]/device-detail.tsx:503`, which chooses
+  `device_detail_page.push_no_sync_history` only for `adapter_type === "zkteco_adms"`.
+- Seen on production, about 13:30: the receives-only Hikvision terminal's Sync History tab reads "No sync
+  history yet. Pull records or wait for the automatic sync."
+- Expected (DEV-030, #709): "This terminal sends each punch as it happens, so there are no scheduled
+  pulls to list. Its punches are under Attendance Events." The same file already has
+  `sendsOnly = device.receives_only === true` (line 263); the condition should use it as well.
