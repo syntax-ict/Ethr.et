@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { branchesApi } from "@/features/organization/api";
 import Link from "next/link";
 import {
@@ -382,6 +382,7 @@ export default function DevicesPage() {
           branches={branches?.data ?? []}
           isMock={isMockAdapter}
           addressRequired
+          branchRequired
           onSubmit={(e) => {
             e.preventDefault();
             submitCreate();
@@ -726,6 +727,7 @@ function DeviceFormDialog({
   branches,
   isMock,
   addressRequired = false,
+  branchRequired = false,
   onSubmit,
   isPending,
   submitLabel,
@@ -738,6 +740,9 @@ function DeviceFormDialog({
   branches: { public_id: string; name: string }[];
   isMock: boolean;
   addressRequired?: boolean;
+  // A new device must name its branch (StoreDeviceRequest); on edit a blank
+  // one keeps the stored branch.
+  branchRequired?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   isPending: boolean;
   submitLabel: string;
@@ -748,6 +753,18 @@ function DeviceFormDialog({
     value: string,
   ) => setForm((p) => ({ ...p, [key]: value }));
   const sendsToEthr = canSendToEthr(form.adapter_type) && form.sends_to_ethr;
+  const onlyBranch = branches.length === 1 ? branches[0].public_id : null;
+  // With no branch to offer the field is not drawn, and the server says why.
+  const branchMissing =
+    branchRequired && branches.length > 0 && form.branch_public_id === "";
+
+  // An organisation with one branch has nothing to choose: fill it in, so
+  // Register is not held back by a question with one answer.
+  useEffect(() => {
+    if (open && branchRequired && onlyBranch && form.branch_public_id === "") {
+      setForm((p) => ({ ...p, branch_public_id: onlyBranch }));
+    }
+  }, [open, branchRequired, onlyBranch, form.branch_public_id, setForm]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -958,13 +975,19 @@ function DeviceFormDialog({
           {branches.length > 0 && (
             <div>
               <Label htmlFor="branch">
-                {t("attendance.kiosks_page.branch").replace(" *", "")}
+                {branchRequired
+                  ? t("attendance.kiosks_page.branch")
+                  : t("attendance.kiosks_page.branch").replace(" *", "")}
               </Label>
               <Select
                 value={form.branch_public_id}
                 onValueChange={(v) => set("branch_public_id", v)}
               >
-                <SelectTrigger id="branch" className="mt-1">
+                <SelectTrigger
+                  id="branch"
+                  className="mt-1"
+                  aria-required={branchRequired || undefined}
+                >
                   <SelectValue
                     placeholder={t("attendance.kiosks_page.select_branch")}
                   />
@@ -988,7 +1011,7 @@ function DeviceFormDialog({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || branchMissing}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {submitLabel}
             </Button>

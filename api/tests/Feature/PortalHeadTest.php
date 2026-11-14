@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
 use App\Services\PortalPreviewImage;
+use App\Support\Locales;
 use App\Support\PortalHead;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -261,6 +262,20 @@ it('lists every organisation in use in the portals sitemap unless it switched li
         ->not->toContain('quiet')
         ->not->toContain('gone')
         ->not->toContain('lapsed');
+});
+
+// QA 2026-11-14, D-1: the sitemap named en and am only, while the page names om as well.
+it('names the same languages in the portals sitemap as the page itself declares', function () {
+    portalTenant();
+
+    $xml = (string) test()->get('http://ethr.et/sitemap-organisations.xml')->assertOk()->getContent();
+    $html = (string) servePortal('http://ethr.et/acme')->getContent();
+
+    foreach (Locales::SHIPPED as $locale) {
+        expect($xml)->toContain('hreflang="'.$locale.'" href="https://www.ethr.et/acme?lang='.$locale.'"')
+            ->and($html)->toContain('hreflang="'.$locale.'"');
+    }
+    expect(substr_count($xml, 'hreflang='))->toBe(count(Locales::SHIPPED) + 1);
 });
 
 // Organisation portal, PR 5: the same head on the organisation's own host.

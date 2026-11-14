@@ -182,7 +182,9 @@ return [
         ],
     ],
 
-    'attributes' => [],
+    'attributes' => [
+        'branch_public_id' => 'ቅርንጫፍ',
+    ],
 
     // ETHR's own rules.
     'file_content_mismatch' => 'የፋይሉ ይዘት ከተገለጸው ዓይነት ጋር አይዛመድም።',

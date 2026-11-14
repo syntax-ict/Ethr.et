@@ -8,6 +8,7 @@ use App\Models\Announcement;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
+use App\Support\Locales;
 use App\Support\PortalHead;
 use App\Support\TenantLanding;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
@@ -110,10 +111,18 @@ class OrganisationSitemapController extends Controller
         $url = htmlspecialchars($address, ENT_XML1 | ENT_QUOTES, 'UTF-8');
         $joiner = str_contains($url, '?') ? '&amp;' : '?';
 
+        // One alternate per shipped language, the same set the page itself
+        // declares (PortalHead). A literal list here left Afaan Oromoo out
+        // when it shipped, and a sitemap that disagrees with the page's own
+        // hreflang is a contradiction to a search engine.
+        $alternates = '';
+        foreach (Locales::SHIPPED as $locale) {
+            $alternates .= "<xhtml:link rel=\"alternate\" hreflang=\"{$locale}\" href=\"{$url}{$joiner}lang={$locale}\"/>";
+        }
+
         return '  <url>'
             ."<loc>{$url}</loc>"
-            ."<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{$url}{$joiner}lang=en\"/>"
-            ."<xhtml:link rel=\"alternate\" hreflang=\"am\" href=\"{$url}{$joiner}lang=am\"/>"
+            .$alternates
             ."<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{$url}\"/>"
             .'</url>';
     }

@@ -67,6 +67,20 @@ test('a mock device registers with a minimal non-schema connection_config', func
     expect($device->connection_config)->toBe(['mode' => 'simulator']);
 });
 
+// QA 2026-11-14, D-3: a device registered with no branch was refused as "The
+// branch public id field is required.", the field's internal name.
+test('a device with no branch is refused in words a person reads', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices", [
+        'name' => 'Front door',
+        'adapter_type' => 'mock',
+        'connection_config' => ['mode' => 'simulator'],
+    ])->assertStatus(422)
+        ->assertJsonPath('errors.branch_public_id.0', 'The branch field is required.');
+});
+
 // Production, 2026-10-12 (attendance QA A3): "Mock (Simulator)" was the
 // Register form's default, and one pull fabricated biometric punches for real
 // employees. Outside development and tests it is refused, and an existing one

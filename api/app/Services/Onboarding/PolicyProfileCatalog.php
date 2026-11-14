@@ -43,8 +43,8 @@ final class PolicyProfileCatalog
      */
     private const PROFILES = [
         'ethiopia_private' => [
-            'label' => 'Ethiopia — private sector',
-            'label_am' => 'ኢትዮጵያ — የግል ዘርፍ',
+            'label' => 'Ethiopian private sector',
+            'label_am' => 'የኢትዮጵያ የግል ዘርፍ',
             'description' => 'Starts from Labour Proclamation 1156/2019. Fiscal year from Meskerem.',
             'description_am' => 'ከሠራተኛ አዋጅ ቁጥር 1156/2011 ይጀምራል። የበጀት ዓመት ከመስከረም።',
             'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'marriage', 'bereavement', 'unpaid'],
@@ -57,8 +57,8 @@ final class PolicyProfileCatalog
             'review' => ['leave_private', 'allowances_inactive', 'grades_illustrative', 'statutory_engine'],
         ],
         'ethiopia_public' => [
-            'label' => 'Ethiopia — public sector (civil service)',
-            'label_am' => 'ኢትዮጵያ — የመንግሥት ዘርፍ (ሲቪል ሰርቪስ)',
+            'label' => 'Ethiopian public sector (civil service)',
+            'label_am' => 'የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ)',
             'description' => 'For civil servants, who are outside the Labour Proclamation. Fiscal year from Hamle.',
             'description_am' => 'ከሠራተኛ አዋጁ ውጪ ለሆኑ የመንግሥት ሠራተኞች። የበጀት ዓመት ከሐምሌ።',
             'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'marriage', 'bereavement', 'study', 'unpaid'],

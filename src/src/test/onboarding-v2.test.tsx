@@ -313,8 +313,8 @@ describe("IndustryConfigStep — composed profiles and review", () => {
           policy_profiles: [
             {
               key: "ethiopia_private",
-              label: "Ethiopia — private sector",
-              label_am: "ኢትዮጵያ — የግል ዘርፍ",
+              label: "Ethiopian private sector",
+              label_am: "የኢትዮጵያ የግል ዘርፍ",
               description: "Labour Proclamation 1156/2019.",
             },
           ],
@@ -361,8 +361,8 @@ describe("IndustryConfigStep — composed profiles and review", () => {
               },
               policy: {
                 key: "ethiopia_private",
-                label: "Ethiopia — private sector",
-                label_am: "ኢትዮጵያ — የግል ዘርፍ",
+                label: "Ethiopian private sector",
+                label_am: "የኢትዮጵያ የግል ዘርፍ",
               },
             },
             review: [
@@ -392,7 +392,7 @@ describe("IndustryConfigStep — composed profiles and review", () => {
     expect(
       await screen.findByText("Round the clock (24/7)"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Ethiopia — private sector")).toBeInTheDocument();
+    expect(screen.getByText("Ethiopian private sector")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Review proposal"));
 

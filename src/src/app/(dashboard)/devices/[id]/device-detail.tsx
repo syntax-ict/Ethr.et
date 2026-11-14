@@ -500,7 +500,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                   <ErrorState onRetry={() => refetchSyncLogs()} />
                 ) : syncLogItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    {device.adapter_type === "zkteco_adms"
+                    {sendsOnly || device.adapter_type === "zkteco_adms"
                       ? t("device_detail_page.push_no_sync_history")
                       : t("device_detail_page.no_sync_history")}
                   </div>
