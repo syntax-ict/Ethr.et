@@ -90,7 +90,25 @@ Health is healthy with `pending_migrations` 0.
 |---|---|---|
 | Habru terminal push (#720) | Pass | `habru-woreda.ethr.et/devices`, read only: the Hikvision terminal (S/N GB9654979) is Online and last heard "now". Unrecognised badges show punches dated Hidar 5, 2019 (2026-11-14), so pushes are accepted again. They wait under unrecognised badges until Habru's staff carry badge numbers |
 | MKT-007 owner action | Done | In the console, Bob sec (owner "Bob Test", a throwaway email domain, webhook, API key and roles created within minutes of sign-up) and Alice secasdas ("Alice Test") were set to "Hidden by the platform". `GET /api/v1/trusted-by` and the live home page in Chrome now list seven organisations, not nine. Reversible from the same switch |
-| QA Audit signed-in cases | Not run | Chrome is not signed in to QA Audit; K-05, K-48, K-50 and K-51 (supervisor half) still wait for a sign-in |
+| QA Audit signed-in cases | See below | The owner signed Chrome in to QA Audit as its organisation admin (TA, scope `all`, no employee record) |
+
+### QA Audit as TA, 2026-11-14 (Chrome, unguarded, read only)
+
+Only pages and the GETs each case names were opened; nothing was clicked that saves.
+
+| Case ID | Result | Notes |
+|---|---|---|
+| S-08 | Pass | `/dashboard` reached as TA ("Good afternoon"), no error toast |
+| S-10 | Pass | `/employees`, `/attendance`, `/leave`, `/payroll`, `/reports`, `/announcements`, `/settings` ("General settings"), `/billing`, `/devices`: each shows its heading, no error toast or alert, and the console holds no error |
+| K-05 (TEAM-002) | Blocked | `GET /team/attendance/today` answers 200 with no rows and every count 0: TA has no employee record, so no team; and it is Saturday. Needs SUP with reports who checked in today |
+| K-50 (LB-012) | Blocked | QA Audit has no Sick Leave type (only Unpaid, Official Duty and Excused Absence), and both employees' `GET /leave/balance/{employee}` answer `[]` |
+| K-48 (OUT-006) | Blocked | Both payroll runs (September 2026, approved) have 0 entries, so there is no payslip to open |
+| K-51 (LB-008) | Not run | The supervisor half needs a SUP session |
+| K-46, K-47, K-49 | Not run | Mode W (SICK-004, LOAN-009) or a fresh registration (SET-008) |
+
+**QA Audit cannot carry these cases as it stands**: two employees, no supervisor, no Sick Leave type, no
+payroll entries. Running them needs that data written first (Mode W in QA Audit, with the owner's agreement),
+or the attendance-to-payslip journeys (`e2e/attendance-payroll`, local and CI only), which build it.
 
 ### Draft defect: the home page fetches the whole Amharic dictionary (PERF-009)
 
