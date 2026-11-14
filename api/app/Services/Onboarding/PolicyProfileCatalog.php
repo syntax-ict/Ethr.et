@@ -33,11 +33,13 @@ final class PolicyProfileCatalog
      * @var array<string, array{
      *     label: string,
      *     label_am: string,
+     *     label_om: string,
      *     description: string,
      *     description_am: string,
+     *     description_om: string,
      *     leave_types: list<string>,
      *     fiscal_year_start_month: int,
-     *     allowances: list<array{name: string, name_am: string}>,
+     *     allowances: list<array{name: string, name_am: string, name_om: string}>,
      *     review: list<string>
      * }>
      */
@@ -45,36 +47,42 @@ final class PolicyProfileCatalog
         'ethiopia_private' => [
             'label' => 'Ethiopian private sector',
             'label_am' => 'የኢትዮጵያ የግል ዘርፍ',
+            'label_om' => 'Kutaa Dhuunfaa Itoophiyaa',
             'description' => 'Starts from Labour Proclamation 1156/2019. Fiscal year from Meskerem.',
             'description_am' => 'ከሠራተኛ አዋጅ ቁጥር 1156/2011 ይጀምራል። የበጀት ዓመት ከመስከረም።',
+            'description_om' => 'Labsii Hojjetaa Lakk. 1156/2019 irraa jalqaba. Bara baajetaa Fulbaana irraa eegala.',
             'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'marriage', 'bereavement', 'unpaid'],
             'fiscal_year_start_month' => 1,
             'allowances' => [
-                ['name' => 'Transport allowance', 'name_am' => 'የትራንስፖርት አበል'],
-                ['name' => 'Housing allowance', 'name_am' => 'የቤት አበል'],
-                ['name' => 'Position allowance', 'name_am' => 'የኃላፊነት አበል'],
+                ['name' => 'Transport allowance', 'name_am' => 'የትራንስፖርት አበል', 'name_om' => 'Abbaltii Geejjibaa'],
+                ['name' => 'Housing allowance', 'name_am' => 'የቤት አበል', 'name_om' => 'Abbaltii Mana Jireenyaa'],
+                ['name' => 'Position allowance', 'name_am' => 'የኃላፊነት አበል', 'name_om' => 'Abbaltii Itti Gaafatamummaa'],
             ],
             'review' => ['leave_private', 'allowances_inactive', 'grades_illustrative', 'statutory_engine'],
         ],
         'ethiopia_public' => [
             'label' => 'Ethiopian public sector (civil service)',
             'label_am' => 'የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ)',
+            'label_om' => 'Kutaa Mootummaa Itoophiyaa (Tajaajila Siivilii)',
             'description' => 'For civil servants, who are outside the Labour Proclamation. Fiscal year from Hamle.',
             'description_am' => 'ከሠራተኛ አዋጁ ውጪ ለሆኑ የመንግሥት ሠራተኞች። የበጀት ዓመት ከሐምሌ።',
+            'description_om' => 'Hojjettoota mootummaa Labsii Hojjetaa alatti argaman kanaaf. Bara baajetaa Adoolessa irraa eegala.',
             'leave_types' => ['annual', 'sick', 'maternity', 'paternity', 'marriage', 'bereavement', 'study', 'unpaid'],
             'fiscal_year_start_month' => 11,
             'allowances' => [
-                ['name' => 'Transport allowance', 'name_am' => 'የትራንስፖርት አበል'],
-                ['name' => 'Housing allowance', 'name_am' => 'የቤት አበል'],
-                ['name' => 'Position allowance', 'name_am' => 'የኃላፊነት አበል'],
+                ['name' => 'Transport allowance', 'name_am' => 'የትራንስፖርት አበል', 'name_om' => 'Abbaltii Geejjibaa'],
+                ['name' => 'Housing allowance', 'name_am' => 'የቤት አበል', 'name_om' => 'Abbaltii Mana Jireenyaa'],
+                ['name' => 'Position allowance', 'name_am' => 'የኃላፊነት አበል', 'name_om' => 'Abbaltii Itti Gaafatamummaa'],
             ],
             'review' => ['leave_public', 'payroll_public', 'allowances_inactive', 'grades_illustrative', 'statutory_engine'],
         ],
         'custom' => [
             'label' => 'Set my own policies',
             'label_am' => 'የራሴን ፖሊሲ አዘጋጃለሁ',
+            'label_om' => 'Imaammata koo ofiin qopheessa',
             'description' => 'Only annual, sick and unpaid leave as a starting point. Fiscal year from Meskerem.',
             'description_am' => 'እንደ መነሻ ዓመታዊ፣ የሕመምና ያለክፍያ ፈቃድ ብቻ። የበጀት ዓመት ከመስከረም።',
+            'description_om' => 'Jalqabaaf boqonnaa waggaa, dhukkubaa fi mindaa malee qofa. Bara baajetaa Fulbaana irraa eegala.',
             'leave_types' => ['annual', 'sick', 'unpaid'],
             'fiscal_year_start_month' => 1,
             'allowances' => [],
@@ -120,7 +128,7 @@ final class PolicyProfileCatalog
     }
 
     /**
-     * @return array{key: string, label: string, label_am: string, description: string, description_am: string, leave_types: list<string>, fiscal_year_start_month: int, allowances: list<array{name: string, name_am: string}>, review: list<string>}|null
+     * @return array{key: string, label: string, label_am: string, label_om: string, description: string, description_am: string, description_om: string, leave_types: list<string>, fiscal_year_start_month: int, allowances: list<array{name: string, name_am: string, name_om: string}>, review: list<string>}|null
      */
     public function find(string $key): ?array
     {
@@ -129,7 +137,7 @@ final class PolicyProfileCatalog
         return $entry === null ? null : ['key' => $key, ...$entry];
     }
 
-    /** @return list<array{key: string, label: string, label_am: string, description: string, description_am: string}> */
+    /** @return list<array{key: string, label: string, label_am: string, label_om: string, description: string, description_am: string, description_om: string}> */
     public function all(): array
     {
         $out = [];
@@ -139,8 +147,10 @@ final class PolicyProfileCatalog
                 'key' => $key,
                 'label' => $entry['label'],
                 'label_am' => $entry['label_am'],
+                'label_om' => $entry['label_om'],
                 'description' => $entry['description'],
                 'description_am' => $entry['description_am'],
+                'description_om' => $entry['description_om'],
             ];
         }
 

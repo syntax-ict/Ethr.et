@@ -19,10 +19,10 @@ use App\Enums\ConfigurationSource;
 final class ConfigurationPlan
 {
     /**
-     * @param  array{key: string, label: string, label_am: string, base: string, icon: string, group: string, overrides?: array<string, mixed>}  $industry
+     * @param  array{key: string, label: string, label_am: string, label_om: string, base: string, icon: string, group: string, overrides?: array<string, mixed>}  $industry
      * @param  array<string, mixed>  $signals
      * @param  array<string, array{source: ConfigurationSource, items: mixed}>  $sections
-     * @param  array<string, array{key: string, label: string, label_am: string}>  $profiles  the workforce and policy profiles the plan was composed from
+     * @param  array<string, array{key: string, label: string, label_am: string, label_om: string}>  $profiles  the workforce and policy profiles the plan was composed from
      * @param  list<array{code: string, message: string}>  $review  legally or financially sensitive defaults the admin must confirm
      */
     public function __construct(
@@ -71,12 +71,12 @@ final class ConfigurationPlan
 
     /**
      * @return array{
-     *     industry: array{key: string, label: string, label_am: string, base: string},
+     *     industry: array{key: string, label: string, label_am: string, label_om: string, base: string},
      *     signals: array<string, mixed>,
      *     overall_confidence: float,
      *     sections: array<string, array{source: string, confidence: float, items: mixed}>,
      *     plan: array<string, mixed>,
-     *     profiles: array<string, array{key: string, label: string, label_am: string}>,
+     *     profiles: array<string, array{key: string, label: string, label_am: string, label_om: string}>,
      *     review: list<array{code: string, message: string}>,
      *     catalog_version: string
      * }
@@ -98,6 +98,7 @@ final class ConfigurationPlan
                 'key' => $this->industry['key'],
                 'label' => $this->industry['label'],
                 'label_am' => $this->industry['label_am'],
+                'label_om' => $this->industry['label_om'],
                 'base' => $this->industry['base'],
             ],
             'signals' => $this->signals,

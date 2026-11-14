@@ -28,6 +28,7 @@ import {
 } from "../api";
 import type { ConfigurationPlan, ConfigurationProfile } from "../types";
 import { SourceLabel } from "./source-label";
+import { localizedField } from "../localized";
 import { useCurrentTenant } from "@/features/auth/api";
 import { useOrganizationTypes, useSettings } from "@/features/settings/api";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
@@ -131,8 +132,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     calendar ?? settingsQuery.data?.display.calendar ?? "ethiopian";
   const workforceOptions = profilesQuery.data?.workforce ?? [];
   const policyOptions = profilesQuery.data?.policy ?? [];
-  const label = (p: { label: string; label_am: string }) =>
-    locale === "am" ? p.label_am : p.label;
+  const label = (p: { label: string; label_am: string; label_om?: string }) =>
+    localizedField(p, "label", locale);
 
   function chooseIndustry(key: string) {
     setChosen(key);
@@ -145,8 +146,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
       const localName =
-        locale === "am" ? (o.name_am ?? o.title_am ?? null) : null;
-      const name = String(localName ?? o.name ?? o.title ?? o.code ?? "");
+        localizedField(o, "name", locale) || localizedField(o, "title", locale);
+      const name = String(localName || o.code || "");
       if (section === "shifts" && o.start_time && o.end_time) {
         return `${name} ${formatTimeOfDay(String(o.start_time))}–${formatTimeOfDay(String(o.end_time))}`;
       }
@@ -321,9 +322,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
         )}
         {current && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {locale === "am" && current.description_am
-              ? current.description_am
-              : current.description}
+            {localizedField(current, "description", locale)}
           </p>
         )}
       </div>
@@ -348,9 +347,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   };
 
   const industryName = plan
-    ? locale === "am"
-      ? plan.industry.label_am
-      : plan.industry.label
+    ? localizedField(plan.industry, "label", locale)
     : "";
 
   return (
@@ -408,7 +405,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                             )}
                           >
                             <span className={cn(isSel && "font-medium")}>
-                              {locale === "am" ? ind.label_am : ind.label}
+                              {localizedField(ind, "label", locale)}
                             </span>
                             {isSel && (
                               <Check
