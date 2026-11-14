@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\OnboardingProgress;
+use App\Models\Tenant;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\Route;
 use Tests\Support\StagingFixtures as Staging;
@@ -37,9 +38,26 @@ function fivePeople(): array
     ];
 }
 
+/**
+ * The list, staged and ready for review. A slice has no time here, so staging
+ * takes a request for each chunk of matching, as commit does.
+ *
+ * @return array<string, mixed>
+ */
+function stagedFivePeople(Tenant $tenant): array
+{
+    $staged = test()->postJson(Staging::url($tenant, 'rows'), ['rows' => fivePeople()])->assertCreated()->json();
+
+    while ($staged['status'] === 'staging') {
+        $staged = test()->postJson(Staging::url($tenant, "batches/{$staged['public_id']}/stage"))->assertOk()->json();
+    }
+
+    return test()->getJson(Staging::url($tenant, "batches/{$staged['public_id']}"))->assertOk()->json();
+}
+
 it('adds a list a slice at a time and says how much is left', function () {
     [$tenant] = Staging::organisation();
-    $staged = test()->postJson(Staging::url($tenant, 'rows'), ['rows' => fivePeople()])->assertCreated()->json();
+    $staged = stagedFivePeople($tenant);
     $commit = Staging::url($tenant, "batches/{$staged['public_id']}/commit");
 
     test()->postJson($commit)->assertOk()
@@ -74,7 +92,7 @@ it('adds a list a slice at a time and says how much is left', function () {
 
 it('adds nobody when a finished list is committed again', function () {
     [$tenant] = Staging::organisation();
-    $staged = test()->postJson(Staging::url($tenant, 'rows'), ['rows' => fivePeople()])->assertCreated()->json();
+    $staged = stagedFivePeople($tenant);
     $commit = Staging::url($tenant, "batches/{$staged['public_id']}/commit");
 
     test()->postJson($commit);
@@ -91,7 +109,7 @@ it('adds nobody when a finished list is committed again', function () {
 
 it('refuses a changed decision once the list has begun to be added', function () {
     [$tenant] = Staging::organisation();
-    $staged = test()->postJson(Staging::url($tenant, 'rows'), ['rows' => fivePeople()])->assertCreated()->json();
+    $staged = stagedFivePeople($tenant);
 
     test()->postJson(Staging::url($tenant, "batches/{$staged['public_id']}/commit"))
         ->assertJsonPath('status', 'committing');

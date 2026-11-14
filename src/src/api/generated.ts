@@ -5122,6 +5122,14 @@ export interface paths {
          *     `source` and `mapping` say how the list names its columns, as for
          *     `/migration/read`. With a `source`, an id from the other system is kept
          *     against that source, so the same id in its next list is the same person.
+         *
+         *     Every person is stored at once and matched against the people already
+         *     here a slice at a time. A short list is matched before this answers and
+         *     the answer is the whole list for review. A long one answers with its
+         *     `public_id`, `status` `staging`, how many are `staged` and how many
+         *     `remaining`; the same request to `/migration/batches/{batch}/stage` is
+         *     sent again until `status` is `reviewing`, and then the list is read
+         *     from `/migration/batches/{batch}`.
          */
         post: operations["migration.stageFromRows"];
         delete?: never;
@@ -5211,6 +5219,30 @@ export interface paths {
         head?: never;
         /** Update row */
         patch: operations["migration.updateRow"];
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Carry on matching a list's people
+         * @description Send it again while `status` is `staging`; `staged` and `remaining`
+         *     count the people matched and not yet matched. When `status` is
+         *     `reviewing` the list is ready: read it from `/migration/batches/{batch}`.
+         *     This answer is never the list itself, which is slow to build for a
+         *     long one. Asking for a list that is already ready changes nothing.
+         */
+        post: operations["migration.stage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/onboarding/migration/batches/{batch}/commit": {
@@ -27656,6 +27688,11 @@ export interface operations {
                             scheduled_action: boolean;
                             processed_at: string | null;
                         }[];
+                    } | {
+                        public_id: string;
+                        status: string;
+                        staged: number;
+                        remaining: number;
                     };
                 };
             };
@@ -27899,13 +27936,23 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
-            /** @description An error */
+            /**
+             * @description An error
+             *
+             *     An error
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    } | {
                         /**
                          * @description Error overview.
                          * @example This list is already being added. Wait for it to finish.
@@ -27915,6 +27962,36 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        staged: number;
+                        remaining: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "migration.commit": {
@@ -27965,6 +28042,21 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };

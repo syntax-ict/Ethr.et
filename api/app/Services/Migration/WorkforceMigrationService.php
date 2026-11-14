@@ -28,6 +28,7 @@ use App\Support\RelationMatch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * The workforce-migration workspace: discover people from a source, stage them
@@ -46,6 +47,10 @@ use Illuminate\Support\Facades\Gate;
  * A list is committed a slice at a time. One request has thirty seconds on
  * the host; `commitSlice()` works for `SLICE_SECONDS`, records how far it got
  * and says whether anything is left, and the caller asks again.
+ *
+ * A list is staged the same way: every row is stored first, unmatched, and
+ * matching the people (the resolver costs about 65 ms a row on the host) is
+ * done a slice at a time by `beginStaging()` and `stageSlice()`.
  */
 final class WorkforceMigrationService
 {
@@ -54,6 +59,9 @@ final class WorkforceMigrationService
 
     /** Rows written per transaction, and per hold of the organisation's lock. */
     public const CHUNK = 50;
+
+    /** Rows written per insert statement when a list is stored. */
+    private const INSERT_CHUNK = 250;
 
     private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
 
@@ -131,19 +139,127 @@ final class WorkforceMigrationService
      */
     public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): MigrationBatch
     {
-        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator);
-        $departments = DepartmentMatch::forTenant($tenantId);
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator);
 
-        foreach ($rows as $row) {
-            $row = [
-                ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
-                ...$row,
-            ];
-            $name = isset($row['name']) ? (string) $row['name'] : null;
-            $this->stageRow($batch, $row, $name, isset($row['employee_code']) ? (string) $row['employee_code'] : null, $departments);
-        }
+        // No time limit: for a caller that is not a request.
+        $this->resolveChunks($batch, null);
 
         return $batch->refresh();
+    }
+
+    /**
+     * Stage a list as a request does: store every row, then match as many as
+     * fit in the time the request has left. The rest is matched by
+     * `stageSlice()`, asked again until the list is `reviewing`.
+     *
+     * `$startedAt` is when the request began, not when this method did: the
+     * list was read and validated first, and that time is spent.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{0: MigrationBatch, 1: StageProgress}
+     */
+    public function beginStaging(array $rows, int $tenantId, float $startedAt, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): array
+    {
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator);
+        $progress = $this->resolveChunks($batch, $startedAt);
+
+        return [$batch->refresh(), $progress];
+    }
+
+    /**
+     * Match as many of a staging list's people as fit in one request. A list
+     * that is no longer `staging` has nothing left to match and answers done.
+     */
+    public function stageSlice(MigrationBatch $batch, float $startedAt): StageProgress
+    {
+        $batch->refresh();
+
+        if (! $batch->isStaging()) {
+            return new StageProgress(true, $batch->rows()->count(), 0);
+        }
+
+        $progress = $this->resolveChunks($batch, $startedAt);
+        $batch->refresh();
+
+        return $progress;
+    }
+
+    /**
+     * Store every row of a list, unmatched, in bulk. Matching a person costs a
+     * query or two each, and a request that did it for a long list ran out of
+     * time with nothing to show for it; storing a row costs a share of one
+     * insert. A bulk insert skips the model, so the id, the timestamps and
+     * the encryption the model gives a row are done here, through its own cast.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function storeRows(array $rows, int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
+    {
+        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator, MigrationBatch::STAGING);
+        $stamp = now()->toDateTimeString();
+
+        foreach (array_chunk(array_values($rows), self::INSERT_CHUNK) as $chunk) {
+            $records = [];
+
+            foreach ($chunk as $row) {
+                $row = [
+                    ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
+                    ...$row,
+                ];
+
+                $stored = (new MigrationStagingRow)->forceFill(['raw' => $row])->getAttributes();
+
+                $records[] = [
+                    'public_id' => (string) Str::ulid(),
+                    'tenant_id' => $tenantId,
+                    'batch_id' => $batch->id,
+                    'raw' => $stored['raw'],
+                    'display_name' => isset($row['name']) ? (string) $row['name'] : null,
+                    'external_identifier' => isset($row['employee_code']) ? (string) $row['employee_code'] : null,
+                    'action' => MigrationStagingRow::ACTION_PENDING,
+                    'created_at' => $stamp,
+                    'updated_at' => $stamp,
+                ];
+            }
+
+            MigrationStagingRow::query()->insert($records);
+        }
+
+        return $batch;
+    }
+
+    /**
+     * Match the rows not yet matched, a chunk at a time, until none are left
+     * or `$startedAt` is `sliceSeconds` ago. Every call matches at least one
+     * chunk, so a request that is already late still moves the list on. Null
+     * for `$startedAt` goes to the end.
+     *
+     * Matching a row twice (two tabs carrying on at once) writes the same
+     * values twice. When none are left the list becomes `reviewing`, once.
+     */
+    private function resolveChunks(MigrationBatch $batch, ?float $startedAt): StageProgress
+    {
+        $departments = DepartmentMatch::forTenant($batch->tenant_id);
+
+        do {
+            $rows = $batch->rows()->whereNull('match_outcome')->orderBy('id')->limit($this->chunk)->get();
+
+            foreach ($rows as $row) {
+                $row->update($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments));
+            }
+
+            $remaining = $batch->rows()->whereNull('match_outcome')->count();
+        } while ($remaining > 0 && $rows->isNotEmpty() && ($startedAt === null || microtime(true) - $startedAt < $this->sliceSeconds));
+
+        if ($remaining === 0) {
+            MigrationBatch::query()
+                ->whereKey($batch->getKey())
+                ->where('tenant_id', $batch->tenant_id)
+                ->where('status', MigrationBatch::STAGING)
+                ->update(['status' => 'reviewing']);
+        }
+
+        return new StageProgress($remaining === 0, $batch->rows()->whereNotNull('match_outcome')->count(), $remaining);
     }
 
     /**
@@ -478,14 +594,14 @@ final class WorkforceMigrationService
         return is_array($raw) ? $raw : [];
     }
 
-    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
+    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, string $status = 'reviewing'): MigrationBatch
     {
         return MigrationBatch::create([
             'tenant_id' => $tenantId,
             'created_by' => $creator?->id,
             'source_type' => $sourceType,
             'source_ref' => $sourceRef,
-            'status' => 'reviewing',
+            'status' => $status,
         ]);
     }
 
@@ -494,15 +610,30 @@ final class WorkforceMigrationService
      */
     private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments): void
     {
-        $match = $this->resolver->resolve($batch->tenant_id, $this->signalsFromRaw($raw));
-        $employee = $match->employee;
-
         MigrationStagingRow::create([
             'tenant_id' => $batch->tenant_id,
             'batch_id' => $batch->id,
             'raw' => $raw,
             'display_name' => $displayName,
             'external_identifier' => $externalIdentifier,
+            ...$this->resolvedAttributes($batch->tenant_id, $raw, $displayName, $departments),
+        ]);
+    }
+
+    /**
+     * What the resolver and the staged-changes comparison say about a row:
+     * the one place a row is matched, whether as it is stored (a device) or
+     * afterwards (a list).
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments): array
+    {
+        $match = $this->resolver->resolve($tenantId, $this->signalsFromRaw($raw));
+        $employee = $match->employee;
+
+        return [
             'match_outcome' => $match->outcome,
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
@@ -511,7 +642,7 @@ final class WorkforceMigrationService
             'changes' => $employee !== null && ! $employee->trashed()
                 ? $this->changes->between($employee, $raw, $departments)
                 : null,
-        ]);
+        ];
     }
 
     /**
