@@ -24,6 +24,7 @@ return [
         'duplicate_code' => 'Toorri lama lakkoofsa hojjetaa tokkicha qabu. Namni tokkoon tokkoo kan mataa isaa barbaada.',
         'duplicate_email' => 'Toorri lama teessoo imeelii tokkicha qabu. Namni tokkoon tokkoo kan mataa isaa barbaada.',
         'already_committing' => 'Tarreen kun dabalamaa jira. Hanga xumuramutti eegaa.',
+        'still_staging' => 'Tarreen kun amma illee wal-bira qabamaa jira. Hanga xumuramutti eegaa.',
         'accept_needs_match' => 'Jijjiirama fudhachuu dura sararri kun hojjetaa kam akka ta\'e filadhaa.',
         'device_user' => 'Fayyadamaa meeshaa :id',
         'line' => 'Sarara :line: :message',

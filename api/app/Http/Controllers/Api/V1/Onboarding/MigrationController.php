@@ -21,10 +21,12 @@ use App\Models\PersonnelAction;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Migration\StagedChanges;
+use App\Services\Migration\StageProgress;
 use App\Services\Migration\WorkforceMigrationService;
 use App\Support\EmployeeImportRow;
 use App\Support\PeopleRead;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
@@ -142,9 +144,19 @@ class MigrationController extends Controller
      * `source` and `mapping` say how the list names its columns, as for
      * `/migration/read`. With a `source`, an id from the other system is kept
      * against that source, so the same id in its next list is the same person.
+     *
+     * Every person is stored at once and matched against the people already
+     * here a slice at a time. A short list is matched before this answers and
+     * the answer is the whole list for review. A long one answers with its
+     * `public_id`, `status` `staging`, how many are `staged` and how many
+     * `remaining`; the same request to `/migration/batches/{batch}/stage` is
+     * sent again until `status` is `reviewing`, and then the list is read
+     * from `/migration/batches/{batch}`.
      */
     public function stageFromRows(StageRowsRequest $request): JsonResponse
     {
+        $startedAt = (float) $request->server('REQUEST_TIME_FLOAT', microtime(true));
+
         Gate::authorize('employee.create');
 
         $tenantId = $this->currentTenant->id();
@@ -158,9 +170,10 @@ class MigrationController extends Controller
             }
         }
 
-        $batch = $this->migration->stageFromRows(
+        [$batch, $progress] = $this->migration->beginStaging(
             $rows,
             $tenantId,
+            $startedAt,
             $request->string('source_type', 'csv')->value(),
             $request->importSource() === null ? $request->input('source_ref') : $request->sourceName(),
             $request->user(),
@@ -168,7 +181,44 @@ class MigrationController extends Controller
 
         AuditLog::record('migration.staged', $batch, ['source' => $batch->source_type, 'rows' => count($rows)]);
 
+        if (! $progress->done) {
+            return response()->json($this->stagingPayload($batch, $progress), 201);
+        }
+
         return response()->json($this->batchPayload($batch), 201);
+    }
+
+    /**
+     * Carry on matching a list's people.
+     *
+     * Send it again while `status` is `staging`; `staged` and `remaining`
+     * count the people matched and not yet matched. When `status` is
+     * `reviewing` the list is ready: read it from `/migration/batches/{batch}`.
+     * This answer is never the list itself, which is slow to build for a
+     * long one. Asking for a list that is already ready changes nothing.
+     */
+    public function stage(Request $request, MigrationBatch $batch): JsonResponse
+    {
+        $startedAt = (float) $request->server('REQUEST_TIME_FLOAT', microtime(true));
+
+        Gate::authorize('employee.create');
+
+        $progress = $this->migration->stageSlice($batch, $startedAt);
+
+        return response()->json($this->stagingPayload($batch, $progress));
+    }
+
+    /**
+     * @return array{public_id: string, status: string, staged: int, remaining: int}
+     */
+    private function stagingPayload(MigrationBatch $batch, StageProgress $progress): array
+    {
+        return [
+            'public_id' => $batch->public_id,
+            'status' => $batch->status,
+            'staged' => $progress->staged,
+            'remaining' => $progress->remaining,
+        ];
     }
 
     public function show(MigrationBatch $batch): JsonResponse
@@ -190,9 +240,12 @@ class MigrationController extends Controller
             ? Employee::where('public_id', $employeePublicId)->first()
             : null;
 
-        // A list that has begun to be added is past review: a decision
-        // changed now would reach the rows not yet written and miss the rest.
-        abort_unless($row->batch()->firstOrFail()->isReviewing(), 409, __('onboarding.migration.already_committing'));
+        // A list still being matched has no verdicts to decide on yet, and one
+        // that has begun to be added is past review: a decision changed now
+        // would reach the rows not yet written and miss the rest.
+        $batch = $row->batch()->firstOrFail();
+        abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
+        abort_unless($batch->isReviewing(), 409, __('onboarding.migration.already_committing'));
 
         // Accepting a difference is deciding to edit that employee, so it
         // takes what editing them takes: employee.update with reach over the
@@ -232,6 +285,9 @@ class MigrationController extends Controller
     public function commit(CommitMigrationRequest $request, MigrationBatch $batch): JsonResponse
     {
         Gate::authorize('employee.create');
+
+        // Half a list is not committed: rows not yet matched are all "pending".
+        abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
 
         $progress = $this->migration->commitSlice($batch, $request->user(), $request->options());
         $totals = $this->totalsPayload($progress->totals);

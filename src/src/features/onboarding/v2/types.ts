@@ -240,7 +240,7 @@ export interface MigrationBatch {
   public_id: string;
   source_type: string;
   source_ref: string | null;
-  status: "reviewing" | "committing" | "committed";
+  status: "staging" | "reviewing" | "committing" | "committed";
   /** Chosen when the list began to be added; null when nothing was. */
   arrival_status?: ArrivalStatus | null;
   totals: Record<string, number> | null;

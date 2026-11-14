@@ -25928,6 +25928,28 @@
                             }
                         }
                     },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "This list is still being matched. Wait for it to finish."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
@@ -26018,6 +26040,71 @@
                                     "required": [
                                         "without_login",
                                         "hire_dates_defaulted"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/onboarding/migration/batches/{batch}/stage": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.stage",
+                "description": "Send it again while `status` is `staging`; `staged` and `remaining`\ncount the people matched and not yet matched. When `status` is\n`reviewing` the list is ready: read it from `/migration/batches/{batch}`.\nThis answer is never the list itself, which is slow to build for a\nlong one. Asking for a list that is already ready changes nothing.",
+                "summary": "Carry on matching a list's people",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "public_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "staged": {
+                                            "type": "integer"
+                                        },
+                                        "remaining": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "public_id",
+                                        "status",
+                                        "staged",
+                                        "remaining"
                                     ]
                                 }
                             }
@@ -26405,7 +26492,7 @@
                     "write"
                 ],
                 "operationId": "migration.stageFromRows",
-                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.",
+                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.\n\nEvery person is stored at once and matched against the people already\nhere a slice at a time. A short list is matched before this answers and\nthe answer is the whole list for review. A long one answers with its\n`public_id`, `status` `staging`, how many are `staged` and how many\n`remaining`; the same request to `/migration/batches/{batch}/stage` is\nsent again until `status` is `reviewing`, and then the list is read\nfrom `/migration/batches/{batch}`.",
                 "summary": "Stage a list of people for review",
                 "tags": [
                     "Onboarding"
@@ -26425,174 +26512,201 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "public_id": {
-                                            "type": "string"
-                                        },
-                                        "source_type": {
-                                            "type": "string"
-                                        },
-                                        "source_ref": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "status": {
-                                            "type": "string"
-                                        },
-                                        "arrival_status": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "totals": {
-                                            "type": [
-                                                "array",
-                                                "null"
-                                            ],
-                                            "items": []
-                                        },
-                                        "summary": {
+                                    "anyOf": [
+                                        {
                                             "type": "object",
-                                            "additionalProperties": {
-                                                "type": "integer",
-                                                "minimum": 0
-                                            }
-                                        },
-                                        "rows": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "public_id": {
-                                                        "type": "string"
-                                                    },
-                                                    "display_name": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "external_identifier": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "match_outcome": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "match_confidence": {
-                                                        "type": [
-                                                            "number",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "candidates": {
-                                                        "type": [
-                                                            "array",
-                                                            "null"
-                                                        ],
-                                                        "items": []
-                                                    },
-                                                    "resolved_employee_public_id": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
-                                                    },
-                                                    "action": {
-                                                        "type": "string"
-                                                    },
-                                                    "changes": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "object",
-                                                            "properties": {
-                                                                "field": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string"
-                                                                },
-                                                                "current": {
-                                                                    "type": [
-                                                                        "string",
-                                                                        "null"
-                                                                    ]
-                                                                },
-                                                                "incoming": {
-                                                                    "type": [
-                                                                        "string",
-                                                                        "null"
-                                                                    ]
-                                                                },
-                                                                "masked": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "accepted": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "taken": {
-                                                                    "type": "boolean"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "field",
-                                                                "kind",
-                                                                "current",
-                                                                "incoming",
-                                                                "masked",
-                                                                "accepted",
-                                                                "taken"
-                                                            ]
-                                                        }
-                                                    },
-                                                    "can_apply_changes": {
-                                                        "type": "boolean"
-                                                    },
-                                                    "scheduled_action": {
-                                                        "type": "boolean"
-                                                    },
-                                                    "processed_at": {
-                                                        "type": [
-                                                            "string",
-                                                            "null"
-                                                        ]
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "source_type": {
+                                                    "type": "string"
+                                                },
+                                                "source_ref": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "arrival_status": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "totals": {
+                                                    "type": [
+                                                        "array",
+                                                        "null"
+                                                    ],
+                                                    "items": []
+                                                },
+                                                "summary": {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "type": "integer",
+                                                        "minimum": 0
                                                     }
                                                 },
-                                                "required": [
-                                                    "public_id",
-                                                    "display_name",
-                                                    "external_identifier",
-                                                    "match_outcome",
-                                                    "match_confidence",
-                                                    "candidates",
-                                                    "resolved_employee_public_id",
-                                                    "action",
-                                                    "changes",
-                                                    "can_apply_changes",
-                                                    "scheduled_action",
-                                                    "processed_at"
-                                                ]
-                                            }
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "display_name": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "external_identifier": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "match_outcome": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "match_confidence": {
+                                                                "type": [
+                                                                    "number",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "candidates": {
+                                                                "type": [
+                                                                    "array",
+                                                                    "null"
+                                                                ],
+                                                                "items": []
+                                                            },
+                                                            "resolved_employee_public_id": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "action": {
+                                                                "type": "string"
+                                                            },
+                                                            "changes": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "field": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "kind": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "current": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "incoming": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "masked": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "accepted": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "taken": {
+                                                                            "type": "boolean"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "field",
+                                                                        "kind",
+                                                                        "current",
+                                                                        "incoming",
+                                                                        "masked",
+                                                                        "accepted",
+                                                                        "taken"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "can_apply_changes": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "scheduled_action": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "processed_at": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "public_id",
+                                                            "display_name",
+                                                            "external_identifier",
+                                                            "match_outcome",
+                                                            "match_confidence",
+                                                            "candidates",
+                                                            "resolved_employee_public_id",
+                                                            "action",
+                                                            "changes",
+                                                            "can_apply_changes",
+                                                            "scheduled_action",
+                                                            "processed_at"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "source_type",
+                                                "source_ref",
+                                                "status",
+                                                "arrival_status",
+                                                "totals",
+                                                "summary",
+                                                "rows"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "staged": {
+                                                    "type": "integer"
+                                                },
+                                                "remaining": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "status",
+                                                "staged",
+                                                "remaining"
+                                            ]
                                         }
-                                    },
-                                    "required": [
-                                        "public_id",
-                                        "source_type",
-                                        "source_ref",
-                                        "status",
-                                        "arrival_status",
-                                        "totals",
-                                        "summary",
-                                        "rows"
                                     ]
                                 }
                             }
@@ -26768,22 +26882,41 @@
                         }
                     },
                     "409": {
-                        "description": "An error",
+                        "description": "An error\n\nAn error",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview.",
-                                            "examples": [
-                                                "This list is already being added. Wait for it to finish."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is still being matched. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is already being added. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }

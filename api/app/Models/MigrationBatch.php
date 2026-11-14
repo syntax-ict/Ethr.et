@@ -25,6 +25,12 @@ class MigrationBatch extends Model
      */
     public const RETENTION_DAYS = 30;
 
+    /**
+     * `status` is `staging` (rows stored, still being matched), `reviewing`,
+     * `committing` (some of it added) or `committed`.
+     */
+    public const STAGING = 'staging';
+
     protected $fillable = [
         'public_id',
         'tenant_id',
@@ -69,6 +75,11 @@ class MigrationBatch extends Model
         $status = is_array($options) ? ($options['status'] ?? null) : null;
 
         return is_string($status) ? $status : null;
+    }
+
+    public function isStaging(): bool
+    {
+        return $this->status === self::STAGING;
     }
 
     public function isCommitted(): bool
