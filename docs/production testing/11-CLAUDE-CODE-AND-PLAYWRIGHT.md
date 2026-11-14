@@ -81,6 +81,16 @@ Sign in as TA in the window that opens (authenticator code included), wait for t
 close the window: the session is written when it closes. Repeat for `hr`, `fin`, `sup` and `emp`.
 For the platform operator, open `https://admin.ethr.et` and save `pa.json`.
 
+**The file is written when the command ends, not when you sign in.** The terminal returning to its
+prompt is the sign that it was. Closing the page can leave the command running, and nothing is saved
+until it ends. Stopping the command with Ctrl-C also writes the file, with whatever that window holds,
+signed in or not. So start each persona's save in a terminal of its own, and never stop one window to
+start another under the same file name. On 2026-11-13 that overwrote a TA session with a QA Audit window
+that was never signed in, and every page answered `/login`. The scripts now skip a persona whose file
+holds no sign-in, or signed in on a host other than the one under test, and say why
+(`sessionProblem` and `sessionHostProblem` in `src/e2e-production/env.ts`). They read only where each
+sign-in cookie belongs and when it expires, never its value.
+
 - `src/e2e-production/.auth/` is ignored by Git. **Never commit, attach, upload or paste a session
   file.** It is a signed-in session: anyone holding it is that persona until it expires.
 - A session lives **15 idle minutes** (`AuthService::SESSION_MINUTES`). The scripts refuse a file

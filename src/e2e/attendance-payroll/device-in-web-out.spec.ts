@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { api } from "../helpers";
-import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } from "./support";
+import { addisDate, as, devicePunch, earlierToday, employeeId, live, minutesAgo, recordsOf } from "./support";
 
 /**
  * J1, acceptance matrix A2: the day is opened by the biometric terminal and
@@ -8,7 +8,7 @@ import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } f
  * methods, and every screen agrees the day is over.
  */
 test("a day opened at the terminal and closed on the web is one record", async ({ browser, request }) => {
-  const arrived = minutesAgo(180);
+  const arrived = earlierToday(180);
 
   expect(await devicePunch(request, "e2e-att", "9001", "check_in", arrived)).toBe(1);
 
