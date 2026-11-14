@@ -1,12 +1,49 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isAvailableLocale } from "@/lib/i18n/config";
+import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 
-/** The 404 page's body; `not-found.tsx` registers its strings first. */
+const noSubscription = () => () => {};
+
+/** The language an address names in its first segment (`/am/…`), or null. */
+export function localeFromPath(pathname: string): string | null {
+  const first = pathname.split("/")[1] ?? "";
+  return isAvailableLocale(first) ? first : null;
+}
+
+/**
+ * The 404 page; `not-found.tsx` registers its strings first.
+ *
+ * One exported 404 answers every address, so its language cannot be built
+ * in. An address that names one (`/am/no-such-page`) is read in it, as every
+ * marketing page is; anywhere else the reader's saved choice applies. Before,
+ * `/am/no-such-page` was served in Amharic and switched to a saved English
+ * after hydration (production QA 2026-11-13, PERF-009). Read after
+ * hydration: the server snapshot is null, so the first render matches the
+ * exported HTML.
+ */
 export function NotFoundContent() {
+  const pathLocale = useSyncExternalStore(
+    noSubscription,
+    () => localeFromPath(window.location.pathname),
+    () => null,
+  );
+
+  return pathLocale ? (
+    <RouteLocaleProvider locale={pathLocale}>
+      <NotFoundBody />
+    </RouteLocaleProvider>
+  ) : (
+    <NotFoundBody />
+  );
+}
+
+function NotFoundBody() {
   const { t } = useT();
 
   return (
