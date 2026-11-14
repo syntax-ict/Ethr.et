@@ -133,7 +133,7 @@ it('records a punch the terminal sends, as the terminal sends it', function () {
                 'subEventType' => 75,
             ],
         ]),
-    ])->assertOk()->assertJsonPath('status', 'processed');
+    ])->assertOk()->assertJsonPath('status', 'accepted');
 
     $record = AttendanceRecord::withoutGlobalScope('tenant')->where('employee_id', $employee->id)->firstOrFail();
 

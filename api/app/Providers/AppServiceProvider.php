@@ -271,12 +271,26 @@ class AppServiceProvider extends ServiceProvider
         // locked the admin who made it out of their own pages (API/webhook
         // end-to-end test, 2026-10-14, D4).
         RateLimiter::for('api-global', function (Request $request) {
+            // A device webhook has the `device-webhook` limiter on its route:
+            // one limiter check per post instead of two.
+            if ($request->is('api/v1/devices/webhook/*')) {
+                return Limit::none();
+            }
+
             $apiKey = $request->attributes->get(AuthenticateApiKey::ATTRIBUTE);
             if ($apiKey instanceof ApiKey) {
                 return Limit::perMinute(300)->by('api-key:'.$apiKey->id);
             }
 
             return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // A terminal re-sends a refused event at once instead of backing off,
+        // so this is a ceiling against a broken or abusive sender, not a
+        // delivery pace. Keyed per address with its own prefix, so it never
+        // shares the guests' bucket at an office NAT.
+        RateLimiter::for('device-webhook', function (Request $request) {
+            return Limit::perMinute(600)->by('device-webhook:'.$request->ip());
         });
 
         // A kiosk's admin PIN is four to eight digits, guessed at a shared

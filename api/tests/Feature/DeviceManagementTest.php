@@ -442,7 +442,7 @@ test('hikvision webhook processes event for known employee', function () {
         ]);
 
     $response->assertOk()
-        ->assertJsonPath('status', 'processed');
+        ->assertJsonPath('status', 'accepted');
 
     $this->assertDatabaseHas('attendance_records', [
         'employee_id' => $employee->id,
@@ -628,7 +628,7 @@ test('every vendor webhook dates the record by the event time, not arrival', fun
     test()->withHeader('X-Webhook-Token', "{$adapter}-occurred-token")
         ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/{$path}", $payload($eventAt->toIso8601String()))
         ->assertOk()
-        ->assertJsonPath('status', 'processed');
+        ->assertJsonPath('status', $adapter === 'hikvision' ? 'accepted' : 'processed');
 
     $record = AttendanceRecord::withoutGlobalScopes()->where('employee_id', $employee->id)->sole();
 

@@ -148,8 +148,9 @@ export async function devicePunch(
  * its offset in `dateTime`, and the token in the query string. As with
  * `devicePunch`, nothing in the request names the organisation.
  *
- * A badge nobody holds is answered 200 `employee_not_found` and kept; one an
- * employee holds is answered 200 `processed`. Returns the answer's `status`.
+ * Every punch is answered 200 `accepted` and worked by the queue afterwards
+ * (device_inbound_punches), so what it records or holds is read back with a
+ * poll and needs `queue:work` running. Returns the answer's `status`.
  */
 export async function hikvisionPunch(
   request: APIRequestContext,

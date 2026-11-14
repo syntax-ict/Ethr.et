@@ -7,6 +7,7 @@ use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\NotifyExpiringTrialsJob;
+use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Jobs\RollForwardHolidaysJob;
 use App\Jobs\RunDashboardDigestsJob;
 use App\Jobs\RunScheduledReportsJob;
@@ -70,6 +71,11 @@ Schedule::command('tenancy:recheck-custom-domains')
 // The per-tenant sweeps below select Tenant::operational(): active tenants and
 // unexpired trials, the same set Tenant::isActive() accepts. Not
 // where('status', 'active'), which skipped every tenant on its six-month trial.
+
+// Pushed terminal punches still waiting after two minutes: a run that failed
+// all its tries leaves them pending and a heartbeat adds no row to queue
+// another, so the evening's last punches would wait for the next new one.
+Schedule::call(fn () => ProcessDeviceInboundPunchesJob::sweepStranded())->everyFiveMinutes()->name('device-inbox-sweep')->withoutOverlapping();
 
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
 Schedule::call(function () {
