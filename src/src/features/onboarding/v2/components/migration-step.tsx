@@ -48,6 +48,7 @@ import {
 import type {
   ArrivalStatus,
   ColumnMatch,
+  ListMode,
   MatchOutcome,
   StagingAction,
 } from "../types";
@@ -128,6 +129,9 @@ function refusedLines(err: unknown): string[] {
  * @param initialDeviceId Preselects the device, when opened from that device.
  * @param sources "list" leaves the attendance device out: the employee import
  *   is about a file.
+ * @param canComplete Offers the choice between adding people and completing
+ *   the people who are already here (nobody new is added). Only the employee
+ *   import page does: the guided setup and a device's roster add people.
  * @param title Heading, where the page is not the guided setup.
  * @param description The line under it.
  */
@@ -135,12 +139,14 @@ export function MigrationStep({
   onCommitted,
   initialDeviceId,
   sources = "all",
+  canComplete = false,
   title,
   description,
 }: {
   onCommitted?: () => void;
   initialDeviceId?: string;
   sources?: "all" | "list";
+  canComplete?: boolean;
   title?: string;
   description?: string;
 }) {
@@ -167,6 +173,9 @@ export function MigrationStep({
   // its new people arrive as, and whether they are invited straight away.
   const [arrival, setArrival] = useState<ArrivalStatus>("hired");
   const [inviteNow, setInviteNow] = useState(true);
+  // What the list is for, chosen before it is staged: add people, or fill in
+  // the people who are already here and add nobody.
+  const [mode, setMode] = useState<ListMode>("add");
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -449,6 +458,9 @@ export function MigrationStep({
       const b = await stageRows.mutateAsync({
         grid: toGrid(csv),
         calendar: dateCalendar,
+        ...(canComplete && mode === "complete"
+          ? { mode: "complete" as const }
+          : {}),
         ...(leaveOutProblems ? { skip_problems: true } : {}),
         ...listColumns(named),
       });
@@ -543,27 +555,49 @@ export function MigrationStep({
    */
   async function runCommit() {
     if (!batchId) return;
+    const completing = batch?.mode === "complete";
     const confirmed = await requestConfirm({
-      title: t("setup2.commit_confirm_title", "Bring these records in?"),
-      description: t(
-        "setup2.commit_confirm_desc",
-        "Employees are created and merged as the table shows. This cannot be undone from here.",
-      ),
-      confirmLabel: t("setup2.commit_confirm", "Bring them in"),
+      title: completing
+        ? t("setup2.complete_confirm_title", "Fill in these records?")
+        : t("setup2.commit_confirm_title", "Bring these records in?"),
+      description: completing
+        ? t(
+            "setup2.complete_confirm_desc",
+            "Blanks are filled in as the table shows. Nobody is added. This cannot be undone from here.",
+          )
+        : t(
+            "setup2.commit_confirm_desc",
+            "Employees are created and merged as the table shows. This cannot be undone from here.",
+          ),
+      confirmLabel: completing
+        ? t("setup2.complete_confirm", "Fill them in")
+        : t("setup2.commit_confirm", "Bring them in"),
     });
     if (!confirmed) return;
     try {
-      const result = await commit.mutateAsync({ batchId, status: arrival });
+      const result = await commit.mutateAsync({
+        batchId,
+        status: completing ? undefined : arrival,
+      });
       toast.success(
-        t(
-          "setup2.migration_done",
-          "Migration complete: :created created, :merged merged, :updated updated",
-          {
-            created: result.totals.created ?? 0,
-            merged: result.totals.merged ?? 0,
-            updated: result.totals.updated ?? 0,
-          },
-        ),
+        completing
+          ? t(
+              "setup2.complete_done",
+              "Done: :updated people filled in, :skipped left out",
+              {
+                updated: result.totals.updated ?? 0,
+                skipped: result.totals.skipped ?? 0,
+              },
+            )
+          : t(
+              "setup2.migration_done",
+              "Migration complete: :created created, :merged merged, :updated updated",
+              {
+                created: result.totals.created ?? 0,
+                merged: result.totals.merged ?? 0,
+                updated: result.totals.updated ?? 0,
+              },
+            ),
       );
     } catch (err) {
       toast.error(
@@ -667,6 +701,38 @@ export function MigrationStep({
                   "Choose an Excel or CSV file, or copy the rows from Excel or Google Sheets and paste them here. A first row of column names is recognised, in any order.",
                 )}
               </p>
+              {canComplete && (
+                <fieldset className="space-y-1 text-sm">
+                  <legend className="sr-only">
+                    {t("setup2.mode_legend", "What this list is for")}
+                  </legend>
+                  <label className="flex items-start gap-2 text-foreground">
+                    <input
+                      type="radio"
+                      name="list-mode"
+                      className="mt-0.5 h-4 w-4"
+                      checked={mode === "add"}
+                      onChange={() => setMode("add")}
+                    />
+                    <span>{t("setup2.mode_add", "Add people")}</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-foreground">
+                    <input
+                      type="radio"
+                      name="list-mode"
+                      className="mt-0.5 h-4 w-4"
+                      checked={mode === "complete"}
+                      onChange={() => setMode("complete")}
+                    />
+                    <span>
+                      {t(
+                        "setup2.mode_complete",
+                        "Complete people who are already here (nobody new is added)",
+                      )}
+                    </span>
+                  </label>
+                </fieldset>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -1044,6 +1110,22 @@ export function MigrationStep({
 
       {batch && (
         <div className="space-y-4">
+          {batch.mode === "complete" && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">
+                {t(
+                  "setup2.complete_title",
+                  "Completing people who are already here",
+                )}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.complete_hint",
+                  "Blanks are filled in. A difference is shown and left as it is, unless it is personal and you accept it. Nobody is added.",
+                )}
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             {Object.entries(batch.summary ?? {}).map(([outcome, count]) => (
               <Badge
@@ -1081,6 +1163,15 @@ export function MigrationStep({
                         ? ` · ${Math.round(row.match_confidence * 100)}%`
                         : ""}
                     </span>
+                    {batch.mode === "complete" &&
+                      row.match_outcome === "new" && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {t(
+                            "setup2.not_found_left_out",
+                            "Not found in ETHR, left out",
+                          )}
+                        </p>
+                      )}
                     {(row.candidates?.length ?? 0) > 0 && (
                       <ul className="space-y-0.5">
                         {row.candidates!.map((c) => {
@@ -1161,6 +1252,11 @@ export function MigrationStep({
                     >
                       <Check className="h-3 w-3" /> {t("setup2.done", "Done")}
                     </span>
+                  ) : batch.mode === "complete" &&
+                    row.match_outcome === "new" ? (
+                    <span key="a" className="text-xs text-muted-foreground">
+                      {t("setup2.left_out", "Left out")}
+                    </span>
                   ) : (
                     <Select
                       key="a"
@@ -1174,7 +1270,10 @@ export function MigrationStep({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {ACTIONS.map((a) => (
+                        {(batch.mode === "complete"
+                          ? ACTIONS.filter((a) => a !== "create")
+                          : ACTIONS
+                        ).map((a) => (
                           <SelectItem key={a} value={a}>
                             {t(`setup2.action_${a}`, a)}
                           </SelectItem>
@@ -1187,7 +1286,7 @@ export function MigrationStep({
             />
           </div>
 
-          {batch.status !== "committed" && (
+          {batch.status !== "committed" && batch.mode !== "complete" && (
             <fieldset
               className="space-y-3 border-t pt-4 text-sm"
               disabled={commit.isPending || batch.status === "committing"}
@@ -1267,20 +1366,36 @@ export function MigrationStep({
               {batch.status === "committed"
                 ? t("setup2.committed", "Committed")
                 : commit.isPending && remaining !== null
-                  ? t("setup2.committing", "Adding people, :count left", {
-                      count: remaining,
-                    })
-                  : t("setup2.commit", "Commit migration")}
+                  ? batch.mode === "complete"
+                    ? t("setup2.completing", "Filling in people, :count left", {
+                        count: remaining,
+                      })
+                    : t("setup2.committing", "Adding people, :count left", {
+                        count: remaining,
+                      })
+                  : batch.mode === "complete"
+                    ? t("setup2.complete_commit", "Fill in these people")
+                    : t("setup2.commit", "Commit migration")}
             </Button>
           </div>
 
-          {batch.status === "committed" && batchId && (
-            <MigrationLogins
-              batchId={batchId}
-              onContinue={onCommitted}
-              autoSend={inviteNow}
-            />
+          {batch.status === "committed" && batch.mode === "complete" && (
+            <div className="flex justify-end border-t pt-4">
+              <Button onClick={onCommitted} disabled={!onCommitted}>
+                {t("setup2.complete_continue", "Back to employees")}
+              </Button>
+            </div>
           )}
+
+          {batch.status === "committed" &&
+            batchId &&
+            batch.mode !== "complete" && (
+              <MigrationLogins
+                batchId={batchId}
+                onContinue={onCommitted}
+                autoSend={inviteNow}
+              />
+            )}
         </div>
       )}
       {confirmDialog}

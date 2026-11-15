@@ -410,6 +410,122 @@ describe("<MigrationStep>", () => {
       ),
     ).toBeInTheDocument();
   });
+  it("offers adding people or completing those already here only where asked, and sends the choice", async () => {
+    let body: { mode?: string } | null = null;
+    reads();
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+
+    // The setup and a device's roster add people: no choice to make.
+    const plain = renderWithClient(<MigrationStep />);
+    expect(screen.queryByLabelText("Add people")).not.toBeInTheDocument();
+    plain.unmount();
+
+    const { container } = renderWithClient(
+      <MigrationStep sources="list" canComplete />,
+    );
+    expect(screen.getByLabelText("Add people")).toBeChecked();
+    fireEvent.click(
+      screen.getByLabelText(
+        "Complete people who are already here (nobody new is added)",
+      ),
+    );
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede, , 0911000000" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.mode).toBe("complete");
+  });
+
+  it("sends no mode when the list adds people", async () => {
+    let body: { mode?: string } | null = null;
+    reads();
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json(AMBIGUOUS_BATCH, { status: 201 });
+      }),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(AMBIGUOUS_BATCH),
+      ),
+    );
+
+    const { container } = renderWithClient(
+      <MigrationStep sources="list" canComplete />,
+    );
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede, , 0911000000" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).not.toHaveProperty("mode");
+  });
+
+  it("titles a list that completes people, leaves out who is not found, and offers nobody to add", async () => {
+    const COMPLETING: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { new: 1 },
+      rows: [
+        {
+          ...AMBIGUOUS_BATCH.rows[0],
+          display_name: "Nobody Known",
+          match_outcome: "new",
+          match_confidence: null,
+          candidates: [],
+          action: "skip",
+        },
+      ],
+    };
+    reads();
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(COMPLETING, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(COMPLETING),
+      ),
+    );
+
+    const { container } = renderWithClient(
+      <MigrationStep sources="list" canComplete />,
+    );
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Nobody Known, , 0911000000" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    expect(
+      await screen.findByText("Completing people who are already here"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Not found in ETHR, left out")).toBeInTheDocument();
+    expect(screen.getByText("Left out")).toBeInTheDocument();
+    // Nobody arrives from this list: no choice of how new people arrive.
+    expect(screen.queryByText("The new people on this list")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Fill in these people" }),
+    ).toBeInTheDocument();
+  });
+
   it("sends the calendar chosen with the list as written, and says who has no hire date", async () => {
     let body: { grid: string[][]; calendar: string } | null = null;
     const asked = reads({ people: 2, without_hire_date: 1 });

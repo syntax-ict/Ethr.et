@@ -142,13 +142,18 @@ export interface StagingCandidate {
   reasons: string[];
 }
 
+/** What a list is for: adding people, or completing those already here. */
+export type ListMode = "add" | "complete";
+
 /**
  * One thing adding a matched row would change on the employee it matched.
- * A `fill` goes into a blank; a `conflict` is written only once accepted.
+ * A `fill` goes into a blank; a `conflict` is written only once accepted; a
+ * `locked` difference is shown and never written, because a list is not how
+ * a person's job and pay are changed.
  */
 export interface StagedChange {
   field: string;
-  kind: "fill" | "conflict";
+  kind: "fill" | "conflict" | "locked";
   /** What ETHR holds. Null when blank, masked, or not the viewer's to see. */
   current: string | null;
   /** What the list brings. Null for a national ID, a TIN and a salary. */
@@ -245,6 +250,8 @@ export interface MigrationBatch {
   source_type: string;
   source_ref: string | null;
   status: "staging" | "reviewing" | "committing" | "committed";
+  /** `complete` for a list that adds nobody and fills in people who are here. */
+  mode?: ListMode;
   /** Chosen when the list began to be added; null when nothing was. */
   arrival_status?: ArrivalStatus | null;
   totals: Record<string, number> | null;

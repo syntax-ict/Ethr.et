@@ -354,6 +354,8 @@ type StageRowsPayload =
       source?: string | null;
       /** Column names matched for this list. */
       mapping?: ColumnMatch[] | null;
+      /** `complete`: nobody is added; people already here are filled in. */
+      mode?: "complete";
     }
   | { rows: Record<string, unknown>[]; source_type?: string };
 

@@ -7,8 +7,23 @@ import type { StagedChange, StagingRow } from "../types";
 
 type Translate = ReturnType<typeof useT>["t"];
 
+/**
+ * What a list adds as a record of its own, for a person who has none. They
+ * are not columns, so they have words of their own here.
+ */
+const RECORDS = ["bank", "emergency_contact", "contract"];
+
 function fieldLabel(field: string, t: Translate): string {
-  return columnLabel(field, t);
+  switch (field) {
+    case "bank":
+      return t("setup2.change_bank", "Bank account");
+    case "emergency_contact":
+      return t("setup2.change_emergency_contact", "Emergency contact");
+    case "contract":
+      return t("setup2.change_contract", "Contract");
+    default:
+      return columnLabel(field, t);
+  }
 }
 
 /** One change in words. A masked field is named and its values are not. */
@@ -21,6 +36,13 @@ function describe(change: StagedChange, t: Translate): string {
       ":field: :value belongs to someone else and is left as it is",
       { field, value: change.incoming ?? "" },
     );
+  }
+
+  if (change.kind === "fill" && RECORDS.includes(change.field)) {
+    return t("setup2.changes_adds", "Adds :field: :value", {
+      field,
+      value: change.incoming ?? "",
+    });
   }
 
   if (change.kind === "fill") {
@@ -57,7 +79,9 @@ function describe(change: StagedChange, t: Translate): string {
  *
  * A blank in ETHR is filled without asking. A difference is written only
  * where the reviewer ticks it, and ticking is offered only to someone who may
- * edit that employee. One employee record per person: the row never becomes
+ * edit that employee. A difference in a person's job (and, in a list that
+ * completes people, their pay) is locked: it is shown, said to be left as it
+ * is, and offers no tick. One employee record per person: the row never becomes
  * a second one, so this is where its details go.
  */
 export function StagedChanges({
@@ -123,6 +147,14 @@ export function StagedChanges({
               className="text-[11px] text-muted-foreground"
             >
               <span>{describe(change, t)}</span>
+              {change.kind === "locked" && (
+                <span className="ml-1 italic">
+                  {t(
+                    "setup2.changes_locked",
+                    "Left as it is. Change it with a personnel action.",
+                  )}
+                </span>
+              )}
               {choosable && (
                 <span className="ml-2 inline-flex items-center gap-1 align-middle">
                   <Checkbox
