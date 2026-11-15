@@ -16,6 +16,39 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { ErrorState } from "@/components/shared/error-state";
 
+type T = ReturnType<typeof useT>["t"];
+
+/** The schedule's frequency in words; the same wording the schedule dialog offers. */
+function frequencyLabel(t: T, frequency: string): string {
+  switch (frequency) {
+    case "daily":
+      return t("reports_page.daily_6am", "Daily, 6:00 AM");
+    case "weekly":
+      return t("reports_page.weekly_mon_6am", "Weekly, Monday 6:00 AM");
+    case "monthly":
+      return t(
+        "reports_page.monthly_1st_6am",
+        "Monthly, on the 1st at 6:00 AM",
+      );
+    default:
+      return frequency;
+  }
+}
+
+/** A schedule's failure code in words. The code itself is never shown. */
+function failureReason(t: T, code: string): string {
+  if (code === "creator_cannot_run") {
+    return t(
+      "reports_page.last_error_creator_cannot_run",
+      "The person who saved this report can no longer run it.",
+    );
+  }
+  return t(
+    "reports_page.last_error_failed",
+    "The report could not be produced. Run it from the Saved tab to see the problem.",
+  );
+}
+
 export function ScheduledTab() {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -68,16 +101,20 @@ export function ScheduledTab() {
                     <p className="font-semibold text-foreground truncate">
                       {s.report_name}
                     </p>
-                    <Badge variant="outline" className="capitalize text-[10px]">
-                      {s.frequency}
+                    <Badge variant="outline" className="text-[10px]">
+                      {frequencyLabel(t, s.frequency)}
                     </Badge>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" /> {s.recipients.length}{" "}
-                      {s.recipients.length > 1
-                        ? t("reports_page.recipients_lc")
-                        : t("reports_page.recipient_lc")}
+                      <Mail className="h-3 w-3" />{" "}
+                      {s.recipients.length === 1
+                        ? t("reports_page.recipients_count_one", "1 recipient")
+                        : t(
+                            "reports_page.recipients_count",
+                            ":count recipients",
+                            { count: s.recipients.length },
+                          )}
                     </span>
                     <span className="flex items-center gap-1">
                       <CalendarClock className="h-3 w-3" />{" "}
@@ -91,6 +128,18 @@ export function ScheduledTab() {
                       </span>
                     )}
                   </div>
+                  {s.last_error && (
+                    <p
+                      role="alert"
+                      className="mt-2 rounded-md border border-destructive-edge bg-destructive-soft px-2 py-1 text-xs text-destructive-on-soft"
+                    >
+                      <span className="font-semibold">
+                        {t("reports_page.last_run_failed", "Last run failed")}
+                      </span>
+                      {": "}
+                      {failureReason(t, s.last_error)}
+                    </p>
+                  )}
                   <div className="mt-2 flex flex-wrap gap-1">
                     {s.recipients.map((r) => (
                       <Badge key={r} variant="outline" className="text-[10px]">

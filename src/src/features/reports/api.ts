@@ -33,14 +33,41 @@ export type ReportPreset = Omit<
 };
 
 /**
- * The body of `POST /reports/generate`. Scramble reads the `array` rule on
- * `filters` as a list; ReportEngine reads it as a field → value map.
- * `format` belongs to `/reports/export`, which the page does not call.
+ * The body of `POST /reports/generate`. `filters` is typed by the contract:
+ * dates, a `year` number, a `period` key and unit ids. `format` belongs to
+ * `/reports/export`, which the page does not call.
  */
-export type ReportConfig = Omit<
-  Schemas["GenerateReportRequest"],
-  "filters" | "format"
-> & { filters?: Record<string, string> };
+export type ReportConfig = Omit<Schemas["GenerateReportRequest"], "format">;
+
+/** `filters.period`: a window the server resolves on the day, in the organisation's calendar. */
+export type ReportPeriod = NonNullable<
+  NonNullable<ReportConfig["filters"]>["period"]
+>;
+
+/** The periods a timesheet takes: it covers 31 days at most, and the server refuses a longer window. */
+const TIMESHEET_PERIODS: readonly ReportPeriod[] = [
+  "this_month",
+  "last_month",
+  "yesterday",
+  "last_7_days",
+];
+
+/** The periods the picker offers for a report's data, in the order it lists them. */
+export function reportPeriodsFor(dataSource: string): readonly ReportPeriod[] {
+  return dataSource === "timesheet" ? TIMESHEET_PERIODS : REPORT_PERIODS;
+}
+
+/** Every period key, in the order the picker lists them. */
+export const REPORT_PERIODS: readonly ReportPeriod[] = [
+  "this_month",
+  "last_month",
+  "last_3_months",
+  "last_12_months",
+  "yesterday",
+  "last_7_days",
+  "this_fiscal_year",
+  "last_fiscal_year",
+];
 
 /**
  * Rows are the source's column map. `summary` is `[]` when ungrouped, else

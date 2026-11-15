@@ -15,6 +15,12 @@ use Illuminate\Notifications\Notification;
  * `SystemAlertNotification` with a row count and nothing else — a scheduled
  * statutory filing report never reached anyone with data they could actually
  * submit. This attaches the CSV export inline.
+ *
+ * Not `BulkMail` on purpose: a bulk email held over the day's budget is
+ * skipped, a free-text address has no in-app copy, and the job would still
+ * record the run as delivered. It is sent inline, not queued, so no instance
+ * built before a deploy is restored from a payload that lacks `$period` and
+ * `$truncatedNote`; both default to null all the same.
  */
 class ScheduledReportNotification extends Notification
 {
@@ -25,6 +31,8 @@ class ScheduledReportNotification extends Notification
         private readonly int $rowCount,
         private readonly string $csvContent,
         private readonly string $filename,
+        private readonly ?string $period = null,
+        private readonly ?string $truncatedNote = null,
     ) {}
 
     /** @return array<int, string> */
@@ -47,6 +55,13 @@ class ScheduledReportNotification extends Notification
         $message = (new MailMessage)
             ->subject(__('report.scheduled_subject', ['name' => $this->name]))
             ->line(__('report.scheduled_body', ['name' => $this->name, 'rows' => $this->rowCount]));
+
+        if ($this->period !== null && $this->period !== '') {
+            $message->line(__('report.period_line', ['period' => $this->period]));
+        }
+        if ($this->truncatedNote !== null && $this->truncatedNote !== '') {
+            $message->line($this->truncatedNote);
+        }
 
         if ($this->rowCount > 0) {
             $message->attachData($this->csvContent, $this->filename, ['mime' => 'text/csv']);

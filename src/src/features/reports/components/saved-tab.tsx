@@ -49,12 +49,15 @@ import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { usePlanFeatures } from "@/features/auth/api";
 import { PreviewResult } from "@/features/reports/components/preview-result";
 
 export function SavedTab() {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate } = useDateFormatters();
+  // Scheduling needs the plan's `custom_reports`, as saving a template does.
+  const hasCustomReports = usePlanFeatures().has("custom_reports");
   const { data, isLoading, isError, refetch } = useSavedReports();
   const deleteReport = useDeleteSavedReport();
   const runReport = useGenerateReport();
@@ -163,14 +166,16 @@ export function SavedTab() {
                   >
                     <Play className="mr-1 h-3 w-3" /> {t("reports_page.run")}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setScheduleFor(r)}
-                  >
-                    <CalendarClock className="mr-1 h-3 w-3" />{" "}
-                    {t("reports_page.schedule")}
-                  </Button>
+                  {hasCustomReports && r.mine && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setScheduleFor(r)}
+                    >
+                      <CalendarClock className="mr-1 h-3 w-3" />{" "}
+                      {t("reports_page.schedule")}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -186,7 +191,11 @@ export function SavedTab() {
               </CardContent>
               {resultFor === r.public_id && runReport.data && (
                 <CardContent className="border-t pt-4">
-                  <PreviewResult result={runReport.data} />
+                  <PreviewResult
+                    result={runReport.data}
+                    title={r.name}
+                    config={r.config}
+                  />
                 </CardContent>
               )}
             </Card>
@@ -214,6 +223,12 @@ export function ScheduleDialog({
 }) {
   const { t } = useT();
   const schedule = useScheduleReport();
+  // Dates written into the settings are sent as they are on every run; a
+  // period is worked out afresh each time.
+  const filters = report.config.filters;
+  const fixedDates = Boolean(
+    (filters?.from || filters?.to) && !filters?.period,
+  );
   const [frequency, setFrequency] = useState<"daily" | "weekly" | "monthly">(
     "weekly",
   );
@@ -244,7 +259,16 @@ export function ScheduleDialog({
           onClose();
         },
         onError: (err) =>
-          toast.error(apiErrorMessage(err, t("reports_page.schedule_failed"))),
+          toast.error(
+            // Only the person who saved a report may schedule it.
+            (err as { response?: { status?: number } })?.response?.status ===
+              403
+              ? t(
+                  "reports_page.schedule_not_yours",
+                  "Only the person who saved a report can schedule it.",
+                )
+              : apiErrorMessage(err, t("reports_page.schedule_failed")),
+          ),
       },
     );
   }
@@ -261,6 +285,17 @@ export function ScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {fixedDates && (
+            <p
+              role="note"
+              className="rounded-md border border-warning-edge bg-warning-soft px-3 py-2 text-xs text-warning-on-soft"
+            >
+              {t(
+                "reports_page.fixed_dates_notice",
+                "This report has fixed dates, so every email will carry the same dates. A report saved with a period, such as last month, follows the calendar.",
+              )}
+            </p>
+          )}
           <div>
             <Label>{t("reports_page.frequency")}</Label>
             <Select
@@ -296,7 +331,10 @@ export function ScheduleDialog({
                 onKeyDown={(e) =>
                   e.key === "Enter" && (e.preventDefault(), addEmail())
                 }
-                placeholder="hr@example.com"
+                placeholder={t(
+                  "reports_page.email_placeholder",
+                  "hr@example.com",
+                )}
               />
               <Button type="button" variant="outline" onClick={addEmail}>
                 {t("reports_page.add")}

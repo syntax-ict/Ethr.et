@@ -16,6 +16,18 @@ return [
     'pdf_generated' => ':date የተዘጋጀ',
     'pdf_rows' => ':count ረድፍ',
     'pdf_footer' => 'በETHR',
+    'truncated_note' => 'ይህ ሪፖርት ከ:matched ረድፎች :shown ያሳያል፤ አዳዲሶቹ መጀመሪያ ናቸው። የቀሩትን ለማየት ቀኖቹን ወይም ማጣሪያዎቹን ያጥብቡ።',
+    'truncated_note_unknown' => 'ይህ ሪፖርት አዳዲሶቹን :shown ረድፎች ብቻ ያሳያል። የቀሩትን ለማየት ቀኖቹን ወይም ማጣሪያዎቹን ያጥብቡ።',
+    'period_range' => ':from እስከ :to',
+    'period_line' => 'ጊዜ፦ :period',
+    'sources' => [
+        'employees' => 'ሠራተኞች',
+        'attendance' => 'መገኘት',
+        'timesheet' => 'ወርሃዊ የሰዓት መዝገብ',
+        'absences' => 'ያለመገኘት',
+        'leave' => 'የፈቃድ ቀሪ',
+        'payroll' => 'ደመወዝ',
+    ],
     'fields' => [
         'name' => 'ስም',
         'email' => 'ኢሜይል',

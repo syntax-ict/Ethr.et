@@ -16,6 +16,18 @@ return [
     'pdf_generated' => 'Guyyaa :date qophaa\'e',
     'pdf_rows' => '{1} toora :count|[0,*] toorota :count',
     'pdf_footer' => 'ETHR irratti hundaa\'e',
+    'truncated_note' => 'Gabaasni kun toora :matched keessaa :shown agarsiisa, kan haaraan duraa. Kan hafe ilaaluuf guyyoota yookaan calaqqisiisota hanqisaa.',
+    'truncated_note_unknown' => 'Gabaasni kun toora haaraa :shown qofa agarsiisa. Kan hafe ilaaluuf guyyoota yookaan calaqqisiisota hanqisaa.',
+    'period_range' => ':from hanga :to',
+    'period_line' => 'Yeroo: :period',
+    'sources' => [
+        'employees' => 'Hojjettoota',
+        'attendance' => 'Argamuu',
+        'timesheet' => 'Gabatee sa\'aatii ji\'aa',
+        'absences' => 'Hin argamne',
+        'leave' => 'Haftee boqonnaa',
+        'payroll' => 'Kaffaltii mindaa',
+    ],
     'fields' => [
         'name' => 'Maqaa',
         'email' => 'Imeelii',

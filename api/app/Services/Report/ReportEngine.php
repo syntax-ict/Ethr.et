@@ -19,10 +19,11 @@ use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\RunRegisterService;
 use App\Support\Csv;
 use App\Support\ReaderDates;
+use App\Support\RequestBudget;
 use App\Support\TenantTime;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Lang;
 
 final class ReportEngine
@@ -39,6 +40,21 @@ final class ReportEngine
     /** Who the rows are written for; set by every generate(). */
     private ?ReaderDates $reader = null;
 
+    /** Rows matching before ROW_LIMIT cut them, or null for a source that is never cut; reset by every generate(). */
+    private ?int $matched = null;
+
+    /** Counts and sums for a grouped report, or null when ungrouped; reset by every generate(). */
+    private ?GroupTally $tally = null;
+
+    /** Whether a query already fed every matching row to the tally, not only those it returned. */
+    private bool $tallied = false;
+
+    /** False when the pass over every matching row stopped at the request's deadline. */
+    private bool $complete = true;
+
+    /** The dates a source applied, when it takes dates; reset by every generate(). */
+    private ?array $period = null;
+
     /**
      * Each source's columns and the `filters` keys it applies. `department`,
      * `branch` and `cost_center` take the unit's `public_id`; `from` and `to`
@@ -53,17 +69,17 @@ final class ReportEngine
         'attendance' => [
             'label' => 'Attendance',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'date', 'check_in', 'check_out', 'status', 'source', 'worked_minutes', 'overtime_minutes'],
-            'filters' => ['from', 'to', 'status', 'department', 'branch'],
+            'filters' => ['period', 'from', 'to', 'status', 'department', 'branch'],
         ],
         'timesheet' => [
             'label' => 'Monthly timesheet',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'holiday_days', 'worked_hours', 'overtime_hours'],
-            'filters' => ['from', 'to', 'department', 'branch'],
+            'filters' => ['period', 'from', 'to', 'department', 'branch'],
         ],
         'absences' => [
             'label' => 'Absences',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'date'],
-            'filters' => ['from', 'to', 'department', 'branch'],
+            'filters' => ['period', 'from', 'to', 'department', 'branch'],
         ],
         'leave' => [
             'label' => 'Leave Balances',
@@ -73,18 +89,18 @@ final class ReportEngine
         'payroll' => [
             'label' => 'Payroll',
             'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'cost_center', 'period', 'basic_salary_cents', 'overtime_cents', 'allowances_cents', 'gross_cents', 'income_tax_cents', 'employee_pension_cents', 'employer_pension_cents', 'loan_cents', 'cost_sharing_cents', 'net_cents'],
-            'filters' => ['from', 'to', 'department', 'branch', 'cost_center'],
+            'filters' => ['period', 'from', 'to', 'department', 'branch', 'cost_center'],
         ],
     ];
+
+    /** The sources that take `from` and `to`, and so a `period`. */
+    private const DATED_SOURCES = ['attendance', 'timesheet', 'absences', 'payroll'];
 
     /** Date-only fields, written in the reader's calendar in files. */
     private const DATE_FIELDS = ['hire_date', 'date'];
 
     /** Instants, written in the organisation's zone in files. */
     private const TIME_FIELDS = ['check_in', 'check_out'];
-
-    /** Columns summed per group: money, day counts and durations. */
-    private const SUMMED_SUFFIXES = ['_cents', '_days', '_hours', '_minutes'];
 
     public function __construct(private readonly RunRegisterService $register) {}
 
@@ -110,7 +126,14 @@ final class ReportEngine
      * sums. Stated for the API contract, which cannot follow maps built by key.
      *
      * `truncated` is true when the source had more rows than ROW_LIMIT and only
-     * the newest were returned.
+     * the newest were returned; `matched` is how many there were. A grouped
+     * report counts and sums every matching row, not only those returned:
+     * `summary.complete` is false when the request's time ran out first, and
+     * the totals then cover the rows read up to that point. `period` is the
+     * dates the report applied, from a `filters.period` key or from `from` and
+     * `to`, for the sources that take dates. A file or an email needs no
+     * totals: with `$withSummary` false the summary is empty and no row beyond
+     * the cut is read, though `matched` still counts them.
      *
      * Rows are limited to what `$viewer` may see, exactly as the screens limit
      * them: their organisation scope, no `salary_cents` without
@@ -119,9 +142,9 @@ final class ReportEngine
      * report.generate, so an HR Admin, deliberately denied payroll.viewAll
      * (audit N95), could pull every payslip figure here (blueprint D6).
      *
-     * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int|float>>}}
+     * @scramble-return array{source: string, total: int, matched: int, truncated: bool, period: array{from: string, to: string}|null, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int|float>>, complete?: bool}}
      */
-    public function generate(int $tenantId, array $config, User $viewer, ?ReaderDates $reader = null): array
+    public function generate(int $tenantId, array $config, User $viewer, ?ReaderDates $reader = null, bool $withSummary = true): array
     {
         $this->reader = $reader ?? ReaderDates::for($viewer);
         $source = $config['source'] ?? 'employees';
@@ -131,6 +154,13 @@ final class ReportEngine
         $sortBy = $config['sort_by'] ?? null;
         $sortDir = $config['sort_dir'] ?? 'asc';
         $this->truncated = false;
+        $this->matched = null;
+        $this->tallied = false;
+        $this->complete = true;
+        $this->period = null;
+        $this->tally = $groupBy && $withSummary ? new GroupTally((string) $groupBy, $columns) : null;
+
+        $filters = $this->withPeriod($source, $filters, $tenantId);
 
         $data = match ($source) {
             'employees' => $this->queryEmployees($tenantId, $filters, $viewer),
@@ -161,45 +191,70 @@ final class ReportEngine
         }
 
         $summary = [];
-        if ($groupBy && ! empty($data)) {
-            $grouped = [];
-            // Sums any `*_cents`, `*_days`, `*_hours` or `*_minutes` column
-            // present in the (already column-filtered) rows per group — e.g.
-            // grouping the payroll source by `period` gives the monthly
-            // income-tax/pension totals a statutory filing needs, and grouping
-            // the timesheet by department gives absent days per department,
-            // without a source-specific code path. A count alone ("45 rows")
-            // told a compliance officer nothing usable for a remittance filing.
-            $sums = [];
+        if ($this->tally !== null && ! empty($data)) {
+            // A source that returns every row is tallied from them; one that
+            // was cut has already tallied them all, and the groups keep the
+            // order the returned rows first show them.
+            $order = [];
             foreach ($data as $row) {
-                $key = (string) ($row[$groupBy] ?? 'Unknown');
-                $grouped[$key] = ($grouped[$key] ?? 0) + 1;
-
-                // Sums cover the selected columns, as before. Hours are
-                // fractional; everything else summed is a whole number.
-                foreach ($project($row) as $field => $value) {
-                    if (is_numeric($value) && $this->summed((string) $field)) {
-                        $sums[$key][$field] = str_ends_with((string) $field, '_hours')
-                            ? round(($sums[$key][$field] ?? 0) + (float) $value, 1)
-                            : ($sums[$key][$field] ?? 0) + (int) $value;
-                    }
+                $order[(string) ($row[$groupBy] ?? 'Unknown')] = true;
+                if ($this->returnedRowsNeedTallying()) {
+                    $this->tally->add($row);
                 }
             }
-            $summary = ['grouped_by' => $groupBy, 'groups' => $grouped];
-            if ($sums !== []) {
+            $order = array_keys($order);
+            $summary = ['grouped_by' => $groupBy, 'groups' => $this->tally->groups($order)];
+            if (($sums = $this->tally->sums($order)) !== []) {
                 $summary['group_sums'] = $sums;
             }
+            $summary['complete'] = $this->complete;
         }
 
+        $matched = $this->matched ?? count($data);
         $data = array_map($project, $data);
 
         return [
             'source' => $source,
             'total' => count($data),
+            'matched' => max($matched, count($data)),
             'truncated' => $this->truncated,
+            'period' => $this->period,
             'data' => $data,
             'summary' => $summary,
         ];
+    }
+
+    /** Whether the query left the tally to the rows it returned, as one that was not cut does. */
+    private function returnedRowsNeedTallying(): bool
+    {
+        return ! $this->tallied;
+    }
+
+    /**
+     * `filters.period`, resolved today, in place of `from` and `to` for the
+     * sources that take dates. The saved report keeps the key and every run
+     * reads its own dates.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function withPeriod(string $source, array $filters, int $tenantId): array
+    {
+        $key = $filters['period'] ?? null;
+        if (! in_array($source, self::DATED_SOURCES, true) || ! is_string($key) || ! in_array($key, ReportPeriod::KEYS, true)) {
+            return $filters;
+        }
+        // A timesheet covers a month at most; a longer period would be cut to
+        // its first 31 days. Saved configs reach here without the request.
+        if ($source === 'timesheet' && ! in_array($key, ReportPeriod::SHORT_KEYS, true)) {
+            return $filters;
+        }
+
+        [$from, $to] = ReportPeriod::resolve($key, Tenant::query()->find($tenantId));
+        $filters['from'] = $from->format('Y-m-d');
+        $filters['to'] = $to->format('Y-m-d');
+
+        return $filters;
     }
 
     /**
@@ -208,9 +263,12 @@ final class ReportEngine
      * different files for the same config (the bug class the bank-export and
      * OpenAPI-drift fixes elsewhere in this project both turned out to be).
      *
+     * A `$note` (a report that was cut says so) ends the file after an empty
+     * line, in one cell, so the file says what it holds.
+     *
      * @param  array<int, array<string, mixed>>  $rows
      */
-    public function toCsv(array $rows, ?ReaderDates $reader = null): string
+    public function toCsv(array $rows, ?ReaderDates $reader = null, ?string $note = null): string
     {
         if ($rows === []) {
             return '';
@@ -221,8 +279,53 @@ final class ReportEngine
         foreach ($rows as $row) {
             $lines[] = Csv::row($row);
         }
+        if ($note !== null && $note !== '') {
+            $lines[] = '';
+            $lines[] = Csv::row([$note]);
+        }
 
         return implode("\r\n", $lines);
+    }
+
+    /**
+     * What a file or an email says when the report was cut: how many rows it
+     * shows of how many matched. Null when it was not.
+     *
+     * @param  array{total?: int, matched?: int, truncated?: bool}  $result
+     */
+    public function truncationNote(array $result, ReaderDates $reader): ?string
+    {
+        if (! ($result['truncated'] ?? false)) {
+            return null;
+        }
+
+        if ((int) ($result['matched'] ?? 0) <= (int) ($result['total'] ?? 0)) {
+            return (string) __('report.truncated_note_unknown', ['shown' => number_format((int) ($result['total'] ?? 0))], $reader->locale);
+        }
+
+        return (string) __('report.truncated_note', [
+            'shown' => number_format((int) ($result['total'] ?? 0)),
+            'matched' => number_format((int) ($result['matched'] ?? 0)),
+        ], $reader->locale);
+    }
+
+    /**
+     * The dates a report covers, in the reader's calendar, or null when it
+     * covers no stated span.
+     *
+     * @param  array{period?: array{from: string, to: string}|null}  $result
+     */
+    public function periodText(array $result, ReaderDates $reader): ?string
+    {
+        $period = $result['period'] ?? null;
+        if (! is_array($period)) {
+            return null;
+        }
+
+        return (string) __('report.period_range', [
+            'from' => $reader->date($period['from']),
+            'to' => $reader->date($period['to']),
+        ], $reader->locale);
     }
 
     /**
@@ -282,17 +385,6 @@ final class ReportEngine
         return Lang::has($key, $locale) ? (string) __($key, [], $locale) : ucfirst(str_replace('_', ' ', $field));
     }
 
-    private function summed(string $field): bool
-    {
-        foreach (self::SUMMED_SUFFIXES as $suffix) {
-            if (str_ends_with($field, $suffix)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private function queryEmployees(int $tenantId, array $filters, User $viewer): array
     {
         $query = Employee::withoutGlobalScope('tenant')
@@ -304,9 +396,6 @@ final class ReportEngine
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
-        }
-        if (! empty($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
         }
         $this->filterUnits($query, $filters);
         $viewer->scopeAccessibleEmployees($query);
@@ -353,12 +442,20 @@ final class ReportEngine
             $query->where('status', $filters['status']);
         }
 
+        if (! empty($filters['from']) && ! empty($filters['to'])) {
+            $this->period = ['from' => (string) $filters['from'], 'to' => (string) $filters['to']];
+        }
+
         // Newest first, so a limited report keeps the recent months. It took
         // the first 1,000 in no order, which was the oldest, and said nothing
         // about the cut (audit N65).
-        $rows = $this->limited($query->orderByDesc('date')->orderByDesc('id'));
+        return $this->limited($query, ['date', 'id'], $this->attendanceRow(...));
+    }
 
-        return $rows->map(fn (AttendanceRecord $r) => [
+    /** @return array<string, mixed> */
+    private function attendanceRow(AttendanceRecord $r): array
+    {
+        return [
             'employee_name' => $r->employee?->name,
             'employee_code' => $r->employee?->employee_code,
             'department' => $r->employee?->department->name ?? '',
@@ -373,7 +470,7 @@ final class ReportEngine
             // so every row said 0.
             'worked_minutes' => $r->workedMinutes(),
             'overtime_minutes' => $r->overtimeMinutes(),
-        ])->toArray();
+        ];
     }
 
     /**
@@ -416,6 +513,7 @@ final class ReportEngine
         if ($from->greaterThan($to)) {
             return [];
         }
+        $this->period = ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')];
 
         $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
         $this->filterUnits($employeeQuery, $filters);
@@ -534,10 +632,10 @@ final class ReportEngine
         if ($from->diffInDays($to) >= self::ABSENCE_MAX_DAYS) {
             $from = $to->copy()->subDays(self::ABSENCE_MAX_DAYS - 1);
         }
-
         if ($from->greaterThan($to)) {
             return [];
         }
+        $this->period = ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')];
 
         $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
         $this->filterUnits($employeeQuery, $filters);
@@ -569,28 +667,45 @@ final class ReportEngine
         $rows = [];
 
         // Newest first, as the attendance source orders, so a cut keeps the
-        // recent days.
+        // recent days. With totals to give, the days past the cut are still
+        // worked out and counted, until the request's deadline; with none,
+        // the loop stops at the cut and no count is claimed.
+        $matched = 0;
+        $this->tallied = $this->tally !== null;
         for ($day = $to->copy(); $day->greaterThanOrEqualTo($from); $day = $day->copy()->subDay()) {
+            if ($matched >= self::ROW_LIMIT && $this->pastDeadline()) {
+                $this->complete = false;
+                $this->truncated = true;
+
+                return $rows;
+            }
             $key = $day->format('Y-m-d');
             foreach ($expectedDays->onDate($employees, $day) as $id => $kind) {
                 if ($kind !== ExpectedDay::WORKDAY || isset($attended[$key][$id])) {
                     continue;
                 }
-                if (count($rows) === self::ROW_LIMIT) {
+                if ($matched >= self::ROW_LIMIT) {
                     $this->truncated = true;
-
-                    return $rows;
+                    if ($this->tally === null) {
+                        return $rows;
+                    }
                 }
                 $employee = $byId[$id];
-                $rows[] = [
+                $row = [
                     'employee_name' => $employee->name,
                     'employee_code' => $employee->employee_code,
                     'department' => $employee->department->name ?? '',
                     'branch' => $employee->branch->name ?? '',
                     'date' => $key,
                 ];
+                $matched++;
+                $this->tally?->add($row);
+                if ($matched <= self::ROW_LIMIT) {
+                    $rows[] = $row;
+                }
             }
         }
+        $this->matched = $matched;
 
         return $rows;
     }
@@ -663,32 +778,38 @@ final class ReportEngine
         $this->limitToReach($query, $tenantId, $viewer);
         $this->limitToUnits($query, $tenantId, $filters);
 
-        $rows = $this->limited($query->orderByDesc('payroll_run_id')->orderByDesc('id'));
+        if (! empty($filters['from']) && ! empty($filters['to'])) {
+            $this->period = ['from' => (string) $filters['from'], 'to' => (string) $filters['to']];
+        }
 
-        return $rows->map(function (PayrollEntry $e): array {
-            $line = $this->register->row($e);
+        return $this->limited($query, ['payroll_run_id', 'id'], $this->payrollRow(...));
+    }
 
-            return [
-                'employee_name' => $e->employee?->name,
-                'employee_code' => $e->employee?->employee_code,
-                'department' => $e->employee?->department->name ?? '',
-                'branch' => $e->employee?->branch->name ?? '',
-                'cost_center' => $e->employee?->costCenter->name ?? '',
-                // The month the run means, in the reader's calendar: the stored
-                // label is English and Gregorian.
-                'period' => $this->reader?->periodOf($e->payrollRun) ?? (string) $e->payrollRun?->period_label,
-                'basic_salary_cents' => $e->basic_salary_cents,
-                'overtime_cents' => $line['overtime_cents'],
-                'allowances_cents' => $line['allowances_cents'],
-                'gross_cents' => $e->gross_cents,
-                'income_tax_cents' => $e->income_tax_cents,
-                'employee_pension_cents' => $e->employee_pension_cents,
-                'employer_pension_cents' => $e->employer_pension_cents,
-                'loan_cents' => $line['loan_cents'],
-                'cost_sharing_cents' => $line['cost_sharing_cents'],
-                'net_cents' => $e->net_cents,
-            ];
-        })->toArray();
+    /** @return array<string, mixed> */
+    private function payrollRow(PayrollEntry $e): array
+    {
+        $line = $this->register->row($e);
+
+        return [
+            'employee_name' => $e->employee?->name,
+            'employee_code' => $e->employee?->employee_code,
+            'department' => $e->employee?->department->name ?? '',
+            'branch' => $e->employee?->branch->name ?? '',
+            'cost_center' => $e->employee?->costCenter->name ?? '',
+            // The month the run means, in the reader's calendar: the stored
+            // label is English and Gregorian.
+            'period' => $this->reader?->periodOf($e->payrollRun) ?? (string) $e->payrollRun?->period_label,
+            'basic_salary_cents' => $e->basic_salary_cents,
+            'overtime_cents' => $line['overtime_cents'],
+            'allowances_cents' => $line['allowances_cents'],
+            'gross_cents' => $e->gross_cents,
+            'income_tax_cents' => $e->income_tax_cents,
+            'employee_pension_cents' => $e->employee_pension_cents,
+            'employer_pension_cents' => $e->employer_pension_cents,
+            'loan_cents' => $line['loan_cents'],
+            'cost_sharing_cents' => $line['cost_sharing_cents'],
+            'net_cents' => $e->net_cents,
+        ];
     }
 
     /**
@@ -751,23 +872,66 @@ final class ReportEngine
     }
 
     /**
-     * At most ROW_LIMIT rows, noting in $truncated whether there were more.
+     * The newest ROW_LIMIT rows, mapped, noting in $truncated whether there
+     * were more and in $matched how many. A grouped report then reads every
+     * matching row once more, in id order and a chunk at a time, so its
+     * totals are not the totals of the rows kept.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query  Unordered and unlimited.
+     * @param  list<string>  $newestBy  Columns that put the newest row first, descending.
+     * @param  Closure(TModel): array<string, mixed>  $map
+     * @return list<array<string, mixed>>
+     */
+    private function limited(Builder $query, array $newestBy, Closure $map): array
+    {
+        $this->matched = (clone $query)->count();
+
+        $ordered = clone $query;
+        foreach ($newestBy as $column) {
+            $ordered->orderByDesc($column);
+        }
+        $rows = $ordered->limit(self::ROW_LIMIT)->get()->map($map)->values()->all();
+
+        if ($this->matched > self::ROW_LIMIT) {
+            $this->truncated = true;
+            if ($this->tally !== null) {
+                $this->tallyEvery($query, $map);
+            }
+        }
+
+        return $rows;
+    }
+
+    /** Whether the request's budget has run out; none on the command line or in a queued job. */
+    private function pastDeadline(): bool
+    {
+        $deadline = RequestBudget::deadline();
+
+        return $deadline !== null && microtime(true) >= $deadline;
+    }
+
+    /**
+     * Every matching row into the tally, stopping at the request's deadline
+     * (none on the command line or in a queued job).
      *
      * @template TModel of \Illuminate\Database\Eloquent\Model
      *
      * @param  Builder<TModel>  $query
-     * @return Collection<int, TModel>
+     * @param  Closure(TModel): array<string, mixed>  $map
      */
-    private function limited(Builder $query): Collection
+    private function tallyEvery(Builder $query, Closure $map): void
     {
-        $rows = $query->limit(self::ROW_LIMIT + 1)->get();
+        $this->tallied = true;
 
-        if ($rows->count() > self::ROW_LIMIT) {
-            $this->truncated = true;
+        foreach ($query->lazyById(500) as $model) {
+            if ($this->pastDeadline()) {
+                $this->complete = false;
 
-            return $rows->take(self::ROW_LIMIT)->values();
+                return;
+            }
+            $this->tally?->add($map($model));
         }
-
-        return $rows->values();
     }
 }

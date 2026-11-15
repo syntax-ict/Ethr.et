@@ -44,18 +44,23 @@ export function buildCsv(
   {
     label,
     value,
+    note,
   }: {
     label?: (key: string) => string;
     value?: (key: string, raw: unknown) => unknown;
+    /** One line of text under the rows, after an empty line: "this file is cut". */
+    note?: string | null;
   } = {},
 ): string {
   if (rows.length === 0) return "";
 
   const keys = Object.keys(rows[0]);
-  return csvFromRows(
+  const csv = csvFromRows(
     label ? keys.map(label) : keys,
     rows.map((row) => keys.map((k) => (value ? value(k, row[k]) : row[k]))),
   );
+  // An empty line, then the note as one cell, through the same escaping.
+  return note ? `${csv}\n\n${csvCell(note)}` : csv;
 }
 
 /** A `*_cents` number as an amount; anything else unchanged. */
