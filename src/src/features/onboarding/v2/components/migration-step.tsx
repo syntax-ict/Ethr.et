@@ -33,6 +33,10 @@ import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   CommitStalled,
   listColumns,
+  StagingInterrupted,
+  StagingStalled,
+  type StagingProgress,
+  useCarryOnStaging,
   useCommitMigration,
   useImportSources,
   useMigrationBatch,
@@ -168,7 +172,15 @@ export function MigrationStep({
   const { requestConfirm, confirmDialog } = useConfirm();
   const devicesQuery = useDevices();
   const stageDevice = useStageFromDevice();
-  const stageRows = useStageFromRows();
+  // How far a long list has been matched, while it is, and the list whose
+  // matching stopped, so it can be carried on and not read again.
+  const [staging, setStaging] = useState<StagingProgress | null>(null);
+  const [interrupted, setInterrupted] = useState<{
+    batchId: string;
+    message: string;
+  } | null>(null);
+  const stageRows = useStageFromRows(setStaging);
+  const carryOn = useCarryOnStaging(setStaging);
   const setAction = useSetRowAction();
   // Rows a long list still has to add, while it is being added.
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -458,14 +470,68 @@ export function MigrationStep({
         ...(leaveOutProblems ? { skip_problems: true } : {}),
         ...listColumns(named),
       });
+      setInterrupted(null);
+      setStaging(null);
       setBatchId(b.public_id);
     } catch (err) {
+      setStaging(null);
+      // The list was stored and matching stopped: it is kept, and the reader
+      // is told so, with a way to carry on that does not read it again.
+      if (err instanceof StagingInterrupted) {
+        rememberInterrupted(err);
+        return;
+      }
       // The list changed after it was last read, or was never read: the
       // server names the lines it will not stage, and they are shown where
       // the read's are.
       const lines = refusedLines(err);
       if (lines.length > 0) {
         setRefused({ csv, lines });
+        return;
+      }
+      toast.error(
+        apiErrorMessage(err, t("setup2.stage_failed", "Could not stage rows")),
+      );
+    }
+  }
+
+  function stagingText(progress: StagingProgress): string {
+    return t("setup2.staging_progress", "Matching people: :done of :total", {
+      done: progress.staged,
+      total: progress.staged + progress.remaining,
+    });
+  }
+
+  function rememberInterrupted(err: StagingInterrupted) {
+    setInterrupted({
+      batchId: err.batchId,
+      message:
+        err.cause instanceof StagingStalled
+          ? t(
+              "setup2.staging_stalled",
+              "Matching stopped moving. The list is kept; carry on to finish it.",
+            )
+          : apiErrorMessage(
+              err.cause,
+              t(
+                "setup2.staging_interrupted",
+                "The list was read, but matching the people stopped before it finished. The list is kept; carry on to finish it.",
+              ),
+            ),
+    });
+  }
+
+  async function carryOnStagingList() {
+    if (!interrupted) return;
+    try {
+      const b = await carryOn.mutateAsync(interrupted.batchId);
+      setInterrupted(null);
+      setStaging(null);
+      setBatchId(b.public_id);
+    } catch (err) {
+      setStaging(null);
+      if (err instanceof StagingInterrupted) {
+        rememberInterrupted(err);
         return;
       }
       toast.error(
@@ -868,11 +934,43 @@ export function MigrationStep({
                   "Without column names, the order is: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Only the name is required.",
                 )}
               </p>
+              {interrupted && (
+                <div
+                  role="alert"
+                  className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground"
+                >
+                  <p>{interrupted.message}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={carryOnStagingList}
+                      disabled={carryOn.isPending}
+                    >
+                      {carryOn.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      {carryOn.isPending && staging
+                        ? stagingText(staging)
+                        : t("setup2.staging_carry_on", "Carry on")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setInterrupted(null)}
+                      disabled={carryOn.isPending}
+                    >
+                      {t("setup2.start_over", "Start over")}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <Button
                 className="w-full"
                 onClick={() => stageCsv()}
                 disabled={
                   stageRows.isPending ||
+                  carryOn.isPending ||
+                  interrupted !== null ||
                   csv.trim() === "" ||
                   problems.length > 0 ||
                   nameless ||
@@ -882,14 +980,20 @@ export function MigrationStep({
                 {stageRows.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                {t("setup2.stage_rows", "Stage for review")}
+                {stageRows.isPending && staging
+                  ? stagingText(staging)
+                  : t("setup2.stage_rows", "Stage for review")}
               </Button>
               {canLeaveOut && (
                 <Button
                   className="w-full"
                   variant="outline"
                   onClick={() => stageCsv(true)}
-                  disabled={stageRows.isPending}
+                  disabled={
+                    stageRows.isPending ||
+                    carryOn.isPending ||
+                    interrupted !== null
+                  }
                 >
                   {read!.people === 1
                     ? t(
