@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\Observability\QueueHealth;
+use App\Support\StaleReleaseCaches;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 
@@ -147,4 +148,106 @@ it('rate-limits rejected token attempts, not just accepted ones', function () {
     $this->withHeader('X-Cron-Token', 'wrong-but-also-thirty-two-characters-long')
         ->postJson('/api/v1/cron/schedule')
         ->assertStatus(429);
+});
+
+describe('rebuilding the caches a release made stale', function () {
+    beforeEach(function () {
+        $this->marker = StaleReleaseCaches::markerPath(app());
+        @unlink($this->marker);
+    });
+
+    afterEach(function () {
+        @unlink($this->marker);
+    });
+
+    it('rebuilds config and route caches, never views, before the scheduler runs', function () {
+        file_put_contents($this->marker, '2026-11-15T10:00:00Z');
+        $order = [];
+        Artisan::shouldReceive('call')->times(3)->andReturnUsing(function (string $command) use (&$order): int {
+            $order[] = $command;
+
+            return 0;
+        });
+        Artisan::shouldReceive('output')->andReturn('done');
+
+        $this->withHeader('X-Cron-Token', CRON_TOKEN)->postJson('/api/v1/cron/schedule')
+            ->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('recache.status', 'rebuilt')
+            ->assertJsonPath('recache.commands.0.command', 'config:cache')
+            ->assertJsonPath('recache.commands.1.command', 'route:cache');
+
+        expect($order)->toBe(['config:cache', 'route:cache', 'ethr:schedule-run'])
+            ->and(is_file($this->marker))->toBeFalse();
+    });
+
+    it('runs no cache command without the marker', function () {
+        Artisan::shouldReceive('call')->once()->with('ethr:schedule-run')->andReturn(0);
+        Artisan::shouldReceive('output')->andReturn('done');
+
+        $this->withHeader('X-Cron-Token', CRON_TOKEN)->postJson('/api/v1/cron/schedule')
+            ->assertOk()
+            ->assertJsonMissingPath('recache');
+    });
+
+    it('keeps the marker, still runs the scheduler and reports ok when a rebuild fails', function () {
+        file_put_contents($this->marker, '2026-11-15T10:00:00Z');
+        $order = [];
+        Artisan::shouldReceive('call')->andReturnUsing(function (string $command) use (&$order): int {
+            $order[] = $command;
+
+            return $command === 'route:cache' ? 1 : 0;
+        });
+        Artisan::shouldReceive('output')->andReturn('done');
+
+        $this->withHeader('X-Cron-Token', CRON_TOKEN)->postJson('/api/v1/cron/schedule')
+            ->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('recache.status', 'failed');
+
+        expect($order)->toBe(['config:cache', 'route:cache', 'ethr:schedule-run'])
+            ->and(is_file($this->marker))->toBeTrue();
+    });
+
+    it('survives a rebuild that throws', function () {
+        file_put_contents($this->marker, '2026-11-15T10:00:00Z');
+        Artisan::shouldReceive('call')->andReturnUsing(function (string $command): int {
+            if ($command === 'config:cache') {
+                throw new RuntimeException('disk full');
+            }
+
+            return 0;
+        });
+        Artisan::shouldReceive('output')->andReturn('done');
+
+        $this->withHeader('X-Cron-Token', CRON_TOKEN)->postJson('/api/v1/cron/schedule')
+            ->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('recache.status', 'failed');
+
+        expect(is_file($this->marker))->toBeTrue();
+    });
+
+    it('drops the marker without rebuilding when the caches are already fresh', function () {
+        $files = StaleReleaseCaches::cacheFiles(app());
+        file_put_contents($this->marker, '2026-11-15T10:00:00Z');
+        foreach ($files as $file) {
+            file_put_contents($file, '<?php return [];');
+        }
+
+        try {
+            Artisan::shouldReceive('call')->once()->with('ethr:schedule-run')->andReturn(0);
+            Artisan::shouldReceive('output')->andReturn('done');
+
+            $this->withHeader('X-Cron-Token', CRON_TOKEN)->postJson('/api/v1/cron/schedule')
+                ->assertOk()
+                ->assertJsonPath('recache.status', 'already-fresh');
+
+            expect(is_file($this->marker))->toBeFalse();
+        } finally {
+            foreach ($files as $file) {
+                @unlink($file);
+            }
+        }
+    });
 });
