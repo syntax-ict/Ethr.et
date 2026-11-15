@@ -1031,6 +1031,7 @@ return array(
     'App\\Services\\Letters\\EmploymentLetters' => $baseDir . '/app/Services/Letters/EmploymentLetters.php',
     'App\\Services\\MfaService' => $baseDir . '/app/Services/MfaService.php',
     'App\\Services\\Migration\\CommitProgress' => $baseDir . '/app/Services/Migration/CommitProgress.php',
+    'App\\Services\\Migration\\StageProgress' => $baseDir . '/app/Services/Migration/StageProgress.php',
     'App\\Services\\Migration\\StagedChanges' => $baseDir . '/app/Services/Migration/StagedChanges.php',
     'App\\Services\\Migration\\WorkforceMigrationService' => $baseDir . '/app/Services/Migration/WorkforceMigrationService.php',
     'App\\Services\\NextSteps\\NextStep' => $baseDir . '/app/Services/NextSteps/NextStep.php',

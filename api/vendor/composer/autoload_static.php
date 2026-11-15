@@ -1765,6 +1765,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Letters\\EmploymentLetters' => __DIR__ . '/../..' . '/app/Services/Letters/EmploymentLetters.php',
         'App\\Services\\MfaService' => __DIR__ . '/../..' . '/app/Services/MfaService.php',
         'App\\Services\\Migration\\CommitProgress' => __DIR__ . '/../..' . '/app/Services/Migration/CommitProgress.php',
+        'App\\Services\\Migration\\StageProgress' => __DIR__ . '/../..' . '/app/Services/Migration/StageProgress.php',
         'App\\Services\\Migration\\StagedChanges' => __DIR__ . '/../..' . '/app/Services/Migration/StagedChanges.php',
         'App\\Services\\Migration\\WorkforceMigrationService' => __DIR__ . '/../..' . '/app/Services/Migration/WorkforceMigrationService.php',
         'App\\Services\\NextSteps\\NextStep' => __DIR__ . '/../..' . '/app/Services/NextSteps/NextStep.php',
