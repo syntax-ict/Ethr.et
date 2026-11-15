@@ -7,6 +7,7 @@ namespace App\Http\Requests\Migration;
 use App\Http\Requests\Migration\Concerns\ReadsPeopleGrid;
 use App\Services\CurrentTenant;
 use App\Support\EmployeeImportGrid;
+use App\Support\EmployeeImportProfile;
 use App\Support\EmployeeImportRow;
 use App\Support\RelationMatch;
 use Illuminate\Foundation\Http\FormRequest;
@@ -160,7 +161,20 @@ class StageRowsRequest extends FormRequest
                 'position' => null,
             ];
 
+            $profileMatches = [];
+            $profileRelation = function (string $column) use (&$profileMatches, $tenantId): RelationMatch {
+                return $profileMatches[$column] ??= $column === 'grade'
+                    ? RelationMatch::grades($tenantId)
+                    : RelationMatch::costCenters($tenantId);
+            };
+
             foreach ($rows as $index => $row) {
+                if (is_array($row)) {
+                    foreach (EmployeeImportProfile::problems($row, $profileRelation, (int) $index + 1) as $problem) {
+                        $validator->errors()->add("rows.{$index}.{$problem['column']}", $problem['message']);
+                    }
+                }
+
                 foreach (self::RELATIONS as $named => $column) {
                     $value = is_array($row) ? ($row[$named] ?? $row[$column] ?? null) : null;
                     if (! is_string($value) || trim($value) === '') {

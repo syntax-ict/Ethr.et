@@ -121,6 +121,7 @@ final class EmployeeImportGrid
             $messages = [
                 ...EmployeeImportRow::messages($row, $rules),
                 ...$this->relationMessages($row),
+                ...$this->profileMessages($row),
                 ...$this->duplicateMessages($row, $firstSeen, $line),
             ];
             foreach ($messages as $message) {
@@ -349,12 +350,27 @@ final class EmployeeImportGrid
         return $messages;
     }
 
+    /**
+     * What a new person's profile columns cannot say one by one: a grade or
+     * cost centre the organisation does not have, a probation that ends before
+     * the person starts, a contract that ends before it begins.
+     *
+     * @param  array<string, mixed>  $row
+     * @return list<string>
+     */
+    private function profileMessages(array $row): array
+    {
+        return array_column(EmployeeImportProfile::problems($row, $this->relation(...)), 'message');
+    }
+
     /** Read on first use: most lists name a department and nothing else. */
     private function relation(string $column): RelationMatch
     {
         return $this->relations[$column] ??= match ($column) {
             'branch_code' => RelationMatch::branches($this->tenantId),
             'position_code' => RelationMatch::positions($this->tenantId),
+            'grade' => RelationMatch::grades($this->tenantId),
+            'cost_center' => RelationMatch::costCenters($this->tenantId),
             default => RelationMatch::departments($this->tenantId),
         };
     }

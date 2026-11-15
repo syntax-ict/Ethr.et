@@ -14,7 +14,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
+use App\Services\EmployeeContractService;
 use App\Services\EmployeeNumbering;
+use App\Services\EmployeeRelatedRecords;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
@@ -72,7 +74,7 @@ final class WorkforceMigrationService
     /** A new person's own details, staged under the employee column they fill. */
     private const DETAILS = ['name_am', 'national_id', 'tin', 'gender', 'date_of_birth', 'marital_status', 'nationality'];
 
-    /** @var array<string, RelationMatch> branches and positions, read once per organisation */
+    /** @var array<string, RelationMatch> branches, positions, grades and cost centres, read once per organisation */
     private array $relations = [];
 
     public function __construct(
@@ -83,6 +85,8 @@ final class WorkforceMigrationService
         private readonly EmployeeIntake $intake,
         private readonly StagedChanges $changes,
         private readonly EmployeeUpdater $updater,
+        private readonly EmployeeRelatedRecords $related,
+        private readonly EmployeeContractService $contracts,
         private readonly float $sliceSeconds = self::SLICE_SECONDS,
         private readonly int $chunk = self::CHUNK,
     ) {}
@@ -464,6 +468,7 @@ final class WorkforceMigrationService
                             // A reviewer chose this row's action, so the number
                             // goes where they said, even from a confirmed holder.
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                            $this->writeProfile($employee, $raw, $actor);
                             $totals['created']++;
                         } else {
                             // The person is here now and was not when the
@@ -810,6 +815,15 @@ final class WorkforceMigrationService
         if ($text('position') !== null) {
             $details['position_id'] = $this->relation('position', $batch->tenant_id)->id($text('position'));
         }
+        if ($text('grade') !== null) {
+            $details['grade_id'] = $this->relation('grade', $batch->tenant_id)->id($text('grade'));
+        }
+        if ($text('cost_center') !== null) {
+            $details['cost_center_id'] = $this->relation('cost_center', $batch->tenant_id)->id($text('cost_center'));
+        }
+        if ($text('probation_end_date') !== null) {
+            $details['probation_end_date'] = $text('probation_end_date');
+        }
         if (isset($raw['salary_cents']) && (int) $raw['salary_cents'] > 0) {
             $details['salary_cents'] = (int) $raw['salary_cents'];
         }
@@ -834,10 +848,61 @@ final class WorkforceMigrationService
         ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
     }
 
+    /**
+     * The rest of a new person's profile, written in the transaction of the
+     * chunk that made them: a contract, a bank account, an emergency contact.
+     * Each is written through the service its own screen uses, so what the
+     * list brings is what the profile would hold had it been typed.
+     *
+     * The list was read against every rule of these records before it was
+     * staged. One that still fails here throws, and the chunk is rolled back
+     * with the person: nobody is left without the records their row brought,
+     * and nothing the row says is dropped.
+     *
+     * The contract starts on the hire date and states no salary: a contract
+     * that carries one overwrites the employee's (EmployeeContractService),
+     * and the salary column stays the one source of pay.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function writeProfile(Employee $employee, array $raw, ?User $actor): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        $type = $text('contract_type');
+        if ($type !== null) {
+            $this->contracts->create($employee, [
+                'contract_type' => $type,
+                'start_date' => $employee->hire_date->toDateString(),
+                'end_date' => $text('contract_end_date'),
+            ], $actor?->id);
+        }
+
+        if ($text('bank_name') !== null && $text('bank_account') !== null) {
+            $this->related->addBankDetail($employee, [
+                'bank_name' => $text('bank_name'),
+                'branch_name' => $text('bank_branch'),
+                'account_number' => $text('bank_account'),
+                'is_primary' => true,
+            ]);
+        }
+
+        if ($text('emergency_name') !== null && $text('emergency_relationship') !== null && $text('emergency_phone') !== null) {
+            $this->related->addEmergencyContact($employee, [
+                'name' => $text('emergency_name'),
+                'relationship' => $text('emergency_relationship'),
+                'phone' => $text('emergency_phone'),
+            ]);
+        }
+    }
+
     private function relation(string $kind, int $tenantId): RelationMatch
     {
-        return $this->relations["{$kind}:{$tenantId}"] ??= $kind === 'branch'
-            ? RelationMatch::branches($tenantId)
-            : RelationMatch::positions($tenantId);
+        return $this->relations["{$kind}:{$tenantId}"] ??= match ($kind) {
+            'branch' => RelationMatch::branches($tenantId),
+            'grade' => RelationMatch::grades($tenantId),
+            'cost_center' => RelationMatch::costCenters($tenantId),
+            default => RelationMatch::positions($tenantId),
+        };
     }
 }

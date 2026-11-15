@@ -69,4 +69,44 @@ describe("the employee column words", () => {
     expect(columnHelp("unheard_of", t)).toBeUndefined();
     expect(columnLabel("salary_cents", t)).toBe("Salary");
   });
+
+  it("the profile columns have words in every language, in the house style", () => {
+    const profile = [
+      "grade",
+      "cost_center",
+      "probation_end_date",
+      "contract_type",
+      "contract_end_date",
+      "bank_name",
+      "bank_branch",
+      "bank_account",
+      "emergency_name",
+      "emergency_relationship",
+      "emergency_phone",
+    ];
+    const keys = profile.flatMap((column) =>
+      [
+        EMPLOYEE_COLUMNS[column].label[0],
+        EMPLOYEE_COLUMNS[column].help?.[0],
+      ].filter((key): key is string => key !== undefined),
+    );
+
+    expect(profile.every((column) => column in EMPLOYEE_COLUMNS)).toBe(true);
+    expect(MAPPABLE_COLUMNS).toEqual(expect.arrayContaining(profile));
+
+    for (const dict of Object.values(dictionaries)) {
+      for (const key of keys) {
+        const text = dict[key];
+        expect(text, key).toBeTruthy();
+        expect(text, key).not.toMatch(/—| - |!$/);
+      }
+    }
+    // The new help lines are not the English copied into another language.
+    for (const column of profile) {
+      const key = EMPLOYEE_COLUMNS[column].help?.[0] ?? "";
+      if (column === "emergency_phone") continue;
+      expect(dictionaries.am[key], key).not.toBe(dictionaries.en[key]);
+      expect(dictionaries.om[key], key).not.toBe(dictionaries.en[key]);
+    }
+  });
 });

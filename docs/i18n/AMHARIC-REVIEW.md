@@ -322,3 +322,22 @@ moves no money: the person is added either way.
 | Warning that a badge number is not one a ZKTeco terminal takes | `api/lang/{am,om}/onboarding.php`, `migration.terminal_number_digits_only` | 1 |
 | Notes that a terminal's own number is too long or not a badge number | the same file, `migration.device_id_too_long`, `migration.device_id_not_badge` | 2 |
 | Heading above those warnings in the People step | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.warnings_heading` | 1 |
+
+### Employee import profile columns (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker. They are the words for eleven new
+columns of the employee import (grade, cost centre, probation end, contract type and end date,
+bank name, branch and account, emergency contact name, relationship and phone). The English is
+final. A wrong word here misleads a person filling in a spreadsheet; it moves no money.
+
+| What | Where | Strings |
+|---|---|---|
+| Help lines under each new column | `src/src/lib/i18n/locales/{am,om}.json`, `employees_import_page.col_grade` to `col_emergency_phone` | 11 each |
+| Five new column names | the same files, `employees_import_page.label_contract_end_date`, `label_emergency_name`, `label_emergency_phone`, `label_bank_branch`, `label_bank_account` | 5 each |
+| Problems a list can have | `api/lang/{am,om}/onboarding.php`, `migration.profile_*` (one says a contract starts on the hire date, so the row needs one) | 5 each |
+| Row prefix, two field names and the "not stored" line | `api/lang/{am,om}/employee.php`, `import_row`, `import_field_grade`, `import_field_cost_center`, `import_not_stored` | 4 each |
+
+The other six column names reuse words the profile screens already have. What to check first: the
+contract type values (`probation`, `fixed_term`, `permanent`, `casual`, `consultancy`) are kept
+in Latin letters in both languages, because they are what the column takes; and *Sadarkaa* for a
+grade, which the proposal glossary already uses.

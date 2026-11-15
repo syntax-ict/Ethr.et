@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
@@ -555,6 +556,25 @@ describe('employee emergency contacts', function () {
         $response->assertCreated()
             ->assertJsonPath('name', 'Almaz Hailu')
             ->assertJsonPath('relationship', 'spouse');
+    });
+
+    it('records who added an emergency contact, and not the phone', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->postJson("/api/v1/employees/{$employee->public_id}/emergency-contacts", [
+            'name' => 'Almaz Hailu',
+            'relationship' => 'spouse',
+            'phone' => '0911999888',
+        ])->assertCreated();
+
+        $entry = AuditLog::query()->where('action', 'employee.emergency_contact.created')->sole();
+
+        expect($entry->auditable_id)->toBe($employee->id)
+            ->and($entry->user_id)->not->toBeNull()
+            ->and(json_encode($entry->payload))->not->toContain('911999888');
     });
 
     it('canonicalizes an emergency contact phone typed in local 09... form', function () {

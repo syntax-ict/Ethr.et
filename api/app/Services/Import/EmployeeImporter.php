@@ -46,7 +46,8 @@ class EmployeeImporter
 
     /**
      * `errors` is keyed by CSV line number (the header is line 1); key 0 is a
-     * file-level error. The `@scramble-return` states the shape for the API
+     * file-level error. It also says, without stopping the rows, when the file
+     * brings columns this route does not store (EmployeeImportRow::PROFILE). The `@scramble-return` states the shape for the API
      * contract, which cannot follow rows built from the file's own headers;
      * it types the line-number keys as strings, which is what JSON makes them.
      *
@@ -109,6 +110,20 @@ class EmployeeImporter
             }
 
             $rows[] = $row;
+        }
+
+        // A file-level line, and the rows are returned as before: this route
+        // does not store a grade, a contract, a bank account or an emergency
+        // contact, and a file that brings one should not look as if it had.
+        $unstored = array_values(array_filter(
+            EmployeeImportRow::PROFILE,
+            fn (string $column): bool => array_filter(
+                array_column($rows, $column),
+                fn (mixed $value): bool => $value !== null && $value !== '',
+            ) !== [],
+        ));
+        if ($unstored !== []) {
+            $errors[0][] = __('employee.import_not_stored', ['columns' => implode(', ', $unstored)]);
         }
 
         return ['headers' => $headers, 'rows' => $rows, 'errors' => $errors];

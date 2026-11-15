@@ -46,14 +46,14 @@ describe("Import column guide", () => {
     server.use(
       http.post("*/employees/import/template", () =>
         HttpResponse.json({
-          template: "name,grade,nationality\n",
-          headers: ["name", "grade", "nationality"],
+          template: "name,shoe_size,nationality\n",
+          headers: ["name", "shoe_size", "nationality"],
           required: ["name"],
           text_columns: [],
           date_columns: [],
           columns: [
             column("name", true),
-            column("grade"),
+            column("shoe_size"),
             column("nationality"),
           ],
           lists: {},
@@ -66,13 +66,13 @@ describe("Import column guide", () => {
     await waitFor(() =>
       expect(listed(container).map((c) => c.key)).toEqual([
         "name",
-        "grade",
+        "shoe_size",
         "nationality",
       ]),
     );
-    const [name, grade, nationality] = listed(container);
+    const [name, shoeSize, nationality] = listed(container);
     expect(name.required).toBe(true);
-    expect(grade).toEqual({ key: "grade", required: false, help: "" });
+    expect(shoeSize).toEqual({ key: "shoe_size", required: false, help: "" });
     expect(nationality.required).toBe(false);
     expect(nationality.help).toBe("Country of citizenship, such as Ethiopian");
     expect(within(container).getAllByText("(required)")).toHaveLength(1);

@@ -152,6 +152,83 @@ export const EMPLOYEE_COLUMNS: Record<string, ColumnWords> = {
       "The person's ID in the system the list came from. A later list finds the same person by it",
     ],
   },
+  grade: {
+    label: ["profile.grade", "Grade"],
+    help: ["employees_import_page.col_grade", "Its name as it appears in ETHR"],
+  },
+  cost_center: {
+    label: ["employee.cost_center", "Cost centre"],
+    help: ["employees_import_page.col_cost_center", "Its name or its code"],
+  },
+  probation_end_date: {
+    label: ["recruitment.probation_end", "Probation ends"],
+    help: [
+      "employees_import_page.col_probation_end_date",
+      "Same formats as the hire date. Not before the hire date",
+    ],
+  },
+  contract_type: {
+    label: ["employee.contracts.field.type", "Contract type"],
+    help: [
+      "employees_import_page.col_contract_type",
+      "probation, fixed_term, permanent, casual or consultancy",
+    ],
+  },
+  contract_end_date: {
+    label: [
+      "employees_import_page.label_contract_end_date",
+      "Contract end date",
+    ],
+    help: [
+      "employees_import_page.col_contract_end_date",
+      "Needed unless the contract is permanent. After the hire date, which is when the contract starts",
+    ],
+  },
+  bank_name: {
+    label: ["profile.bank_name", "Bank name"],
+    help: [
+      "employees_import_page.col_bank_name",
+      "The bank. The account number is needed too",
+    ],
+  },
+  bank_branch: {
+    label: ["employees_import_page.label_bank_branch", "Bank branch"],
+    help: [
+      "employees_import_page.col_bank_branch",
+      "The bank branch. Optional",
+    ],
+  },
+  bank_account: {
+    label: ["employees_import_page.label_bank_account", "Bank account"],
+    help: [
+      "employees_import_page.col_bank_account",
+      "The account number, stored encrypted. The bank name is needed too",
+    ],
+  },
+  emergency_name: {
+    label: [
+      "employees_import_page.label_emergency_name",
+      "Emergency contact name",
+    ],
+    help: [
+      "employees_import_page.col_emergency_name",
+      "Someone to call in an emergency. Their relationship and phone are needed too",
+    ],
+  },
+  emergency_relationship: {
+    label: ["employee.emergency.relationship", "Relationship"],
+    help: [
+      "employees_import_page.col_emergency_relationship",
+      "How they are related, such as spouse or parent",
+    ],
+  },
+  emergency_phone: {
+    label: [
+      "employees_import_page.label_emergency_phone",
+      "Emergency contact phone",
+    ],
+    help: ["employees_import_page.col_emergency_phone", "09... or +251..."],
+  },
 };
 
 /** Other names for a column: the template's spellings, and a salary as it is staged. */

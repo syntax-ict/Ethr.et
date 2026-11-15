@@ -105,9 +105,52 @@ name, gender, birth date, branch, position, salary, national id, TIN, badge.
 **Staging a list that sets a salary or a TIN needs `employee.updateFinancial`**,
 as the file import and the add-employee form do.
 
+### A new person's whole profile (2026-11-16)
+
+A staged list can also bring a new person in with the rest of their profile.
+These columns are written for a person the list **creates**. A row matched to
+someone already in ETHR does not apply them: completing an existing person is
+a separate step, and `StagedChanges::FIELDS` is unchanged.
+
+| column | group | takes | written through |
+|---|---|---|---|
+| `grade` | job | the grade's name, as in ETHR (a grade has no code) | `employees.grade_id` |
+| `cost_center` | job | the cost centre's name or code | `employees.cost_center_id` |
+| `probation_end_date` | job | a date, both calendars. Not before the hire date | `employees.probation_end_date` |
+| `contract_type` | job | `probation`, `fixed_term`, `permanent`, `casual`, `consultancy` ("Fixed term" is read) | `EmployeeContractService::create()`, starting on the hire date, with no salary |
+| `contract_end_date` | job | a date, after the hire date. Needed for every type but `permanent` | the same contract |
+| `bank_name`, `bank_branch`, `bank_account` | pay | the bank, its branch, the account number | `EmployeeRelatedRecords::addBankDetail()`, as the primary account |
+| `emergency_name`, `emergency_relationship`, `emergency_phone` | contact | who, how related, their phone | `EmployeeRelatedRecords::addEmergencyContact()` |
+
+- **The rules are the screens' own.** The bank and emergency rules are read
+  from `StoreBankDetailRequest` and `StoreEmergencyContactRequest`, and the
+  contract type and its end date from `StoreEmployeeContractRequest`, under the
+  import's column names (`EmployeeImportProfile`). A group left half filled is
+  refused with the missing column named: a bank needs its name and its account
+  number, an emergency contact its name, relationship and phone, a contract end
+  date its type.
+- **A contract never sets pay.** It carries no salary, so the `salary` column
+  stays the only source of an employee's pay.
+- **Pay permission.** A list that sets `bank_name`, `bank_branch` or
+  `bank_account` needs `employee.updateFinancial` to be staged, as a salary or
+  a TIN does. A bank account is masked on the review screen.
+- **Same transaction.** The contract, bank account and emergency contact are
+  written in the transaction of the chunk of up to 50 people that created the
+  person (`WorkforceMigrationService::commitChunk`), so a related record that
+  fails takes the whole chunk with it and nobody is left half made. A list is
+  checked against every one of these rules before it is staged, so a failure at
+  commit is not an expected one.
+- **Where they are read.** `GET /employees/export` carries `grade`,
+  `cost_center`, `probation_end_date`, the active contract's type and end date
+  and the first emergency contact, for someone who may open an employee's
+  record. It never carries the bank columns: bank details are read with the pay
+  permission, which the export does not ask for.
+
 The older `POST /employees/import/preview` and `/commit` are still served, for
 a caller that sends a file. They read the same column names and honour both new
-columns. They have no review: a person already in ETHR is counted and nothing
+columns. They store none of the profile columns above: a preview of a file with
+a value in one of them says so in its file-level `errors` (line 0) and still
+returns the rows, and the Import screen is where those columns are used. They have no review: a person already in ETHR is counted and nothing
 the row brings is kept. The screen no longer uses them.
 
 ### A workbook is opened in the browser (2026-11-11)
