@@ -327,7 +327,7 @@ final. A wrong word here misleads a person filling in a spreadsheet; it moves no
 |---|---|---|
 | Help lines under each new column | `src/src/lib/i18n/locales/{am,om}.json`, `employees_import_page.col_grade` to `col_emergency_phone` | 11 each |
 | Three new column names | the same files, `employees_import_page.label_contract_end_date`, `label_emergency_name`, `label_emergency_phone` | 3 each |
-| Problems a list can have | `api/lang/{am,om}/onboarding.php`, `migration.profile_*` | 4 each |
+| Problems a list can have | `api/lang/{am,om}/onboarding.php`, `migration.profile_*` (one says a contract starts on the hire date, so the row needs one) | 5 each |
 | Row prefix, two field names and the "not stored" line | `api/lang/{am,om}/employee.php`, `import_row`, `import_field_grade`, `import_field_cost_center`, `import_not_stored` | 4 each |
 
 The other eight column names reuse words the profile screens already have. What to check first: the

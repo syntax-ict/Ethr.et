@@ -233,3 +233,23 @@ it('never shows the account number back on the review screen', function () {
 
     expect(json_encode($staged))->not->toContain('1000123456789');
 });
+
+it('refuses a contract with no hire date, in the grid and in the keyed shape, naming the hire date', function () {
+    [$tenant] = profileOrganisation();
+
+    $read = test()->postJson(Staging::url($tenant, 'read'), ['grid' => [profileHeader(), profileLine(['Hire date' => ''])]])
+        ->assertOk();
+
+    expect($read->json('people'))->toBe(0)
+        ->and(array_column($read->json('problems'), 'message'))
+        ->toContain(__('onboarding.migration.profile_contract_needs_hire_date'));
+
+    $keyed = test()->postJson(Staging::url($tenant, 'rows'), ['rows' => [['name' => 'Selam Bekele', 'contract_type' => 'permanent']]])
+        ->assertUnprocessable();
+
+    expect(array_keys($keyed->json('errors')))->toContain('rows.0.hire_date');
+
+    // With a hire date the same row is accepted.
+    test()->postJson(Staging::url($tenant, 'rows'), ['rows' => [['name' => 'Selam Bekele', 'hire_date' => '2026-01-15', 'contract_type' => 'permanent']]])
+        ->assertCreated();
+});

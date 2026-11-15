@@ -34,6 +34,7 @@ return [
         'profile_contract_type_needed' => 'A contract type is needed when a contract end date is given.',
         'profile_contract_end_needed' => 'This contract type needs a contract end date.',
         'profile_contract_end_before_start' => 'The contract end date must be after the contract start, which is the hire date.',
+        'profile_contract_needs_hire_date' => 'A contract starts on the hire date, so this row needs a hire date.',
         'duplicate_in_list' => ':field ":value" is also on line :first. Each person needs their own.',
         'terminal_number_digits_only' => 'The number ":value" has more than digits, and a :types terminal takes digits only as a person number. The person is still added, and that terminal will not be sent them.',
         'device_id_too_long' => 'The terminal\'s number ":value" is longer than an employee number can be (:max characters), so it is kept as the terminal\'s number only.',

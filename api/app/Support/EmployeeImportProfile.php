@@ -59,7 +59,9 @@ final class EmployeeImportProfile
      * What is wrong with a row that no single column's rule can say.
      *
      * `$row` is keyed by column, dates as Y-m-d. A row with no hire date is
-     * brought in with today's, so that is the start the checks use. `$relation`
+     * brought in with today's (as the intake does), which only the probation
+     * check uses: a contract starts on the hire date, so a row with a contract
+     * and no hire date is refused. `$relation`
      * gives the organisation's grades or cost centres for the column it is
      * asked about; it is called only for a column the row fills.
      *
@@ -90,7 +92,8 @@ final class EmployeeImportProfile
             )];
         }
 
-        $start = self::day($row['hire_date'] ?? null) ?? Carbon::today();
+        $hire = self::day($row['hire_date'] ?? null);
+        $start = $hire ?? Carbon::today();
         $probationEnd = self::day($row['probation_end_date'] ?? null);
 
         if ($probationEnd !== null && $probationEnd->lt($start)) {
@@ -102,13 +105,16 @@ final class EmployeeImportProfile
         $end = self::day($row['contract_end_date'] ?? null);
         $endGiven = isset($row['contract_end_date']) && trim((string) $row['contract_end_date']) !== '';
 
+        if ($given && $hire === null) {
+            $found[] = ['hire_date', __('onboarding.migration.profile_contract_needs_hire_date')];
+        }
         if ($endGiven && ! $given) {
             $found[] = ['contract_type', __('onboarding.migration.profile_contract_type_needed')];
         }
         if ($type?->requiresEndDate() === true && ! $endGiven) {
             $found[] = ['contract_end_date', __('onboarding.migration.profile_contract_end_needed')];
         }
-        if ($type !== null && $end !== null && $end->lte($start)) {
+        if ($type !== null && $end !== null && $hire !== null && $end->lte($hire)) {
             $found[] = ['contract_end_date', __('onboarding.migration.profile_contract_end_before_start')];
         }
 

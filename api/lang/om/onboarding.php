@@ -36,6 +36,7 @@ return [
         'profile_contract_type_needed' => 'Guyyaan xumura waliigaltee yoo kennamu gosti waliigaltee ni barbaachisa.',
         'profile_contract_end_needed' => 'Gosti waliigaltee kanaaf guyyaan xumura waliigaltee ni barbaachisa.',
         'profile_contract_end_before_start' => 'Guyyaan xumura waliigaltee, jalqaba waliigaltee irra booda ta’uu qaba. Jalqabni waliigaltee guyyaa qacarraa dha.',
+        'profile_contract_needs_hire_date' => 'Waliigaltee guyyaa qacarraatti jalqaba, kanaaf toorri kun guyyaa qacarraa ni barbaada.',
         'duplicate_in_list' => ':field ":value" sarara :first irras jira. Namni tokkoon tokkoo kan mataa isaa barbaada.',
         'terminal_number_digits_only' => 'Lakkoofsi ":value" lakkoofsa ol kan qabu qaba; meeshaan :types akka lakkoofsa nama tokkoo lakkoofsota qofa fudhata. Namichi ni dabalama; garuu meeshaa sanatti hin ergamu.',
         'device_id_too_long' => 'Lakkoofsi meeshaa ":value" lakkoofsa hojjetaa ta\'uu danda\'u caalaa dheeraa dha (arfii :max), kanaaf akka lakkoofsa meeshaatti qofa kuufama.',

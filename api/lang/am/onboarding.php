@@ -31,6 +31,7 @@ return [
         'profile_contract_type_needed' => 'የውል ማብቂያ ቀን ሲሰጥ የውል አይነት ያስፈልጋል።',
         'profile_contract_end_needed' => 'ለዚህ የውል አይነት የውል ማብቂያ ቀን ያስፈልጋል።',
         'profile_contract_end_before_start' => 'የውል ማብቂያ ቀን ከውሉ መጀመሪያ በኋላ መሆን አለበት። የውሉ መጀመሪያ የቅጥር ቀን ነው።',
+        'profile_contract_needs_hire_date' => 'ውል የሚጀምረው በቅጥር ቀን ነው፤ ስለዚህ ይህ ረድፍ የቅጥር ቀን ያስፈልገዋል።',
         'duplicate_in_list' => ':field ":value" በመስመር :first ላይም አለ። እያንዳንዱ ሰው የራሱ ያስፈልገዋል።',
         'terminal_number_digits_only' => 'ቁጥር ":value" ከአኃዝ በላይ ይዟል፤ የ:types መሣሪያ እንደ ሰው ቁጥር የሚቀበለው አኃዝ ብቻ ነው። ሰውየው ይጨመራል፤ ወደዚያ መሣሪያ ግን አይላክም።',
         'device_id_too_long' => 'የመሣሪያው ቁጥር ":value" ከሠራተኛ ቁጥር የሚፈቀደው ርዝመት (:max ቁምፊ) ይረዝማል፤ ስለዚህ የሚቀመጠው እንደ መሣሪያው ቁጥር ብቻ ነው።',
