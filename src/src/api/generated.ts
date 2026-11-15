@@ -11899,6 +11899,8 @@ export interface components {
                 column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
             skip_problems?: boolean;
+            /** @enum {string|null} */
+            mode?: "complete" | null;
             rows?: {
                 name?: string | null;
                 name_am?: string | null;
@@ -13523,7 +13525,7 @@ export interface components {
              *     raw validation rule does not itself see the tenant scope).
              */
             employee_public_id?: string | null;
-            accept?: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents")[];
+            accept?: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents" | "name_am" | "gender" | "date_of_birth" | "marital_status" | "nationality" | "nationality_status")[];
         };
         /**
          * UpdateSubdomainRequest
@@ -27625,6 +27627,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
@@ -27736,6 +27740,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
@@ -27929,6 +27935,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
