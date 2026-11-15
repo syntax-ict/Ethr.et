@@ -267,3 +267,30 @@ The setup wizard shows catalogue text that comes from the backend, not from the 
 `OnboardingCatalogCopyTest` fails when an `_am` text has no `_om`, an empty one, or one equal to the English or the Amharic.
 
 Terms to check first, because the English has no settled Oromo equivalent in the product yet: *Sektara Mootummaa* (government sector), *Telekoominikeeshinii*, *Boqonnaa Qorannoo* (sabbatical), *Boqonnaa Gaddaa* (bereavement), *Boqonnaa Gaa'elaa* (marriage), *Hafuu Hayyamamaa* (excused absence), *Waaree Booda* (afternoon and swing shift) and *Torban Guyyaa Jahaa* (six-day week).
+
+### Proposal names and kinds in law (2026-11-15)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, for QA observation O-2. A wrong
+name moves no money.
+
+| What | Where | Strings |
+|---|---|---|
+| Departments the wizard proposes | `api/app/Services/Onboarding/ProposalNameGlossary.php`, `DEPARTMENTS` | 167, each in Amharic and Afaan Oromoo |
+| Positions the wizard proposes | the same file, `POSITIONS` | 151, each in Amharic and Afaan Oromoo |
+| The word of a grade | the same file, `GRADE` | ደረጃ, Sadarkaa |
+| Kinds of organisation in law | `organization_types.name_om`, migration `2026_11_15_000001_add_oromo_name_to_organization_types` | 16, Afaan Oromoo only |
+
+`ProposalNameGlossaryTest` fails when a proposed department or position has no Amharic or no
+Oromo name, one equal to the English, or one in the wrong script. It does not judge the wording.
+Correct a kind's name with a new migration that updates the row, never by editing that one; a
+glossary entry is corrected where it is.
+
+What to check first:
+
+- **Loan words kept beside an Oromo gloss**, where the product has no settled term: *Underwriting*,
+  *Actuarial*, *Treasury*, *Billing*, *Catering*, *DevOps*, *Product*, *Marketing*, *Steward*.
+- **The same Amharic for two English names**, on purpose: አሠልጣኝ for Instructor and Trainer,
+  ሠራተኛ for Worker and Staff, የጽሕፈት ቤት ኃላፊ for Office Head and Head of Office.
+- **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
+- **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
+  product's own word for a department is ክፍል / *Muummee*.
