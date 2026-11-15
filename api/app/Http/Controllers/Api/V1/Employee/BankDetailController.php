@@ -10,6 +10,7 @@ use App\Http\Resources\BankDetailResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
+use App\Services\EmployeeRelatedRecords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -24,19 +25,11 @@ class BankDetailController extends Controller
         );
     }
 
-    public function store(StoreBankDetailRequest $request, Employee $employee): JsonResponse
+    public function store(StoreBankDetailRequest $request, Employee $employee, EmployeeRelatedRecords $records): JsonResponse
     {
         $this->authorize('updateFinancial', $employee);
 
-        $data = $request->validated();
-
-        if (! empty($data['is_primary'])) {
-            $employee->bankDetails()->update(['is_primary' => false]);
-        }
-
-        $detail = $employee->bankDetails()->create($data);
-
-        AuditLog::record('employee.bank_detail.created', $employee);
+        $detail = $records->addBankDetail($employee, $request->validated());
 
         return (new BankDetailResource($detail))
             ->response()
