@@ -455,3 +455,15 @@ it('carries the number of the person a row matched, for someone who may open tha
     expect($shown['Abebe Kebede'])->toMatchArray(['resolved_employee_public_id' => $abebe->public_id, 'resolved_employee_code' => 'E-77'])
         ->and($shown['Nobody Yet'])->toMatchArray(['resolved_employee_public_id' => null, 'resolved_employee_code' => null]);
 });
+
+it('reads the example people of the employee template without a problem', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['name', 'hire_date', 'probation_end_date', 'contract_type', 'contract_end_date', 'bank_name', 'bank_branch', 'bank_account', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
+        ['Abebe Kebede', '2019-07-08', '2019-10-08', 'permanent', '', 'Example Bank', 'Main branch', '1000000000001', 'Almaz Kebede', 'Sister', '0911000011'],
+        ['Hanna Girma', '2023-02-20', '2023-05-20', 'fixed_term', '2025-02-19', 'Example Bank', 'Bole branch', '1000000000002', 'Dawit Girma', 'Brother', '0911000022'],
+    ]);
+
+    expect($read['problems'])->toBe([])->and($read['people'])->toBe(2);
+});

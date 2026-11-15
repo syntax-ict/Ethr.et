@@ -131,11 +131,14 @@ export function outcomeOf(
   if (!row.processed_at) return "left_out";
   if (row.action === "create") return "added";
   if (row.action === "merge") {
-    const wrote = row.changes.some(
-      (change) =>
-        (change.kind === "fill" && !change.taken) ||
-        (change.kind === "conflict" && change.accepted),
-    );
+    // The commit writes only for someone who may edit the person.
+    const wrote =
+      row.can_apply_changes &&
+      row.changes.some(
+        (change) =>
+          (change.kind === "fill" && !change.taken) ||
+          (change.kind === "conflict" && change.accepted),
+      );
     return wrote ? "filled" : "unchanged";
   }
   return "left_out";

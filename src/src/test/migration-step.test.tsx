@@ -1086,6 +1086,7 @@ describe("<MigrationStep>", () => {
           action: "merge",
           processed_at: done,
           resolved_employee_code: "1002",
+          can_apply_changes: true,
           changes: [
             {
               field: "phone",
@@ -1103,6 +1104,24 @@ describe("<MigrationStep>", () => {
           action: "merge",
           processed_at: done,
           resolved_employee_code: "1003",
+        }),
+        row("r5", "Not Editable", {
+          match_outcome: "matched",
+          action: "merge",
+          processed_at: done,
+          resolved_employee_code: "1005",
+          can_apply_changes: false,
+          changes: [
+            {
+              field: "email",
+              kind: "fill",
+              current: null,
+              incoming: "n@acme.et",
+              masked: false,
+              accepted: false,
+              taken: false,
+            },
+          ],
         }),
         row("r4", "Left Behind", { action: "skip" }),
       ],
@@ -1137,6 +1156,7 @@ describe("<MigrationStep>", () => {
       ["Abebe Kebede", "1001", "Added", "The number A1 is not taken."],
       ["Hanna Girma", "1002", "Filled in"],
       ["Dawit Alemu", "1003", "Already here, nothing to change"],
+      ["Not Editable", "1005", "Already here, nothing to change"],
       ["Left Behind", "", "Left out"],
     ]);
   });
