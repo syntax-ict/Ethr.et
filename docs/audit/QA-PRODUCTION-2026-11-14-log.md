@@ -193,8 +193,8 @@ Two things seen on the way. Neither is part of #729, and neither is filed.
   and Review proposal again brought them back in English.
 - Expected: the notes follow the header language like the rest of the screen, or the proposal is
   asked for again when the language changes.
-- Fixed by #732 (open when written, not yet live): a language change with a proposal open asks for
-  it again and takes only its notes. Case L10N-024.
+- Fixed by #732: a language change with a proposal open asks for it again and takes only its
+  notes. Live in v2026.11.15.2 and passed there as L10N-024 (the last section).
 
 **O-2. Names the wizard has in English only.** Copy gap, for the register in
 `docs/i18n/AMHARIC-REVIEW.md`.
@@ -207,5 +207,23 @@ Two things seen on the way. Neither is part of #729, and neither is filed.
 - Fixed by #734 (open when written, not yet live): the proposal carries an Amharic and an Afaan
   Oromoo name for every department, position and grade, and each kind in law has an Oromo name.
   The wording is drafted, not reviewed by a native speaker. Case L10N-025.
+
+Left as found: header language back to English, nothing applied, QA Audit still signed in as TA.
+
+## L10N-024 after #732 went live (v2026.11.15.2, 2026-11-15)
+
+Two deploys on 2026-11-15, each by Plesk Pull now and then Deploy now (the pull alone did not
+deploy, again): v2026.11.15.1 (`006aee784d85`, #731) at about 05:18Z and v2026.11.15.2
+(`66808b089372`, #732) at about 05:42Z. `release.json` reads `66808b089372`, built 05:35:59Z;
+`scripts/release-status.sh` reports the latest release running and no migration waiting. #731 was
+not tested on production in this pass.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| L10N-024 | Pass | Chrome, unguarded | ~11:45 | TA | en, om, am | QA Audit, `/setup/guided`, Technology / Software Company, Apply not pressed. First screen, no proposal open: the header was switched to Afaan Oromoo and back, and no `configuration/preview` was sent. English proposal: five notes, the first beginning "Leave types use the values ETHR proposes". DevOps removed (Departments 9 to 8) and the box ticked. Afaan Oromoo: all five notes in Oromo ("Gosoonni boqonnaa gatiiwwan ETHR yaada dhiyeesse fayyadamu" first), Departments still 8, the box still ticked, one more `POST /api/v1/onboarding/configuration/preview` (200). አማርኛ: all five in Amharic ("የፈቃድ ዓይነቶቹ ETHR ያቀረባቸውን ዋጋዎች ይጠቀማሉ" first), Departments still 8, the box still ticked, one more preview (200). No note stayed in the earlier language, and Change was not pressed. No `configuration/apply` was sent. Beyond the case: a second proposal was switched to Afaan Oromoo and back to English, and the notes came back in English with one preview for each switch. O-1 is closed |
+
+The response bodies were not read, as before: the text on screen is the evidence. The fourth preview
+of the first run (the switch back to English) was still pending five seconds after the click, on a
+host that answers slowly; it is the second run that shows the English notes returning.
 
 Left as found: header language back to English, nothing applied, QA Audit still signed in as TA.
