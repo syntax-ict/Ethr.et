@@ -526,6 +526,55 @@ describe("<MigrationStep>", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not warn about a missing hire date while completing people, and counts who matched nobody as not found", async () => {
+    const COMPLETING: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { new: 1 },
+      rows: [
+        {
+          ...AMBIGUOUS_BATCH.rows[0],
+          match_outcome: "new",
+          candidates: [],
+          action: "skip",
+        },
+      ],
+    };
+    reads({ people: 1, without_hire_date: 1 });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(COMPLETING, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(COMPLETING),
+      ),
+    );
+
+    const { container } = renderWithClient(
+      <MigrationStep sources="list" canComplete />,
+    );
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede" },
+    });
+    expect(
+      await screen.findByText(/1 person has no hire date/),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Complete people who are already here (nobody new is added)",
+      ),
+    );
+    expect(screen.queryByText(/has no hire date/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Stage for review"));
+    expect(await screen.findByText("1 not found")).toBeInTheDocument();
+    expect(screen.queryByText("1 new")).not.toBeInTheDocument();
+  });
+
   it("sends the calendar chosen with the list as written, and says who has no hire date", async () => {
     let body: { grid: string[][]; calendar: string } | null = null;
     const asked = reads({ people: 2, without_hire_date: 1 });

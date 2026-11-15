@@ -457,6 +457,9 @@ class MigrationController extends Controller
         }
 
         $mayView = Gate::allows('view', $employee);
+        // A move the reviewer may not make is not promised: the commit would
+        // drop it, so it is shown as left alone.
+        $mayMove = Gate::allows('transition', $employee);
         $payload = [];
 
         foreach ($row->changes ?? [] as $change) {
@@ -467,7 +470,7 @@ class MigrationController extends Controller
 
             $payload[] = [
                 'field' => $field,
-                'kind' => (string) ($change['kind'] ?? ''),
+                'kind' => $field === StagedChanges::STATUS && ! $mayMove ? StagedChanges::LOCKED : (string) ($change['kind'] ?? ''),
                 'current' => $masked || ! $mayView || ! is_string($current) ? null : $current,
                 'incoming' => $masked || ! is_string($incoming) ? null : $incoming,
                 'masked' => $masked,

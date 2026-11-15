@@ -5910,6 +5910,7 @@
   "setup2.outcome_archived": "deleted earlier",
   "setup2.outcome_matched": "matched",
   "setup2.outcome_new": "new",
+  "setup2.outcome_new_complete": "not found",
   "setup2.outcome_probable": "probable",
   "setup2.overall_confidence": "Overall confidence",
   "setup2.person": "Person",

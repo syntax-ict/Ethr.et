@@ -20,6 +20,8 @@ use App\Models\PersonnelAction;
 use App\Models\Position;
 use App\Services\CurrentTenant;
 use App\Support\DepartmentMatch;
+use App\Support\EmployeeImportChoices;
+use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
 use App\Support\RelationMatch;
 use Illuminate\Support\Carbon;
@@ -139,10 +141,6 @@ final class StagedChanges
     ];
 
     private const DATES = ['hire_date', 'date_of_birth', 'probation_end_date'];
-
-    private const GENDERS = ['male', 'female'];
-
-    private const MARITAL = ['single', 'married', 'divorced', 'widowed'];
 
     private const LOCALES = ['en', 'am', 'om'];
 
@@ -324,11 +322,21 @@ final class StagedChanges
             'salary_cents' => (int) $text > 0 ? (string) (int) $text : null,
             'hire_date', 'probation_end_date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $text) === 1 ? $text : null,
             'date_of_birth' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $text) === 1 && $text < Carbon::today()->toDateString() ? $text : null,
-            'gender' => in_array(mb_strtolower($text), self::GENDERS, true) ? mb_strtolower($text) : null,
-            'marital_status' => in_array(mb_strtolower($text), self::MARITAL, true) ? mb_strtolower($text) : null,
+            'gender', 'marital_status' => $this->choice($field, $text),
             'nationality_status' => NationalityStatus::fromInput($text)?->value,
             default => $text,
         };
+    }
+
+    /**
+     * A value of a column with a fixed list, read as the import reads it (M and
+     * F are male and female) and kept only when the list has it.
+     */
+    private function choice(string $field, string $text): ?string
+    {
+        $value = EmployeeImportRow::normalize([$field => $text])[$field] ?? null;
+
+        return is_string($value) && in_array($value, EmployeeImportChoices::forTenant(null)[$field], true) ? $value : null;
     }
 
     /** What ETHR holds for a field, or null when it holds nothing. */

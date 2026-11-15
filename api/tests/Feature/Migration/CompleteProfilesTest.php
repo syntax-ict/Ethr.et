@@ -501,6 +501,33 @@ describe('a person who is still hired is moved by the transition service', funct
         expect($abebe->refresh()->status)->toBe(EmployeeStatus::HIRED);
     });
 
+    it('shows the move as a fill to someone who may make it, and as locked to someone who may not', function () {
+        [$tenant, , $abebe] = incompleteOrganisation(['status' => EmployeeStatus::HIRED]);
+        $batch = Staging::stage($tenant, [abebeRow(['status' => 'confirmed'])], 'complete');
+        $url = Staging::url($tenant, "batches/{$batch->public_id}");
+
+        $kind = fn () => Staging::change(test()->getJson($url)->assertOk()->json('rows.0.changes'), 'status')['kind'];
+
+        expect($kind())->toBe('fill');
+
+        test()->actingAs(createScopedUser($tenant, null, 'all', ['employee.create', 'employee.viewAny', 'employee.view', 'employee.update']));
+        expect($kind())->toBe('locked');
+
+        test()->actingAs(createScopedUser($tenant, null, 'all', ['employee.create', 'employee.viewAny', 'employee.view', 'employee.update', 'employee.transition']));
+        expect($kind())->toBe('fill');
+
+        test()->postJson("{$url}/commit")->assertOk();
+        expect($abebe->refresh()->status)->toBe(EmployeeStatus::CONFIRMED);
+    });
+
+    it('reads M and F as the import does', function () {
+        [$tenant, $user, $abebe] = incompleteOrganisation();
+
+        Staging::service()->commit(Staging::stage($tenant, [abebeRow(['gender' => 'F', 'marital_status' => 'Married'])], 'complete'), $user);
+
+        expect($abebe->refresh()->gender)->toBe('female')->and($abebe->marital_status)->toBe('married');
+    });
+
     it('leaves the status for someone who may not move people through them', function () {
         [$tenant, , $abebe] = incompleteOrganisation(['status' => EmployeeStatus::HIRED]);
         $batch = Staging::stage($tenant, [abebeRow(['status' => 'confirmed', 'gender' => 'male'])], 'complete');

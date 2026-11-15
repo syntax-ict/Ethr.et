@@ -926,20 +926,21 @@ export function MigrationStep({
                           )}
                     </p>
                   )}
-                  {(read?.without_hire_date ?? 0) > 0 && (
-                    <p className="text-warning-on-soft">
-                      {read!.without_hire_date === 1
-                        ? t(
-                            "setup2.no_hire_date_one",
-                            "1 person has no hire date. Today will be used, which affects leave and length of service.",
-                          )
-                        : t(
-                            "setup2.no_hire_date",
-                            ":count people have no hire date. Today will be used, which affects leave and length of service.",
-                            { count: read!.without_hire_date },
-                          )}
-                    </p>
-                  )}
+                  {(read?.without_hire_date ?? 0) > 0 &&
+                    !(canComplete && mode === "complete") && (
+                      <p className="text-warning-on-soft">
+                        {read!.without_hire_date === 1
+                          ? t(
+                              "setup2.no_hire_date_one",
+                              "1 person has no hire date. Today will be used, which affects leave and length of service.",
+                            )
+                          : t(
+                              "setup2.no_hire_date",
+                              ":count people have no hire date. Today will be used, which affects leave and length of service.",
+                              { count: read!.without_hire_date },
+                            )}
+                      </p>
+                    )}
                   {warnings.length > 0 && (
                     <div className="space-y-0.5 text-warning-on-soft">
                       <p className="font-medium">
@@ -1133,7 +1134,10 @@ export function MigrationStep({
                 variant="outline"
                 style={{ color: outcomeTone(outcome as MatchOutcome) }}
               >
-                {count} {t(`setup2.outcome_${outcome}`, outcome)}
+                {count}{" "}
+                {outcome === "new" && batch.mode === "complete"
+                  ? t("setup2.outcome_new_complete", "not found")
+                  : t(`setup2.outcome_${outcome}`, outcome)}
               </Badge>
             ))}
           </div>
