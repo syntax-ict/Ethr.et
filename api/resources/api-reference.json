@@ -16092,7 +16092,7 @@
                     "employees"
                 ],
                 "operationId": "employeeImport.template",
-                "description": "`template` is the CSV header row. `lists` is what each choice column\nmay hold, for dropdowns: the fixed values, and this organisation's\ndepartments, branches and positions by name (by code where two share a\nname). `text_columns` must be formatted as text, or a spreadsheet drops\na leading zero and rounds a long number. `date_columns` hold dates.",
+                "description": "`template` is the CSV header row. `lists` is what each choice column\nmay hold, for dropdowns: the fixed values, and this organisation's\ndepartments, branches and positions by name (by code where two share a\nname). `text_columns` must be formatted as text, or a spreadsheet drops\na leading zero and rounds a long number. `date_columns` hold dates.\n`columns` says what each column is, in the template's order.",
                 "summary": "The employee template: its columns, and what a workbook built from it\nneeds to know",
                 "tags": [
                     "Employees"
@@ -16132,6 +16132,59 @@
                                                 "type": "string"
                                             }
                                         },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
+                                                    "group": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "core",
+                                                            "person",
+                                                            "contact",
+                                                            "job",
+                                                            "pay",
+                                                            "source"
+                                                        ]
+                                                    },
+                                                    "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "date",
+                                                            "list",
+                                                            "id",
+                                                            "number",
+                                                            "text"
+                                                        ]
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "pay": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "masked": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "key",
+                                                    "column",
+                                                    "group",
+                                                    "kind",
+                                                    "required",
+                                                    "pay",
+                                                    "masked"
+                                                ]
+                                            }
+                                        },
                                         "lists": {
                                             "type": "object",
                                             "additionalProperties": {
@@ -16148,6 +16201,7 @@
                                         "required",
                                         "text_columns",
                                         "date_columns",
+                                        "columns",
                                         "lists"
                                     ]
                                 }

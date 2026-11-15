@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Migration\StagedChanges;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -136,6 +137,21 @@ final class EmployeeImportRow
         'status', 'external_id',
     ];
 
+    /**
+     * How the template's columns are grouped, for a screen that lists them.
+     * Every TEMPLATE header is in exactly one group.
+     *
+     * @var array<string, list<string>>
+     */
+    public const GROUPS = [
+        'core' => ['name', 'employee_code', 'gender', 'hire_date', 'department', 'position', 'status'],
+        'person' => ['name_am', 'date_of_birth', 'marital_status', 'nationality', 'nationality_status', 'national_id'],
+        'contact' => ['email', 'phone'],
+        'job' => ['branch', 'badge_number'],
+        'pay' => ['salary', 'tin'],
+        'source' => ['external_id'],
+    ];
+
     /** Other spellings of a column, after key() has lower-cased it and joined its words with `_`. */
     private const ALIASES = [
         'full_name' => 'name',
@@ -225,6 +241,51 @@ final class EmployeeImportRow
         'on_probation' => 'probation',
         'new' => 'hired',
     ];
+
+    /**
+     * What each column of the template is, in the template's order: the list a
+     * screen shows, a workbook is built from, and a new column is added to.
+     *
+     * @return list<array{key: string, column: string, group: 'core'|'person'|'contact'|'job'|'pay'|'source', kind: 'date'|'list'|'id'|'number'|'text', required: bool, pay: bool, masked: bool}>
+     */
+    public static function columnMeta(): array
+    {
+        $groupOf = [];
+        foreach (self::GROUPS as $group => $headers) {
+            foreach ($headers as $header) {
+                $groupOf[$header] = $group;
+            }
+        }
+
+        $lists = array_keys(EmployeeImportChoices::forTenant(null));
+
+        $meta = [];
+        foreach (self::TEMPLATE as $key) {
+            $column = self::header($key);
+            // A salary is staged as cents; the other columns keep their name.
+            $staged = $column === 'salary' ? 'salary_cents' : $column;
+
+            $kind = match (true) {
+                in_array($column, self::DATES, true) => 'date',
+                in_array($key, $lists, true) => 'list',
+                in_array($column, self::TEXT_COLUMNS, true) => 'id',
+                $column === 'salary' => 'number',
+                default => 'text',
+            };
+
+            $meta[] = [
+                'key' => $key,
+                'column' => $column,
+                'group' => $groupOf[$key],
+                'kind' => $kind,
+                'required' => $key === 'name',
+                'pay' => in_array($staged, StagedChanges::PAY, true),
+                'masked' => in_array($staged, StagedChanges::MASKED, true),
+            ];
+        }
+
+        return $meta;
+    }
 
     /** A header cell as the key it names: "Employee Code" and "employee-code" are `employee_code`. */
     public static function header(string $cell): string
