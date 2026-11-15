@@ -2273,7 +2273,6 @@
   "devices_page.actions_group_address": "Address",
   "devices_page.actions_group_connection": "Connection",
   "devices_page.actions_group_manage": "Manage",
-  "devices_page.actions_group_open": "Open",
   "devices_page.actions_group_staff": "Staff and clock",
   "devices_page.actions_sends_only_note": "This terminal sends to ETHR and ETHR cannot call it, so testing and pulling are not offered.",
   "devices_page.actions_view_details": "View details",

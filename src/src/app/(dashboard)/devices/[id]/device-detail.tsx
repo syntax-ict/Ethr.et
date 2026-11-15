@@ -729,7 +729,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           />
         )}
 
-        {/* Delete Confirmation */}
+        {/* Regenerate token confirmation */}
         <ConfirmDialog
           open={confirmRegen}
           onOpenChange={setConfirmRegen}
@@ -741,6 +741,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           onConfirm={regenerateToken}
         />
 
+        {/* Delete Confirmation */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>
             <DialogHeader>

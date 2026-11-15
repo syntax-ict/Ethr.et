@@ -151,13 +151,17 @@ export function DeviceActionsMenu({
   }
 
   const icon = "mr-2 h-4 w-4";
-  const groups: { key: string; label: string; items: ReactNode[] }[] = [];
-  const add = (key: string, label: string, items: (ReactNode | false)[]) => {
+  const groups: { key: string; label?: string; items: ReactNode[] }[] = [];
+  const add = (
+    key: string,
+    label: string | undefined,
+    items: (ReactNode | false)[],
+  ) => {
     const shown = items.filter(Boolean) as ReactNode[];
     if (shown.length > 0) groups.push({ key, label, items: shown });
   };
 
-  add("open", t("devices_page.actions_group_open"), [
+  add("open", undefined, [
     !hideDetailsLink && (
       <DropdownMenuItem key="details" asChild>
         <Link href={`/devices/${id}`}>
@@ -302,9 +306,11 @@ export function DeviceActionsMenu({
           {groups.map((group, i) => (
             <Fragment key={group.key}>
               {i > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                {group.label}
-              </DropdownMenuLabel>
+              {group.label && (
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  {group.label}
+                </DropdownMenuLabel>
+              )}
               {group.items}
             </Fragment>
           ))}
