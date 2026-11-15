@@ -35238,8 +35238,29 @@
                                         "total": {
                                             "type": "integer"
                                         },
+                                        "matched": {
+                                            "type": "integer"
+                                        },
                                         "truncated": {
                                             "type": "boolean"
+                                        },
+                                        "period": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "from",
+                                                "to"
+                                            ]
                                         },
                                         "data": {
                                             "type": "array",
@@ -35275,6 +35296,9 @@
                                                             ]
                                                         }
                                                     }
+                                                },
+                                                "complete": {
+                                                    "type": "boolean"
                                                 }
                                             }
                                         }
@@ -35282,7 +35306,9 @@
                                     "required": [
                                         "source",
                                         "total",
+                                        "matched",
                                         "truncated",
+                                        "period",
                                         "data",
                                         "summary"
                                     ]
@@ -35500,13 +35526,17 @@
                                                             "null"
                                                         ],
                                                         "format": "date-time"
+                                                    },
+                                                    "mine": {
+                                                        "type": "boolean"
                                                     }
                                                 },
                                                 "required": [
                                                     "public_id",
                                                     "name",
                                                     "config",
-                                                    "created_at"
+                                                    "created_at",
+                                                    "mine"
                                                 ]
                                             }
                                         }
@@ -35688,6 +35718,17 @@
                                                             "null"
                                                         ],
                                                         "format": "date-time"
+                                                    },
+                                                    "last_error": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ],
+                                                        "enum": [
+                                                            "creator_cannot_run",
+                                                            "error",
+                                                            null
+                                                        ]
                                                     }
                                                 },
                                                 "required": [
@@ -35696,7 +35737,8 @@
                                                     "frequency",
                                                     "recipients",
                                                     "next_run_at",
-                                                    "last_run_at"
+                                                    "last_run_at",
+                                                    "last_error"
                                                 ]
                                             }
                                         }
@@ -35939,6 +35981,10 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "period"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "from"
                                                                 },
                                                                 {
@@ -35958,8 +36004,8 @@
                                                                     "const": "branch"
                                                                 }
                                                             ],
-                                                            "minItems": 5,
-                                                            "maxItems": 5,
+                                                            "minItems": 6,
+                                                            "maxItems": 6,
                                                             "additionalItems": false
                                                         }
                                                     },
@@ -36037,6 +36083,10 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "period"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "from"
                                                                 },
                                                                 {
@@ -36052,8 +36102,8 @@
                                                                     "const": "branch"
                                                                 }
                                                             ],
-                                                            "minItems": 4,
-                                                            "maxItems": 4,
+                                                            "minItems": 5,
+                                                            "maxItems": 5,
                                                             "additionalItems": false
                                                         }
                                                     },
@@ -36103,6 +36153,10 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "period"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "from"
                                                                 },
                                                                 {
@@ -36118,8 +36172,8 @@
                                                                     "const": "branch"
                                                                 }
                                                             ],
-                                                            "minItems": 4,
-                                                            "maxItems": 4,
+                                                            "minItems": 5,
+                                                            "maxItems": 5,
                                                             "additionalItems": false
                                                         }
                                                     },
@@ -36287,6 +36341,10 @@
                                                             "prefixItems": [
                                                                 {
                                                                     "type": "string",
+                                                                    "const": "period"
+                                                                },
+                                                                {
+                                                                    "type": "string",
                                                                     "const": "from"
                                                                 },
                                                                 {
@@ -36306,8 +36364,8 @@
                                                                     "const": "cost_center"
                                                                 }
                                                             ],
-                                                            "minItems": 5,
-                                                            "maxItems": 5,
+                                                            "minItems": 6,
+                                                            "maxItems": 6,
                                                             "additionalItems": false
                                                         }
                                                     },
@@ -48580,30 +48638,6 @@
                             "payroll"
                         ]
                     },
-                    "columns": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "filters": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "group_by": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "sort_by": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
                     "sort_dir": {
                         "type": "string",
                         "enum": [
@@ -48617,6 +48651,103 @@
                             "csv",
                             "pdf"
                         ]
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 64
+                        }
+                    },
+                    "filters": {
+                        "type": "object",
+                        "properties": {
+                            "from": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date"
+                            },
+                            "to": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date"
+                            },
+                            "month": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "year": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "period": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "yesterday",
+                                    "last_7_days",
+                                    "this_month",
+                                    "last_month",
+                                    "last_3_months",
+                                    "last_12_months",
+                                    "this_fiscal_year",
+                                    "last_fiscal_year",
+                                    null
+                                ]
+                            },
+                            "status": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 50
+                            },
+                            "department": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 64
+                            },
+                            "branch": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 64
+                            },
+                            "cost_center": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 64
+                            }
+                        }
+                    },
+                    "group_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 64
+                    },
+                    "sort_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 64
                     }
                 },
                 "required": [
@@ -52682,6 +52813,103 @@
                                     "leave",
                                     "payroll"
                                 ]
+                            },
+                            "columns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 64
+                                }
+                            },
+                            "filters": {
+                                "type": "object",
+                                "properties": {
+                                    "from": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "format": "date"
+                                    },
+                                    "to": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "format": "date"
+                                    },
+                                    "month": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "year": {
+                                        "type": [
+                                            "integer",
+                                            "null"
+                                        ]
+                                    },
+                                    "period": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "enum": [
+                                            "yesterday",
+                                            "last_7_days",
+                                            "this_month",
+                                            "last_month",
+                                            "last_3_months",
+                                            "last_12_months",
+                                            "this_fiscal_year",
+                                            "last_fiscal_year",
+                                            null
+                                        ]
+                                    },
+                                    "status": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 50
+                                    },
+                                    "department": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 64
+                                    },
+                                    "branch": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 64
+                                    },
+                                    "cost_center": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 64
+                                    }
+                                }
+                            },
+                            "group_by": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 64
+                            },
+                            "sort_by": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "maxLength": 64
                             }
                         },
                         "required": [

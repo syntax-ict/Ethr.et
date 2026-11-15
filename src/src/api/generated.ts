@@ -10276,14 +10276,27 @@ export interface components {
         GenerateReportRequest: {
             /** @enum {string} */
             source: "employees" | "attendance" | "timesheet" | "absences" | "leave" | "payroll";
-            columns?: string[];
-            filters?: string[];
-            group_by?: string | null;
-            sort_by?: string | null;
             /** @enum {string} */
             sort_dir?: "asc" | "desc";
             /** @enum {string} */
             format?: "csv" | "pdf";
+            columns?: string[];
+            filters?: {
+                /** Format: date */
+                from?: string | null;
+                /** Format: date */
+                to?: string | null;
+                month?: string | null;
+                year?: number | null;
+                /** @enum {string|null} */
+                period?: "yesterday" | "last_7_days" | "this_month" | "last_month" | "last_3_months" | "last_12_months" | "this_fiscal_year" | "last_fiscal_year" | null;
+                status?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                cost_center?: string | null;
+            };
+            group_by?: string | null;
+            sort_by?: string | null;
         };
         /** GenerateScimTokenRequest */
         GenerateScimTokenRequest: {
@@ -11691,6 +11704,23 @@ export interface components {
             config: {
                 /** @enum {string} */
                 source: "employees" | "attendance" | "timesheet" | "absences" | "leave" | "payroll";
+                columns?: string[];
+                filters?: {
+                    /** Format: date */
+                    from?: string | null;
+                    /** Format: date */
+                    to?: string | null;
+                    month?: string | null;
+                    year?: number | null;
+                    /** @enum {string|null} */
+                    period?: "yesterday" | "last_7_days" | "this_month" | "last_month" | "last_3_months" | "last_12_months" | "this_fiscal_year" | "last_fiscal_year" | null;
+                    status?: string | null;
+                    department?: string | null;
+                    branch?: string | null;
+                    cost_center?: string | null;
+                };
+                group_by?: string | null;
+                sort_by?: string | null;
             };
         };
         /** SaveSmsGatewayRequest */
@@ -20559,6 +20589,7 @@ export interface operations {
                                     "overtime_minutes"
                                 ];
                                 filters: [
+                                    "period",
                                     "from",
                                     "to",
                                     "status",
@@ -20584,6 +20615,7 @@ export interface operations {
                                     "overtime_hours"
                                 ];
                                 filters: [
+                                    "period",
                                     "from",
                                     "to",
                                     "department",
@@ -20601,6 +20633,7 @@ export interface operations {
                                     "date"
                                 ];
                                 filters: [
+                                    "period",
                                     "from",
                                     "to",
                                     "department",
@@ -20648,6 +20681,7 @@ export interface operations {
                                     "net_cents"
                                 ];
                                 filters: [
+                                    "period",
                                     "from",
                                     "to",
                                     "department",
@@ -20719,7 +20753,12 @@ export interface operations {
                     "application/json": {
                         source: string;
                         total: number;
+                        matched: number;
                         truncated: boolean;
+                        period: {
+                            from: string;
+                            to: string;
+                        } | null;
                         data: {
                             [key: string]: unknown;
                         }[];
@@ -20733,6 +20772,7 @@ export interface operations {
                                     [key: string]: number;
                                 };
                             };
+                            complete?: boolean;
                         };
                     };
                 };
@@ -20823,6 +20863,7 @@ export interface operations {
                             config: unknown[];
                             /** Format: date-time */
                             created_at: string | null;
+                            mine: boolean;
                         }[];
                     };
                 };
@@ -20911,6 +20952,8 @@ export interface operations {
                             next_run_at: string | null;
                             /** Format: date-time */
                             last_run_at: string | null;
+                            /** @enum {string|null} */
+                            last_error: "creator_cannot_run" | "error" | null;
                         }[];
                     };
                 };

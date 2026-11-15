@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\GenerateReportRequest;
 use App\Http\Requests\Report\SaveReportRequest;
 use App\Http\Requests\Report\ScheduleReportRequest;
+use App\Jobs\RunScheduledReportsJob;
 use App\Models\AuditLog;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
@@ -71,12 +72,14 @@ class ReportController extends Controller
         $tenantId = app(CurrentTenant::class)->requireId();
         $format = $request->validated('format', 'csv');
         $reader = ReaderDates::for($request->user());
-        $result = $this->engine->generate($tenantId, $request->validated(), $request->user(), $reader);
+        $result = $this->engine->generate($tenantId, $request->validated(), $request->user(), $reader, withSummary: false);
         $filename = 'report-'.now()->format('Y-m-d-His');
 
+        $note = $this->engine->truncationNote($result, $reader);
+
         return $format === 'pdf'
-            ? $this->exportPdf($result['data'], $filename, $reader)
-            : $this->exportCsv($result['data'], $filename, $reader);
+            ? $this->exportPdf($result, $filename, $reader, $note)
+            : $this->exportCsv($result['data'], $filename, $reader, $note);
     }
 
     /**
@@ -92,18 +95,18 @@ class ReportController extends Controller
     }
 
     /** @param array<int, array<string, mixed>> $rows */
-    private function exportCsv(array $rows, string $filename, ReaderDates $reader): Response
+    private function exportCsv(array $rows, string $filename, ReaderDates $reader, ?string $note): Response
     {
-        return response(Csv::forSpreadsheet($this->engine->toCsv($rows, $reader)), 200, [
+        return response(Csv::forSpreadsheet($this->engine->toCsv($rows, $reader, $note)), 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
         ]);
     }
 
-    /** @param array<int, array<string, mixed>> $rows */
-    private function exportPdf(array $rows, string $filename, ReaderDates $reader): Response
+    /** @param array<string, mixed> $result */
+    private function exportPdf(array $result, string $filename, ReaderDates $reader, ?string $note): Response
     {
-        $rows = $this->engine->presentable($rows, $reader);
+        $rows = $this->engine->presentable($result['data'], $reader);
         $columns = $rows === [] ? [] : array_keys($rows[0]);
         File::ensureDirectoryExists(storage_path('fonts'));
         $pdf = Pdf::loadView('reports.export', [
@@ -111,6 +114,9 @@ class ReportController extends Controller
             'rows' => $rows,
             'locale' => $reader->locale,
             'generated_at' => $reader->dateTime(now()),
+            'source_name' => (string) __('report.sources.'.$result['source'], [], $reader->locale),
+            'period_text' => $this->engine->periodText($result, $reader),
+            'note' => $note,
         ]);
         $pdf->setOption('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'landscape');
@@ -149,6 +155,10 @@ class ReportController extends Controller
     {
         Gate::authorize('report.generate');
 
+        // `mine`: only the person who saved a report may schedule it, so the
+        // list says which ones the caller saved and the screen offers
+        // scheduling on those alone.
+        $userId = (int) $request->user()->id;
         $reports = SavedReport::query()
             ->orderByDesc('created_at')
             ->get()
@@ -157,6 +167,7 @@ class ReportController extends Controller
                 'name' => $r->name,
                 'config' => $r->config,
                 'created_at' => $r->created_at,
+                'mine' => (int) $r->created_by === $userId,
             ]);
 
         return response()->json(['reports' => $reports]);
@@ -178,6 +189,12 @@ class ReportController extends Controller
 
         $tenant = app(CurrentTenant::class)->get();
         $report = SavedReport::where('public_id', $request->input('saved_report_public_id'))->firstOrFail();
+
+        // A schedule runs with the reach of the person who saved the report
+        // (RunScheduledReportsJob), so only that person may schedule it:
+        // anyone else would be sending a colleague's wider view to addresses
+        // of their own choosing.
+        abort_unless((int) $report->created_by === (int) $request->user()->id, 403);
 
         $scheduled = ScheduledReport::create([
             'tenant_id' => $tenant->id,
@@ -212,9 +229,24 @@ class ReportController extends Controller
                 'recipients' => StringList::of($s->recipients),
                 'next_run_at' => $s->next_run_at,
                 'last_run_at' => $s->last_run_at,
+                'last_error' => $this->errorCode($s->last_error),
             ]);
 
         return response()->json(['schedules' => $schedules]);
+    }
+
+    /**
+     * What the schedule list says about the last run: a short code, never the
+     * stored text, which can carry SQL and values and is English on every
+     * screen.
+     */
+    private function errorCode(?string $stored): ?string
+    {
+        return match (true) {
+            $stored === null || $stored === '' => null,
+            $stored === RunScheduledReportsJob::CREATOR_CANNOT_RUN => 'creator_cannot_run',
+            default => 'error',
+        };
     }
 
     public function deleteScheduled(ScheduledReport $scheduledReport): JsonResponse
@@ -222,6 +254,7 @@ class ReportController extends Controller
         Gate::authorize('report.generate');
 
         $scheduledReport->update(['is_active' => false]);
+        AuditLog::record('report.unscheduled', $scheduledReport);
 
         return response()->json(null, 204);
     }

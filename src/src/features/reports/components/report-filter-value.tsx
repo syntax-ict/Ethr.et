@@ -16,6 +16,8 @@ import {
   departmentsApi,
 } from "@/features/organization/api";
 import { useT } from "@/lib/i18n/useT";
+import { reportPeriodsFor } from "@/features/reports/api";
+import { reportPeriodLabel } from "@/features/reports/field-labels";
 
 type EmployeeStatus = components["schemas"]["EmployeeStatus"];
 
@@ -80,6 +82,24 @@ export function ReportFilterValue({
           {statuses.map((status) => (
             <SelectItem key={status} value={status}>
               {t(`status.${status}`, status)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  // Only the keys the server resolves: any other value is a 422, so never text.
+  if (field === "period") {
+    return (
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger className="h-8 flex-1" aria-label={label}>
+          <SelectValue placeholder={t("reports_page.value")} />
+        </SelectTrigger>
+        <SelectContent>
+          {reportPeriodsFor(source).map((period) => (
+            <SelectItem key={period} value={period}>
+              {reportPeriodLabel(t, period)}
             </SelectItem>
           ))}
         </SelectContent>

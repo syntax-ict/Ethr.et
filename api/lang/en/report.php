@@ -16,6 +16,18 @@ return [
     'pdf_generated' => 'Generated on :date',
     'pdf_rows' => '{1} :count row|[0,*] :count rows',
     'pdf_footer' => 'Powered by ETHR',
+    'truncated_note' => 'This report shows :shown of :matched rows, the newest first. Narrow the dates or the filters to see the rest.',
+    'truncated_note_unknown' => 'This report shows only the newest :shown rows. Narrow the dates or the filters to see the rest.',
+    'period_range' => ':from to :to',
+    'period_line' => 'Period: :period',
+    'sources' => [
+        'employees' => 'Employees',
+        'attendance' => 'Attendance',
+        'timesheet' => 'Monthly timesheet',
+        'absences' => 'Absences',
+        'leave' => 'Leave balances',
+        'payroll' => 'Payroll',
+    ],
     'fields' => [
         'name' => 'Name',
         'email' => 'Email',

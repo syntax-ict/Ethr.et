@@ -260,6 +260,7 @@ For optimistic actions: show success immediately, display "Undo" toast with 5-se
 | `POST /payroll/process` | 2/hour per tenant | Expensive operation |
 | `POST /employees/import/*` | 5/hour per tenant | Resource intensive |
 | `GET /dashboard/*` | 30/min per user | Heavy queries |
+| `POST /reports/generate`, `POST /reports/export` | 20/min per user | Each run reads a period of attendance or payslips and may render a file |
 | `POST /webhooks/*/test` | 10/hour per tenant | Abuse prevention |
 | All write endpoints (trial) | 60/min per tenant | Trial tier |
 | All write endpoints (paid) | 300/min per tenant | Paid tier |
@@ -925,14 +926,14 @@ over-read:
   `last_error` column is the mark: NULL means the last run succeeded, non-NULL means it
   failed and carries why. It is cleared on the next success, because it describes the
   *last* run and that is the only question its name can answer.
-- **`last_error` is not exposed through the API yet.** `ReportController::scheduledList()`
-  returns `last_run_at` and not `last_error`, so the reason is in the database and not yet
-  on any screen. Adding it is a one-line change to that response array and a regenerated
-  `src/src/api/generated.ts` — which is why it is not in the same slice: the contract gate
-  needs Scramble, and the sandbox that wrote this could not run it. The failure
-  *notification* deliberately carries no reason at all: recipients are free-text addresses
-  on the schedule rather than authenticated users, and an exception message can carry
-  column names or a connection string.
+- **The API says that a run failed, as a code, since 2026-11-15.**
+  `ReportController::scheduledList()` returns `last_error` as `creator_cannot_run`,
+  `error` or null, and the Scheduled tab shows a failed run in the reader's language.
+  Until then the failure was in the database and on no screen. The stored message itself
+  stays in the column and the log and is returned to nobody: an exception message can
+  carry SQL, column names or a connection string. For the same reason the failure
+  *notification* carries no reason at all, its recipients being free-text addresses
+  on the schedule rather than authenticated users.
 - **`failed()` there is a different event and says so.** It fires when the whole sweep dies
   — the database went away, the 600s timeout expired — meaning an unknown number of
   schedules were never examined. It marks no row: the failure belongs to the run, not to

@@ -820,9 +820,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/sources', [ReportController::class, 'sources']);
         Route::get('/presets', [ReportController::class, 'presets']);
         Route::post('/generate', [ReportController::class, 'generate'])
-            ->middleware(RequiresFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])
-            ->middleware(RequiresFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
 
         // `custom_reports` is the Enterprise tier's own key, distinct from
         // `reports`: saving and scheduling a report definition is the paid
