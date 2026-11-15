@@ -16,6 +16,7 @@ use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
 use App\Support\Csv;
+use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use App\Support\ScheduleSlot;
 use App\Support\StringList;
@@ -107,6 +108,7 @@ class ReportController extends Controller
         $columns = $rows === [] ? [] : array_keys($rows[0]);
         File::ensureDirectoryExists(storage_path('fonts'));
         $pdf = Pdf::loadView('reports.export', [
+            'organisation' => (app(CurrentTenant::class)->get() ?? throw new TenantRequired)->name,
             'columns' => $columns,
             'rows' => $rows,
             'locale' => $reader->locale,
@@ -115,7 +117,7 @@ class ReportController extends Controller
         $pdf->setOption('isFontSubsettingEnabled', true);
         $pdf->setPaper('a4', 'landscape');
 
-        return response($pdf->output(), 200, [
+        return response(PdfPages::render($pdf), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
         ]);

@@ -18,7 +18,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>{{ __('report.pdf_title', [], $locale) }}</h1>
+        <h1>{{ $organisation }}</h1>
+        <p>{{ __('report.pdf_title', [], $locale) }}</p>
         <p>{{ __('report.pdf_generated', ['date' => $generated_at], $locale) }}</p>
     </div>
 
