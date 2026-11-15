@@ -287,6 +287,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The wizard's policy names lose their em dash; the organisations sitemap names `om`; a device with no branch is refused in plain words and the dialog asks for one; a Hikvision push terminal's Sync History has the push wording | #727 | SET-023, SET-024, MKT-006, DEV-030 (expectations already as fixed) |
 | The setup wizard's industries, profiles, shifts, leave types and allowances read in Afaan Oromoo | #729 | L10N-023 |
 | The wizard proposal's "Confirm before you apply" notes follow the header language | #732 (open) | L10N-024 |
+| The wizard proposal's departments, positions and grades, and the kind of organisation in law, read in Amharic and Afaan Oromoo | #734 (open) | L10N-025 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone

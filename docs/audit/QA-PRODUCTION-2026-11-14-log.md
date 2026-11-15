@@ -204,5 +204,8 @@ Two things seen on the way. Neither is part of #729, and neither is filed.
   L10N-023, which lists industries, profiles, shifts, leave types and allowances.
 - "Private organisation" under the organisation's kind in law read in English on the Afaan Oromoo
   screen. It was not read in Amharic.
+- Fixed by #734 (open when written, not yet live): the proposal carries an Amharic and an Afaan
+  Oromoo name for every department, position and grade, and each kind in law has an Oromo name.
+  The wording is drafted, not reviewed by a native speaker. Case L10N-025.
 
 Left as found: header language back to English, nothing applied, QA Audit still signed in as TA.
