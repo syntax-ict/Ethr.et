@@ -71,11 +71,27 @@ const READ_OK: PeopleRead = {
   calendar_from_header: false,
   without_hire_date: 0,
   problems: [],
+  warnings: [],
   headers: [],
   header_likely: false,
   needs_name: false,
   source: null,
   suggested_source: null,
+};
+
+const WARNED_BATCH = {
+  ...AMBIGUOUS_BATCH,
+  rows: [
+    {
+      ...AMBIGUOUS_BATCH.rows[0],
+      warnings: [
+        {
+          code: "device_id_not_badge",
+          message: "The terminal number A_1 is kept as the terminal's own.",
+        },
+      ],
+    },
+  ],
 };
 
 /** The list is read by the server; each test says what it answers. */
@@ -331,6 +347,69 @@ describe("<MigrationStep>", () => {
     expect(posted).toBe(false);
   });
 
+  it("shows what is worth knowing about lines that are staged all the same, capped as the problems are", async () => {
+    reads({
+      people: 7,
+      warnings: Array.from({ length: 7 }, (_, i) => ({
+        line: i + 2,
+        code: "terminal_number_not_accepted",
+        message: `The number "A${i}" is not taken.`,
+      })),
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Abebe Kebede\tA0" },
+      },
+    );
+
+    expect(
+      await screen.findByText("Worth knowing before you add them"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Line 2: The number "A0" is not taken.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("and 2 more")).toBeInTheDocument();
+    expect(
+      screen.getByText("Stage for review").closest("button"),
+    ).not.toBeDisabled();
+  });
+
+  it("shows a staged row's warnings on the row", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(WARNED_BATCH, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(WARNED_BATCH),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Abebe Kebede\tA_1" },
+      },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+
+    expect(
+      await screen.findByText(
+        "The terminal number A_1 is kept as the terminal's own.",
+      ),
+    ).toBeInTheDocument();
+  });
   it("sends the calendar chosen with the list as written, and says who has no hire date", async () => {
     let body: { grid: string[][]; calendar: string } | null = null;
     const asked = reads({ people: 2, without_hire_date: 1 });

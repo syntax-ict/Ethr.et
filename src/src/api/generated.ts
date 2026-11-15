@@ -27634,6 +27634,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27674,6 +27675,11 @@ export interface operations {
                         without_hire_date: number;
                         problems: {
                             line: number;
+                            message: string;
+                        }[];
+                        warnings: {
+                            line: number;
+                            code: string;
                             message: string;
                         }[];
                         headers: {
@@ -27739,6 +27745,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27931,6 +27938,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27982,6 +27990,7 @@ export interface operations {
                             accepted: boolean;
                             taken: boolean;
                         }[];
+                        warnings: unknown[];
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;

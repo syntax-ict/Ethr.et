@@ -14,6 +14,7 @@ use App\Models\MigrationStagingRow;
 use App\Models\OnboardingProgress;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Device\AdmsRoster;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\DB;
 
@@ -379,5 +380,57 @@ describe('the People step, as every other way of adding people', function () {
         test()->postJson("{$host}/onboarding/migration/rows", [
             'rows' => [['name' => 'Long Code', 'employee_code' => str_repeat('A', 31)]],
         ])->assertUnprocessable()->assertJsonValidationErrors('rows.0.employee_code');
+    });
+});
+
+describe('the number a person is known by on a terminal', function () {
+    /**
+     * Stage a ZKTeco ADMS terminal's roster, as the terminal reported it.
+     *
+     * @param  list<array{pin: string, card: string|null}>  $people
+     */
+    function stageReportedRoster(array $people): MigrationBatch
+    {
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'zkteco_adms', 'status' => 'online']);
+
+        app(AdmsRoster::class)->record($device, collect($people)->mapWithKeys(fn (array $p) => [$p['pin'] => [
+            'pin' => $p['pin'], 'user' => true, 'name' => 'Person '.$p['pin'], 'card' => $p['card'],
+            'is_admin' => false, 'fingerprints' => 0, 'face' => false,
+        ]])->all());
+
+        return migrationService()->stageFromDevice($device);
+    }
+
+    it('is the terminal\'s own user id, never the card', function () {
+        $row = stageReportedRoster([['pin' => '1001', 'card' => '8812345']])->rows()->sole();
+
+        expect($row->raw['badge_number'])->toBe('1001')
+            ->and($row->raw['employee_code'])->toBe('1001')
+            ->and($row->raw['card_number'])->toBe('8812345')
+            ->and($row->raw['identifier_value'])->toBe('1001')
+            ->and($row->raw)->not->toHaveKey('warnings');
+    });
+
+    it('flags an id too long for an employee number or a badge at staging, and still commits', function () {
+        $long = str_repeat('7', 40);
+        $batch = stageReportedRoster([['pin' => $long, 'card' => null], ['pin' => 'A_1', 'card' => null]]);
+
+        $byId = $batch->rows()->get()->keyBy(fn ($r) => $r->raw['identifier_value']);
+
+        $tooLong = $byId[$long]->raw;
+        expect(array_column($tooLong['warnings'], 'code'))->toBe(['device_id_too_long', 'device_id_not_badge'])
+            ->and($tooLong)->not->toHaveKey('employee_code')
+            ->and($tooLong)->not->toHaveKey('badge_number')
+            ->and($tooLong['identifier_value'])->toBe($long);
+
+        $odd = $byId['A_1']->raw;
+        expect(array_column($odd['warnings'], 'code'))->toBe(['device_id_not_badge'])
+            ->and($odd['employee_code'])->toBe('A_1')
+            ->and($odd)->not->toHaveKey('badge_number');
+
+        $batch->rows()->update(['action' => MigrationStagingRow::ACTION_CREATE]);
+        expect(migrationService()->commit($batch)['created'])->toBe(2);
     });
 });
