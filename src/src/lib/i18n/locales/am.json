@@ -2824,6 +2824,7 @@
   "employees_import_page.col_name": "ሙሉ ስም",
   "employees_import_page.col_name_am": "ስም በአማርኛ",
   "employees_import_page.col_national_id": "የፋይዳ ቁጥር፣ ተመስጥሮ ይቀመጣል",
+  "employees_import_page.col_nationality": "የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ",
   "employees_import_page.col_phone": "09... ወይም +251...",
   "employees_import_page.col_position": "መጠሪያው ወይም ኮዱ",
   "employees_import_page.col_salary": "ወርሃዊ፣ በብር፣ ለምሳሌ 12,500.00",

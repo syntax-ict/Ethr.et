@@ -153,6 +153,16 @@ than `diplomatic_mission` read correctly against the Commercial Code's terms but
 native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is also *price*
 (`admin_plans.price`); no better established word was found in `om.json`.
 
+### Nationality column help in the import guide (2026-11-15)
+
+Drafted, not native-reviewed. The employee import guide had no line for the
+`nationality` column; `employees_import_page.col_nationality` adds one. A
+native reading is owed for both languages.
+
+| Key | English | Amharic | Afaan Oromoo |
+|---|---|---|---|
+| `employees_import_page.col_nationality` | Country of citizenship, such as Ethiopian | የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ | Biyyi lammummaa, fakkeenyaaf Itiyoophiyaa |
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |

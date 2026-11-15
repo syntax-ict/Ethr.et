@@ -3266,6 +3266,7 @@ export interface paths {
          *     departments, branches and positions by name (by code where two share a
          *     name). `text_columns` must be formatted as text, or a spreadsheet drops
          *     a leading zero and rounds a long number. `date_columns` hold dates.
+         *     `columns` says what each column is, in the template's order.
          */
         post: operations["employeeImport.template"];
         delete?: never;
@@ -22481,6 +22482,17 @@ export interface operations {
                         required: string[];
                         text_columns: string[];
                         date_columns: string[];
+                        columns: {
+                            key: string;
+                            column: string;
+                            /** @enum {string} */
+                            group: "core" | "person" | "contact" | "job" | "pay" | "source";
+                            /** @enum {string} */
+                            kind: "date" | "list" | "id" | "number" | "text";
+                            required: boolean;
+                            pay: boolean;
+                            masked: boolean;
+                        }[];
                         lists: {
                             [key: string]: string[];
                         };

@@ -2,27 +2,13 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { useT } from "@/lib/i18n/useT";
+import { columnLabel } from "@/features/employees/employee-columns";
 import type { StagedChange, StagingRow } from "../types";
 
 type Translate = ReturnType<typeof useT>["t"];
 
-/** Where each field's name already lives in the dictionary. */
-const FIELD_LABELS: Record<string, [string, string]> = {
-  name: ["setup2.col_name", "Name"],
-  email: ["setup2.col_email", "Email"],
-  phone: ["setup2.col_phone", "Phone"],
-  employee_code: ["setup2.col_employee_code", "Employee number"],
-  badge_number: ["setup2.col_badge_number", "Badge number"],
-  national_id: ["employee.national_id", "National ID"],
-  tin: ["employee.tin", "TIN"],
-  hire_date: ["setup2.col_hire_date", "Hire date"],
-  department: ["setup2.col_department", "Department"],
-  salary_cents: ["employee.detail.salary", "Salary"],
-};
-
 function fieldLabel(field: string, t: Translate): string {
-  const known = FIELD_LABELS[field];
-  return known ? t(known[0], known[1]) : field;
+  return columnLabel(field, t);
 }
 
 /** One change in words. A masked field is named and its values are not. */

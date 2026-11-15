@@ -2824,6 +2824,7 @@
   "employees_import_page.col_name": "Full name",
   "employees_import_page.col_name_am": "Name in Amharic",
   "employees_import_page.col_national_id": "Fayda number, stored encrypted",
+  "employees_import_page.col_nationality": "Country of citizenship, such as Ethiopian",
   "employees_import_page.col_phone": "09... or +251...",
   "employees_import_page.col_position": "Its title or its code",
   "employees_import_page.col_salary": "Monthly, in birr, such as 12,500.00",
