@@ -5,6 +5,7 @@ import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { server } from "./msw/server";
 import { buildEmployee } from "./msw/handlers";
+import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import EmployeesPage from "@/app/(dashboard)/employees/page";
 import {
   buildCompleteWorkbook,
@@ -45,15 +46,7 @@ const SPEC = {
   lists: {},
 };
 
-const TEXT = {
-  title: "",
-  lines: [],
-  columnHeading: "",
-  takesHeading: "",
-  required: "",
-  help: {},
-  notInList: "",
-};
+const TEXT = employeeTemplateText((key, fallback) => fallback ?? key);
 
 /**
  * What HR downloads to fill in: the people the list shows, prefilled, with
