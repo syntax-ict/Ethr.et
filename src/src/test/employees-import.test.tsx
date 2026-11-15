@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { Workbook } from "exceljs";
 import { server } from "./msw/server";
 import EmployeeImportPage from "@/app/(dashboard)/employees/import/page";
 import type { MigrationBatch } from "@/features/onboarding/v2/types";
@@ -228,6 +229,69 @@ describe("Employee import", () => {
         "department",
       ],
     ]);
+  });
+
+  it("carries the server's columns into the workbook: an Example sheet and a note on each header", async () => {
+    saved.length = 0;
+    savedCsv.length = 0;
+    const column = (
+      key: string,
+      name: string,
+      group: string,
+      kind: string,
+      required = false,
+    ) => ({
+      key,
+      column: name,
+      group,
+      kind,
+      required,
+      pay: false,
+      masked: false,
+    });
+    server.use(
+      http.post("*/employees/import/template", () =>
+        HttpResponse.json({
+          template: "name,hire_date,date_of_birth,gender,department\n",
+          headers: [
+            "name",
+            "hire_date",
+            "date_of_birth",
+            "gender",
+            "department",
+          ],
+          required: ["name"],
+          text_columns: [],
+          date_columns: ["hire_date", "date_of_birth"],
+          columns: [
+            column("name", "name", "core", "text", true),
+            column("hire_date", "hire_date", "job", "date"),
+            column("date_of_birth", "date_of_birth", "person", "date"),
+            column("gender", "gender", "person", "list"),
+            column("department_code", "department", "job", "list"),
+          ],
+          lists: { gender: ["male", "female"], department: ["Finance"] },
+        }),
+      ),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByText("Download template"));
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(saved[0].name).toBe("ethr-employee-template.xlsx");
+
+    const bytes = await saved[0].blob.arrayBuffer();
+    const workbook = new Workbook();
+    await workbook.xlsx.load(bytes);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      "Employees",
+      "Example",
+      "Instructions",
+      "Lists",
+    ]);
+    expect(await readWorkbook(bytes)).toHaveLength(1);
+    expect(workbook.getWorksheet("Employees")!.getCell(1, 1).note).toBeTruthy();
   });
 
   it("refuses a file over 5 MB without reading it into the page", async () => {
