@@ -1,5 +1,13 @@
 # Organisation services
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how an organisation lists its products, services or programmes on its public page, and the rules the server applies. |
+| **Open it when** | An organisation asks why a service is missing or refused on its public page. |
+| **For** | Platform operator |
+| **Organisation types** | Same for every kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `App\Support\TenantLanding`. |
+
 An organisation's public page (its sign-in portal) can say what it offers:
 its products, services or programmes. Added 2026-10-16, beside the questions
 section ([`ORGANISATION-FAQ.md`](ORGANISATION-FAQ.md)), and edited the same way.

@@ -1,5 +1,13 @@
 # Impersonation — how a platform operator acts as a tenant admin
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how a platform super admin acts as an organisation's administrator, what that refuses and how it ends. |
+| **Open it when** | You need to look inside an organisation as it sees itself. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Same for every kind. One caution: impersonation does not refuse a change of the organisation's kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `api/app/Http/Middleware/BlockImpersonatedActions.php` and `AdminTenantController.php`; the code outranks this page. |
+
 **Written 2026-10-01 from the code** (audit item D14). Every claim cites the file and line it
 was read from. Nothing here was run against a live host.
 
@@ -87,6 +95,9 @@ answered `403 Action Restricted`:
   (`SettingsController@updateSubdomain`, `@updateAddress`). Added 2026-11-09 for K-39: the
   address is where the organisation's people sign in.
 
+**Not blocked, and worth knowing:** saving the organisation's kind of organisation
+(`SettingsController@updateOrganization`). It is not in `BLOCKED_ACTIONS`.
+
 Everything else the impersonated tenant admin could do, the operator can do — including
 approving payroll and leave. The protection there is the audit tag, not a block. The middleware
 sits on the whole authenticated group (`api/routes/api.php:220`).
@@ -129,6 +140,20 @@ nothing was restored (`src/src/components/shared/impersonation-banner.tsx:25-59`
 If nobody exits, the token simply expires at 30 minutes. The tenant origin's `impersonating`
 flag then outlives it until the banner's exit button is pressed (which answers 401/403 and
 lands on `/login`, clearing it) — harmless, but a banner can show over an expired session.
+
+## Organisation types
+
+- `SettingsController@updateOrganization` is not in `BLOCKED_ACTIONS`, so an operator impersonating
+  an administrator can save a different kind of organisation.
+- The kind decides which statutory rules apply: the pension scheme, and with it the agency the
+  pension schedule is addressed to.
+- **The rule:** read the kind while impersonating, never save it. A change of kind is the
+  organisation's own decision, and its own administrator makes it.
+- If it does happen, the audit log records `settings.organization_updated` with the kind before and
+  after, and `organization_profile.assigned` for the new dated assignment. Both are tagged
+  `impersonated_by` with the operator's user id, as every entry made during the session is.
+- Whether impersonation should refuse a change of kind is an open decision, recorded in
+  [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Findings from reading the code — fixed 2026-10-02 (audit N19)
 

@@ -1,5 +1,13 @@
 # Tenant journey
 
+| At a glance | |
+|---|---|
+| **Purpose** | Defines the stages, lifecycle and health reasons the console shows for each organisation between sign-up and use. |
+| **Open it when** | An organisation looks stuck, or a journey badge or reason code needs explaining. |
+| **For** | Platform operator |
+| **Organisation types** | Same for every kind. Stages, lifecycle and health reasons take no kind or industry. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `api/app/Services/Admin/TenantJourney/JourneyCalculator.php`; a figure on the console that disagrees with this page is a defect in one of the two. |
+
 Where each organisation is between sign-up and using ETHR, and how healthy that
 road looks. Written from `api/app/Services/Admin/TenantJourney/JourneyCalculator.php`.
 A figure on the console that disagrees with this page is a defect in one of
@@ -117,6 +125,18 @@ Milestones: `registered`, `configured`, `people_added`, `team_activated`,
 - `AttendanceHealth::checks()` needs a tenant context and is not used; the
   silent-device count is a single query.
 
+## Organisation types
+
+- Stages, lifecycle and health reasons take no kind and no industry
+  (`api/app/Services/Admin/TenantJourney/JourneyCalculator.php`).
+- The readiness score comes from `ReadinessScorer`, whose leave check reads the statutory rules for
+  the organisation's kind. Every seeded leave rule is one row that applies to all kinds
+  (`api/database/migrations/2026_11_09_000005_add_leave_and_deduction_statutory_parameters.php`),
+  so that check does not differ by kind today. No other check in `ReadinessScorer` names the kind.
+- The payroll condition on `successfully_using` follows the plan, not the kind.
+- The list cannot be filtered by kind or industry.
+- What each kind changes elsewhere is in [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
+
 ## Not covered
 
 - Operator notes or an owner per organisation (the view is read only).
@@ -127,6 +147,7 @@ Milestones: `registered`, `configured`, `people_added`, `team_activated`,
   (`OPERATIONS-CENTRE-SPEC.md`, G8), can read this snapshot's `reasons` later.
 - The older `conversion_rate` on the console home is still a proxy; the funnel's
   lifecycle counts are the measured figure.
+- Filtering or sorting the organisations list by kind or industry.
 
 ## Deploying
 

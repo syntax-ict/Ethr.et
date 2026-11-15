@@ -1,5 +1,13 @@
 # Get help
 
+| At a glance | |
+|---|---|
+| **Purpose** | Describes how a help request goes from a person in an organisation to its support people, on to ETHR and back. |
+| **Open it when** | An organisation has asked for help, or requests are not reaching anyone. |
+| **For** | Platform operator; an organisation's support people |
+| **Organisation types** | Same for every kind. A request does not carry the organisation's kind, so find it before answering a question about pay, pension or leave. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `App\Services\Support\SupportDesk` and `api/app/Http/Controllers/Api/V1/Admin/AdminSupportController.php`. |
+
 How a question gets from someone in an organisation to the person who can answer it, and back. Built 2026-10-29.
 
 ## The flow
@@ -64,6 +72,18 @@ The server adds the user agent from the request header, the person's role, and t
 ## Release steps
 
 The release needs **migrate**, then **`db:seed --class=PermissionSeeder`** (or the ProductionSeeder, which calls it) so `support.manage` exists and HR admins hold it, then **clear + optimize** for the new routes. Until the seeder runs, nobody in an organisation holds `support.manage`. Requests are still stored, but nobody is told about them.
+
+## Organisation types
+
+- A request carries neither the organisation's kind nor its industry. The technical details hold
+  the page, language, screen size, connection state, pending offline punches and recent failed
+  requests, and the server adds only the person's role, the release and the user agent
+  (`App\Services\Support\SupportDesk::context()`). The request names its organisation by
+  `public_id`, name and subdomain.
+- The console's support desk links to the organisation's page, which shows the industry only.
+- For a question about pension, tax schedules, fiscal year, leave entitlement or working days,
+  find the organisation's kind first. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) says how,
+  and what each kind changes.
 
 ## Not built (yet)
 

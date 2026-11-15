@@ -1,5 +1,13 @@
 # The landing page: what the console controls, and how it reaches the site
 
+| At a glance | |
+|---|---|
+| **Purpose** | Says what an operator edits on the public landing page, what the server refuses and which release step the page depends on. |
+| **Open it when** | You are editing the landing page in the console, or an edit was refused. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Not about an organisation. ETHR's own public site. |
+| **Source of truth** | The code: `App\Support\MarketingContent` for the sections and `App\Support\MarketingClaims` for what is refused. |
+
 **Prepared:** 2026-10-24. The public landing page (`www.ethr.et/en`, `/am`) reads its content from the database. This is what a platform operator edits, what the server refuses, where the pictures come from, and the one release step the page depends on.
 
 ## What is data, and what is not

@@ -170,7 +170,7 @@ More scopes exist:
 
 ```bash
 ./scripts/gates.sh quick      # everything except the test suites — for the hook
-./scripts/gates.sh docs       # markdown links resolve
+./scripts/gates.sh docs       # markdown links resolve; operations documents carry their At a glance block
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ./scripts/gates.sh export     # the Bronze shared-hosting production build
 ```
