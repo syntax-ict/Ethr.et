@@ -69,7 +69,7 @@ final class EmployeeImportProfile
      *
      * @param  array<string, mixed>  $row
      * @param  Closure(string): RelationMatch  $relation
-     * @return list<array{column: string, message: string}>
+     * @return list<array{column: string, code: string, message: string}>
      */
     public static function problems(array $row, Closure $relation, ?int $number = null): array
     {
@@ -86,8 +86,9 @@ final class EmployeeImportProfile
                 continue;
             }
 
-            $found[] = [$column, __(
-                $match->ambiguous($value) ? 'onboarding.migration.relation_ambiguous' : 'onboarding.migration.relation_not_found',
+            $code = $match->ambiguous($value) ? 'relation_ambiguous' : 'relation_not_found';
+            $found[] = [$column, $code, __(
+                'onboarding.migration.'.$code,
                 ['field' => __('employee.import_field_'.$column), 'value' => $value],
             )];
         }
@@ -97,7 +98,7 @@ final class EmployeeImportProfile
         $probationEnd = self::day($row['probation_end_date'] ?? null);
 
         if ($probationEnd !== null && $probationEnd->lt($start)) {
-            $found[] = ['probation_end_date', __('onboarding.migration.profile_probation_before_hire')];
+            $found[] = ['probation_end_date', 'probation_before_hire', __('onboarding.migration.profile_probation_before_hire')];
         }
 
         $type = ContractType::tryFrom((string) ($row['contract_type'] ?? ''));
@@ -106,22 +107,23 @@ final class EmployeeImportProfile
         $endGiven = isset($row['contract_end_date']) && trim((string) $row['contract_end_date']) !== '';
 
         if ($given && $hire === null) {
-            $found[] = ['hire_date', __('onboarding.migration.profile_contract_needs_hire_date')];
+            $found[] = ['hire_date', 'contract_needs_hire_date', __('onboarding.migration.profile_contract_needs_hire_date')];
         }
         if ($endGiven && ! $given) {
-            $found[] = ['contract_type', __('onboarding.migration.profile_contract_type_needed')];
+            $found[] = ['contract_type', 'contract_type_needed', __('onboarding.migration.profile_contract_type_needed')];
         }
         if ($type?->requiresEndDate() === true && ! $endGiven) {
-            $found[] = ['contract_end_date', __('onboarding.migration.profile_contract_end_needed')];
+            $found[] = ['contract_end_date', 'contract_end_needed', __('onboarding.migration.profile_contract_end_needed')];
         }
         if ($type !== null && $end !== null && $hire !== null && $end->lte($hire)) {
-            $found[] = ['contract_end_date', __('onboarding.migration.profile_contract_end_before_start')];
+            $found[] = ['contract_end_date', 'contract_end_before_start', __('onboarding.migration.profile_contract_end_before_start')];
         }
 
         return array_map(
             fn (array $problem): array => [
                 'column' => $problem[0],
-                'message' => $number === null ? $problem[1] : __('employee.import_row', ['row' => $number, 'message' => $problem[1]]),
+                'code' => $problem[1],
+                'message' => $number === null ? $problem[2] : __('employee.import_row', ['row' => $number, 'message' => $problem[2]]),
             ],
             $found,
         );

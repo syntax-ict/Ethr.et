@@ -400,6 +400,7 @@ class MigrationController extends Controller
             'match_confidence' => $row->match_confidence,
             'candidates' => $row->candidates,
             'resolved_employee_public_id' => $employee?->public_id,
+            'resolved_employee_code' => $this->visibleCode($employee),
             'action' => $row->action,
             'changes' => $this->changesPayload($row, $employee),
             'warnings' => $this->warningsPayload($row),
@@ -424,6 +425,18 @@ class MigrationController extends Controller
             fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
             array_filter($warnings, 'is_array'),
         ));
+    }
+
+    /** The matched employee's number, for a viewer who may open that person's record and no one else. */
+    private function visibleCode(?Employee $employee): ?string
+    {
+        if ($employee === null || ! Gate::allows('view', $employee)) {
+            return null;
+        }
+
+        $code = $employee->getAttribute('employee_code');
+
+        return is_string($code) && $code !== '' ? $code : null;
     }
 
     /** The viewer may edit the employee this row matched. */

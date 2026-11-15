@@ -82,7 +82,7 @@ final class EmployeeImportGrid
                 if ($known && $calendarNamed !== null) {
                     $calendars[$key] = $calendarNamed;
                 }
-                if (! $known && $key !== '' && $lines[$first][$position] !== '') {
+                if (! $known && $key !== '' && $lines[$first][$position] !== '' && ! EmployeeImportRow::isIgnoredHeader($lines[$first][$position])) {
                     $ignored[] = $lines[$first][$position];
                 }
             }
@@ -118,16 +118,16 @@ final class EmployeeImportGrid
 
             $row = EmployeeImportRow::normalize($row, $calendar, $calendars);
 
-            $messages = [
-                ...EmployeeImportRow::messages($row, $rules),
-                ...$this->relationMessages($row),
-                ...$this->profileMessages($row),
-                ...$this->duplicateMessages($row, $firstSeen, $line),
+            $found = [
+                ...EmployeeImportRow::problems($row, $rules),
+                ...$this->relationProblems($row),
+                ...$this->profileProblems($row),
+                ...$this->duplicateProblems($row, $firstSeen, $line),
             ];
-            foreach ($messages as $message) {
-                $problems[] = ['line' => $line, 'message' => $message];
+            foreach ($found as $problem) {
+                $problems[] = ['line' => $line, ...$problem];
             }
-            if ($messages === []) {
+            if ($found === []) {
                 $rows[] = EmployeeImportRow::staged($row, $source);
                 foreach ($this->terminalWarnings($row, $terminals) as $warning) {
                     $warnings[] = ['line' => $line, ...$warning];
@@ -139,7 +139,7 @@ final class EmployeeImportGrid
             $problems[] = ['line' => $last, 'message' => __('onboarding.migration.too_many', [
                 'count' => count($rows),
                 'max' => self::MAX_PEOPLE,
-            ])];
+            ]), 'column' => null, 'code' => 'too_many'];
         }
 
         $hireDateCalendar = $calendars['hire_date'] ?? null;
@@ -204,7 +204,7 @@ final class EmployeeImportGrid
 
         $headers = [];
         foreach ($cells as $position => $cell) {
-            if ($cell === '') {
+            if ($cell === '' || (! array_key_exists(EmployeeImportRow::headerKey($cell), $mapping) && EmployeeImportRow::isIgnoredHeader($cell))) {
                 continue;
             }
 
@@ -299,7 +299,7 @@ final class EmployeeImportGrid
      *
      * @param  array<string, mixed>  $row
      * @param  list<string>  $terminals
-     * @return list<array{code: string, message: string}>
+     * @return list<array{column: string, code: string, message: string}>
      */
     private function terminalWarnings(array $row, array $terminals): array
     {
@@ -314,6 +314,7 @@ final class EmployeeImportGrid
         }
 
         return [[
+            'column' => 'badge_number',
             'code' => 'terminal_number_not_accepted',
             'message' => __('onboarding.migration.terminal_number_digits_only', ['value' => $badge, 'types' => implode(', ', array_unique(array_map(DeviceIdRules::label(...), $refusing)))]),
         ]];
@@ -325,11 +326,11 @@ final class EmployeeImportGrid
      * knew.
      *
      * @param  array<string, mixed>  $row
-     * @return list<string>
+     * @return list<array{column: string, code: string, message: string}>
      */
-    private function relationMessages(array $row): array
+    private function relationProblems(array $row): array
     {
-        $messages = [];
+        $found = [];
         foreach (self::RELATIONS as $column) {
             $value = $row[$column] ?? null;
             if (! is_string($value) || $value === '') {
@@ -341,13 +342,15 @@ final class EmployeeImportGrid
                 continue;
             }
 
-            $messages[] = __(
-                $match->ambiguous($value) ? 'onboarding.migration.relation_ambiguous' : 'onboarding.migration.relation_not_found',
-                ['field' => __('employee.import_field_'.$column), 'value' => $value],
-            );
+            $code = $match->ambiguous($value) ? 'relation_ambiguous' : 'relation_not_found';
+            $found[] = [
+                'column' => EmployeeImportRow::templateColumn($column),
+                'code' => $code,
+                'message' => __('onboarding.migration.'.$code, ['field' => __('employee.import_field_'.$column), 'value' => $value]),
+            ];
         }
 
-        return $messages;
+        return $found;
     }
 
     /**
@@ -356,11 +359,11 @@ final class EmployeeImportGrid
      * the person starts, a contract that ends before it begins.
      *
      * @param  array<string, mixed>  $row
-     * @return list<string>
+     * @return list<array{column: string, code: string, message: string}>
      */
-    private function profileMessages(array $row): array
+    private function profileProblems(array $row): array
     {
-        return array_column(EmployeeImportProfile::problems($row, $this->relation(...)), 'message');
+        return EmployeeImportProfile::problems($row, $this->relation(...));
     }
 
     /** Read on first use: most lists name a department and nothing else. */
@@ -378,11 +381,11 @@ final class EmployeeImportGrid
     /**
      * @param  array<string, mixed>  $row
      * @param  array<string, array<string, int>>  $firstSeen
-     * @return list<string>
+     * @return list<array{column: string, code: string, message: string}>
      */
-    private function duplicateMessages(array $row, array &$firstSeen, int $line): array
+    private function duplicateProblems(array $row, array &$firstSeen, int $line): array
     {
-        $messages = [];
+        $found = [];
         foreach (self::UNIQUE_IN_LIST as $column) {
             $value = $row[$column] ?? null;
             if (! is_string($value) || $value === '') {
@@ -391,11 +394,15 @@ final class EmployeeImportGrid
 
             $key = mb_strtolower($value);
             if (isset($firstSeen[$column][$key])) {
-                $messages[] = __('onboarding.migration.duplicate_in_list', [
-                    'field' => __('employee.import_field_'.$column),
-                    'value' => $value,
-                    'first' => $firstSeen[$column][$key],
-                ]);
+                $found[] = [
+                    'column' => EmployeeImportRow::templateColumn($column),
+                    'code' => 'duplicate_in_list',
+                    'message' => __('onboarding.migration.duplicate_in_list', [
+                        'field' => __('employee.import_field_'.$column),
+                        'value' => $value,
+                        'first' => $firstSeen[$column][$key],
+                    ]),
+                ];
 
                 continue;
             }
@@ -403,6 +410,6 @@ final class EmployeeImportGrid
             $firstSeen[$column][$key] = $line;
         }
 
-        return $messages;
+        return $found;
     }
 }

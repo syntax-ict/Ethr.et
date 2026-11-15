@@ -27642,6 +27642,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -27694,9 +27695,12 @@ export interface operations {
                         problems: {
                             line: number;
                             message: string;
+                            column: string | null;
+                            code: string;
                         }[];
                         warnings: {
                             line: number;
+                            column: string;
                             code: string;
                             message: string;
                         }[];
@@ -27755,6 +27759,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -27950,6 +27955,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -28002,6 +28008,7 @@ export interface operations {
                         match_confidence: number | null;
                         candidates: unknown[] | null;
                         resolved_employee_public_id: string | null;
+                        resolved_employee_code: string | null;
                         action: string;
                         changes: {
                             field: string;
