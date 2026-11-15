@@ -66,6 +66,17 @@ final class EmployeeImportGrid
         }
 
         $first = array_key_first($lines);
+
+        // A column ETHR wrote for the reader (the lines to fix) is dropped
+        // whole before anything else reads the list: it is never a person's
+        // field, never listed, and never needs a mapping.
+        $dropped = array_keys(array_filter($lines[$first], EmployeeImportRow::isIgnoredHeader(...)));
+        if ($dropped !== []) {
+            foreach ($lines as $number => $cells) {
+                $lines[$number] = array_values(array_diff_key($cells, array_flip($dropped)));
+            }
+        }
+
         $named = $this->named($lines[$first], $mapping ?? []);
         $header = $mapping !== null ? $named : $this->headerOf($lines[$first]);
         $headers = $this->headers($lines[$first], $named, $mapping ?? []);

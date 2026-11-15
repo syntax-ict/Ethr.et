@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Models\ImportMapping;
 use App\Models\MigrationBatch;
 use App\Models\Position;
 use App\Services\Device\AdmsRoster;
@@ -466,4 +467,55 @@ it('reads the example people of the employee template without a problem', functi
     ]);
 
     expect($read['problems'])->toBe([])->and($read['people'])->toBe(2);
+});
+
+it('drops a Problem column whole, whatever else was said about the list', function () {
+    [$tenant] = Staging::organisation();
+    $url = Staging::url($tenant, 'read');
+
+    // The first line is not recognised as column names, so the reader matches them.
+    $without = readPeopleList($url, [['Staff', 'Mail'], ['Abebe Kebede', 'abebe@acme.et']]);
+    expect($without['header'])->toBeFalse();
+
+    $mapping = [['header' => 'Staff', 'column' => 'name'], ['header' => 'Mail', 'column' => 'email']];
+    $plain = test()->postJson($url, ['grid' => [['Staff', 'Mail'], ['Abebe Kebede', 'abebe@acme.et']], 'mapping' => $mapping])->assertOk()->json();
+    $with = test()->postJson($url, ['grid' => [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'Line 2: The email is wrong']], 'mapping' => $mapping])->assertOk()->json();
+
+    expect($with['people'])->toBe($plain['people'])->toBe(1)
+        ->and($with['problems'])->toBe([])
+        ->and($with['columns'])->toBe($plain['columns'])
+        ->and($with['ignored'])->toBe([])
+        ->and(array_column($with['headers'], 'header'))->toBe(['Staff', 'Mail']);
+
+    // Not matched at all, and not recognised: the Problem cell is no phone number.
+    $positional = readPeopleList($url, [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'x y z']]);
+    expect(array_column($positional['headers'], 'header'))->toBe(['Staff', 'Mail'])
+        ->and($positional['ignored'])->toBe([]);
+});
+
+it('still finds a saved source for a file that has gained a Problem column', function () {
+    [$tenant] = Staging::organisation();
+    $url = Staging::url($tenant, 'read');
+    $source = ImportMapping::query()->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Old payroll',
+        'slug' => 'old-payroll',
+        'columns' => [['header' => 'Staff', 'column' => 'name'], ['header' => 'Mail', 'column' => 'email']],
+    ]);
+
+    $read = readPeopleList($url, [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'Line 2: x']]);
+
+    expect($read['suggested_source'])->toBe($source->public_id)
+        ->and(array_column($read['headers'], 'header'))->toBe(['Staff', 'Mail']);
+});
+
+it('drops a Problem cell only from the first line', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Abebe Kebede', 'abebe@acme.et', '0911223344', 'Problem solving'],
+        ['Hanna Girma', 'hanna@acme.et', '0911223355', 'Problem'],
+    ]);
+
+    expect($read['header'])->toBeFalse()->and($read['people'])->toBe(2)->and($read['problems'])->toBe([]);
 });

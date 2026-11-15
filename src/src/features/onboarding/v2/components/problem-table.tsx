@@ -35,7 +35,7 @@ export function ProblemTable({
       >
         {heading}
       </p>
-      <div className="rounded-md border">
+      <div className="rounded-md border md:[&_table]:table-fixed [&_td]:break-words [&_td]:px-3 [&_th]:px-3">
         <SimpleTable
           caption={heading}
           headers={[
@@ -45,6 +45,12 @@ export function ProblemTable({
             t("setup2.problem_col_lines", "Line numbers"),
           ]}
           align={["left", "left", "right", "left"]}
+          colClassName={[
+            "md:w-[17%]",
+            "md:w-[43%]",
+            "md:w-[10%]",
+            "md:w-[30%]",
+          ]}
           rows={groups.map((group) => {
             const { shown, more } = lineNumbers(group.lines);
             return {
