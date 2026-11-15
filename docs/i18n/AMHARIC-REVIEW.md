@@ -294,3 +294,12 @@ What to check first:
 - **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
 - **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
   product's own word for a department is ክፍል / *Muummee*.
+
+### The console shows the kind in law (2026-11-15)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `admin_tenants_page.filter_by_kind`,
+`admin_tenants_page.all_kinds`, `admin_tenant_detail_page.kind_needs_review` and
+`admin_tenant_detail_page.kind_read_only`. The kind's own name and the heading "Kind of
+organisation in law" are existing strings (`settings.organization_kind`, the catalogue's
+`name_am` and `name_om`), reused as they are. A wrong label moves no money.

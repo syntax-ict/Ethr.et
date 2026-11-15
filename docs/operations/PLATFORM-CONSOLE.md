@@ -5,7 +5,7 @@
 | **Purpose** | Tours the pages under `/admin`: what each is for, who may open it and where it is documented in depth. |
 | **Open it when** | You need to know what a console page does or where an action lives. |
 | **For** | Platform operator |
-| **Organisation types** | Varies in what the console shows. It shows an organisation's industry, labelled Type, and never its kind in law, and it can change neither. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Organisation types** | Varies in what the console shows. It shows an organisation's kind in law and its industry, and the list filters by kind, but it can change neither. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 | **Source of truth** | The code: `api/routes/api.php` for the routes and the pages under `src/src/app/(dashboard)/admin/`. |
 
 **What each page under `/admin` is for, and where it is documented in depth.** Written
@@ -167,19 +167,31 @@ the site may not make (`PermittedMarketingClaim`). [`MARKETING-SITE.md`](MARKETI
 | A platform super admin's first account | `ethr:create-admin` on the host, or the `create-admin` maintenance task |
 | Resetting a lost authenticator | `ethr:reset-mfa` on the host |
 | Draining the queue or running a task now | Nothing. The console is read-only here (`OPERATIONS-CENTRE-SPEC.md`, G11) |
-| Changing an organisation's kind in law or its industry | Not built. The organisation's own administrator does it, in Settings → General → Organisation (*Kind of organisation in law* and *Industry*). [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| Changing an organisation's kind in law or its industry | Not built, and meant not to be: the console shows the kind and cannot change it. The organisation's own administrator does it, in Settings → General → Organisation (*Kind of organisation in law* and *Industry*). [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 | The catalogue of kinds of organisation | Not built. Migrations write it; [`STATUTORY-PARAMETERS.md`](../payroll/STATUTORY-PARAMETERS.md) says there is no editor in the console yet |
 
 ## Organisation types
 
-- The organisations list and each organisation's page show its **industry**, under the label *Type*
-  (`api/app/Http/Resources/AdminTenantResource.php`, field `type`; the detail page reads the same
-  field in `AdminTenantController.php`). Neither shows the kind in law, the "kind needs confirming"
-  flag or a scheduled change of kind.
-- Search covers name and address (the subdomain). The filters are status, stage, health and trial
-  expired. Nothing filters or sorts by kind or industry.
+- The organisations list prints each organisation's **kind in law**, then its **industry**, under
+  its name (`api/app/Http/Resources/AdminTenantResource.php`: `organization_type`, then `type`),
+  and a "Needs confirming" badge when the kind was guessed at sign-up and has not been confirmed.
+  The organisation's page has a card, *Kind of organisation in law*, with the same badge and a
+  scheduled change of kind with its date (`organization_type_pending`), and labels the industry
+  *Industry*. Both read the kind from `tenants.organization_type`. The scheduled change is read
+  from the dated assignments.
+- The list has a filter by kind, a drop-down grouped as Settings groups the kinds
+  (`filter[organization_type]`, one of the active codes; a code that is not one is refused with
+  422). The API also takes `filter[organization_type_group]`, one of private, non_profit, public
+  or international, which the console does not offer yet. Search covers name and address (the
+  subdomain). The other filters are status, stage, health and trial expired. Nothing filters by
+  industry, and nothing sorts by either.
 - No console page changes an organisation's kind or industry, and none edits the catalogue of
-  kinds, which migrations write. Both rows are in the table above.
+  kinds, which migrations write. Both rows are in the table above. That is deliberate for the
+  kind: a change of kind is the organisation's own decision, and it is dated and never
+  retroactive once pay is approved (`ORGANISATION-TYPES.md`, situation 2).
+- The kind shown is the column, so after a scheduled change takes effect it can lag the kind
+  payroll applies (`ORGANISATION-TYPES.md`, section 11, last item). For a pay question read the
+  calculation log.
 - To find an organisation's kind, and for what each kind changes, see
   [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 

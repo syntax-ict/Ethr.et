@@ -166,6 +166,36 @@ export const handlers = [
   ),
   // ...and its journey card, and the organisations list its funnel: a new
   // organisation with nothing measured yet, unless a test says otherwise.
+  // The kind names the console prints beside the industry (useKindNamer):
+  // a short catalogue, unless a test says otherwise.
+  http.get("*/api/v1/organization-types", () =>
+    HttpResponse.json({
+      data: [
+        {
+          code: "private",
+          name: "Private company",
+          name_am: "የግል ድርጅት",
+          name_om: "Dhaabbata dhuunfaa",
+          description: null,
+          group: "private",
+          parent_code: null,
+          suggested_for: [],
+          policy_profile: "standard",
+        },
+        {
+          code: "government",
+          name: "Government office",
+          name_am: "የመንግሥት መሥሪያ ቤት",
+          name_om: "Waajjira mootummaa",
+          description: null,
+          group: "public",
+          parent_code: null,
+          suggested_for: [],
+          policy_profile: "civil_service",
+        },
+      ],
+    }),
+  ),
   http.get("*/api/v1/admin/tenants/journey-summary", () =>
     HttpResponse.json({ data: buildJourneySummary() }),
   ),

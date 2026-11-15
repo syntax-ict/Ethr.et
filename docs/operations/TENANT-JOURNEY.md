@@ -134,7 +134,7 @@ Milestones: `registered`, `configured`, `people_added`, `team_activated`,
   (`api/database/migrations/2026_11_09_000005_add_leave_and_deduction_statutory_parameters.php`),
   so that check does not differ by kind today. No other check in `ReadinessScorer` names the kind.
 - The payroll condition on `successfully_using` follows the plan, not the kind.
-- The list cannot be filtered by kind or industry.
+- The list filters by kind in law (`filter[organization_type]`), which is independent of stage and health, and cannot be filtered by industry.
 - What each kind changes elsewhere is in [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Not covered
@@ -147,7 +147,7 @@ Milestones: `registered`, `configured`, `people_added`, `team_activated`,
   (`OPERATIONS-CENTRE-SPEC.md`, G8), can read this snapshot's `reasons` later.
 - The older `conversion_rate` on the console home is still a proxy; the funnel's
   lifecycle counts are the measured figure.
-- Filtering or sorting the organisations list by kind or industry.
+- Filtering the list by industry, and sorting it by kind or industry. (Filtering by kind is built.)
 
 ## Deploying
 

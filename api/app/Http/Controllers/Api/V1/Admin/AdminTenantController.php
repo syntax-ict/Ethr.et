@@ -14,6 +14,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DeleteTenantRequest;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
+use App\Http\Requests\Admin\ListTenantsRequest;
 use App\Http\Requests\Admin\RemoveTenantFeatureOverrideRequest;
 use App\Http\Requests\Admin\TransferOwnershipByPlatformRequest;
 use App\Http\Requests\Admin\UpdateTenantAddressModeRequest;
@@ -27,6 +28,7 @@ use App\Models\AuditLog;
 use App\Models\CustomRole;
 use App\Models\Device;
 use App\Models\Invoice;
+use App\Models\OrganizationType;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -41,6 +43,7 @@ use App\Services\Features\FeatureControls;
 use App\Services\Features\FeatureGate;
 use App\Services\MfaService;
 use App\Services\Tenancy\OrganisationOwnership;
+use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\FrontendUrl;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,7 +61,7 @@ class AdminTenantController extends Controller
     /** How long an impersonation session lasts before it has to be re-authorized with MFA. */
     private const IMPERSONATION_MINUTES = 30;
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(ListTenantsRequest $request): AnonymousResourceCollection
     {
         Gate::authorize('admin.manage');
 
@@ -113,6 +116,18 @@ class AdminTenantController extends Controller
             $query->where('status', TenantStatus::TRIAL->value)
                 ->whereNotNull('trial_ends_at')
                 ->where('trial_ends_at', '<', now());
+        }
+
+        // The kind in law (statutory payroll rules), read from the column that
+        // is kept in step with the assignment in force today. The industry is
+        // `type` and has no filter here.
+        $kind = $request->input('filter.organization_type');
+        if (is_string($kind) && $kind !== '') {
+            $query->where('organization_type', $kind);
+        }
+        $group = $request->input('filter.organization_type_group');
+        if (is_string($group) && $group !== '') {
+            $query->whereIn('organization_type', OrganizationType::query()->where('group_code', $group)->select('code'));
         }
 
         $sort = $request->input('sort', '-created_at');
@@ -226,6 +241,9 @@ class AdminTenantController extends Controller
             'address_mode_effective' => $tenant->effectiveAddressMode()->value,
             'canonical_url' => FrontendUrl::canonicalOrigin($tenant),
             'type' => $tenant->type,
+            'organization_type' => $tenant->organization_type,
+            'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
+            'organization_type_pending' => $this->pendingKind($tenant),
             'status' => $tenant->status->value,
             'trial_ends_at' => $tenant->trial_ends_at,
             'created_at' => $tenant->created_at,
@@ -259,6 +277,23 @@ class AdminTenantController extends Controller
             'administrators' => $administrators,
             'privileged_actions' => $privileged,
         ]);
+    }
+
+    /**
+     * A change of kind scheduled for a later date, in the shape GET /settings
+     * gives the organisation. One organisation, so one lookup; ProfileContext
+     * states tenant_id itself.
+     *
+     * @return array{organization_type: string, effective_from: string}|null
+     */
+    private function pendingKind(Tenant $tenant): ?array
+    {
+        $pending = app(ProfileContext::class)->pending($tenant->id, Carbon::today());
+
+        return $pending === null ? null : [
+            'organization_type' => $pending['organization_type'],
+            'effective_from' => $pending['effective_from'],
+        ];
     }
 
     /**

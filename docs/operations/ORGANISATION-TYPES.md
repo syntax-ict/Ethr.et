@@ -48,8 +48,8 @@ The same word means different things in different places. This has misled people
 
 | Where | What it calls the industry | What it calls the kind |
 |---|---|---|
-| Platform console, organisations list | Printed under the organisation's name, no heading | Not shown |
-| Platform console, organisation page | "Type" | Not shown |
+| Platform console, organisations list | Printed after the kind, under the organisation's name, no heading | Printed first, under the organisation's name, no heading |
+| Platform console, organisation page | "Industry" | "Kind of organisation in law" |
 | Sign-up form | "Organization Type" | "Kind of organisation in law" |
 | Sign-up request (`POST /auth/register`) | `organization_type` | `organization_kind` |
 | `GET /settings`, the `organization` block | `type` | `organization_type` |
@@ -57,7 +57,7 @@ The same word means different things in different places. This has misled people
 | `GET /api/v1/organization-types` | Not about industries | The catalogue of kinds, despite the name |
 | Database | `tenants.type` | `tenants.organization_type` |
 
-The sign-up mapping is in `api/app/Services/AuthService.php:65-71`. Read "Type" in the console as the industry, always.
+The sign-up mapping is in `api/app/Services/AuthService.php:65-71`. Until the console learned to show the kind it labelled the industry "Type" and showed no kind, and a console API field named `type` is still the industry, while `organization_type` is the kind, as in `GET /settings`. Read a bare "Type" anywhere as the industry, always.
 
 ### Who sets and changes each
 
@@ -66,7 +66,7 @@ The sign-up mapping is in `api/app/Services/AuthService.php:65-71`. Read "Type" 
 | **Sign-up** | Chosen on the form. A client that sends none gets `government` for a government industry, `ngo` for an ngo industry, otherwise `private` (`OrganisationSectors::defaultKindFor`) | Chosen on the form. It must be an industry key or one of the bases, and is stored as given |
 | **Setup wizard** | May be set on apply, which flags or clears the review flag (section 7, situation 3) | Set on apply. The wizard stores the industry's **base** in `tenants.type` and keeps the finer key (for example `ministry`) in the organisation's settings and as its sector |
 | **Settings, then General** | Changed by anyone holding `settings.manage`. Dated and never retroactive once pay is approved (situation 2) | Changed by the same people, from the eight bases |
-| **Platform console** | **Cannot be changed.** There is no route | **Cannot be changed.** There is no route |
+| **Platform console** | **Shown, never changed.** There is no route, by design: the kind is the organisation's own decision | **Shown, never changed.** There is no route |
 
 ---
 
@@ -142,7 +142,7 @@ Complete list. The industry never selects a statutory rule.
 | **Which report presets are suggested first** | Ordered, never restricted. Every preset stays available (`ReportPresets.php`) |
 | **The default kind at sign-up** | Only when a client sends no kind (section 1) |
 | **Which kinds are listed first** | The narrowing in section 1 |
-| **What the console prints** | The industry, as "Type" |
+| **What the console prints** | The industry, after the kind on the organisations list and labelled "Industry" on the organisation page |
 | **The sector recorded with the kind** | The wizard stores the industry key as the sector of the dated assignment. Sign-up stores none. A statutory row can be scoped to a sector, but none is seeded, so the sector changes no rule today |
 
 **Create-only.** Provisioning from the wizard adds what is missing and skips what an organisation already has: a record whose natural key exists is reported as skipped and left alone, and a settings key the organisation already holds is not overwritten (`OrganizationProvisioner.php`). Applying a profile again does not undo an administrator's edits. The exception is the organisation's own industry value, which the wizard writes every time.
@@ -162,7 +162,7 @@ The base is what `tenants.type` normally holds. The key is what the wizard remem
 | hotel | hotel, restaurant, retail, wholesale |
 | general | professional_services, logistics, transport, telecom, security_company, bpo, technology_company, small_business, multi_branch, custom |
 
-The console's label map knows the eight bases and `private`: General company, Private company, Government, University / TVET, NGO, Bank / Finance, Hospital / Health, Manufacturing, Hotel / Hospitality. A value outside that map is shown as stored on the organisations list and with underscores replaced on the organisation page.
+The console's industry label map knows the eight bases and `private`: General company, Private company, Government, University / TVET, NGO, Bank / Finance, Hospital / Health, Manufacturing, Hotel / Hospitality. A value outside that map is shown as stored on the organisations list and with underscores replaced on the organisation page. The kind is named from the catalogue instead, in the reader's language, as Settings does.
 
 ---
 
@@ -195,10 +195,11 @@ For each area below, the behaviour is the same whatever the kind or industry unl
 
 ## 6. Finding out what kind an organisation is
 
-The platform console does not show it. The organisations list and the organisation page carry the industry only. Neither response holds the kind, the review flag or a pending change. Search matches name and address only, and no filter or sort uses kind or industry (`AdminTenantController.php`). Use one of these.
+The platform console shows it. The organisations list prints the kind before the industry under each name, with a "Needs confirming" badge when the review flag is set, and its kind filter narrows the list to one kind. The organisation's page has the card *Kind of organisation in law*, with the same badge and any scheduled change and its date. Search still matches name and address only, and nothing sorts by kind or industry (`AdminTenantController.php`). What the console prints is `tenants.organization_type`, which can lag the kind payroll applies after a scheduled change (section 11, last item), so for a pay question use the last rows below.
 
 | Way | How | Needs |
 |---|---|---|
+| **Read it in the console** | The organisations list, under the name, or the organisation's page, card *Kind of organisation in law*. Filter the list by kind to see every organisation of one | A platform administrator with MFA |
 | **Ask the administrator** | They open Settings, then General, and read "Kind of organisation in law" on the Organisation card | Nothing. A reply on a help request ([`SUPPORT.md`](SUPPORT.md)) is the cleanest record |
 | **Read it while impersonating** | The same card, as the administrator sees it. Look only | Platform MFA and a fresh code, see [`IMPERSONATION.md`](IMPERSONATION.md). **Never save** (situation 8) |
 | **Read what payroll used** | In a payroll run, the calculator icon on an entry opens its calculation log, which carries the organisation type and, for each rule, its value, layer and source | Impersonation, or the administrator's screenshot |
@@ -374,7 +375,7 @@ A kind missing from the list has been switched off in the table (`is_active`), w
 
 Stated plainly, so nobody promises a customer what the product does not do.
 
-- **The console does not show, filter or change the kind.** It shows the industry as "Type". Nothing filters or sorts by either. The list in section 6 is the workaround.
+- **The console shows and filters by the kind, and does not change it.** The change is the organisation's own decision, made in its Settings, so no console route is wanted. The list filters by kind and, in the API, by group; nothing filters or sorts by industry, and nothing sorts by kind.
 - **No editor for the catalogue.** A new kind or a changed rule is a migration.
 - **No sector-specific statutory rule is seeded.** The sector is recorded and the resolver would use a sector row, but none exists.
 - **Tax brackets and pension rules can be scoped to a kind. None are.** One ladder and the three scheme rates serve every kind.
