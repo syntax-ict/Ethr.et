@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Models\MigrationBatch;
 use App\Models\Position;
+use App\Services\Device\AdmsRoster;
+use App\Services\Migration\WorkforceMigrationService;
 use App\Support\EmployeeImportRow;
 use Tests\Support\StagingFixtures as Staging;
 
@@ -286,4 +289,58 @@ it('does not read another organisation\'s departments', function () {
     $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Department'], ['Abebe Kebede', 'Finance']]);
 
     expect($read['people'])->toBe(0)->and($read['problems'])->toHaveCount(1);
+});
+
+it('warns of a badge number a terminal of the organisation would refuse, and stages the person all the same', function () {
+    [$tenant] = Staging::organisation();
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Badge'],
+        ['Abebe Kebede', 'A12'],
+        ['Hanna Girma', '0012'],
+    ]);
+
+    expect($read['people'])->toBe(2)
+        ->and($read['problems'])->toBe([])
+        ->and($read['warnings'])->toHaveCount(1)
+        ->and($read['warnings'][0])->toMatchArray(['line' => 2, 'code' => 'terminal_number_not_accepted'])
+        ->and($read['warnings'][0]['message'])->toContain('A12')->toContain('a ZKTeco terminal')->not->toContain('zkteco_adms');
+});
+
+it('gives no warning to an organisation with no terminal that refuses the number, or with a deleted one', function () {
+    [$tenant] = Staging::organisation();
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'hikvision']);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco'])->delete();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Badge'], ['Abebe Kebede', 'A12']]);
+
+    expect($read['people'])->toBe(1)->and($read['warnings'])->toBe([]);
+});
+
+it('does not warn because of another organisation\'s terminal', function () {
+    [$tenant] = Staging::organisation();
+    $other = createTenant();
+    Device::factory()->create(['tenant_id' => $other->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $other->id])->id, 'adapter_type' => 'zkteco_adms']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Badge'], ['Abebe Kebede', 'A12']]);
+
+    expect($read['people'])->toBe(1)->and($read['warnings'])->toBe([]);
+});
+
+it('carries what staging noted about a device-staged row in the batch', function () {
+    [$tenant] = Staging::organisation();
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+    app(AdmsRoster::class)->record($device, [
+        'A_1' => ['pin' => 'A_1', 'user' => true, 'name' => 'Odd Id', 'card' => null, 'is_admin' => false, 'fingerprints' => 0, 'face' => false],
+        '17' => ['pin' => '17', 'user' => true, 'name' => 'Plain Id', 'card' => null, 'is_admin' => false, 'fingerprints' => 0, 'face' => false],
+    ]);
+    $batch = app(WorkforceMigrationService::class)->stageFromDevice($device);
+
+    $rows = collect(test()->getJson(Staging::url($tenant, "batches/{$batch->public_id}"))->assertOk()->json('rows'))->keyBy('display_name');
+
+    expect($rows['Odd Id']['warnings'])->toHaveCount(1)
+        ->and($rows['Odd Id']['warnings'][0]['code'])->toBe('device_id_not_badge')
+        ->and($rows['Plain Id']['warnings'])->toBe([]);
 });

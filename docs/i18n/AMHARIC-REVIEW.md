@@ -311,3 +311,14 @@ What to check first:
 - **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
 - **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
   product's own word for a department is ክፍል / *Muummee*.
+
+### Terminal number warnings (2026-11-15)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. A wrong word
+moves no money: the person is added either way.
+
+| What | Where | Strings |
+|---|---|---|
+| Warning that a badge number is not one a ZKTeco terminal takes | `api/lang/{am,om}/onboarding.php`, `migration.terminal_number_digits_only` | 1 |
+| Notes that a terminal's own number is too long or not a badge number | the same file, `migration.device_id_too_long`, `migration.device_id_not_badge` | 2 |
+| Heading above those warnings in the People step | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.warnings_heading` | 1 |

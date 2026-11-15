@@ -5977,6 +5977,7 @@
   "setup2.people_ready": ":count ሰዎች ዝግጁ ናቸው",
   "setup2.columns_read": "አምዶች፦ :columns",
   "setup2.more_problems": "እና ሌሎች :count",
+  "setup2.warnings_heading": "ከመጨመራቸው በፊት ማወቅ የሚገባ",
   "setup2.dates_in": "የተቀጠሩበት ቀኖች በዚህ አቆጣጠር ናቸው",
   "setup2.calendar_ec": "ኢትዮጵያ (ዓ.ም)",
   "setup2.calendar_gc": "ግሪጎሪያን (G.C.)",

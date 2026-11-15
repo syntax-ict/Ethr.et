@@ -251,8 +251,17 @@ Five rules:
   one already linked to that device (`employee_external_identities`), else the badge
   number. The badge number is set on the employee's profile or the new-employee form
   (*Badge / device ID*, since 2026-10-14; letters, digits and hyphens, at most 32, unique
-  in the organisation). ZKTeco terminals take digits only. Until then nothing in the
+  in the organisation). ZKTeco terminals take digits only, and `DeviceIdRules` enforces it: a number
+  with a letter in it is not queued for a `zkteco` or `zkteco_adms` device. It is kept as a failed
+  `upsert_user` whose error reads *Not sent: this terminal takes digits only as a person number*, so
+  the device's Commands tab says who was not sent, and **Send all staff** counts it as skipped. A
+  list read for import warns (`terminal_number_not_accepted`, in `warnings`) when a badge would be
+  refused by a type the organisation has a device of; the person is still added. Other types have no
+  rule of their own, and nothing is claimed for them. Until then nothing in the
   product could set it, so a new hire never reached a terminal by badge. A person with neither is skipped, and **Send all staff** reports how many.
+- **Only a device ETHR can write to is sent commands.** The switch is cleared when a terminal
+  becomes one that only sends (Hikvision push), and the `zkteco` (REST) adapter takes none, so a
+  ZKTeco terminal that carries commands is `zkteco_adms`.
 - **A newer command for the same person replaces one still waiting** (status
   `cancelled`). Two edits in a row reach the device once, and a hire followed by a
   termination never adds.
