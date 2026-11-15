@@ -341,3 +341,20 @@ The other six column names reuse words the profile screens already have. What to
 contract type values (`probation`, `fixed_term`, `permanent`, `casual`, `consultancy`) are kept
 in Latin letters in both languages, because they are what the column takes; and *Sadarkaa* for a
 grade, which the proposal glossary already uses.
+
+### Completing people who are already here (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a reader about what a list will do; it moves no money, and a
+difference in a person's job is shown and never written whatever the words say.
+
+| What | Where | Strings |
+|---|---|---|
+| The choice between adding people and completing those already here, the review's title and hint, "Not found in ETHR, left out", and the confirmation, progress and done lines | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.mode_*`, `setup2.complete_*`, `setup2.not_found_left_out`, `setup2.left_out`, `setup2.completing`, `setup2.complete_commit`, `setup2.complete_continue`, `setup2.outcome_new_complete` ("not found", the count chip of a list that completes people) | 15 each |
+| The line under a difference that is left alone ("Left as it is. Change it with a personnel action."), the words for a bank account, emergency contact and contract a list adds, and "Adds :field: :value" | the same files, `setup2.changes_locked`, `setup2.change_bank`, `setup2.change_emergency_contact`, `setup2.change_contract`, `setup2.changes_adds` | 5 each |
+| The Download to complete button, its three messages, and the three new gaps a list can be filtered by | the same files, `employees.complete_*`, `employees.missing.department`, `employees.missing.position`, `employees.missing.gender` | 7 each |
+| Two refusals from the row endpoint: a list that completes people adds nobody, and a person's job and pay are changed with a personnel action | `api/lang/{am,om}/onboarding.php`, `migration.complete_adds_nobody`, `migration.accept_locked` | 2 each |
+
+What to check first: *personnel action* (the product's own word for a transfer, promotion or demotion
+that leaves a record) in `setup2.changes_locked` and `migration.accept_locked`, and the word for
+*left out* against the Amharic and Afaan Oromoo the import review already uses for a skipped row.

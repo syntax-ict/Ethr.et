@@ -109,8 +109,8 @@ as the file import and the add-employee form do.
 
 A staged list can also bring a new person in with the rest of their profile.
 These columns are written for a person the list **creates**. A row matched to
-someone already in ETHR does not apply them: completing an existing person is
-a separate step, and `StagedChanges::FIELDS` is unchanged.
+someone already in ETHR fills what that person lacks, by the rules in
+*Completing people who are already here* below.
 
 | column | group | takes | written through |
 |---|---|---|---|
@@ -350,6 +350,81 @@ edit made through a list takes what the same edit takes on the form:
 
 Without them the row is still linked, its other fields are still written, and
 `can_apply_changes` on the row says so before the commit.
+
+### Completing people who are already here (2026-11-16)
+
+The live case: an organisation has people whose profiles are half filled (no
+gender, position, bank account or emergency contact). HR downloads them as a
+workbook, fills the blanks in Excel and brings it back, with nobody added twice
+and nothing overwritten by accident. A matched row now reaches more of the
+record, and a list can be staged in a mode in which nobody is created.
+
+**More fields for a matched person.** The rule is unchanged: a blank in ETHR is
+filled, a blank cell in the file changes nothing.
+
+| fields | a blank in ETHR | a difference |
+|---|---|---|
+| `name_am`, `gender`, `date_of_birth`, `marital_status`, `nationality`, `nationality_status` | `fill` | `conflict`, written only if a reviewer accepts it |
+| `position`, `branch`, `grade`, `cost_center`, `probation_end_date` | `fill` | `locked` |
+
+- **`locked` is a third kind.** It is shown ("Left as it is. Change it with a
+  personnel action.") and never written. `applicable()` never returns it, and
+  `PATCH /rows/{row}` refuses it: 422, because `accept.*` offers only
+  `StagedChanges::acceptable()`. It is decided by the field and the list's
+  mode, not by what is stored on the row, which the same request may be about
+  to redraw.
+- **The nationality status is never blank.** ETHR gives everyone `ethiopian`, so
+  a different value in the file is a conflict, not a fill.
+- **Relations are matched in the organisation** with `RelationMatch`, by name or
+  code, and written as public ids through `EmployeeUpdater`. A name another
+  organisation has is not found, and is not shown.
+- **Three records are added once, never compared.** When the row brings a whole
+  bank account, emergency contact or `contract_type`, and the person has none
+  (a contract of any state counts), it is added through
+  `EmployeeRelatedRecords::addBankDetail` (primary), `addEmergencyContact` and
+  `EmployeeContractService::create` (the hire date, no salary). When the person
+  has one, nothing is written and nothing is shown: comparing would reveal an
+  account number or a relative's phone. The review shows a `fill` named `bank`,
+  `emergency_contact` or `contract` with `current` null and `incoming` the bank
+  name, the contact's name or the contract type. `bank` is pay data: it needs
+  `employee.updateFinancial`, and the account number is never sent. These
+  questions are asked only while the organisation of the request is the
+  employee's, because the tenant scope answers "nothing" about everyone when
+  none is resolved.
+- **All of it is written in the chunk's transaction**, after the same guards:
+  `scheduled()`, `employee.update` with reach, and the pay permission.
+
+**`mode: complete`.** `POST /migration/rows` takes an optional `mode`,
+stored in `migration_batches.options` (no migration; `commitSlice` merges what
+the reviewer chooses at commit into it rather than replacing it). The batch
+payload says `mode`: `add` or `complete`.
+
+- **Nobody is created.** A row that matches nobody is staged as `skip`
+  ("Not found in ETHR, left out"). `PATCH /rows/{row}` with `create` is 422, and
+  `commitChunk` counts a `create` row as skipped, wherever it came from, and
+  asks the plan's seat limit about nobody. A row with several candidates still
+  needs the reviewer to choose one.
+- **Job and pay are fill only.** A `department` and a `salary_cents` that
+  differ are `locked` too, and cannot be accepted. A personal conflict can.
+  `tin` and `hire_date` are not job or pay here and behave as in any list.
+- **Status.** A row with `status` `probation` or `confirmed` moves a person who
+  is still `hired` through `EmployeeTransitionService::transition` (today in the
+  organisation's zone, no reason, the reviewer as approver), so the move has its
+  history row and audit entry. It is a `fill` on `status`, and needs
+  `employee.transition`, which editing a person does not imply. Any other
+  difference in status is `locked`; a list never writes `status` itself.
+
+**Download to complete.** The Employees list has a button next to Export. It
+builds the employee workbook (`buildTemplate`) in the Gregorian calendar,
+prefilled from `GET /employees/export` with the list's own search and filters
+(`?missing=` included, and now `department`, `position` and `gender` besides
+`tin`, `bank`, `emergency_contact` and `phone`). Values the export does not
+give (salary, TIN, bank) are blank cells. A status the import would refuse
+(someone who has left) is left blank. One staging takes 2,000 people, so a list
+longer than that is not built from part of it: the reader is asked to narrow
+the list. The file is `ethr-employees-to-complete.xlsx`; it is brought back on
+**Import**, choosing *Complete people who are already here*. The choice is not
+offered in the setup or for a device's roster.
 
 ### A list is committed a slice at a time (2026-11-11)
 

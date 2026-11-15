@@ -88,6 +88,92 @@ describe("<StagedChanges>", () => {
     expect(onAccept).toHaveBeenCalledWith(["phone"]);
   });
 
+  it("shows a locked difference as left alone, with no way to accept it", () => {
+    const onAccept = vi.fn();
+    render(
+      <StagedChanges
+        row={row({
+          changes: [
+            change({
+              field: "position",
+              kind: "locked",
+              current: "Accountant",
+              incoming: "Auditor",
+            }),
+          ],
+        })}
+        locked={false}
+        onAccept={onAccept}
+      />,
+    );
+
+    expect(
+      screen.getByText("Position: ETHR has Accountant, this list has Auditor"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Left as it is. Change it with a personnel action."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(onAccept).not.toHaveBeenCalled();
+  });
+
+  it("names a record a list adds, and the status it moves, without a choice", () => {
+    render(
+      <StagedChanges
+        row={row({
+          changes: [
+            change({
+              field: "bank",
+              kind: "fill",
+              current: null,
+              incoming: "Commercial Bank",
+            }),
+            change({
+              field: "emergency_contact",
+              kind: "fill",
+              current: null,
+              incoming: "Hana Bekele",
+            }),
+            change({
+              field: "contract",
+              kind: "fill",
+              current: null,
+              incoming: "permanent",
+            }),
+            change({
+              field: "status",
+              kind: "fill",
+              current: null,
+              incoming: "confirmed",
+            }),
+            change({
+              field: "salary_cents",
+              kind: "locked",
+              current: null,
+              incoming: null,
+              masked: true,
+            }),
+          ],
+        })}
+        locked={false}
+        onAccept={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Adds Bank account: Commercial Bank"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Adds Emergency contact: Hana Bekele"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Adds Contract: permanent")).toBeInTheDocument();
+    expect(screen.getByText("Fills in Status: confirmed")).toBeInTheDocument();
+    expect(
+      screen.getByText("Salary is different in this list"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
   it("keeps the other accepted fields when one is unticked", () => {
     const onAccept = vi.fn();
     render(

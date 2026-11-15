@@ -115,8 +115,8 @@ it('brings a new person in with the whole of their profile', function () {
         ->not->toContain('1000123456789')->not->toContain('911223344');
 });
 
-it('leaves a person the list matched to someone already here as they are', function () {
-    [$tenant] = profileOrganisation();
+it('fills in what a person the list matched to someone already here lacks, and makes no second person', function () {
+    [$tenant, $grade, $centre] = profileOrganisation();
     $abebe = Staging::employee($tenant, ['employee_code' => 'E-1', 'email' => 'abebe@example.et']);
 
     $staged = test()->postJson(Staging::url($tenant, 'rows'), ['grid' => [
@@ -130,13 +130,16 @@ it('leaves a person the list matched to someone already here as they are', funct
     test()->patchJson(Staging::url($tenant, "rows/{$row['public_id']}"), ['action' => 'merge'])->assertOk();
     test()->postJson(Staging::url($tenant, "batches/{$staged['public_id']}/commit"))->assertOk();
 
+    // What PR 4 left alone, the list now completes (complete-existing-profiles):
+    // a blank is filled, a record the person has none of is added once.
     $abebe->refresh();
-    expect($abebe->grade_id)->toBeNull()
-        ->and($abebe->cost_center_id)->toBeNull()
-        ->and($abebe->probation_end_date)->toBeNull()
-        ->and($abebe->contracts()->count())->toBe(0)
-        ->and($abebe->bankDetails()->count())->toBe(0)
-        ->and($abebe->emergencyContacts()->count())->toBe(0);
+    expect($abebe->grade_id)->toBe($grade->id)
+        ->and($abebe->cost_center_id)->toBe($centre->id)
+        ->and($abebe->probation_end_date->toDateString())->toBe('2026-04-15')
+        ->and($abebe->contracts()->count())->toBe(1)
+        ->and($abebe->bankDetails()->count())->toBe(1)
+        ->and($abebe->emergencyContacts()->count())->toBe(1)
+        ->and(Employee::withTrashed()->where('tenant_id', $tenant->id)->count())->toBe(1);
 });
 
 it('names the column of each half-filled group, and of a contract that cannot be made', function (array $line, string $column) {

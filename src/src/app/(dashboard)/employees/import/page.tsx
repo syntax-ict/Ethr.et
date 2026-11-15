@@ -39,6 +39,7 @@ export default function EmployeeImportPage() {
           <div className="xl:col-span-2">
             <MigrationStep
               sources="list"
+              canComplete
               title={t(
                 "employees_import_page.title",
                 "Import employees from a file",

@@ -31,6 +31,13 @@ class MigrationBatch extends Model
      */
     public const STAGING = 'staging';
 
+    /**
+     * The `mode` a list may be staged in. A list with none adds people: a row
+     * that matches nobody becomes a new employee. In `complete` nobody is
+     * added, and a row that matches nobody is left out (`options.mode`).
+     */
+    public const MODE_COMPLETE = 'complete';
+
     protected $fillable = [
         'public_id',
         'tenant_id',
@@ -75,6 +82,20 @@ class MigrationBatch extends Model
         $status = is_array($options) ? ($options['status'] ?? null) : null;
 
         return is_string($status) ? $status : null;
+    }
+
+    /** The list completes people who are already here and adds nobody. */
+    public function isCompleting(): bool
+    {
+        $options = $this->getAttribute('options');
+
+        return is_array($options) && ($options['mode'] ?? null) === self::MODE_COMPLETE;
+    }
+
+    /** What the list is for, as the review is titled: `add` or `complete`. */
+    public function mode(): string
+    {
+        return $this->isCompleting() ? self::MODE_COMPLETE : 'add';
     }
 
     public function isStaging(): bool
