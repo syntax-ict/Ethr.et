@@ -31,7 +31,7 @@ return [
         'relation_not_found' => ':field ":value" was not found. Use its code or its name as it appears in ETHR.',
         'relation_ambiguous' => 'More than one :field is called ":value". Use its code instead.',
         'duplicate_in_list' => ':field ":value" is also on line :first. Each person needs their own.',
-        'terminal_number_digits_only' => 'The number ":value" has more than digits, and :types takes digits only as a person number. The person is still added, and that terminal will not be sent them.',
+        'terminal_number_digits_only' => 'The number ":value" has more than digits, and a :types terminal takes digits only as a person number. The person is still added, and that terminal will not be sent them.',
         'device_id_too_long' => 'The terminal\'s number ":value" is longer than an employee number can be (:max characters), so it is kept as the terminal\'s number only.',
         'device_id_not_badge' => 'The terminal\'s number ":value" is not one ETHR keeps as a badge number (at most 32 letters, digits and hyphens), so it is kept as the terminal\'s number only.',
         'mapping_needs_name' => 'Choose which column holds the person\'s name. Nothing can be read without it.',

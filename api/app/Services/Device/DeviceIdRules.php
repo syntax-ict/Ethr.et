@@ -37,6 +37,16 @@ final class DeviceIdRules
     ];
 
     /**
+     * What a person calls each restricted type.
+     *
+     * @var array<string, string>
+     */
+    private const LABEL = [
+        'zkteco' => 'ZKTeco',
+        'zkteco_adms' => 'ZKTeco',
+    ];
+
+    /**
      * Name lengths by adapter type. hikvision: 32 characters, the cut
      * DeviceCommandQueue::upsert made before this class existed.
      *
@@ -54,6 +64,18 @@ final class DeviceIdRules
     public static function restrictedTypes(): array
     {
         return array_keys(self::NUMBER);
+    }
+
+    /** The name a person knows this kind of terminal by. */
+    public static function label(string $adapterType): string
+    {
+        return self::LABEL[$adapterType] ?? $adapterType;
+    }
+
+    /** Whether an id meets the general badge rule: at most 32 letters, digits and hyphens. */
+    public static function fitsBadge(string $id): bool
+    {
+        return preg_match(self::BADGE, $id) === 1;
     }
 
     /** Whether this type has a rule of its own for the person number. */
@@ -81,7 +103,7 @@ final class DeviceIdRules
             return preg_match($rule['pattern'], $id) === 1 ? null : $rule['reason'];
         }
 
-        return preg_match(self::BADGE, $id) === 1 ? null : 'badge_rule';
+        return self::fitsBadge($id) ? null : 'badge_rule';
     }
 
     /** How many characters of a name a terminal of this type keeps. */

@@ -375,3 +375,64 @@ it('does not queue anything for a device that cannot be written to, even with co
 
     expect(commandsOn($sendsOnly))->toBe([])->and(commandsOn($readOnly))->toBe([]);
 });
+
+it('sends an id the terminal itself reported, even one its own rule would not let ETHR write', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = commandDevice($tenant, $branch);
+    $linked = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => null, 'status' => EmployeeStatus::CONFIRMED]);
+    EmployeeExternalIdentity::create([
+        'tenant_id' => $tenant->id, 'employee_id' => $linked->id, 'source_type' => 'zkteco_adms',
+        'source_ref' => 'device:'.$device->id, 'identifier_type' => 'device_user_id', 'identifier_value' => 'A_12', 'confidence' => 1,
+    ]);
+    $device->commands()->delete();
+
+    $linked->update(['name' => 'Almaz Tesfaye']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => 'A12', 'status' => EmployeeStatus::HIRED]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => '0012', 'status' => EmployeeStatus::HIRED]);
+
+    expect(commandsOn($device))->toBe([
+        ['type' => 'upsert_user', 'status' => 'pending', 'user' => 'A_12'],
+        ['type' => 'upsert_user', 'status' => 'failed', 'user' => 'A12'],
+        ['type' => 'upsert_user', 'status' => 'pending', 'user' => '0012'],
+    ]);
+});
+
+it('records a refusal once, and again only when the refused number or the answer changes', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = commandDevice($tenant, $branch);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => 'A12', 'status' => EmployeeStatus::HIRED]);
+    $queue = app(DeviceCommandQueue::class);
+
+    $queue->enrol($employee);
+    $queue->sendStaff($device);
+    expect(commandsOn($device))->toBe([['type' => 'upsert_user', 'status' => 'failed', 'user' => 'A12']]);
+
+    $employee->update(['badge_number' => 'B34']);
+    expect(commandsOn($device))->toBe([
+        ['type' => 'upsert_user', 'status' => 'failed', 'user' => 'A12'],
+        ['type' => 'upsert_user', 'status' => 'failed', 'user' => 'B34'],
+    ]);
+
+    $employee->update(['badge_number' => '34']);
+    expect(commandsOn($device)[2])->toBe(['type' => 'upsert_user', 'status' => 'pending', 'user' => '34']);
+});
+
+it('clears the commands switch of a device created on a type ETHR cannot write to', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    $make = fn (string $type, array $config) => test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices", [
+        'name' => 'Door '.$type,
+        'adapter_type' => $type,
+        'branch_public_id' => $branch->public_id,
+        'serial_number' => 'CQZ72324'.strlen($type).'0002',
+        'connection_config' => $config,
+        'commands_enabled' => true,
+    ]);
+
+    $make('zkteco', ['ip' => '203.0.113.10', 'port' => 4370])->assertCreated()->assertJsonPath('commands_enabled', false);
+    $make('zkteco_adms', ['mode' => 'adms'])->assertCreated()->assertJsonPath('commands_enabled', true);
+});

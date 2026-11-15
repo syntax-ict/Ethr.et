@@ -370,6 +370,15 @@ final class DeviceCommandQueue
      */
     public function deviceUserId(Device $device, Employee $employee): ?string
     {
+        $linked = $this->linkedDeviceUserId($device, $employee);
+        $id = $linked ?? $employee->badge_number;
+
+        return $id === null || trim((string) $id) === '' ? null : trim((string) $id);
+    }
+
+    /** The id this device itself reported for the person, once linked. */
+    private function linkedDeviceUserId(Device $device, Employee $employee): ?string
+    {
         $linked = EmployeeExternalIdentity::query()
             ->where('employee_id', $employee->id)
             ->where('source_type', $device->adapter_type)
@@ -377,9 +386,7 @@ final class DeviceCommandQueue
             ->where('identifier_type', 'device_user_id')
             ->value('identifier_value');
 
-        $id = $linked ?? $employee->badge_number;
-
-        return $id === null || trim((string) $id) === '' ? null : trim((string) $id);
+        return $linked === null || trim((string) $linked) === '' ? null : trim((string) $linked);
     }
 
     private function upsert(Device $device, Employee $employee, ?User $by): ?DeviceCommand
@@ -398,14 +405,37 @@ final class DeviceCommandQueue
         // A number this kind of terminal would refuse is not queued to be
         // refused three times. The attempt is kept as a failed command, so
         // the device's Commands tab says who was not sent and why.
-        if (DeviceIdRules::restricts($device->adapter_type)
+        // An id the terminal itself reported (linked to this device) is held
+        // by it already, so only the badge number is checked.
+        if ($this->linkedDeviceUserId($device, $employee) === null
+            && DeviceIdRules::restricts($device->adapter_type)
             && ($why = DeviceIdRules::reason($device->adapter_type, $userId)) !== null) {
-            $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by, self::NOT_SENT[$why] ?? 'Not sent: this terminal does not take this person number.');
+            $notSent = self::NOT_SENT[$why] ?? 'Not sent: this terminal does not take this person number.';
+
+            // The same refusal again (another save, Send all staff) adds nothing.
+            if (! $this->alreadyRecordedNotSent($device, $employee, $userId, $notSent)) {
+                $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by, $notSent);
+            }
 
             return null;
         }
 
         return $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by);
+    }
+
+    /** Whether the newest command for this person on this device is this same refusal. */
+    private function alreadyRecordedNotSent(Device $device, Employee $employee, string $userId, string $notSent): bool
+    {
+        $newest = $device->commands()
+            ->where('employee_id', $employee->id)
+            ->orderByDesc('id')
+            ->first();
+
+        return $newest !== null
+            && $newest->type === DeviceCommandType::UPSERT_USER
+            && $newest->status === DeviceCommandStatus::FAILED
+            && $newest->last_error === $notSent
+            && ($newest->payload['device_user_id'] ?? null) === $userId;
     }
 
     private function removeFromBranch(Employee $employee, ?int $branchId): void

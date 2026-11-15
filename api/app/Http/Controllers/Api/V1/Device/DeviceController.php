@@ -118,6 +118,11 @@ class DeviceController extends Controller
             'status' => 'pending',
         ]);
 
+        // A terminal ETHR cannot write to keeps no switch that says it is written to.
+        if ($device->commands_enabled && ! app(DeviceCommandQueue::class)->supports($device)) {
+            $device->update(['commands_enabled' => false]);
+        }
+
         AuditLog::record('device.created', $device);
 
         $device->load('branch');

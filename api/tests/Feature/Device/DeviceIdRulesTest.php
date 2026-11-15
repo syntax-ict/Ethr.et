@@ -26,3 +26,10 @@ it('keeps a name to 32 characters unless the type says otherwise', function () {
         ->and(DeviceIdRules::nameLength('zkteco_adms'))->toBe(32)
         ->and(DeviceIdRules::nameLength('made_up'))->toBe(32);
 });
+
+it('names a restricted type once for a person, whichever ZKTeco kind it is', function () {
+    expect(DeviceIdRules::label('zkteco'))->toBe('ZKTeco')
+        ->and(DeviceIdRules::label('zkteco_adms'))->toBe('ZKTeco')
+        ->and(DeviceIdRules::fitsBadge('A-12'))->toBeTrue()
+        ->and(DeviceIdRules::fitsBadge('A_12'))->toBeFalse();
+});

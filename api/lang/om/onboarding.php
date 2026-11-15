@@ -33,7 +33,7 @@ return [
         'relation_not_found' => ':field ":value" hin argamne. Koodii isaa ykn maqaa isaa akkuma ETHR keessatti mul\'atutti fayyadamaa.',
         'relation_ambiguous' => ':field tokkoo ol ":value" jedhama. Qooda kanaa koodii isaa fayyadamaa.',
         'duplicate_in_list' => ':field ":value" sarara :first irras jira. Namni tokkoon tokkoo kan mataa isaa barbaada.',
-        'terminal_number_digits_only' => 'Lakkoofsi ":value" lakkoofsa ol kan qabu qaba; :types akka lakkoofsa nama tokkoo lakkoofsota qofa fudhata. Namichi ni dabalama; garuu meeshaa sanatti hin ergamu.',
+        'terminal_number_digits_only' => 'Lakkoofsi ":value" lakkoofsa ol kan qabu qaba; meeshaan :types akka lakkoofsa nama tokkoo lakkoofsota qofa fudhata. Namichi ni dabalama; garuu meeshaa sanatti hin ergamu.',
         'device_id_too_long' => 'Lakkoofsi meeshaa ":value" lakkoofsa hojjetaa ta\'uu danda\'u caalaa dheeraa dha (arfii :max), kanaaf akka lakkoofsa meeshaatti qofa kuufama.',
         'device_id_not_badge' => 'Lakkoofsi meeshaa ":value" lakkoofsa baajii ETHR qabatu miti (arfii, lakkoofsaa fi sarara hamma 32), kanaaf akka lakkoofsa meeshaatti qofa kuufama.',
         'mapping_needs_name' => 'Tarree maqaan namichaa keessa jiru filadhaa. Isa malee wanti dubbifamu hin jiru.',

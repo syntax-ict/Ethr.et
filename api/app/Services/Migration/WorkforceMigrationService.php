@@ -12,6 +12,7 @@ use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
 use App\Services\EmployeeNumbering;
 use App\Services\EmployeeUpdater;
@@ -150,7 +151,7 @@ final class WorkforceMigrationService
             $warnings[] = ['code' => 'device_id_too_long', 'message' => __('onboarding.migration.device_id_too_long', ['value' => $userId, 'max' => self::EMPLOYEE_CODE_MAX])];
         }
 
-        if (preg_match('/^[A-Za-z0-9-]{1,32}$/D', $userId) !== 1) {
+        if (! DeviceIdRules::fitsBadge($userId)) {
             unset($raw['badge_number']);
             $warnings[] = ['code' => 'device_id_not_badge', 'message' => __('onboarding.migration.device_id_not_badge', ['value' => $userId])];
         }

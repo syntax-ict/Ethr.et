@@ -314,7 +314,7 @@ final class EmployeeImportGrid
 
         return [[
             'code' => 'terminal_number_not_accepted',
-            'message' => __('onboarding.migration.terminal_number_digits_only', ['value' => $badge, 'types' => implode(', ', $refusing)]),
+            'message' => __('onboarding.migration.terminal_number_digits_only', ['value' => $badge, 'types' => implode(', ', array_unique(array_map(DeviceIdRules::label(...), $refusing)))]),
         ]];
     }
 
