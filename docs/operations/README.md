@@ -101,7 +101,7 @@ Recorded so it is not rediscovered each time. None of it is a code task.
 | An SMS subscription. SMS is configured but off, and invitations by text need a "set a password" step first | [`SMS-DELIVERY.md`](SMS-DELIVERY.md) |
 | The accountant's confirmation of pension coverage for five kinds of organisation | [`ACCOUNTANT-SIGN-OFF.md`](../payroll/ACCOUNTANT-SIGN-OFF.md), row 11 |
 | A native review of the Amharic names of the kinds that inherit their parent's rules | [`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md) |
-| Whether the console should show an organisation's kind, and whether impersonation should refuse a change of kind | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| Whether the console should show an organisation's kind. Impersonation now refuses a change of kind; whether it should also refuse `use-law` is open | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 
 ## Everything in this folder
 

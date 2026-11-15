@@ -179,7 +179,7 @@ For each area below, the behaviour is the same whatever the kind or industry unl
 | Tenant journey stages, lifecycle and health reasons | Same for every kind. The readiness score reads the leave floors, which are type-aware in code, but every seeded floor is for every kind, so no score differs today | [`TENANT-JOURNEY.md`](TENANT-JOURNEY.md) |
 | Deletion and restore | Same for every kind | [`TENANT-DELETION.md`](TENANT-DELETION.md) |
 | Data export and backup | Same for every kind | [`DATA-EXPORT.md`](DATA-EXPORT.md) |
-| Impersonation mechanics | Same for every kind. The rule about saving the kind is in situation 8 | [`IMPERSONATION.md`](IMPERSONATION.md) |
+| Impersonation mechanics | Same for every kind. Impersonation refuses a change of the kind, see situation 8 | [`IMPERSONATION.md`](IMPERSONATION.md) |
 | SMS | Same for every kind | [`SMS-DELIVERY.md`](SMS-DELIVERY.md) |
 | The support desk | Same for every kind | [`SUPPORT.md`](SUPPORT.md) |
 | Attendance selfie consent and retention | Same for every kind | [`ATTENDANCE-PHOTO-CONSENT.md`](ATTENDANCE-PHOTO-CONSENT.md), [`ATTENDANCE-PHOTO-RETENTION.md`](ATTENDANCE-PHOTO-RETENTION.md) |
@@ -200,7 +200,7 @@ The platform console does not show it. The organisations list and the organisati
 | Way | How | Needs |
 |---|---|---|
 | **Ask the administrator** | They open Settings, then General, and read "Kind of organisation in law" on the Organisation card | Nothing. A reply on a help request ([`SUPPORT.md`](SUPPORT.md)) is the cleanest record |
-| **Read it while impersonating** | The same card, as the administrator sees it. Look only | Platform MFA and a fresh code, see [`IMPERSONATION.md`](IMPERSONATION.md). **Never save** (situation 8) |
+| **Read it while impersonating** | The same card, as the administrator sees it. Look only | Platform MFA and a fresh code, see [`IMPERSONATION.md`](IMPERSONATION.md). Look only: a save of the kind is refused (situation 8) |
 | **Read what payroll used** | In a payroll run, the calculator icon on an entry opens its calculation log, which carries the organisation type and, for each rule, its value, layer and source | Impersonation, or the administrator's screenshot |
 | **See whether the pension scheme is the kind's or the organisation's own** | Settings, then Payroll Rules, then the Statutory rules tab, row "Your pension scheme". A badge "Your value" with "Default: ..." beneath means the organisation's own value, not the kind's. The line under the rule names the layer: "Set for your kind of organisation", "Set for the group your kind of organisation belongs to", "The law, for every organisation" or "Your organisation's own value" | Settings access. "Payroll Rules" is shown to tenant administrators |
 | **Read the audit trail** | The organisation's own audit log records the kind at sign-up and at every change (section 9). The console's lists show action names and times only, last twenty, with no details, so they cannot tell you the kind | The organisation's administrator |
@@ -309,9 +309,9 @@ A newer scheduled change replaces an older one that has not started. "Cancel thi
 
 Use the ways in section 6.
 
-**Never save the kind while impersonating.** `SettingsController@updateOrganization` is **not** on the list of actions impersonation refuses (`api/app/Http/Middleware/BlockImpersonatedActions.php`). An operator signed in as an administrator can save a different kind, and doing so changes which statutory rules pay that organisation's people. The same is true of changing the pension scheme and of cancelling a scheduled change of kind: both are saves, not deletes, and are not blocked. A change of kind is the organisation's own decision, made by its own administrator. Read it, close the session and, if it should change, tell the administrator what and why.
+**You cannot save the kind while impersonating, and should not try.** Since 2026-11-15 impersonation refuses, with `403 Action Restricted` and no write, a save that carries the kind, a date for a change of it, the withdrawal of a scheduled change, or the pension scheme or another statutory setting (`api/app/Http/Middleware/BlockImpersonatedActions.php`, `blockedFields()`). The kind decides which statutory rules pay that organisation's people, so a change of it is the organisation's own decision, made by its own administrator. Read it, close the session and, if it should change, tell the administrator what and why. You can still correct the organisation's name, industry, timezone or language for a customer who asks.
 
-Every action during an impersonation is written to the audit log with `impersonated_by`, so a change would be traceable. That is the protection, not a block. See [`IMPERSONATION.md`](IMPERSONATION.md).
+Resetting an organisation's own statutory value is refused too, as every `DELETE` is. One path is not covered: `POST /payroll/statutory-rules/use-law` ends the organisation's own tax ladder and pension rates and is not refused. Do not use it while impersonating. See [`IMPERSONATION.md`](IMPERSONATION.md).
 
 ---
 
@@ -381,7 +381,7 @@ Stated plainly, so nobody promises a customer what the product does not do.
 - **Pension coverage is unconfirmed** for the five kinds in situation 4 and for `public_enterprise` (research O1, O2 in [`STATUTORY-RULES-RESEARCH.md`](../payroll/STATUTORY-RULES-RESEARCH.md); row 11 of [`ACCOUNTANT-SIGN-OFF.md`](../payroll/ACCOUNTANT-SIGN-OFF.md)). The Hamle fiscal year for `government` and the working-days figure are conventions, not confirmed.
 - **Civil-service leave is not confirmed.** The setup wizard's review note for the public profile still cites Proclamation 1064/2017, which the research says 1353/2024 repealed (row 12 of the sign-off).
 - **The Amharic names** of the ten inheriting kinds, and the Afaan Oromoo names of all sixteen, are drafts awaiting a native reader ([`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md)).
-- **Impersonation does not refuse a change of kind** (situation 8).
+- **Impersonation refuses a change of kind and of the statutory settings, but not `POST /payroll/statutory-rules/use-law`**, which ends the organisation's own saved tax ladder and pension rates (situation 8).
 - **The fiscal year moves no amount** (section 3).
 - **A scheduled change of kind may not show on the Settings card once its date arrives.** `tenants.organization_type`, which the Settings card and `GET /settings` read, is written only when a change is saved (`OrganisationProfile::assign()`). Payroll reads the dated assignments instead, and nothing writes the column again when a scheduled date arrives. This was read from the code on 2026-11-15 and not run, and no test in `OrganizationTypeChangeTest` moves the clock past a scheduled date. If the reading is right, then after the date payroll applies the new kind while the card still shows the old one, with no pending line. Until an engineer has confirmed or fixed it, trust the calculation log for pay, and do not ask an administrator to choose the kind again to make the card agree.
 

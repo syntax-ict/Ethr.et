@@ -5,7 +5,7 @@
 | **Purpose** | Explains how a platform super admin acts as an organisation's administrator, what that refuses and how it ends. |
 | **Open it when** | You need to look inside an organisation as it sees itself. |
 | **For** | Platform operator (super admin) |
-| **Organisation types** | Same for every kind. One caution: impersonation does not refuse a change of the organisation's kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Organisation types** | Same for every kind. Impersonation refuses a change of the organisation's kind and of its pension scheme and other statutory settings, and still lets you fix its name, timezone or language. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 | **Source of truth** | `api/app/Http/Middleware/BlockImpersonatedActions.php` and `AdminTenantController.php`; the code outranks this page. |
 
 **Written 2026-10-01 from the code** (audit item D14). Every claim cites the file and line it
@@ -93,10 +93,28 @@ answered `403 Action Restricted`:
 - changing the plan (`BillingController@changePlan`);
 - renaming the organisation's address or changing its custom domain
   (`SettingsController@updateSubdomain`, `@updateAddress`). Added 2026-11-09 for K-39: the
-  address is where the organisation's people sign in.
+  address is where the organisation's people sign in;
+- **a save that carries the organisation's kind in law**, refused by what the request carries
+  and not by the action: `PUT /settings/organization` with `organization_type`,
+  `effective_from` or `cancel_pending_organization_type` in the body (`blockedFields()` in the
+  same file). The kind decides which statutory rules apply, so an operator may not choose it,
+  schedule a change of it, withdraw a scheduled change, or confirm it. Added 2026-11-15;
+- **a save that carries a statutory setting**: `PUT /settings` with any of
+  `settings.pension_scheme`, `settings.fiscal_year_start_month`,
+  `settings.pagumen_proration_strategy` or `settings.working_days_per_month`, the four keys
+  `StatutorySettingsBridge::SETTINGS` writes through to the organisation's statutory
+  parameters. The whole request is refused, so a permitted key sent beside one is not saved
+  either. The settings screens send these keys only when the person changed them.
 
-**Not blocked, and worth knowing:** saving the organisation's kind of organisation
-(`SettingsController@updateOrganization`). It is not in `BLOCKED_ACTIONS`.
+The kind and the statutory keys are refused whatever value the request gives, including the
+value already stored. The refusal is the same `403 Action Restricted` problem response as any
+other (`type` `https://ethr.et/errors/impersonation-restricted`).
+
+**Not blocked, and worth knowing:** the rest of `PUT /settings/organization`, so an operator can
+still correct the organisation's name, industry, timezone or language for a customer who asks,
+and the rest of `PUT /settings` (the payroll run day, for one). `POST /payroll/statutory-rules/use-law`
+is also not blocked: it ends an organisation's own tax ladder and pension rates, saved before both became the law's alone, which
+resetting a statutory value by `DELETE` would be refused for. It is recorded as a follow-up, not decided.
 
 Everything else the impersonated tenant admin could do, the operator can do — including
 approving payroll and leave. The protection there is the audit tag, not a block. The middleware
@@ -143,17 +161,20 @@ lands on `/login`, clearing it) — harmless, but a banner can show over an expi
 
 ## Organisation types
 
-- `SettingsController@updateOrganization` is not in `BLOCKED_ACTIONS`, so an operator impersonating
-  an administrator can save a different kind of organisation.
 - The kind decides which statutory rules apply: the pension scheme, and with it the agency the
   pension schedule is addressed to.
-- **The rule:** read the kind while impersonating, never save it. A change of kind is the
-  organisation's own decision, and its own administrator makes it.
-- If it does happen, the audit log records `settings.organization_updated` with the kind before and
-  after, and `organization_profile.assigned` for the new dated assignment. Both are tagged
-  `impersonated_by` with the operator's user id, as every entry made during the session is.
-- Whether impersonation should refuse a change of kind is an open decision, recorded in
-  [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
+- **Impersonation refuses it** (2026-11-15). A save that carries the kind, a date for a change of
+  it, the withdrawal of a scheduled change, or a statutory setting such as the pension scheme,
+  answers `403 Action Restricted` and writes nothing: no `tenant_profile_assignments` row and no
+  `settings.organization_updated` entry. Before that date it was not refused, and the rule here
+  was only "read the kind, never save it".
+- **Read it, do not save it.** The card shows the kind to an operator as it does to the
+  administrator. A change of kind is the organisation's own decision, and its own administrator
+  makes it: close the session and tell the administrator what and why.
+- **What you can still fix** while impersonating is the organisation's name, industry, timezone
+  and language, when a customer asks.
+- The test is `tests/Feature/ImpersonationTest.php`, the cases whose names mention the kind and
+  the statutory setting.
 
 ## Findings from reading the code — fixed 2026-10-02 (audit N19)
 

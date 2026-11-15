@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\Tenant;
+use App\Models\TenantProfileAssignment;
 use App\Models\User;
 use App\Services\Auth\SessionCookie;
 use Carbon\Carbon;
@@ -309,4 +310,136 @@ test('impersonation acts as an active admin of the organisation', function () {
         ->assertOk();
 
     expect(PersonalAccessToken::query()->latest('id')->firstOrFail()->tokenable_id)->toBe($active->id);
+});
+
+// ── The organisation's kind in law and its statutory settings ──
+//
+// A kind decides which statutory rules apply, and so which agency the pension
+// schedule is addressed to. An operator looking at an organisation as it sees
+// itself must not move it, but may still fix a name, timezone or language for a
+// customer who asked.
+
+/**
+ * A bearer request that carries no tenant, user or guard left over from the
+ * request before it. A backend test of a credential-authenticated route that
+ * keeps the previous request's context passes on state a real request never
+ * has (root CLAUDE.md, section 4).
+ */
+function freshBearer(string $token): void
+{
+    app()->forgetScopedInstances();
+    app('auth')->forgetGuards();
+    test()->withToken($token);
+}
+
+/** @return array{0: Tenant, 1: string, 2: string} the organisation, an impersonation token, and its own administrator's token */
+function kindFixture(): array
+{
+    $tenant = Tenant::factory()->create(['organization_type' => 'private']);
+    $admin = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::TENANT_ADMIN]);
+
+    return [
+        $tenant,
+        $admin->createToken('impersonation:1', ['*', 'impersonation'], now()->addMinutes(30))->plainTextToken,
+        $admin->createToken('auth', ['*'])->plainTextToken,
+    ];
+}
+
+function kindUrl(Tenant $tenant, string $path = 'settings/organization'): string
+{
+    return "http://{$tenant->subdomain}.ethr.test/api/v1/{$path}";
+}
+
+/** Rows that prove a save of the kind happened. */
+function kindWrites(Tenant $tenant): array
+{
+    return [
+        'assignments' => TenantProfileAssignment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count(),
+        'audit' => AuditLog::withoutGlobalScopes()->where('tenant_id', $tenant->id)->where('action', 'settings.organization_updated')->count(),
+        'kind' => Tenant::query()->whereKey($tenant->id)->value('organization_type'),
+    ];
+}
+
+test('an impersonated session cannot change the kind of organisation', function () {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+
+    freshBearer($impersonation);
+    test()->putJson(kindUrl($tenant), ['organization_type' => 'ngo'])
+        ->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted')
+        ->assertJsonPath('status', 403);
+
+    expect(kindWrites($tenant))->toBe($before)
+        ->and($before['kind'])->toBe('private');
+});
+
+test('an impersonated session cannot schedule or withdraw a change of kind', function (array $body) {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+
+    freshBearer($impersonation);
+    test()->putJson(kindUrl($tenant), $body)
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect(kindWrites($tenant))->toBe($before);
+})->with([
+    'a date' => [['effective_from' => '2027-01-01']],
+    'a withdrawal' => [['cancel_pending_organization_type' => true]],
+    'the same kind, confirmed' => [['organization_type' => 'private']],
+    'a name sent with a kind' => [['name' => 'Renamed', 'organization_type' => 'ngo']],
+]);
+
+test('an impersonated session can still correct the name, timezone and language', function () {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+
+    freshBearer($impersonation);
+    test()->putJson(kindUrl($tenant), ['name' => 'Corrected Name', 'timezone' => 'Africa/Addis_Ababa', 'locale' => 'am'])
+        ->assertOk()
+        ->assertJsonPath('organization.name', 'Corrected Name')
+        ->assertJsonPath('organization.organization_type', 'private');
+
+    $after = kindWrites($tenant);
+    expect(Tenant::query()->whereKey($tenant->id)->value('name'))->toBe('Corrected Name')
+        ->and($after['kind'])->toBe('private')
+        ->and($after['assignments'])->toBe($before['assignments'])
+        ->and($after['audit'])->toBe($before['audit'] + 1);
+});
+
+test('an impersonated session cannot change a statutory setting', function (string $key, mixed $value) {
+    [$tenant, $impersonation] = kindFixture();
+    $stored = Tenant::query()->whereKey($tenant->id)->value('settings');
+
+    freshBearer($impersonation);
+    test()->putJson(kindUrl($tenant, 'settings'), ['settings' => ['run_day' => 14, $key => $value]])
+        ->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    // Refused whole: the permitted key sent beside it was not saved either.
+    expect(Tenant::query()->whereKey($tenant->id)->value('settings'))->toEqual($stored);
+})->with([
+    'the pension scheme' => ['pension_scheme', 'public'],
+    'the fiscal year' => ['fiscal_year_start_month', 11],
+    'the Pagume rule' => ['pagumen_proration_strategy', 'daily_rate'],
+    'working days per month' => ['working_days_per_month', 26],
+]);
+
+test('the own administrator of the organisation can still change the kind and a statutory setting', function () {
+    [$tenant, , $own] = kindFixture();
+
+    freshBearer($own);
+    test()->putJson(kindUrl($tenant), ['organization_type' => 'ngo'])
+        ->assertOk()
+        ->assertJsonPath('organization.organization_type', 'ngo');
+
+    freshBearer($own);
+    test()->putJson(kindUrl($tenant, 'settings'), ['settings' => ['pension_scheme' => 'public']])
+        ->assertOk();
+
+    expect(kindWrites($tenant)['kind'])->toBe('ngo')
+        ->and(Tenant::query()->whereKey($tenant->id)->value('settings')['pension_scheme'])->toBe('public');
 });
