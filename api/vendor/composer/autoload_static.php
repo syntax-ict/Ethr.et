@@ -1909,6 +1909,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\Scramble\\GroupOperationsByDomain' => __DIR__ . '/../..' . '/app/Support/Scramble/GroupOperationsByDomain.php',
         'App\\Support\\Scramble\\TypeLoadedRelationOverlays' => __DIR__ . '/../..' . '/app/Support/Scramble/TypeLoadedRelationOverlays.php',
         'App\\Support\\ShiftAssignables' => __DIR__ . '/../..' . '/app/Support/ShiftAssignables.php',
+        'App\\Support\\StaleReleaseCaches' => __DIR__ . '/../..' . '/app/Support/StaleReleaseCaches.php',
         'App\\Support\\StringList' => __DIR__ . '/../..' . '/app/Support/StringList.php',
         'App\\Support\\TenancyDomain' => __DIR__ . '/../..' . '/app/Support/TenancyDomain.php',
         'App\\Support\\TenantBrand' => __DIR__ . '/../..' . '/app/Support/TenantBrand.php',

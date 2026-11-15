@@ -1175,6 +1175,7 @@ return array(
     'App\\Support\\Scramble\\GroupOperationsByDomain' => $baseDir . '/app/Support/Scramble/GroupOperationsByDomain.php',
     'App\\Support\\Scramble\\TypeLoadedRelationOverlays' => $baseDir . '/app/Support/Scramble/TypeLoadedRelationOverlays.php',
     'App\\Support\\ShiftAssignables' => $baseDir . '/app/Support/ShiftAssignables.php',
+    'App\\Support\\StaleReleaseCaches' => $baseDir . '/app/Support/StaleReleaseCaches.php',
     'App\\Support\\StringList' => $baseDir . '/app/Support/StringList.php',
     'App\\Support\\TenancyDomain' => $baseDir . '/app/Support/TenancyDomain.php',
     'App\\Support\\TenantBrand' => $baseDir . '/app/Support/TenantBrand.php',
