@@ -46,6 +46,16 @@ final class StaleReleaseCaches
                 return [];
             }
 
+            // Act once per release. If the host's clock is behind CI, a cache the
+            // tick rebuilds carries an mtime older than built_at and would be
+            // swept again on every request, forever. The tick still deletes the
+            // recache marker after a successful rebuild whatever the mtimes say.
+            $swept = is_file(self::sweptPath($app)) ? @file_get_contents(self::sweptPath($app)) : false;
+
+            if ($swept !== false && trim($swept) === $builtAt['raw']) {
+                return [];
+            }
+
             $removed = [];
 
             foreach ($present as $file) {
@@ -58,12 +68,20 @@ final class StaleReleaseCaches
 
             if ($removed !== []) {
                 @file_put_contents(self::markerPath($app), $builtAt['raw'], LOCK_EX);
+                if (! is_dir(self::sweptPath($app))) {
+                    @file_put_contents(self::sweptPath($app), $builtAt['raw'], LOCK_EX);
+                }
             }
 
             return $removed;
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    public static function sweptPath(Application $app): string
+    {
+        return $app->bootstrapPath('cache/ethr-swept-release');
     }
 
     public static function markerPath(Application $app): string

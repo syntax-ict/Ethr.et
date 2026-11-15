@@ -154,3 +154,41 @@ it('reports caches as fresh only when both exist and postdate the release', func
     touch($this->routes, $this->built - 60);
     expect(StaleReleaseCaches::cachesAreFresh($this->fixtureApp))->toBeFalse();
 });
+
+it('sweeps once per release: caches rebuilt with old mtimes are kept', function () {
+    stampRelease($this->base, json_encode(['built_at' => STALE_BUILT_AT]));
+    file_put_contents($this->routes, '<?php return [];');
+    touch($this->routes, $this->built - 3600);
+    expect(StaleReleaseCaches::sweep($this->fixtureApp))->toBe([$this->routes]);
+
+    // A host clock behind CI: the rebuilt cache looks older than the release.
+    file_put_contents($this->routes, '<?php return [];');
+    touch($this->routes, $this->built - 3600);
+
+    expect(StaleReleaseCaches::sweep($this->fixtureApp))->toBe([])
+        ->and(is_file($this->routes))->toBeTrue();
+});
+
+it('sweeps again for a new release', function () {
+    stampRelease($this->base, json_encode(['built_at' => STALE_BUILT_AT]));
+    file_put_contents($this->routes, '<?php return [];');
+    touch($this->routes, $this->built - 3600);
+    StaleReleaseCaches::sweep($this->fixtureApp);
+
+    file_put_contents($this->routes, '<?php return [];');
+    touch($this->routes, $this->built - 3600);
+    stampRelease($this->base, json_encode(['built_at' => '2026-11-16T10:00:00Z']));
+
+    expect(StaleReleaseCaches::sweep($this->fixtureApp))->toBe([$this->routes])
+        ->and(is_file($this->routes))->toBeFalse();
+});
+
+it('falls back to sweeping when the swept-release file is garbage or unreadable', function (bool $directory) {
+    stampRelease($this->base, json_encode(['built_at' => STALE_BUILT_AT]));
+    $swept = StaleReleaseCaches::sweptPath($this->fixtureApp);
+    $directory ? mkdir($swept) : file_put_contents($swept, "\x00\xff garbage");
+    file_put_contents($this->routes, '<?php return [];');
+    touch($this->routes, $this->built - 3600);
+
+    expect(StaleReleaseCaches::sweep($this->fixtureApp))->toBe([$this->routes]);
+})->with([[false], [true]]);
