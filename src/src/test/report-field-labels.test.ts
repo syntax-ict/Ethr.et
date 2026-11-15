@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   formatReportCell,
   reportFieldLabel,
+  reportGroupLabel,
+  reportValueLabel,
 } from "@/features/reports/field-labels";
 
 /** The fallback is returned as given, as the real `t` does with no catalogue entry. */
@@ -57,5 +59,24 @@ describe("report cells — dates", () => {
     expect(formatReportCell("hire_date", "2024-06-24", eth, clock)).toBe(
       "ETH(2024-06-24)",
     );
+  });
+});
+
+describe("report values", () => {
+  // The real dictionary is not loaded here: the fallback is the stored value.
+  it("looks up genders, and leaves free text and empty values alone", () => {
+    expect(reportValueLabel(t as never, "gender", "male")).toBe("Male");
+    expect(reportValueLabel(t as never, "gender", "Female")).toBe("Female");
+    expect(reportValueLabel(t as never, "status", "late")).toBe("late");
+    expect(reportValueLabel(t as never, "name", "late")).toBe("late");
+    expect(reportValueLabel(t as never, "status", null)).toBeNull();
+  });
+
+  it("names a group by its field, and an empty one as not set", () => {
+    expect(reportGroupLabel(t as never, "", "status")).toBe("Not set");
+    expect(reportGroupLabel(t as never, "Finance", "department")).toBe(
+      "Finance",
+    );
+    expect(reportGroupLabel(t as never, "Finance")).toBe("Finance");
   });
 });

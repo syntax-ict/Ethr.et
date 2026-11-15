@@ -448,6 +448,11 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Every run reads a tenant's attendance or payslips and renders a file.
+        RateLimiter::for('reports', function (Request $request) {
+            return Limit::perMinute(20)->by('reports:'.($request->user()?->id ?: $request->ip()));
+        });
+
         // Each test is a real message the platform pays for.
         RateLimiter::for('sms-test', function (Request $request) {
             return Limit::perHour(10)->by('sms-test:'.($request->user()?->id ?: $request->ip()));

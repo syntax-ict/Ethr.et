@@ -169,6 +169,7 @@ const en = loadLocale("en");
  */
 const TRANSLATIONS = {
   am: [
+    "reports_page.email_placeholder", // hr@example.com, an example address
     "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
     "attendance.source_qr", // QR
     "audit_logs_page.ip", // IP
@@ -187,6 +188,7 @@ const TRANSLATIONS = {
   // Oromo is written in the Latin script, so it shares more with English
   // than Amharic does: formats made only of placeholders, and loan words.
   om: [
+    "reports_page.email_placeholder", // hr@example.com, an example address
     "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
     "admin_features.changed", // ":when: :reason" — a format
     "admin_sms.test_status", // "HTTP :status"

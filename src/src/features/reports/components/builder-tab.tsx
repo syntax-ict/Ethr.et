@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import {
+  reportCutNote,
   reportFieldLabel,
+  reportFilterLabel,
   reportSourceLabel,
 } from "@/features/reports/field-labels";
 import {
@@ -50,6 +52,7 @@ import {
 } from "@/features/reports/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { buildCsv, centsAsAmount, saveCsv } from "@/lib/utils/csv-export";
 import { usePlanFeatures } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -61,6 +64,14 @@ import { PreviewResult } from "@/features/reports/components/preview-result";
 export interface FilterRow {
   field: string;
   value: string;
+}
+
+/**
+ * What two sets of settings are compared by. The server ignores the order of
+ * columns, so ticking one off and on again is not a change.
+ */
+function settingsKey(config: ReportConfig): string {
+  return JSON.stringify({ ...config, columns: config.columns?.slice().sort() });
 }
 
 export function BuilderTab() {
@@ -76,6 +87,9 @@ export function BuilderTab() {
   const [config, setConfig] = useState<ReportConfig>({ source: "employees" });
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
+  // The settings the preview on screen was run with. Saving and the CSV act
+  // on the screen, so they are only offered while the settings still match.
+  const [previewedWith, setPreviewedWith] = useState<string | null>(null);
 
   const { hasPermission } = usePermissions();
   // The server refuses the payroll source without payroll.viewAll and drops
@@ -92,6 +106,21 @@ export function BuilderTab() {
   );
   // Filters are not columns: only these keys reach the query.
   const filterFields: string[] = sourceMeta?.filters ?? [];
+  // A period is a window the server resolves and it wins over From and To, so
+  // the picker never offers both: a row of one kind hides the other kind.
+  // The row being changed does not count against itself.
+  const offered = (row?: number) => {
+    const others = filters.filter((_, i) => i !== row);
+    const hasPeriod = others.some((f) => f.field === "period");
+    const hasDates = others.some((f) => f.field === "from" || f.field === "to");
+    return filterFields.filter(
+      (f) =>
+        !(
+          (f === "period" && hasDates) ||
+          ((f === "from" || f === "to") && hasPeriod)
+        ),
+    );
+  };
   const selectedColumns = config.columns ?? [];
 
   function toggleColumn(field: string) {
@@ -111,8 +140,9 @@ export function BuilderTab() {
   }
 
   function addFilter() {
-    if (filterFields.length === 0) return;
-    setFilters((p) => [...p, { field: filterFields[0], value: "" }]);
+    const field = offered()[0];
+    if (!field) return;
+    setFilters((p) => [...p, { field, value: "" }]);
   }
 
   function updateFilter(i: number, patch: Partial<FilterRow>) {
@@ -139,15 +169,23 @@ export function BuilderTab() {
     }
     const validFilters = filters.filter((f) => f.field && f.value);
     if (validFilters.length > 0) {
+      // `year` is a number in the contract; every other filter is text.
       payload.filters = Object.fromEntries(
-        validFilters.map((f) => [f.field, f.value]),
-      );
+        validFilters.map((f) => [
+          f.field,
+          f.field === "year" && Number.isFinite(Number(f.value))
+            ? Number(f.value)
+            : f.value,
+        ]),
+      ) as ReportConfig["filters"];
     }
     return payload;
   }
 
   function handlePreview() {
-    generate.mutate(buildPayload(), {
+    const payload = buildPayload();
+    generate.mutate(payload, {
+      onSuccess: () => setPreviewedWith(JSON.stringify(payload)),
       onError: (err) =>
         toast.error(apiErrorMessage(err, t("reports_page.generate_failed"))),
     });
@@ -157,15 +195,21 @@ export function BuilderTab() {
     const result = generate.data;
     if (!result?.data?.length) return;
     saveCsv(
-      `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`,
+      `${result.source}-report-${new Date().toISOString().split("T")[0]}.csv`,
       // Columns read as on screen, in the reader's language, and money as
       // birr: the file had API field names and raw cents.
       buildCsv(result.data, {
         label: (key) => reportFieldLabel(t, key),
         value: centsAsAmount,
+        note: reportCutNote(t, result),
       }),
     );
   }
+
+  const previewStale =
+    Boolean(generate.data) &&
+    (previewedWith === null ||
+      settingsKey(JSON.parse(previewedWith)) !== settingsKey(buildPayload()));
 
   if (sourcesLoading) return <Skeleton className="h-96 w-full" />;
   // Without the sources the builder drew with nothing to choose from.
@@ -174,7 +218,7 @@ export function BuilderTab() {
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       {/* Configuration sidebar */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", generate.data && "print:hidden")}>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -266,7 +310,7 @@ export function BuilderTab() {
               variant="ghost"
               className="h-6 px-2"
               onClick={addFilter}
-              disabled={filterFields.length === 0}
+              disabled={offered().length === 0}
               aria-label={t("reports_page.add_filter", "Add filter")}
             >
               <Plus className="h-3 w-3" />
@@ -303,9 +347,9 @@ export function BuilderTab() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {filterFields.map((field) => (
+                      {offered(i).map((field) => (
                         <SelectItem key={field} value={field}>
-                          {reportFieldLabel(t, field)}
+                          {reportFilterLabel(t, field)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -315,7 +359,7 @@ export function BuilderTab() {
                     field={f.field}
                     value={f.value}
                     onChange={(value) => updateFilter(i, { value })}
-                    label={`${t("reports_page.value")}: ${reportFieldLabel(t, f.field)}`}
+                    label={`${t("reports_page.value")}: ${reportFilterLabel(t, f.field)}`}
                   />
                   <Button
                     size="sm"
@@ -324,7 +368,7 @@ export function BuilderTab() {
                     onClick={() => removeFilter(i)}
                     aria-label={[
                       t("reports_page.remove_filter", "Remove filter"),
-                      f.field ? reportFieldLabel(t, f.field) : "",
+                      f.field ? reportFilterLabel(t, f.field) : "",
                     ]
                       .filter(Boolean)
                       .join(": ")}
@@ -439,12 +483,20 @@ export function BuilderTab() {
           </Button>
           {generate.data && (
             <>
-              <Button variant="outline" onClick={downloadCsv}>
+              <Button
+                variant="outline"
+                onClick={downloadCsv}
+                disabled={previewStale}
+              >
                 <Download className="mr-2 h-4 w-4" />{" "}
                 {t("reports_page.download_csv")}
               </Button>
               {canSaveTemplates && (
-                <Button variant="outline" onClick={() => setSaveOpen(true)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setSaveOpen(true)}
+                  disabled={previewStale}
+                >
                   <Save className="mr-2 h-4 w-4" />{" "}
                   {t("reports_page.save_as_template")}
                 </Button>
@@ -481,7 +533,24 @@ export function BuilderTab() {
           </Card>
         )}
 
-        {generate.data && <PreviewResult result={generate.data} />}
+        {generate.data && previewStale && (
+          <p
+            role="status"
+            className="mb-4 rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft print:hidden"
+          >
+            {t(
+              "reports_page.preview_stale",
+              "The settings have changed since this preview. Run the preview again before saving or downloading.",
+            )}
+          </p>
+        )}
+
+        {generate.data && (
+          <PreviewResult
+            result={generate.data}
+            config={previewedWith ? JSON.parse(previewedWith) : undefined}
+          />
+        )}
       </div>
 
       <SaveReportDialog
@@ -576,7 +645,7 @@ export function SaveReportDialog({
                   <span className="text-muted-foreground">
                     {t("reports_page.group_by")}:
                   </span>{" "}
-                  <span className="font-mono">{config.group_by}</span>
+                  <span>{reportFieldLabel(t, config.group_by)}</span>
                 </p>
               )}
               {config.sort_by && (
@@ -584,8 +653,11 @@ export function SaveReportDialog({
                   <span className="text-muted-foreground">
                     {t("reports_page.sort")}:
                   </span>{" "}
-                  <span className="font-mono">
-                    {config.sort_by} {config.sort_dir ?? "asc"}
+                  <span>
+                    {reportFieldLabel(t, config.sort_by)},{" "}
+                    {config.sort_dir === "desc"
+                      ? t("reports_page.descending")
+                      : t("reports_page.ascending")}
                   </span>
                 </p>
               )}

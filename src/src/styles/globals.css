@@ -886,6 +886,14 @@
     max-height: none !important;
     overflow: visible !important;
   }
+
+  /* A table that bounds its own height with an inline style (a generated
+     report's results) prints whole: an inline max-height only yields to an
+     !important rule. */
+  .print-expand [style*="max-height"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }
 
 /* ============================================================================
