@@ -169,6 +169,8 @@ export interface StagingRow {
   resolved_employee_public_id: string | null;
   action: StagingAction;
   changes: StagedChange[];
+  /** What staging noted about the row. Its number may not fit a terminal. */
+  warnings?: { code: string; message: string }[];
   /** The viewer may edit the matched employee. */
   can_apply_changes: boolean;
   /** The matched employee has a change waiting for a later date. */
@@ -193,6 +195,8 @@ export interface PeopleRead {
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
   problems: { line: number; message: string }[];
+  /** Lines that are staged all the same, with what to know about them. */
+  warnings?: { line: number; code: string; message: string }[];
   /**
    * The first line as column names: each as written, the column it is read
    * as, and for one that is not read, what it might be.

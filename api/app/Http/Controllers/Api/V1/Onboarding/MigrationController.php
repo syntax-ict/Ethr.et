@@ -393,10 +393,28 @@ class MigrationController extends Controller
             'resolved_employee_public_id' => $employee?->public_id,
             'action' => $row->action,
             'changes' => $this->changesPayload($row, $employee),
+            'warnings' => $this->warningsPayload($row),
             'can_apply_changes' => $this->mayEdit($employee),
             'scheduled_action' => $this->isScheduled($employee, $scheduled),
             'processed_at' => $processedAt instanceof \DateTimeInterface ? $processedAt->format('c') : null,
         ];
+    }
+
+    /**
+     * What staging noted about the row: a number that did not fit, each as a
+     * code and a message. Read from the row's own details.
+     *
+     * @return list<array{code: string, message: string}>
+     */
+    private function warningsPayload(MigrationStagingRow $row): array
+    {
+        $raw = $row->getAttribute('raw');
+        $warnings = is_array($raw) && is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [];
+
+        return array_values(array_map(
+            fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
+            array_filter($warnings, 'is_array'),
+        ));
     }
 
     /** The viewer may edit the employee this row matched. */

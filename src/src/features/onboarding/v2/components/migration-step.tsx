@@ -275,6 +275,12 @@ export function MigrationStep({
             message: p.message,
           }),
         );
+  const warnings = (read?.warnings ?? []).map((w) =>
+    t("setup2.problem_line", "Line :line: :message", {
+      line: w.line,
+      message: w.message,
+    }),
+  );
   const listOnly = sources === "list";
   const noDevice = listOnly || (devicesQuery.isSuccess && devices.length === 0);
   // The lines that cannot be staged may be left out, once the server has
@@ -868,6 +874,28 @@ export function MigrationStep({
                           )}
                     </p>
                   )}
+                  {warnings.length > 0 && (
+                    <div className="space-y-0.5 text-warning-on-soft">
+                      <p className="font-medium">
+                        {t(
+                          "setup2.warnings_heading",
+                          "Worth knowing before you add them",
+                        )}
+                      </p>
+                      <ul className="space-y-0.5">
+                        {warnings.slice(0, PROBLEMS_SHOWN).map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                        {warnings.length > PROBLEMS_SHOWN && (
+                          <li>
+                            {t("setup2.more_problems", "and :count more", {
+                              count: warnings.length - PROBLEMS_SHOWN,
+                            })}
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
                   {problems.length > 0 && (
                     <ul className="space-y-0.5 text-destructive">
                       {problems.slice(0, PROBLEMS_SHOWN).map((problem) => (
@@ -1101,6 +1129,13 @@ export function MigrationStep({
                             </li>
                           );
                         })}
+                      </ul>
+                    )}
+                    {(row.warnings ?? []).length > 0 && (
+                      <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
+                        {row.warnings!.map((warning) => (
+                          <li key={warning.code}>{warning.message}</li>
+                        ))}
                       </ul>
                     )}
                     <StagedChanges

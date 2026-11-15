@@ -27634,6 +27634,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27744,6 +27745,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27936,6 +27938,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27987,6 +27990,7 @@ export interface operations {
                             accepted: boolean;
                             taken: boolean;
                         }[];
+                        warnings: unknown[];
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;

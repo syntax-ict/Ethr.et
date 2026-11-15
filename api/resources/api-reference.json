@@ -25796,6 +25796,10 @@
                                                             ]
                                                         }
                                                     },
+                                                    "warnings": {
+                                                        "type": "array",
+                                                        "items": []
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -25819,6 +25823,7 @@
                                                     "resolved_employee_public_id",
                                                     "action",
                                                     "changes",
+                                                    "warnings",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -26332,6 +26337,10 @@
                                                             ]
                                                         }
                                                     },
+                                                    "warnings": {
+                                                        "type": "array",
+                                                        "items": []
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -26355,6 +26364,7 @@
                                                     "resolved_employee_public_id",
                                                     "action",
                                                     "changes",
+                                                    "warnings",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -26720,6 +26730,10 @@
                                                                     ]
                                                                 }
                                                             },
+                                                            "warnings": {
+                                                                "type": "array",
+                                                                "items": []
+                                                            },
                                                             "can_apply_changes": {
                                                                 "type": "boolean"
                                                             },
@@ -26743,6 +26757,7 @@
                                                             "resolved_employee_public_id",
                                                             "action",
                                                             "changes",
+                                                            "warnings",
                                                             "can_apply_changes",
                                                             "scheduled_action",
                                                             "processed_at"
@@ -26927,6 +26942,10 @@
                                                 ]
                                             }
                                         },
+                                        "warnings": {
+                                            "type": "array",
+                                            "items": []
+                                        },
                                         "can_apply_changes": {
                                             "type": "boolean"
                                         },
@@ -26950,6 +26969,7 @@
                                         "resolved_employee_public_id",
                                         "action",
                                         "changes",
+                                        "warnings",
                                         "can_apply_changes",
                                         "scheduled_action",
                                         "processed_at"
