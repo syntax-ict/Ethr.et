@@ -984,6 +984,7 @@ return array(
     'App\\Services\\Device\\Concerns\\ReadsFromDevice' => $baseDir . '/app/Services/Device/Concerns/ReadsFromDevice.php',
     'App\\Services\\Device\\DeviceCommandQueue' => $baseDir . '/app/Services/Device/DeviceCommandQueue.php',
     'App\\Services\\Device\\DeviceHost' => $baseDir . '/app/Services/Device/DeviceHost.php',
+    'App\\Services\\Device\\DeviceIdRules' => $baseDir . '/app/Services/Device/DeviceIdRules.php',
     'App\\Services\\Device\\DeviceManager' => $baseDir . '/app/Services/Device/DeviceManager.php',
     'App\\Services\\Device\\DevicePunchRecorder' => $baseDir . '/app/Services/Device/DevicePunchRecorder.php',
     'App\\Services\\Device\\GenericHttpAdapter' => $baseDir . '/app/Services/Device/GenericHttpAdapter.php',

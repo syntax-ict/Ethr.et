@@ -1718,6 +1718,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Device\\Concerns\\ReadsFromDevice' => __DIR__ . '/../..' . '/app/Services/Device/Concerns/ReadsFromDevice.php',
         'App\\Services\\Device\\DeviceCommandQueue' => __DIR__ . '/../..' . '/app/Services/Device/DeviceCommandQueue.php',
         'App\\Services\\Device\\DeviceHost' => __DIR__ . '/../..' . '/app/Services/Device/DeviceHost.php',
+        'App\\Services\\Device\\DeviceIdRules' => __DIR__ . '/../..' . '/app/Services/Device/DeviceIdRules.php',
         'App\\Services\\Device\\DeviceManager' => __DIR__ . '/../..' . '/app/Services/Device/DeviceManager.php',
         'App\\Services\\Device\\DevicePunchRecorder' => __DIR__ . '/../..' . '/app/Services/Device/DevicePunchRecorder.php',
         'App\\Services\\Device\\GenericHttpAdapter' => __DIR__ . '/../..' . '/app/Services/Device/GenericHttpAdapter.php',
