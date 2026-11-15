@@ -31,6 +31,9 @@ class BackupStorageDisk
             throw new RuntimeException('The storage address points to an internal address.');
         }
 
+        // Non-AWS S3 storage, such as Huawei OBS (Ethio Telecom Telecloud), rejects the
+        // SDK's default trailing CRC32 checksums and aws-chunked uploads. `when_required`
+        // sends them only where an operation demands one, which is still correct for AWS.
         return Storage::build([
             'driver' => 's3',
             'key' => $settings->access_key_id,
@@ -39,6 +42,8 @@ class BackupStorageDisk
             'bucket' => $settings->bucket,
             'endpoint' => $settings->endpoint,
             'use_path_style_endpoint' => $settings->path_style,
+            'request_checksum_calculation' => 'when_required',
+            'response_checksum_validation' => 'when_required',
             'throw' => $throw,
         ]);
     }
