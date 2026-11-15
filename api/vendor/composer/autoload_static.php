@@ -1892,6 +1892,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\OrganisationSectors' => __DIR__ . '/../..' . '/app/Support/OrganisationSectors.php',
         'App\\Support\\OutboundHost' => __DIR__ . '/../..' . '/app/Support/OutboundHost.php',
         'App\\Support\\PasswordTokens' => __DIR__ . '/../..' . '/app/Support/PasswordTokens.php',
+        'App\\Support\\PdfPages' => __DIR__ . '/../..' . '/app/Support/PdfPages.php',
         'App\\Support\\PeopleRead' => __DIR__ . '/../..' . '/app/Support/PeopleRead.php',
         'App\\Support\\PhotoConsent' => __DIR__ . '/../..' . '/app/Support/PhotoConsent.php',
         'App\\Support\\PortalHead' => __DIR__ . '/../..' . '/app/Support/PortalHead.php',

@@ -1158,6 +1158,7 @@ return array(
     'App\\Support\\OrganisationSectors' => $baseDir . '/app/Support/OrganisationSectors.php',
     'App\\Support\\OutboundHost' => $baseDir . '/app/Support/OutboundHost.php',
     'App\\Support\\PasswordTokens' => $baseDir . '/app/Support/PasswordTokens.php',
+    'App\\Support\\PdfPages' => $baseDir . '/app/Support/PdfPages.php',
     'App\\Support\\PeopleRead' => $baseDir . '/app/Support/PeopleRead.php',
     'App\\Support\\PhotoConsent' => $baseDir . '/app/Support/PhotoConsent.php',
     'App\\Support\\PortalHead' => $baseDir . '/app/Support/PortalHead.php',
