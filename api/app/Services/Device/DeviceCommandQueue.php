@@ -42,6 +42,11 @@ final class DeviceCommandQueue
     /** Statuses that end employment; the person is removed from devices. */
     private const LEAVERS = [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED];
 
+    /** What a refused person number is recorded as, by DeviceIdRules code. */
+    private const NOT_SENT = [
+        'digits_only' => 'Not sent: this terminal takes digits only as a person number.',
+    ];
+
     public function __construct(
         private readonly DeviceManager $devices,
         private readonly AdmsRoster $roster,
@@ -384,11 +389,23 @@ final class DeviceCommandQueue
             return null;
         }
 
-        return $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, [
+        $payload = [
             'device_user_id' => $userId,
             // Terminals keep short names: Hikvision allows 32 characters.
-            'name' => mb_substr((string) $employee->name, 0, 32),
-        ], $by);
+            'name' => mb_substr((string) $employee->name, 0, DeviceIdRules::nameLength($device->adapter_type)),
+        ];
+
+        // A number this kind of terminal would refuse is not queued to be
+        // refused three times. The attempt is kept as a failed command, so
+        // the device's Commands tab says who was not sent and why.
+        if (DeviceIdRules::restricts($device->adapter_type)
+            && ($why = DeviceIdRules::reason($device->adapter_type, $userId)) !== null) {
+            $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by, self::NOT_SENT[$why] ?? 'Not sent: this terminal does not take this person number.');
+
+            return null;
+        }
+
+        return $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by);
     }
 
     private function removeFromBranch(Employee $employee, ?int $branchId): void
@@ -404,7 +421,7 @@ final class DeviceCommandQueue
     /**
      * @param  array<string, mixed>|null  $payload
      */
-    private function queue(Device $device, DeviceCommandType $type, ?Employee $employee, ?array $payload, ?User $by = null): DeviceCommand
+    private function queue(Device $device, DeviceCommandType $type, ?Employee $employee, ?array $payload, ?User $by = null, ?string $notSent = null): DeviceCommand
     {
         // A newer command for the same person replaces one the device has not
         // picked up yet: two edits in a row should reach it once, and an add
@@ -421,11 +438,13 @@ final class DeviceCommandQueue
             'employee_id' => $employee?->id,
             'type' => $type,
             'payload' => $payload,
-            'status' => DeviceCommandStatus::PENDING,
+            'status' => $notSent === null ? DeviceCommandStatus::PENDING : DeviceCommandStatus::FAILED,
+            'last_error' => $notSent,
+            'completed_at' => $notSent === null ? null : now(),
             'requested_by' => $by?->id,
         ]);
 
-        if ($this->delivers($device)) {
+        if ($notSent === null && $this->delivers($device)) {
             DeliverDeviceCommandsJob::dispatch($device->id, $device->tenant_id)->afterCommit();
         }
 
@@ -460,6 +479,8 @@ final class DeviceCommandQueue
         return Device::query()
             ->where('branch_id', $branchId)
             ->where('commands_enabled', true)
-            ->get();
+            ->get()
+            ->filter(fn (Device $device): bool => $this->supports($device))
+            ->values();
     }
 }
