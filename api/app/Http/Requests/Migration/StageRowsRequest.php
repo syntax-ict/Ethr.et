@@ -47,6 +47,7 @@ class StageRowsRequest extends FormRequest
             'source_ref' => ['nullable', 'string', 'max:100'],
             ...$this->gridRules('required_without:rows'),
             'skip_problems' => ['sometimes', 'boolean'],
+            'mode' => ['sometimes', 'nullable', 'string', 'in:complete'],
             'rows' => ['required_without:grid', 'array', 'min:1', 'max:2000'],
             'rows.*' => ['array'],
             ...EmployeeImportRow::stagedRules('rows.*.', nameRequired: false),
@@ -58,6 +59,17 @@ class StageRowsRequest extends FormRequest
             'rows.*.branch' => ['nullable', 'string', 'max:255'],
             'rows.*.position' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * `complete` when the list is for the people already here: nobody is
+     * added, and a line that matches nobody is left out. Null adds people.
+     */
+    public function mode(): ?string
+    {
+        $mode = $this->validated('mode');
+
+        return is_string($mode) ? $mode : null;
     }
 
     /**

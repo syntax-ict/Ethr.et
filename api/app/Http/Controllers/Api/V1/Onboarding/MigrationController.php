@@ -179,9 +179,10 @@ class MigrationController extends Controller
             $request->string('source_type', 'csv')->value(),
             $request->importSource() === null ? $request->input('source_ref') : $request->sourceName(),
             $request->user(),
+            $request->mode(),
         );
 
-        AuditLog::record('migration.staged', $batch, ['source' => $batch->source_type, 'rows' => count($rows)]);
+        AuditLog::record('migration.staged', $batch, ['source' => $batch->source_type, 'rows' => count($rows), 'mode' => $batch->mode()]);
 
         if (! $progress->done) {
             return response()->json($this->stagingPayload($batch, $progress), 201);
@@ -249,6 +250,9 @@ class MigrationController extends Controller
         abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
         abort_unless($batch->isReviewing(), 409, __('onboarding.migration.already_committing'));
 
+        // A list that completes people adds nobody.
+        abort_if($batch->isCompleting() && $request->validated('action') === MigrationStagingRow::ACTION_CREATE, 422, __('onboarding.migration.complete_adds_nobody'));
+
         // Accepting a difference is deciding to edit that employee, so it
         // takes what editing them takes: employee.update with reach over the
         // person, and the pay permission for salary or TIN. Without them the
@@ -257,6 +261,9 @@ class MigrationController extends Controller
         $target = $employee ?? $row->resolvedEmployee;
         if (is_array($accept) && $accept !== []) {
             abort_if($target === null, 422, __('onboarding.migration.accept_needs_match'));
+            // Decided by the field and the list's mode, not by what is stored on
+            // the row, which the same request may be about to redraw.
+            abort_if(array_diff($accept, StagedChanges::acceptable($batch->isCompleting())) !== [], 422, __('onboarding.migration.accept_locked'));
             Gate::authorize('update', $target);
             if (array_intersect($accept, StagedChanges::PAY) !== []) {
                 Gate::authorize('updateFinancial', $target);
@@ -369,6 +376,7 @@ class MigrationController extends Controller
             'source_type' => $batch->source_type,
             'source_ref' => $batch->source_ref,
             'status' => $batch->status,
+            'mode' => $batch->mode(),
             'arrival_status' => $batch->arrivalStatus(),
             'totals' => $batch->totals,
             'summary' => $this->summarize($batch),
