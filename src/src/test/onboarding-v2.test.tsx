@@ -1001,3 +1001,91 @@ describe("IndustryConfigStep — the review notes follow the language", () => {
     expect(asked).not.toHaveBeenCalled();
   });
 });
+
+describe("IndustryConfigStep — the proposal's names follow the language", () => {
+  it("shows a department, a position and a grade in the language of the screen", async () => {
+    const plan = {
+      departments: [
+        { name: "Nursing", name_am: "ነርሲንግ", name_om: "Narsummaa" },
+        // A name the glossary does not know stays in English.
+        { name: "People Ops" },
+      ],
+      positions: [
+        { title: "Head Nurse", title_am: "ዋና ነርስ", title_om: "Narsii Olaanaa" },
+      ],
+      grades: [
+        {
+          name: "Grade IV",
+          name_am: "ደረጃ IV",
+          name_om: "Sadarkaa IV",
+          min_salary_cents: 100,
+        },
+      ],
+    };
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", () =>
+        HttpResponse.json({
+          industry: { key: "hospital", label: "Hospital", base: "hospital" },
+          signals: {},
+          overall_confidence: 0.8,
+          sections: Object.fromEntries(
+            Object.entries(plan).map(([name, items]) => [
+              name,
+              { source: "industry_default", confidence: 0.8, items },
+            ]),
+          ),
+          plan,
+          review: [],
+        }),
+      ),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    expect(await screen.findByText("Nursing")).toBeInTheDocument();
+    expect(screen.getByText("Head Nurse")).toBeInTheDocument();
+    expect(screen.getByText("Grade IV")).toBeInTheDocument();
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText("Narsummaa")).toBeInTheDocument();
+    expect(screen.getByText("Narsii Olaanaa")).toBeInTheDocument();
+    expect(screen.getByText("Sadarkaa IV")).toBeInTheDocument();
+    expect(screen.getByText("People Ops")).toBeInTheDocument();
+    expect(screen.queryByText("Nursing")).not.toBeInTheDocument();
+
+    act(() => setLocale("am"));
+
+    expect(await screen.findByText("ነርሲንግ")).toBeInTheDocument();
+    expect(screen.getByText("ዋና ነርስ")).toBeInTheDocument();
+    expect(screen.getByText("ደረጃ IV")).toBeInTheDocument();
+    expect(screen.queryByText("Narsummaa")).not.toBeInTheDocument();
+  });
+});

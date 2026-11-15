@@ -30,12 +30,19 @@ export function orgKindGroupLabel(
   }
 }
 
-/** The kind's own name: the catalogue carries English and Amharic. */
+/**
+ * The kind's own name: the catalogue carries English, Amharic and Afaan
+ * Oromoo. A kind with no Oromo name, or an API that does not send one yet,
+ * reads in English.
+ */
 export function orgKindName(
-  kind: Pick<OrganizationTypeOption, "name" | "name_am">,
+  kind: Pick<OrganizationTypeOption, "name" | "name_am"> &
+    Partial<Pick<OrganizationTypeOption, "name_om">>,
   locale: string,
 ): string {
-  return locale === "am" ? kind.name_am : kind.name;
+  if (locale === "am") return kind.name_am;
+  if (locale === "om" && kind.name_om) return kind.name_om;
+  return kind.name;
 }
 
 /**

@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string $code
  * @property string $name
  * @property string $name_am
+ * @property string|null $name_om
  * @property string|null $description
  * @property int $sort_order
  * @property bool $is_active
@@ -45,6 +46,7 @@ class OrganizationType extends Model
         'code',
         'name',
         'name_am',
+        'name_om',
         'description',
         'sort_order',
         'is_active',

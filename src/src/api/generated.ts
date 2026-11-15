@@ -29554,6 +29554,7 @@ export interface operations {
                             code: string;
                             name: string;
                             name_am: string;
+                            name_om: string | null;
                             description: string | null;
                             group: string;
                             parent_code: string | null;
