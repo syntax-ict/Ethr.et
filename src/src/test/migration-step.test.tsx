@@ -1,10 +1,17 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { Workbook } from "exceljs";
 import { server } from "./msw/server";
 import { MigrationStep } from "@/features/onboarding/v2/components/migration-step";
+import { readWorkbook } from "@/features/onboarding/v2/xlsx-grid";
 import type {
   MigrationBatch,
   PeopleRead,
@@ -12,6 +19,12 @@ import type {
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+const saved: { name: string; blob: Blob }[] = [];
+vi.mock("@/lib/utils/csv-export", () => ({
+  saveBlob: (name: string, blob: Blob) => saved.push({ name, blob }),
+  saveCsv: vi.fn(),
 }));
 
 function renderWithClient(ui: React.ReactElement) {
@@ -305,7 +318,14 @@ describe("<MigrationStep>", () => {
       header: true,
       columns: ["name", "hire_date", "salary"],
       ignored: ["Notes"],
-      problems: [{ line: 3, message: "The hire date is not a valid date." }],
+      problems: [
+        {
+          line: 3,
+          message: "The hire date is not a valid date.",
+          column: "hire_date",
+          code: "date",
+        },
+      ],
     });
     server.use(
       http.get("*/devices", () =>
@@ -334,9 +354,16 @@ describe("<MigrationStep>", () => {
       screen.getByText(/Columns: Name, Hire date, Salary/),
     ).toBeInTheDocument();
     expect(screen.getByText(/Not read.*Notes/)).toBeInTheDocument();
-    expect(
-      screen.getByText("Line 3: The hire date is not a valid date."),
-    ).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Lines to fix" });
+    const cells = within(table)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(cells).toEqual([
+      "Hire date",
+      "The hire date is not a valid date.",
+      "1",
+      "3",
+    ]);
 
     // The browser sent cells, not meanings: the header went as it was typed.
     expect(asked[0].grid[0]).toEqual(["Name", "Hire date", "Salary", "Notes"]);
@@ -347,11 +374,12 @@ describe("<MigrationStep>", () => {
     expect(posted).toBe(false);
   });
 
-  it("shows what is worth knowing about lines that are staged all the same, capped as the problems are", async () => {
+  it("shows what is worth knowing about lines that are staged all the same, grouped as the problems are", async () => {
     reads({
       people: 7,
       warnings: Array.from({ length: 7 }, (_, i) => ({
         line: i + 2,
+        column: "badge_number",
         code: "terminal_number_not_accepted",
         message: `The number "A${i}" is not taken.`,
       })),
@@ -370,13 +398,19 @@ describe("<MigrationStep>", () => {
       },
     );
 
-    expect(
-      await screen.findByText("Worth knowing before you add them"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('Line 2: The number "A0" is not taken.'),
-    ).toBeInTheDocument();
-    expect(screen.getByText("and 2 more")).toBeInTheDocument();
+    const cells = within(
+      await screen.findByRole("table", {
+        name: "Worth knowing before you add them",
+      }),
+    )
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(cells).toEqual([
+      "Badge number",
+      'The number "A0" is not taken.',
+      "7",
+      "2, 3, 4, 5, 6, 7, 8",
+    ]);
     expect(
       screen.getByText("Stage for review").closest("button"),
     ).not.toBeDisabled();
@@ -677,7 +711,14 @@ describe("<MigrationStep>", () => {
       people: 2,
       header: true,
       columns: ["name", "email"],
-      problems: [{ line: 3, message: "The email must be a valid email." }],
+      problems: [
+        {
+          line: 3,
+          message: "The email must be a valid email.",
+          column: "email",
+          code: "email",
+        },
+      ],
     });
     server.use(
       http.get("*/devices", () =>
@@ -790,5 +831,313 @@ describe("<MigrationStep>", () => {
       ).toContain("Abebe Kebede"),
     );
     expect(await screen.findByText(/1 person ready/)).toBeInTheDocument();
+  });
+
+  it("groups the problems by column and kind, largest first, every group shown, and the line numbers cut after ten", async () => {
+    const problem = (
+      line: number,
+      column: string | null,
+      code: string,
+      message: string,
+    ) => ({ line, column, code, message });
+    reads({
+      people: 3,
+      header: true,
+      problems: [
+        problem(3, "email", "email", "The email must be a valid email."),
+        ...Array.from({ length: 12 }, (_, i) =>
+          problem(i + 5, "hire_date", "date", `Not a date: "${i}"`),
+        ),
+        ...[20, 21, 22].map((line) =>
+          problem(
+            line,
+            "department",
+            "relation_not_found",
+            `Department "X${line}" was not found.`,
+          ),
+        ),
+        problem(30, null, "too_many", "This list has 2001 people."),
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Name\tEmail\nAbebe\tabebe@acme.et" },
+    });
+
+    const table = await screen.findByRole("table", { name: "Lines to fix" });
+    const rows = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent),
+      );
+
+    expect(rows).toEqual([
+      [
+        "Hire date",
+        'Not a date: "0"',
+        "12",
+        "5, 6, 7, 8, 9, 10, 11, 12, 13, 14 and 2 more",
+      ],
+      ["Department", 'Department "X20" was not found.', "3", "20, 21, 22"],
+      ["Email", "The email must be a valid email.", "1", "3"],
+      ["Whole list", "This list has 2001 people.", "1", "30"],
+    ]);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Column", "What to fix", "Lines", "Line numbers"]);
+  });
+
+  it("downloads only the refused lines, under the header as the reader had it, with the reason in a Problem column", async () => {
+    saved.length = 0;
+    reads({
+      people: 1,
+      header: true,
+      columns: ["name", "email"],
+      problems: [
+        {
+          line: 2,
+          column: "hire_date",
+          code: "date",
+          message: "The hire date is not a valid date.",
+        },
+        {
+          line: 2,
+          column: "email",
+          code: "email",
+          message: "The email must be a valid email.",
+        },
+        {
+          line: 4,
+          column: "email",
+          code: "email",
+          message: "The email must be a valid email.",
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: [
+          "Staff name\tMail\tJoined",
+          "Bad Date\tbad\t2019-02-30",
+          "Abebe Kebede\tabebe@acme.et\t2019-07-08",
+          "Bad Mail\tnope\t0012",
+        ].join("\n"),
+      },
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Download the lines to fix/ }),
+    );
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(saved[0].name).toBe("ethr-employees-to-fix.xlsx");
+    expect(await readWorkbook(await saved[0].blob.arrayBuffer())).toEqual([
+      ["Staff name", "Mail", "Joined", "Problem"],
+      [
+        "Bad Date",
+        "bad",
+        "2019-02-30",
+        "Line 2: The hire date is not a valid date.; The email must be a valid email.",
+      ],
+      ["Bad Mail", "nope", "0012", "Line 4: The email must be a valid email."],
+    ]);
+  });
+
+  it("downloads the lines of a list with no header line under the columns the server read it as", async () => {
+    saved.length = 0;
+    reads({
+      people: 1,
+      header: false,
+      columns: [
+        "name",
+        "email",
+        "phone",
+        "employee_code",
+        "hire_date",
+        "department_code",
+      ],
+      problems: [
+        {
+          line: 2,
+          column: "department",
+          code: "relation_not_found",
+          message: 'Department "Nowhere" was not found.',
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: "Abebe Kebede\tabebe@acme.et\nHanna Girma\t\t\t\t\tNowhere",
+      },
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Download the lines to fix/ }),
+    );
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(await readWorkbook(await saved[0].blob.arrayBuffer())).toEqual([
+      [
+        "name",
+        "email",
+        "phone",
+        "employee_code",
+        "hire_date",
+        "department",
+        "Problem",
+      ],
+      [
+        "Hanna Girma",
+        "",
+        "",
+        "",
+        "",
+        "Nowhere",
+        'Line 2: Department "Nowhere" was not found.',
+      ],
+    ]);
+  });
+
+  it("offers no lines to fix for a list whose only problem is about the whole list", async () => {
+    reads({
+      people: 2001,
+      header: true,
+      problems: [
+        {
+          line: 2002,
+          column: null,
+          code: "too_many",
+          message: "This list has 2001 people.",
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Name\nAbebe" },
+    });
+
+    expect(
+      await screen.findByRole("table", { name: "Lines to fix" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Download the lines to fix")).toBeNull();
+  });
+
+  it("downloads what happened to each line once the list is added", async () => {
+    saved.length = 0;
+    const row = (
+      id: string,
+      name: string,
+      over: Partial<MigrationBatch["rows"][number]>,
+    ): MigrationBatch["rows"][number] => ({
+      ...AMBIGUOUS_BATCH.rows[0],
+      public_id: id,
+      display_name: name,
+      candidates: [],
+      match_confidence: null,
+      ...over,
+    });
+    const done = "2026-11-16T09:00:00+03:00";
+    const committed: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      status: "committed",
+      totals: { created: 1, merged: 2, updated: 1, skipped: 1 },
+      rows: [
+        row("r1", "Abebe Kebede", {
+          match_outcome: "new",
+          action: "create",
+          processed_at: done,
+          resolved_employee_public_id: "E1",
+          resolved_employee_code: "1001",
+          warnings: [{ code: "w1", message: "The number A1 is not taken." }],
+        }),
+        row("r2", "Hanna Girma", {
+          match_outcome: "matched",
+          action: "merge",
+          processed_at: done,
+          resolved_employee_code: "1002",
+          changes: [
+            {
+              field: "phone",
+              kind: "fill",
+              current: null,
+              incoming: "0911",
+              masked: false,
+              accepted: false,
+              taken: false,
+            },
+          ],
+        }),
+        row("r3", "Dawit Alemu", {
+          match_outcome: "matched",
+          action: "merge",
+          processed_at: done,
+          resolved_employee_code: "1003",
+        }),
+        row("r4", "Left Behind", { action: "skip" }),
+      ],
+    };
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(committed, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(committed),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId/logins", () =>
+        HttpResponse.json({ without_login: [], hire_dates_defaulted: 0 }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    fireEvent.click(await screen.findByText("Download what happened"));
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(saved[0].name).toBe("ethr-import-result.xlsx");
+    expect(await readWorkbook(await saved[0].blob.arrayBuffer())).toEqual([
+      ["Name", "Employee number", "What happened", "Note"],
+      ["Abebe Kebede", "1001", "Added", "The number A1 is not taken."],
+      ["Hanna Girma", "1002", "Filled in"],
+      ["Dawit Alemu", "1003", "Already here, nothing to change"],
+      ["Left Behind", "", "Left out"],
+    ]);
   });
 });

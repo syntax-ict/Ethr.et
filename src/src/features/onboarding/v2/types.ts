@@ -172,6 +172,8 @@ export interface StagingRow {
   match_confidence: number | null;
   candidates: StagingCandidate[] | null;
   resolved_employee_public_id: string | null;
+  /** The matched person's number, for a viewer who may open their record. */
+  resolved_employee_code?: string | null;
   action: StagingAction;
   changes: StagedChange[];
   /** What staging noted about the row. Its number may not fit a terminal. */
@@ -199,9 +201,20 @@ export interface PeopleRead {
   /** People ready who bring no hire date, so the day they are added is used. */
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
-  problems: { line: number; message: string }[];
+  problems: {
+    line: number;
+    message: string;
+    /** The template column the problem is about; null for the whole list. */
+    column: string | null;
+    code: string;
+  }[];
   /** Lines that are staged all the same, with what to know about them. */
-  warnings?: { line: number; code: string; message: string }[];
+  warnings?: {
+    line: number;
+    column: string;
+    code: string;
+    message: string;
+  }[];
   /**
    * The first line as column names: each as written, the column it is read
    * as, and for one that is not read, what it might be.

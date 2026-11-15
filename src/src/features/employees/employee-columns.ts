@@ -280,3 +280,8 @@ export function columnHelpByTemplateKey(t: Translate): Record<string, string> {
   }
   return out;
 }
+
+/** A column as the template spells it: `department_code` is `department`. */
+export function templateKey(key: string): string {
+  return columnWords(key)?.template ?? key;
+}

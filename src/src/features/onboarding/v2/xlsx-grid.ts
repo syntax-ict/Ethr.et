@@ -409,3 +409,89 @@ export async function buildTemplate(
 
   return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
 }
+
+/** The heading of the column that says why a line was refused. The server ignores it when the file comes back. */
+export const PROBLEM_HEADING = "Problem";
+
+/**
+ * A sheet of text and nothing else: every cell is a string formatted `@`, so a
+ * leading zero, a long number and a date are what was written.
+ */
+function writeTextSheet(
+  workbook: ExcelWorkbook,
+  name: string,
+  rows: string[][],
+): void {
+  const sheet = workbook.addWorksheet(name, {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+  const width = rows.reduce((most, row) => Math.max(most, row.length), 0);
+  for (let c = 1; c <= width; c++) {
+    const longest = rows.reduce(
+      (most, row) => Math.max(most, (row[c - 1] ?? "").length),
+      0,
+    );
+    const column = sheet.getColumn(c);
+    column.numFmt = "@";
+    column.width = Math.min(60, Math.max(12, longest + 2));
+  }
+  rows.forEach((cells, r) => {
+    cells.forEach((text, c) => {
+      const cell = sheet.getCell(r + 1, c + 1);
+      cell.numFmt = "@";
+      cell.value = text;
+      if (r === 0) cell.font = { bold: true };
+    });
+  });
+}
+
+/**
+ * The lines a list was refused for, as a workbook to correct and bring back:
+ * the sheet people are typed into, the list's own header line, each refused
+ * line's cells as they were read, and a last column saying why.
+ *
+ * The lines go back through the same reader, which ignores the `Problem`
+ * column, so nothing here needs undoing before the file is used again.
+ */
+export async function buildFixList(
+  header: string[],
+  lines: { cells: string[]; problem: string }[],
+): Promise<ArrayBuffer> {
+  const { Workbook } = await loadExcel();
+  const workbook: ExcelWorkbook = new Workbook();
+
+  // The problem column sits after every column any line has.
+  const width = lines.reduce(
+    (most, line) => Math.max(most, line.cells.length),
+    header.length,
+  );
+  const pad = (cells: string[]) => [
+    ...cells,
+    ...Array<string>(width - cells.length).fill(""),
+  ];
+
+  writeTextSheet(workbook, SHEET_PEOPLE, [
+    [...pad(header), PROBLEM_HEADING],
+    ...lines.map((line) => [...pad(line.cells), line.problem]),
+  ]);
+
+  return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+}
+
+/** The sheet of a list's result. */
+export const SHEET_RESULT = "Result";
+
+/**
+ * What became of a list, one row per line, as text: a name, a number, what
+ * happened and a note. `headings` are the four column headings in the
+ * reader's language.
+ */
+export async function buildResult(
+  headings: [string, string, string, string],
+  rows: [string, string, string, string][],
+): Promise<ArrayBuffer> {
+  const { Workbook } = await loadExcel();
+  const workbook: ExcelWorkbook = new Workbook();
+  writeTextSheet(workbook, SHEET_RESULT, [headings, ...rows]);
+  return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+}

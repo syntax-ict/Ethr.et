@@ -62,6 +62,8 @@ import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { columnLabel } from "@/features/employees/employee-columns";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import {
+  buildFixList,
+  buildResult,
   buildTemplate,
   gridToText,
   MAX_LINES,
@@ -70,7 +72,14 @@ import {
   TooManyLines,
   XLSX_MIME,
 } from "../xlsx-grid";
+import {
+  fixList,
+  groupFound,
+  type Outcome,
+  outcomeOf,
+} from "../import-problems";
 import { ColumnMatcher } from "./column-matcher";
+import { ProblemTable } from "./problem-table";
 import { MigrationLogins } from "./migration-logins";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -93,7 +102,7 @@ function outcomeTone(outcome: MatchOutcome | null): string {
   }
 }
 
-/** Problems shown under the list before the rest are counted. */
+/** Lines a staging the server refused are listed before the rest are counted. */
 const PROBLEMS_SHOWN = 5;
 
 /** A file this large is not a list of people; it is not read into the page. */
@@ -284,12 +293,25 @@ export function MigrationStep({
             message: p.message,
           }),
         );
-  const warnings = (read?.warnings ?? []).map((w) =>
-    t("setup2.problem_line", "Line :line: :message", {
-      line: w.line,
-      message: w.message,
-    }),
+  // What the server's read found, grouped by column and kind. A staging the
+  // server refused names lines only, and is listed as it says.
+  const refusedNow = refused.csv === csv && refused.lines.length > 0;
+  const problemGroups = useMemo(
+    () => (refusedNow ? [] : groupFound(read?.problems ?? [])),
+    [read, refusedNow],
   );
+  const warningGroups = useMemo(() => groupFound(read?.warnings ?? []), [read]);
+  // The lines to correct and bring back: the list as it was read, the
+  // refused lines only. Nothing is asked of the server for it.
+  const toFix =
+    !refusedNow && !reading && read && read.problems.length > 0
+      ? fixList(grid, read, (line, messages) =>
+          t("setup2.problem_line", "Line :line: :message", {
+            line,
+            message: messages.join("; "),
+          }),
+        )
+      : null;
   const listOnly = sources === "list";
   const noDevice = listOnly || (devicesQuery.isSuccess && devices.length === 0);
   // The lines that cannot be staged may be left out, once the server has
@@ -430,6 +452,62 @@ export function MigrationStep({
       );
     } finally {
       setTemplatePending(false);
+    }
+  }
+
+  /** The refused lines as a workbook, to be corrected and chosen again. */
+  async function downloadFixList() {
+    if (!toFix) return;
+    try {
+      const workbook = await buildFixList(toFix.header, toFix.lines);
+      saveBlob(
+        "ethr-employees-to-fix.xlsx",
+        new Blob([workbook], { type: XLSX_MIME }),
+      );
+    } catch {
+      toast.error(
+        t(
+          "setup2.problem_fix_failed",
+          "The file could not be built. Fix the lines in the list box instead.",
+        ),
+      );
+    }
+  }
+
+  /** What became of each line of the list that was added, one row each. */
+  async function downloadResult() {
+    if (!batch) return;
+    const words: Record<Outcome, string> = {
+      added: t("setup2.result_added", "Added"),
+      filled: t("setup2.result_filled", "Filled in"),
+      unchanged: t(
+        "setup2.result_unchanged",
+        "Already here, nothing to change",
+      ),
+      left_out: t("setup2.left_out", "Left out"),
+      not_found: t("setup2.not_found_left_out", "Not found in ETHR, left out"),
+    };
+    try {
+      const workbook = await buildResult(
+        [
+          t("setup2.col_name", "Name"),
+          t("setup2.col_employee_code", "Employee number"),
+          t("setup2.result_what", "What happened"),
+          t("setup2.result_note", "Note"),
+        ],
+        batch.rows.map((row) => [
+          row.display_name ?? row.external_identifier ?? "",
+          row.resolved_employee_code ?? "",
+          words[outcomeOf(row, batch.mode)],
+          (row.warnings ?? []).map((w) => w.message).join("; "),
+        ]),
+      );
+      saveBlob(
+        "ethr-import-result.xlsx",
+        new Blob([workbook], { type: XLSX_MIME }),
+      );
+    } catch {
+      toast.error(t("setup2.result_failed", "The file could not be built."));
     }
   }
 
@@ -941,29 +1019,38 @@ export function MigrationStep({
                             )}
                       </p>
                     )}
-                  {warnings.length > 0 && (
-                    <div className="space-y-0.5 text-warning-on-soft">
-                      <p className="font-medium">
-                        {t(
-                          "setup2.warnings_heading",
-                          "Worth knowing before you add them",
-                        )}
-                      </p>
-                      <ul className="space-y-0.5">
-                        {warnings.slice(0, PROBLEMS_SHOWN).map((warning) => (
-                          <li key={warning}>{warning}</li>
-                        ))}
-                        {warnings.length > PROBLEMS_SHOWN && (
-                          <li>
-                            {t("setup2.more_problems", "and :count more", {
-                              count: warnings.length - PROBLEMS_SHOWN,
-                            })}
-                          </li>
-                        )}
-                      </ul>
-                    </div>
+                  {warningGroups.length > 0 && (
+                    <ProblemTable
+                      heading={t(
+                        "setup2.warnings_heading",
+                        "Worth knowing before you add them",
+                      )}
+                      groups={warningGroups}
+                      tone="warning"
+                    />
                   )}
-                  {problems.length > 0 && (
+                  {problemGroups.length > 0 && (
+                    <ProblemTable
+                      heading={t("setup2.problem_heading", "Lines to fix")}
+                      groups={problemGroups}
+                      tone="error"
+                    />
+                  )}
+                  {toFix && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void downloadFixList()}
+                    >
+                      <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {t(
+                        "setup2.problem_download_fix",
+                        "Download the lines to fix",
+                      )}
+                    </Button>
+                  )}
+                  {refusedNow && (
                     <ul className="space-y-0.5 text-destructive">
                       {problems.slice(0, PROBLEMS_SHOWN).map((problem) => (
                         <li key={problem}>{problem}</li>
@@ -1382,6 +1469,20 @@ export function MigrationStep({
                     : t("setup2.commit", "Commit migration")}
             </Button>
           </div>
+
+          {batch.status === "committed" && (
+            <div className="flex justify-end border-t pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void downloadResult()}
+                disabled={batchQuery.isFetching}
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("setup2.result_download", "Download what happened")}
+              </Button>
+            </div>
+          )}
 
           {batch.status === "committed" && batch.mode === "complete" && (
             <div className="flex justify-end border-t pt-4">
