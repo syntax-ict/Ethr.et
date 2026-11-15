@@ -2842,6 +2842,8 @@
   "employees_import_page.col_emergency_relationship": "How they are related, such as spouse or parent",
   "employees_import_page.col_emergency_phone": "09... or +251...",
   "employees_import_page.label_contract_end_date": "Contract end date",
+  "employees_import_page.label_bank_branch": "Bank branch",
+  "employees_import_page.label_bank_account": "Bank account",
   "employees_import_page.label_emergency_name": "Emergency contact name",
   "employees_import_page.label_emergency_phone": "Emergency contact phone",
   "employees_import_page.loose_headers_hint": "Headers such as Full Name, Start Date or Department are recognised, and a file exported from the employee list imports as it is.",

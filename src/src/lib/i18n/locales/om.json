@@ -2842,6 +2842,8 @@
   "employees_import_page.col_emergency_relationship": "Hariiroo isaanii, fakkeenyaaf jaalallee ykn warra",
   "employees_import_page.col_emergency_phone": "09... ykn +251...",
   "employees_import_page.label_contract_end_date": "Guyyaa xumura waliigaltee",
+  "employees_import_page.label_bank_branch": "Damee baankii",
+  "employees_import_page.label_bank_account": "Herrega baankii",
   "employees_import_page.label_emergency_name": "Maqaa nama yeroo balaa waamamu",
   "employees_import_page.label_emergency_phone": "Bilbila nama yeroo balaa waamamu",
   "employees_import_page.loose_headers_hint": "Mata-dureewwan akka Maqaa Guutuu, Guyyaa Jalqabaa ykn Muummee ni beekamu, faayiliin tarree hojjettootaa irraa baafame akkuma jirutti gala.",

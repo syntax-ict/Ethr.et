@@ -2842,6 +2842,8 @@
   "employees_import_page.col_emergency_relationship": "ዝምድናው፣ ለምሳሌ የትዳር አጋር ወይም ወላጅ",
   "employees_import_page.col_emergency_phone": "09... ወይም +251...",
   "employees_import_page.label_contract_end_date": "የውል ማብቂያ ቀን",
+  "employees_import_page.label_bank_branch": "የባንክ ቅርንጫፍ",
+  "employees_import_page.label_bank_account": "የባንክ ሂሳብ",
   "employees_import_page.label_emergency_name": "የአደጋ ጊዜ ተጠሪ ስም",
   "employees_import_page.label_emergency_phone": "የአደጋ ጊዜ ተጠሪ ስልክ",
   "employees_import_page.loose_headers_hint": "እንደ Full Name፣ Start Date ወይም Department ያሉ ርዕሶች ይታወቃሉ፣ ከሰራተኞች ዝርዝር የወጣ ፋይልም እንዳለ ይገባል።",

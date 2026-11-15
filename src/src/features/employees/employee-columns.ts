@@ -192,14 +192,14 @@ export const EMPLOYEE_COLUMNS: Record<string, ColumnWords> = {
     ],
   },
   bank_branch: {
-    label: ["employee.bank.branch_name", "Branch Name"],
+    label: ["employees_import_page.label_bank_branch", "Bank branch"],
     help: [
       "employees_import_page.col_bank_branch",
       "The bank branch. Optional",
     ],
   },
   bank_account: {
-    label: ["employee.bank.account_number", "Account Number"],
+    label: ["employees_import_page.label_bank_account", "Bank account"],
     help: [
       "employees_import_page.col_bank_account",
       "The account number, stored encrypted. The bank name is needed too",
