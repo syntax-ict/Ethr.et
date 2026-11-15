@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, X, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,10 @@ import {
   typicalWorkforce,
 } from "../../sector";
 
+type PreviewRequest = Parameters<
+  ReturnType<typeof usePreviewConfiguration>["mutateAsync"]
+>[0];
+
 const SECTION_TITLES: Record<string, [string, string]> = {
   branches: ["setup2.section_branches", "Branches"],
   departments: ["setup2.section_departments", "Departments"],
@@ -68,6 +72,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const industriesQuery = useIndustries();
   const profilesQuery = useConfigurationProfiles();
   const preview = usePreviewConfiguration();
+  const { mutateAsync: fetchNotes } = usePreviewConfiguration();
   const apply = useApplyConfiguration();
 
   const { data: tenant } = useCurrentTenant();
@@ -190,19 +195,47 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     return `${name}: ${String(value)}`;
   }
 
+  // The review notes are sentences the server writes in the language the
+  // proposal was asked for in; every other name on the proposal carries its
+  // own translations. So when the language changes with a proposal open, the
+  // proposal is asked for again and only its notes are taken: what the person
+  // removed from the proposal stays removed, and a tick they gave stays given.
+  const proposalRequest = useRef<PreviewRequest | null>(null);
+  const notesLocale = useRef(locale);
+  useEffect(() => {
+    const request = proposalRequest.current;
+    if (request === null || notesLocale.current === locale) return;
+    let superseded = false;
+    fetchNotes(request).then(
+      (result) => {
+        if (superseded || proposalRequest.current !== request) return;
+        notesLocale.current = locale;
+        setPlan((prev) => (prev ? { ...prev, review: result.review } : prev));
+      },
+      // The notes stay readable in the language they came in.
+      () => undefined,
+    );
+    return () => {
+      superseded = true;
+    };
+  }, [locale, fetchNotes]);
+
   async function runPreview() {
     if (!selected) return;
+    const request: PreviewRequest = {
+      industry: selected,
+      staff_band: staffBand ?? undefined,
+      region: region || undefined,
+      workforce_profile: workforceProfile ?? undefined,
+      policy_profile: policyProfile ?? undefined,
+      // The kind in law decides which body of employment law the policies
+      // start from (civil service or the Labour Proclamation).
+      organization_type: currentKind,
+    };
     try {
-      const result = await preview.mutateAsync({
-        industry: selected,
-        staff_band: staffBand ?? undefined,
-        region: region || undefined,
-        workforce_profile: workforceProfile ?? undefined,
-        policy_profile: policyProfile ?? undefined,
-        // The kind in law decides which body of employment law the policies
-        // start from (civil service or the Labour Proclamation).
-        organization_type: currentKind,
-      });
+      const result = await preview.mutateAsync(request);
+      proposalRequest.current = request;
+      notesLocale.current = locale;
       setReviewed(false);
       setPlan(result);
     } catch {
@@ -697,7 +730,10 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPlan(null)}
+              onClick={() => {
+                proposalRequest.current = null;
+                setPlan(null);
+              }}
               disabled={apply.isPending}
             >
               {t("common.change", "Change")}

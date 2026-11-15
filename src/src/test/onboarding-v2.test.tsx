@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -10,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { setLocale } from "@/lib/i18n/translations";
 import { IndustryConfigStep } from "@/features/onboarding/v2/components/industry-config-step";
 import { AccessStep } from "@/features/onboarding/v2/components/access-step";
 import { ReadinessStep } from "@/features/onboarding/v2/components/readiness-step";
@@ -881,5 +883,121 @@ describe("IndustryConfigStep — catalogue text follows the locale", () => {
     expect(await screen.findByText("Round the clock (24/7)")).toBeVisible();
     expect(screen.getByText("Four crews.")).toBeVisible();
     expect(screen.queryByText("Hospitaala")).not.toBeInTheDocument();
+  });
+});
+
+describe("IndustryConfigStep — the review notes follow the language", () => {
+  it("asks for the notes again when the language changes, and keeps what was removed", async () => {
+    const asked: (string | null)[] = [];
+    const notes: Record<string, string> = {
+      en: "Confirm the leave values.",
+      om: "Gatiiwwan boqonnaa mirkaneessaa.",
+    };
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", ({ request }) => {
+        const language = request.headers.get("accept-language");
+        asked.push(language);
+        return HttpResponse.json({
+          industry: { key: "hospital", label: "Hospital", base: "hospital" },
+          signals: {},
+          overall_confidence: 0.8,
+          sections: {
+            departments: {
+              source: "industry_default",
+              confidence: 0.8,
+              items: ["Nursing", "Pharmacy"],
+            },
+          },
+          plan: { departments: ["Nursing", "Pharmacy"] },
+          review: [{ code: "leave_private", message: notes[language ?? "en"] }],
+        });
+      }),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    expect(await screen.findByText(notes.en)).toBeInTheDocument();
+    const removeBtn = screen.getByText("Pharmacy").querySelector("button");
+    fireEvent.click(removeBtn as HTMLButtonElement);
+    expect(screen.queryByText("Pharmacy")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText(notes.om)).toBeInTheDocument();
+    expect(screen.queryByText(notes.en)).not.toBeInTheDocument();
+    expect(asked).toEqual(["en", "om"]);
+    // Only the notes were taken from the second answer.
+    expect(screen.getByText("Nursing")).toBeInTheDocument();
+    expect(screen.queryByText("Pharmacy")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("asks for nothing when the language changes with no proposal open", async () => {
+    const asked = vi.fn();
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", () => {
+        asked();
+        return HttpResponse.json({});
+      }),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+    await screen.findByText("Hospital");
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText("Hospitaala")).toBeInTheDocument();
+    expect(asked).not.toHaveBeenCalled();
   });
 });
