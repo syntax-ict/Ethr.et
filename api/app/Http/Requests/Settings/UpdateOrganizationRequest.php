@@ -65,11 +65,11 @@ class UpdateOrganizationRequest extends FormRequest
             }
 
             $tenant = app(CurrentTenant::class)->get();
-            if (! is_string($type) || $tenant === null || $type === $tenant->organization_type) {
+            $profile = app(OrganisationProfile::class);
+            if (! is_string($type) || $tenant === null || $type === $profile->inForce($tenant)) {
                 return;
             }
 
-            $profile = app(OrganisationProfile::class);
             $earliest = $profile->earliestChange($tenant);
             if ($earliest === null) {
                 return;
