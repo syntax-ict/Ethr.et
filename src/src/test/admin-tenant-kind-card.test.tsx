@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { kindCatalogueHandler } from "./msw/organization-types";
 import { TenantKindCard } from "@/features/admin/components/tenant-kind-card";
 
 function renderCard(props: Parameters<typeof TenantKindCard>[0]) {
@@ -15,6 +16,8 @@ function renderCard(props: Parameters<typeof TenantKindCard>[0]) {
     </QueryClientProvider>,
   );
 }
+
+beforeEach(() => server.use(kindCatalogueHandler));
 
 describe("TenantKindCard (the kind in law on the console's organisation page)", () => {
   it("names the kind from the catalogue and carries no control that changes it", async () => {

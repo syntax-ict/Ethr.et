@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { kindCatalogueHandler } from "./msw/organization-types";
 import AdminTenantsPage from "@/app/(dashboard)/admin/tenants/page";
 
 vi.mock("next/navigation", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   }),
 }));
 
+beforeEach(() => server.use(kindCatalogueHandler));
 afterEach(() => window.history.replaceState(null, "", "/"));
 
 function renderList() {
