@@ -60,11 +60,15 @@ final class StagedChanges
         'salary_cents' => 'salary_cents',
     ];
 
-    /** Fields whose values are never sent to the review screen. */
-    public const MASKED = ['national_id', 'tin', 'salary_cents'];
+    /**
+     * Fields whose values are never sent to the review screen. A bank account
+     * is not one of FIELDS (it is written for a new person only), but a list
+     * that carries one is described by the same two lists.
+     */
+    public const MASKED = ['national_id', 'tin', 'salary_cents', 'bank_account'];
 
     /** Fields that are pay data: changing them needs employee.updateFinancial. */
-    public const PAY = ['tin', 'salary_cents'];
+    public const PAY = ['tin', 'salary_cents', 'bank_name', 'bank_branch', 'bank_account'];
 
     /** Fields one employee holds at a time. */
     private const HELD_BY_ONE = ['employee_code', 'badge_number'];

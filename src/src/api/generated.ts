@@ -5118,7 +5118,8 @@ export interface paths {
          *     reads it) or `rows` (people already keyed by field). A grid with a line
          *     that cannot be staged is refused whole, each line named, unless
          *     `skip_problems` is set: then those lines are left out. A list that sets
-         *     a salary or a TIN needs the pay permission, as the add-employee form does.
+         *     a salary, a TIN or a bank account needs the pay permission, as the
+         *     add-employee form does.
          *
          *     `source` and `mapping` say how the list names its columns, as for
          *     `/migration/read`. With a `source`, an id from the other system is kept
@@ -11396,7 +11397,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /** RecallLeaveRequest */
@@ -11696,7 +11697,7 @@ export interface components {
             mapping: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /** SaveReportRequest */
@@ -11895,7 +11896,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
             skip_problems?: boolean;
             rows?: {
@@ -11927,6 +11928,19 @@ export interface components {
                 /** @enum {string|null} */
                 status?: "hired" | "probation" | "confirmed" | null;
                 external_id?: string | null;
+                grade?: string | null;
+                cost_center?: string | null;
+                /** Format: date-time */
+                probation_end_date?: string | null;
+                contract_type?: components["schemas"]["ContractType"] | null;
+                /** Format: date-time */
+                contract_end_date?: string | null;
+                bank_name?: string | null;
+                bank_branch?: string | null;
+                bank_account?: string | null;
+                emergency_name?: string | null;
+                emergency_relationship?: string | null;
+                emergency_phone?: string | null;
                 department?: string | null;
                 branch?: string | null;
                 position?: string | null;
@@ -13091,7 +13105,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /**

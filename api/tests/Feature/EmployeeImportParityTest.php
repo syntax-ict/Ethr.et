@@ -251,3 +251,33 @@ test('every column the server reads, and every staged field, has words in the br
         expect($source)->toMatch('/^\s+"?'.preg_quote($key, '/').'"?:/m', $key);
     }
 })->skip(fn () => ! is_dir(base_path('../src/src/features')), 'Needs the frontend source beside api/, as in a full checkout.');
+
+test('every profile column is in the template, in one group, and described like the staged review describes it', function () {
+    $byKey = array_column(EmployeeImportRow::columnMeta(), null, 'key');
+
+    foreach (EmployeeImportRow::PROFILE as $column) {
+        $groups = array_keys(array_filter(EmployeeImportRow::GROUPS, fn (array $headers): bool => in_array($column, $headers, true)));
+
+        expect(EmployeeImportRow::TEMPLATE)->toContain($column)
+            ->and(EmployeeImportRow::MAPPABLE)->toContain($column)
+            ->and(EmployeeImportRow::COLUMNS)->toContain($column)
+            ->and($groups)->toHaveCount(1, $column)
+            ->and(EmployeeImportRow::header($column))->toBe($column);
+    }
+
+    expect($byKey['grade'])->toMatchArray(['group' => 'job', 'kind' => 'list', 'pay' => false])
+        ->and($byKey['cost_center'])->toMatchArray(['group' => 'job', 'kind' => 'list'])
+        ->and($byKey['contract_type'])->toMatchArray(['group' => 'job', 'kind' => 'list'])
+        ->and($byKey['probation_end_date'])->toMatchArray(['group' => 'job', 'kind' => 'date'])
+        ->and($byKey['contract_end_date'])->toMatchArray(['group' => 'job', 'kind' => 'date'])
+        ->and($byKey['bank_name'])->toMatchArray(['group' => 'pay', 'pay' => true, 'masked' => false])
+        ->and($byKey['bank_account'])->toMatchArray(['group' => 'pay', 'kind' => 'id', 'pay' => true, 'masked' => true])
+        ->and($byKey['emergency_phone'])->toMatchArray(['group' => 'contact', 'kind' => 'id'])
+        ->and(EmployeeImportRow::DATES)->toContain('probation_end_date', 'contract_end_date')
+        ->and(EmployeeImportRow::TEXT_COLUMNS)->toContain('bank_account');
+});
+
+test('the file import keeps the rules it had: none of the profile columns is among them', function () {
+    expect(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules())))->toBe([])
+        ->and(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules('rows.*.'))))->toBe([]);
+});
