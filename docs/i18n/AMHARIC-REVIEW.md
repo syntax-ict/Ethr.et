@@ -163,6 +163,13 @@ native reading is owed for both languages.
 |---|---|---|---|
 | `employees_import_page.col_nationality` | Country of citizenship, such as Ethiopian | የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ | Biyyi lammummaa, fakkeenyaaf Itiyoophiyaa |
 
+### Employee workbook group headings, example line and note (2026-11-15)
+
+Drafted, not native-reviewed. `setup2.template_group_core`, `_person`, `_contact`, `_job`, `_pay` and
+`_source` head the column groups on the template's Instructions sheet, `setup2.template_line_example`
+points the reader to the Example sheet and the header notes, and `setup2.template_example_note` is the
+line under the Example sheet. A native reading is owed for the am and om strings.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |
