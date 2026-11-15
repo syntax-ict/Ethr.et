@@ -17,6 +17,7 @@ use App\Services\Report\ReportEngine;
 use App\Support\Csv;
 use App\Support\Locales;
 use App\Support\ReaderDates;
+use App\Support\RequestBudget;
 use App\Support\ScheduleSlot;
 use App\Traits\SendsNotifications;
 use Illuminate\Bus\Queueable;
@@ -64,14 +65,30 @@ class RunScheduledReportsJob implements ShouldQueue
      */
     private const MAX_ERROR = 2000;
 
+    /** Stored as `last_error` when the report's creator may no longer run it; the schedule list reads it back as a code. */
+    public const CREATOR_CANNOT_RUN = 'The person who saved this report can no longer run it.';
+
     public function handle(ReportEngine $engine, CurrentTenant $currentTenant): void
     {
         $due = ScheduledReport::withoutGlobalScopes()
             ->where('is_active', true)
             ->where(fn ($q) => $q->whereNull('next_run_at')->orWhere('next_run_at', '<=', now()))
+            ->orderBy('id')
             ->get();
 
-        foreach ($due as $schedule) {
+        // The queue is drained inside a web request on the host, which stops
+        // a script after `max_execution_time`; the time limit is not lifted
+        // here, as it would be for every later job in the same drain. The
+        // sweep stops once the request's budget has passed, after at least
+        // one schedule; those not reached keep their `next_run_at` and the
+        // next sweep takes them.
+        $deadline = RequestBudget::deadline();
+
+        foreach ($due as $position => $schedule) {
+            if ($position > 0 && $deadline !== null && microtime(true) >= $deadline) {
+                break;
+            }
+
             try {
                 $this->run($schedule, $engine, $currentTenant);
             } catch (Throwable $e) {
@@ -147,18 +164,20 @@ class RunScheduledReportsJob implements ShouldQueue
         $creator = $saved->creator;
         $source = is_string($config['source'] ?? null) ? $config['source'] : 'employees';
         if (! $creator instanceof User || $creator->status !== 'active' || ! $engine->permits($creator, $source)) {
-            throw new RuntimeException('The person who saved this report can no longer run it.');
+            throw new RuntimeException(self::CREATOR_CANNOT_RUN);
         }
 
         // Written for the organisation: recipients are addresses, not users.
         $reader = ReaderDates::forTenant($tenant, self::organisationLocale($tenant->id));
-        $result = $engine->generate($tenant->id, $config, $creator, $reader);
+        $result = $engine->generate($tenant->id, $config, $creator, $reader, withSummary: false);
         $rows = $result['data'] ?? [];
         $carriesPay = $source === 'payroll'
             || ($rows !== [] && array_key_exists('salary_cents', $rows[0]));
         $withheld = 0;
         $rowCount = count($rows);
-        $csv = Csv::forSpreadsheet($engine->toCsv($rows, $reader));
+        $truncatedNote = $engine->truncationNote($result, $reader);
+        $periodText = $engine->periodText($result, $reader);
+        $csv = Csv::forSpreadsheet($engine->toCsv($rows, $reader, $truncatedNote));
         $filename = Str::slug($saved->name).'-'.now()->format('Y-m-d').'.csv';
 
         $rawRecipients = $schedule->getAttribute('recipients');
@@ -181,7 +200,7 @@ class RunScheduledReportsJob implements ShouldQueue
             // schedule, not necessarily user accounts in this tenant.
             $this->notify(
                 Notification::route('mail', $email),
-                (new ScheduledReportNotification($saved->name, $rowCount, $csv, $filename))->locale(self::organisationLocale($schedule->tenant_id)),
+                (new ScheduledReportNotification($saved->name, $rowCount, $csv, $filename, $periodText, $truncatedNote))->locale(self::organisationLocale($schedule->tenant_id)),
             );
         }
 
