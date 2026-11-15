@@ -9,13 +9,16 @@ use App\Http\Requests\Billing\ChangePlanRequest;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Models\Tenant;
 use App\Services\Billing\BillingService;
 use App\Services\CurrentTenant;
+use App\Support\FrontendUrl;
 use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 
 class BillingController extends Controller
@@ -69,14 +72,22 @@ class BillingController extends Controller
         Gate::authorize('billing.manage');
 
         $tenant = app(CurrentTenant::class)->get();
+        abort_unless($tenant instanceof Tenant, 404);
+
+        // Ethiopic names need the bundled Noto face (see PayslipPdfService);
+        // dompdf caches font metrics here and does not create the directory.
+        File::ensureDirectoryExists(storage_path('fonts'));
 
         $pdf = Pdf::loadView('receipts.invoice', [
             'invoice' => $invoice,
             'tenant' => $tenant,
+            'address' => FrontendUrl::addressOf($tenant),
             'line_items' => $invoice->line_items ?? [],
             // The receipt is English; its dates are in the reader's calendar.
             'dates' => ReaderDates::for($request->user(), 'en'),
         ]);
+
+        $pdf->setOption('isFontSubsettingEnabled', true);
 
         $filename = 'receipt-'.$invoice->public_id.'.pdf';
 
