@@ -58,6 +58,7 @@ import {
   toGrid,
 } from "../parse-people";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
+import { columnLabel } from "@/features/employees/employee-columns";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import {
   buildTemplate,
@@ -90,31 +91,6 @@ function outcomeTone(outcome: MatchOutcome | null): string {
       return "var(--color-text-secondary, #64748B)";
   }
 }
-
-/** A column the server read, by the name it already has in the dictionary. */
-const COLUMN_LABELS: Record<string, [string, string]> = {
-  name: ["setup2.col_name", "Name"],
-  name_am: ["employee.name_am", "Name in Amharic"],
-  email: ["setup2.col_email", "Email"],
-  phone: ["setup2.col_phone", "Phone"],
-  employee_code: ["setup2.col_employee_code", "Employee number"],
-  badge_number: ["setup2.col_badge_number", "Badge number"],
-  hire_date: ["setup2.col_hire_date", "Hire date"],
-  date_of_birth: ["employee.detail.date_of_birth", "Date of birth"],
-  gender: ["common.gender", "Gender"],
-  department_code: ["setup2.col_department", "Department"],
-  branch_code: ["common.branch", "Branch"],
-  position_code: ["common.position", "Position"],
-  salary: ["employee.detail.salary", "Salary"],
-  salary_cents: ["employee.detail.salary", "Salary"],
-  national_id: ["employee.national_id", "National ID"],
-  tin: ["employee.tin", "TIN"],
-  nationality: ["employee.detail.nationality", "Nationality"],
-  nationality_status: ["employee.nationality_status", "Ethiopian national?"],
-  marital_status: ["employee.detail.marital_status", "Marital status"],
-  status: ["common.status", "Status"],
-  external_id: ["setup2.col_external_id", "ID in the other system"],
-};
 
 /** Problems shown under the list before the rest are counted. */
 const PROBLEMS_SHOWN = 5;
@@ -798,9 +774,7 @@ export function MigrationStep({
                           {" · "}
                           {t("setup2.columns_read", "Columns: :columns", {
                             columns: read.columns
-                              .map((c) =>
-                                COLUMN_LABELS[c] ? t(...COLUMN_LABELS[c]) : c,
-                              )
+                              .map((c) => columnLabel(c, t))
                               .join(", "),
                           })}
                         </span>
@@ -914,9 +888,7 @@ export function MigrationStep({
                 <ColumnMatcher
                   matches={matches}
                   samples={samples}
-                  label={(column) =>
-                    COLUMN_LABELS[column] ? t(...COLUMN_LABELS[column]) : column
-                  }
+                  label={(column) => columnLabel(column, t)}
                   source={source}
                   calendar={dateCalendar}
                   needsName={nameless}
