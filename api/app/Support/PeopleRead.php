@@ -21,6 +21,7 @@ final readonly class PeopleRead
      * @param  int  $withoutHireDate  people ready who bring no hire date
      * @param  list<array{header: string, column: string|null, suggested: string|null}>  $headers  the first line as column names: each as written, the column it is read as, and for one that is not read, what it might be
      * @param  bool  $headerLikely  the first line was read as a person and looks like column names ETHR does not know
+     * @param  list<array{line: int, code: string, message: string}>  $warnings  lines that are staged all the same, with what the reader should know about them
      * @param  bool  $needsName  the reader said which column is which and none of them is the name; nothing was read
      */
     public function __construct(
@@ -35,5 +36,6 @@ final readonly class PeopleRead
         public array $headers = [],
         public bool $headerLikely = false,
         public bool $needsName = false,
+        public array $warnings = [],
     ) {}
 }

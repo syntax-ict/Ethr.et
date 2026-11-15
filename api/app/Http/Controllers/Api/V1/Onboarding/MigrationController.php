@@ -90,6 +90,7 @@ class MigrationController extends Controller
             'calendar_from_header' => $read->calendarFromHeader,
             'without_hire_date' => $read->withoutHireDate,
             'problems' => $read->problems,
+            'warnings' => $read->warnings,
             'headers' => $read->headers,
             'header_likely' => $read->headerLikely,
             'needs_name' => $read->needsName,

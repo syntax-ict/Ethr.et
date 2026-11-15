@@ -27676,6 +27676,11 @@ export interface operations {
                             line: number;
                             message: string;
                         }[];
+                        warnings: {
+                            line: number;
+                            code: string;
+                            message: string;
+                        }[];
                         headers: {
                             header: string;
                             column: string | null;

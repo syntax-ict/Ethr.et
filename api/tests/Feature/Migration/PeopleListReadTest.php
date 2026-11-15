@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Models\MigrationBatch;
@@ -286,4 +287,42 @@ it('does not read another organisation\'s departments', function () {
     $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Department'], ['Abebe Kebede', 'Finance']]);
 
     expect($read['people'])->toBe(0)->and($read['problems'])->toHaveCount(1);
+});
+
+it('warns of a badge number a terminal of the organisation would refuse, and stages the person all the same', function () {
+    [$tenant] = Staging::organisation();
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Badge'],
+        ['Abebe Kebede', 'A12'],
+        ['Hanna Girma', '0012'],
+    ]);
+
+    expect($read['people'])->toBe(2)
+        ->and($read['problems'])->toBe([])
+        ->and($read['warnings'])->toHaveCount(1)
+        ->and($read['warnings'][0])->toMatchArray(['line' => 2, 'code' => 'terminal_number_not_accepted'])
+        ->and($read['warnings'][0]['message'])->toContain('A12')->toContain('zkteco_adms');
+});
+
+it('gives no warning to an organisation with no terminal that refuses the number, or with a deleted one', function () {
+    [$tenant] = Staging::organisation();
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'hikvision']);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco'])->delete();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Badge'], ['Abebe Kebede', 'A12']]);
+
+    expect($read['people'])->toBe(1)->and($read['warnings'])->toBe([]);
+});
+
+it('does not warn because of another organisation\'s terminal', function () {
+    [$tenant] = Staging::organisation();
+    $other = createTenant();
+    Device::factory()->create(['tenant_id' => $other->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $other->id])->id, 'adapter_type' => 'zkteco_adms']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Badge'], ['Abebe Kebede', 'A12']]);
+
+    expect($read['people'])->toBe(1)->and($read['warnings'])->toBe([]);
 });

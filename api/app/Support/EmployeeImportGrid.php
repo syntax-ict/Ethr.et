@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\Device;
+use App\Services\Device\DeviceIdRules;
+
 /**
  * Reads a list of people that arrives as cells: rows pasted from a
  * spreadsheet, a CSV the browser split, a sheet of a workbook.
@@ -95,6 +98,8 @@ final class EmployeeImportGrid
 
         $rows = [];
         $problems = [];
+        $warnings = [];
+        $terminals = $this->terminalTypes();
         $firstSeen = [];
         $rules = EmployeeImportRow::stagedRules();
         $last = $first;
@@ -123,6 +128,9 @@ final class EmployeeImportGrid
             }
             if ($messages === []) {
                 $rows[] = EmployeeImportRow::staged($row, $source);
+                foreach ($this->terminalWarnings($row, $terminals) as $warning) {
+                    $warnings[] = ['line' => $line, ...$warning];
+                }
             }
         }
 
@@ -146,6 +154,7 @@ final class EmployeeImportGrid
             withoutHireDate: count(array_filter($rows, fn (array $row): bool => ! isset($row['hire_date']))),
             headers: $headers,
             headerLikely: $header === null && $this->looksLikeNames($lines[$first]) && count($lines) > 1,
+            warnings: $warnings,
         );
     }
 
@@ -263,6 +272,50 @@ final class EmployeeImportGrid
         }
 
         return $columns;
+    }
+
+    /**
+     * The adapter types with a rule of their own for a person number that
+     * this organisation has a terminal of. One query for the whole list.
+     *
+     * @return list<string>
+     */
+    private function terminalTypes(): array
+    {
+        return Device::query()
+            ->where('tenant_id', $this->tenantId)
+            ->whereIn('adapter_type', DeviceIdRules::restrictedTypes())
+            ->distinct()
+            ->orderBy('adapter_type')
+            ->pluck('adapter_type')
+            ->all();
+    }
+
+    /**
+     * A badge number a terminal of this organisation would refuse. The person
+     * is staged all the same: the number is theirs, and the terminal is told
+     * nothing it would not take (DeviceCommandQueue).
+     *
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $terminals
+     * @return list<array{code: string, message: string}>
+     */
+    private function terminalWarnings(array $row, array $terminals): array
+    {
+        $badge = $row['badge_number'] ?? null;
+        if (! is_string($badge) || $badge === '' || $terminals === []) {
+            return [];
+        }
+
+        $refusing = array_values(array_filter($terminals, fn (string $type): bool => ! DeviceIdRules::accepts($type, $badge)));
+        if ($refusing === []) {
+            return [];
+        }
+
+        return [[
+            'code' => 'terminal_number_not_accepted',
+            'message' => __('onboarding.migration.terminal_number_digits_only', ['value' => $badge, 'types' => implode(', ', $refusing)]),
+        ]];
     }
 
     /**

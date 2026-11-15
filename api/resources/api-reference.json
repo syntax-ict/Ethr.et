@@ -26462,6 +26462,28 @@
                                                 ]
                                             }
                                         },
+                                        "warnings": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "line": {
+                                                        "type": "integer"
+                                                    },
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "message": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "line",
+                                                    "code",
+                                                    "message"
+                                                ]
+                                            }
+                                        },
                                         "headers": {
                                             "type": "array",
                                             "items": {
@@ -26518,6 +26540,7 @@
                                         "calendar_from_header",
                                         "without_hire_date",
                                         "problems",
+                                        "warnings",
                                         "headers",
                                         "header_likely",
                                         "needs_name",
