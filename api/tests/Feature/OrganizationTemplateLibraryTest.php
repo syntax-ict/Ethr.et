@@ -179,9 +179,9 @@ describe('composing a plan', function () {
     it('gives each government tier its own structure', function () {
         $resolver = app(IndustryProfileResolver::class);
 
-        $woreda = $resolver->resolve('woreda_administration')->toArray()['plan']['departments'];
-        $zone = $resolver->resolve('zonal_administration')->toArray()['plan']['departments'];
-        $bureau = $resolver->resolve('regional_bureau')->toArray()['plan']['departments'];
+        $woreda = array_column($resolver->resolve('woreda_administration')->toArray()['plan']['departments'], 'name');
+        $zone = array_column($resolver->resolve('zonal_administration')->toArray()['plan']['departments'], 'name');
+        $bureau = array_column($resolver->resolve('regional_bureau')->toArray()['plan']['departments'], 'name');
 
         expect($woreda)->toContain('Education Office');
         expect($zone)->toContain("Zone Administrator's Office");

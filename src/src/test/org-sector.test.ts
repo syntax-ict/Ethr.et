@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { narrowOrgKinds } from "@/features/settings/org-kind";
+import { narrowOrgKinds, orgKindName } from "@/features/settings/org-kind";
 import type { OrganizationTypeOption } from "@/features/settings/api";
 import {
   industriesOfType,
@@ -126,5 +126,29 @@ describe("sector helpers", () => {
     );
     expect([...set].sort()).toEqual(["ethiopia_private", "ethiopia_public"]);
     expect(typicalPolicies(undefined, undefined).size).toBe(0);
+  });
+});
+
+describe("orgKindName", () => {
+  const kind = {
+    name: "Private organisation",
+    name_am: "የግል ድርጅት",
+    name_om: "Dhaabbata Dhuunfaa",
+  };
+
+  it("names the kind in the reader's language", () => {
+    expect(orgKindName(kind, "en")).toBe("Private organisation");
+    expect(orgKindName(kind, "am")).toBe("የግል ድርጅት");
+    expect(orgKindName(kind, "om")).toBe("Dhaabbata Dhuunfaa");
+  });
+
+  it("reads in English when the kind has no Afaan Oromoo name", () => {
+    expect(orgKindName({ ...kind, name_om: null }, "om")).toBe(
+      "Private organisation",
+    );
+    // An API that does not send the field yet.
+    expect(orgKindName({ name: kind.name, name_am: kind.name_am }, "om")).toBe(
+      "Private organisation",
+    );
   });
 });

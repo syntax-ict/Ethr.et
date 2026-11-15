@@ -41,7 +41,7 @@ describe('IndustryProfileResolver', function () {
         expect($plan['industry']['base'])->toBe('government');
         expect($plan['sections']['departments']['source'])->toBe('industry_default');
         expect($plan['sections']['departments']['confidence'])->toBe(0.8);
-        expect($plan['sections']['departments']['items'])->toContain('Administration');
+        expect(array_column($plan['sections']['departments']['items'], 'name'))->toContain('Administration');
     });
 
     it('marks industry-specific overrides as explicit with full confidence', function () {
@@ -51,7 +51,7 @@ describe('IndustryProfileResolver', function () {
 
         expect($plan['sections']['departments']['source'])->toBe('explicit');
         expect($plan['sections']['departments']['confidence'])->toBe(1.0);
-        expect($plan['sections']['departments']['items'])->toContain('Site Operations');
+        expect(array_column($plan['sections']['departments']['items'], 'name'))->toContain('Site Operations');
     });
 
     it('synthesizes a region-aware headquarters branch as a heuristic', function () {
