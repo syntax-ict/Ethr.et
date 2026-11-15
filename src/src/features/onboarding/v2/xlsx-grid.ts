@@ -14,12 +14,31 @@
  */
 
 import type { CellValue, Workbook as ExcelWorkbook } from "exceljs";
+import { toEthiopian } from "@/lib/calendar/ethiopian";
 import type { DateCalendar } from "./parse-people";
 
 /** The sheet people are typed into. The reader takes this one, or the first sheet that is not ours. */
 export const SHEET_PEOPLE = "Employees";
 export const SHEET_HELP = "Instructions";
 export const SHEET_LISTS = "Lists";
+export const SHEET_EXAMPLE = "Example";
+
+/** The order the groups are listed in, on the instructions sheet. */
+const GROUP_ORDER = ["core", "person", "contact", "job", "pay", "source"];
+
+/**
+ * One light fill per column group on the header row. Pale enough for black
+ * text in Excel and LibreOffice, and apart enough to tell the groups at a
+ * glance.
+ */
+const GROUP_FILL: Record<string, string> = {
+  core: "FFFFE9A8",
+  person: "FFD5E8D4",
+  contact: "FFD6E4F5",
+  job: "FFE6DCF0",
+  pay: "FFF9D9C4",
+  source: "FFE3E3E3",
+};
 
 /** The most lines one staging takes (StageRowsRequest: `grid` max). */
 export const MAX_LINES = 5000;
@@ -47,7 +66,17 @@ export class NoSheet extends Error {
 }
 
 /** What the server says the template is (POST /employees/import/template). */
+export interface TemplateColumn {
+  key: string;
+  /** The header the template uses, when it differs from `key`. */
+  column?: string;
+  group: string;
+  required: boolean;
+}
+
 export interface TemplateSpec {
+  /** In template order. Without it the workbook has no groups, notes or example. */
+  columns?: TemplateColumn[];
   headers: string[];
   required: string[];
   text_columns: string[];
@@ -69,6 +98,17 @@ export interface TemplateText {
   help: Record<string, string>;
   /** Shown when a value is typed that is not in a column's list. */
   notInList: string;
+  /** Heading of each column group on the instructions sheet, by group. */
+  groups: Record<string, string>;
+  /**
+   * Two example people, by header. Dates are Gregorian, as `YYYY-MM-DD`; the
+   * workbook writes them in the calendar it is built for.
+   */
+  example: Record<string, string>[];
+  /** The line under the example people: nothing on this sheet is read. */
+  exampleNote: string;
+  /** On the instructions sheet: the example and the header notes exist. */
+  exampleLine: string;
 }
 
 type Excel = typeof import("exceljs");
@@ -138,7 +178,12 @@ export async function readWorkbook(data: ArrayBuffer): Promise<string[][]> {
   );
   const sheet =
     visible.find((s) => s.name === SHEET_PEOPLE) ??
-    visible.find((s) => s.name !== SHEET_HELP && s.name !== SHEET_LISTS);
+    visible.find(
+      (s) =>
+        s.name !== SHEET_HELP &&
+        s.name !== SHEET_LISTS &&
+        s.name !== SHEET_EXAMPLE,
+    );
   if (!sheet) throw new NoSheet();
 
   const grid: string[][] = [];
@@ -178,6 +223,19 @@ export function gridToText(grid: string[][]): string {
     .join("\n");
 }
 
+/** An example date in the calendar the workbook is for, year first. */
+function exampleDate(iso: string, calendar: DateCalendar): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match || calendar === "gregorian") return iso;
+  const date = toEthiopian(
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3]),
+  );
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.year}-${pad(date.month)}-${pad(date.day)}`;
+}
+
 /**
  * The employee template as a workbook: the server's columns, a dropdown on
  * each choice column, and the columns a spreadsheet would mangle formatted
@@ -202,9 +260,23 @@ export async function buildTemplate(
   const workbook: ExcelWorkbook = new Workbook();
   const mark = calendar === "ethiopian" ? "(E.C.)" : "(G.C.)";
 
+  // The server's grouping, when it was sent. Without it the workbook is the
+  // plain one: no bands, notes, example or grouped instructions.
+  const columns = spec.columns;
+  const groupOf = new Map<string, string>();
+  for (const column of columns ?? []) {
+    groupOf.set(column.column ?? column.key, column.group);
+  }
+
   const people = workbook.addWorksheet(SHEET_PEOPLE, {
-    views: [{ state: "frozen", ySplit: 1 }],
+    // The name stays in view when a row is filled across to the right.
+    views: [
+      columns
+        ? { state: "frozen", xSplit: 1, ySplit: 1 }
+        : { state: "frozen", ySplit: 1 },
+    ],
   });
+  const example = columns ? workbook.addWorksheet(SHEET_EXAMPLE) : null;
   const help = workbook.addWorksheet(SHEET_HELP);
   const lists = workbook.addWorksheet(SHEET_LISTS, { state: "veryHidden" });
   const validations = (
@@ -213,19 +285,41 @@ export async function buildTemplate(
     }
   ).dataValidations;
 
+  // The header row, the same on the people sheet and on the example.
+  const writeHeader = (sheet: typeof people, withNotes: boolean) => {
+    spec.headers.forEach((header, index) => {
+      const isDate = spec.date_columns.includes(header);
+      const label = isDate ? `${header} ${mark}` : header;
+      const column = sheet.getColumn(index + 1);
+      column.width = Math.max(14, label.length + 4);
+      if (isDate || spec.text_columns.includes(header)) column.numFmt = "@";
+
+      const cell = sheet.getCell(1, index + 1);
+      cell.value = label;
+      cell.font = { bold: true };
+
+      const fill = GROUP_FILL[groupOf.get(header) ?? ""];
+      if (fill) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: fill },
+        };
+      }
+
+      const words = text.help[header];
+      if (withNotes && columns && words) {
+        cell.note = spec.required.includes(header)
+          ? `${words} (${text.required})`
+          : words;
+      }
+    });
+  };
+  writeHeader(people, true);
+
   let listColumn = 0;
   spec.headers.forEach((header, index) => {
     const column = people.getColumn(index + 1);
-    const isDate = spec.date_columns.includes(header);
-    const label = isDate ? `${header} ${mark}` : header;
-
-    column.width = Math.max(14, label.length + 4);
-    if (isDate || spec.text_columns.includes(header)) column.numFmt = "@";
-
-    const cell = people.getCell(1, index + 1);
-    cell.value = label;
-    cell.font = { bold: true };
-
     const choices = spec.lists[header] ?? [];
     if (choices.length === 0) return;
 
@@ -254,17 +348,63 @@ export async function buildTemplate(
     });
   });
 
+  if (example) {
+    writeHeader(example, false);
+    const grey = { italic: true, color: { argb: "FF6B7280" } };
+    text.example.forEach((person, offset) => {
+      spec.headers.forEach((header, index) => {
+        let value = person[header];
+        const choices = spec.lists[header];
+        // A list is the organisation's own: an example outside it would not
+        // import for them, so it takes the list's first value instead.
+        if (choices) {
+          if (value === undefined || !choices.includes(value)) {
+            value = choices[0];
+          }
+        } else if (value !== undefined && spec.date_columns.includes(header)) {
+          value = exampleDate(value, calendar);
+        }
+        if (value === undefined || value === "") return;
+        const cell = example.getCell(offset + 2, index + 1);
+        cell.value = value;
+        cell.font = grey;
+      });
+    });
+    const note = example.getCell(text.example.length + 3, 1);
+    note.value = text.exampleNote;
+    note.font = { ...grey, bold: true };
+  }
+
   help.getColumn(1).width = 26;
   help.getColumn(2).width = 90;
   help.addRow([text.title]).font = { bold: true, size: 14 };
   for (const line of text.lines) help.addRow([line]);
+  if (columns) help.addRow([text.exampleLine]);
   help.addRow([]);
   help.addRow([text.columnHeading, text.takesHeading]).font = { bold: true };
-  for (const header of spec.headers) {
+  const addColumnRow = (header: string) => {
     const name = spec.required.includes(header)
       ? `${header} (${text.required})`
       : header;
     help.addRow([name, text.help[header] ?? ""]);
+  };
+  if (columns) {
+    const placed = new Set<string>();
+    for (const group of GROUP_ORDER) {
+      const inGroup = spec.headers.filter((h) => groupOf.get(h) === group);
+      if (inGroup.length === 0) continue;
+      help.addRow([text.groups[group] ?? group]).font = { bold: true };
+      for (const header of inGroup) {
+        addColumnRow(header);
+        placed.add(header);
+      }
+    }
+    // A column grouped under a name this build does not know.
+    for (const header of spec.headers) {
+      if (!placed.has(header)) addColumnRow(header);
+    }
+  } else {
+    for (const header of spec.headers) addColumnRow(header);
   }
 
   return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
