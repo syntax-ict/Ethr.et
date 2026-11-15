@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -215,9 +216,13 @@ export default function DeviceDashboardPage() {
                 rows={allDevices.map((d) => ({
                   key: d.public_id,
                   cells: [
-                    <span key="n" className="font-medium">
+                    <Link
+                      key="n"
+                      href={`/devices/${d.public_id}`}
+                      className="font-medium hover:underline"
+                    >
                       {d.name}
-                    </span>,
+                    </Link>,
                     <span key="a" className="capitalize text-muted-foreground">
                       {d.adapter_type === "mock"
                         ? t("devices_page.mock_simulator")
@@ -256,6 +261,11 @@ export default function DeviceDashboardPage() {
                       )}
                     </span>,
                   ],
+                  actions: (
+                    <div className="flex justify-end">
+                      <DeviceActionsMenu device={d} />
+                    </div>
+                  ),
                 }))}
               />
             )}
