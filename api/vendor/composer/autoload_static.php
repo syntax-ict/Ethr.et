@@ -1788,6 +1788,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Onboarding\\LeaveTypeCatalog' => __DIR__ . '/../..' . '/app/Services/Onboarding/LeaveTypeCatalog.php',
         'App\\Services\\Onboarding\\OrganizationProvisioner' => __DIR__ . '/../..' . '/app/Services/Onboarding/OrganizationProvisioner.php',
         'App\\Services\\Onboarding\\PolicyProfileCatalog' => __DIR__ . '/../..' . '/app/Services/Onboarding/PolicyProfileCatalog.php',
+        'App\\Services\\Onboarding\\ProposalNameGlossary' => __DIR__ . '/../..' . '/app/Services/Onboarding/ProposalNameGlossary.php',
         'App\\Services\\Onboarding\\ProvisioningResult' => __DIR__ . '/../..' . '/app/Services/Onboarding/ProvisioningResult.php',
         'App\\Services\\Onboarding\\ReadinessScorer' => __DIR__ . '/../..' . '/app/Services/Onboarding/ReadinessScorer.php',
         'App\\Services\\Onboarding\\WorkforceProfileCatalog' => __DIR__ . '/../..' . '/app/Services/Onboarding/WorkforceProfileCatalog.php',

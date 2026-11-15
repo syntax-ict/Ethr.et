@@ -1054,6 +1054,7 @@ return array(
     'App\\Services\\Onboarding\\LeaveTypeCatalog' => $baseDir . '/app/Services/Onboarding/LeaveTypeCatalog.php',
     'App\\Services\\Onboarding\\OrganizationProvisioner' => $baseDir . '/app/Services/Onboarding/OrganizationProvisioner.php',
     'App\\Services\\Onboarding\\PolicyProfileCatalog' => $baseDir . '/app/Services/Onboarding/PolicyProfileCatalog.php',
+    'App\\Services\\Onboarding\\ProposalNameGlossary' => $baseDir . '/app/Services/Onboarding/ProposalNameGlossary.php',
     'App\\Services\\Onboarding\\ProvisioningResult' => $baseDir . '/app/Services/Onboarding/ProvisioningResult.php',
     'App\\Services\\Onboarding\\ReadinessScorer' => $baseDir . '/app/Services/Onboarding/ReadinessScorer.php',
     'App\\Services\\Onboarding\\WorkforceProfileCatalog' => $baseDir . '/app/Services/Onboarding/WorkforceProfileCatalog.php',

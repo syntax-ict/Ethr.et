@@ -51,6 +51,7 @@ final class IndustryProfileResolver
         private readonly PolicyProfileCatalog $policyProfiles,
         private readonly LeaveTypeCatalog $leaveTypes,
         private readonly ProfileContext $profileContext,
+        private readonly ProposalNameGlossary $glossary,
     ) {}
 
     /**
@@ -89,6 +90,7 @@ final class IndustryProfileResolver
             }
         }
 
+        $this->applyGlossary($sections);
         $this->applyBranchHeuristic($sections, $signals);
         $this->applyWorkforceProfile($sections, $profile, $profileChosen);
         $this->applyPolicyProfile($sections, $policy, $policyChosen, $base, $overrides);
@@ -107,6 +109,28 @@ final class IndustryProfileResolver
             ],
             array_map(static fn (string $code): array => ['code' => $code, 'message' => __('onboarding.review.'.$code)], $review),
         );
+    }
+
+    /**
+     * Departments, positions and grades are named in English in the catalogue
+     * and the templates. Each gains its Amharic and Afaan Oromoo name here, so
+     * the proposal reads in the language of the screen like its other lists.
+     *
+     * @param  array<string, array{source: ConfigurationSource, items: mixed}>  $sections
+     */
+    private function applyGlossary(array &$sections): void
+    {
+        $named = [
+            'departments' => $this->glossary->department(...),
+            'positions' => $this->glossary->position(...),
+            'grades' => $this->glossary->grade(...),
+        ];
+
+        foreach ($named as $section => $name) {
+            if (isset($sections[$section]) && is_array($sections[$section]['items'])) {
+                $sections[$section]['items'] = array_map($name, $sections[$section]['items']);
+            }
+        }
     }
 
     /**
