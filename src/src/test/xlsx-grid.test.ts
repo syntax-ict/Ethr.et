@@ -70,6 +70,7 @@ const TEXT: TemplateText = {
     { name: "Hanna Girma", date_of_birth: "1990-01-15", gender: "other" },
   ],
   exampleNote: "This sheet is only an example. Nothing on it is read.",
+  exampleLine: "The Example sheet shows two filled lines.",
 };
 
 const COLUMNS: NonNullable<TemplateSpec["columns"]> = [
@@ -447,6 +448,8 @@ describe("the employee template as a workbook", () => {
       help.eachRow((row) => names.push(String(row.getCell(1).value ?? "")));
       const at = (n: string) => names.indexOf(n);
 
+      expect(names).toContain(TEXT.exampleLine);
+      expect(at(TEXT.exampleLine)).toBeGreaterThan(at(TEXT.lines[0]));
       expect(at("Core")).toBeGreaterThan(at("Column"));
       expect(at("Person")).toBeGreaterThan(at("Core"));
       expect(at("Job")).toBeGreaterThan(at("Person"));
@@ -464,6 +467,7 @@ describe("the employee template as a workbook", () => {
         .getWorksheet(SHEET_HELP)!
         .eachRow((row) => names.push(String(row.getCell(1).value ?? "")));
       expect(names).not.toContain("Core");
+      expect(names).not.toContain(TEXT.exampleLine);
     });
   });
 });

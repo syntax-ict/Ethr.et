@@ -52,6 +52,10 @@ export function employeeTemplateText(
       pay: t("setup2.template_group_pay", "Pay"),
       source: t("setup2.template_group_source", "Other systems"),
     },
+    exampleLine: t(
+      "setup2.template_line_example",
+      "The Example sheet shows two filled lines. Point at a column name to read what it takes.",
+    ),
     exampleNote: t(
       "setup2.template_example_note",
       "This sheet is only an example. Nothing on it is read.",

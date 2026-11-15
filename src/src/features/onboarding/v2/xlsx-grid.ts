@@ -107,6 +107,8 @@ export interface TemplateText {
   example: Record<string, string>[];
   /** The line under the example people: nothing on this sheet is read. */
   exampleNote: string;
+  /** On the instructions sheet: the example and the header notes exist. */
+  exampleLine: string;
 }
 
 type Excel = typeof import("exceljs");
@@ -377,6 +379,7 @@ export async function buildTemplate(
   help.getColumn(2).width = 90;
   help.addRow([text.title]).font = { bold: true, size: 14 };
   for (const line of text.lines) help.addRow([line]);
+  if (columns) help.addRow([text.exampleLine]);
   help.addRow([]);
   help.addRow([text.columnHeading, text.takesHeading]).font = { bold: true };
   const addColumnRow = (header: string) => {
