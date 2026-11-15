@@ -140,7 +140,8 @@ class MigrationController extends Controller
      * reads it) or `rows` (people already keyed by field). A grid with a line
      * that cannot be staged is refused whole, each line named, unless
      * `skip_problems` is set: then those lines are left out. A list that sets
-     * a salary or a TIN needs the pay permission, as the add-employee form does.
+     * a salary, a TIN or a bank account needs the pay permission, as the
+     * add-employee form does.
      *
      * `source` and `mapping` say how the list names its columns, as for
      * `/migration/read`. With a `source`, an id from the other system is kept
@@ -165,7 +166,7 @@ class MigrationController extends Controller
 
         $rows = $request->staged();
         foreach ($rows as $row) {
-            if (isset($row['salary_cents']) || isset($row['tin'])) {
+            if (array_intersect(StagedChanges::PAY, array_keys($row)) !== []) {
                 Gate::authorize('employee.updateFinancial');
                 break;
             }

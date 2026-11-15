@@ -26579,7 +26579,7 @@
                     "write"
                 ],
                 "operationId": "migration.stageFromRows",
-                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.\n\nEvery person is stored at once and matched against the people already\nhere a slice at a time. A short list is matched before this answers and\nthe answer is the whole list for review. A long one answers with its\n`public_id`, `status` `staging`, how many are `staged` and how many\n`remaining`; the same request to `/migration/batches/{batch}/stage` is\nsent again until `status` is `reviewing`, and then the list is read\nfrom `/migration/batches/{batch}`.",
+                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary, a TIN or a bank account needs the pay permission, as the\nadd-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.\n\nEvery person is stored at once and matched against the people already\nhere a slice at a time. A short list is matched before this answers and\nthe answer is the whole list for review. A long one answers with its\n`public_id`, `status` `staging`, how many are `staged` and how many\n`remaining`; the same request to `/migration/batches/{batch}/stage` is\nsent again until `status` is `reviewing`, and then the list is read\nfrom `/migration/batches/{batch}`.",
                 "summary": "Stage a list of people for review",
                 "tags": [
                     "Onboarding"
@@ -52160,6 +52160,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -52871,6 +52882,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -53436,6 +53458,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -53623,6 +53656,87 @@
                                         "null"
                                     ],
                                     "maxLength": 100
+                                },
+                                "grade": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "cost_center": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "probation_end_date": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
+                                "contract_type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ContractType"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ]
+                                },
+                                "contract_end_date": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
+                                "bank_name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "bank_branch": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "bank_account": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 50
+                                },
+                                "emergency_name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "emergency_relationship": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 100
+                                },
+                                "emergency_phone": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
+                                    "maxLength": 20
                                 },
                                 "department": {
                                     "type": [
@@ -57158,6 +57272,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
