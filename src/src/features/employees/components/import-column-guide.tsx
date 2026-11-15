@@ -44,6 +44,63 @@ export function employeeTemplateText(
       "setup2.template_not_in_list",
       "This is not one of the listed values. It is kept, and checked when the list is read.",
     ),
+    groups: {
+      core: t("setup2.template_group_core", "Name and number"),
+      person: t("setup2.template_group_person", "About the person"),
+      contact: t("setup2.template_group_contact", "How to reach them"),
+      job: t("setup2.template_group_job", "The job"),
+      pay: t("setup2.template_group_pay", "Pay"),
+      source: t("setup2.template_group_source", "Other systems"),
+    },
+    exampleNote: t(
+      "setup2.template_example_note",
+      "This sheet is only an example. Nothing on it is read.",
+    ),
+    // Invented people and numbers. Dates are Gregorian here; the workbook
+    // writes them in the calendar it is built for. A column with a list keeps
+    // an example only if the organisation's list has it.
+    example: [
+      {
+        name: "Abebe Kebede",
+        name_am: "አበበ ከበደ",
+        employee_code: "1001",
+        email: "abebe.kebede@example.com",
+        phone: "0911000001",
+        gender: "male",
+        date_of_birth: "1988-03-14",
+        hire_date: "2019-07-08",
+        department: "Finance",
+        position: "Accountant",
+        salary: "15000",
+        national_id: "1000000000000001",
+        tin: "0000000001",
+        badge_number: "9001",
+        nationality: "Ethiopian",
+        marital_status: "married",
+        status: "confirmed",
+        external_id: "EX-0001",
+      },
+      {
+        name: "Hanna Girma",
+        name_am: "ሃና ግርማ",
+        employee_code: "1002",
+        email: "hanna.girma@example.com",
+        phone: "0911000002",
+        gender: "female",
+        date_of_birth: "1995-11-02",
+        hire_date: "2023-02-20",
+        department: "Sales",
+        position: "Sales officer",
+        salary: "9000",
+        national_id: "1000000000000002",
+        tin: "0000000002",
+        badge_number: "9002",
+        nationality: "Ethiopian",
+        marital_status: "single",
+        status: "probation",
+        external_id: "EX-0002",
+      },
+    ],
   };
 }
 

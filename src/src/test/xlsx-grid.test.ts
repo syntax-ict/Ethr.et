@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Workbook } from "exceljs";
+import { toEthiopian } from "@/lib/calendar/ethiopian";
 import { toGrid } from "@/features/onboarding/v2/parse-people";
 import {
   buildTemplate,
@@ -7,6 +8,7 @@ import {
   MAX_LINES,
   NoSheet,
   readWorkbook,
+  SHEET_EXAMPLE,
   SHEET_HELP,
   SHEET_LISTS,
   SHEET_PEOPLE,
@@ -55,7 +57,38 @@ const TEXT: TemplateText = {
   required: "required",
   help: { name: "Full name", phone: "09... or +251..." },
   notInList: "This is not one of the listed values.",
+  groups: { core: "Core", person: "Person", job: "Job" },
+  example: [
+    {
+      name: "Abebe Kebede",
+      hire_date: "2019-07-08",
+      gender: "male",
+      department: "Marketing",
+      status: "probation",
+      national_id: "1234567890123456",
+    },
+    { name: "Hanna Girma", date_of_birth: "1990-01-15", gender: "other" },
+  ],
+  exampleNote: "This sheet is only an example. Nothing on it is read.",
 };
+
+const COLUMNS: NonNullable<TemplateSpec["columns"]> = [
+  { key: "name", group: "core", required: true },
+  { key: "hire_date", group: "job", required: false },
+  { key: "employee_code", group: "core", required: false },
+  { key: "phone", group: "person", required: false },
+  { key: "gender", group: "person", required: false },
+  { key: "date_of_birth", group: "person", required: false },
+  {
+    key: "department_code",
+    column: "department",
+    group: "job",
+    required: false,
+  },
+  { key: "national_id", group: "person", required: false },
+  { key: "status", group: "job", required: false },
+];
+const GROUPED: TemplateSpec = { ...SPEC, columns: COLUMNS };
 
 describe("reading a workbook into cells", () => {
   it("reads each kind of cell as the text a person sees", async () => {
@@ -299,5 +332,138 @@ describe("the employee template as a workbook", () => {
     expect(rows.map((r) => r[0])).toEqual(
       expect.arrayContaining(SPEC.headers.filter((h) => h !== "name")),
     );
+  });
+
+  describe("with the server's columns", () => {
+    async function grouped(calendar: "ethiopian" | "gregorian") {
+      const workbook = new Workbook();
+      await workbook.xlsx.load(await buildTemplate(GROUPED, calendar, TEXT));
+      return workbook;
+    }
+    const col = (header: string) => SPEC.headers.indexOf(header) + 1;
+
+    it("bands each group's header in its own colour and keeps the header text", async () => {
+      const sheet = (await grouped("ethiopian")).getWorksheet(SHEET_PEOPLE)!;
+      const fill = (header: string) =>
+        (sheet.getCell(1, col(header)).fill as { fgColor?: { argb?: string } })
+          .fgColor?.argb;
+
+      expect(fill("name")).toBeTruthy();
+      expect(fill("name")).toBe(fill("employee_code"));
+      expect(fill("name")).not.toBe(fill("phone"));
+      expect(fill("phone")).not.toBe(fill("hire_date"));
+      expect(sheet.getCell(1, col("hire_date")).value).toBe("hire_date (E.C.)");
+      expect(sheet.getCell(1, col("name")).value).toBe("name");
+    });
+
+    it("puts the column's help in a note, and says which is required", async () => {
+      const sheet = (await grouped("gregorian")).getWorksheet(SHEET_PEOPLE)!;
+      const note = (header: string) => {
+        const n = sheet.getCell(1, col(header)).note;
+        return typeof n === "string"
+          ? n
+          : (n?.texts ?? []).map((part) => part.text).join("");
+      };
+
+      expect(note("name")).toBe("Full name (required)");
+      expect(note("phone")).toBe("09... or +251...");
+      expect(note("status")).toBe("");
+    });
+
+    it("freezes the first column and the header row", async () => {
+      const sheet = (await grouped("gregorian")).getWorksheet(SHEET_PEOPLE)!;
+      expect(sheet.views[0]).toMatchObject({
+        state: "frozen",
+        xSplit: 1,
+        ySplit: 1,
+      });
+    });
+
+    it("has an Example sheet between Employees and Instructions", async () => {
+      const workbook = await grouped("gregorian");
+      expect(workbook.worksheets.map((s) => s.name)).toEqual([
+        SHEET_PEOPLE,
+        SHEET_EXAMPLE,
+        SHEET_HELP,
+        SHEET_LISTS,
+      ]);
+    });
+
+    it("fills the example with two people, valid for the organisation's lists", async () => {
+      const sheet = (await grouped("gregorian")).getWorksheet(SHEET_EXAMPLE)!;
+      const cell = (row: number, header: string) =>
+        sheet.getCell(row, col(header)).value;
+
+      expect(cell(1, "name")).toBe("name");
+      expect(cell(2, "name")).toBe("Abebe Kebede");
+      expect(cell(3, "name")).toBe("Hanna Girma");
+      // In the list: kept. Not in it: the list's first value.
+      expect(cell(2, "gender")).toBe("male");
+      expect(cell(3, "gender")).toBe("male");
+      expect(cell(2, "department")).toBe("Finance");
+      expect(cell(2, "status")).toBe("probation");
+      expect(cell(3, "status")).toBe("hired");
+      expect(sheet.getCell(2, 1).font?.italic).toBe(true);
+      expect(sheet.getCell(1, col("hire_date")).value).toBe("hire_date (G.C.)");
+      expect(sheet.getColumn(col("hire_date")).numFmt).toBe("@");
+      // Two people, one blank row, then the note.
+      expect(sheet.getCell(4, 1).value).toBeNull();
+      expect(sheet.getCell(5, 1).value).toBe(TEXT.exampleNote);
+    });
+
+    it("writes example dates in the calendar of the workbook, year first", async () => {
+      const gregorian = (await grouped("gregorian")).getWorksheet(
+        SHEET_EXAMPLE,
+      )!;
+      expect(gregorian.getCell(2, col("hire_date")).value).toBe("2019-07-08");
+
+      const ethiopian = (await grouped("ethiopian")).getWorksheet(
+        SHEET_EXAMPLE,
+      )!;
+      const e = toEthiopian(2019, 7, 8);
+      expect(e).toEqual({ year: 2011, month: 11, day: 1 });
+      expect(ethiopian.getCell(2, col("hire_date")).value).toBe("2011-11-01");
+      expect(ethiopian.getCell(3, col("date_of_birth")).value).toMatch(
+        /^\d{4}-\d{2}-\d{2}$/,
+      );
+    });
+
+    it("never reads the Example sheet", async () => {
+      const data = await buildTemplate(GROUPED, "gregorian", TEXT);
+      const grid = await readWorkbook(data);
+      expect(grid).toHaveLength(1);
+
+      const only = new Workbook();
+      only.addWorksheet(SHEET_EXAMPLE).addRow(["Abebe"]);
+      only.addWorksheet(SHEET_HELP).addRow(["How"]);
+      await expect(readWorkbook(await bytes(only))).rejects.toBeInstanceOf(
+        NoSheet,
+      );
+    });
+
+    it("lists the instructions under a heading per group, in order", async () => {
+      const help = (await grouped("gregorian")).getWorksheet(SHEET_HELP)!;
+      const names: string[] = [];
+      help.eachRow((row) => names.push(String(row.getCell(1).value ?? "")));
+      const at = (n: string) => names.indexOf(n);
+
+      expect(at("Core")).toBeGreaterThan(at("Column"));
+      expect(at("Person")).toBeGreaterThan(at("Core"));
+      expect(at("Job")).toBeGreaterThan(at("Person"));
+      expect(at("name (required)")).toBe(at("Core") + 1);
+      expect(at("employee_code")).toBe(at("Core") + 2);
+      expect(at("department")).toBeGreaterThan(at("Job"));
+      expect(at("phone")).toBeLessThan(at("Job"));
+    });
+
+    it("leaves the instructions flat, and adds no example, without columns", async () => {
+      const workbook = await template("gregorian");
+      expect(workbook.getWorksheet(SHEET_EXAMPLE)).toBeUndefined();
+      const names: string[] = [];
+      workbook
+        .getWorksheet(SHEET_HELP)!
+        .eachRow((row) => names.push(String(row.getCell(1).value ?? "")));
+      expect(names).not.toContain("Core");
+    });
   });
 });

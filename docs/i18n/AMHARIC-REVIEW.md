@@ -53,7 +53,7 @@ Drafts written without a native speaker; a wrong label moves no money.
 `settings.org_kind_show_all`, `settings.org_kind_show_suggested`, `setup2.show_all_profiles`,
 `setup2.show_typical_profiles` and `auth.org_type_required`.
 
-The two sign-up errors, `auth.org_type_required` and `auth.org_kind_required`, read identically in Amharic and Afaan Oromoo. Each now repeats the wording of the label it sits under, so the legal-kind error carries ሕጋዊ and *seeraan* as its label does, and the industry error matches its own label; `settings.org_kind_show_all` in Afaan Oromoo now uses the label's *seeraan*. Drafted by a non-native reviewer from terms the locale already uses; a native speaker's reading is still owed.
+The two sign-up errors, `auth.org_type_required` and `auth.org_kind_required`, read identically in Amharic and Afaan Oromoo. Each now repeats the wording of the label it sits under, so the legal-kind error carries ሕጋዊ and _seeraan_ as its label does, and the industry error matches its own label; `settings.org_kind_show_all` in Afaan Oromoo now uses the label's _seeraan_. Drafted by a non-native reviewer from terms the locale already uses; a native speaker's reading is still owed.
 
 ### QA defects D-2 and D-3 (2026-11-14)
 
@@ -61,11 +61,11 @@ Drafted, not native-reviewed. The policy names in the setup wizard
 (`PolicyProfileCatalog`) lost their em dash, which house style forbids, by
 becoming one noun phrase instead of two parts:
 
-| Where | English | Amharic |
-|---|---|---|
-| `ethiopia_private.label` | Ethiopian private sector | የኢትዮጵያ የግል ዘርፍ |
-| `ethiopia_public.label` | Ethiopian public sector (civil service) | የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ) |
-| `validation.attributes.branch_public_id` | branch | ቅርንጫፍ (Afaan Oromoo: damee) |
+| Where                                    | English                                 | Amharic                      |
+| ---------------------------------------- | --------------------------------------- | ---------------------------- |
+| `ethiopia_private.label`                 | Ethiopian private sector                | የኢትዮጵያ የግል ዘርፍ               |
+| `ethiopia_public.label`                  | Ethiopian public sector (civil service) | የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ) |
+| `validation.attributes.branch_public_id` | branch                                  | ቅርንጫፍ (Afaan Oromoo: damee)  |
 
 The attribute name reuses the word the branch field already shows
 (`attendance.kiosks_page.branch`). The wizard's catalogues still carry no
@@ -87,29 +87,29 @@ draft, not the native sign-off this document asks for (O7). The Afaan Oromoo is 
 
 **Terms aligned with the existing locale and the law's own Amharic names:**
 
-| English | Now | Was | Why |
-|---|---|---|---|
-| rate (overtime, generic) | ተመን | መጣኔ | `am.json` uses ተመን; መጣኔ is a misspelling of ምጣኔ |
-| tax rate | የግብር ምጣኔ | የግብር መጣኔ | the tax proclamations' term |
-| pension contribution rate | የመዋጮ መጠን | የመዋጮ መጣኔ | `pension_rules.description` and Proclamation 1268/2022 |
-| Labour Proclamation | የአሠሪና ሠራተኛ አዋጅ | ሠራተኛ አዋጅ | Proclamation 1156/2019's Amharic title |
-| TIN | የግብር ከፋይ ቁጥር (TIN) | የግብር ቁጥር | `employees.missing.tin`, `next_steps.profile_item.tin` |
-| preview | ቅድመ እይታ | በቅድሚያ ማየት | fourteen existing keys |
-| payroll, as the thing that applies rules | የደመወዝ ስሌቱ | የደመወዝ ክፍያ | "the salary payment applies" read oddly |
-| a setting's value | እሴት | ዋጋ | ዋጋ reads as *price* |
+| English                                  | Now                | Was       | Why                                                    |
+| ---------------------------------------- | ------------------ | --------- | ------------------------------------------------------ |
+| rate (overtime, generic)                 | ተመን                | መጣኔ       | `am.json` uses ተመን; መጣኔ is a misspelling of ምጣኔ        |
+| tax rate                                 | የግብር ምጣኔ           | የግብር መጣኔ  | the tax proclamations' term                            |
+| pension contribution rate                | የመዋጮ መጠን           | የመዋጮ መጣኔ  | `pension_rules.description` and Proclamation 1268/2022 |
+| Labour Proclamation                      | የአሠሪና ሠራተኛ አዋጅ     | ሠራተኛ አዋጅ  | Proclamation 1156/2019's Amharic title                 |
+| TIN                                      | የግብር ከፋይ ቁጥር (TIN) | የግብር ቁጥር  | `employees.missing.tin`, `next_steps.profile_item.tin` |
+| preview                                  | ቅድመ እይታ            | በቅድሚያ ማየት | fourteen existing keys                                 |
+| payroll, as the thing that applies rules | የደመወዝ ስሌቱ          | የደመወዝ ክፍያ | "the salary payment applies" read oddly                |
+| a setting's value                        | እሴት                | ዋጋ        | ዋጋ reads as _price_                                    |
 
 **Meaning corrected:**
 
-| Key | Was | Problem |
-|---|---|---|
-| `setup2.staff_band_choose` | ክልል ይምረጡ | ክልል reads as *region*, not *range* |
-| `payroll.preview_empty_hint` | ለጊዜው ደመወዝ ያላቸው | ለጊዜው means *for now*, not *for the period* |
-| `validation.organization_type_change_future` (api) | ከኋላ ካለ ቀን | ከኋላ reads as *earlier*; the date is later |
-| `settings.organization_kind_from_help` | ተፈቅዷል | *permitted*; approved pay is ጸድቋል |
-| `next_steps.step.setup_pension_registration.reason`, `setup_tax_center.reason` | ይታወጃሉ / የሚታወጅበት | *proclaimed*; declared is ሪፖርት ይደረጋሉ / የሚያሳውቁበት |
-| `next_steps.step.profile_legal_review.title` | በማረጋገጥ ላይ ነው | had no subject; now እየተረጋገጠ ነው |
-| `setup2.pay_frequency` | ምን ያህል ጊዜ ይከፍላሉ | read as *how much time*; now በየስንት ጊዜው |
-| `organization_types.diplomatic_mission` | ዲፕሎማቲክ ሚሲዮን | a transliteration that dropped *embassy*; now ኤምባሲ ወይም ዲፕሎማሲያዊ ሚሲዮን, by migration `2026_11_10_000001` |
+| Key                                                                            | Was             | Problem                                                                                               |
+| ------------------------------------------------------------------------------ | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `setup2.staff_band_choose`                                                     | ክልል ይምረጡ        | ክልል reads as _region_, not _range_                                                                    |
+| `payroll.preview_empty_hint`                                                   | ለጊዜው ደመወዝ ያላቸው  | ለጊዜው means _for now_, not _for the period_                                                            |
+| `validation.organization_type_change_future` (api)                             | ከኋላ ካለ ቀን       | ከኋላ reads as _earlier_; the date is later                                                             |
+| `settings.organization_kind_from_help`                                         | ተፈቅዷል           | _permitted_; approved pay is ጸድቋል                                                                     |
+| `next_steps.step.setup_pension_registration.reason`, `setup_tax_center.reason` | ይታወጃሉ / የሚታወጅበት | _proclaimed_; declared is ሪፖርት ይደረጋሉ / የሚያሳውቁበት                                                       |
+| `next_steps.step.profile_legal_review.title`                                   | በማረጋገጥ ላይ ነው    | had no subject; now እየተረጋገጠ ነው                                                                        |
+| `setup2.pay_frequency`                                                         | ምን ያህል ጊዜ ይከፍላሉ | read as _how much time_; now በየስንት ጊዜው                                                                |
+| `organization_types.diplomatic_mission`                                        | ዲፕሎማቲክ ሚሲዮን     | a transliteration that dropped _embassy_; now ኤምባሲ ወይም ዲፕሎማሲያዊ ሚሲዮን, by migration `2026_11_10_000001` |
 
 `tax_ladder_locked` and `pension_rule_locked` (api) no longer attach a suffix to the
 placeholder (`:reference ን`). Word order and wording were also smoothed in:
@@ -127,30 +127,30 @@ already uses. The reviewer reads Afaan Oromoo but is **not fluent**, so this ali
 fixes words that plainly mean something else; it is not a review of naturalness, which still
 needs a native speaker.
 
-| English | Now | Was | Why |
-|---|---|---|---|
-| pension (genitive) | sooramaa | soorumaa | the stem is *soorama*; seven existing keys say *sooramaa* |
-| pension scheme | sirna sooramaa | karoora soorumaa | *karoora* is a plan; `statutory.pension_scheme` and `settings.organization_kind_help` say *sirna* |
-| overtime | sa'aatii dabalataa | yeroo dabalataa | 52 existing keys |
-| overtime rates, contribution rates | gatiiwwan … | dhibbantaa … | `payroll_config.overtime_rates`, `pension_rules.description`; overtime rates are multipliers, not percentages |
-| tax rate | dhibbeentaa gibiraa | dhibbantaa gibiraa | the spelling `payroll_config.rate_percent` uses |
-| version | vershinii | gosa | *gosa* means *type*; `operations_page` says *vershinii* |
-| preview | duraan ilaali | dursee / dursii ilaali | four existing keys; *dursii* is not a word |
-| calendar | dhaha | dhaha guyyaa | `profile.calendar` |
-| Labour Proclamation | Labsii Hojjetaa | Labsii Hojjettootaa | `payroll_config.overtime_rates_desc` |
-| employer TIN | TIN qacaraa | lakkoofsa eenyummaa gibira kaffalaa hojjechiisaa | `employee.tin` is *TIN*; employer is *qacaraa* elsewhere in these keys |
-| payroll, as what applies rules | shallaggii mindaa | kaffaltii mindaa | as in the Amharic, *the payment* applying rules read oddly |
+| English                            | Now                 | Was                                              | Why                                                                                                           |
+| ---------------------------------- | ------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| pension (genitive)                 | sooramaa            | soorumaa                                         | the stem is _soorama_; seven existing keys say _sooramaa_                                                     |
+| pension scheme                     | sirna sooramaa      | karoora soorumaa                                 | _karoora_ is a plan; `statutory.pension_scheme` and `settings.organization_kind_help` say _sirna_             |
+| overtime                           | sa'aatii dabalataa  | yeroo dabalataa                                  | 52 existing keys                                                                                              |
+| overtime rates, contribution rates | gatiiwwan …         | dhibbantaa …                                     | `payroll_config.overtime_rates`, `pension_rules.description`; overtime rates are multipliers, not percentages |
+| tax rate                           | dhibbeentaa gibiraa | dhibbantaa gibiraa                               | the spelling `payroll_config.rate_percent` uses                                                               |
+| version                            | vershinii           | gosa                                             | _gosa_ means _type_; `operations_page` says _vershinii_                                                       |
+| preview                            | duraan ilaali       | dursee / dursii ilaali                           | four existing keys; _dursii_ is not a word                                                                    |
+| calendar                           | dhaha               | dhaha guyyaa                                     | `profile.calendar`                                                                                            |
+| Labour Proclamation                | Labsii Hojjetaa     | Labsii Hojjettootaa                              | `payroll_config.overtime_rates_desc`                                                                          |
+| employer TIN                       | TIN qacaraa         | lakkoofsa eenyummaa gibira kaffalaa hojjechiisaa | `employee.tin` is _TIN_; employer is _qacaraa_ elsewhere in these keys                                        |
+| payroll, as what applies rules     | shallaggii mindaa   | kaffaltii mindaa                                 | as in the Amharic, _the payment_ applying rules read oddly                                                    |
 
-`settings.organization_kind_pending` said the earlier pay *waits for* (*eega*) the current kind;
-it now says it is *worked out under* it (*shallagama*). `settings.organization_kind_from` was a
-fragment (*Kan hojii irra oolu irraa*); it is now *Guyyaa hojiirra oolu*. In the api,
+`settings.organization_kind_pending` said the earlier pay _waits for_ (_eega_) the current kind;
+it now says it is _worked out under_ it (_shallagama_). `settings.organization_kind_from` was a
+fragment (_Kan hojii irra oolu irraa_); it is now _Guyyaa hojiirra oolu_. In the api,
 `tax_ladder_locked`, `pension_rule_locked` and `statutory_rule_not_resettable` (`lang/om/payroll.php`)
 take the same terms. 36 frontend keys and 3 api messages changed in all.
 
-**Still for the native reviewer to decide:** Amharic pension *scheme* is ዕቅድ, as `statutory.pension_scheme`
-already had it, though ዕቅድ is also the subscription *plan*; and the ten organisation-type names other
+**Still for the native reviewer to decide:** Amharic pension _scheme_ is ዕቅድ, as `statutory.pension_scheme`
+already had it, though ዕቅድ is also the subscription _plan_; and the ten organisation-type names other
 than `diplomatic_mission` read correctly against the Commercial Code's terms but were not checked by a
-native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is also *price*
+native speaker. In Afaan Oromoo, a setting's _value_ is still _gatii_, which is also _price_
 (`admin_plans.price`); no better established word was found in `om.json`.
 
 ### Nationality column help in the import guide (2026-11-15)
@@ -159,136 +159,142 @@ Drafted, not native-reviewed. The employee import guide had no line for the
 `nationality` column; `employees_import_page.col_nationality` adds one. A
 native reading is owed for both languages.
 
-| Key | English | Amharic | Afaan Oromoo |
-|---|---|---|---|
+| Key                                     | English                                   | Amharic                | Afaan Oromoo                              |
+| --------------------------------------- | ----------------------------------------- | ---------------------- | ----------------------------------------- |
 | `employees_import_page.col_nationality` | Country of citizenship, such as Ethiopian | የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ | Biyyi lammummaa, fakkeenyaaf Itiyoophiyaa |
+
+### Employee workbook group headings and example note (2026-11-15)
+
+Drafted, not native-reviewed. `setup2.template_group_core`, `_person`, `_contact`, `_job`, `_pay`,
+`_source` head the column groups on the template's Instructions sheet, and `setup2.template_example_note`
+is the line under the Example sheet. The am and om strings await a native reading.
 
 ## Frontend (92 keys)
 
-| key | English | Amharic (to review) |
-|---|---|---|
-| `admin.status.disabled` | Not in use | ጥቅም ላይ ያልዋለ |
-| `announcements.confirm_delete_desc` | It is removed for everyone and cannot be recovered. | ለሁሉም ይወገዳል፤ መልሶ ማግኘት አይቻልም። |
-| `announcements.confirm_delete_title` | Delete announcement? | ማስታወቂያው ይሰረዝ? |
-| `attendance.conflicts.own_hint` | Your own attendance — someone else reviews this. | የራስዎ መገኘት ነው — ሌላ ሰው ይገመግመዋል። |
-| `attendance.settings_page.require_pin_where` | Set each employee's PIN on their profile, under Attendance. | የእያንዳንዱን ሠራተኛ PIN በመገለጫው ላይ በመገኘት ስር ያስቀምጡ። |
-| `auth.find_org_failed` | Something went wrong. Try again. | የሆነ ስህተት ተፈጥሯል። እንደገና ይሞክሩ። |
-| `auth.find_org_link` | Find your organisation by email | ድርጅትዎን በኢሜይል ይፈልጉ |
-| `auth.find_org_send` | Email me the link | መግቢያ አገናኙን በኢሜይል ላክልኝ |
-| `auth.find_org_sending` | Sending… | በመላክ ላይ… |
-| `auth.find_org_sent_body` | If that address belongs to an organisation, we've emailed you its sign-in link. | ያ አድራሻ የአንድ ድርጅት ከሆነ የመግቢያ አገናኙን በኢሜይል ልከንልዎታል። |
-| `auth.find_org_sent_title` | Check your email | ኢሜይልዎን ይመልከቱ |
-| `auth.find_org_subtitle` | Enter the email address you sign in with. We'll email you the sign-in link for each organisation it belongs to. | የሚገቡበትን ኢሜይል አድራሻ ያስገቡ። አድራሻው ለሚገኝበት ለእያንዳንዱ ድርጅት የመግቢያ አገናኙን በኢሜይል እንልክልዎታለን። |
-| `auth.find_org_title` | Find your organisation | ድርጅትዎን ይፈልጉ |
-| `auth.find_org_too_many` | Too many requests for this address. Try again in a few minutes. | ለዚህ አድራሻ ብዙ ጥያቄዎች ቀርበዋል። ከጥቂት ደቂቃዎች በኋላ እንደገና ይሞክሩ። |
-| `auth.sso_return.account_inactive` | Your account is not active. Contact your administrator. | መለያዎ ንቁ አይደለም። አስተዳዳሪዎን ያነጋግሩ። |
-| `auth.sso_return.back` | Back to sign in | ወደ መግቢያ ተመለስ |
-| `auth.sso_return.failed` | Your organisation's sign-in service did not confirm who you are. Please try again. | የድርጅትዎ የመግቢያ አገልግሎት ማንነትዎን አላረጋገጠም። እባክዎ እንደገና ይሞክሩ። |
-| `auth.sso_return.no_account` | There is no ETHR account for you in this organisation. Ask your administrator to invite you. | በዚህ ድርጅት ውስጥ የETHR መለያ የለዎትም። አስተዳዳሪዎ እንዲጋብዝዎ ይጠይቁ። |
-| `auth.sso_return.not_configured` | Single sign-on is not set up for this organisation. Sign in with your password instead. | ለዚህ ድርጅት ነጠላ መግቢያ (SSO) አልተዘጋጀም። በይለፍ ቃልዎ ይግቡ። |
-| `auth.sso_return.seat_limit` | Your organisation has reached its plan's employee limit, so a new account could not be created for you. Contact your administrator. | ድርጅትዎ የዕቅዱን የሠራተኛ ገደብ ስለደረሰ አዲስ መለያ ሊፈጠርልዎ አልቻለም። አስተዳዳሪዎን ያነጋግሩ። |
-| `auth.sso_return.signing_in` | Signing you in… | በማስገባት ላይ… |
-| `auth.sso_return.tenant_inactive` | This organisation's account is not active. | የዚህ ድርጅት መለያ ንቁ አይደለም። |
-| `auth.sso_return.title` | Single sign-on did not complete | ነጠላ መግቢያ (SSO) አልተጠናቀቀም |
-| `billing.awaiting_confirmation` | Awaiting payment confirmation | የክፍያ ማረጋገጫ በመጠበቅ ላይ |
-| `billing.bank_placeholder` | Commercial Bank of Ethiopia | የኢትዮጵያ ንግድ ባንክ |
-| `billing.receipt_failed` | Couldn't download the receipt | ደረሰኙን ማውረድ አልተቻለም |
-| `command.palette_title` | Command palette | የትዕዛዝ ማውጫ |
-| `dashboard.leave_usage_aria` | :type leave: :pct% used | :type ፈቃድ፦ :pct% ጥቅም ላይ ውሏል |
-| `employee.cost_center` | Cost centre | የወጪ ማዕከል |
-| `employee.detail.nationality_placeholder` | Ethiopian | ኢትዮጵያዊ |
-| `employee.education.field_of_study_placeholder` | Computer Science... | ኮምፒውተር ሳይንስ… |
-| `employee.education.gpa` | GPA | አማካይ ውጤት (GPA) |
-| `employee.emergency.relationship_placeholder` | Spouse, Parent... | የትዳር ጓደኛ፣ ወላጅ… |
-| `employee.lifecycle.reason_placeholder` | Optional — context for the transition | አማራጭ — የለውጡ ምክንያት |
-| `employee.supervisor` | Supervisor | ተቆጣጣሪ |
-| `employee.team` | Team | ቡድን |
-| `error.unexpected` | An unexpected error occurred | ያልተጠበቀ ስህተት ተፈጥሯል |
-| `holidays_page.delete_desc` | Leave and attendance stop treating this day as a holiday. | ፈቃድና መገኘት ይህንን ቀን እንደ በዓል መቁጠር ያቆማሉ። |
-| `holidays_page.delete_title` | Delete this holiday? | ይህ በዓል ይሰረዝ? |
-| `holidays_page.edit_holiday` | Edit holiday | በዓሉን አርትዕ |
-| `holidays_page.update_failed` | Couldn't update the holiday | በዓሉን ማዘመን አልተቻለም |
-| `holidays_page.updated` | Holiday updated | በዓሉ ተዘምኗል |
-| `kiosk_pin.change` | Change PIN | PIN ቀይር |
-| `kiosk_pin.description` | The employee enters this at a kiosk when your organisation requires a PIN. Tell it to them in person; it cannot be shown again. | ድርጅትዎ PIN ሲጠይቅ ሠራተኛው ይህንን በኪዮስክ ላይ ያስገባል። በአካል ይንገሩት፤ ዳግም ሊታይ አይችልም። |
-| `kiosk_pin.failed` | Couldn't save the PIN | PIN ማስቀመጥ አልተቻለም |
-| `kiosk_pin.field` | New PIN | አዲስ PIN |
-| `kiosk_pin.hint` | Four to six digits. | ከአራት እስከ ስድስት አሃዞች። |
-| `kiosk_pin.is_set` | Set | ተቀምጧል |
-| `kiosk_pin.not_set` | Not set | አልተቀመጠም |
-| `kiosk_pin.remove` | Remove | አስወግድ |
-| `kiosk_pin.removed` | Kiosk PIN removed | የኪዮስክ PIN ተወግዷል |
-| `kiosk_pin.save` | Save PIN | PIN አስቀምጥ |
-| `kiosk_pin.saved` | Kiosk PIN saved | የኪዮስክ PIN ተቀምጧል |
-| `kiosk_pin.set` | Set PIN | PIN አስቀምጥ |
-| `kiosk_pin.title` | Kiosk PIN | የኪዮስክ PIN |
-| `leave_types_page.week_save_failed` | Couldn't save the working week | የሥራ ሳምንቱን ማስቀመጥ አልተቻለም |
-| `leave_types_page.week_saved` | Working week saved | የሥራ ሳምንቱ ተቀምጧል |
-| `leave_types_page.working_week` | Working week | የሥራ ሳምንት |
-| `leave_types_page.working_week_admin_only` | Only an organisation admin can change the working week. | የሥራ ሳምንቱን መቀየር የሚችለው የድርጅት አስተዳዳሪ ብቻ ነው። |
-| `leave_types_page.working_week_desc` | The days a leave request counts. Holidays are not counted. | የፈቃድ ጥያቄ የሚቆጥራቸው ቀናት። በዓላት አይቆጠሩም። |
-| `offline.page_body` | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የበይነመረብ ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጪ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
-| `offline.page_title` | You are offline | ከመስመር ውጪ ነዎት |
-| `org.field.grade_name_placeholder` | G1, Manager I, Level 5... | G1፣ ሥራ አስኪያጅ I፣ ደረጃ 5… |
-| `payroll_config.fiscal_year_start` | Fiscal year starts | የበጀት ዓመቱ የሚጀምርበት |
-| `payroll_config.fiscal_year_start_help` | Meskerem for most private organisations; Hamle for government. | ለአብዛኞቹ የግል ድርጅቶች መስከረም፤ ለመንግሥት ሐምሌ። |
-| `payroll_config.pagumen` | Pagume pay | የጳጉሜ ክፍያ |
-| `payroll_config.pagumen_daily_rate` | Its days at the daily rate | ቀናቱ በዕለታዊ ተመን |
-| `payroll_config.pagumen_full_month` | A full month | ሙሉ ወር |
-| `payroll_config.pagumen_help` | How the 5 or 6 days of Pagume are paid. | የጳጉሜ 5 ወይም 6 ቀናት እንዴት እንደሚከፈሉ። |
-| `payroll_config.retirement_age` | Retirement age | የጡረታ ዕድሜ |
-| `payroll_config.retirement_age_help` | Retirement cases are dated from this age. | የጡረታ ጉዳዮች ቀን የሚቆጠረው ከዚህ ዕድሜ ነው። |
-| `payroll_page.payslips_page.download_failed` | Couldn't download the payslip | የደመወዝ ወረቀቱን ማውረድ አልተቻለም |
-| `plan_feature.not_in_plan` | This is not included in your organisation's plan. | ይህ በድርጅትዎ ዕቅድ ውስጥ አልተካተተም። |
-| `plan_feature.see_plans` | See plans | ዕቅዶችን ይመልከቱ |
-| `reports_page.truncated` | Only the newest 1,000 rows are shown. Narrow the dates to see the rest. | የሚታዩት አዲሶቹ 1,000 ረድፎች ብቻ ናቸው። ቀሪውን ለማየት ቀኖቹን ያጥብቡ። |
-| `roles_page.org_scope` | Whose records | የማን መዝገቦች |
-| `roles_page.org_scope_hint` | The employees a holder of this role can see and act on. | ይህ ሚና ያለው ሰው ማየትና መሥራት የሚችልባቸው ሠራተኞች። |
-| `roles_page.scope_all` | Everyone in the organisation | በድርጅቱ ውስጥ ያሉ ሁሉ |
-| `roles_page.scope_branch` | Their branch | የራሳቸው ቅርንጫፍ |
-| `roles_page.scope_department` | Their department | የራሳቸው የሥራ ክፍል |
-| `roles_page.scope_direct_reports` | Their direct reports | በቀጥታ የሚመሩዋቸው |
-| `roles_page.scope_self` | Their own only | የራሳቸው ብቻ |
-| `roles_page.scope_team` | Their team | የራሳቸው ቡድን |
-| `table.error_loading` | Something went wrong loading this data. | ይህን መረጃ በመጫን ላይ ስህተት ተፈጥሯል። |
-| `time.week_short` | w | ሳ |
-| `users_page.mfa_on` | 2FA | ባለሁለት ደረጃ |
-| `users_page.search` | Search by name or email | በስም ወይም በኢሜይል ይፈልጉ |
-| `webhooks_page.active_toggle` | Deliver to this webhook | ወደዚህ ዌብሁክ ላክ |
-| `webhooks_page.disabled` | Webhook disabled | ዌብሁኩ ተሰናክሏል |
-| `webhooks_page.edit_webhook` | Edit webhook | ዌብሁኩን አርትዕ |
-| `webhooks_page.enabled` | Webhook enabled | ዌብሁኩ ነቅቷል |
-| `webhooks_page.updated` | Webhook updated | ዌብሁኩ ተዘምኗል |
+| key                                             | English                                                                                                                             | Amharic (to review)                                                                   |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `admin.status.disabled`                         | Not in use                                                                                                                          | ጥቅም ላይ ያልዋለ                                                                           |
+| `announcements.confirm_delete_desc`             | It is removed for everyone and cannot be recovered.                                                                                 | ለሁሉም ይወገዳል፤ መልሶ ማግኘት አይቻልም።                                                           |
+| `announcements.confirm_delete_title`            | Delete announcement?                                                                                                                | ማስታወቂያው ይሰረዝ?                                                                         |
+| `attendance.conflicts.own_hint`                 | Your own attendance — someone else reviews this.                                                                                    | የራስዎ መገኘት ነው — ሌላ ሰው ይገመግመዋል።                                                         |
+| `attendance.settings_page.require_pin_where`    | Set each employee's PIN on their profile, under Attendance.                                                                         | የእያንዳንዱን ሠራተኛ PIN በመገለጫው ላይ በመገኘት ስር ያስቀምጡ።                                           |
+| `auth.find_org_failed`                          | Something went wrong. Try again.                                                                                                    | የሆነ ስህተት ተፈጥሯል። እንደገና ይሞክሩ።                                                           |
+| `auth.find_org_link`                            | Find your organisation by email                                                                                                     | ድርጅትዎን በኢሜይል ይፈልጉ                                                                     |
+| `auth.find_org_send`                            | Email me the link                                                                                                                   | መግቢያ አገናኙን በኢሜይል ላክልኝ                                                                 |
+| `auth.find_org_sending`                         | Sending…                                                                                                                            | በመላክ ላይ…                                                                              |
+| `auth.find_org_sent_body`                       | If that address belongs to an organisation, we've emailed you its sign-in link.                                                     | ያ አድራሻ የአንድ ድርጅት ከሆነ የመግቢያ አገናኙን በኢሜይል ልከንልዎታል።                                       |
+| `auth.find_org_sent_title`                      | Check your email                                                                                                                    | ኢሜይልዎን ይመልከቱ                                                                          |
+| `auth.find_org_subtitle`                        | Enter the email address you sign in with. We'll email you the sign-in link for each organisation it belongs to.                     | የሚገቡበትን ኢሜይል አድራሻ ያስገቡ። አድራሻው ለሚገኝበት ለእያንዳንዱ ድርጅት የመግቢያ አገናኙን በኢሜይል እንልክልዎታለን።        |
+| `auth.find_org_title`                           | Find your organisation                                                                                                              | ድርጅትዎን ይፈልጉ                                                                           |
+| `auth.find_org_too_many`                        | Too many requests for this address. Try again in a few minutes.                                                                     | ለዚህ አድራሻ ብዙ ጥያቄዎች ቀርበዋል። ከጥቂት ደቂቃዎች በኋላ እንደገና ይሞክሩ።                                   |
+| `auth.sso_return.account_inactive`              | Your account is not active. Contact your administrator.                                                                             | መለያዎ ንቁ አይደለም። አስተዳዳሪዎን ያነጋግሩ።                                                        |
+| `auth.sso_return.back`                          | Back to sign in                                                                                                                     | ወደ መግቢያ ተመለስ                                                                          |
+| `auth.sso_return.failed`                        | Your organisation's sign-in service did not confirm who you are. Please try again.                                                  | የድርጅትዎ የመግቢያ አገልግሎት ማንነትዎን አላረጋገጠም። እባክዎ እንደገና ይሞክሩ።                                  |
+| `auth.sso_return.no_account`                    | There is no ETHR account for you in this organisation. Ask your administrator to invite you.                                        | በዚህ ድርጅት ውስጥ የETHR መለያ የለዎትም። አስተዳዳሪዎ እንዲጋብዝዎ ይጠይቁ።                                   |
+| `auth.sso_return.not_configured`                | Single sign-on is not set up for this organisation. Sign in with your password instead.                                             | ለዚህ ድርጅት ነጠላ መግቢያ (SSO) አልተዘጋጀም። በይለፍ ቃልዎ ይግቡ።                                        |
+| `auth.sso_return.seat_limit`                    | Your organisation has reached its plan's employee limit, so a new account could not be created for you. Contact your administrator. | ድርጅትዎ የዕቅዱን የሠራተኛ ገደብ ስለደረሰ አዲስ መለያ ሊፈጠርልዎ አልቻለም። አስተዳዳሪዎን ያነጋግሩ።                     |
+| `auth.sso_return.signing_in`                    | Signing you in…                                                                                                                     | በማስገባት ላይ…                                                                            |
+| `auth.sso_return.tenant_inactive`               | This organisation's account is not active.                                                                                          | የዚህ ድርጅት መለያ ንቁ አይደለም።                                                                |
+| `auth.sso_return.title`                         | Single sign-on did not complete                                                                                                     | ነጠላ መግቢያ (SSO) አልተጠናቀቀም                                                               |
+| `billing.awaiting_confirmation`                 | Awaiting payment confirmation                                                                                                       | የክፍያ ማረጋገጫ በመጠበቅ ላይ                                                                   |
+| `billing.bank_placeholder`                      | Commercial Bank of Ethiopia                                                                                                         | የኢትዮጵያ ንግድ ባንክ                                                                        |
+| `billing.receipt_failed`                        | Couldn't download the receipt                                                                                                       | ደረሰኙን ማውረድ አልተቻለም                                                                     |
+| `command.palette_title`                         | Command palette                                                                                                                     | የትዕዛዝ ማውጫ                                                                             |
+| `dashboard.leave_usage_aria`                    | :type leave: :pct% used                                                                                                             | :type ፈቃድ፦ :pct% ጥቅም ላይ ውሏል                                                           |
+| `employee.cost_center`                          | Cost centre                                                                                                                         | የወጪ ማዕከል                                                                              |
+| `employee.detail.nationality_placeholder`       | Ethiopian                                                                                                                           | ኢትዮጵያዊ                                                                                |
+| `employee.education.field_of_study_placeholder` | Computer Science...                                                                                                                 | ኮምፒውተር ሳይንስ…                                                                          |
+| `employee.education.gpa`                        | GPA                                                                                                                                 | አማካይ ውጤት (GPA)                                                                        |
+| `employee.emergency.relationship_placeholder`   | Spouse, Parent...                                                                                                                   | የትዳር ጓደኛ፣ ወላጅ…                                                                        |
+| `employee.lifecycle.reason_placeholder`         | Optional — context for the transition                                                                                               | አማራጭ — የለውጡ ምክንያት                                                                     |
+| `employee.supervisor`                           | Supervisor                                                                                                                          | ተቆጣጣሪ                                                                                 |
+| `employee.team`                                 | Team                                                                                                                                | ቡድን                                                                                   |
+| `error.unexpected`                              | An unexpected error occurred                                                                                                        | ያልተጠበቀ ስህተት ተፈጥሯል                                                                     |
+| `holidays_page.delete_desc`                     | Leave and attendance stop treating this day as a holiday.                                                                           | ፈቃድና መገኘት ይህንን ቀን እንደ በዓል መቁጠር ያቆማሉ።                                                  |
+| `holidays_page.delete_title`                    | Delete this holiday?                                                                                                                | ይህ በዓል ይሰረዝ?                                                                          |
+| `holidays_page.edit_holiday`                    | Edit holiday                                                                                                                        | በዓሉን አርትዕ                                                                             |
+| `holidays_page.update_failed`                   | Couldn't update the holiday                                                                                                         | በዓሉን ማዘመን አልተቻለም                                                                      |
+| `holidays_page.updated`                         | Holiday updated                                                                                                                     | በዓሉ ተዘምኗል                                                                             |
+| `kiosk_pin.change`                              | Change PIN                                                                                                                          | PIN ቀይር                                                                               |
+| `kiosk_pin.description`                         | The employee enters this at a kiosk when your organisation requires a PIN. Tell it to them in person; it cannot be shown again.     | ድርጅትዎ PIN ሲጠይቅ ሠራተኛው ይህንን በኪዮስክ ላይ ያስገባል። በአካል ይንገሩት፤ ዳግም ሊታይ አይችልም።                  |
+| `kiosk_pin.failed`                              | Couldn't save the PIN                                                                                                               | PIN ማስቀመጥ አልተቻለም                                                                      |
+| `kiosk_pin.field`                               | New PIN                                                                                                                             | አዲስ PIN                                                                               |
+| `kiosk_pin.hint`                                | Four to six digits.                                                                                                                 | ከአራት እስከ ስድስት አሃዞች።                                                                   |
+| `kiosk_pin.is_set`                              | Set                                                                                                                                 | ተቀምጧል                                                                                 |
+| `kiosk_pin.not_set`                             | Not set                                                                                                                             | አልተቀመጠም                                                                               |
+| `kiosk_pin.remove`                              | Remove                                                                                                                              | አስወግድ                                                                                 |
+| `kiosk_pin.removed`                             | Kiosk PIN removed                                                                                                                   | የኪዮስክ PIN ተወግዷል                                                                       |
+| `kiosk_pin.save`                                | Save PIN                                                                                                                            | PIN አስቀምጥ                                                                             |
+| `kiosk_pin.saved`                               | Kiosk PIN saved                                                                                                                     | የኪዮስክ PIN ተቀምጧል                                                                       |
+| `kiosk_pin.set`                                 | Set PIN                                                                                                                             | PIN አስቀምጥ                                                                             |
+| `kiosk_pin.title`                               | Kiosk PIN                                                                                                                           | የኪዮስክ PIN                                                                             |
+| `leave_types_page.week_save_failed`             | Couldn't save the working week                                                                                                      | የሥራ ሳምንቱን ማስቀመጥ አልተቻለም                                                                |
+| `leave_types_page.week_saved`                   | Working week saved                                                                                                                  | የሥራ ሳምንቱ ተቀምጧል                                                                        |
+| `leave_types_page.working_week`                 | Working week                                                                                                                        | የሥራ ሳምንት                                                                              |
+| `leave_types_page.working_week_admin_only`      | Only an organisation admin can change the working week.                                                                             | የሥራ ሳምንቱን መቀየር የሚችለው የድርጅት አስተዳዳሪ ብቻ ነው።                                              |
+| `leave_types_page.working_week_desc`            | The days a leave request counts. Holidays are not counted.                                                                          | የፈቃድ ጥያቄ የሚቆጥራቸው ቀናት። በዓላት አይቆጠሩም።                                                    |
+| `offline.page_body`                             | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የበይነመረብ ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጪ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
+| `offline.page_title`                            | You are offline                                                                                                                     | ከመስመር ውጪ ነዎት                                                                          |
+| `org.field.grade_name_placeholder`              | G1, Manager I, Level 5...                                                                                                           | G1፣ ሥራ አስኪያጅ I፣ ደረጃ 5…                                                                |
+| `payroll_config.fiscal_year_start`              | Fiscal year starts                                                                                                                  | የበጀት ዓመቱ የሚጀምርበት                                                                      |
+| `payroll_config.fiscal_year_start_help`         | Meskerem for most private organisations; Hamle for government.                                                                      | ለአብዛኞቹ የግል ድርጅቶች መስከረም፤ ለመንግሥት ሐምሌ።                                                   |
+| `payroll_config.pagumen`                        | Pagume pay                                                                                                                          | የጳጉሜ ክፍያ                                                                              |
+| `payroll_config.pagumen_daily_rate`             | Its days at the daily rate                                                                                                          | ቀናቱ በዕለታዊ ተመን                                                                         |
+| `payroll_config.pagumen_full_month`             | A full month                                                                                                                        | ሙሉ ወር                                                                                 |
+| `payroll_config.pagumen_help`                   | How the 5 or 6 days of Pagume are paid.                                                                                             | የጳጉሜ 5 ወይም 6 ቀናት እንዴት እንደሚከፈሉ።                                                        |
+| `payroll_config.retirement_age`                 | Retirement age                                                                                                                      | የጡረታ ዕድሜ                                                                              |
+| `payroll_config.retirement_age_help`            | Retirement cases are dated from this age.                                                                                           | የጡረታ ጉዳዮች ቀን የሚቆጠረው ከዚህ ዕድሜ ነው።                                                       |
+| `payroll_page.payslips_page.download_failed`    | Couldn't download the payslip                                                                                                       | የደመወዝ ወረቀቱን ማውረድ አልተቻለም                                                               |
+| `plan_feature.not_in_plan`                      | This is not included in your organisation's plan.                                                                                   | ይህ በድርጅትዎ ዕቅድ ውስጥ አልተካተተም።                                                            |
+| `plan_feature.see_plans`                        | See plans                                                                                                                           | ዕቅዶችን ይመልከቱ                                                                           |
+| `reports_page.truncated`                        | Only the newest 1,000 rows are shown. Narrow the dates to see the rest.                                                             | የሚታዩት አዲሶቹ 1,000 ረድፎች ብቻ ናቸው። ቀሪውን ለማየት ቀኖቹን ያጥብቡ።                                    |
+| `roles_page.org_scope`                          | Whose records                                                                                                                       | የማን መዝገቦች                                                                             |
+| `roles_page.org_scope_hint`                     | The employees a holder of this role can see and act on.                                                                             | ይህ ሚና ያለው ሰው ማየትና መሥራት የሚችልባቸው ሠራተኞች።                                                 |
+| `roles_page.scope_all`                          | Everyone in the organisation                                                                                                        | በድርጅቱ ውስጥ ያሉ ሁሉ                                                                       |
+| `roles_page.scope_branch`                       | Their branch                                                                                                                        | የራሳቸው ቅርንጫፍ                                                                           |
+| `roles_page.scope_department`                   | Their department                                                                                                                    | የራሳቸው የሥራ ክፍል                                                                         |
+| `roles_page.scope_direct_reports`               | Their direct reports                                                                                                                | በቀጥታ የሚመሩዋቸው                                                                          |
+| `roles_page.scope_self`                         | Their own only                                                                                                                      | የራሳቸው ብቻ                                                                              |
+| `roles_page.scope_team`                         | Their team                                                                                                                          | የራሳቸው ቡድን                                                                             |
+| `table.error_loading`                           | Something went wrong loading this data.                                                                                             | ይህን መረጃ በመጫን ላይ ስህተት ተፈጥሯል።                                                           |
+| `time.week_short`                               | w                                                                                                                                   | ሳ                                                                                     |
+| `users_page.mfa_on`                             | 2FA                                                                                                                                 | ባለሁለት ደረጃ                                                                             |
+| `users_page.search`                             | Search by name or email                                                                                                             | በስም ወይም በኢሜይል ይፈልጉ                                                                    |
+| `webhooks_page.active_toggle`                   | Deliver to this webhook                                                                                                             | ወደዚህ ዌብሁክ ላክ                                                                          |
+| `webhooks_page.disabled`                        | Webhook disabled                                                                                                                    | ዌብሁኩ ተሰናክሏል                                                                           |
+| `webhooks_page.edit_webhook`                    | Edit webhook                                                                                                                        | ዌብሁኩን አርትዕ                                                                            |
+| `webhooks_page.enabled`                         | Webhook enabled                                                                                                                     | ዌብሁኩ ነቅቷል                                                                             |
+| `webhooks_page.updated`                         | Webhook updated                                                                                                                     | ዌብሁኩ ተዘምኗል                                                                            |
 
 ## Setup wizard catalogues in Afaan Oromoo (2026-11-14)
 
 The setup wizard shows catalogue text that comes from the backend, not from the dictionaries, and it picked Amharic with an `am` check, so an Afaan Oromoo reader saw English. Every `label_am`, `description_am` and `name_am` in the wizard catalogues now has an `_om` beside it, and the frontend picks `field_<locale>` for any shipped locale (`features/onboarding/v2/localized.ts`), falling back to English when the Oromo text is empty.
 
-**Drafted, not native-reviewed.** The text was written by a non-native reviewer from terms the product already ships in `om.json` and `api/lang/om/` (*boqonnaa* leave, *abbaltii* allowance, *damee* branch, *hojjetaa* employee, *shiftii* shift, *Fulbaana* and *Adoolessa* for Meskerem and Hamle, *Labsii Hojjetaa* for the Labour Proclamation). A native speaker's reading is still owed (O7). The names that are least certain are marked below.
+**Drafted, not native-reviewed.** The text was written by a non-native reviewer from terms the product already ships in `om.json` and `api/lang/om/` (_boqonnaa_ leave, _abbaltii_ allowance, _damee_ branch, _hojjetaa_ employee, _shiftii_ shift, _Fulbaana_ and _Adoolessa_ for Meskerem and Hamle, _Labsii Hojjetaa_ for the Labour Proclamation). A native speaker's reading is still owed (O7). The names that are least certain are marked below.
 
-| Catalogue | File | `_om` strings |
-|---|---|---|
-| Industries (labels, and the allowance names in their overrides) | `api/app/Services/Onboarding/IndustryCatalog.php` | 35 labels, 4 allowance names |
+| Catalogue                                                           | File                                                      | `_om` strings                        |
+| ------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------ |
+| Industries (labels, and the allowance names in their overrides)     | `api/app/Services/Onboarding/IndustryCatalog.php`         | 35 labels, 4 allowance names         |
 | Workforce profiles (labels, descriptions, shift and rotation names) | `api/app/Services/Onboarding/WorkforceProfileCatalog.php` | 10 labels, 10 descriptions, 21 names |
-| Policy profiles (labels, descriptions, allowance names) | `api/app/Services/Onboarding/PolicyProfileCatalog.php` | 3 labels, 3 descriptions, 6 names |
-| Leave types | `api/app/Services/Onboarding/LeaveTypeCatalog.php` | 13 names |
-| The proposed head-office branch | `api/app/Services/Onboarding/IndustryProfileResolver.php` | 1 name |
+| Policy profiles (labels, descriptions, allowance names)             | `api/app/Services/Onboarding/PolicyProfileCatalog.php`    | 3 labels, 3 descriptions, 6 names    |
+| Leave types                                                         | `api/app/Services/Onboarding/LeaveTypeCatalog.php`        | 13 names                             |
+| The proposed head-office branch                                     | `api/app/Services/Onboarding/IndustryProfileResolver.php` | 1 name                               |
 
 `OnboardingCatalogCopyTest` fails when an `_am` text has no `_om`, an empty one, or one equal to the English or the Amharic.
 
-Terms to check first, because the English has no settled Oromo equivalent in the product yet: *Sektara Mootummaa* (government sector), *Telekoominikeeshinii*, *Boqonnaa Qorannoo* (sabbatical), *Boqonnaa Gaddaa* (bereavement), *Boqonnaa Gaa'elaa* (marriage), *Hafuu Hayyamamaa* (excused absence), *Waaree Booda* (afternoon and swing shift) and *Torban Guyyaa Jahaa* (six-day week).
+Terms to check first, because the English has no settled Oromo equivalent in the product yet: _Sektara Mootummaa_ (government sector), _Telekoominikeeshinii_, _Boqonnaa Qorannoo_ (sabbatical), _Boqonnaa Gaddaa_ (bereavement), _Boqonnaa Gaa'elaa_ (marriage), _Hafuu Hayyamamaa_ (excused absence), _Waaree Booda_ (afternoon and swing shift) and _Torban Guyyaa Jahaa_ (six-day week).
 
 ### Proposal names and kinds in law (2026-11-15)
 
 Drafted in Amharic and Afaan Oromoo without a native speaker, for QA observation O-2. A wrong
 name moves no money.
 
-| What | Where | Strings |
-|---|---|---|
-| Departments the wizard proposes | `api/app/Services/Onboarding/ProposalNameGlossary.php`, `DEPARTMENTS` | 167, each in Amharic and Afaan Oromoo |
-| Positions the wizard proposes | the same file, `POSITIONS` | 151, each in Amharic and Afaan Oromoo |
-| The word of a grade | the same file, `GRADE` | ደረጃ, Sadarkaa |
-| Kinds of organisation in law | `organization_types.name_om`, migration `2026_11_15_000001_add_oromo_name_to_organization_types` | 16, Afaan Oromoo only |
+| What                            | Where                                                                                            | Strings                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| Departments the wizard proposes | `api/app/Services/Onboarding/ProposalNameGlossary.php`, `DEPARTMENTS`                            | 167, each in Amharic and Afaan Oromoo |
+| Positions the wizard proposes   | the same file, `POSITIONS`                                                                       | 151, each in Amharic and Afaan Oromoo |
+| The word of a grade             | the same file, `GRADE`                                                                           | ደረጃ, Sadarkaa                         |
+| Kinds of organisation in law    | `organization_types.name_om`, migration `2026_11_15_000001_add_oromo_name_to_organization_types` | 16, Afaan Oromoo only                 |
 
 `ProposalNameGlossaryTest` fails when a proposed department or position has no Amharic or no
 Oromo name, one equal to the English, or one in the wrong script. It does not judge the wording.
@@ -297,10 +303,10 @@ glossary entry is corrected where it is.
 
 What to check first:
 
-- **Loan words kept beside an Oromo gloss**, where the product has no settled term: *Underwriting*,
-  *Actuarial*, *Treasury*, *Billing*, *Catering*, *DevOps*, *Product*, *Marketing*, *Steward*.
+- **Loan words kept beside an Oromo gloss**, where the product has no settled term: _Underwriting_,
+  _Actuarial_, _Treasury_, _Billing_, _Catering_, _DevOps_, _Product_, _Marketing_, _Steward_.
 - **The same Amharic for two English names**, on purpose: አሠልጣኝ for Instructor and Trainer,
   ሠራተኛ for Worker and Staff, የጽሕፈት ቤት ኃላፊ for Office Head and Head of Office.
-- **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
-- **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
-  product's own word for a department is ክፍል / *Muummee*.
+- **Safety and Security** are kept apart: የሥራ ደህንነት / _Nageenya Hojii_ and ጥበቃ / _Eegumsa_.
+- **Department** in a zone's structure is መምሪያ / _Qajeelcha_, the civil-service word, while the
+  product's own word for a department is ክፍል / _Muummee_.
