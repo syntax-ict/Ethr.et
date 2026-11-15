@@ -7,12 +7,18 @@ namespace App\Console\Commands;
 use App\Jobs\PullDeviceEventsJob;
 use App\Models\Device;
 use App\Models\Tenant;
+use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\HikvisionPushAdapter;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SyncDevicesCommand extends Command
 {
+    /** Least wait between pulls of a device that failed the last time. */
+    private const RETRY_AFTER_MINUTES = 15;
+
     protected $signature = 'devices:sync {--tenant= : Sync devices for a specific tenant public_id}';
 
     protected $description = 'Pull attendance events from all auto-sync enabled devices';
@@ -71,14 +77,53 @@ class SyncDevicesCommand extends Command
             return false;
         }
 
-        if (! $device->auto_sync
-            || ! in_array($device->status, ['online', 'pending'], true)
-            || ! $device->isDueForSync()) {
+        if (! $device->auto_sync) {
+            return false;
+        }
+
+        $due = in_array($device->status, ['online', 'pending'], true)
+            ? $device->isDueForSync()
+            : $this->isDueForRetry($device);
+
+        if (! $due) {
             return false;
         }
 
         PullDeviceEventsJob::dispatch($device->id, $device->tenant_id);
 
         return true;
+    }
+
+    /**
+     * Whether a device that failed its last pull (offline or error) is tried
+     * again. A device that failed once used to be parked until an admin
+     * pressed Test or Pull, though the job itself brings it back online when
+     * its probe succeeds. It is retried no more often than every 15 minutes,
+     * or its own interval if that is longer, so dead devices do not eat the
+     * queue's time budget: production drains the queue inside HTTP requests
+     * of at most about 25 seconds. An ADMS terminal is never called, it comes
+     * back by its own next call, so a retry would only write log rows.
+     *
+     * The last attempt is read with the tenant stated here, since this command
+     * resolves no tenant and the scoped relation would return nothing.
+     */
+    private function isDueForRetry(Device $device): bool
+    {
+        if ($device->adapter_type === AdmsDeviceResolver::ADAPTER) {
+            return false;
+        }
+
+        $last = DB::table('device_sync_logs')
+            ->where('tenant_id', $device->tenant_id)
+            ->where('device_id', $device->id)
+            ->max('started_at');
+
+        if ($last === null) {
+            return true;
+        }
+
+        $wait = max(self::RETRY_AFTER_MINUTES, (int) $device->sync_interval_minutes);
+
+        return Carbon::parse((string) $last, 'UTC')->addMinutes($wait)->lessThanOrEqualTo(now());
     }
 }
