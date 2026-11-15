@@ -63,6 +63,9 @@ final class WorkforceMigrationService
     /** Rows written per insert statement when a list is stored. */
     private const INSERT_CHUNK = 250;
 
+    /** employees.employee_code is a 30 character column. */
+    private const EMPLOYEE_CODE_MAX = 30;
+
     private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
 
     /** A new person's own details, staged under the employee column they fill. */
@@ -111,7 +114,8 @@ final class WorkforceMigrationService
                 'card_number' => $card,
                 'department' => $enrollment['department'] ?? null,
                 'employee_code' => $userId,
-                'badge_number' => $card ?? $userId,
+                // The terminal's own number: a punch carries it, never the card.
+                'badge_number' => $userId,
                 'source_type' => $device->adapter_type,
                 'source_ref' => 'device:'.$device->id,
                 'identifier_type' => 'device_user_id',
@@ -121,10 +125,37 @@ final class WorkforceMigrationService
                 'code_is_guess' => true,
             ];
 
-            $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId, $departments);
+            $this->stageRow($batch, $this->flagUnfitDeviceId($raw, $userId), $enrollment['name'] ?? null, $userId, $departments);
         }
 
         return $batch->refresh();
+    }
+
+    /**
+     * A terminal's number that cannot be an employee number or a badge number
+     * (the columns are 30 and 50 wide, and the badge rule allows 32 letters,
+     * digits and hyphens) is left out of those two and flagged on the row, so
+     * it is seen at review and not as a failure at commit. It stays the
+     * terminal's own number: the identity is linked all the same.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function flagUnfitDeviceId(array $raw, string $userId): array
+    {
+        $warnings = [];
+
+        if (mb_strlen($userId) > self::EMPLOYEE_CODE_MAX) {
+            unset($raw['employee_code']);
+            $warnings[] = ['code' => 'device_id_too_long', 'message' => __('onboarding.migration.device_id_too_long', ['value' => $userId, 'max' => self::EMPLOYEE_CODE_MAX])];
+        }
+
+        if (preg_match('/^[A-Za-z0-9-]{1,32}$/D', $userId) !== 1) {
+            unset($raw['badge_number']);
+            $warnings[] = ['code' => 'device_id_not_badge', 'message' => __('onboarding.migration.device_id_not_badge', ['value' => $userId])];
+        }
+
+        return $warnings === [] ? $raw : [...$raw, 'warnings' => $warnings];
     }
 
     /**
