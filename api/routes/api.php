@@ -429,6 +429,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::delete('/migration/sources/{importMapping}', [ImportMappingController::class, 'destroy']);
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
+        Route::post('/migration/batches/{batch}/stage', [MigrationController::class, 'stage'])->middleware('throttle:migration-commit');
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
     });
