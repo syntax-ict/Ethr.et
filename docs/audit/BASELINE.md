@@ -4776,3 +4776,15 @@ Read in the code while making the import one staged review (One employee identit
   bound it and its `post_max_size` does. The screen refuses a file over 5 MB before reading
   it. How large a list's JSON is at 2,000 people, and whether that fits the host's
   `post_max_size`, is unmeasured.
+
+### 25n. A release that adds a route answered 404 until `optimize` — measured 2026-11-15
+
+After v2026.11.15.1 (#731, which added `POST /api/v1/onboarding/migration/batches/{batch}/stage`),
+production answered `GET .../batches/X/stage` with 404 while `.../commit` answered 405: the route
+cache `bootstrap/cache/routes-v7.php` predated the release, and the gitignored cache is never
+replaced by a Plesk Git deploy. Only `maintenance/optimize` fixed it, and only the owner holds that
+token. `OperationsStatusService` already reported `route_cache_stale`; nothing acted on it.
+`App\Support\StaleReleaseCaches` (called from `bootstrap/app.php`) now drops a config or route cache
+older than `release.json`'s `built_at`, and the next `/cron/schedule` tick rebuilds both
+(`recache` in its response). It shares the ops page's blind spot: a cache built after CI but before
+Plesk deploys is not seen as stale. `packages.php`, `services.php` and `migrate` are out of scope.

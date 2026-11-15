@@ -19,8 +19,17 @@ final class ReleaseStamp
      */
     public static function read(): array
     {
-        $path = public_path('release.json');
+        return self::fromFile(public_path('release.json'));
+    }
 
+    /**
+     * The one parser. Takes a path so it also works before the container is
+     * booted (StaleReleaseCaches runs from bootstrap/app.php).
+     *
+     * @return array{commit: string|null, built_at: string|null}
+     */
+    public static function fromFile(string $path): array
+    {
         if (! is_file($path) || ! is_readable($path)) {
             return ['commit' => null, 'built_at' => null];
         }

@@ -28,6 +28,7 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
+use App\Support\StaleReleaseCaches;
 use App\Support\UploadLimit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -43,7 +44,7 @@ use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         api: __DIR__.'/../routes/api.php',
         web: __DIR__.'/../routes/web.php',
@@ -436,3 +437,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 403, ['Content-Type' => 'application/problem+json']);
         });
     })->create();
+
+StaleReleaseCaches::sweep($app);
+
+return $app;
