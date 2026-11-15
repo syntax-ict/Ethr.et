@@ -229,6 +229,10 @@ class AdminTenantController extends Controller
             ->get()
             ->map(fn (User $u) => ['public_id' => $u->public_id, 'name' => $u->name, 'email' => $u->email]);
 
+        // The kind payroll resolves today, read without writing: the column lags
+        // until an administrator's Settings next reads it (OrganisationProfile::inForce()).
+        $kindInForce = app(ProfileContext::class)->for($tenant->id, Carbon::today())['organization_type'] ?? $tenant->organization_type;
+
         return response()->json([
             'public_id' => $tenant->public_id,
             'name' => $tenant->name,
@@ -241,7 +245,7 @@ class AdminTenantController extends Controller
             'address_mode_effective' => $tenant->effectiveAddressMode()->value,
             'canonical_url' => FrontendUrl::canonicalOrigin($tenant),
             'type' => $tenant->type,
-            'organization_type' => $tenant->organization_type,
+            'organization_type' => $kindInForce,
             'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
             'organization_type_pending' => $this->pendingKind($tenant),
             'status' => $tenant->status->value,

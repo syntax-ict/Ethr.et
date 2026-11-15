@@ -177,8 +177,9 @@ the site may not make (`PermittedMarketingClaim`). [`MARKETING-SITE.md`](MARKETI
   and a "Needs confirming" badge when the kind was guessed at sign-up and has not been confirmed.
   The organisation's page has a card, *Kind of organisation in law*, with the same badge and a
   scheduled change of kind with its date (`organization_type_pending`), and labels the industry
-  *Industry*. Both read the kind from `tenants.organization_type`. The scheduled change is read
-  from the dated assignments.
+  *Industry*. The list reads the kind from `tenants.organization_type`. The page reads the kind in force
+  today from the dated assignments, which is what payroll resolves, and so does the scheduled
+  change.
 - The list has a filter by kind, a drop-down grouped as Settings groups the kinds
   (`filter[organization_type]`, one of the active codes; a code that is not one is refused with
   422). The API also takes `filter[organization_type_group]`, one of private, non_profit, public
@@ -189,9 +190,10 @@ the site may not make (`PermittedMarketingClaim`). [`MARKETING-SITE.md`](MARKETI
   kinds, which migrations write. Both rows are in the table above. That is deliberate for the
   kind: a change of kind is the organisation's own decision, and it is dated and never
   retroactive once pay is approved (`ORGANISATION-TYPES.md`, situation 2).
-- The kind shown is the column, so after a scheduled change takes effect it can lag the kind
-  payroll applies (`ORGANISATION-TYPES.md`, section 11, last item). For a pay question read the
-  calculation log.
+- The list shows and filters on the column, so after a scheduled change takes effect it can lag
+  the kind payroll applies until the administrator's Settings next reads it
+  (`ORGANISATION-TYPES.md`, section 11). The organisation's page does not lag. For a pay question
+  read the calculation log.
 - To find an organisation's kind, and for what each kind changes, see
   [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 

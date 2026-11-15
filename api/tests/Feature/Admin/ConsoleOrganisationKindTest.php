@@ -87,3 +87,17 @@ it('shows the kind and a scheduled change on the detail, and offers no way to ch
     test()->putJson(kindsConsoleUrl("/{$tenant->public_id}"), ['organization_type' => 'government'])->assertStatus(405);
     expect($tenant->fresh()->organization_type)->toBe('private');
 });
+
+it('shows the kind in force on the detail even while the stored column still holds the old one', function () {
+    $tenant = Tenant::factory()->create(['organization_type' => 'private']);
+    app(CurrentTenant::class)->set($tenant);
+    TenantProfileAssignment::query()->create(['tenant_id' => $tenant->id, 'organization_type' => 'private', 'effective_from' => now()->subYear()->toDateString()]);
+    TenantProfileAssignment::query()->create(['tenant_id' => $tenant->id, 'organization_type' => 'government', 'effective_from' => now()->subDay()->toDateString()]);
+    consoleAdminForKinds();
+
+    $detail = test()->getJson(kindsConsoleUrl("/{$tenant->public_id}"))->assertOk();
+
+    expect($detail->json('organization_type'))->toBe('government')
+        ->and($detail->json('organization_type_pending'))->toBeNull()
+        ->and($tenant->fresh()->organization_type)->toBe('private');
+});

@@ -195,7 +195,7 @@ For each area below, the behaviour is the same whatever the kind or industry unl
 
 ## 6. Finding out what kind an organisation is
 
-The platform console shows it. The organisations list prints the kind before the industry under each name, with a "Needs confirming" badge when the review flag is set, and its kind filter narrows the list to one kind. The organisation's page has the card *Kind of organisation in law*, with the same badge and any scheduled change and its date. Search still matches name and address only, and nothing sorts by kind or industry (`AdminTenantController.php`). What the console prints is `tenants.organization_type`, which can lag the kind payroll applies after a scheduled change (section 11, last item), so for a pay question use the last rows below.
+The platform console shows it. The organisations list prints the kind before the industry under each name, with a "Needs confirming" badge when the review flag is set, and its kind filter narrows the list to one kind. The organisation's page has the card *Kind of organisation in law*, with the same badge and any scheduled change and its date. Search still matches name and address only, and nothing sorts by kind or industry (`AdminTenantController.php`). The list prints `tenants.organization_type`, which can lag the kind payroll applies after a scheduled change until the administrator's Settings next reads it (section 11), so a kind shown there, and the filter, can be a day behind. The organisation's page reads the assignment in force and does not lag. For a pay question use the last rows below.
 
 | Way | How | Needs |
 |---|---|---|
