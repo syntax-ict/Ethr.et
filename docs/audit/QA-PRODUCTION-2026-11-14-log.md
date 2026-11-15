@@ -193,6 +193,8 @@ Two things seen on the way. Neither is part of #729, and neither is filed.
   and Review proposal again brought them back in English.
 - Expected: the notes follow the header language like the rest of the screen, or the proposal is
   asked for again when the language changes.
+- Fixed by #732 (open when written, not yet live): a language change with a proposal open asks for
+  it again and takes only its notes. Case L10N-024.
 
 **O-2. Names the wizard has in English only.** Copy gap, for the register in
 `docs/i18n/AMHARIC-REVIEW.md`.
