@@ -27,6 +27,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -106,7 +107,9 @@ class PullDeviceEventsJob implements ShouldQueue
                 $wasOnline = $this->device->status !== 'offline';
                 $this->device->update(['status' => 'offline']);
 
-                if ($wasOnline) {
+                // Capped at one a day per device: the scheduler retries, so a
+                // device on a bad link changes state all day.
+                if ($wasOnline && $this->firstNoticeToday('offline', $this->device->id)) {
                     DeviceOffline::dispatch($this->device);
                 }
 
@@ -258,12 +261,40 @@ class PullDeviceEventsJob implements ShouldQueue
      * Dispatched rather than notified inline so the admin lookup stays in a
      * listener beside `NotifyDeviceOffline`, where the tenant-scope bypass such
      * a lookup needs is already justified and pinned.
+     *
+     * The scheduler retries a failed device every 15 minutes, so this runs
+     * again and again while it stays broken, and a device on a bad link
+     * changes state all day. Each kind of notice (this one and
+     * `DeviceOffline`) therefore goes out at most once a day per device,
+     * whatever happens in between; the device page still shows the current
+     * state. A cache outage never swallows a notice.
      */
     public function failed(Throwable $e): void
     {
         $device = $this->resolveDevice();
-        if ($device !== null) {
+        if ($device === null) {
+            return;
+        }
+
+        if ($this->firstNoticeToday('sync-failed', $device->id)) {
             DeviceSyncFailed::dispatch($device, $e->getMessage());
+        }
+    }
+
+    /**
+     * Whether this is the first notice of its kind for the device in the last
+     * day. Device ids are unique across organisations, so the key needs no
+     * tenant. If the cache fails the answer is yes: a notice is never lost to
+     * a cache outage.
+     */
+    private function firstNoticeToday(string $kind, int $deviceId): bool
+    {
+        try {
+            return Cache::add("device-notice:{$kind}:{$deviceId}", true, now()->addDay());
+        } catch (Throwable $e) {
+            report($e);
+
+            return true;
         }
     }
 

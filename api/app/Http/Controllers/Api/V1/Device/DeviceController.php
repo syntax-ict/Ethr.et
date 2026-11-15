@@ -299,12 +299,14 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.update');
 
-        $devices = Device::query()
-            ->whereIn('status', ['online', 'pending'])
-            ->get();
+        $devices = Device::query()->get();
 
         $dispatched = 0;
         foreach ($devices as $device) {
+            if (DeviceManager::receivesOnly($device)) {
+                continue;
+            }
+
             PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
             $dispatched++;
         }

@@ -201,6 +201,33 @@ update, so the next attempt reads from where the last good one stopped.
 Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php` and
 `tests/Feature/DeviceEnrollmentTest.php`.
 
+## A device that failed is tried again (2026-11-15)
+
+The scheduler pulled only devices that read `online` or `pending`. The pull job
+writes `offline` after one failed status probe and `error` after a sync that
+threw, so a device that failed once was never pulled again until an admin
+pressed Test or Pull by hand, although the job itself sets `online` as soon as
+its probe succeeds. It was simply never dispatched.
+
+The rule now:
+
+- `devices:sync` retries an auto-sync device that is `offline` or `error` when
+  its last pull attempt started at least 15 minutes ago, or at least its own
+  `sync_interval_minutes` ago if that is longer, or when it has no attempt on
+  record. The attempt is the latest `started_at` in `device_sync_logs` for that
+  device, read with the organisation stated in the query.
+- A ZKTeco ADMS terminal is never retried. ETHR does not call it, and it comes
+  back online by its own next call.
+- A terminal that only sends is unchanged: its status follows from when it was
+  last heard.
+- "Sync all" now includes offline and error devices, and skips terminals that
+  only send. The count it returns is the number of pulls queued.
+- Each kind of notice (device offline, sync failed) goes out at most once a day
+  per device. Nothing clears it early, since a device on a bad link changes
+  state all day; the device page still shows the current state.
+
+Pinned in `tests/Feature/Device/DeviceOfflineRetryTest.php`.
+
 ## Commands to devices (2026-10-14)
 
 Until this, device management was one-way. Punches came in and nothing went out: every

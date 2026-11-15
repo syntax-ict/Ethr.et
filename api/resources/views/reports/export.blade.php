@@ -18,7 +18,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>{{ __('report.pdf_title', [], $locale) }}: {{ $source_name }}</h1>
+        <h1>{{ $organisation }}</h1>
+        <p>{{ __('report.pdf_title', [], $locale) }}@if(! empty($source_name)): {{ $source_name }}@endif</p>
         @if(! empty($period_text))
         <p>{{ $period_text }}</p>
         @endif

@@ -9,6 +9,7 @@ use App\Models\PayrollRun;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Support\Csv;
+use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
@@ -177,7 +178,7 @@ final class StatutorySchedules
         $pdf->setPaper('a4', 'landscape');
         $pdf->setOption('isFontSubsettingEnabled', true);
 
-        return $pdf->output();
+        return PdfPages::render($pdf);
     }
 
     /**

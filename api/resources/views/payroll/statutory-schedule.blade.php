@@ -32,9 +32,9 @@
 
     <table class="meta">
         <tr><td class="label">Employer</td><td>{{ $header['employer_name'] }}</td>
-            <td class="label">Employer TIN</td><td class="{{ $header['employer_tin'] ? '' : 'missing' }}">{{ $header['employer_tin'] ?? 'Not set — Settings → Payroll' }}</td></tr>
+            <td class="label">Employer TIN</td><td class="{{ $header['employer_tin'] ? '' : 'missing' }}">{{ $header['employer_tin'] ?? 'Not set. Add it in Settings, Payroll' }}</td></tr>
         <tr><td class="label">Period</td><td>{{ $header['period'] }}</td>
-            <td class="label">Tax centre</td><td>{{ $header['tax_center'] ?? '—' }}</td></tr>
+            <td class="label">Tax centre</td><td>{{ $header['tax_center'] ?? '' }}</td></tr>
     </table>
 
     @unless($header['approved'])
