@@ -83,6 +83,19 @@ final class FrontendUrl
     }
 
     /**
+     * The address an organisation is known by, as printed on a document: host
+     * and path, no scheme, no trailing slash. Its own domain when it has one,
+     * otherwise ethr.et/{slug} on the shared host.
+     */
+    public static function addressOf(Tenant $tenant): string
+    {
+        $url = self::canonicalOrigin($tenant)
+            ?? (InstallMode::single() ? self::to('/') : self::to($tenant->subdomain));
+
+        return rtrim((string) preg_replace('#^https?://#', '', $url), '/');
+    }
+
+    /**
      * `forTenant` for a tenant already in hand, with no lookup. Null stands
      * for "no organisation" (a platform account): the shared host as given.
      */
