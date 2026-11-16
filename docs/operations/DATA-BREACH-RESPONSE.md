@@ -1,5 +1,13 @@
 # Data breach response
 
+| At a glance | |
+|---|---|
+| **Purpose** | Sets out what to do in the first hour, within 24 hours and within 72 hours when personal data may have been seen, changed, lost or taken. |
+| **Open it when** | Personal data in ETHR may have been seen, changed, lost or taken by someone who should not have it. |
+| **For** | Owner; platform operator on call |
+| **Organisation types** | Same for every kind as built. Whether the law treats a public body or an international organisation differently is not settled here and is a question for counsel. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | Proclamation No. 1321/2024 as read for this product, which counsel has not confirmed, and the owner's adoption of the procedure; no code backs this procedure. |
+
 What to do when personal data in ETHR may have been seen, changed, lost or
 taken by someone who should not have it. Drafted 2026-10-17 for the owner to
 adopt. **The legal points below follow the Personal Data Protection
@@ -91,6 +99,14 @@ what is known and follow up.
   been rehearsed on this host ([`ON-CALL.md`](ON-CALL.md), *Data is wrong or
   lost*).
 
+## Organisation types
+
+As built, this procedure is the same for every kind: the organisation is the controller of its
+employees' records and ETHR the processor, whatever kind it is. That reading does not settle
+whether a public body, a defence or police organisation, or an international organisation or
+diplomatic mission has different duties or a different authority to notify; see the last item
+under *Not yet in place*. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) lists the kinds.
+
 ## Not yet in place
 
 *(Kept as one register so these are not rediscovered each time; also listed in
@@ -107,3 +123,7 @@ what is known and follow up.
   when it was read on 2026-11-02 — [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md)
   §Quotas. Disk is no longer the reason to keep the window short, so the decision
   is open on its merits.)*
+- **Kinds of organisation, a question for counsel.** Whether a public body, a defence or police
+  organisation, or an international organisation or diplomatic mission has different duties, or a
+  different authority to notify, than a private company. This procedure treats every kind alike
+  and asserts no rule either way.

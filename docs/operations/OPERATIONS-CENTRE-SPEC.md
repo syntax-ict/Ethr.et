@@ -1,5 +1,13 @@
 # Operations centre — specification and gap list
 
+| At a glance | |
+|---|---|
+| **Purpose** | Records why the operations page was designed as it was, what phase 1 shipped and which gaps remain. |
+| **Open it when** | You are changing or extending the operations page, or need the reasoning behind one of its states. |
+| **For** | Owner; whoever builds platform monitoring |
+| **Organisation types** | Not about an organisation. A design document for a platform-wide page. |
+| **Source of truth** | The code as built (`api/app/Services/Admin/OperationsStatusService.php`); this page records intent, and its gap list carries a Status column read from the code. |
+
 **Status:** written 2026-10-28. **Phase 1 is merged and live** — `v2026.10.28.6`, with backups
 added `v2026.11.01`; phases 2 and 3 are not built. Owner decisions are marked **OWNER**.
 *(Corrected 2026-11-13: this said "built on branch `feat/operations-centre`", which had not been

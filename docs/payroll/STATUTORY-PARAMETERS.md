@@ -162,7 +162,7 @@ overtime limits stay `locked`: they only flag a run, but they are the law's.
 
 | Code | Value | Types | Overridable | Source | Confirmed |
 |---|---|---|---|---|---|
-| `payroll.working_days_per_month` | 22 | each type has its own row, so each is approved or changed alone | yes, on Payroll rules → Payroll schedule (20 to 31) | ETHR convention | no |
+| `payroll.working_days_per_month` | 22 | the six types without a parent each have their own row, approved or changed alone; the ten inheriting types resolve through their parent | yes, on Payroll rules → Payroll schedule (20 to 31) | ETHR convention | no |
 | `payroll.hours_per_day` | 8 | all | no | Labour Proclamation 1156/2019, Art. 61(1) | yes |
 | `overtime.minimum_rates` | normal 1.5, night 1.75, rest day 2.0, holiday 2.5, holiday night 2.5 | all | no (an organisation raises its own rates on the overtime card) | 1156/2019, Art. 68(1) | yes |
 | `overtime.night_window` | 22:00 to 06:00 | all | no | 1156/2019, Art. 68(1)(b) | yes |

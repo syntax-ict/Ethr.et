@@ -1,5 +1,13 @@
 # Organisation data export
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how an organisation's administrator downloads a copy of everything the organisation holds, and what the archive contains and leaves out. |
+| **Open it when** | An organisation asks for its data, is leaving, or asks what ETHR holds about its people. |
+| **For** | Platform operator helping an organisation; the organisation's administrators |
+| **Organisation types** | Same for every kind. The archive is built from every table an organisation owns, whatever its kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `api/app/Jobs/ExportTenantDataJob.php`. |
+
 *Added 2026-10-20, blueprint assessment items A12 and P12.*
 
 An organisation's administrator can download a copy of everything the organisation
@@ -68,6 +76,22 @@ a web request ([../../CLAUDE.md](../../CLAUDE.md), section 3). So the job:
 
 The archive counts against the hosting account's storage quota for the seven days
 it is kept, which is why it is deleted rather than kept indefinitely.
+
+## Organisation types
+
+- The job takes every model that uses `BelongsToTenant`, found by scanning `api/app/Models`
+  (`ExportTenantDataJob::tenantModels()`), less the five skipped tables listed above.
+- `TenantProfileAssignment`, the dated history of the organisation's kind and sector, uses the trait
+  and is in the archive as `data/tenant_profile_assignments.jsonl`.
+- `StatutoryParameter`, `TaxBracket` and `PensionRule` use the trait too, so the organisation's own
+  rule rows are exported. The tenant scope keeps only rows stamped with its `tenant_id`, so the
+  platform's rows (`tenant_id` NULL, the law itself) are not.
+- Not in the archive: the organisation's own row in `tenants`, because `Tenant` does not use the
+  trait. Its current kind (`organization_type`), its "needs confirming" flag and its industry
+  (`type`) are not in any `data/` file; the kind is recoverable only as the latest assignment in
+  force. The catalogue of kinds (`organization_types`) is global and is not exported.
+- The export is the same for every kind. Details of what each kind changes are in
+  [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Offboarding
 

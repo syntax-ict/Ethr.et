@@ -167,10 +167,11 @@ at all while being cited from sixteen and six places in the code.)*
 
 | Document | What it is |
 |---|---|
-| [`operations/README.md`](operations/README.md) | **Start here when something needs doing.** Routes by situation — the site is down, nothing asynchronous is happening, data is wrong, personal data may have leaked, a customer wants their data or is leaving, releasing today — plus the routine calendar. Links only, so it cannot drift |
+| [`operations/README.md`](operations/README.md) | **Start here when something needs doing.** Routes by situation — the site is down, nothing asynchronous is happening, data is wrong, personal data may have leaked, a customer wants their data or is leaving, releasing today — plus the routine calendar. Links only, so it cannot drift. Every document in the folder opens with an At a glance block that the docs gate enforces |
 | [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
 | [`operations/OPERATIONS-CENTRE.md`](operations/OPERATIONS-CENTRE.md) | **Reading `/admin/operations`**: the six areas, every state and reason code it can show, what to do about each, and which of them actually reach a human |
 | [`operations/PLATFORM-CONSOLE.md`](operations/PLATFORM-CONSOLE.md) | **What each platform console page is for**: the ten pages under `/admin`, who may open them, the actions that carry consequences, and where each is documented in depth |
+| [`operations/ORGANISATION-TYPES.md`](operations/ORGANISATION-TYPES.md) | **Kinds and industries of organisation**: the two answers an organisation gives, the sixteen kinds in law and the eight industries, what each changes and does not change across the product, the support situations that turn on the kind, and what the console does not show |
 | [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
 | [`operations/OPERATIONS-CENTRE-SPEC.md`](operations/OPERATIONS-CENTRE-SPEC.md) | The operations centre's **design and gap list**: why the page exists, the principles behind every state, the eight panels, and G1–G14 with what is built and what is not. A design document, not a runbook |

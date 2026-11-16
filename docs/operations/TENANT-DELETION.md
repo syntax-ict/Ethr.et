@@ -1,5 +1,13 @@
 # Deleting an organisation
 
+| At a glance | |
+|---|---|
+| **Purpose** | Says what deleting and restoring an organisation do, and why deletion is a closure and not an erasure. |
+| **Open it when** | You are about to delete or restore an organisation, or an organisation asks what deletion means. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Same for every kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `destroy` and `restore` in `api/app/Http/Controllers/Api/V1/Admin/AdminTenantController.php`. |
+
 Added 2026-10-19. The platform console (`admin.ethr.et` → Tenants → an
 organisation) can delete an organisation and restore it. This page says what
 that does, and why it is built the way it is.
@@ -66,6 +74,35 @@ and never in a URL. Restore is `POST …/restore`.
 - If the organisation may ask for its data, press **Backup Data** first. The
   backup still works on a deleted organisation, so it is not too late after.
 - Tell the organisation yourself, if that is owed. Deleting sends nothing.
+
+## A message to send first
+
+Deleting emails the organisation nothing, so send this yourself, through a channel you know reaches
+its administrators, **before** you delete. The organisation can then take its own copy while it can
+still sign in ([`DATA-EXPORT.md`](DATA-EXPORT.md)). Fill in the brackets and keep the rest.
+
+> Subject: Your ETHR organisation is being closed
+>
+> ETHR will close [organisation name] on [date], [at your request / because [reason]].
+>
+> From that moment its address, sign-in page and public pages no longer answer. Everyone in the
+> organisation is signed out, and its devices, kiosks and API keys stop being accepted.
+>
+> No record is erased. If you need the organisation back, ask ETHR and it can be restored
+> exactly as it was.
+>
+> Before it closes, your administrator can download a copy of everything the organisation holds
+> from Settings, Data export.
+>
+> Contact [name, channel] with any question.
+
+## Organisation types
+
+Deletion and restore behave the same for every kind of organisation. The kind and its dated history
+(`tenant_profile_assignments`) are kept with every other record: the delete path revokes the
+organisation's sign-in tokens and soft-deletes the organisation's row
+(`AdminTenantController::destroy`), and touches nothing about its kind. Restore brings both back as
+they were. See [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Two things fixed alongside
 

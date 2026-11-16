@@ -1,5 +1,13 @@
 # Attendance photo retention
 
+| At a glance | |
+|---|---|
+| **Purpose** | States how long attendance selfies are kept, who may see or hold them, and how they are deleted. |
+| **Open it when** | An employee or an organisation asks how long a selfie is kept, or a photo hold or deletion needs explaining. |
+| **For** | Platform operator; owner |
+| **Organisation types** | Same for every kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `App\Services\Attendance\PhotoRetention`. |
+
 The policy for attendance selfies, as built on 2026-10-17. A selfie is
 biometric data under Proclamation 1321/2024 (Arts. 2(5), 2(6)), so it is kept
 only as long as attendance needs it and seen only by the people who check
@@ -57,6 +65,16 @@ Photos taken before this release have no retention marker. On the first run,
 every photo already past its organisation's retention period enters the same
 48-hour review, and HR and the managers are told, so **nothing is deleted
 without notice**. Expect one larger message per reviewer on that day.
+
+## Organisation types
+
+- Retention, review and holds run the same way for every kind of organisation and every industry.
+  The retention period is each organisation's own setting, 7 days unless changed, and
+  `App\Services\Attendance\PhotoRetention` reads neither the kind nor the industry.
+- No industry's starting setup switches selfies on. `mobile_photo_required` defaults to false, and
+  the only workforce profile that sets it true is `field_distributed`
+  (`api/app/Services/Onboarding/WorkforceProfileCatalog.php`), which no industry in
+  `IndustryCatalog.php` uses by default. See [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Deploying it
 

@@ -1,6 +1,6 @@
 # Operations
 
-**Start here.** This folder is 28 documents; this page routes by the situation you are in, not by
+**Start here.** This page routes by the situation you are in, not by
 the document you might need. Added 2026-11-13, because until then a new operator had a list of
 filenames and no order to read them in.
 
@@ -8,6 +8,15 @@ filenames and no order to read them in.
 here is a fact that can drift out of step with the document that owns it, and that is exactly how
 three documents in this folder came to describe a 5 GB host, a crontab entry and an unchosen
 scheduler.
+
+## How every document here opens
+
+Each document starts with an *At a glance* block: its purpose, when to open it, who it is for,
+whether it differs by organisation type, and what outranks it. The *Organisation types* row always
+reads one of three ways: "Same for every kind", "Varies" or "Not about an organisation". The docs
+gate (`./scripts/gates.sh docs`, script `scripts/operations-docs-check.cjs`) fails when a document
+lacks the block or is missing from this index. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) is
+the reference for what each kind changes.
 
 ## Something is wrong now
 
@@ -39,6 +48,9 @@ scheduler.
 | **An organisation asked for help** | [`SUPPORT.md`](SUPPORT.md) — how it reached ETHR, who can see it, and where to answer |
 | **An organisation looks stuck**, or I want to know who is actually using ETHR | [`TENANT-JOURNEY.md`](TENANT-JOURNEY.md) — the stages, and the health reason codes behind the console's badges |
 | An organisation wants its data | [`DATA-EXPORT.md`](DATA-EXPORT.md) |
+| An organisation says its pension scheme, pension agency, fiscal year or leave rules are wrong for what it is | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| An organisation is asked to confirm its kind, or wants to change it | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| I need to know what kind of organisation this is; the console shows its kind and its industry | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md), and [`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) |
 | **An organisation is leaving** | [`DATA-EXPORT.md`](DATA-EXPORT.md) first, then [`TENANT-DELETION.md`](TENANT-DELETION.md). Deletion keeps every record and emails nobody |
 | An organisation wants to change its address | [`ORGANISATION-ADDRESS-RENAME.md`](ORGANISATION-ADDRESS-RENAME.md) |
 | An organisation wants to be named on the ETHR site | [`TRUSTED-BY.md`](TRUSTED-BY.md) |
@@ -87,6 +99,9 @@ Recorded so it is not rediscovered each time. None of it is a code task.
 | Rehearsing the restore on this host | [`M6-RESTORE-REHEARSAL.md`](../deployment/M6-RESTORE-REHEARSAL.md) |
 | The mailbox's send cap, which only Ethio Telecom can state | [`ETHIO-TELECOM-SUPPORT-REQUEST.md`](../deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) |
 | An SMS subscription. SMS is configured but off, and invitations by text need a "set a password" step first | [`SMS-DELIVERY.md`](SMS-DELIVERY.md) |
+| The accountant's confirmation of pension coverage for five kinds of organisation | [`ACCOUNTANT-SIGN-OFF.md`](../payroll/ACCOUNTANT-SIGN-OFF.md), row 11 |
+| A native review of the Amharic names of the kinds that inherit their parent's rules | [`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md) |
+| Whether impersonation should also refuse `use-law`, which ends an organisation's own tax bands and pension rules (it already refuses a change of kind, and the console now shows the kind) | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 
 ## Everything in this folder
 
@@ -116,7 +131,8 @@ Grouped by what it is, for when routing by situation is not what you want.
 **Policy** — [`ATTENDANCE-PHOTO-CONSENT.md`](ATTENDANCE-PHOTO-CONSENT.md) ·
 [`ATTENDANCE-PHOTO-RETENTION.md`](ATTENDANCE-PHOTO-RETENTION.md)
 
-**Reference** — [`METRIC-DEFINITIONS.md`](METRIC-DEFINITIONS.md) ·
+**Reference** — [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) ·
+[`METRIC-DEFINITIONS.md`](METRIC-DEFINITIONS.md) ·
 [`OPERATIONS-CENTRE-SPEC.md`](OPERATIONS-CENTRE-SPEC.md) (design and gap list, not a runbook)
 
 **Getting ETHR known** — [`SEARCH-LISTINGS.md`](SEARCH-LISTINGS.md) ·

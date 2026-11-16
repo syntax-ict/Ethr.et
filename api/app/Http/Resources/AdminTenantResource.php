@@ -20,6 +20,8 @@ class AdminTenantResource extends JsonResource
             'custom_domain' => $this->custom_domain,
             'custom_domain_status' => $this->custom_domain === null ? null : ($this->hasVerifiedCustomDomain() ? 'verified' : 'pending'),
             'type' => $this->type,
+            'organization_type' => $this->organization_type,
+            'organization_type_needs_review' => (bool) $this->organization_type_needs_review,
             'status' => $this->status->value,
             'employee_count' => (int) $this->employees_count,
             'trial_ends_at' => $this->trial_ends_at,

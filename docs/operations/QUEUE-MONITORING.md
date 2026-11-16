@@ -1,5 +1,13 @@
 # Queue and scheduler monitoring
 
+| At a glance | |
+|---|---|
+| **Purpose** | Describes how background work runs on a host with no worker or cron entry, what watches it, and how to read its signals. |
+| **Open it when** | Background work looks stalled, or a stale heartbeat needs explaining. |
+| **For** | Platform operator on call |
+| **Organisation types** | Not about an organisation. One queue and one scheduler serve every kind alike. |
+| **Source of truth** | The code (`.github/workflows/cron.yml` and `api/app/Http/Controllers/Api/V1/Cron/CronRunController.php`); [`OPERATIONS-CENTRE.md`](OPERATIONS-CENTRE.md) for what the page reports. |
+
 **Status 2026-11-13: built, running, and watched from off the host.** Everything in *Current
 state* below describes what runs today. Everything under *How this was designed, and what it
 replaced* is kept as the reasoning — it is the most useful part of this file and the part most
