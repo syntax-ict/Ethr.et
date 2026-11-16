@@ -18,9 +18,12 @@ use App\Services\Auth\ActivationCodeRefused;
 use App\Services\Auth\ActivationCodeService;
 use App\Services\Auth\OtpService;
 use App\Services\CurrentTenant;
+use App\Services\Invitations\EmailInvitationCeiling;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\UserProvisioningService;
+use App\Support\Mail\MailBudget;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -191,6 +194,7 @@ describe('the job', function () {
             app(UserProvisioningService::class),
             app(ConfiguredSmsSender::class),
             app(InvitationDispatcher::class),
+            app(EmailInvitationCeiling::class),
         );
 
         expect($send->fresh()->status)->toBe(InvitationSend::QUEUED);
@@ -374,6 +378,269 @@ describe('reminders', function () {
         $this->artisan('invitations:send-reminders')->assertSuccessful();
 
         Queue::assertNothingPushed();
+    });
+});
+
+/** A day with room for two invitation emails per organisation, frozen at 09:00 in Addis Ababa. */
+function twoPerDay(): void
+{
+    test()->travelTo(Carbon::parse('2026-03-10 06:00:00', 'UTC'));
+    config(['mail.daily_cap' => 10, 'invitations.email_org_share' => 20, 'invitations.email_share' => 40]);
+}
+
+function sentInvitations(Tenant $tenant, int $count): void
+{
+    foreach (range(1, $count) as $_) {
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => invitee($tenant, ['email' => uniqid().'@acme.test'])->id,
+            'channel' => InvitationSend::EMAIL, 'status' => InvitationSend::SENT, 'queued_at' => now(), 'sent_at' => now(),
+        ]);
+    }
+}
+
+function addisAt(?DateTimeInterface $at): ?string
+{
+    return $at === null ? null : Carbon::instance($at)->setTimezone('Africa/Addis_Ababa')->format('Y-m-d H:i');
+}
+
+/** @return list<string> Each pushed invitation job's due time, as Addis Ababa wall-clock. */
+function pushedAt(): array
+{
+    return Queue::pushed(SendInvitationJob::class)
+        ->map(fn (SendInvitationJob $job): string => addisAt($job->delay instanceof DateTimeInterface ? $job->delay : null) ?? 'now')
+        ->values()->all();
+}
+
+describe('the daily ceiling', function () {
+    it('queues what fits today and holds the rest for the next mornings', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        $people = collect(range(1, 5))->map(fn (int $n) => invitee($tenant, ['email' => "p{$n}@acme.test"]));
+
+        $result = app(InvitationDispatcher::class)->queue($people);
+
+        $rows = InvitationSend::query()->orderBy('id')->get();
+        expect($result['queued'])->toBe(5)->and($result['held'])->toBe(3)
+            ->and($rows->map(fn (InvitationSend $row) => addisAt($row->held_until))->all())
+            ->toBe([null, null, '2026-03-11 08:00', '2026-03-11 08:00', '2026-03-12 08:00'])
+            ->and($rows->pluck('status')->unique()->all())->toBe([InvitationSend::QUEUED])
+            ->and(pushedAt())->toBe(['2026-03-10 09:00', '2026-03-10 09:00', '2026-03-11 08:00', '2026-03-11 08:00', '2026-03-12 08:00']);
+    });
+
+    it('spaces a held day at the per-minute limit', function () {
+        Queue::fake();
+        twoPerDay();
+        config(['invitations.per_minute' => 1]);
+        $tenant = createTenant();
+        $people = collect(range(1, 4))->map(fn (int $n) => invitee($tenant, ['email' => "p{$n}@acme.test"]));
+
+        app(InvitationDispatcher::class)->queue($people);
+
+        expect(pushedAt())->toBe(['2026-03-10 09:00', '2026-03-10 09:01', '2026-03-11 08:00', '2026-03-11 08:01']);
+    });
+
+    it('counts what was already sent today, including by hand', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        app(UserProvisioningService::class)->sendActivationLink(invitee($tenant, ['email' => 'hand@acme.test']));
+        expect(app(EmailInvitationCeiling::class)->sentToday($tenant->id))->toBe(1);
+
+        $result = app(InvitationDispatcher::class)->queue([
+            invitee($tenant, ['email' => 'a@acme.test']),
+            invitee($tenant, ['email' => 'b@acme.test']),
+        ]);
+
+        expect($result['held'])->toBe(1)
+            ->and(InvitationSend::query()->whereNotNull('held_until')->count())->toBe(1);
+    });
+
+    it('does not count what was sent before midnight in Addis Ababa', function () {
+        twoPerDay();
+        $tenant = createTenant();
+        sentInvitations($tenant, 2);
+        expect(app(EmailInvitationCeiling::class)->sentToday($tenant->id))->toBe(2);
+
+        $this->travelTo(Carbon::parse('2026-03-10 21:30:00', 'UTC'));
+
+        expect(app(EmailInvitationCeiling::class)->sentToday($tenant->id))->toBe(0);
+    });
+
+    it('holds a row whose organisation filled its day while it waited, without releasing or failing it', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        app(InvitationDispatcher::class)->queue([invitee($tenant, ['email' => 'late@acme.test'])]);
+        $send = InvitationSend::query()->where('status', InvitationSend::QUEUED)->firstOrFail();
+        sentInvitations($tenant, 2);
+
+        $job = runInvitation($send);
+
+        $job->assertNotReleased();
+        $job->assertNotFailed();
+        Notification::assertNothingSent();
+        expect($send->fresh()->status)->toBe(InvitationSend::QUEUED)
+            ->and(addisAt($send->fresh()->held_until))->toBe('2026-03-11 08:00')
+            ->and(pushedAt())->toBe(['2026-03-10 09:00', '2026-03-11 08:00']);
+    });
+
+    it('holds an organisation\'s row for tomorrow once the platform\'s share is used', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        app(InvitationDispatcher::class)->queue([invitee($tenant, ['email' => 'late@acme.test'])]);
+        $send = InvitationSend::query()->firstOrFail();
+        foreach (range(1, 4) as $_) {
+            MailBudget::recordInvitation();
+        }
+
+        runInvitation($send)->assertNotReleased();
+
+        Notification::assertNothingSent();
+        expect(addisAt($send->fresh()->held_until))->toBe('2026-03-11 08:00');
+    });
+
+    it('sends on the held day and counts it', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        app(InvitationDispatcher::class)->queue([invitee($tenant, ['email' => 'late@acme.test'])]);
+        $send = InvitationSend::query()->where('status', InvitationSend::QUEUED)->firstOrFail();
+        sentInvitations($tenant, 2);
+        runInvitation($send);
+
+        $this->travelTo(Carbon::parse('2026-03-11 05:05:00', 'UTC'));
+        runInvitation($send->fresh());
+
+        expect($send->fresh()->status)->toBe(InvitationSend::SENT)
+            ->and(MailBudget::invitationsToday())->toBe(1);
+        Notification::assertSentTo(User::query()->where('email', 'late@acme.test')->firstOrFail(), AccountActivationNotification::class);
+    });
+
+    it('leaves another organisation alone while one is at its ceiling', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $busy = createTenant();
+        sentInvitations($busy, 2);
+        $quiet = createTenant();
+        app(InvitationDispatcher::class)->queue([invitee($quiet, ['email' => 'calm@acme.test'])]);
+
+        runInvitation(InvitationSend::query()->where('tenant_id', $quiet->id)->firstOrFail());
+
+        expect(InvitationSend::query()->where('tenant_id', $quiet->id)->firstOrFail()->status)->toBe(InvitationSend::SENT);
+    });
+
+    it('still sends one invitation by hand at once when the ceiling is used up', function () {
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        sentInvitations($tenant, 3);
+        $invited = invitee($tenant, ['email' => 'now@acme.test']);
+
+        $this->postJson("/api/v1/users/{$invited->public_id}/resend-invite")
+            ->assertOk()
+            ->assertJsonPath('sent', true);
+
+        Notification::assertSentTo($invited, AccountActivationNotification::class);
+    });
+
+    it('has no ceiling when the mail cap is off', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        config(['mail.daily_cap' => 0]);
+        $tenant = createTenant();
+        sentInvitations($tenant, 5);
+
+        $result = app(InvitationDispatcher::class)->queue(collect(range(1, 5))->map(fn (int $n) => invitee($tenant, ['email' => "p{$n}@acme.test"])));
+        runInvitation(InvitationSend::query()->where('status', InvitationSend::QUEUED)->firstOrFail());
+
+        expect($result['held'])->toBe(0)
+            ->and(app(EmailInvitationCeiling::class)->orgLimit())->toBeNull()
+            ->and(InvitationSend::query()->where('status', InvitationSend::SENT)->count())->toBe(6);
+    });
+
+    it('never reminds someone whose invitation is still held', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        $onlyHeld = invitee($tenant, ['email' => 'held@acme.test', 'invited_at' => now()->subDays(4)]);
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => $onlyHeld->id, 'channel' => InvitationSend::EMAIL, 'batch' => 'B',
+            'status' => InvitationSend::QUEUED, 'queued_at' => now()->subDays(4), 'held_until' => now()->addDay(),
+        ]);
+        $sentAndHeld = invitee($tenant, ['email' => 'both@acme.test', 'invited_at' => now()->subDays(4)]);
+        foreach ([[InvitationSend::SENT, null], [InvitationSend::QUEUED, now()->addDay()]] as [$status, $heldUntil]) {
+            InvitationSend::query()->create([
+                'tenant_id' => $tenant->id, 'user_id' => $sentAndHeld->id, 'channel' => InvitationSend::EMAIL,
+                'status' => $status, 'queued_at' => now()->subDays(4), 'held_until' => $heldUntil,
+            ]);
+        }
+
+        $this->artisan('invitations:send-reminders')->assertSuccessful();
+
+        Queue::assertNothingPushed();
+    });
+
+    it('does not queue someone still held from an earlier request', function () {
+        Queue::fake();
+        twoPerDay();
+        config(['invitations.email_org_share' => 10]);
+        $tenant = createTenant();
+        $first = invitee($tenant, ['email' => 'first@acme.test']);
+        $second = invitee($tenant, ['email' => 'second@acme.test']);
+        app(InvitationDispatcher::class)->queue([$first, $second]);
+        $this->travelTo(now()->addHour());
+
+        $result = app(InvitationDispatcher::class)->queue([$second]);
+
+        expect($result['skipped'])->toBe(1)
+            ->and(InvitationSend::query()->where('user_id', $second->id)->count())->toBe(1);
+    });
+
+    it('reports what is held in the batch summary', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $result = app(InvitationDispatcher::class)->queue(collect(range(1, 5))->map(fn (int $n) => invitee($tenant, ['email' => "p{$n}@acme.test"])));
+
+        $this->getJson('/api/v1/users/invitations/'.$result['batch'])
+            ->assertOk()
+            ->assertJsonPath('total', 5)
+            ->assertJsonPath('queued', 2)
+            ->assertJsonPath('held', 3)
+            ->assertJsonPath('held_until', Carbon::parse('2026-03-12 08:00:00', 'Africa/Addis_Ababa')->setTimezone('UTC')->toIso8601String())
+            ->assertJsonPath('daily_limit', 2);
+    });
+
+    it('answers a bulk request with how many were held', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        foreach (range(1, 3) as $n) {
+            invitee($tenant, ['email' => "p{$n}@acme.test"]);
+        }
+
+        $this->postJson('/api/v1/users/invitations', ['scope' => 'not_activated'])
+            ->assertStatus(202)->assertJsonPath('queued', 3)->assertJsonPath('held', 1);
+    });
+
+    it('keeps retrying until two days after the job is due', function () {
+        $this->travelTo(Carbon::parse('2026-03-10 06:00:00', 'UTC'));
+        $now = new SendInvitationJob(1, 1);
+        $later = (new SendInvitationJob(1, 1))->delay(now()->addDays(3));
+
+        expect($now->retryUntil()->getTimestamp())->toBe(now()->addDays(2)->getTimestamp())
+            ->and($later->retryUntil()->getTimestamp())->toBe(now()->addDays(5)->getTimestamp());
     });
 });
 

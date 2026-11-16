@@ -13,6 +13,10 @@ use Illuminate\Support\Carbon;
  * One attempt to invite someone to sign in (InvitationDispatcher). A bulk send
  * shares a `batch`; the newest row per user is what the users list shows.
  *
+ * A held invitation (the organisation's daily email ceiling, see
+ * EmailInvitationCeiling) keeps the status `queued` and has `held_until` in the
+ * future. There is no separate status for it.
+ *
  * @property int $id
  * @property int $tenant_id
  * @property int $user_id
@@ -25,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $queued_by
  * @property Carbon $queued_at
  * @property Carbon|null $sent_at
+ * @property Carbon|null $held_until
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -60,6 +65,7 @@ class InvitationSend extends Model
         'queued_by',
         'queued_at',
         'sent_at',
+        'held_until',
     ];
 
     protected $hidden = ['id', 'tenant_id', 'user_id', 'queued_by'];
@@ -71,6 +77,7 @@ class InvitationSend extends Model
             'attempts' => 'integer',
             'queued_at' => 'datetime',
             'sent_at' => 'datetime',
+            'held_until' => 'datetime',
         ];
     }
 

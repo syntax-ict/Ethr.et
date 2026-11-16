@@ -17,6 +17,15 @@ return [
     'per_minute' => (int) env('INVITATIONS_PER_MINUTE', 30),
     'sms_per_minute' => (int) env('INVITATIONS_SMS_PER_MINUTE', 10),
 
+    // Email invitations share one mailbox with every other message, whose day
+    // is `mail.daily_cap`. These are percentages of that cap, counted per day in
+    // Addis Ababa: what ONE organisation's queued invitations may use, and what
+    // ALL organisations' together may use. An invitation over either waits for
+    // the next day (08:00 Addis Ababa) instead of using up the platform's mail.
+    // A cap of 0 turns the ceiling off. Texts have their own share (the console).
+    'email_org_share' => (int) env('INVITATIONS_EMAIL_ORG_SHARE', 20),
+    'email_share' => (int) env('INVITATIONS_EMAIL_SHARE', 40),
+
     // A second request for the same person inside this window sends nothing.
     'repeat_after_minutes' => 10,
 

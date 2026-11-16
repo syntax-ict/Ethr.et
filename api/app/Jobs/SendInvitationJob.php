@@ -8,15 +8,18 @@ use App\Models\InvitationSend;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Invitations\EmailInvitationCeiling;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\UserProvisioningService;
 use App\Support\FrontendUrl;
+use App\Support\Mail\MailBudget;
 use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use RuntimeException;
@@ -34,6 +37,12 @@ use Throwable;
  * Waiting is not failing. A wait for the organisation's per-minute limit, or
  * for tomorrow's share of the SMS cap, is a release; only a real delivery
  * error counts towards `maxExceptions`. `retryUntil` bounds the whole thing.
+ *
+ * An email over the day's ceiling (EmailInvitationCeiling) is held, not
+ * released: the row gets a later `held_until` and a fresh job is queued for
+ * then. A release would keep this job's `retryUntil`, which is fixed when the
+ * job is dispatched, so one held on two days in a row would expire and be
+ * marked failed. A fresh job starts a fresh two days.
  */
 final class SendInvitationJob implements ShouldQueue
 {
@@ -51,9 +60,12 @@ final class SendInvitationJob implements ShouldQueue
         $this->onQueue('notifications');
     }
 
+    /** Two days after the job is due, which is later than now for a job held for a later day. */
     public function retryUntil(): DateTimeInterface
     {
-        return now()->addDays(2);
+        $due = $this->delay instanceof DateTimeInterface ? Carbon::instance($this->delay) : now();
+
+        return $due->copy()->addDays(2);
     }
 
     /** @return list<int> */
@@ -67,6 +79,7 @@ final class SendInvitationJob implements ShouldQueue
         UserProvisioningService $provisioning,
         ConfiguredSmsSender $sms,
         InvitationDispatcher $dispatcher,
+        EmailInvitationCeiling $ceiling,
     ): void {
         $tenant = Tenant::query()->find($this->tenantId);
         if ($tenant === null) {
@@ -85,6 +98,17 @@ final class SendInvitationJob implements ShouldQueue
             $this->finish($send, InvitationSend::SKIPPED, 'not_invited');
 
             return;
+        }
+
+        if ($send->channel === InvitationSend::EMAIL && ! $ceiling->roomToday($this->tenantId)) {
+            $slot = $ceiling->planner($this->tenantId, $dispatcher->perMinute(InvitationSend::EMAIL), fromTomorrow: true)->next();
+
+            if ($slot instanceof Carbon) {
+                $send->update(['held_until' => $slot]);
+                self::dispatch($this->tenantId, $send->id)->delay($slot);
+
+                return;
+            }
         }
 
         $limit = 'invitations:'.$send->channel.':'.$this->tenantId;
@@ -125,9 +149,10 @@ final class SendInvitationJob implements ShouldQueue
             $send->increment('attempts');
 
             $provisioning->deliverActivationEmail($user, $tenant);
+            MailBudget::recordInvitation();
         }
 
-        $send->update(['status' => InvitationSend::SENT, 'sent_at' => now(), 'error_code' => null]);
+        $send->update(['status' => InvitationSend::SENT, 'sent_at' => now(), 'held_until' => null, 'error_code' => null]);
     }
 
     public function failed(Throwable $e): void
