@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { toast } from "sonner";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -76,6 +77,9 @@ function terminals(over: Partial<Terminals> = {}): Terminals {
     devices: [device()],
     without_number: 0,
     without_branch: 0,
+    can_assign: false,
+    held: [],
+    held_more: 0,
     ...over,
   };
 }
@@ -364,6 +368,280 @@ describe("<MigrationTerminals>", () => {
     expect(
       screen.getByText(
         /1 person has no branch, so they will not reach a terminal. Set a branch on their profile./,
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+// Punches held for numbers this list has just given a holder (2026-11-16).
+describe("<MigrationTerminals> held punches", () => {
+  const SELAM = "01JBQ8Z6ZK3M9V2X7Y4W5T6E01";
+  const DAWIT = "01JBQ8Z6ZK3M9V2X7Y4W5T6E02";
+  const held = [
+    {
+      device_public_id: DEVICE,
+      device_name: "Front gate",
+      badge: "7777",
+      punches: 3,
+      employee_public_id: SELAM,
+      employee_name: "Selam Tesfaye",
+    },
+    {
+      device_public_id: DEVICE,
+      device_name: "Front gate",
+      badge: "8888",
+      punches: 1,
+      employee_public_id: DAWIT,
+      employee_name: "Dawit Bekele",
+    },
+  ];
+
+  function assignAnswers(
+    answers: Array<
+      { replayed: number; refused: number; remaining: number } | number
+    >,
+    posts: unknown[],
+    gates: Array<Promise<void> | undefined> = [],
+  ) {
+    let call = 0;
+    return http.post(
+      "*/devices/unmatched-punches/assign",
+      async ({ request }) => {
+        posts.push(await request.json());
+        const n = call++;
+        await gates[n];
+        const answer = answers[n];
+        if (typeof answer === "number") {
+          return HttpResponse.json(
+            { detail: "These punches are already being brought in." },
+            { status: answer },
+          );
+        }
+        return HttpResponse.json(answer);
+      },
+    );
+  }
+
+  it("names the people with punches waiting, and asks first", async () => {
+    const posts: unknown[] = [];
+    server.use(
+      me(["attendance.manage", "device.viewAny"]),
+      answer(terminals({ can_assign: true, held })),
+      assignAnswers([], posts),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText(
+        "2 people on this list have punches waiting at a terminal (4 punches).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Selam Tesfaye")).toBeInTheDocument();
+    expect(
+      screen.getByText("Front gate, number 7777, 3 punches"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Front gate, number 8888, 1 punch"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This gives each number to that person and cannot be undone here.",
+      ),
+    ).toBeInTheDocument();
+    // Not automatic.
+    expect(posts).toEqual([]);
+  });
+
+  it("uses the singular for one person with one punch", async () => {
+    server.use(
+      me([]),
+      answer(
+        terminals({
+          can_assign: true,
+          held: [{ ...held[1]!, punches: 1 }],
+        }),
+      ),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText(
+        "1 person on this list has punches waiting at a terminal (1 punch).",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("brings in each badge to the end, one after another, then reads the section again", async () => {
+    const posts: unknown[] = [];
+    let reads = 0;
+    server.use(
+      me(["attendance.manage", "device.viewAny"]),
+      http.get(`*/onboarding/migration/batches/${BATCH}/terminals`, () => {
+        reads++;
+        return HttpResponse.json(
+          reads === 1
+            ? terminals({ can_assign: true, held })
+            : terminals({ can_assign: true, held: [] }),
+        );
+      }),
+      // 7777 takes three calls, 8888 one; one punch is refused.
+      assignAnswers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          { replayed: 1, refused: 0, remaining: 1 },
+          { replayed: 0, refused: 1, remaining: 0 },
+          { replayed: 1, refused: 0, remaining: 0 },
+        ],
+        posts,
+      ),
+    );
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Bring in these punches" }),
+    );
+
+    expect(await screen.findByText(/3 brought in\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 punch was refused and not recorded\./),
+    ).toBeInTheDocument();
+    // Refused punches are listed nowhere, so no link promises a place.
+    expect(
+      screen.queryByRole("link", { name: "Open Devices" }),
+    ).not.toBeInTheDocument();
+    expect(posts).toEqual([
+      { device_public_id: DEVICE, badge: "7777", employee_public_id: SELAM },
+      { device_public_id: DEVICE, badge: "7777", employee_public_id: SELAM },
+      { device_public_id: DEVICE, badge: "7777", employee_public_id: SELAM },
+      { device_public_id: DEVICE, badge: "8888", employee_public_id: DAWIT },
+    ]);
+    // The list is read again once, at the end, and the people are gone from it.
+    await waitFor(() => expect(reads).toBe(2));
+    expect(
+      screen.queryByRole("button", { name: "Bring in these punches" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Selam Tesfaye")).not.toBeInTheDocument();
+  });
+
+  it("shows how far it has got, and stops when asked, and carries on from there", async () => {
+    const posts: unknown[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      me([]),
+      answer(terminals({ can_assign: true, held: [held[0]!] })),
+      assignAnswers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          { replayed: 1, refused: 0, remaining: 1 },
+          { replayed: 1, refused: 0, remaining: 0 },
+        ],
+        posts,
+        [undefined, gate],
+      ),
+    );
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Bring in these punches" }),
+    );
+    expect(
+      await screen.findByText("1 brought in, 2 still to go"),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+    release();
+
+    expect(
+      await screen.findByText("Stopped. 2 brought in, 1 still to go"),
+    ).toBeInTheDocument();
+    expect(posts).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: "Carry on" }));
+    expect(await screen.findByText(/3 brought in\./)).toBeInTheDocument();
+    expect(posts).toHaveLength(3);
+  });
+
+  it("offers Carry on after a failure and asks again with the same inputs", async () => {
+    const posts: unknown[] = [];
+    server.use(
+      me([]),
+      answer(terminals({ can_assign: true, held: [held[0]!] })),
+      assignAnswers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          409,
+          { replayed: 2, refused: 0, remaining: 0 },
+        ],
+        posts,
+      ),
+    );
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Bring in these punches" }),
+    );
+    expect(
+      await screen.findByText(
+        "These punches are already being brought in. 1 brought in, 2 still to go",
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Carry on" }));
+
+    expect(await screen.findByText(/3 brought in\./)).toBeInTheDocument();
+    expect(posts).toHaveLength(3);
+    expect(posts[2]).toEqual(posts[1]);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("shows nothing about punches when the viewer may not assign a badge", async () => {
+    server.use(
+      me(["device.viewAny"]),
+      answer(terminals({ can_assign: false, held: [], held_more: 0 })),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText("At the attendance terminals"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/punches waiting/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Bring in these punches" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("points to the Devices page for the matches past the cap", async () => {
+    server.use(
+      me([]),
+      answer(terminals({ can_assign: true, held: [held[0]!], held_more: 4 })),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText(
+        /4 more numbers have punches waiting\. They are on the Devices page\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Devices" })).toHaveAttribute(
+      "href",
+      "/devices#unmatched",
+    );
+  });
+
+  it("says so when only matches past the cap are left", async () => {
+    server.use(
+      me([]),
+      answer(
+        terminals({ devices: [], can_assign: true, held: [], held_more: 1 }),
+      ),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText(
+        /1 more number has punches waiting\. It is on the Devices page\./,
       ),
     ).toBeInTheDocument();
   });

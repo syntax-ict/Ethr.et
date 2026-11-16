@@ -1182,6 +1182,9 @@ describe("what the terminals hold, after a list is added", () => {
     ],
     without_number: 0,
     without_branch: 0,
+    can_assign: false,
+    held: [],
+    held_more: 0,
   };
 
   async function commitAs(mode: "complete" | null) {

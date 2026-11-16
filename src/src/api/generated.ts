@@ -5333,7 +5333,9 @@ export interface paths {
          *     terminal ETHR cannot write to, who to enrol by hand
          * @description Device information needs `device.viewAny`; without it the answer is the
          *     empty one with `visible` false. Someone the viewer may not open is
-         *     neither named nor counted.
+         *     neither named nor counted. `held` lists, for a viewer who may assign a
+         *     badge (`attendance.manage`), the held badges that are now exactly one of
+         *     those people; it is empty for anyone else.
          */
         get: operations["migration.terminals"];
         put?: never;
@@ -28304,37 +28306,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": ({
+                    "application/json": {
                         visible: boolean;
                         devices: {
                             device_public_id: string;
                             device_name: string;
                             adapter_type: string;
-                            writable: string;
+                            writable: boolean;
                             receives_only: boolean;
                             queued: number;
                             done: number;
                             failed: number;
                             not_sent: number;
-                            last_error: string;
+                            last_error: string | null;
                             enrol_by_hand: {
                                 employee_public_id: string;
                                 name: string;
-                                device_user_id: string | null;
+                                device_user_id: string;
                             }[];
                         }[];
                         without_number: number;
                         without_branch: number;
-                    } | {
-                        visible: boolean;
-                        devices: string[];
-                        without_number: number;
-                        without_branch: number;
-                    }) | {
-                        visible: boolean;
-                        devices: string[];
-                        without_number: number;
-                        without_branch: number;
+                        can_assign: boolean;
+                        held: {
+                            device_public_id: string;
+                            device_name: string;
+                            badge: string;
+                            punches: number;
+                            employee_public_id: string;
+                            employee_name: string;
+                        }[];
+                        held_more: number;
                     };
                 };
             };
@@ -37703,6 +37705,7 @@ export interface operations {
                     "application/json": {
                         replayed: number;
                         refused: number;
+                        remaining: number;
                     };
                 };
             };

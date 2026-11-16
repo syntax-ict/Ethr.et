@@ -527,6 +527,8 @@ export function useAssignUnmatchedBadge() {
       const { data } = await apiClient.post<{
         replayed: number;
         refused: number;
+        /** Held punches of this badge still waiting: ask again to carry on. */
+        remaining: number;
       }>("/devices/unmatched-punches/assign", payload);
       return data;
     },
