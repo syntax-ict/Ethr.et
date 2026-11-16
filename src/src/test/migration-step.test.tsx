@@ -1161,3 +1161,78 @@ describe("<MigrationStep>", () => {
     ]);
   });
 });
+
+describe("what the terminals hold, after a list is added", () => {
+  const TERMINALS = {
+    visible: true,
+    devices: [
+      {
+        device_public_id: "01HZDEVICE000000000000001",
+        device_name: "Front gate",
+        adapter_type: "zkteco_adms",
+        writable: true,
+        receives_only: false,
+        queued: 1,
+        done: 1,
+        failed: 0,
+        not_sent: 0,
+        last_error: null,
+        enrol_by_hand: [],
+      },
+    ],
+    without_number: 0,
+    without_branch: 0,
+  };
+
+  async function commitAs(mode: "complete" | null) {
+    const committed: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      status: "committed",
+      ...(mode ? { mode } : {}),
+      totals: { created: 1, merged: 0, updated: 0, skipped: 0 },
+      rows: [],
+    };
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(committed, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(committed),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId/logins", () =>
+        HttpResponse.json({ without_login: [], hire_dates_defaulted: 0 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId/terminals", () =>
+        HttpResponse.json(TERMINALS),
+      ),
+    );
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+  }
+
+  it("shows the terminals under the sign-in section of a list that added people", async () => {
+    await commitAs(null);
+
+    expect(
+      await screen.findByText("At the attendance terminals"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Front gate")).toBeInTheDocument();
+    expect(screen.getByText("2 sent or waiting")).toBeInTheDocument();
+    expect(screen.getByText("Give them a way to sign in")).toBeInTheDocument();
+  });
+
+  it("shows the terminals for a list that completed people already here", async () => {
+    await commitAs("complete");
+
+    expect(
+      await screen.findByText("At the attendance terminals"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Give them a way to sign in")).toBeNull();
+  });
+});

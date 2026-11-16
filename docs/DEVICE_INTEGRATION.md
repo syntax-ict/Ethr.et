@@ -300,10 +300,42 @@ API, all under `auth:sanctum`:
 - `GET /devices/{device}/commands` (`device.view`)
 - `POST /devices/{device}/commands/set-time` and `/send-staff` (`device.update`; 409
   while commands are off)
+- `POST /devices/{device}/commands/retry` (`device.update`; 409 while commands are off or
+  for a type ETHR cannot write to). Body: optional `batch_public_id`, a list of this
+  organisation, to send again only its people. Answers `{queued, skipped}`.
 - `POST /employees/{employee}/enrol-on-devices` (`device.update`)
 
 Pinned in `tests/Feature/Device/DeviceCommandQueueTest.php` and
 `src/src/test/device-commands-tab.test.tsx`.
+
+### Sending again, and what a list left at the terminals (2026-11-16)
+
+**Retry goes through the same door as a save.** `DeviceCommandQueue::resend()` takes the
+people whose newest add-or-update on the device failed (`failedPeople()`) and calls the
+same private `upsert()` a save does, so `DeviceIdRules` applies again: a number the
+terminal still would not take stays "not sent" and is counted as `skipped`. Someone who has left the device's branch is skipped, so the removal queued when they moved is not cancelled by an add. Old rows are
+never flipped back to `pending`; a new command is queued beside them, and the newest one
+is what every count reads.
+
+**One way to tell a not-sent row.** A refusal of a number is a `failed` `upsert_user`
+whose `last_error` starts with `DeviceCommandQueue::NOT_SENT_PREFIX`; ask
+`DeviceCommandQueue::isNotSent()`, never repeat the text. A command the terminal itself
+refused (`The device answered with error 4.`) is a failure; the two are counted apart
+because only the second is cured by trying again.
+
+**Reading it back for a list.** `GET /onboarding/migration/batches/{batch}/terminals`
+(`employee.viewAny`, and `device.viewAny` for anything about devices; without it the
+answer is the empty shape with `visible: false`) lists, for each device of the branches
+the list's people are in, `queued` (pending or sent), `done`, `failed`, `not_sent`,
+the newest failure's `last_error`, and for a device ETHR cannot write to (`writable`
+false: commands off, or a type with no adapter that takes them, or a Hikvision terminal
+that only sends) `enrol_by_hand`, the people to enrol there with the number each is to be
+given. It also counts `without_number` (no badge and no id any device of the branch
+reported) and `without_branch`. Only people the viewer may open are named or counted.
+`MigrationTerminals` reads it in a fixed number of queries: the devices, the ids they
+reported, and each person's newest add-or-update per device
+(`DeviceCommand::newestUpsert`). Pinned in
+`tests/Feature/Migration/MigrationTerminalsTest.php`.
 
 ## ZKTeco ADMS (2026-10-14)
 

@@ -495,3 +495,21 @@ export async function buildResult(
   writeTextSheet(workbook, SHEET_RESULT, [headings, ...rows]);
   return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
 }
+
+/** The sheet of people to enrol at a terminal by hand. */
+export const SHEET_ENROLMENT = "Enrolment";
+
+/**
+ * The people to enrol at a terminal ETHR cannot write to: the number each is
+ * to be given there, and the name, as text. `headings` are the two column
+ * headings in the reader's language.
+ */
+export async function buildEnrolmentList(
+  headings: [string, string],
+  rows: [string, string][],
+): Promise<ArrayBuffer> {
+  const { Workbook } = await loadExcel();
+  const workbook: ExcelWorkbook = new Workbook();
+  writeTextSheet(workbook, SHEET_ENROLMENT, [headings, ...rows]);
+  return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+}

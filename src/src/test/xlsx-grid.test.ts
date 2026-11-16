@@ -4,6 +4,7 @@ import { toEthiopian } from "@/lib/calendar/ethiopian";
 import { toGrid } from "@/features/onboarding/v2/parse-people";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import {
+  buildEnrolmentList,
   buildFixList,
   buildResult,
   buildTemplate,
@@ -12,6 +13,7 @@ import {
   NoSheet,
   PROBLEM_HEADING,
   readWorkbook,
+  SHEET_ENROLMENT,
   SHEET_EXAMPLE,
   SHEET_HELP,
   SHEET_LISTS,
@@ -553,6 +555,28 @@ describe("what happened to a list, as a workbook", () => {
     expect(sheet.getCell(2, 2).value).toBe("0001");
     expect(sheet.getCell(2, 2).numFmt).toBe("@");
     expect(sheet.getCell(3, 4).value).toBe("A note; another");
+    expect(sheet.rowCount).toBe(3);
+  });
+});
+
+describe("the people to enrol at a terminal, as a workbook", () => {
+  it("is one sheet of text, the number first so a leading zero survives", async () => {
+    const bytes = await buildEnrolmentList(
+      ["Number", "Name"],
+      [
+        ["0042", "Abebe Kebede"],
+        ["H-7", "Hanna Girma"],
+      ],
+    );
+    const workbook = new Workbook();
+    await workbook.xlsx.load(bytes);
+
+    expect(workbook.worksheets.map((s) => s.name)).toEqual([SHEET_ENROLMENT]);
+    const sheet = workbook.getWorksheet(SHEET_ENROLMENT)!;
+    expect(sheet.getCell(1, 1).value).toBe("Number");
+    expect(sheet.getCell(2, 1).value).toBe("0042");
+    expect(sheet.getCell(2, 1).numFmt).toBe("@");
+    expect(sheet.getCell(3, 2).value).toBe("Hanna Girma");
     expect(sheet.rowCount).toBe(3);
   });
 });

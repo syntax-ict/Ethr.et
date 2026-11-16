@@ -81,6 +81,7 @@ import {
 import { ColumnMatcher } from "./column-matcher";
 import { ProblemTable } from "./problem-table";
 import { MigrationLogins } from "./migration-logins";
+import { MigrationTerminals } from "./migration-terminals";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
 
@@ -1501,6 +1502,10 @@ export function MigrationStep({
                 autoSend={inviteNow}
               />
             )}
+
+          {batch.status === "committed" && batchId && (
+            <MigrationTerminals batchId={batchId} />
+          )}
         </div>
       )}
       {confirmDialog}

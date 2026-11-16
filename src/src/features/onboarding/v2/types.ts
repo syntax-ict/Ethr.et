@@ -306,3 +306,39 @@ export interface CreateLoginsResult {
   batch: string | null;
   queued: number;
 }
+
+/** A person to enrol by hand at a terminal ETHR cannot write to. */
+export interface TerminalPerson {
+  employee_public_id: string;
+  name: string;
+  device_user_id: string;
+}
+
+/** What one terminal holds for the people a list brought in. */
+export interface MigrationTerminalDevice {
+  device_public_id: string;
+  device_name: string;
+  adapter_type: string;
+  /** Commands are on for it and ETHR can write to this kind of terminal. */
+  writable: boolean;
+  receives_only: boolean;
+  /** People whose newest add or update is waiting or was handed over. */
+  queued: number;
+  done: number;
+  /** The terminal refused the newest add or update. */
+  failed: number;
+  /** ETHR did not send it: the number is not one this terminal takes. */
+  not_sent: number;
+  last_error: string | null;
+  enrol_by_hand: TerminalPerson[];
+}
+
+export interface MigrationTerminals {
+  /** False for someone who may not see devices: nothing else is filled in. */
+  visible: boolean;
+  devices: MigrationTerminalDevice[];
+  /** People whose branch has a terminal but who have no number to send. */
+  without_number: number;
+  /** People with no branch, so no terminal. */
+  without_branch: number;
+}

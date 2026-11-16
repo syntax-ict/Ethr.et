@@ -506,6 +506,7 @@ record, unverified, and counted under `merged`; it is not made a second time.
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
+| GET | `/batches/{batch}/terminals` | what the attendance terminals hold for the people the list brought in (below) |
 
 ## What the whole list is brought in with (2026-11-12)
 
@@ -536,6 +537,22 @@ browser makes that request, not the commit: the commit's slices stay inside the 
 thirty seconds, and nothing is sent inside any request (the invitations are queued and
 paced as before). If the tab is closed first, nothing was sent and the card below still
 offers the button. Unticked, the screen is as it was: HR looks at the names, then sends.
+
+## After the commit: the terminals (2026-11-16)
+
+The people reach the terminals the way any new hire does: saving an employee queues an
+add on each device of their branch that takes commands. The import queues nothing itself.
+So the committed screen reads what became of that, under the sign-in section, in both
+modes of a list: per device of the branches the people are in, how many are sent or
+waiting, how many the terminal refused (with **Try again**, which posts
+`devices/{device}/commands/retry` with this list, for someone who may update devices),
+and how many were not sent because their number is not one that terminal takes.
+For a terminal ETHR cannot write to the section says who to enrol there and offers
+**Download the list**, a workbook of number and name built in the browser. People with no
+badge number, and people with no branch, are counted on a line each. Someone without
+`device.viewAny` sees nothing of it. See DEVICE_INTEGRATION.md, *Sending again, and what a
+list left at the terminals*. Held punches are a separate piece of work and are not part of
+this.
 
 ## After the commit: a way to sign in (2026-10-28)
 

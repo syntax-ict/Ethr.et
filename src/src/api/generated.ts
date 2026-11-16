@@ -2936,6 +2936,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/commands/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send again the people whose newest add-or-update on this device failed,
+         *     all of them or only those a list brought in. The terminal's number
+         *     rules apply once more: a number it does not take is still not sent
+         */
+        post: operations["deviceCommand.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices": {
         parameters: {
             query?: never;
@@ -5290,6 +5311,31 @@ export interface paths {
          *     the source had none
          */
         get: operations["migration.logins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/terminals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the attendance terminals hold for the people a committed batch
+         *     brought in: per device of their branches, how many were sent, are
+         *     waiting, were refused or were not sent for their number, and for a
+         *     terminal ETHR cannot write to, who to enrol by hand
+         * @description Device information needs `device.viewAny`; without it the answer is the
+         *     empty one with `visible` false. Someone the viewer may not open is
+         *     neither named nor counted.
+         */
+        get: operations["migration.terminals"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11632,6 +11678,10 @@ export interface components {
          * @enum {string}
          */
         RetirementType: "mandatory" | "voluntary" | "early";
+        /** RetryDeviceCommandsRequest */
+        RetryDeviceCommandsRequest: {
+            batch_public_id?: string | null;
+        };
         /**
          * ReviewIntegrityFlagRequest
          * @description Accepting or rejecting an integrity flag. A rejection voids the punch and
@@ -21781,6 +21831,54 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "deviceCommand.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RetryDeviceCommandsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: number;
+                        skipped: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example ETHR cannot send people to this device.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "devices.index": {
         parameters: {
             query?: {
@@ -28181,6 +28279,62 @@ export interface operations {
                             invited: boolean;
                         }[];
                         hire_dates_defaulted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.terminals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": ({
+                        visible: boolean;
+                        devices: {
+                            device_public_id: string;
+                            device_name: string;
+                            adapter_type: string;
+                            writable: string;
+                            receives_only: boolean;
+                            queued: number;
+                            done: number;
+                            failed: number;
+                            not_sent: number;
+                            last_error: string;
+                            enrol_by_hand: {
+                                employee_public_id: string;
+                                name: string;
+                                device_user_id: string | null;
+                            }[];
+                        }[];
+                        without_number: number;
+                        without_branch: number;
+                    } | {
+                        visible: boolean;
+                        devices: string[];
+                        without_number: number;
+                        without_branch: number;
+                    }) | {
+                        visible: boolean;
+                        devices: string[];
+                        without_number: number;
+                        without_branch: number;
                     };
                 };
             };
