@@ -33,6 +33,10 @@ function teamSummaryFor(string $query): TestResponse
 }
 
 test('the team attendance summary counts each weekday', function () {
+    // Pinned mid-week: for three hours each week UTC is still Sunday while the
+    // organisation's own day (Addis Ababa) is already Monday, so the two weeks differ.
+    test()->travelTo(CarbonImmutable::parse('2026-11-11 09:00:00', 'UTC'));
+
     $response = teamSummaryFor('?period=weekly')->assertOk();
 
     expect($response->json('period'))->toBe('weekly')

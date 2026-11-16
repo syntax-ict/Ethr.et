@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Employee;
 
+use App\Enums\ContractStatus;
 use App\Enums\EmployeeStatus;
 use App\Exceptions\InvalidEmployeeTransition;
 use App\Http\Controllers\Controller;
@@ -209,8 +210,21 @@ class EmployeeBulkController extends Controller
     {
         Gate::authorize('employee.viewAny');
 
+        // The profile columns are what the employee's own record shows to
+        // someone who may open it. A caller with viewAny alone gets neither
+        // them nor the queries for them.
+        $profile = $request->user()->hasPermission('employee.view');
+
         $query = Employee::query()
             ->with(['department', 'branch', 'position']);
+        if ($profile) {
+            $query->with([
+                'grade',
+                'costCenter',
+                'contracts' => fn ($contracts) => $contracts->where('status', ContractStatus::ACTIVE->value)->orderByDesc('id'),
+                'emergencyContacts' => fn ($contacts) => $contacts->orderBy('priority')->orderBy('id'),
+            ]);
+        }
 
         // The same org scope as the employee list. Without it a supervisor —
         // who holds employee.viewAny to see their team — downloaded every
@@ -267,15 +281,28 @@ class EmployeeBulkController extends Controller
         // The import's own column names, so an exported file imports as it
         // stands; department, branch and position by name, which the import
         // reads as readily as a code. Salary, national ID and TIN stay out:
-        // this is a viewAny export, and a supervisor can run it.
+        // this is a viewAny export, and a supervisor can run it. So do the
+        // bank columns: bank details are read with the pay permission, which
+        // this export does not ask for, and a bank name alone would fail
+        // every line it was imported on, because an account needs its number.
         $headers = [
             'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
             'hire_date', 'department', 'branch', 'position', 'badge_number',
             'nationality', 'nationality_status', 'marital_status', 'status',
         ];
+        if ($profile) {
+            array_push(
+                $headers,
+                'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+                'emergency_name', 'emergency_relationship', 'emergency_phone',
+            );
+        }
         $rows = [];
 
         foreach ($employees as $emp) {
+            $contract = $profile ? $emp->contracts->first() : null;
+            $contact = $profile ? $emp->emergencyContacts->first() : null;
+
             $rows[] = [
                 $emp->name,
                 $emp->name_am,
@@ -293,6 +320,16 @@ class EmployeeBulkController extends Controller
                 $emp->nationality_status?->value,
                 $emp->marital_status,
                 $emp->status?->value,
+                ...($profile ? [
+                    $emp->grade?->name,
+                    $emp->costCenter?->name,
+                    $emp->probation_end_date?->format('Y-m-d'),
+                    $contract?->contract_type->value,
+                    $contract?->end_date?->format('Y-m-d'),
+                    $contact?->name,
+                    $contact?->relationship,
+                    $contact?->phone,
+                ] : []),
             ];
         }
 

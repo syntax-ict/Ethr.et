@@ -90,11 +90,100 @@ export function reportSourceLabel(t: T, source: string): string {
 }
 
 /**
- * A group's name. Rows with no department, branch or grade group under an
- * empty key, which printed as a bare ": 1".
+ * An enum value as the reader's language says it. The engine returns stored
+ * values (`confirmed`, `male`, `late`, `web`); the screens that show the same
+ * values read them from the same dictionary entries, so this reuses those
+ * keys rather than keeping a second mapping. Anything else, such as a name or
+ * a department, is free text and comes back as it is.
  */
-export function reportGroupLabel(t: T, key: string): string {
-  return key === "" ? t("reports_page.not_set", "Not set") : key;
+export function reportValueLabel(t: T, field: string, value: unknown): unknown {
+  if (typeof value !== "string" || value === "") return value;
+  switch (field) {
+    case "status":
+      return t(`status.${value}`, value);
+    case "gender": {
+      const gender = value.toLowerCase();
+      if (gender === "male") return t("common.male", "Male");
+      if (gender === "female") return t("common.female", "Female");
+      return value;
+    }
+    case "source":
+      return t(
+        `attendance.source_${value === "offline_mobile" ? "offline" : value}`,
+        value,
+      );
+    default:
+      return value;
+  }
+}
+
+/**
+ * A group's name. Rows with no department, branch or grade group under an
+ * empty key, which printed as a bare ": 1". Pass the field the report is
+ * grouped by and an enum group (a status, a gender) reads in the reader's
+ * language.
+ */
+export function reportGroupLabel(t: T, key: string, field?: string): string {
+  if (key === "") return t("reports_page.not_set", "Not set");
+  return field ? String(reportValueLabel(t, field, key)) : key;
+}
+
+/**
+ * A rolling window's name, as the period picker lists it. Literal `t()`
+ * calls so the i18n gate checks every locale.
+ */
+const PERIOD_LABELS: Record<string, (t: T) => string> = {
+  this_month: (t) => t("reports_page.periods.this_month", "This month"),
+  last_month: (t) => t("reports_page.periods.last_month", "Last month"),
+  last_3_months: (t) =>
+    t("reports_page.periods.last_3_months", "Last 3 months"),
+  last_12_months: (t) =>
+    t("reports_page.periods.last_12_months", "Last 12 months"),
+  yesterday: (t) => t("reports_page.periods.yesterday", "Yesterday"),
+  last_7_days: (t) => t("reports_page.periods.last_7_days", "Last 7 days"),
+  this_fiscal_year: (t) =>
+    t("reports_page.periods.this_fiscal_year", "This fiscal year"),
+  last_fiscal_year: (t) =>
+    t("reports_page.periods.last_fiscal_year", "Last fiscal year"),
+};
+
+export function reportPeriodLabel(t: T, period: string): string {
+  return PERIOD_LABELS[period]?.(t) ?? period;
+}
+
+/**
+ * A filter's name in the picker. `period` is a window such as "last month",
+ * not the payroll `period` column of the same name.
+ */
+export function reportFilterLabel(t: T, field: string): string {
+  return field === "period"
+    ? t("reports_page.filter_period", "Period")
+    : reportFieldLabel(t, field);
+}
+
+/**
+ * The note for a result the row limit cut short, or null when it was not.
+ * Shown on screen and written under the rows of a downloaded file.
+ */
+export function reportCutNote(
+  t: T,
+  result: { truncated: boolean; matched: number; data: unknown[] },
+): string | null {
+  if (!result.truncated) return null;
+  // The server reports `matched` equal to the rows returned when it could not
+  // count the rest, and a total it does not know is not stated.
+  if (!(result.matched > result.data.length)) {
+    return t(
+      "reports_page.truncated_only",
+      "Showing only the newest :shown rows. Narrow the dates or filters to see the rest.",
+      { shown: result.data.length },
+    );
+  }
+  return t(
+    "reports_page.truncated_of",
+    "Showing the newest :shown of :matched rows. Narrow the dates or filters to see the rest.",
+    { shown: result.data.length, matched: result.matched },
+  );
 }
 
 /** The field's display name; an unknown field keeps a readable form of its key. */

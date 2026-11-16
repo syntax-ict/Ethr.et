@@ -42,10 +42,24 @@ final class DeviceCommandQueue
     /** Statuses that end employment; the person is removed from devices. */
     private const LEAVERS = [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED];
 
+    /** What every refusal of a person number begins with in `last_error`: the one way a not-sent row is told from a failed one. */
+    public const NOT_SENT_PREFIX = 'Not sent: ';
+
+    /** What a refused person number is recorded as, by DeviceIdRules code. */
+    private const NOT_SENT = [
+        'digits_only' => self::NOT_SENT_PREFIX.'this terminal takes digits only as a person number.',
+    ];
+
     public function __construct(
         private readonly DeviceManager $devices,
         private readonly AdmsRoster $roster,
     ) {}
+
+    /** Whether a command's `last_error` records a number ETHR did not send, rather than a command the terminal refused. */
+    public static function isNotSent(?string $lastError): bool
+    {
+        return $lastError !== null && str_starts_with($lastError, self::NOT_SENT_PREFIX);
+    }
 
     /** Whether this kind of device can carry out commands at all. */
     public function supports(Device $device): bool
@@ -104,6 +118,56 @@ final class DeviceCommandQueue
             ->each(function (Employee $employee) use ($device, $by, &$result): void {
                 $this->upsert($device, $employee, $by) !== null ? $result['queued']++ : $result['skipped']++;
             });
+
+        return $result;
+    }
+
+    /**
+     * The people whose newest add-or-update on this device failed, whether the
+     * terminal refused it or ETHR did not send the number.
+     *
+     * @param  list<int>|null  $employeeIds  only these people; null for everyone
+     * @return Collection<int, Employee>
+     */
+    public function failedPeople(Device $device, ?array $employeeIds = null): Collection
+    {
+        $ids = DeviceCommand::query()
+            ->newestUpsert((int) $device->tenant_id, [$device->id], $employeeIds)
+            ->where('status', DeviceCommandStatus::FAILED->value)
+            ->pluck('employee_id')
+            ->all();
+
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        return Employee::query()->where('tenant_id', $device->tenant_id)->whereIn('id', $ids)->orderBy('id')->get();
+    }
+
+    /**
+     * Send these people to one device again, through the path a save takes:
+     * the terminal's number rules apply once more, so a number it still would
+     * not take stays "not sent". Old commands are left as they are.
+     *
+     * Someone who has left or moved off this device's branch is skipped: the
+     * removal queued when they moved must not be cancelled by an add.
+     *
+     * @param  Collection<int, Employee>  $employees
+     * @return array{queued: int, skipped: int} skipped: no number, one the terminal does not take, or not of this branch
+     */
+    public function resend(Device $device, Collection $employees, ?User $by = null): array
+    {
+        $result = ['queued' => 0, 'skipped' => 0];
+
+        foreach ($employees as $employee) {
+            if (! in_array($employee->status, EmployeeStatus::current(), true) || $employee->branch_id !== $device->branch_id) {
+                $result['skipped']++;
+
+                continue;
+            }
+
+            $this->upsert($device, $employee, $by) !== null ? $result['queued']++ : $result['skipped']++;
+        }
 
         return $result;
     }
@@ -365,6 +429,20 @@ final class DeviceCommandQueue
      */
     public function deviceUserId(Device $device, Employee $employee): ?string
     {
+        return self::chooseUserId($this->linkedDeviceUserId($device, $employee), $employee->badge_number);
+    }
+
+    /** The one rule for it: the linked id when there is one, else the badge, trimmed; null for neither. */
+    public static function chooseUserId(?string $linked, mixed $badge): ?string
+    {
+        $id = $linked ?? $badge;
+
+        return $id === null || trim((string) $id) === '' ? null : trim((string) $id);
+    }
+
+    /** The id this device itself reported for the person, once linked. */
+    private function linkedDeviceUserId(Device $device, Employee $employee): ?string
+    {
         $linked = EmployeeExternalIdentity::query()
             ->where('employee_id', $employee->id)
             ->where('source_type', $device->adapter_type)
@@ -372,9 +450,7 @@ final class DeviceCommandQueue
             ->where('identifier_type', 'device_user_id')
             ->value('identifier_value');
 
-        $id = $linked ?? $employee->badge_number;
-
-        return $id === null || trim((string) $id) === '' ? null : trim((string) $id);
+        return $linked === null || trim((string) $linked) === '' ? null : trim((string) $linked);
     }
 
     private function upsert(Device $device, Employee $employee, ?User $by): ?DeviceCommand
@@ -384,11 +460,46 @@ final class DeviceCommandQueue
             return null;
         }
 
-        return $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, [
+        $payload = [
             'device_user_id' => $userId,
             // Terminals keep short names: Hikvision allows 32 characters.
-            'name' => mb_substr((string) $employee->name, 0, 32),
-        ], $by);
+            'name' => mb_substr((string) $employee->name, 0, DeviceIdRules::nameLength($device->adapter_type)),
+        ];
+
+        // A number this kind of terminal would refuse is not queued to be
+        // refused three times. The attempt is kept as a failed command, so
+        // the device's Commands tab says who was not sent and why.
+        // An id the terminal itself reported (linked to this device) is held
+        // by it already, so only the badge number is checked.
+        if ($this->linkedDeviceUserId($device, $employee) === null
+            && DeviceIdRules::restricts($device->adapter_type)
+            && ($why = DeviceIdRules::reason($device->adapter_type, $userId)) !== null) {
+            $notSent = self::NOT_SENT[$why] ?? self::NOT_SENT_PREFIX.'this terminal does not take this person number.';
+
+            // The same refusal again (another save, Send all staff) adds nothing.
+            if (! $this->alreadyRecordedNotSent($device, $employee, $userId, $notSent)) {
+                $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by, $notSent);
+            }
+
+            return null;
+        }
+
+        return $this->queue($device, DeviceCommandType::UPSERT_USER, $employee, $payload, $by);
+    }
+
+    /** Whether the newest command for this person on this device is this same refusal. */
+    private function alreadyRecordedNotSent(Device $device, Employee $employee, string $userId, string $notSent): bool
+    {
+        $newest = $device->commands()
+            ->where('employee_id', $employee->id)
+            ->orderByDesc('id')
+            ->first();
+
+        return $newest !== null
+            && $newest->type === DeviceCommandType::UPSERT_USER
+            && $newest->status === DeviceCommandStatus::FAILED
+            && $newest->last_error === $notSent
+            && ($newest->payload['device_user_id'] ?? null) === $userId;
     }
 
     private function removeFromBranch(Employee $employee, ?int $branchId): void
@@ -404,7 +515,7 @@ final class DeviceCommandQueue
     /**
      * @param  array<string, mixed>|null  $payload
      */
-    private function queue(Device $device, DeviceCommandType $type, ?Employee $employee, ?array $payload, ?User $by = null): DeviceCommand
+    private function queue(Device $device, DeviceCommandType $type, ?Employee $employee, ?array $payload, ?User $by = null, ?string $notSent = null): DeviceCommand
     {
         // A newer command for the same person replaces one the device has not
         // picked up yet: two edits in a row should reach it once, and an add
@@ -421,11 +532,13 @@ final class DeviceCommandQueue
             'employee_id' => $employee?->id,
             'type' => $type,
             'payload' => $payload,
-            'status' => DeviceCommandStatus::PENDING,
+            'status' => $notSent === null ? DeviceCommandStatus::PENDING : DeviceCommandStatus::FAILED,
+            'last_error' => $notSent,
+            'completed_at' => $notSent === null ? null : now(),
             'requested_by' => $by?->id,
         ]);
 
-        if ($this->delivers($device)) {
+        if ($notSent === null && $this->delivers($device)) {
             DeliverDeviceCommandsJob::dispatch($device->id, $device->tenant_id)->afterCommit();
         }
 
@@ -460,6 +573,8 @@ final class DeviceCommandQueue
         return Device::query()
             ->where('branch_id', $branchId)
             ->where('commands_enabled', true)
-            ->get();
+            ->get()
+            ->filter(fn (Device $device): bool => $this->supports($device))
+            ->values();
     }
 }

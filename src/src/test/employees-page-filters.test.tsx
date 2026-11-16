@@ -158,6 +158,21 @@ describe("Employees list filters", () => {
     await waitFor(() => expect(lastQuery().get("filter[missing]")).toBeNull());
   });
 
+  it.each([
+    ["department", "department"],
+    ["position", "position"],
+    ["gender", "gender"],
+  ])("lists the people with no %s, and says so", async (gap, words) => {
+    renderAt("?missing=" + gap);
+
+    await screen.findByText("Abebe Kebede");
+    await waitFor(() => expect(lastQuery()).toBeDefined());
+    expect(lastQuery().get("filter[missing]")).toBe(gap);
+    expect(
+      screen.getByText("Showing current employees who have no " + words + "."),
+    ).toBeInTheDocument();
+  });
+
   it("ignores a gap the API does not know, instead of sending it", async () => {
     renderAt("?missing=salary");
 
