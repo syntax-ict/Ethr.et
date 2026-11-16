@@ -93,6 +93,13 @@ final class SendInvitationJob implements ShouldQueue
             return;
         }
 
+        // Another job, delayed to `held_until`, carries this row. A run before
+        // then is a duplicate, or the `sync` connection, which ignores the delay
+        // and would otherwise hold and re-dispatch without end.
+        if ($send->held_until?->isFuture() === true) {
+            return;
+        }
+
         $user = User::query()->where('tenant_id', $this->tenantId)->find($send->user_id);
         if ($user === null || $user->status !== 'invited') {
             $this->finish($send, InvitationSend::SKIPPED, 'not_invited');

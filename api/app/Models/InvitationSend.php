@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Invitations\EmailInvitationCeiling;
 use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -14,8 +16,9 @@ use Illuminate\Support\Carbon;
  * shares a `batch`; the newest row per user is what the users list shows.
  *
  * A held invitation (the organisation's daily email ceiling, see
- * EmailInvitationCeiling) keeps the status `queued` and has `held_until` in the
- * future. There is no separate status for it.
+ * EmailInvitationCeiling) keeps the status `queued` and has `held_until` set,
+ * in the future until its morning comes and in the past until the queue sends
+ * it (scopeHeldAndUnsent). There is no separate status for it.
  *
  * @property int $id
  * @property int $tenant_id
@@ -79,6 +82,22 @@ class InvitationSend extends Model
             'sent_at' => 'datetime',
             'held_until' => 'datetime',
         ];
+    }
+
+    /**
+     * Rows that were held for a later day and have not been sent: still `queued`
+     * with a `held_until`, from the day they were held until their job is long
+     * gone (EmailInvitationCeiling::ABANDONED_AFTER_DAYS after it was due). A
+     * held row that has fallen due is still in here until the queue reaches it.
+     * Says nothing about the tenant; the caller states `tenant_id`.
+     *
+     * @param  Builder<InvitationSend>  $query
+     */
+    public function scopeHeldAndUnsent(Builder $query): void
+    {
+        $query->where('status', self::QUEUED)
+            ->whereNotNull('held_until')
+            ->where('held_until', '>', now()->subDays(EmailInvitationCeiling::ABANDONED_AFTER_DAYS));
     }
 
     /** @return BelongsTo<User, $this> */

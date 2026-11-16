@@ -22,7 +22,9 @@ return [
     // Addis Ababa: what ONE organisation's queued invitations may use, and what
     // ALL organisations' together may use. An invitation over either waits for
     // the next day (08:00 Addis Ababa) instead of using up the platform's mail.
-    // A cap of 0 turns the ceiling off. Texts have their own share (the console).
+    // A cap of 0 turns the ceiling off. A share of 0 does not: it still lets one
+    // invitation a day through. A share of 100 is how to lift one ceiling while
+    // keeping the mail budget. Texts have their own share (the console).
     'email_org_share' => (int) env('INVITATIONS_EMAIL_ORG_SHARE', 20),
     'email_share' => (int) env('INVITATIONS_EMAIL_SHARE', 40),
 

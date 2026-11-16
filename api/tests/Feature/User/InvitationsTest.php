@@ -457,6 +457,49 @@ describe('the daily ceiling', function () {
             ->and(InvitationSend::query()->whereNotNull('held_until')->count())->toBe(1);
     });
 
+    it('does not let an invitation whose job is long gone use today\'s room', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        foreach ([['queued_at' => now()->subDays(4), 'held_until' => null], ['queued_at' => now()->subDays(5), 'held_until' => now()->subDays(4)]] as $n => $dates) {
+            InvitationSend::query()->create([
+                'tenant_id' => $tenant->id, 'user_id' => invitee($tenant, ['email' => "dead{$n}@acme.test"])->id,
+                'channel' => InvitationSend::EMAIL, 'status' => InvitationSend::QUEUED, 'batch' => 'old-batch',
+            ] + $dates);
+        }
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => invitee($tenant, ['email' => 'dead2@acme.test'])->id,
+            'channel' => InvitationSend::EMAIL, 'status' => InvitationSend::QUEUED, 'batch' => 'old-batch',
+            'queued_at' => now()->subDays(4), 'held_until' => null,
+        ]);
+
+        $result = app(InvitationDispatcher::class)->queue([
+            invitee($tenant, ['email' => 'a@acme.test']),
+            invitee($tenant, ['email' => 'b@acme.test']),
+        ]);
+
+        expect($result['held'])->toBe(0)
+            ->and(InvitationSend::query()->where('batch', '!=', 'old-batch')->whereNotNull('held_until')->count())->toBe(0);
+    });
+
+    it('still counts a queued invitation from an hour ago', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => invitee($tenant, ['email' => 'recent@acme.test'])->id,
+            'channel' => InvitationSend::EMAIL, 'status' => InvitationSend::QUEUED, 'batch' => 'recent-batch',
+            'queued_at' => now()->subHour(), 'held_until' => null,
+        ]);
+
+        $result = app(InvitationDispatcher::class)->queue([
+            invitee($tenant, ['email' => 'a@acme.test']),
+            invitee($tenant, ['email' => 'b@acme.test']),
+        ]);
+
+        expect($result['held'])->toBe(1);
+    });
+
     it('does not count what was sent before midnight in Addis Ababa', function () {
         twoPerDay();
         $tenant = createTenant();
@@ -603,6 +646,77 @@ describe('the daily ceiling', function () {
 
         expect($result['skipped'])->toBe(1)
             ->and(InvitationSend::query()->where('user_id', $second->id)->count())->toBe(1);
+    });
+
+    it('does not queue someone whose held row has fallen due but is not sent yet', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        $person = invitee($tenant, ['email' => 'due@acme.test']);
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => $person->id, 'channel' => InvitationSend::EMAIL, 'batch' => 'B',
+            'status' => InvitationSend::QUEUED, 'queued_at' => now()->subDays(4), 'held_until' => now()->subHour(),
+        ]);
+
+        $result = app(InvitationDispatcher::class)->queue([$person]);
+
+        expect($result['skipped'])->toBe(1)->and($result['queued'])->toBe(0)
+            ->and(InvitationSend::query()->where('user_id', $person->id)->count())->toBe(1);
+        Queue::assertNothingPushed();
+    });
+
+    it('does not remind someone whose held row has fallen due but is not sent yet', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        $person = invitee($tenant, ['email' => 'due@acme.test', 'invited_at' => now()->subDays(4)]);
+        foreach ([[InvitationSend::SENT, null], [InvitationSend::QUEUED, now()->subHour()]] as [$status, $heldUntil]) {
+            InvitationSend::query()->create([
+                'tenant_id' => $tenant->id, 'user_id' => $person->id, 'channel' => InvitationSend::EMAIL, 'batch' => $heldUntil === null ? null : 'B',
+                'status' => $status, 'queued_at' => now()->subDays(4), 'held_until' => $heldUntil,
+            ]);
+        }
+
+        $this->artisan('invitations:send-reminders')->assertSuccessful();
+
+        Queue::assertNothingPushed();
+    });
+
+    it('queues someone again once their held row was abandoned', function () {
+        Queue::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        $person = invitee($tenant, ['email' => 'gone@acme.test']);
+        InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => $person->id, 'channel' => InvitationSend::EMAIL, 'batch' => 'B',
+            'status' => InvitationSend::QUEUED, 'queued_at' => now()->subDays(5), 'held_until' => now()->subDays(4),
+        ]);
+
+        $result = app(InvitationDispatcher::class)->queue([$person]);
+
+        expect($result['queued'])->toBe(1)->and($result['skipped'])->toBe(0);
+    });
+
+    it('does nothing when a job runs before its row is due', function () {
+        Queue::fake();
+        Notification::fake();
+        twoPerDay();
+        $tenant = createTenant();
+        sentInvitations($tenant, 2);
+        $heldUntil = now()->addDay();
+        $send = InvitationSend::query()->create([
+            'tenant_id' => $tenant->id, 'user_id' => invitee($tenant, ['email' => 'early@acme.test'])->id, 'channel' => InvitationSend::EMAIL,
+            'batch' => 'B', 'status' => InvitationSend::QUEUED, 'queued_at' => now(), 'held_until' => $heldUntil,
+        ]);
+
+        $job = runInvitation($send);
+
+        $job->assertNotReleased();
+        $job->assertNotFailed();
+        Notification::assertNothingSent();
+        Queue::assertNothingPushed();
+        expect($send->fresh()->status)->toBe(InvitationSend::QUEUED)
+            ->and($send->fresh()->held_until?->getTimestamp())->toBe($heldUntil->getTimestamp());
     });
 
     it('reports what is held in the batch summary', function () {

@@ -30,6 +30,9 @@ final class EmailInvitationCeiling
     /** The hour a held invitation goes out on its day, Addis Ababa. */
     public const SEND_HOUR = 8;
 
+    /** A queued row due longer ago than this has no live job: SendInvitationJob::retryUntil() is two days, plus a day of margin. */
+    public const ABANDONED_AFTER_DAYS = 3;
+
     public function orgLimit(): ?int
     {
         return $this->limit((int) config('invitations.email_org_share', 20));
@@ -86,10 +89,19 @@ final class EmailInvitationCeiling
             ->where('channel', InvitationSend::EMAIL)
             ->where('status', InvitationSend::QUEUED)
             ->whereNotNull('batch')
-            ->pluck('held_until');
+            ->get(['held_until', 'queued_at']);
 
-        foreach ($held as $heldUntil) {
-            $day = $heldUntil instanceof Carbon && $heldUntil->isFuture()
+        $abandonedBefore = now()->subDays(self::ABANDONED_AFTER_DAYS);
+
+        foreach ($held as $row) {
+            $heldUntil = $row->held_until;
+            $due = $heldUntil ?? $row->queued_at;
+
+            if ($due->lt($abandonedBefore)) {
+                continue;
+            }
+
+            $day = $heldUntil !== null && $heldUntil->isFuture()
                 ? $heldUntil->copy()->setTimezone(self::ZONE)->toDateString()
                 : $today;
             $used[$day] = ($used[$day] ?? 0) + 1;

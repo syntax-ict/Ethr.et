@@ -70,7 +70,9 @@ final class InvitationDispatcher
      * Skipped: anyone not `invited`, anyone from another organisation, and
      * anyone with an invitation queued or sent in the last few minutes (a
      * double click, or "resend to everyone" pressed twice, sends once), and
-     * anyone still held for a later day, however old that invitation is. People
+     * anyone whose invitation is held for a later day and not sent yet, however
+     * old it is, and including the morning it falls due (until it is sent, or
+     * abandoned: InvitationSend::scopeHeldAndUnsent). People
      * who can only be invited in person are counted, not queued.
      *
      * `queued` counts every row made; `held` is how many of them wait for a
@@ -100,8 +102,7 @@ final class InvitationDispatcher
         $held = InvitationSend::query()
             ->where('tenant_id', $tenant->id)
             ->whereIn('user_id', $users->pluck('id')->all())
-            ->where('status', InvitationSend::QUEUED)
-            ->where('held_until', '>', now())
+            ->heldAndUnsent()
             ->pluck('user_id')
             ->flip();
 

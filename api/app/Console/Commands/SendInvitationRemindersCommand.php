@@ -51,7 +51,7 @@ class SendInvitationRemindersCommand extends Command
                     // sends were recorded, is not chased.
                     ->whereHas('invitationSends', fn ($query) => $query->where('status', InvitationSend::SENT))
                     ->whereDoesntHave('invitationSends', fn ($query) => $query->where('queued_at', '>', $lastBefore))
-                    ->whereDoesntHave('invitationSends', fn ($query) => $query->where('status', InvitationSend::QUEUED)->where('held_until', '>', now()))
+                    ->whereDoesntHave('invitationSends', fn ($query) => $query->heldAndUnsent())
                     ->withCount(['invitationSends as reminders_sent' => fn ($query) => $query->where('reminder', true)])
                     ->get()
                     ->filter(fn (User $user): bool => (int) $user->getAttribute('reminders_sent') < $maxReminders);
