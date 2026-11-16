@@ -30,7 +30,25 @@ import { useT } from "@/lib/i18n/useT";
  * (thisPhone). Anywhere else it names the registered phone and offers to
  * register this one instead, which is how a lost or new phone is replaced.
  */
-export function DeviceCard() {
+/**
+ * True exactly when the card would show "This is your registered phone" with
+ * no replacement waiting: the punch screen then folds the card into its list
+ * as one quiet row instead of a card at the top.
+ */
+export function usePhoneSettled(enabled = true): boolean {
+  const { data: state } = useAttendanceDevice(enabled);
+  const here = useSyncExternalStore(subscribeThisPhone, thisPhone, () => null);
+  return Boolean(
+    state &&
+    state.binding !== "off" &&
+    state.host_allowed &&
+    state.device &&
+    here === state.device.public_id &&
+    !state.pending,
+  );
+}
+
+export function DeviceCard({ variant = "card" }: { variant?: "card" | "row" }) {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
   const { data: state } = useAttendanceDevice();
@@ -103,6 +121,7 @@ export function DeviceCard() {
   if (!state.host_allowed) {
     return (
       <Notice
+        variant={variant}
         tone="warning"
         title={t("device.wrong_host_title", "Open your organisation address")}
         body={t(
@@ -123,6 +142,7 @@ export function DeviceCard() {
   if (state.device && here === state.device.public_id) {
     return (
       <Notice
+        variant={variant}
         tone="success"
         title={t("device.registered_title", "This is your registered phone")}
         body={
@@ -143,6 +163,7 @@ export function DeviceCard() {
   if (state.device && state.pending && here === state.pending.public_id) {
     return (
       <Notice
+        variant={variant}
         tone="warning"
         title={t(
           "device.this_pending_title",
@@ -165,6 +186,7 @@ export function DeviceCard() {
       : "";
     return (
       <Notice
+        variant={variant}
         tone="info"
         title={t(
           "device.registered_elsewhere_title",
@@ -187,6 +209,7 @@ export function DeviceCard() {
   if (state.pending) {
     return (
       <Notice
+        variant={variant}
         tone="warning"
         title={t("device.pending_title", "Waiting for approval")}
         body={t(
@@ -200,6 +223,7 @@ export function DeviceCard() {
   if (supported === false) {
     return (
       <Notice
+        variant={variant}
         tone="warning"
         title={t(
           "device.unsupported_title",
@@ -215,6 +239,7 @@ export function DeviceCard() {
 
   return (
     <Notice
+      variant={variant}
       tone={state.binding === "enforce" ? "warning" : "info"}
       title={t("device.register_title", "Register this phone")}
       body={t(
@@ -227,11 +252,13 @@ export function DeviceCard() {
 }
 
 function Notice({
+  variant = "card",
   tone,
   title,
   body,
   action,
 }: {
+  variant?: "card" | "row";
   tone: "success" | "warning" | "info";
   title: string;
   body: string;
@@ -245,6 +272,28 @@ function Notice({
         ? "text-[var(--color-status-warning)]"
         : "text-[var(--color-status-info)]";
 
+  if (variant === "row") {
+    const tile =
+      tone === "success"
+        ? "bg-success-soft text-success-on-soft"
+        : tone === "warning"
+          ? "bg-warning-soft text-warning-on-soft"
+          : "bg-info-soft text-info-on-soft";
+    return (
+      <div className="flex min-h-14 items-center gap-3 px-4 py-3">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tile}`}
+        >
+          <Icon className="h-[18px] w-[18px]" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{body}</p>
+        </div>
+        {action}
+      </div>
+    );
+  }
   return (
     <Card>
       <CardContent className="flex items-start gap-3 p-4">

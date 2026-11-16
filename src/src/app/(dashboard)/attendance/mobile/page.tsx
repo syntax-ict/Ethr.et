@@ -12,37 +12,38 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlarmClock,
-  Camera,
   CheckCircle2,
   CloudUpload,
   History,
   Info,
   Loader2,
-  LogIn,
-  LogOut,
-  MapPin,
-  MapPinCheck,
-  MapPinOff,
-  RefreshCw,
   Sparkles,
+  UserX,
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { DayStrip } from "@/features/attendance/components/mobile/day-strip";
+import { PunchButton } from "@/features/attendance/components/mobile/punch-button";
+import {
+  ReadinessList,
+  type LocationProblem,
+} from "@/features/attendance/components/mobile/readiness-list";
+import { fixIsOld } from "@/lib/attendance/fix-age";
+import { haptic } from "@/lib/attendance/haptics";
 import {
   usePunchSigner,
   useAttendanceDevice,
   useMobilePunch,
   useMyShift,
 } from "@/features/attendance/api";
-import { DeviceCard } from "@/features/attendance/components/device-card";
 import {
-  DayNote,
-  dayNoteText,
-} from "@/features/attendance/components/day-note";
+  DeviceCard,
+  usePhoneSettled,
+} from "@/features/attendance/components/device-card";
+import { DayNote } from "@/features/attendance/components/day-note";
 import {
   punchOutcomeText,
   type PunchOutcomeInfo,
@@ -97,12 +98,6 @@ interface Done {
   outcome?: PunchOutcomeInfo | null;
 }
 
-function formatDistance(meters: number): string {
-  return meters >= 1000
-    ? `${(meters / 1000).toFixed(1)} km`
-    : `${Math.round(meters)} m`;
-}
-
 /**
  * The phone's punch screen.
  *
@@ -123,7 +118,7 @@ export default function MobilePunchPage() {
     clock: readerClock,
     formatTimeOfDay,
   } = useDateFormatters();
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading: userLoading } = useCurrentUser();
   const hasEmployee = Boolean(user?.employee_public_id);
   const shiftQuery = useMyShift(hasEmployee);
   const shift = shiftQuery.data;
@@ -140,9 +135,17 @@ export default function MobilePunchPage() {
   const [now, setNow] = useState(() => new Date());
   const [position, setPosition] = useState<Fix | null>(null);
   const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState("");
+  const [locationProblem, setLocationProblem] =
+    useState<LocationProblem | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraProblem, setCameraProblem] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "confirming" | "sending">("idle");
+  const phoneSettled = usePhoneSettled(hasEmployee);
+  // Read by timers and listeners that must not re-subscribe every second.
+  const positionRef = useRef<Fix | null>(null);
+  const locatingRef = useRef(false);
+  const submitting = useRef(false);
   const [manualType, setManualType] = useState<PunchType>("check_in");
   const [again, setAgain] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
@@ -167,23 +170,55 @@ export default function MobilePunchPage() {
   useEffect(() => {
     locate();
     return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The server scores a fix older than 120 seconds as stale, so the screen
+  // takes a new one once the last is 60 seconds old: when the page comes back
+  // to the front, and every 30 seconds while it is in view. A page in the
+  // background also lets go of the camera.
+  useEffect(() => {
+    const stale = () => fixIsOld(positionRef.current, Date.now());
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        stopCamera();
+        return;
+      }
+      if (stale()) locate();
+    };
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible" && stale()) locate();
+    }, 30_000);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   function locate() {
-    setLocationError("");
+    if (locatingRef.current) return;
+    setLocationProblem(null);
     if (!navigator.geolocation) {
-      setLocationError(t("attendance.mobile_page.geolocation_unsupported"));
+      setLocationProblem("unsupported");
       return;
     }
+    locatingRef.current = true;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setPosition(fixFrom(pos));
+        const fix = fixFrom(pos);
+        positionRef.current = fix;
+        setPosition(fix);
+        locatingRef.current = false;
         setLocating(false);
       },
       (err) => {
-        setLocationError(err.message);
+        // A refresh that fails keeps the fix already held; the problem is
+        // told only to a person who has none.
+        if (!positionRef.current) {
+          setLocationProblem(err.code === 1 ? "denied" : "unavailable");
+        }
+        locatingRef.current = false;
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
@@ -200,9 +235,10 @@ export default function MobilePunchPage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      setCameraProblem(false);
       setCameraOn(true);
     } catch {
-      toast.error(t("attendance.mobile_page.camera_denied"));
+      setCameraProblem(true);
     }
   }
 
@@ -296,139 +332,191 @@ export default function MobilePunchPage() {
     type === "check_in" &&
     fence.kind === "outside";
 
+  // Why the button cannot be pressed. "Waiting" is only that the location, or
+  // an employee's shift lookup, has not answered yet; every other reason is a
+  // named one the person can act on.
+  // Who this is, and what their shift is, are still being asked. Offline with
+  // nothing cached neither query is loading, so a punch can still be saved.
+  // Capped at 4 seconds: on a weak connection a person must still be able to
+  // punch, as they could before the lookups were waited on.
+  const [shiftWaitOver, setShiftWaitOver] = useState(false);
+  const lookingUp = userLoading || (shiftQuery.isLoading && hasEmployee);
+  useEffect(() => {
+    if (!lookingUp) return;
+    const id = window.setTimeout(() => setShiftWaitOver(true), 4000);
+    return () => window.clearTimeout(id);
+  }, [lookingUp]);
+  const shiftLoading = lookingUp && !shiftWaitOver;
+  const waiting =
+    (!position && !locationProblem) || (Boolean(position) && shiftLoading);
   const reason = !position
-    ? locationError
+    ? locationProblem
       ? t("attendance.mobile_page.location_required_notice")
       : t("attendance.punch.needs_location", "Waiting for your location…")
-    : photoRequired && type === "check_in" && !photo
-      ? t("attendance.punch.needs_selfie", "Take a selfie to check in.")
-      : blockedByFence
-        ? t(
-            "attendance.punch.needs_area",
-            "Move inside your branch area to check in.",
-          )
-        : null;
+    : shiftLoading
+      ? t("attendance.punch.checking_shift", "Checking your shift…")
+      : photoRequired && type === "check_in" && !photo
+        ? t("attendance.punch.needs_selfie", "Take a selfie to check in.")
+        : blockedByFence
+          ? t(
+              "attendance.punch.needs_area",
+              "Move inside your branch area to check in.",
+            )
+          : null;
+  const buttonState =
+    phase !== "idle" || punch.isPending
+      ? "busy"
+      : waiting
+        ? "waiting"
+        : reason
+          ? "blocked"
+          : "ready";
 
   async function submit(auto = false) {
     if (!position) return;
+    // One punch in flight at a time. Set before any await, so a second tap
+    // in the same frame finds it held.
+    if (submitting.current) return;
+    submitting.current = true;
+    setPhase("confirming");
+    if (!auto) haptic("tap");
+    const release = () => {
+      submitting.current = false;
+      setPhase("idle");
+    };
+    const refuse = (message: string) => {
+      setError(message);
+      if (!auto) haptic("refused");
+    };
     setError("");
     const idempotencyKey = `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let handedOff = false;
 
-    if (!isOnline) {
-      if (!user?.employee_public_id) {
-        setError(t("attendance.mobile_page.cannot_determine_identity"));
-        return;
-      }
-      // Signed on the registered phone over the punch's own fields, so it
-      // cannot be edited before it is sent (passkey.ts).
-      const capturedAt = new Date().toISOString();
-      const latitude = fixedCoordinate(position.latitude);
-      const longitude = fixedCoordinate(position.longitude);
-      const offlineDevice = currentOfflineDevice(user.employee_public_id);
-      let offlineProof: unknown = null;
-      if (offlineDevice) {
-        try {
-          offlineProof = await signOfflinePunch(offlineDevice, {
-            idempotency_key: idempotencyKey,
-            type,
-            captured_at: capturedAt,
-            latitude,
-            longitude,
-          });
-        } catch {
-          if (deviceState?.binding === "enforce") {
-            setError(
-              t(
-                "device.sign_cancelled",
-                "Unlock your phone when it asks, to confirm it is you.",
-              ),
-            );
-            return;
+    try {
+      if (!isOnline) {
+        if (!user?.employee_public_id) {
+          refuse(t("attendance.mobile_page.cannot_determine_identity"));
+          return;
+        }
+        // Signed on the registered phone over the punch's own fields, so it
+        // cannot be edited before it is sent (passkey.ts).
+        const capturedAt = new Date().toISOString();
+        const latitude = fixedCoordinate(position.latitude);
+        const longitude = fixedCoordinate(position.longitude);
+        const offlineDevice = currentOfflineDevice(user.employee_public_id);
+        let offlineProof: unknown = null;
+        if (offlineDevice) {
+          try {
+            offlineProof = await signOfflinePunch(offlineDevice, {
+              idempotency_key: idempotencyKey,
+              type,
+              captured_at: capturedAt,
+              latitude,
+              longitude,
+            });
+          } catch {
+            if (deviceState?.binding === "enforce") {
+              refuse(
+                t(
+                  "device.sign_cancelled",
+                  "Unlock your phone when it asks, to confirm it is you.",
+                ),
+              );
+              return;
+            }
           }
         }
+        setPhase("sending");
+        try {
+          await enqueueOfflineRecord({
+            employee_public_id: user.employee_public_id,
+            type,
+            idempotency_key: idempotencyKey,
+            // The server's grant, fetched while online, lets it vouch for this
+            // punch; without one it is accepted but reviewed.
+            offline_token:
+              currentOfflineGrant(user.employee_public_id) ??
+              `offline-${Date.now()}`,
+            latitude,
+            longitude,
+            accuracy: position.accuracy,
+            photo: photo ?? null,
+            captured_at: capturedAt,
+            ...punchSignals(position),
+            liveness: photo && liveness ? liveness : null,
+            device_proof: offlineProof,
+            tenant: tenantHeaderValue(),
+            locale,
+          });
+          // Sent when the connection returns, even with ETHR closed by then
+          // (where Background Sync is supported).
+          void requestAttendanceSync();
+          haptic("success");
+          setDone({ type, at: new Date(), auto: false, offline: true });
+        } catch {
+          refuse(t("attendance.mobile_page.offline_save_failed"));
+        }
+        return;
       }
-      try {
-        await enqueueOfflineRecord({
-          employee_public_id: user.employee_public_id,
+
+      // The registered phone's signature. An automatic punch has no tap, and a
+      // passkey can only be used after one, so it goes unsigned.
+      const signed = auto ? { stop: false } : await signPunch();
+      if (signed.stop) {
+        refuse(
+          t(
+            "device.sign_cancelled",
+            "Unlock your phone when it asks, to confirm it is you.",
+          ),
+        );
+        return;
+      }
+      const proof = "proof" in signed ? signed.proof : undefined;
+
+      setPhase("sending");
+      handedOff = true;
+      punch.mutate(
+        {
           type,
           idempotency_key: idempotencyKey,
-          // The server's grant, fetched while online, lets it vouch for this
-          // punch; without one it is accepted but reviewed.
-          offline_token:
-            currentOfflineGrant(user.employee_public_id) ??
-            `offline-${Date.now()}`,
-          latitude,
-          longitude,
+          latitude: position.latitude,
+          longitude: position.longitude,
           accuracy: position.accuracy,
-          photo: photo ?? null,
-          captured_at: capturedAt,
           ...punchSignals(position),
-          liveness: photo && liveness ? liveness : null,
-          device_proof: offlineProof,
-          tenant: tenantHeaderValue(),
-          locale,
-        });
-        // Sent when the connection returns, even with ETHR closed by then
-        // (where Background Sync is supported).
-        void requestAttendanceSync();
-        setDone({ type, at: new Date(), auto: false, offline: true });
-      } catch {
-        setError(t("attendance.mobile_page.offline_save_failed"));
-      }
-      return;
-    }
-
-    // The registered phone's signature. An automatic punch has no tap, and a
-    // passkey can only be used after one, so it goes unsigned.
-    const signed = auto ? { stop: false } : await signPunch();
-    if (signed.stop) {
-      setError(
-        t(
-          "device.sign_cancelled",
-          "Unlock your phone when it asks, to confirm it is you.",
-        ),
+          ...(proof ? { device_proof: proof } : {}),
+          ...(photo && liveness ? { liveness } : {}),
+          // The selfie goes with the check-out too: until 2026-10-24 only the
+          // check-in carried one, so a check-out was never evidenced.
+          ...(photo ? { photo } : {}),
+          ...(auto ? { auto: true } : {}),
+        },
+        {
+          onSuccess: (punched) => {
+            haptic("success");
+            setDone({
+              type,
+              at: new Date(),
+              auto,
+              offline: false,
+              outcome: punched.outcome,
+            });
+            setPhoto(null);
+            setAgain(false);
+          },
+          onError: (err: unknown) => {
+            // A refused automatic check-in stays quiet: the employee can still
+            // tap the button, and an error they did not ask for is noise.
+            if (auto) return;
+            refuse(
+              apiErrorDetail(err) ?? t("attendance.mobile_page.submit_failed"),
+            );
+          },
+          onSettled: release,
+        },
       );
-      return;
+    } finally {
+      if (!handedOff) release();
     }
-    const proof = "proof" in signed ? signed.proof : undefined;
-
-    punch.mutate(
-      {
-        type,
-        idempotency_key: idempotencyKey,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        accuracy: position.accuracy,
-        ...punchSignals(position),
-        ...(proof ? { device_proof: proof } : {}),
-        ...(photo && liveness ? { liveness } : {}),
-        // The selfie goes with the check-out too: until 2026-10-24 only the
-        // check-in carried one, so a check-out was never evidenced.
-        ...(photo ? { photo } : {}),
-        ...(auto ? { auto: true } : {}),
-      },
-      {
-        onSuccess: (punched) => {
-          setDone({
-            type,
-            at: new Date(),
-            auto,
-            offline: false,
-            outcome: punched.outcome,
-          });
-          setPhoto(null);
-          setAgain(false);
-        },
-        onError: (err: unknown) => {
-          // A refused automatic check-in stays quiet: the employee can still
-          // tap the button, and an error they did not ask for is noise.
-          if (auto) return;
-          setError(
-            apiErrorDetail(err) ?? t("attendance.mobile_page.submit_failed"),
-          );
-        },
-      },
-    );
   }
 
   // Automatic check-in on arrival: once per visit, only when every condition
@@ -525,9 +613,35 @@ export default function MobilePunchPage() {
     );
   }
 
+  if (user && !user.employee_public_id) {
+    // The server refuses a phone punch from an account with no employee
+    // record (MobileAttendanceController, 404), so say so instead of showing
+    // a button that cannot work.
+    return (
+      <div className="mx-auto max-w-md">
+        <EmptyState
+          icon={UserX}
+          title={t(
+            "attendance.punch.no_employee_title",
+            "This account has no employee record",
+          )}
+          description={t(
+            "attendance.punch.no_employee_body",
+            "Phone check-in is for employees. Ask HR to link this account to your employee record.",
+          )}
+          action={
+            <Button asChild className="min-h-11">
+              <Link href="/dashboard">{t("nav.dashboard", "Dashboard")}</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-md space-y-4">
-      {hasEmployee && <DeviceCard />}
+      {hasEmployee && !phoneSettled && <DeviceCard />}
       {shift && !shift.policy.mobile_enabled && (
         <div
           role="status"
@@ -540,13 +654,30 @@ export default function MobilePunchPage() {
         </div>
       )}
       {!isOnline && (
-        <div className="flex items-center gap-2 rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft">
-          <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {t("attendance.mobile_page.offline_banner")}
+        <div className="animate-fade-in space-y-1 rounded-lg border border-warning-edge bg-warning-soft px-3 py-2 text-sm text-warning-on-soft">
+          <p className="flex items-center gap-2">
+            <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {t("attendance.mobile_page.offline_banner")}
+          </p>
+          {pendingCount > 0 && (
+            <p>
+              {pendingCount === 1
+                ? t(
+                    "attendance.punch.saved_here_one",
+                    ":count punch saved on this phone.",
+                    { count: pendingCount },
+                  )
+                : t(
+                    "attendance.punch.saved_here_many",
+                    ":count punches saved on this phone.",
+                    { count: pendingCount },
+                  )}
+            </p>
+          )}
         </div>
       )}
       {pendingCount > 0 && isOnline && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+        <div className="flex animate-fade-in items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
           <span className="flex items-center gap-2 text-muted-foreground">
             <CloudUpload className="h-4 w-4" aria-hidden="true" />
             {pendingCount}{" "}
@@ -557,6 +688,7 @@ export default function MobilePunchPage() {
           <Button
             size="sm"
             variant="outline"
+            className="min-h-11"
             disabled={syncing}
             onClick={() => void syncNow()}
           >
@@ -569,71 +701,19 @@ export default function MobilePunchPage() {
       {/* A holiday, the weekend, a day off or leave: said before the clock. */}
       <DayNote day={shift?.day} />
 
-      {/* Today: the clock, the shift, the status. */}
-      <section className="rounded-2xl border border-border bg-card p-5 text-center shadow-xs">
-        <p className="text-sm text-muted-foreground">{dateLine}</p>
-        <p className="mt-1 text-5xl font-semibold tabular-nums tracking-tight text-foreground">
-          {clock}
-        </p>
-
-        <div className="mt-3 min-h-6 text-sm">
-          {shiftQuery.isLoading && hasEmployee ? (
-            <Skeleton className="mx-auto h-5 w-48" />
-          ) : dayNoteText(shift?.day, t, locale) ? null : shift?.shift &&
-            shift.working_day ? (
-            <span className="text-muted-foreground">
-              {shift.shift.name} ·{" "}
-              <span className="font-medium tabular-nums text-foreground">
-                {formatTimeOfDay(shift.shift.start_time)}–
-                {formatTimeOfDay(shift.shift.end_time)}
-              </span>
-            </span>
-          ) : shift ? (
-            <span className="text-muted-foreground">
-              {t("attendance.punch.no_shift", "No shift scheduled today")}
-            </span>
-          ) : null}
-        </div>
-
-        {shift && (
-          <div className="mt-3 flex justify-center">
-            <Badge
-              variant="outline"
-              className={cn(
-                "border-0 px-2.5 py-1",
-                status === "checked_in" &&
-                  "bg-success-soft text-success-on-soft",
-                status === "checked_out" &&
-                  "bg-neutral-soft text-neutral-on-soft",
-                status === "not_checked_in" &&
-                  "bg-warning-soft text-warning-on-soft",
-              )}
-            >
-              {status === "checked_in"
-                ? t("attendance.punch.in_at_time", "Checked in at :time", {
-                    time: timeOf(shift.attendance.check_in),
-                  })
-                : status === "checked_out"
-                  ? t("attendance.punch.out_at_time", "Checked out at :time", {
-                      time: timeOf(shift.attendance.check_out),
-                    })
-                  : t("dashboard.not_checked_in", "Not checked in")}
-            </Badge>
-          </div>
-        )}
-        {shift?.attendance.auto_checked_out && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t(
-              "attendance.punch.auto_closed_note",
-              "Closed automatically at the end of your shift. File a correction if you left at another time.",
-            )}
-          </p>
-        )}
-      </section>
+      {/* Today: the date and clock, the status, the shift. */}
+      <DayStrip
+        dateLine={dateLine}
+        clock={clock}
+        shift={shift}
+        shiftLoading={shiftLoading}
+        timeOf={timeOf}
+        formatTimeOfDay={formatTimeOfDay}
+      />
 
       {/* Without the server's answer (offline, or no shift data), the
           employee says which punch this is. */}
-      {!shift && (
+      {!shift && !shiftLoading && (
         <div
           role="radiogroup"
           aria-label={t("attendance.punch.type", "Punch type")}
@@ -647,7 +727,7 @@ export default function MobilePunchPage() {
               aria-checked={manualType === value}
               onClick={() => setManualType(value)}
               className={cn(
-                "rounded-lg py-2 text-sm font-medium transition-colors",
+                "min-h-11 rounded-lg text-sm font-medium transition-colors",
                 manualType === value
                   ? "bg-card text-foreground shadow-xs"
                   : "text-muted-foreground",
@@ -668,42 +748,28 @@ export default function MobilePunchPage() {
             <p className="text-sm text-muted-foreground">
               {t("attendance.punch.finished", "You are done for today.")}
             </p>
-            <Button variant="outline" onClick={() => setAgain(true)}>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setAgain(true)}
+            >
               {t("attendance.punch.check_in_again", "Check in again")}
             </Button>
           </>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => void submit(false)}
-              disabled={Boolean(reason) || punch.isPending}
-              className={cn(
-                "flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full text-lg font-semibold shadow-lg transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+            <PunchButton
+              type={type}
+              state={buttonState}
+              phase={phase}
+              reason={reason}
+              onPress={() => void submit(false)}
+              label={
                 type === "check_in"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-foreground text-background",
-              )}
-            >
-              {punch.isPending ? (
-                <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
-              ) : type === "check_in" ? (
-                <LogIn className="h-8 w-8" aria-hidden="true" />
-              ) : (
-                <LogOut className="h-8 w-8" aria-hidden="true" />
-              )}
-              {type === "check_in"
-                ? t("common.check_in")
-                : t("common.check_out")}
-            </button>
-            {reason && (
-              <p
-                className="text-center text-sm text-muted-foreground"
-                role="status"
-              >
-                {reason}
-              </p>
-            )}
+                  ? t("common.check_in")
+                  : t("common.check_out")
+              }
+            />
             {error && (
               <p className="text-center text-sm text-destructive" role="alert">
                 {error}
@@ -713,135 +779,28 @@ export default function MobilePunchPage() {
         )}
       </section>
 
-      {/* Where they are. */}
-      <section className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
-        <span
-          className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-            fence.kind === "inside" && "bg-success-soft text-success-on-soft",
-            fence.kind === "outside" && "bg-warning-soft text-warning-on-soft",
-            fence.kind === "none" && "bg-neutral-soft text-neutral-on-soft",
-          )}
-        >
-          {fence.kind === "inside" ? (
-            <MapPinCheck className="h-[18px] w-[18px]" aria-hidden="true" />
-          ) : fence.kind === "outside" ? (
-            <MapPinOff className="h-[18px] w-[18px]" aria-hidden="true" />
-          ) : (
-            <MapPin className="h-[18px] w-[18px]" aria-hidden="true" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1 text-sm">
-          <p className="font-medium text-foreground">
-            {locating
-              ? t("attendance.mobile_page.getting_location")
-              : locationError
-                ? t("attendance.mobile_page.location_required")
-                : fence.kind === "inside"
-                  ? t("attendance.punch.inside_area", "Inside your branch area")
-                  : fence.kind === "outside"
-                    ? t(
-                        "attendance.punch.outside_area",
-                        "Outside your branch area",
-                      )
-                    : position
-                      ? t("attendance.mobile_page.your_location")
-                      : t("attendance.mobile_page.location_required")}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {locationError
-              ? locationError
-              : position
-                ? [
-                    fence.kind !== "none"
-                      ? `${formatDistance(fence.distance)} ${t("attendance.punch.from_branch", "from your branch")}`
-                      : null,
-                    `±${Math.round(position.accuracy)} m`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : ""}
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={locate}
-          disabled={locating}
-          aria-label={t("attendance.mobile_page.refresh_location")}
-        >
-          <RefreshCw className={cn("h-4 w-4", locating && "animate-spin")} />
-        </Button>
-      </section>
-
-      {/* The selfie, when it is a check-in. */}
-      {type === "check_in" && !finishedForToday && (
-        <section className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Camera
-                className="h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-              {t("attendance.mobile_page.selfie")}
-            </p>
-            <Badge
-              variant="outline"
-              className={cn(
-                "border-0",
-                photoRequired
-                  ? "bg-warning-soft text-warning-on-soft"
-                  : "bg-neutral-soft text-neutral-on-soft",
-              )}
-            >
-              {photoRequired
-                ? t("attendance.punch.required", "Required")
-                : t("attendance.mobile_page.optional")}
-            </Badge>
-          </div>
-          <video
-            ref={videoRef}
-            className={cn(
-              "mt-3 aspect-[4/3] w-full rounded-lg bg-muted object-cover",
-              !cameraOn && "hidden",
-            )}
-            playsInline
-            muted
-          />
-          {photo && !cameraOn && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photo}
-              alt={t("attendance.mobile_page.selfie_preview_alt")}
-              className="mt-3 aspect-[4/3] w-full rounded-lg object-cover"
-            />
-          )}
-          <div className="mt-3 flex gap-2">
-            {cameraOn ? (
-              <Button
-                className="flex-1"
-                disabled={livenessPrompt !== null}
-                onClick={() =>
-                  livenessRequired ? void checkThenSnap() : snapPhoto()
-                }
-              >
-                {livenessPrompt === "blink"
-                  ? t("liveness.blink", "Blink once")
-                  : livenessPrompt === "turn"
-                    ? t("liveness.turn", "Turn your head to one side")
-                    : t("attendance.mobile_page.capture")}
-              </Button>
-            ) : (
-              <Button variant="outline" className="flex-1" onClick={takeSelfie}>
-                {photo
-                  ? t("attendance.mobile_page.retake")
-                  : t("attendance.punch.take_selfie", "Take a selfie")}
-              </Button>
-            )}
-          </div>
-        </section>
-      )}
+      {/* What the punch needs: where they are, the selfie, this phone. */}
+      <ReadinessList
+        position={position}
+        fence={fence}
+        problem={locationProblem}
+        locating={locating}
+        shift={shift}
+        onLocate={locate}
+        videoRef={videoRef}
+        selfie={{
+          show: type === "check_in" && !finishedForToday,
+          photo,
+          required: photoRequired,
+          cameraOn,
+          cameraProblem,
+          livenessPrompt,
+          onTake: takeSelfie,
+          onSnap: () => (livenessRequired ? void checkThenSnap() : snapPhoto()),
+        }}
+      >
+        {hasEmployee && phoneSettled && <DeviceCard variant="row" />}
+      </ReadinessList>
 
       <PhotoConsentDialog
         open={consentOpen}
@@ -882,16 +841,17 @@ export default function MobilePunchPage() {
           <VisitLogCard photoConsent={shift.policy.photo_consent} />
         )}
 
-      <div className="flex justify-center gap-4 pb-2 text-sm">
-        <Link href="/attendance" className="text-primary hover:underline">
-          {t("attendance.punch.history", "My history")}
-        </Link>
-        <Link
-          href="/attendance/corrections"
-          className="text-primary hover:underline"
-        >
-          {t("nav.corrections", "Corrections")}
-        </Link>
+      <div className="flex justify-center gap-2 pb-2 text-sm">
+        <Button asChild variant="ghost" className="min-h-11">
+          <Link href="/attendance">
+            {t("attendance.punch.history", "My history")}
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" className="min-h-11">
+          <Link href="/attendance/corrections">
+            {t("nav.corrections", "Corrections")}
+          </Link>
+        </Button>
       </div>
     </div>
   );
