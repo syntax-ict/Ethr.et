@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Backup;
 
+use App\Models\BackupDriveSetting;
 use App\Models\BackupStorageSetting;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
@@ -45,7 +46,9 @@ use Throwable;
  * turns a copy back into a directory `restore()` can read.
  *
  * Since 2026-11-02 the storage and the key can come from the platform console
- * (BackupStorageSetting) instead of `.env`; offHostTarget() decides which.
+ * (BackupStorageSetting) instead of `.env`; offHostTargets() decides which,
+ * and since 2026-11-15 it also lists Google Drive (BackupDriveSetting) as the
+ * fallback, tried when the primary is off or a copy to it fails.
  */
 class BackupService
 {
@@ -183,18 +186,57 @@ class BackupService
     }
 
     /**
-     * Where an off-host copy goes, and with which key.
+     * Every place an off-host copy can go, in the order they are tried.
      *
-     * Storage saved in the platform console wins; without it, the `.env` disk
-     * and BACKUP_ENCRYPTION_KEY. Naming a disk (`--disk`) asks for that `.env`
-     * disk whatever the console says.
+     * First the primary storage: what is saved in the platform console wins;
+     * without it, the `.env` disk and BACKUP_ENCRYPTION_KEY. Naming a disk
+     * (`--disk`) asks for that `.env` disk alone, whatever the console says.
+     * Then, when it has been connected, Google Drive, the fallback: used only
+     * when the primary is switched off or a copy to it failed.
      *
-     * `blocker` says why no copy can be made right now, or null when one can.
-     * Codes, not sentences: the operations centre translates them.
+     * Each target carries its own key (`cipher`): a copy is opened with the
+     * key of the destination it went to. `blocker` says why no copy can go
+     * there right now, or null when one can. Codes, not sentences: the
+     * operations centre translates them.
      *
-     * @return array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}
+     * The first target is always the primary, usable or not.
+     *
+     * @return non-empty-list<array{kind: 's3'|'google_drive', source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|BackupDriveSetting|null}>
      */
-    public function offHostTarget(?string $disk = null): array
+    public function offHostTargets(?string $disk = null): array
+    {
+        $targets = [$this->primaryTarget($disk)];
+
+        $drive = $disk === null ? BackupDriveSetting::current() : null;
+
+        if ($drive instanceof BackupDriveSetting) {
+            $cipher = $drive->cipher();
+
+            $targets[] = [
+                'kind' => 'google_drive',
+                'source' => 'console',
+                'name' => 'Google Drive',
+                'blocker' => match (true) {
+                    ! $drive->isConnected() => 'off_host_not_connected',
+                    ! $drive->enabled => 'off_host_switched_off',
+                    $cipher === null => 'off_host_key_missing',
+                    default => null,
+                },
+                'cipher' => $cipher,
+                'settings' => $drive,
+            ];
+        }
+
+        return $targets;
+    }
+
+    /**
+     * The primary storage alone, usable or not: the console's S3 row, else
+     * the `.env` disk.
+     *
+     * @return array{kind: 's3', source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}
+     */
+    public function primaryTarget(?string $disk = null): array
     {
         $console = $disk === null ? BackupStorageSetting::current() : null;
 
@@ -202,6 +244,7 @@ class BackupService
             $cipher = $console->cipher();
 
             return [
+                'kind' => 's3',
                 'source' => 'console',
                 'name' => $console->bucket,
                 'blocker' => match (true) {
@@ -219,6 +262,7 @@ class BackupService
         $cipher = BackupCipher::fromConfig();
 
         return [
+            'kind' => 's3',
             'source' => 'env',
             'name' => $disk,
             'blocker' => match (true) {
@@ -236,54 +280,118 @@ class BackupService
         ];
     }
 
+    /**
+     * The first target a copy can go to now, or the primary with its blocker
+     * when none can.
+     *
+     * @return array{kind: 's3'|'google_drive', source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|BackupDriveSetting|null}
+     */
+    public function offHostTarget(?string $disk = null): array
+    {
+        $targets = $this->offHostTargets($disk);
+
+        foreach ($targets as $target) {
+            if ($target['blocker'] === null) {
+                return $target;
+            }
+        }
+
+        return $targets[0];
+    }
+
+    /** Null when ANY destination can take a copy; otherwise why the primary cannot. */
     public function offHostBlocker(?string $disk = null): ?string
     {
         return $this->offHostTarget($disk)['blocker'];
     }
 
     /**
-     * @param  array{source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|null}  $target
+     * @param  array{kind: 's3'|'google_drive', source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|BackupDriveSetting|null}  $target
      */
     private function offHostFilesystem(array $target): Filesystem
     {
-        return $target['settings'] instanceof BackupStorageSetting
-            ? app(BackupStorageDisk::class)->build($target['settings'])
-            : Storage::disk($target['name']);
+        return match (true) {
+            $target['settings'] instanceof BackupDriveSetting => app(BackupDriveDisk::class)->build($target['settings']),
+            $target['settings'] instanceof BackupStorageSetting => app(BackupStorageDisk::class)->build($target['settings']),
+            default => Storage::disk($target['name']),
+        };
     }
 
     /**
-     * Push an encrypted archive of the backup to the off-host disk, and record
-     * the copy in the backup's manifest.
+     * Push an encrypted archive of the backup to the first destination that
+     * takes it, and record the copy in the backup's manifest.
+     *
+     * Destinations are tried in order (offHostTargets()). A failure on one is
+     * reported and the next is tried; the run fails only when every usable
+     * destination failed, and the message names each one. `fell_back` records
+     * that an earlier destination failed, so the operations centre can say
+     * the primary is down even though a copy exists.
      *
      * Streamed, so a large document store never has to fit in memory, and
      * checked by size afterwards: the s3 disk is `throw => false`, so a failed
      * put() returns false rather than throwing, and was ignored here until
      * 2026-11-01. The local archive is removed either way; prune() only
      * removes backup directories, so an archive left beside them would sit on
-     * the 5 GB account forever.
+     * the 5 GB account forever. Each destination encrypts with its own key, so
+     * the plain archive stays until the last attempt has used it, and the
+     * encrypted file of an attempt is removed before the next begins.
      *
-     * @return array{disk: string, key: string, bytes: int, copied_at: string}
+     * @return array{destination: 's3'|'google_drive', disk: string, key: string, bytes: int, copied_at: string, fell_back: bool}
      */
     public function copyOffHost(string $path, ?string $disk = null): array
     {
-        $target = $this->offHostTarget($disk);
-        $blocker = $target['blocker'];
+        $targets = $this->offHostTargets($disk);
+        $usable = array_values(array_filter($targets, fn (array $t): bool => $t['blocker'] === null));
 
-        if ($blocker !== null) {
-            throw new RuntimeException("No off-host copy was made ({$blocker}). See docs/deployment/BACKUP-RESTORE.md.");
+        if ($usable === []) {
+            throw new RuntimeException("No off-host copy was made ({$targets[0]['blocker']}). See docs/deployment/BACKUP-RESTORE.md.");
         }
 
+        $archive = $this->archive($path);
+        $failures = [];
+
+        try {
+            foreach ($usable as $i => $target) {
+                try {
+                    $copy = $this->copyTo($target, $archive, $i === count($usable) - 1);
+                } catch (Throwable $e) {
+                    report($e);
+                    $failures[] = (count($usable) > 1 ? $target['name'].': ' : '').mb_substr($e->getMessage(), 0, 400);
+
+                    continue;
+                }
+
+                $copy['fell_back'] = $failures !== [];
+                $this->recordInManifest($path, ['off_host' => $copy]);
+
+                return $copy;
+            }
+        } finally {
+            @unlink($archive);
+        }
+
+        throw new RuntimeException(count($failures) === 1 ? $failures[0] : 'The off-host copy failed on every destination. '.implode(' | ', $failures));
+    }
+
+    /**
+     * @param  array{kind: 's3'|'google_drive', source: 'console'|'env', name: string, blocker: string|null, cipher: BackupCipher|null, settings: BackupStorageSetting|BackupDriveSetting|null}  $target
+     * @return array{destination: 's3'|'google_drive', disk: string, key: string, bytes: int, copied_at: string}
+     */
+    private function copyTo(array $target, string $archive, bool $lastAttempt): array
+    {
         /** @var BackupCipher $cipher */
         $cipher = $target['cipher'];
         $disk = $target['name'];
-        $archive = $this->archive($path);
         $encrypted = $archive.BackupCipher::EXTENSION;
 
         try {
             $cipher->encryptFile($archive, $encrypted);
             // At once, not in `finally`: on a 5 GB account the plain archive
             // and the encrypted one should not both sit there for the upload.
-            @unlink($archive);
+            // Not before the last attempt when others may still need it.
+            if ($lastAttempt) {
+                @unlink($archive);
+            }
             $bytes = (int) filesize($encrypted);
             $key = 'backups/'.basename($encrypted);
             $storage = $this->offHostFilesystem($target);
@@ -301,37 +409,50 @@ class BackupService
                 throw new RuntimeException("The off-host copy to {$disk}:{$key} did not arrive whole.");
             }
         } finally {
-            @unlink($archive);
             @unlink($encrypted);
         }
 
-        $copy = ['disk' => $disk, 'key' => $key, 'bytes' => $bytes, 'copied_at' => now()->toIso8601String()];
-        $this->recordInManifest($path, ['off_host' => $copy]);
-
-        return $copy;
+        return [
+            'destination' => $target['kind'],
+            'disk' => $disk,
+            'key' => $key,
+            'bytes' => $bytes,
+            'copied_at' => now()->toIso8601String(),
+        ];
     }
 
     /**
-     * Keep the newest $keep archives on the off-host disk; delete the rest.
-     * Only names this class writes are touched, so a bucket shared with
-     * anything else keeps its other files.
+     * Keep the newest $keep archives on every usable destination; delete the
+     * rest. Only names this class writes are touched, so a bucket or folder
+     * shared with anything else keeps its other files. A failure on one
+     * destination is reported and does not stop the others.
      *
      * @return list<string>
      */
     public function pruneOffHost(int $keep, ?string $disk = null): array
     {
-        $storage = $this->offHostFilesystem($this->offHostTarget($disk));
-
-        $archives = collect($storage->files('backups'))
-            ->filter(fn (string $key): bool => (bool) preg_match('/^backups\/ethr-\d{8}-\d{6}[A-Za-z0-9_-]*\.(tar\.gz|zip)'.preg_quote(BackupCipher::EXTENSION, '/').'$/', $key))
-            ->sortDesc()
-            ->values();
-
         $removed = [];
 
-        foreach ($archives->slice(max(1, $keep)) as $key) {
-            $storage->delete($key);
-            $removed[] = $key;
+        foreach ($this->offHostTargets($disk) as $target) {
+            if ($target['blocker'] !== null) {
+                continue;
+            }
+
+            try {
+                $storage = $this->offHostFilesystem($target);
+
+                $archives = collect($storage->files('backups'))
+                    ->filter(fn (string $key): bool => (bool) preg_match('/^backups\/ethr-\d{8}-\d{6}[A-Za-z0-9_-]*\.(tar\.gz|zip)'.preg_quote(BackupCipher::EXTENSION, '/').'$/', $key))
+                    ->sortDesc()
+                    ->values();
+
+                foreach ($archives->slice(max(1, $keep)) as $key) {
+                    $storage->delete($key);
+                    $removed[] = $key;
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
         return $removed;
@@ -342,11 +463,22 @@ class BackupService
      * can read. `$source` is a local file, or with `$fromOffHost` a key on the
      * off-host storage (`$disk` names an `.env` disk instead of the default).
      *
+     * `$destination` (`s3` or `google_drive`) reads from that destination and
+     * opens the archive with its key, which is how a copy that fell back to
+     * Drive is brought home; without it, the first usable destination.
+     *
      * @return string the backup's name
      */
-    public function unpack(string $source, ?BackupCipher $cipher = null, bool $fromOffHost = false, ?string $disk = null): string
+    public function unpack(string $source, ?BackupCipher $cipher = null, bool $fromOffHost = false, ?string $disk = null, ?string $destination = null): string
     {
-        $target = $this->offHostTarget($disk);
+        $target = $destination === null
+            ? $this->offHostTarget($disk)
+            : collect($this->offHostTargets($disk))->first(fn (array $t): bool => $t['kind'] === $destination);
+
+        if ($target === null) {
+            throw new RuntimeException("No off-host destination called {$destination} is set up.");
+        }
+
         $cipher ??= $target['cipher'];
 
         if ($cipher === null) {

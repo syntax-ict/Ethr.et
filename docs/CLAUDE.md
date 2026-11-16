@@ -855,6 +855,7 @@ These models are global and must NOT have `tenant_id` or `BelongsToTenant`:
 - `ProfileVersion` — the published batches of statutory parameters each platform row belongs to, reported in every value's provenance; written by migrations *(2026-11-09, `docs/payroll/STATUTORY-PARAMETERS.md`)*
 - `StatutoryLayout` — the dated layouts of the national statutory schedules (MoR, POESSA, PSSSA), edited from the platform console *(2026-10-14)*
 - `SmsGateway`, `SmsSetting`, `SmsSend` — SMS delivery, bought and switched on once for the platform; the send ledger holds no number or text *(2026-10-14)*
+- `BackupStorageSetting`, `BackupDriveSetting` — where the platform's backups are copied off the host: the S3-compatible storage and the Google Drive fallback, one row each, secrets and archive keys encrypted *(2026-11-01, 2026-11-15)*
 - `MarketingSection`, `MarketingItem` — the public landing page's sections and rows, one marketing site read by every visitor and edited from the platform console; the registry of kinds is `App\Support\MarketingContent` and every text field is checked by `PermittedMarketingClaim` *(2026-10-24, `docs/operations/MARKETING-SITE.md`)*
 
 All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIsolationTest` enforces this.

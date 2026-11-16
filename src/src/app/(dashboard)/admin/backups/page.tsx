@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
+  backupErrorDetail,
   useBackupConsole,
   useRevealBackupKey,
   useSaveBackupStorage,
@@ -22,6 +23,7 @@ import {
   useUpdateBackupSettings,
   type BackupConsoleState,
 } from "@/features/admin/backups";
+import { BackupDriveCard } from "@/features/admin/components/backup-drive-card";
 import { reasonLabel } from "@/features/admin/components/operations-labels";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -49,6 +51,7 @@ export default function BackupsPage() {
             <StatusCard state={state} />
             <StorageCard state={state} />
             {state.storage !== null && <KeyCard state={state} />}
+            <BackupDriveCard state={state.google_drive} />
           </div>
         )}
       </QueryBoundary>
@@ -56,19 +59,7 @@ export default function BackupsPage() {
   );
 }
 
-function errorDetail(err: unknown): string | undefined {
-  const data = (
-    err as {
-      response?: {
-        data?: { detail?: string; errors?: Record<string, string[]> };
-      };
-    }
-  ).response?.data;
-
-  return data?.errors
-    ? Object.values(data.errors)[0]?.[0]
-    : (data?.detail ?? undefined);
-}
+const errorDetail = backupErrorDetail;
 
 function StatusCard({ state }: { state: BackupConsoleState }) {
   const { t } = useT();

@@ -241,6 +241,11 @@ export function reasonLabel(t: Translate, code: string): string {
         "operations_page.reason.disk_critical",
         "More than 85% of the plan's disk is in use. Uploads and the database stop when it fills, and the next backup may not fit.",
       );
+    case "off_host_fell_back":
+      return t(
+        "operations_page.reason.off_host_fell_back",
+        "The last copy went to the Google Drive fallback because the main storage failed. Check the main storage before relying on Drive alone.",
+      );
     case "off_host_failing":
       return t(
         "operations_page.reason.off_host_failing",

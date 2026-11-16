@@ -55,7 +55,12 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
       age_seconds: 3600,
       last_failed_at: null,
       last_failed_stage: null,
-      off_host: { configured: true, disk: "s3", last_copied_at: NOW },
+      off_host: {
+        configured: true,
+        disk: "s3",
+        destination: "s3",
+        last_copied_at: NOW,
+      },
       disk: {
         measured_at: NOW,
         quota_bytes: 5 * 1024 ** 3,
