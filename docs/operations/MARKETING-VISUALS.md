@@ -1,5 +1,13 @@
 # Marketing visuals
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how the illustrations on the public landing page are produced, checked and placed. |
+| **Open it when** | You are generating, replacing or reviewing a landing page picture. |
+| **For** | Owner; designer |
+| **Organisation types** | Not about an organisation. ETHR's own public site. |
+| **Source of truth** | `api/database/seeders/assets/marketing/manifest.json` and the tooling in `scripts/marketing-visuals/`. |
+
 How the illustrations on the public landing page are produced, checked and
 placed. The page is database-driven: `marketing_sections` and `marketing_items`
 hold the copy, and each item that carries a picture gets it from one of the

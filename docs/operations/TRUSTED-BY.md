@@ -1,5 +1,13 @@
 # "Trusted by" on the public site
 
+| At a glance | |
+|---|---|
+| **Purpose** | Says which organisations the ETHR landing page names under Trusted by, who decides, and how the list is served. |
+| **Open it when** | An organisation asks to be named or removed, or a name is missing from the list. |
+| **For** | Platform operator; owner |
+| **Organisation types** | Same for every kind. Only the name, logo and address are published, never the kind or industry. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `Tenant::scopeShowcased` and `api/app/Http/Resources/TrustedOrganisationResource.php`. |
+
 Added 2026-10-18. The landing page at ethr.et lists organisations that use ETHR,
 under **Trusted by**: each one's name, its uploaded logo, and a link to its
 public page (its entry address, `ethr.et/{slug}` or its own host). Nothing else

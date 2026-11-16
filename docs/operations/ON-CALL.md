@@ -1,5 +1,13 @@
 # On call — what to do when
 
+| At a glance | |
+|---|---|
+| **Purpose** | What to do when ETHR misbehaves in production, as symptom, likely cause and action, on a host with no shell. |
+| **Open it when** | Something is broken or looks wrong and you do not yet know what. |
+| **For** | Platform operator on call |
+| **Organisation types** | Not about an organisation. The host, the scheduler and the queue serve every kind alike. |
+| **Source of truth** | The code, and [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md) for which host facts have actually been measured. |
+
 **For the Ethio Telecom Plesk deployment.** Written 2026-10-01 from the repository's own records;
 corrected 2026-10-14 (how artisan runs, background work, mail, custody of credentials).
 Several of the host facts it relies on are **not yet measured on the account** (see

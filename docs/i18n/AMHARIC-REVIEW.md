@@ -432,3 +432,12 @@ What to check first: *Open* and *Discard* as verbs on a button (the drafts use t
 for discard is "remove"), and the three
 "started" sentences, where a person's name sits inside the Amharic and Oromo word order. The Oromo for
 the second one puts the name before the verb and may need a suffix on the name.
+
+### The console shows the kind in law (2026-11-15)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `admin_tenants_page.filter_by_kind`,
+`admin_tenants_page.all_kinds`, `admin_tenant_detail_page.kind_needs_review` and
+`admin_tenant_detail_page.kind_read_only`. The kind's own name and the heading "Kind of
+organisation in law" are existing strings (`settings.organization_kind`, the catalogue's
+`name_am` and `name_om`), reused as they are. A wrong label moves no money.

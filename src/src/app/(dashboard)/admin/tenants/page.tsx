@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -28,6 +30,13 @@ import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
+import { useOrganizationTypes } from "@/features/settings/api";
+import {
+  groupOrgKinds,
+  orgKindGroupLabel,
+  orgKindName,
+} from "@/features/settings/org-kind";
+import { useKindNamer } from "@/features/admin/components/org-kind-name";
 import {
   JOURNEY_STAGES,
   isJourneyStage,
@@ -46,7 +55,9 @@ function trialDaysLeft(trialEndsAt: string | null): number | null {
 }
 
 export default function AdminTenantsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const kindName = useKindNamer();
+  const kinds = useOrganizationTypes();
   // A platform-admin surface reads other tenants' data, so "the tenant
   // timezone" here is the operator's own — one consistent clock across every
   // row rather than a different zone per tenant, which would make the trial
@@ -55,7 +66,7 @@ export default function AdminTenantsPage() {
   const { formatDate } = useDateFormatters();
   const router = useRouter();
   const filters = useQueryFilters(
-    { q: "", status: "all", stage: "all", health: "all" },
+    { q: "", status: "all", stage: "all", health: "all", kind: "all" },
     {
       status: [
         "all",
@@ -74,6 +85,7 @@ export default function AdminTenantsPage() {
   const status = filters.values.status;
   const stage = filters.values.stage;
   const health = filters.values.health;
+  const kind = filters.values.kind;
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, refetch } = useAdminTenants({
@@ -82,6 +94,7 @@ export default function AdminTenantsPage() {
     lifecycle: status === "trial_expired" ? "trial_expired" : undefined,
     stage: stage === "all" ? undefined : stage,
     health: health === "all" ? undefined : health,
+    kind: kind === "all" ? undefined : kind,
     page,
     per_page: 25,
   });
@@ -189,6 +202,40 @@ export default function AdminTenantsPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={kind}
+            onValueChange={(v) => {
+              filters.set({ kind: v });
+              setPage(1);
+            }}
+          >
+            <SelectTrigger
+              className="w-full sm:w-56"
+              aria-label={t(
+                "admin_tenants_page.filter_by_kind",
+                "Filter by kind of organisation",
+              )}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t("admin_tenants_page.all_kinds", "All kinds")}
+              </SelectItem>
+              {groupOrgKinds(kinds.data ?? []).map((section) => (
+                <SelectGroup key={section.group}>
+                  <SelectLabel>
+                    {orgKindGroupLabel(section.group, t)}
+                  </SelectLabel>
+                  {section.kinds.map((k) => (
+                    <SelectItem key={k.code} value={k.code}>
+                      {orgKindName(k, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
         </FilterBar>
 
         {isLoading ? (
@@ -274,10 +321,26 @@ export default function AdminTenantsPage() {
                           <span className="text-sm font-medium text-foreground">
                             {tenant.name}
                           </span>
-                          {tenant.type && (
+                          {(tenant.organization_type || tenant.type) && (
                             <p className="text-xs text-muted-foreground">
-                              {orgTypeLabel(tenant.type, t) ?? tenant.type}
+                              {tenant.organization_type
+                                ? kindName(tenant.organization_type)
+                                : null}
+                              {tenant.organization_type && tenant.type
+                                ? " · "
+                                : null}
+                              {tenant.type
+                                ? (orgTypeLabel(tenant.type, t) ?? tenant.type)
+                                : null}
                             </p>
+                          )}
+                          {tenant.organization_type_needs_review === true && (
+                            <Badge variant="warning" className="mt-1">
+                              {t(
+                                "admin_tenant_detail_page.kind_needs_review",
+                                "Needs confirming",
+                              )}
+                            </Badge>
                           )}
                         </div>,
                         <span key="g" className="text-muted-foreground">
