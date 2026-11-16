@@ -25,6 +25,8 @@ import {
 } from "@/features/attendance/components/mobile/readiness-list";
 import { fixIsOld } from "@/lib/attendance/fix-age";
 import { haptic } from "@/lib/attendance/haptics";
+import { isNoAnswer } from "@/lib/attendance/no-answer";
+import { InstallAppBanner } from "@/components/shared/install-app";
 import {
   usePunchSigner,
   useAttendanceDevice,
@@ -80,6 +82,13 @@ import { cn } from "@/lib/utils";
 // quiet-on-error: the punch screen is offline-first and must work with no signal; today's shift line is advisory, so a failed lookup leaves it blank rather than putting an error between a person and the punch button.
 
 type PunchType = "check_in" | "check_out";
+
+/** A punch that has been asked for and not yet answered or saved. */
+interface Attempt {
+  type: PunchType;
+  key: string;
+  tappedAt: string;
+}
 
 interface Done {
   type: PunchType;
@@ -138,6 +147,13 @@ export default function MobilePunchPage() {
   const positionRef = useRef<Fix | null>(null);
   const locatingRef = useRef(false);
   const submitting = useRef(false);
+  // Which submit is current: a late answer to an older one is ignored.
+  const attempt = useRef(0);
+  // The key and tap time of the punch in flight, for the slow-send offer.
+  const inFlight = useRef<Attempt | null>(null);
+  const [unsent, setUnsent] = useState<Attempt | null>(null);
+  const [slowAttempt, setSlowAttempt] = useState<Attempt | null>(null);
+  const [flashKey, setFlashKey] = useState(0);
   const [manualType, setManualType] = useState<PunchType>("check_in");
   const [again, setAgain] = useState(false);
   const [done, setDone] = useState<Done | null>(null);
@@ -283,6 +299,7 @@ export default function MobilePunchPage() {
     // At most 1.5 MB (attendance photo policy), stepping quality and size
     // down until it fits; also what a queued offline punch carries.
     setPhoto(captureSelfie(video));
+    setFlashKey((k) => k + 1);
     stopCamera();
   }
 
@@ -398,16 +415,35 @@ export default function MobilePunchPage() {
     return () => navigator.geolocation?.clearWatch?.(id);
   }, [watchingPosition]);
 
-  async function submit(auto = false) {
+  async function submit(
+    auto = false,
+    opts: {
+      key?: string;
+      capturedAt?: string;
+      forceOffline?: boolean;
+      type?: PunchType;
+    } = {},
+  ) {
+    // The moment of the tap, taken before anything is awaited.
+    const tappedAt = opts.capturedAt ?? new Date().toISOString();
+    // A retry is the same punch as the first tap, whatever the day now says.
+    const punchType = opts.type ?? type;
     if (!position) return;
     // One punch in flight at a time. Set before any await, so a second tap
     // in the same frame finds it held.
     if (submitting.current) return;
     submitting.current = true;
+    attempt.current += 1;
+    const mine = attempt.current;
     setPhase("confirming");
+    setUnsent(null);
+    setSlowAttempt(null);
     if (!auto) haptic("tap");
     const release = () => {
+      // An attempt that was given up on must not free the one that replaced it.
+      if (attempt.current !== mine) return;
       submitting.current = false;
+      inFlight.current = null;
       setPhase("idle");
     };
     const refuse = (message: string) => {
@@ -415,18 +451,20 @@ export default function MobilePunchPage() {
       if (!auto) haptic("refused");
     };
     setError("");
-    const idempotencyKey = `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const idempotencyKey =
+      opts.key ?? `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    inFlight.current = { type: punchType, key: idempotencyKey, tappedAt };
     let handedOff = false;
 
     try {
-      if (!isOnline) {
+      if (!isOnline || opts.forceOffline) {
         if (!user?.employee_public_id) {
           refuse(t("attendance.mobile_page.cannot_determine_identity"));
           return;
         }
         // Signed on the registered phone over the punch's own fields, so it
         // cannot be edited before it is sent (passkey.ts).
-        const capturedAt = new Date().toISOString();
+        const capturedAt = tappedAt;
         const latitude = fixedCoordinate(position.latitude);
         const longitude = fixedCoordinate(position.longitude);
         const offlineDevice = currentOfflineDevice(user.employee_public_id);
@@ -435,7 +473,7 @@ export default function MobilePunchPage() {
           try {
             offlineProof = await signOfflinePunch(offlineDevice, {
               idempotency_key: idempotencyKey,
-              type,
+              type: punchType,
               captured_at: capturedAt,
               latitude,
               longitude,
@@ -456,7 +494,7 @@ export default function MobilePunchPage() {
         try {
           await enqueueOfflineRecord({
             employee_public_id: user.employee_public_id,
-            type,
+            type: punchType,
             idempotency_key: idempotencyKey,
             // The server's grant, fetched while online, lets it vouch for this
             // punch; without one it is accepted but reviewed.
@@ -478,7 +516,12 @@ export default function MobilePunchPage() {
           // (where Background Sync is supported).
           void requestAttendanceSync();
           haptic("success");
-          setDone({ type, at: new Date(), auto: false, offline: true });
+          setDone({
+            type: punchType,
+            at: new Date(),
+            auto: false,
+            offline: true,
+          });
         } catch {
           refuse(t("attendance.mobile_page.offline_save_failed"));
         }
@@ -503,7 +546,7 @@ export default function MobilePunchPage() {
       handedOff = true;
       punch.mutate(
         {
-          type,
+          type: punchType,
           idempotency_key: idempotencyKey,
           latitude: position.latitude,
           longitude: position.longitude,
@@ -518,9 +561,11 @@ export default function MobilePunchPage() {
         },
         {
           onSuccess: (punched) => {
+            if (mine !== attempt.current) return;
+            setUnsent(null);
             haptic("success");
             setDone({
-              type,
+              type: punchType,
               at: new Date(),
               auto,
               offline: false,
@@ -530,19 +575,106 @@ export default function MobilePunchPage() {
             setAgain(false);
           },
           onError: (err: unknown) => {
+            if (mine !== attempt.current) return;
             // A refused automatic check-in stays quiet: the employee can still
             // tap the button, and an error they did not ask for is noise.
             if (auto) return;
+            // No answer is not a refusal: the punch may or may not have
+            // arrived, so the person is offered the two safe ways on, both
+            // under the same key.
+            if (isNoAnswer(err)) {
+              setUnsent({ type: punchType, key: idempotencyKey, tappedAt });
+              // The request may have arrived: ask what the day holds.
+              void shiftQuery.refetch();
+              haptic("refused");
+              return;
+            }
             refuse(
               apiErrorDetail(err) ?? t("attendance.mobile_page.submit_failed"),
             );
           },
-          onSettled: release,
+          onSettled: () => {
+            if (mine !== attempt.current) return;
+            setSlowAttempt(null);
+            release();
+          },
         },
       );
     } finally {
       if (!handedOff) release();
     }
+  }
+
+  // If the punch did arrive after all, the day says so: stop saying it did not.
+  const landed = (a: Attempt | null) =>
+    a !== null &&
+    ((a.type === "check_in" && status === "checked_in") ||
+      (a.type === "check_out" && status === "checked_out"));
+  const unsentShown = landed(unsent) ? null : unsent;
+  const slowShown = landed(slowAttempt) ? null : slowAttempt;
+
+  // Both offers appear below the first screen, behind the fixed bottom
+  // navigation: bring each into view when it shows (jsdom has no
+  // scrollIntoView, hence the optional call).
+  const unsentRef = useRef<HTMLDivElement | null>(null);
+  const slowRef = useRef<HTMLDivElement | null>(null);
+  const unsentVisible = unsentShown !== null;
+  const slowVisible = slowShown !== null && !unsentVisible;
+  useEffect(() => {
+    if (unsentVisible) {
+      unsentRef.current?.scrollIntoView?.({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [unsentVisible]);
+  useEffect(() => {
+    if (slowVisible) {
+      slowRef.current?.scrollIntoView?.({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [slowVisible]);
+
+  // A punch saved on the phone has been sent: the server's day has changed,
+  // so ask for it again rather than show the day as it was before.
+  const sawPending = useRef(false);
+  useEffect(() => {
+    if (pendingCount > 0) {
+      sawPending.current = true;
+      return;
+    }
+    if (sawPending.current && isOnline) {
+      sawPending.current = false;
+      void shiftQuery.refetch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCount, isOnline]);
+
+  // Saving on the phone needs to know who the person is, and the
+  // organisation to allow punches made without a connection.
+  const canSaveHere =
+    shift?.policy.offline_sync_enabled !== false &&
+    Boolean(user?.employee_public_id);
+
+  // From a tap on the slow-send offer: give up on the request in flight (its
+  // answer, if one comes, is ignored; the copy saved here carries the same
+  // key) and save the punch on the phone, from this tap.
+  function saveSlowHere() {
+    const slow = slowAttempt;
+    if (!slow) return;
+    attempt.current += 1;
+    submitting.current = false;
+    inFlight.current = null;
+    setPhase("idle");
+    setSlowAttempt(null);
+    void submit(false, {
+      key: slow.key,
+      capturedAt: slow.tappedAt,
+      forceOffline: true,
+      type: slow.type,
+    });
   }
 
   // Automatic check-in on arrival: once per visit, only when every condition
@@ -751,19 +883,100 @@ export default function MobilePunchPage() {
                 phase={phase}
                 reason={reason}
                 onPress={() => void submit(false)}
+                onSlow={() => {
+                  if (inFlight.current) setSlowAttempt(inFlight.current);
+                }}
                 label={
                   type === "check_in"
                     ? t("common.check_in")
                     : t("common.check_out")
                 }
               />
-              {error && (
+              {error && !unsentShown && (
                 <p
                   className="text-center text-sm text-destructive"
                   role="alert"
                 >
                   {error}
                 </p>
+              )}
+              {unsentShown && (
+                <div
+                  ref={unsentRef}
+                  role="alert"
+                  className="w-full scroll-mb-24 space-y-3 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+                >
+                  <p>
+                    {t(
+                      "attendance.punch.no_answer",
+                      "No answer from the server. Your :type at :time is not recorded yet.",
+                      {
+                        type:
+                          unsentShown.type === "check_in"
+                            ? t("common.check_in")
+                            : t("common.check_out"),
+                        time: timeOf(unsentShown.tappedAt),
+                      },
+                    )}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {canSaveHere && (
+                      <Button
+                        className="min-h-11"
+                        onClick={() =>
+                          void submit(false, {
+                            key: unsentShown.key,
+                            capturedAt: unsentShown.tappedAt,
+                            forceOffline: true,
+                            type: unsentShown.type,
+                          })
+                        }
+                      >
+                        {t("attendance.punch.save_here", "Save on this phone")}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="min-h-11"
+                      onClick={() =>
+                        void submit(false, {
+                          key: unsentShown.key,
+                          type: unsentShown.type,
+                        })
+                      }
+                    >
+                      {t("attendance.punch.try_again", "Try again")}
+                    </Button>
+                  </div>
+                  {canSaveHere && (
+                    <p className="text-xs">
+                      {t(
+                        "attendance.punch.save_here_hint",
+                        "Saved punches are sent when the connection returns.",
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!unsentShown && slowShown && canSaveHere && (
+                <div
+                  ref={slowRef}
+                  className="scroll-mb-24 space-y-1 text-center"
+                >
+                  <Button
+                    variant="outline"
+                    className="min-h-11"
+                    onClick={saveSlowHere}
+                  >
+                    {t("attendance.punch.save_here", "Save on this phone")}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "attendance.punch.save_here_hint",
+                      "Saved punches are sent when the connection returns.",
+                    )}
+                  </p>
+                </div>
               )}
             </>
           )}
@@ -787,6 +1000,7 @@ export default function MobilePunchPage() {
             cameraOn,
             cameraProblem,
             livenessPrompt,
+            flashKey,
             onTake: takeSelfie,
             onSnap: () =>
               livenessRequired ? void checkThenSnap() : snapPhoto(),
@@ -836,6 +1050,8 @@ export default function MobilePunchPage() {
         shift.policy.attendance_mode !== "office" && (
           <VisitLogCard photoConsent={shift.policy.photo_consent} />
         )}
+
+      {!done && <InstallAppBanner />}
 
       {!done && (
         <div className="flex justify-center gap-2 pb-2 text-sm">
