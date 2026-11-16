@@ -400,24 +400,38 @@ Reports are available to holders of `report.generate` — HR Admin, Finance Admi
 
 ### Report Builder
 
-Finance → Reports → Builder:
-1. Select data source (Employees, Attendance, Leave, Payroll)
+Insights → Reports → Builder:
+1. Select data source (Employees, Attendance, Monthly timesheet, Absences, Leave, Payroll). Payroll is offered only to holders of `payroll.viewAll`
 2. Choose columns
-3. Add filters (status for employees, a date range for attendance, the year for leave; payroll has none), and optional grouping and sorting
+3. Add filters (status and unit for employees; a period or a date range, and unit, for attendance, timesheet, absences and payroll; the year for leave), and optional grouping and sorting
 4. **Run Preview**
 5. **Download CSV**, or **Save as template**
+
+A report shows at most 1,000 rows on screen and in a file, the newest first, and says so when it has cut any. Group totals are counted over every matching row, not only the rows shown. If a very large report cannot be totalled in time, the result says its totals are partial.
+
+Changing the settings after a preview marks the preview out of date; run it again before saving or downloading, so what is saved is what was seen.
+
+**Period.** Instead of fixed dates a report can use a rolling period: yesterday, the last 7 days, this month, last month, the last 3 or 12 months, this fiscal year or last fiscal year. Months are months of the organization's calendar, and the fiscal year starts in the month set under Payroll Rules. A rolling period is worked out each time the report runs. The monthly timesheet covers at most 31 days, so it takes only yesterday, the last 7 days, this month and last month; the absences report covers at most the newest 92 days of the period chosen.
 
 The API's export endpoint also produces PDF. CSV and PDF are the only formats; there is no Excel export.
 
 ### Scheduled Reports
 
-Schedule a saved report from the **Saved** tab for automatic email delivery — daily, weekly, or monthly — to a list of email addresses. The report is emailed as a CSV attachment. A saved report can be run, scheduled or deleted, and a schedule can be deleted; neither can be edited. Saving and scheduling depend on your plan.
+Schedule a saved report from the **Saved** tab for automatic email delivery, daily, weekly or monthly, to a list of email addresses. The report is emailed as a CSV attachment, and the email states the period it covers and whether rows were cut. Monthly schedules run on the first day of the month in the organization's calendar. On the Ethiopian calendar that is thirteen runs a year: the run on Pagume 1 covers Nehase, and the run on Meskerem 1 covers Pagume.
+
+- Only the person who saved a report can schedule it. A schedule runs with that person's reach, and stops if they leave or lose the permission.
+- Give a scheduled report a rolling period. A report saved with fixed dates sends the same dates every time.
+- Pay figures are sent only to addresses that belong to someone in the organization allowed to see them.
+- If a run fails, the recipients are told and the **Scheduled** tab marks the schedule as failed, saying whether the person who saved the report can no longer run it or the report could not be produced.
+- A schedule set up before 15 November 2026 on a report somebody else saved keeps running with that person's reach. Delete it and have the report's owner schedule it again if that is not intended.
+
+A saved report can be run, scheduled or deleted, and a schedule can be deleted; neither can be edited. Saving and scheduling depend on your plan.
 
 ### Quick Reports
 
-The **Quick Reports** tab has one report per data source — Employees, Attendance, Leave, Payroll — each run with its default columns and downloadable as CSV.
+The **Quick Reports** tab lists ready-made reports: the standard ones, and those recommended for the organization's type and working pattern (for example staffing by grade for a government office, overtime by department for a factory on shifts). A month picker in your calendar applies to the timesheet, attendance, absence and payroll reports. Each can be downloaded as CSV.
 
-There are no pre-built statutory templates (tax declaration, pension contribution). For monthly tax and pension totals, build a payroll report and group it; grouped payroll reports show totals per group.
+The statutory outputs are on each payroll run, not in Reports: open the run and use **Export** for the payroll register, the bank file, the journal, and the income tax and pension schedules.
 
 ---
 
@@ -441,7 +455,7 @@ The **Settings** item in the sidebar is shown to holders of `settings.manage` (T
 | API Keys, Webhooks, Accounting, Notification Templates, SCIM Provisioning | Integrations |
 | Audit Log | View all actions (Tenant Admin) |
 
-There is no self-service export of your organization's whole data set. Employee lists, reports and payroll bank files can be exported individually; full backups are taken by the platform administrator.
+A Tenant Admin can export the organization's whole data set from **Settings → Data export**: the export is prepared in the background and can be downloaded for 7 days. Employee lists, reports and payroll bank files can also be exported individually; full backups are taken by the platform administrator.
 
 ---
 

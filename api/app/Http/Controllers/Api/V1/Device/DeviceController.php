@@ -22,6 +22,7 @@ use App\Models\DeviceSyncLog;
 use App\Models\Tenant;
 use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
+use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
@@ -117,6 +118,11 @@ class DeviceController extends Controller
             'status' => 'pending',
         ]);
 
+        // A terminal ETHR cannot write to keeps no switch that says it is written to.
+        if ($device->commands_enabled && ! app(DeviceCommandQueue::class)->supports($device)) {
+            $device->update(['commands_enabled' => false]);
+        }
+
         AuditLog::record('device.created', $device);
 
         $device->load('branch');
@@ -179,6 +185,12 @@ class DeviceController extends Controller
         $wasPush = DeviceManager::receivesOnly($device);
 
         $device->update($data);
+
+        // A terminal ETHR cannot write to (one that only sends, or a type that
+        // takes no commands) keeps no switch that says it is written to.
+        if ($device->commands_enabled && ! app(DeviceCommandQueue::class)->supports($device)) {
+            $device->update(['commands_enabled' => false]);
+        }
 
         $this->settleStatusAfterModeChange($device, $wasPush);
 

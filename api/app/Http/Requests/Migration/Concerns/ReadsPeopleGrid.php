@@ -19,7 +19,8 @@ use Illuminate\Validation\Validator;
  * It may also say how the list names its columns: `source`, a saved source
  * of the organisation's (ImportMapping), and `mapping`, column names matched
  * in this request, which are read over the saved ones. With either, the
- * first line is column names because the reader said so.
+ * first line is column names because the reader said so. `header_line` says
+ * which line of the file holds them (0: none), over the one that is found.
  *
  * @mixin FormRequest
  */
@@ -40,6 +41,7 @@ trait ReadsPeopleGrid
             'grid.*' => ['array', 'max:60'],
             'grid.*.*' => ['nullable', 'string', 'max:255'],
             'source' => ['sometimes', 'nullable', 'string', 'size:26'],
+            'header_line' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:5000'],
             ...EmployeeImportRow::mappingRules('sometimes'),
         ];
     }
@@ -89,6 +91,14 @@ trait ReadsPeopleGrid
         return [...($source?->map() ?? []), ...ImportMapping::mapOf(is_array($matched) ? $matched : [])];
     }
 
+    /** The line of the file the reader says holds the column names; 0 for none; null when they said nothing. */
+    public function headerLine(): ?int
+    {
+        $line = $this->input('header_line');
+
+        return is_numeric($line) ? (int) $line : null;
+    }
+
     /** What an id from the other system is kept against: the saved source's own name, or the default. */
     public function sourceName(): string
     {
@@ -112,6 +122,7 @@ trait ReadsPeopleGrid
             $this->input('calendar') === 'ethiopian' ? 'ethiopian' : 'gregorian',
             $this->columnMapping(),
             $this->sourceName(),
+            $this->headerLine(),
         );
     }
 }

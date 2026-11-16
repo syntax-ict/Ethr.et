@@ -268,3 +268,22 @@ it('refuses to list the roster of a terminal that only sends to ETHR, instead of
     expect(MigrationBatch::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(0);
     Http::assertNothingSent();
 });
+
+it('switches commands off when a terminal is switched to send to ETHR, so nothing is queued that cannot be delivered', function () {
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'commands_enabled' => true,
+        'connection_config' => ['ip' => '203.0.113.10', 'port' => 8085, 'username' => 'admin', 'password' => 'secret'],
+    ]);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}";
+
+    test()->putJson($url, ['connection_config' => ['mode' => 'push']])
+        ->assertOk()
+        ->assertJsonPath('receives_only', true)
+        ->assertJsonPath('commands_enabled', false);
+
+    expect($device->refresh()->commands_enabled)->toBeFalse();
+});

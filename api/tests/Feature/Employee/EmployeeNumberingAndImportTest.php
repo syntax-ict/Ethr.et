@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeContract;
+use App\Models\Grade;
 use App\Models\Position;
 use App\Services\EmployeeNumbering;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -313,6 +316,58 @@ describe('employee import, read as people make files', function () {
             ->and($employee->badge_number)->toBe('B-9')
             ->and($employee->date_of_birth->toDateString())->toBe('1990-05-01')
             ->and($employee->marital_status)->toBe('married');
+    });
+
+    it('says which columns it does not store, and still returns the rows', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $response = previewCsv("name,hire_date,grade,bank_account,cost_center\nAbebe Kebede,2024-01-15,Senior,1000123456789,\n")->assertOk();
+
+        expect($response->json('errors.0'))->toBe([__('employee.import_not_stored', ['columns' => 'grade, bank_account'])])
+            ->and($response->json('rows'))->toHaveCount(1)
+            ->and($response->json('rows.0.name'))->toBe('Abebe Kebede');
+
+        // A column that is there and empty says nothing: an export carries them all.
+        $empty = previewCsv("name,hire_date,grade,bank_account\nAbebe Kebede,2024-01-15,,\n")->assertOk();
+        expect($empty->json('errors'))->toBeEmpty();
+    });
+
+    it('exports the profile columns to someone who may open the record, and never the bank', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $grade = Grade::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Senior']);
+        $centre = CostCenter::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Operations']);
+        $employee = Employee::factory()->create([
+            'tenant_id' => $tenant->id,
+            'grade_id' => $grade->id,
+            'cost_center_id' => $centre->id,
+            'probation_end_date' => '2026-04-15',
+        ]);
+        EmployeeContract::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'contract_type' => 'fixed_term', 'start_date' => '2026-01-15', 'end_date' => '2027-01-14', 'status' => 'active']);
+        $employee->emergencyContacts()->create(['tenant_id' => $tenant->id, 'name' => 'Hana Bekele', 'relationship' => 'Sister', 'phone' => '+251911223344']);
+        $employee->bankDetails()->create(['tenant_id' => $tenant->id, 'bank_name' => 'Commercial Bank', 'account_number' => '1000123456789', 'is_primary' => true]);
+
+        $csv = $this->getJson('/api/v1/employees/export')->assertOk()->json('csv');
+        $lines = array_map('str_getcsv', explode("\n", trim($csv)));
+        $row = array_combine($lines[0], $lines[1]);
+
+        expect($row)->toMatchArray([
+            'grade' => 'Senior', 'cost_center' => 'Operations', 'probation_end_date' => '2026-04-15',
+            'contract_type' => 'fixed_term', 'contract_end_date' => '2027-01-14',
+            'emergency_name' => 'Hana Bekele', 'emergency_relationship' => 'Sister', 'emergency_phone' => '+251911223344',
+        ])->and($csv)->not->toContain('1000123456789')->not->toContain('Commercial Bank')
+            ->and($lines[0])->not->toContain('bank_name');
+    });
+
+    it('leaves the profile columns out for someone who may list people but not open them', function () {
+        $tenant = createTenant();
+        test()->actingAs(createScopedUser($tenant, null, 'all', ['employee.viewAny']));
+        Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $csv = $this->getJson('/api/v1/employees/export')->assertOk()->json('csv');
+
+        expect(explode("\n", $csv)[0])->not->toContain('grade')->not->toContain('emergency_name');
     });
 
     it('previews its own export without an error', function () {

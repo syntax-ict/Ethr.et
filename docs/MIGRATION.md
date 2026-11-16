@@ -105,9 +105,52 @@ name, gender, birth date, branch, position, salary, national id, TIN, badge.
 **Staging a list that sets a salary or a TIN needs `employee.updateFinancial`**,
 as the file import and the add-employee form do.
 
+### A new person's whole profile (2026-11-16)
+
+A staged list can also bring a new person in with the rest of their profile.
+These columns are written for a person the list **creates**. A row matched to
+someone already in ETHR fills what that person lacks, by the rules in
+*Completing people who are already here* below.
+
+| column | group | takes | written through |
+|---|---|---|---|
+| `grade` | job | the grade's name, as in ETHR (a grade has no code) | `employees.grade_id` |
+| `cost_center` | job | the cost centre's name or code | `employees.cost_center_id` |
+| `probation_end_date` | job | a date, both calendars. Not before the hire date | `employees.probation_end_date` |
+| `contract_type` | job | `probation`, `fixed_term`, `permanent`, `casual`, `consultancy` ("Fixed term" is read) | `EmployeeContractService::create()`, starting on the hire date, with no salary |
+| `contract_end_date` | job | a date, after the hire date. Needed for every type but `permanent` | the same contract |
+| `bank_name`, `bank_branch`, `bank_account` | pay | the bank, its branch, the account number | `EmployeeRelatedRecords::addBankDetail()`, as the primary account |
+| `emergency_name`, `emergency_relationship`, `emergency_phone` | contact | who, how related, their phone | `EmployeeRelatedRecords::addEmergencyContact()` |
+
+- **The rules are the screens' own.** The bank and emergency rules are read
+  from `StoreBankDetailRequest` and `StoreEmergencyContactRequest`, and the
+  contract type and its end date from `StoreEmployeeContractRequest`, under the
+  import's column names (`EmployeeImportProfile`). A group left half filled is
+  refused with the missing column named: a bank needs its name and its account
+  number, an emergency contact its name, relationship and phone, a contract end
+  date its type.
+- **A contract never sets pay.** It carries no salary, so the `salary` column
+  stays the only source of an employee's pay.
+- **Pay permission.** A list that sets `bank_name`, `bank_branch` or
+  `bank_account` needs `employee.updateFinancial` to be staged, as a salary or
+  a TIN does. A bank account is masked on the review screen.
+- **Same transaction.** The contract, bank account and emergency contact are
+  written in the transaction of the chunk of up to 50 people that created the
+  person (`WorkforceMigrationService::commitChunk`), so a related record that
+  fails takes the whole chunk with it and nobody is left half made. A list is
+  checked against every one of these rules before it is staged, so a failure at
+  commit is not an expected one.
+- **Where they are read.** `GET /employees/export` carries `grade`,
+  `cost_center`, `probation_end_date`, the active contract's type and end date
+  and the first emergency contact, for someone who may open an employee's
+  record. It never carries the bank columns: bank details are read with the pay
+  permission, which the export does not ask for.
+
 The older `POST /employees/import/preview` and `/commit` are still served, for
 a caller that sends a file. They read the same column names and honour both new
-columns. They have no review: a person already in ETHR is counted and nothing
+columns. They store none of the profile columns above: a preview of a file with
+a value in one of them says so in its file-level `errors` (line 0) and still
+returns the rows, and the Import screen is where those columns are used. They have no review: a person already in ETHR is counted and nothing
 the row brings is kept. The screen no longer uses them.
 
 ### A workbook is opened in the browser (2026-11-11)
@@ -308,6 +351,113 @@ edit made through a list takes what the same edit takes on the form:
 Without them the row is still linked, its other fields are still written, and
 `can_apply_changes` on the row says so before the commit.
 
+### Completing people who are already here (2026-11-16)
+
+The live case: an organisation has people whose profiles are half filled (no
+gender, position, bank account or emergency contact). HR downloads them as a
+workbook, fills the blanks in Excel and brings it back, with nobody added twice
+and nothing overwritten by accident. A matched row now reaches more of the
+record, and a list can be staged in a mode in which nobody is created.
+
+**More fields for a matched person.** The rule is unchanged: a blank in ETHR is
+filled, a blank cell in the file changes nothing.
+
+| fields | a blank in ETHR | a difference |
+|---|---|---|
+| `name_am`, `gender`, `date_of_birth`, `marital_status`, `nationality`, `nationality_status` | `fill` | `conflict`, written only if a reviewer accepts it |
+| `position`, `branch`, `grade`, `cost_center`, `probation_end_date` | `fill` | `locked` |
+
+- **`locked` is a third kind.** It is shown ("Left as it is. Change it with a
+  personnel action.") and never written. `applicable()` never returns it, and
+  `PATCH /rows/{row}` refuses it: 422, because `accept.*` offers only
+  `StagedChanges::acceptable()`. It is decided by the field and the list's
+  mode, not by what is stored on the row, which the same request may be about
+  to redraw.
+- **The nationality status is never blank.** ETHR gives everyone `ethiopian`, so
+  a different value in the file is a conflict, not a fill.
+- **Relations are matched in the organisation** with `RelationMatch`, by name or
+  code, and written as public ids through `EmployeeUpdater`. A name another
+  organisation has is not found, and is not shown.
+- **Three records are added once, never compared.** When the row brings a whole
+  bank account, emergency contact or `contract_type`, and the person has none
+  (a contract of any state counts), it is added through
+  `EmployeeRelatedRecords::addBankDetail` (primary), `addEmergencyContact` and
+  `EmployeeContractService::create` (the hire date, no salary). When the person
+  has one, nothing is written and nothing is shown: comparing would reveal an
+  account number or a relative's phone. The review shows a `fill` named `bank`,
+  `emergency_contact` or `contract` with `current` null and `incoming` the bank
+  name, the contact's name or the contract type. `bank` is pay data: it needs
+  `employee.updateFinancial`, and the account number is never sent. These
+  questions are asked only while the organisation of the request is the
+  employee's, because the tenant scope answers "nothing" about everyone when
+  none is resolved.
+- **All of it is written in the chunk's transaction**, after the same guards:
+  `scheduled()`, `employee.update` with reach, and the pay permission.
+
+**`mode: complete`.** `POST /migration/rows` takes an optional `mode`,
+stored in `migration_batches.options` (no migration; `commitSlice` merges what
+the reviewer chooses at commit into it rather than replacing it). The batch
+payload says `mode`: `add` or `complete`.
+
+- **Nobody is created.** A row that matches nobody is staged as `skip`
+  ("Not found in ETHR, left out"). `PATCH /rows/{row}` with `create` is 422, and
+  `commitChunk` counts a `create` row as skipped, wherever it came from, and
+  asks the plan's seat limit about nobody. A row with several candidates still
+  needs the reviewer to choose one.
+- **Job and pay are fill only.** A `department` and a `salary_cents` that
+  differ are `locked` too, and cannot be accepted. A personal conflict can.
+  `tin` and `hire_date` are not job or pay here and behave as in any list.
+- **Status.** A row with `status` `probation` or `confirmed` moves a person who
+  is still `hired` through `EmployeeTransitionService::transition` (today in the
+  organisation's zone, no reason, the reviewer as approver), so the move has its
+  history row and audit entry. It is a `fill` on `status`, and needs
+  `employee.transition`, which editing a person does not imply. Any other
+  difference in status is `locked`; a list never writes `status` itself.
+
+**Download to complete.** The Employees list has a button next to Export. It
+builds the employee workbook (`buildTemplate`) in the Gregorian calendar,
+prefilled from `GET /employees/export` with the list's own search and filters
+(`?missing=` included, and now `department`, `position` and `gender` besides
+`tin`, `bank`, `emergency_contact` and `phone`). Values the export does not
+give (salary, TIN, bank) are blank cells. A status the import would refuse
+(someone who has left) is left blank. One staging takes 2,000 people, so a list
+longer than that is not built from part of it: the reader is asked to narrow
+the list. The file is `ethr-employees-to-complete.xlsx`; it is brought back on
+**Import**, choosing *Complete people who are already here*. The choice is not
+offered in the setup or for a device's roster.
+
+### Problems by column, and two files (2026-11-16)
+
+A read's `problems` are `{line, message, column, code}`. `column` is the
+column as the template spells it (`hire_date`, `department`, `bank_name`), and
+null for a problem about the whole list (`too_many`). `code` is derived, not a
+second list: for a rule the failed rule as the validator names it, lower-cased
+(`date`, `in`, `required_with`; `EmployeeImportRow::problems()`), and for the
+rest a fixed code where the message is raised (`relation_not_found`,
+`relation_ambiguous`, `duplicate_in_list`, `too_many`, and the profile ones
+`probation_before_hire`, `contract_type_needed`, `contract_end_needed`,
+`contract_end_before_start`, `contract_needs_hire_date`).
+`EmployeeImportRow::messages()` keeps returning strings, so the legacy file
+import is unchanged. A warning carries its `column` too (`badge_number`).
+
+The screen groups them: one row for each column and kind, the first message,
+how many lines and which (ten, then "and N more"), largest first. Every group
+is shown.
+
+**Download the lines to fix** builds `ethr-employees-to-fix.xlsx` in the
+browser from the list the reader already holds: one `Employees` sheet, the
+list's own header line, only the refused lines as text, and a last column
+headed `Problem` ("Line 14: ..."). Nothing is sent to the server for it. The
+file comes back through the same reader, which ignores a column headed
+`Problem` (it is not reported as not read and is never suggested as anything),
+so the corrected lines are chosen as they are. A list matched by hand loses
+its matching with the file; the header line is what it was.
+
+**Download what happened** is on the committed screen: `ethr-import-result.xlsx`,
+one `Result` sheet with a row for each line (name, employee number, what
+happened, note). The number is the batch row's `resolved_employee_code`, which
+is null for a viewer who may not open that person's record.
+
 ### A list is committed a slice at a time (2026-11-11)
 
 One request has thirty seconds on the host and the whole list was one
@@ -341,21 +491,112 @@ match that appeared afterwards (an earlier row of the same list naming the same
 person, or someone adding them meanwhile). That row is linked to the person's
 record, unverified, and counted under `merged`; it is not made a second time.
 
+### A list that comes out of other software (2026-11-16)
+
+Attendance and HR systems shape a list their own way: a title above the column
+names, a name in parts, a department written as a path, a text file that is not
+UTF-8, a workbook of several sheets. Each is read without the file being edited
+first (`PeopleListVendorShapesTest`). Nothing here names a vendor: the shapes
+are general, and a built-in source waits for a real export.
+
+**The line of column names.** `EmployeeImportGrid` looks at the first 15 lines
+that have anything in them and takes the one with the most cells that are
+column names (the template's words, the aliases, the name parts, and any column
+name the reader matched), at least two, the earliest on a tie. Lines above it
+are skipped; lines below are people. A line that would not be read as column
+names on its own (it has an address or a date in it) is not taken. When no
+line qualifies, the first line is read exactly as before.
+
+`/read` and `/rows` take `header_line`, the line of the file, counted as the
+reader counts it. A number says the names are there, even when ETHR knows none
+of its words, and `0` says there are none: the first line is then read as a
+person and a `mapping` is not applied. `/read` answers `header_line`, the line
+used, or null. Problems and warnings keep the file's own line numbers.
+`ReadPeopleRequest` and `StageRowsRequest` share `ReadsPeopleGrid`, so the one
+word reaches both and a list cannot be read one way and staged another.
+
+**A name in parts.** `first_name`, `father_name` and `grandfather_name` are
+mappable and read only to build `name`: a row with no `name` and a first name
+gets the parts that are there, in that order, one space apart
+(`EmployeeImportRow::withName()`). A row that has a `name` ignores them. They
+are not in `COLUMNS` or `TEMPLATE`, so they are never stored and the template
+still asks for `name`. Their spellings (`Given Name`, `Middle Name`, `Last
+Name`, `Surname`, the Amharic `የአባት ስም` and `የአያት ስም`) are kept apart from
+`ALIASES` and read only for a list, so the file import reads its headers as it
+always did. A bare `Name` and `ስም` are the whole name. A first name satisfies
+`needs_name`.
+
+**A department written as a path.** A department that matches nothing as
+written, and holds `/`, a backslash or `>`, is looked up by its last part. A
+name that holds the character still matches whole first. An unknown or
+ambiguous last part is the usual problem, naming the whole value as written.
+The rule is `RelationMatch`'s, for departments only, so the read, the staging
+and the changes a matched person gets agree.
+
+**In the browser.** A chosen `.csv` or `.txt` is decoded from its bytes
+(`decodeText`): a UTF-8 mark is stripped, UTF-16 is read by its mark, and bytes
+that are not valid UTF-8 are read as Windows-1252, which the read summary says.
+A workbook with more than one sheet that may hold people (visible, and not
+`Instructions`, `Lists` or `Example`) says which it reads and lets the reader
+pick another. "Column names are on line N." is shown when they were found below
+the first line, with a choice of another line or "There are no column names".
+The lines to fix are written under the line the names were on.
+
 ## Endpoints (`/api/v1/onboarding/migration`)
 
 | method | path | purpose |
 |---|---|---|
 | POST | `/devices/{device}` | stage everyone enrolled on a device |
-| POST | `/read` | what the server makes of a list (`grid`): people ready, columns read, column names it does not know, lines it cannot stage. Takes `mapping` and `source`; answers `headers`, `header_likely`, `needs_name` and `suggested_source`. Keeps nothing |
+| POST | `/read` | what the server makes of a list (`grid`): people ready, columns read, column names it does not know, lines it cannot stage. Takes `mapping`, `source` and `header_line`; answers `header_line`, `headers`, `header_likely`, `needs_name` and `suggested_source`. Keeps nothing |
 | POST | `/rows` | stage a list: `grid` (cells, read as `/read` reads them) or `rows` (people keyed by field). A grid with a line that cannot be staged is refused whole, unless `skip_problems` is set. With a `source`, ids from the other system are kept against it |
 | GET | `/sources` | the organisation's saved sources and their column names |
 | POST | `/sources` | save a source: `name` and `mapping`, one column of which is the name |
 | PUT | `/sources/{importMapping}` | rename a source or match its columns again. The slug its ids are kept against does not change |
 | DELETE | `/sources/{importMapping}` | forget a source's column names. The people it brought and their ids stay |
+| GET | `/batches` | the organisation's lists in progress (below): `staging`, `reviewing` or `committing`, newest first, at most 20. Needs `employee.viewAny` |
 | GET | `/batches/{batch}` | review queue with verdicts and summary |
+| DELETE | `/batches/{batch}` | discard a list that has not begun to be added (below). 204; 409 once it is `committing` or `committed`. Needs `employee.create` |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
+| GET | `/batches/{batch}/terminals` | what the attendance terminals hold for the people the list brought in (below) |
+
+## Lists in progress: found again, resumed, discarded (2026-11-16)
+
+A staged list is kept for 30 days from its last activity, but the page held its id in memory
+alone: a reload, a closed tab, or a staging request that died left a list on the server that no
+screen named. Two routes and a card close that.
+
+`GET /batches` answers `{data: [...]}`, one item for each list that is `staging`,
+`reviewing` or `committing`, newest first, at most 20. An item is `public_id`, `status`,
+`mode` (`add` or `complete`), `source_type`, `rows` (how many lines it holds),
+`created_at`, `updated_at`, `created_by_name` and `mine`. It carries nothing about the people on
+the list. The name is the creator's employee name, else the name an account without one carries,
+else null; an email address is never used, because anyone who may view employees can read the list.
+Any member of the organisation who may view employees can open any of these lists, as
+`GET /batches/{batch}` already allowed; there is no check on who started one. The lines are
+counted by a subquery in the same select, and the creators and their employees are read in two
+eager loads, so the index costs three queries however many lists there are.
+
+`DELETE /batches/{batch}` removes a list nobody will finish. Only `staging` and `reviewing`:
+once a commit's first slice has run, people are written and the list is the record of how they
+arrived, so `committing` and `committed` answer 409 and delete nothing. The status is read
+again inside a transaction with the batch row taken `FOR UPDATE`, the same row `commitSlice`
+locks, so a commit that starts a moment earlier is waited for and then seen, and one that starts
+a moment later finds the list gone (404). A stage slice does not lock the batch: one running at
+the moment of a discard writes to no rows and answers 404 when it re-reads the list. Staging
+rows go by the foreign key's cascade; nothing else hangs off a batch. The audit entry
+`migration.discarded` is written first, carrying the list's `public_id`, `source`, `mode`,
+`status` and `rows`, because its subject is gone once the list is.
+
+In the browser the card "Lists in progress" is shown above the list box whenever no list is
+open. **Open** sets the list's id in `MigrationStep`, which is how a list just staged is opened,
+so the screen for each state takes over; a list still being read is carried on first, by the
+request a stopped staging uses, because a table of people nobody has matched cannot be committed.
+**Discard** asks first and is offered only for `staging` and `reviewing` to someone who may add
+employees. The Employees import page keeps the open list in the address (`?batch=<public_id>`)
+so a reload returns to it; a list that is gone or not this organisation's clears the parameter
+without a message. The setup wizard and the device read keep their own state, as before.
 
 ## What the whole list is brought in with (2026-11-12)
 
@@ -386,6 +627,22 @@ browser makes that request, not the commit: the commit's slices stay inside the 
 thirty seconds, and nothing is sent inside any request (the invitations are queued and
 paced as before). If the tab is closed first, nothing was sent and the card below still
 offers the button. Unticked, the screen is as it was: HR looks at the names, then sends.
+
+## After the commit: the terminals (2026-11-16)
+
+The people reach the terminals the way any new hire does: saving an employee queues an
+add on each device of their branch that takes commands. The import queues nothing itself.
+So the committed screen reads what became of that, under the sign-in section, in both
+modes of a list: per device of the branches the people are in, how many are sent or
+waiting, how many the terminal refused (with **Try again**, which posts
+`devices/{device}/commands/retry` with this list, for someone who may update devices),
+and how many were not sent because their number is not one that terminal takes.
+For a terminal ETHR cannot write to the section says who to enrol there and offers
+**Download the list**, a workbook of number and name built in the browser. People with no
+badge number, and people with no branch, are counted on a line each. Someone without
+`device.viewAny` sees nothing of it. See DEVICE_INTEGRATION.md, *Sending again, and what a
+list left at the terminals*. Held punches are a separate piece of work and are not part of
+this.
 
 ## After the commit: a way to sign in (2026-10-28)
 
