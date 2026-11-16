@@ -341,6 +341,7 @@ return array(
     'App\\Http\\Requests\\Admin\\DeleteTenantRequest' => $baseDir . '/app/Http/Requests/Admin/DeleteTenantRequest.php',
     'App\\Http\\Requests\\Admin\\ExtendTrialRequest' => $baseDir . '/app/Http/Requests/Admin/ExtendTrialRequest.php',
     'App\\Http\\Requests\\Admin\\ImpersonateTenantRequest' => $baseDir . '/app/Http/Requests/Admin/ImpersonateTenantRequest.php',
+    'App\\Http\\Requests\\Admin\\ListTenantsRequest' => $baseDir . '/app/Http/Requests/Admin/ListTenantsRequest.php',
     'App\\Http\\Requests\\Admin\\RemoveTenantFeatureOverrideRequest' => $baseDir . '/app/Http/Requests/Admin/RemoveTenantFeatureOverrideRequest.php',
     'App\\Http\\Requests\\Admin\\ReorderMarketingItemsRequest' => $baseDir . '/app/Http/Requests/Admin/ReorderMarketingItemsRequest.php',
     'App\\Http\\Requests\\Admin\\SaveBackupStorageRequest' => $baseDir . '/app/Http/Requests/Admin/SaveBackupStorageRequest.php',

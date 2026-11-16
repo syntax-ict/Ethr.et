@@ -1075,6 +1075,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Requests\\Admin\\DeleteTenantRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/DeleteTenantRequest.php',
         'App\\Http\\Requests\\Admin\\ExtendTrialRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ExtendTrialRequest.php',
         'App\\Http\\Requests\\Admin\\ImpersonateTenantRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ImpersonateTenantRequest.php',
+        'App\\Http\\Requests\\Admin\\ListTenantsRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ListTenantsRequest.php',
         'App\\Http\\Requests\\Admin\\RemoveTenantFeatureOverrideRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/RemoveTenantFeatureOverrideRequest.php',
         'App\\Http\\Requests\\Admin\\ReorderMarketingItemsRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ReorderMarketingItemsRequest.php',
         'App\\Http\\Requests\\Admin\\SaveBackupStorageRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/SaveBackupStorageRequest.php',
