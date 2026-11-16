@@ -10,23 +10,15 @@ import { PushToggle } from "@/features/notifications/components/push-toggle";
 import { VisitLogCard } from "@/features/attendance/components/visit-log-card";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  AlarmClock,
-  CheckCircle2,
-  CloudUpload,
-  History,
-  Info,
-  Loader2,
-  Sparkles,
-  UserX,
-  WifiOff,
-} from "lucide-react";
+import { AlarmClock, Sparkles, UserX, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DayStrip } from "@/features/attendance/components/mobile/day-strip";
 import { PunchButton } from "@/features/attendance/components/mobile/punch-button";
+import { PunchConfirmation } from "@/features/attendance/components/mobile/punch-confirmation";
+import { SyncStatus } from "@/features/attendance/components/mobile/sync-status";
 import {
   ReadinessList,
   type LocationProblem,
@@ -153,6 +145,7 @@ export default function MobilePunchPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const autoTried = useRef(false);
+  const [pageVisible, setPageVisible] = useState(true);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -193,6 +186,13 @@ export default function MobilePunchPage() {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
     };
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setPageVisible(document.visibilityState !== "hidden");
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
   function locate() {
@@ -372,6 +372,32 @@ export default function MobilePunchPage() {
           ? "blocked"
           : "ready";
 
+  // Live position, only while it matters: the page is in view and either no
+  // fix has come yet or the branch fence is holding the button. The distance
+  // in the location row then counts down as the person walks, and the button
+  // unlocks itself. Each fix takes the path of locate()'s success.
+  const watchingPosition =
+    pageVisible && ((!position && !locationProblem) || blockedByFence);
+  useEffect(() => {
+    if (!watchingPosition) return;
+    if (typeof navigator === "undefined") return;
+    if (!navigator.geolocation?.watchPosition) return;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        const fix = fixFrom(pos);
+        positionRef.current = fix;
+        setPosition(fix);
+      },
+      (err) => {
+        if (!positionRef.current) {
+          setLocationProblem(err.code === 1 ? "denied" : "unavailable");
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
+    );
+    return () => navigator.geolocation?.clearWatch?.(id);
+  }, [watchingPosition]);
+
   async function submit(auto = false) {
     if (!position) return;
     // One punch in flight at a time. Set before any await, so a second tap
@@ -546,73 +572,10 @@ export default function MobilePunchPage() {
   const timeOf = (iso: string | null | undefined) =>
     iso ? formatClockTime(iso, zone, readerClock, locale) : "";
 
-  if (done) {
-    // What the server said the punch came to: late, early, or already on
-    // record from another method. A punch saved offline has no answer yet.
-    const outcome = punchOutcomeText(done.outcome, t, timeOf);
-    const already = outcome?.already === true;
-
-    return (
-      <div className="mx-auto max-w-md space-y-6 py-6 text-center">
-        <span
-          className={cn(
-            "mx-auto flex h-20 w-20 items-center justify-center rounded-full",
-            already
-              ? "bg-info-soft text-info-on-soft"
-              : "bg-success-soft text-success-on-soft",
-          )}
-        >
-          {already ? (
-            <Info className="h-10 w-10" aria-hidden="true" />
-          ) : (
-            <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
-          )}
-        </span>
-        <div>
-          <p className="text-xl font-semibold text-foreground">
-            {outcome ? (
-              outcome.title
-            ) : (
-              <>
-                {done.type === "check_in"
-                  ? t("attendance.checked_in_label")
-                  : t("attendance.checked_out_label")}{" "}
-                <span className="tabular-nums">
-                  {timeOf(done.at.toISOString())}
-                </span>
-              </>
-            )}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {outcome?.hint ??
-              (done.offline
-                ? t("attendance.mobile_page.saved_offline_toast")
-                : done.auto
-                  ? t(
-                      "attendance.punch.auto_done",
-                      "Checked in automatically when you arrived.",
-                    )
-                  : t(
-                      "attendance.punch.recorded",
-                      "Your attendance is recorded.",
-                    ))}
-          </p>
-        </div>
-        <div className="flex justify-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/attendance">
-              <History className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("attendance.punch.history", "My history")}
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/dashboard">{t("attendance.punch.done", "Done")}</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // What the server said the punch came to: late, early, or already on
+  // record from another method. A punch saved offline has no answer yet.
+  const outcome = done ? punchOutcomeText(done.outcome, t, timeOf) : null;
+  const already = outcome?.already === true;
   if (user && !user.employee_public_id) {
     // The server refuses a phone punch from an account with no employee
     // record (MobileAttendanceController, 404), so say so instead of showing
@@ -676,27 +639,12 @@ export default function MobilePunchPage() {
           )}
         </div>
       )}
-      {pendingCount > 0 && isOnline && (
-        <div className="flex animate-fade-in items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <CloudUpload className="h-4 w-4" aria-hidden="true" />
-            {pendingCount}{" "}
-            {pendingCount === 1
-              ? t("attendance.mobile_page.record_pending")
-              : t("attendance.mobile_page.records_pending")}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-h-11"
-            disabled={syncing}
-            onClick={() => void syncNow()}
-          >
-            {syncing && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            {t("attendance.mobile_page.sync_now")}
-          </Button>
-        </div>
-      )}
+      <SyncStatus
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        syncing={syncing}
+        onSync={() => void syncNow()}
+      />
 
       {/* A holiday, the weekend, a day off or leave: said before the clock. */}
       <DayNote day={shift?.day} />
@@ -709,11 +657,49 @@ export default function MobilePunchPage() {
         shiftLoading={shiftLoading}
         timeOf={timeOf}
         formatTimeOfDay={formatTimeOfDay}
+        now={now}
+        pendingPunch={
+          done && !already ? { type: done.type, at: done.at } : null
+        }
       />
+
+      {done && (
+        <PunchConfirmation
+          tone={outcome?.tone ?? "success"}
+          title={
+            outcome ? (
+              outcome.title
+            ) : (
+              <>
+                {done.type === "check_in"
+                  ? t("attendance.checked_in_label")
+                  : t("attendance.checked_out_label")}{" "}
+                <span className="tabular-nums">
+                  {timeOf(done.at.toISOString())}
+                </span>
+              </>
+            )
+          }
+          hint={
+            outcome?.hint ??
+            (done.offline
+              ? t("attendance.mobile_page.saved_offline_toast")
+              : done.auto
+                ? t(
+                    "attendance.punch.auto_done",
+                    "Checked in automatically when you arrived.",
+                  )
+                : t(
+                    "attendance.punch.recorded",
+                    "Your attendance is recorded.",
+                  ))
+          }
+        />
+      )}
 
       {/* Without the server's answer (offline, or no shift data), the
           employee says which punch this is. */}
-      {!shift && !shiftLoading && (
+      {!done && !shift && !shiftLoading && (
         <div
           role="radiogroup"
           aria-label={t("attendance.punch.type", "Punch type")}
@@ -742,65 +728,73 @@ export default function MobilePunchPage() {
       )}
 
       {/* The punch. */}
-      <section className="flex flex-col items-center gap-3 py-2">
-        {finishedForToday ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {t("attendance.punch.finished", "You are done for today.")}
-            </p>
-            <Button
-              variant="outline"
-              className="min-h-11"
-              onClick={() => setAgain(true)}
-            >
-              {t("attendance.punch.check_in_again", "Check in again")}
-            </Button>
-          </>
-        ) : (
-          <>
-            <PunchButton
-              type={type}
-              state={buttonState}
-              phase={phase}
-              reason={reason}
-              onPress={() => void submit(false)}
-              label={
-                type === "check_in"
-                  ? t("common.check_in")
-                  : t("common.check_out")
-              }
-            />
-            {error && (
-              <p className="text-center text-sm text-destructive" role="alert">
-                {error}
+      {!done && (
+        <section className="flex flex-col items-center gap-3 py-2">
+          {finishedForToday ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {t("attendance.punch.finished", "You are done for today.")}
               </p>
-            )}
-          </>
-        )}
-      </section>
+              <Button
+                variant="outline"
+                className="min-h-11"
+                onClick={() => setAgain(true)}
+              >
+                {t("attendance.punch.check_in_again", "Check in again")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <PunchButton
+                type={type}
+                state={buttonState}
+                phase={phase}
+                reason={reason}
+                onPress={() => void submit(false)}
+                label={
+                  type === "check_in"
+                    ? t("common.check_in")
+                    : t("common.check_out")
+                }
+              />
+              {error && (
+                <p
+                  className="text-center text-sm text-destructive"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* What the punch needs: where they are, the selfie, this phone. */}
-      <ReadinessList
-        position={position}
-        fence={fence}
-        problem={locationProblem}
-        locating={locating}
-        shift={shift}
-        onLocate={locate}
-        videoRef={videoRef}
-        selfie={{
-          show: type === "check_in" && !finishedForToday,
-          photo,
-          required: photoRequired,
-          cameraOn,
-          cameraProblem,
-          livenessPrompt,
-          onTake: takeSelfie,
-          onSnap: () => (livenessRequired ? void checkThenSnap() : snapPhoto()),
-        }}
-      >
-        {hasEmployee && phoneSettled && <DeviceCard variant="row" />}
-      </ReadinessList>
+      {!done && (
+        <ReadinessList
+          position={position}
+          fence={fence}
+          problem={locationProblem}
+          locating={locating}
+          shift={shift}
+          onLocate={locate}
+          videoRef={videoRef}
+          selfie={{
+            show: type === "check_in" && !finishedForToday,
+            photo,
+            required: photoRequired,
+            cameraOn,
+            cameraProblem,
+            livenessPrompt,
+            onTake: takeSelfie,
+            onSnap: () =>
+              livenessRequired ? void checkThenSnap() : snapPhoto(),
+          }}
+        >
+          {hasEmployee && phoneSettled && <DeviceCard variant="row" />}
+        </ReadinessList>
+      )}
 
       <PhotoConsentDialog
         open={consentOpen}
@@ -810,7 +804,8 @@ export default function MobilePunchPage() {
       />
 
       {/* The assistant: the employee's own switches. */}
-      {shift &&
+      {!done &&
+        shift &&
         (shift.assistant.reminders_allowed ||
           shift.assistant.auto_check_in_allowed) && (
           <AssistantCard
@@ -835,24 +830,27 @@ export default function MobilePunchPage() {
           />
         )}
 
-      {shift &&
+      {!done &&
+        shift &&
         shift.policy.mobile_enabled &&
         shift.policy.attendance_mode !== "office" && (
           <VisitLogCard photoConsent={shift.policy.photo_consent} />
         )}
 
-      <div className="flex justify-center gap-2 pb-2 text-sm">
-        <Button asChild variant="ghost" className="min-h-11">
-          <Link href="/attendance">
-            {t("attendance.punch.history", "My history")}
-          </Link>
-        </Button>
-        <Button asChild variant="ghost" className="min-h-11">
-          <Link href="/attendance/corrections">
-            {t("nav.corrections", "Corrections")}
-          </Link>
-        </Button>
-      </div>
+      {!done && (
+        <div className="flex justify-center gap-2 pb-2 text-sm">
+          <Button asChild variant="ghost" className="min-h-11">
+            <Link href="/attendance">
+              {t("attendance.punch.history", "My history")}
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="min-h-11">
+            <Link href="/attendance/corrections">
+              {t("nav.corrections", "Corrections")}
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
