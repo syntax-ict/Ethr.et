@@ -21,6 +21,7 @@ import type {
   ListColumns,
   LoginIdentifier,
   MigrationBatch,
+  MigrationListInProgress,
   MigrationLogins,
   MigrationTerminals,
   PeopleRead,
@@ -162,12 +163,48 @@ export function useGoLive() {
 
 // ── Migration ────────────────────────────────────────────────────
 
+/** The key of the organisation's lists in progress; commits and discards invalidate it. */
+export const MIGRATION_BATCHES_KEY = ["onboarding", "migration", "batches"];
+
+/** A list that is gone, or is another organisation's, answers 404; asking again will not change that. */
+export function isNotFound(err: unknown): boolean {
+  return (err as { response?: { status?: number } })?.response?.status === 404;
+}
+
 export function useMigrationBatch(batchId: string | null) {
   return useQuery<MigrationBatch>({
     queryKey: ["onboarding", "migration", batchId],
     queryFn: async () =>
       (await apiClient.get(`/onboarding/migration/batches/${batchId}`)).data,
     enabled: !!batchId,
+    retry: (failures, err) => !isNotFound(err) && failures < 3,
+  });
+}
+
+/**
+ * The organisation's lists that are not finished, newest first: staged and
+ * left, or started in another tab. Asked only while no list is open.
+ */
+export function useMigrationListsInProgress(enabled = true) {
+  return useQuery<MigrationListInProgress[]>({
+    queryKey: MIGRATION_BATCHES_KEY,
+    queryFn: async () =>
+      (await apiClient.get("/onboarding/migration/batches")).data.data,
+    enabled,
+  });
+}
+
+/** Throw away a list nobody will finish. The server refuses one that is being added. */
+export function useDiscardMigrationList() {
+  const qc = useQueryClient();
+  return useMutation<void, unknown, string>({
+    mutationFn: async (batchId) => {
+      await apiClient.delete(`/onboarding/migration/batches/${batchId}`);
+    },
+    onSettled: (_data, _error, batchId) => {
+      qc.invalidateQueries({ queryKey: MIGRATION_BATCHES_KEY });
+      qc.removeQueries({ queryKey: ["onboarding", "migration", batchId] });
+    },
   });
 }
 
@@ -401,12 +438,18 @@ export function useStageFromRows(
 export function useCarryOnStaging(
   onProgress?: (progress: StagingProgress) => void,
 ) {
+  const qc = useQueryClient();
   return useMutation<MigrationBatch, unknown, string>({
     mutationFn: (batchId) =>
       carryOnStaging(
         { public_id: batchId, status: "staging", staged: 0, remaining: 1 },
         onProgress,
       ),
+    // The list is read now; what the screen holds of it from before is not.
+    onSuccess: (batch) => {
+      qc.setQueryData(["onboarding", "migration", batch.public_id], batch);
+      qc.invalidateQueries({ queryKey: MIGRATION_BATCHES_KEY });
+    },
   });
 }
 
@@ -497,6 +540,8 @@ export function useCommitMigration(
     onSettled: (_data, _error, list) => {
       const batchId = typeof list === "string" ? list : list.batchId;
       qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
+      // Finished or part way, the lists in progress have changed either way.
+      qc.invalidateQueries({ queryKey: MIGRATION_BATCHES_KEY });
       // The people it added are employees now, wherever they are listed.
       qc.invalidateQueries({ queryKey: ["employees"] });
     },
