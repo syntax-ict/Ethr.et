@@ -18,17 +18,26 @@ import { useT } from "@/lib/i18n/useT";
 import { useCreateEmployeeLogins, useMigrationLogins } from "../api";
 import type { CreateLoginsResult, PendingLogin } from "../types";
 
+// The server accepts 1,000 ids a request, but it creates every login inside
+// the request, and its own comment only claims a few hundred fit the host's 30
+// seconds. A list of 2,000 people got a 422 on the automatic send (2026-11-16),
+// so the browser sends in slices, one after another.
+const INVITE_SLICE = 200;
+
 /**
  * After a migration commits: the people who cannot sign in yet, how each would
  * be invited, and one button that gives them all a way in. Also the owner's
  * hire-date warning (2026-10-28): the date was set to today, and is HR's to
  * correct.
  *
- * Logins are on by default (owner decision 2026-11-10): with `autoSend`, the
- * people an invitation can reach are invited as soon as the list is added,
- * once, without a second button. The reviewer said so before adding the list
- * and can untick it there: names read off a terminal are often wrong ("guest
- * card", "test"), and someone bringing such a list in may want to look first.
+ * Logins are on by default where a list is brought into a running
+ * organisation (owner decision 2026-11-10): with `autoSend`, the people an
+ * invitation can reach are invited as soon as the list is added, once,
+ * without a second button. The reviewer said so before adding the list and can
+ * untick it there: names read off a terminal are often wrong ("guest card",
+ * "test"), and someone bringing such a list in may want to look first. In the
+ * guided setup the tick starts unticked (owner decision 2026-11-16), so
+ * nobody is invited before the organisation has chosen how people sign in.
  * People no invitation can reach get a printed code each, or one starting
  * password between them.
  *
@@ -48,7 +57,10 @@ export function MigrationLogins({
   const query = useMigrationLogins(batchId);
   const create = useCreateEmployeeLogins();
   const [result, setResult] = useState<CreateLoginsResult | null>(null);
-  const [invitationBatch, setInvitationBatch] = useState<string | null>(null);
+  // One invitation batch per slice that queued anything.
+  const [invitationBatches, setInvitationBatches] = useState<string[]>([]);
+  // The ids a failed slice and the ones after it left unsent.
+  const [unsent, setUnsent] = useState<string[]>([]);
 
   const pending = query.data?.without_login ?? [];
   const defaulted = query.data?.hire_dates_defaulted ?? 0;
@@ -86,19 +98,78 @@ export function MigrationLogins({
     }[p.channel];
   }
 
-  async function sendAll(ids = pending.map((p) => p.employee_public_id)) {
+  // One run covers every slice, and the button can be pressed between two
+  // requests, or while the automatic send is still going: a second run would
+  // post people the first had already posted. `create.isPending` only knows
+  // the request in flight, so the run holds its own guard.
+  const running = useRef(false);
+  const [sending, setSending] = useState(false);
+  async function sendAll(
+    ids = unsent.length > 0 ? unsent : pending.map((p) => p.employee_public_id),
+  ) {
+    if (running.current) return;
+    running.current = true;
+    setSending(true);
     try {
-      const r = await create.mutateAsync(ids);
-      setResult(r);
-      setInvitationBatch(r.batch);
+      await sendSlices(ids);
+    } finally {
+      running.current = false;
+      setSending(false);
+    }
+  }
+
+  async function sendSlices(ids: string[]) {
+    const total: CreateLoginsResult = {
+      message: "",
+      created: 0,
+      active: 0,
+      in_person: 0,
+      email_in_use: 0,
+      batch: null,
+      queued: 0,
+    };
+    const batches: string[] = [];
+    let sent = 0;
+    try {
+      while (sent < ids.length) {
+        const r = await create.mutateAsync(
+          ids.slice(sent, sent + INVITE_SLICE),
+        );
+        sent += INVITE_SLICE;
+        total.message = r.message;
+        total.created += r.created;
+        total.active += r.active;
+        total.in_person += r.in_person;
+        total.email_in_use += r.email_in_use;
+        total.queued += r.queued;
+        if (r.batch) batches.push(r.batch);
+      }
+      setUnsent([]);
       toast.success(
         t("migration_logins.queued", "Invitations are being sent: :count", {
-          count: r.queued,
+          count: total.queued,
         }),
       );
     } catch (e) {
+      // Kept: what the slices before the failure did, and the ids that were
+      // not sent, which the button sends next.
+      setUnsent(ids.slice(sent));
       toastError(e, t("common.error", "Something went wrong"));
     }
+    if (sent === 0) return;
+    setResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            created: prev.created + total.created,
+            active: prev.active + total.active,
+            in_person: prev.in_person + total.in_person,
+            email_in_use: prev.email_in_use + total.email_in_use,
+            queued: prev.queued + total.queued,
+          }
+        : { ...total, batch: batches[0] ?? null },
+    );
+    setInvitationBatches((prev) => [...prev, ...batches]);
   }
 
   return (
@@ -207,24 +278,29 @@ export function MigrationLogins({
             </p>
           )}
 
-          {invitationBatch && (
+          {invitationBatches.map((b) => (
             <InvitationProgress
-              batch={invitationBatch}
-              onRetried={setInvitationBatch}
+              key={b}
+              batch={b}
+              onRetried={(next) =>
+                setInvitationBatches((prev) =>
+                  prev.map((id) => (id === b ? next : id)),
+                )
+              }
             />
-          )}
+          ))}
 
           <div className="flex flex-wrap justify-end gap-2">
             <ActivationCodeSheetDialog employeeIds={inPerson} />
             <StartingPasswordDialog employeeIds={inPerson} />
-            {can.inviteUsers && pending.length > 0 && !result && (
-              <Button onClick={() => sendAll()} disabled={create.isPending}>
-                {create.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("migration_logins.send", "Send invitations")}
-              </Button>
-            )}
+            {can.inviteUsers &&
+              pending.length > 0 &&
+              (!result || unsent.length > 0) && (
+                <Button onClick={() => sendAll()} disabled={sending}>
+                  {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("migration_logins.send", "Send invitations")}
+                </Button>
+              )}
             {onContinue && (
               <Button variant="outline" onClick={onContinue}>
                 {t("migration_logins.continue", "Continue")}

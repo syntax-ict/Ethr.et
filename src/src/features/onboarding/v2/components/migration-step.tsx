@@ -151,6 +151,9 @@ function refusedLines(err: unknown): string[] {
  * @param canComplete Offers the choice between adding people and completing
  *   the people who are already here (nobody new is added). Only the employee
  *   import page does: the guided setup and a device's roster add people.
+ * @param inviteByDefault Whether the "invite them as soon as they are added"
+ *   tick starts ticked. It does everywhere a list is brought into a running
+ *   organisation; the guided setup passes false (owner decision 2026-11-16).
  * @param title Heading, where the page is not the guided setup.
  * @param description The line under it.
  */
@@ -161,6 +164,7 @@ export function MigrationStep({
   initialDeviceId,
   sources = "all",
   canComplete = false,
+  inviteByDefault = true,
   title,
   description,
 }: {
@@ -170,6 +174,7 @@ export function MigrationStep({
   initialDeviceId?: string;
   sources?: "all" | "list";
   canComplete?: boolean;
+  inviteByDefault?: boolean;
   title?: string;
   description?: string;
 }) {
@@ -203,8 +208,11 @@ export function MigrationStep({
   );
   // What the whole list is brought in with, chosen before it is added: what
   // its new people arrive as, and whether they are invited straight away.
+  // That starts ticked, except in the guided setup, where it starts unticked:
+  // the organisation has not yet chosen how people sign in, and a first list
+  // is the least-checked data (owner decision 2026-11-16).
   const [arrival, setArrival] = useState<ArrivalStatus>("hired");
-  const [inviteNow, setInviteNow] = useState(true);
+  const [inviteNow, setInviteNow] = useState(inviteByDefault);
   // What the list is for, chosen before it is staged: add people, or fill in
   // the people who are already here and add nobody.
   const [mode, setMode] = useState<ListMode>("add");

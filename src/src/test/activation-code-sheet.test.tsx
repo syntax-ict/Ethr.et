@@ -406,3 +406,152 @@ describe("a sheet of activation codes", () => {
     expect(within(dialog).queryByTestId("sheet-code")).toBeNull();
   });
 });
+
+describe("invitations in slices", () => {
+  // The server takes 1,000 ids a request and a 2,000-person list got a 422 on
+  // the automatic send (2026-11-16): the browser sends 200 at a time.
+  const many = (n: number) => ({
+    without_login: Array.from({ length: n }, (_, i) =>
+      person(
+        `01JBQ8Z6ZK3M9V2X7Y4W5T${String(i).padStart(4, "0")}`,
+        `Person ${i}`,
+        "email",
+      ),
+    ),
+    hire_dates_defaulted: 0,
+  });
+
+  /** Answers every slice, naming one invitation batch each; `failOn` is a request number (1-based) that answers 500 once. */
+  function slices(failOn?: number, slowFirst = 0) {
+    const posted: string[][] = [];
+    let failed = false;
+    server.use(
+      http.post("*/api/v1/employees/logins", async ({ request }) => {
+        const body = (await request.json()) as { employee_ids: string[] };
+        posted.push(body.employee_ids);
+        if (slowFirst && posted.length === 1) {
+          await new Promise((resolve) => setTimeout(resolve, slowFirst));
+        }
+        if (posted.length === failOn && !failed) {
+          failed = true;
+          return HttpResponse.json(
+            { status: 500, title: "Server Error" },
+            { status: 500 },
+          );
+        }
+        return HttpResponse.json(
+          {
+            message: "Queued",
+            created: body.employee_ids.length,
+            active: 0,
+            in_person: 0,
+            email_in_use: 0,
+            batch: `01JBQ8Z6ZK3M9V2X7Y4W5TB${String(posted.length).padStart(3, "0")}`,
+            queued: body.employee_ids.length,
+          },
+          { status: 202 },
+        );
+      }),
+      http.get("*/api/v1/users/invitations/:batch", ({ params }) =>
+        HttpResponse.json({
+          batch: params.batch,
+          total: 1,
+          queued: 1,
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+          failures: [],
+        }),
+      ),
+    );
+    return posted;
+  }
+
+  it("sends 450 people as 200, 200 and 50, none twice, and adds the results up", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(many(450)));
+    const posted = slices();
+    renderPanel(true);
+
+    expect(
+      await screen.findByText(
+        "Logins created: 450. Invitations queued: 450. To activate in person: 0.",
+      ),
+    ).toBeInTheDocument();
+    expect(posted.map((ids) => ids.length)).toEqual([200, 200, 50]);
+    expect(new Set(posted.flat()).size).toBe(450);
+    // One progress card for each slice's batch.
+    await waitFor(() =>
+      expect(screen.getAllByText("Invitations are being sent")).toHaveLength(3),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Send invitations" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps what the first slice did when the second fails, and then sends only the rest", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(many(450)));
+    const posted = slices(2);
+    renderPanel(true);
+
+    expect(
+      await screen.findByText(
+        "Logins created: 200. Invitations queued: 200. To activate in person: 0.",
+      ),
+    ).toBeInTheDocument();
+    expect(posted.map((ids) => ids.length)).toEqual([200, 200]);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send invitations" }),
+    );
+
+    await waitFor(() => expect(posted).toHaveLength(4));
+    // The 250 that were not sent (in two slices), and none of the 200 that were.
+    expect(posted.slice(2).map((ids) => ids.length)).toEqual([200, 50]);
+    expect(posted.slice(2).flat()).toEqual(
+      many(450)
+        .without_login.slice(200)
+        .map((p) => p.employee_public_id),
+    );
+    expect(
+      await screen.findByText(
+        "Logins created: 450. Invitations queued: 450. To activate in person: 0.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Send invitations" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not send anyone twice when the button is pressed during the run", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(many(450)));
+    const posted = slices(undefined, 600);
+    renderPanel(true);
+
+    // The automatic send is in its first, slow request: the button is there,
+    // disabled for the whole run, and a press does nothing.
+    const button = await screen.findByRole("button", {
+      name: "Send invitations",
+    });
+    await waitFor(() => expect(button).toBeDisabled());
+    await userEvent.click(button);
+
+    await screen.findByText(
+      "Logins created: 450. Invitations queued: 450. To activate in person: 0.",
+    );
+    expect(posted.map((ids) => ids.length)).toEqual([200, 200, 50]);
+    expect(new Set(posted.flat()).size).toBe(450);
+  });
+
+  it("sends in slices from the button too", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(many(450)));
+    const posted = slices();
+    renderPanel(false);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send invitations" }),
+    );
+
+    await waitFor(() => expect(posted).toHaveLength(3));
+    expect(posted.map((ids) => ids.length)).toEqual([200, 200, 50]);
+  });
+});
