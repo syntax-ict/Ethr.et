@@ -4790,3 +4790,24 @@ older than `release.json`'s `built_at`, and the next `/cron/schedule` tick rebui
 Plesk deploys is not seen as stale. `packages.php`, `services.php` and `migrate` are out of scope.
 
 **Google Drive fallback for off-host backups (2026-11-15).** `BackupService::offHostTargets()` orders destinations (primary S3, then Google Drive), `copyOffHost()` falls back on failure and records `destination` and `fell_back` in the manifest, each destination has its own archive key, and `BackupHealth` reports `off_host_fell_back`. The Drive adapter is a custom Flysystem adapter over Google's REST API (no composer package), `drive.file` scope only, OAuth return through the console page. Proven against `Http::fake` and a scratch MariaDB migration; **not proven against real Google** until the owner connects an account and the first nightly copy lands. See `docs/deployment/BACKUP-RESTORE.md`.
+
+### 25o. One organisation's invitations could use every organisation's mail day — fixed 2026-11-16
+
+Invitations are sent at 30 a minute, so 500 take about 17 minutes and use the whole default
+`mail.daily_cap` of 500. The activation email is essential mail, so `MailBudget` never holds it,
+while past 60% of the cap bulk mail is held for everyone and past 90% other non-essential mail is
+too. One organisation inviting its list therefore starved every other organisation's mail for the
+day. Email invitations now have two shares of the cap (`config/invitations.php`):
+`email_org_share` 20% per organisation (100 a day) and `email_share` 40% for all organisations
+together (200 a day). Two organisations at 100 each leave 300 of the day for everything else, and a
+500-person organisation is invited over 5 days. What does not fit stays `queued` with a future
+`invitation_sends.held_until` and goes out at 08:00 Addis Ababa on the first day with room; reminders
+skip anyone still held. Pinned by `tests/Feature/User/InvitationsTest.php`, "the daily ceiling". The
+platform share is a cache counter (`MailBudget::invitationsToday`), so if the cache fails only the
+per-organisation ceiling holds. The rule is in `docs/EMPLOYEE-INVITATIONS-PLAN.md`, "A daily ceiling
+per organisation". Two limits are known and accepted: the platform share is first come, first served, so an
+organisation held for it is held again (never failed) on a day other organisations fill before
+08:00; and a share of 0 still lets one invitation a day through, so a ceiling is lifted with a share
+of 100 or a cap of 0. A held invitation that has fallen due is not queued or reminded a second time
+while it waits for the queue, and a queued row due more than three days ago has no live job and
+uses no room (`InvitationSend::scopeHeldAndUnsent`, `EmailInvitationCeiling::ABANDONED_AFTER_DAYS`).

@@ -61,6 +61,23 @@ class StageRowsRequest extends FormRequest
         ];
     }
 
+    /** A list that completes people already here invites nobody: a sign-in value in it is ignored, not checked. */
+    protected function prepareForValidation(): void
+    {
+        $rows = $this->input('rows');
+        if ($this->input('mode') !== 'complete' || ! is_array($rows)) {
+            return;
+        }
+
+        $this->merge(['rows' => array_map(function (mixed $row): mixed {
+            if (is_array($row)) {
+                unset($row[EmployeeImportRow::SIGN_IN]);
+            }
+
+            return $row;
+        }, $rows)]);
+    }
+
     /**
      * `complete` when the list is for the people already here: nobody is
      * added, and a line that matches nobody is left out. Null adds people.
@@ -110,6 +127,7 @@ class StageRowsRequest extends FormRequest
         return [
             'rows.*.employee_code.distinct' => __('onboarding.migration.duplicate_code'),
             'rows.*.email.distinct' => __('onboarding.migration.duplicate_email'),
+            'rows.*.sign_in.in' => __('validation.custom.sign_in.in'),
         ];
     }
 

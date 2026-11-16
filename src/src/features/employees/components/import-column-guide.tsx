@@ -36,6 +36,12 @@ export function employeeTemplateText(
         "Save the file and choose it in ETHR. Everyone is shown to you before anyone is added.",
       ),
     ],
+    columnLines: {
+      sign_in: t(
+        "setup2.template_line_sign_in",
+        "The Sign in column says who is invited to sign in when the list is added: yes invites them, no does not, and blank follows the choice on the review screen.",
+      ),
+    },
     columnHeading: t("setup2.template_column", "Column"),
     takesHeading: t("setup2.template_takes", "What it takes"),
     required: t("employees_import_page.required", "required"),
@@ -70,6 +76,7 @@ export function employeeTemplateText(
         employee_code: "1001",
         email: "abebe.kebede@example.com",
         phone: "0911000001",
+        sign_in: "yes",
         gender: "male",
         date_of_birth: "1988-03-14",
         hire_date: "2019-07-08",

@@ -11,6 +11,7 @@ import axios from "axios";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
@@ -42,6 +43,7 @@ function ResetForm() {
   const params = useSearchParams();
   const router = useRouter();
   const { t } = useT();
+  const hydrated = useHydrated();
 
   const token = params.get("token") ?? "";
   const email = params.get("email") ?? "";
@@ -159,6 +161,7 @@ function ResetForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(onSubmit, t("auth.reset_failed", "Reset failed."))}
         className="space-y-4"
         noValidate
@@ -219,7 +222,11 @@ function ResetForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

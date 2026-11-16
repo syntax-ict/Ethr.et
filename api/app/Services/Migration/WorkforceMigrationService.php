@@ -236,11 +236,18 @@ final class WorkforceMigrationService
     {
         $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator, MigrationBatch::STAGING, $mode === MigrationBatch::MODE_COMPLETE ? ['mode' => $mode] : null);
         $stamp = now()->toDateTimeString();
+        $completing = $mode === MigrationBatch::MODE_COMPLETE;
 
         foreach (array_chunk(array_values($rows), self::INSERT_CHUNK) as $chunk) {
             $records = [];
 
             foreach ($chunk as $row) {
+                // A list that completes people already here invites nobody,
+                // so a sign-in column in it is not kept.
+                if ($completing) {
+                    unset($row[EmployeeImportRow::SIGN_IN]);
+                }
+
                 $row = [
                     ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
                     ...$row,

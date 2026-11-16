@@ -262,6 +262,27 @@ export interface ListColumns {
 /** What a list's new people arrive as. A line naming its own status keeps it. */
 export type ArrivalStatus = "hired" | "probation" | "confirmed";
 
+/** How many of the people a list creates fall in each answer of its sign-in column. */
+export interface SignInSplit {
+  yes: number;
+  no: number;
+  blank: number;
+}
+
+/**
+ * What adding a list that creates people will do about signing in, before
+ * anyone is added: how many an invitation can reach (an email, or a phone
+ * while texts are on) and how many can only be activated in person, each by
+ * what the list says about them. Null for a list that completes people.
+ */
+export interface SignInPlan {
+  people: number;
+  invitable: SignInSplit;
+  in_person: SignInSplit;
+  /** The organisation signs in by employee number, so a code handed over in person works. */
+  in_person_possible: boolean;
+}
+
 export interface MigrationBatch {
   public_id: string;
   source_type: string;
@@ -273,6 +294,7 @@ export interface MigrationBatch {
   arrival_status?: ArrivalStatus | null;
   totals: Record<string, number> | null;
   summary: Record<string, number>;
+  sign_in_plan?: SignInPlan | null;
   rows: StagingRow[];
 }
 
@@ -313,6 +335,12 @@ export interface PendingLogin {
   channel: "email" | "sms" | "in_person";
   /** A login exists and was invited; it has not been activated. */
   invited: boolean;
+  /**
+   * What the list's sign-in column said about them: true for yes, false for
+   * no, null when it said nothing. A person marked no is not invited by this
+   * list; a row outranks the tick on the review step.
+   */
+  asked: boolean | null;
 }
 
 export interface MigrationLogins {

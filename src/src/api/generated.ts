@@ -10328,6 +10328,8 @@ export interface components {
             confirmation_date: string | null;
             termination_date: string | null;
             salary_cents?: number;
+            /** @enum {string|null} */
+            sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;
             photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
@@ -11114,7 +11116,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "statutory_override" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "setup_employer_tin" | "setup_tax_center" | "setup_pension_registration" | "setup_payout_method" | "setup_employee_salaries" | "leave_below_law" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent" | "setup_device_linked" | "profile_legal_review";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "statutory_override" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "setup_employer_tin" | "setup_tax_center" | "setup_pension_registration" | "setup_payout_method" | "setup_employee_salaries" | "leave_below_law" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "records_cannot_sign_in" | "unmatched_badges" | "team_absent" | "setup_device_linked" | "profile_legal_review";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];
@@ -11598,8 +11600,10 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
+                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "sign_in" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
+            /** @enum {string|null} */
+            mode?: "complete" | null;
         };
         /** RecallLeaveRequest */
         RecallLeaveRequest: {
@@ -11907,7 +11911,7 @@ export interface components {
             mapping: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
+                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "sign_in" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /** SaveReportRequest */
@@ -12107,7 +12111,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
+                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "sign_in" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
             skip_problems?: boolean;
             /** @enum {string|null} */
@@ -12141,6 +12145,8 @@ export interface components {
                 /** @enum {string|null} */
                 status?: "hired" | "probation" | "confirmed" | null;
                 external_id?: string | null;
+                /** @enum {string|null} */
+                sign_in?: "yes" | "no" | null;
                 grade?: string | null;
                 cost_center?: string | null;
                 /** Format: date-time */
@@ -13318,7 +13324,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
+                column: "name" | "first_name" | "father_name" | "grandfather_name" | "name_am" | "employee_code" | "email" | "phone" | "sign_in" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /**
@@ -13948,6 +13954,8 @@ export interface components {
                 queued_at: string;
                 /** Format: date-time */
                 sent_at: string | null;
+                /** Format: date-time */
+                held_until: string | null;
             } | null;
             /** Format: date-time */
             created_at: string | null;
@@ -25783,6 +25791,7 @@ export interface operations {
                         message: "Invitations are being sent.";
                         batch: string | null;
                         queued: number;
+                        held: number;
                         in_person: number;
                         skipped: number;
                     };
@@ -25813,6 +25822,9 @@ export interface operations {
                         batch: string;
                         total: number;
                         queued: number;
+                        held: number;
+                        held_until: string | null;
+                        daily_limit: number | null;
                         sent: number;
                         failed: number;
                         skipped: number;
@@ -28512,6 +28524,20 @@ export interface operations {
                         summary: {
                             [key: string]: number;
                         };
+                        sign_in_plan: {
+                            people: number;
+                            invitable: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person_possible: boolean;
+                        } | null;
                         rows: {
                             public_id: string;
                             display_name: string | null;
@@ -28630,6 +28656,20 @@ export interface operations {
                         summary: {
                             [key: string]: number;
                         };
+                        sign_in_plan: {
+                            people: number;
+                            invitable: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person_possible: boolean;
+                        } | null;
                         rows: {
                             public_id: string;
                             display_name: string | null;
@@ -28859,6 +28899,20 @@ export interface operations {
                         summary: {
                             [key: string]: number;
                         };
+                        sign_in_plan: {
+                            people: number;
+                            invitable: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person: {
+                                yes: number;
+                                no: number;
+                                blank: number;
+                            };
+                            in_person_possible: boolean;
+                        } | null;
                         rows: {
                             public_id: string;
                             display_name: string | null;
@@ -29058,11 +29112,12 @@ export interface operations {
                         without_login: {
                             employee_public_id: string;
                             name: string;
-                            email: string;
-                            phone: string;
+                            email: string | null;
+                            phone: string | null;
                             /** @enum {string} */
-                            channel: "sms" | "in_person" | "email";
+                            channel: "email" | "sms" | "in_person";
                             invited: boolean;
+                            asked: boolean | null;
                         }[];
                         hire_dates_defaulted: number;
                     };
@@ -29110,11 +29165,12 @@ export interface operations {
                         without_login: {
                             employee_public_id: string;
                             name: string;
-                            email: string;
-                            phone: string;
+                            email: string | null;
+                            phone: string | null;
                             /** @enum {string} */
-                            channel: "sms" | "in_person" | "email";
+                            channel: "email" | "sms" | "in_person";
                             invited: boolean;
+                            asked: boolean | null;
                         }[];
                         hire_dates_defaulted: number;
                     };
@@ -38624,6 +38680,8 @@ export interface operations {
                                 queued_at: string;
                                 /** Format: date-time */
                                 sent_at: string | null;
+                                /** Format: date-time */
+                                held_until: string | null;
                             } | null;
                         })[];
                         links: {

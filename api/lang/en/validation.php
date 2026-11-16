@@ -186,6 +186,9 @@ return [
         'bank_account_number' => [
             'digits' => 'The account number may contain only digits, spaces and hyphens, and must start and end with a digit.',
         ],
+        'sign_in' => [
+            'in' => 'Sign in must be yes or no, or left empty.',
+        ],
     ],
 
     /*

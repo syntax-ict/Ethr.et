@@ -19,6 +19,7 @@ import type {
   Industry,
   IndustryCatalogResponse,
   ListColumns,
+  ListMode,
   LoginIdentifier,
   MigrationBatch,
   MigrationListInProgress,
@@ -227,16 +228,28 @@ export function useReadPeople(
   calendar: "ethiopian" | "gregorian",
   enabled = true,
   columns: ListColumns = {},
+  mode: ListMode = "add",
 ) {
   const named = listColumns(columns);
+  // Only a list that completes people says so: it has no sign-in column.
+  const completing = mode === "complete" ? { mode } : {};
   return useQuery<PeopleRead>({
-    queryKey: ["onboarding", "migration", "read", calendar, grid, named],
+    queryKey: [
+      "onboarding",
+      "migration",
+      "read",
+      calendar,
+      grid,
+      named,
+      completing,
+    ],
     queryFn: async () =>
       (
         await apiClient.post("/onboarding/migration/read", {
           grid,
           calendar,
           ...named,
+          ...completing,
         })
       ).data,
     enabled: enabled && grid.some((line) => line.length > 0),
@@ -583,6 +596,8 @@ export function useCreateEmployeeLogins() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["onboarding", "migration"] });
       qc.invalidateQueries({ queryKey: ["users"] });
+      // The Employees list says who cannot sign in yet.
+      qc.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }

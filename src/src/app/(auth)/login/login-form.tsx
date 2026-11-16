@@ -29,6 +29,7 @@ import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { PASSWORD_CHANGE_PATH } from "@/api/client";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,7 @@ export function LoginForm() {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const { t, locale } = useT();
+  const hydrated = useHydrated();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -554,7 +556,12 @@ export function LoginForm() {
 
       {/* noValidate: the browser's own bubble for a malformed email would
           speak over the form's translated message. */}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      <form
+        method="post"
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="space-y-5"
+      >
         {tenantFieldVisible && (
           <div className="space-y-2">
             <Label htmlFor="tenant">
@@ -706,7 +713,7 @@ export function LoginForm() {
         <Button
           type="submit"
           className="h-11 w-full text-base shadow-sm"
-          disabled={isSubmitting}
+          disabled={!hydrated || isSubmitting}
         >
           {isSubmitting ? (
             <>

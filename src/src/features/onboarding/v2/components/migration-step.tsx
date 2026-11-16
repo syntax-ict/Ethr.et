@@ -85,6 +85,7 @@ import { ColumnMatcher } from "./column-matcher";
 import { ProblemTable } from "./problem-table";
 import { MigrationListsInProgress } from "./migration-lists-in-progress";
 import { MigrationLogins } from "./migration-logins";
+import { MigrationReadiness } from "./migration-readiness";
 import { MigrationTerminals } from "./migration-terminals";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -307,7 +308,13 @@ export function MigrationStep({
     () => ({ source: sourceId, mapping: matched, header_line: headerLine }),
     [sourceId, matched, headerLine],
   );
-  const readQuery = useReadPeople(grid, dateCalendar, batchId === null, named);
+  const readQuery = useReadPeople(
+    grid,
+    dateCalendar,
+    batchId === null,
+    named,
+    canComplete ? mode : "add",
+  );
   const read = csv.trim() === "" ? undefined : readQuery.data;
   // A saved source whose column names this list has, offered once the
   // reader has not already said where the list is from.
@@ -1684,6 +1691,12 @@ export function MigrationStep({
                   </span>
                 </span>
               </label>
+              {batch.sign_in_plan && (
+                <MigrationReadiness
+                  plan={batch.sign_in_plan}
+                  inviteNow={inviteNow}
+                />
+              )}
             </fieldset>
           )}
 
@@ -1748,6 +1761,7 @@ export function MigrationStep({
                 batchId={batchId}
                 onContinue={onCommitted}
                 autoSend={inviteNow && commit.isSuccess}
+                inviteMarked={commit.isSuccess}
               />
             )}
 

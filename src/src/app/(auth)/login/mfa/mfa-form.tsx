@@ -10,6 +10,7 @@ import { OtpCodeInput } from "@/components/shared/otp-code-input";
 import { verifyMfa } from "@/features/auth/sign-in";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 
 const CODE_LENGTH = 6;
 
@@ -17,6 +18,7 @@ export function MfaForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t } = useT();
+  const hydrated = useHydrated();
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -110,7 +112,7 @@ export function MfaForm() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form method="post" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label className="sr-only">
             {t("auth.mfa_code_label", "Verification code")}
@@ -161,7 +163,9 @@ export function MfaForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={loading || digits.join("").length !== CODE_LENGTH}
+          disabled={
+            !hydrated || loading || digits.join("").length !== CODE_LENGTH
+          }
         >
           {loading ? (
             <>

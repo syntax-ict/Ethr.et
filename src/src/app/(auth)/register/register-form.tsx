@@ -24,6 +24,7 @@ import {
   registerTenant,
 } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useOrganizationTypes } from "@/features/settings/api";
 import {
   groupOrgKinds,
@@ -79,6 +80,7 @@ const SELECT_CLASS =
 export function RegisterForm() {
   const router = useRouter();
   const { t, locale } = useT();
+  const hydrated = useHydrated();
   const orgKinds = useOrganizationTypes();
   const [stepIndex, setStepIndex] = useState(() => {
     if (typeof window !== "undefined") {
@@ -424,7 +426,7 @@ export function RegisterForm() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form method="post" onSubmit={handleSubmit(onSubmit)}>
         {/* Step 1: Organization */}
         {currentStep === "organization" && (
           <div className="space-y-5">
@@ -884,7 +886,7 @@ export function RegisterForm() {
             <Button
               type="submit"
               className="flex-1 h-11 shadow-sm"
-              disabled={isSubmitting || !step3Valid}
+              disabled={!hydrated || isSubmitting || !step3Valid}
             >
               {isSubmitting ? (
                 <>

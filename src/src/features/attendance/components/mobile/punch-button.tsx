@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, LogIn, LogOut } from "lucide-react";
 import { haptic } from "@/lib/attendance/haptics";
 import { useT } from "@/lib/i18n/useT";
@@ -27,6 +27,7 @@ export function PunchButton({
   label,
   reason,
   phase = "idle",
+  onSlow,
 }: {
   type: "check_in" | "check_out";
   state: PunchButtonState;
@@ -34,11 +35,17 @@ export function PunchButton({
   label: string;
   reason?: string | null;
   phase?: PunchPhase;
+  /** Called once when a send has taken longer than 8 seconds. */
+  onSlow?: () => void;
 }) {
   const { t } = useT();
   const [prev, setPrev] = useState(state);
   const [pulseKey, setPulseKey] = useState(0);
   const [slow, setSlow] = useState(false);
+  const onSlowRef = useRef(onSlow);
+  useEffect(() => {
+    onSlowRef.current = onSlow;
+  });
 
   // One pulse when the button becomes pressable; none when it mounts ready.
   if (prev !== state) {
@@ -53,7 +60,10 @@ export function PunchButton({
 
   useEffect(() => {
     if (phase !== "sending") return;
-    const id = window.setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    const id = window.setTimeout(() => {
+      setSlow(true);
+      onSlowRef.current?.();
+    }, SLOW_AFTER_MS);
     return () => {
       window.clearTimeout(id);
       setSlow(false);

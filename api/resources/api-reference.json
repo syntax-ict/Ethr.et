@@ -25936,6 +25936,64 @@
                                                 "minimum": 0
                                             }
                                         },
+                                        "sign_in_plan": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "people": {
+                                                    "type": "integer"
+                                                },
+                                                "invitable": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "yes": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no": {
+                                                            "type": "integer"
+                                                        },
+                                                        "blank": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "yes",
+                                                        "no",
+                                                        "blank"
+                                                    ]
+                                                },
+                                                "in_person": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "yes": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no": {
+                                                            "type": "integer"
+                                                        },
+                                                        "blank": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "yes",
+                                                        "no",
+                                                        "blank"
+                                                    ]
+                                                },
+                                                "in_person_possible": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "people",
+                                                "invitable",
+                                                "in_person",
+                                                "in_person_possible"
+                                            ]
+                                        },
                                         "rows": {
                                             "type": "array",
                                             "items": {
@@ -26079,6 +26137,7 @@
                                         "arrival_status",
                                         "totals",
                                         "summary",
+                                        "sign_in_plan",
                                         "rows"
                                     ]
                                 }
@@ -26220,21 +26279,33 @@
                                                         "type": "string"
                                                     },
                                                     "email": {
-                                                        "type": "string"
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
                                                     },
                                                     "phone": {
-                                                        "type": "string"
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
                                                     },
                                                     "channel": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "email",
                                                             "sms",
-                                                            "in_person",
-                                                            "email"
+                                                            "in_person"
                                                         ]
                                                     },
                                                     "invited": {
                                                         "type": "boolean"
+                                                    },
+                                                    "asked": {
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
                                                     }
                                                 },
                                                 "required": [
@@ -26243,7 +26314,8 @@
                                                     "email",
                                                     "phone",
                                                     "channel",
-                                                    "invited"
+                                                    "invited",
+                                                    "asked"
                                                 ]
                                             }
                                         },
@@ -26341,21 +26413,33 @@
                                                         "type": "string"
                                                     },
                                                     "email": {
-                                                        "type": "string"
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
                                                     },
                                                     "phone": {
-                                                        "type": "string"
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
                                                     },
                                                     "channel": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "email",
                                                             "sms",
-                                                            "in_person",
-                                                            "email"
+                                                            "in_person"
                                                         ]
                                                     },
                                                     "invited": {
                                                         "type": "boolean"
+                                                    },
+                                                    "asked": {
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
                                                     }
                                                 },
                                                 "required": [
@@ -26364,7 +26448,8 @@
                                                     "email",
                                                     "phone",
                                                     "channel",
-                                                    "invited"
+                                                    "invited",
+                                                    "asked"
                                                 ]
                                             }
                                         },
@@ -26709,6 +26794,64 @@
                                                 "minimum": 0
                                             }
                                         },
+                                        "sign_in_plan": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "people": {
+                                                    "type": "integer"
+                                                },
+                                                "invitable": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "yes": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no": {
+                                                            "type": "integer"
+                                                        },
+                                                        "blank": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "yes",
+                                                        "no",
+                                                        "blank"
+                                                    ]
+                                                },
+                                                "in_person": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "yes": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no": {
+                                                            "type": "integer"
+                                                        },
+                                                        "blank": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "yes",
+                                                        "no",
+                                                        "blank"
+                                                    ]
+                                                },
+                                                "in_person_possible": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "people",
+                                                "invitable",
+                                                "in_person",
+                                                "in_person_possible"
+                                            ]
+                                        },
                                         "rows": {
                                             "type": "array",
                                             "items": {
@@ -26852,6 +26995,7 @@
                                         "arrival_status",
                                         "totals",
                                         "summary",
+                                        "sign_in_plan",
                                         "rows"
                                     ]
                                 }
@@ -27139,6 +27283,64 @@
                                                         "minimum": 0
                                                     }
                                                 },
+                                                "sign_in_plan": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "people": {
+                                                            "type": "integer"
+                                                        },
+                                                        "invitable": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "yes": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "no": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "blank": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "yes",
+                                                                "no",
+                                                                "blank"
+                                                            ]
+                                                        },
+                                                        "in_person": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "yes": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "no": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "blank": {
+                                                                    "type": "integer"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "yes",
+                                                                "no",
+                                                                "blank"
+                                                            ]
+                                                        },
+                                                        "in_person_possible": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "people",
+                                                        "invitable",
+                                                        "in_person",
+                                                        "in_person_possible"
+                                                    ]
+                                                },
                                                 "rows": {
                                                     "type": "array",
                                                     "items": {
@@ -27282,6 +27484,7 @@
                                                 "arrival_status",
                                                 "totals",
                                                 "summary",
+                                                "sign_in_plan",
                                                 "rows"
                                             ]
                                         },
@@ -48758,6 +48961,20 @@
                     "salary_cents": {
                         "type": "integer"
                     },
+                    "sign_in": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "none",
+                            "invited",
+                            "active",
+                            "inactive",
+                            "suspended",
+                            null
+                        ]
+                    },
                     "photo_path": {
                         "type": [
                             "string",
@@ -51145,6 +51362,7 @@
                     "complete_profile",
                     "records_missing_emergency_contact",
                     "records_missing_phone",
+                    "records_cannot_sign_in",
                     "unmatched_badges",
                     "team_absent",
                     "setup_device_linked",
@@ -52672,6 +52890,7 @@
                                         "employee_code",
                                         "email",
                                         "phone",
+                                        "sign_in",
                                         "gender",
                                         "date_of_birth",
                                         "hire_date",
@@ -52708,6 +52927,16 @@
                             ]
                         },
                         "maxItems": 60
+                    },
+                    "mode": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "complete",
+                            null
+                        ]
                     }
                 },
                 "required": [
@@ -53411,6 +53640,7 @@
                                         "employee_code",
                                         "email",
                                         "phone",
+                                        "sign_in",
                                         "gender",
                                         "date_of_birth",
                                         "hire_date",
@@ -53998,6 +54228,7 @@
                                         "employee_code",
                                         "email",
                                         "phone",
+                                        "sign_in",
                                         "gender",
                                         "date_of_birth",
                                         "hire_date",
@@ -54221,6 +54452,17 @@
                                         "null"
                                     ],
                                     "maxLength": 100
+                                },
+                                "sign_in": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "enum": [
+                                        "yes",
+                                        "no",
+                                        null
+                                    ]
                                 },
                                 "grade": {
                                     "type": [
@@ -57825,6 +58067,7 @@
                                         "employee_code",
                                         "email",
                                         "phone",
+                                        "sign_in",
                                         "gender",
                                         "date_of_birth",
                                         "hire_date",

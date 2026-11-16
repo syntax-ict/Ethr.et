@@ -8,6 +8,7 @@ use App\Enums\NationalityStatus;
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
 use App\Models\Employee;
 use App\Services\Attendance\AttendancePolicy;
+use App\Support\EmployeeSignIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,13 @@ class EmployeeResource extends JsonResource
         $showPay = $viewer !== null
             && ($viewer->hasPermission('employee.viewFinancial')
                 || ($viewer->employee_id !== null && (int) $viewer->employee_id === (int) $this->id));
+
+        $signIn = array_key_exists('sign_in_status', $this->resource->getAttributes())
+            ? EmployeeSignIn::of(
+                $this->resource->getAttribute('sign_in_status'),
+                $this->resource->getAttribute('sign_in_status_linked'),
+            )
+            : null;
 
         return [
             'public_id' => $this->public_id,
@@ -52,6 +60,7 @@ class EmployeeResource extends JsonResource
             'confirmation_date' => $this->confirmation_date?->format('Y-m-d'),
             'termination_date' => $this->termination_date?->format('Y-m-d'),
             'salary_cents' => $this->when($showPay, fn () => $this->whenHas('salary_cents')),
+            'sign_in' => $this->when($signIn !== null, $signIn),
             'photo_path' => $photoPath,
             'photo_url' => $this->photoUrl($photoPath),
             'photo_thumb_url' => $this->photoThumbUrl($photoPath),

@@ -258,6 +258,41 @@ guess made now.
    in-person code. The SMS share of the daily cap (`invitations.sms_share`, 30%) is built
    with the SMS channel and only matters once the switch is on.
 
+## A daily ceiling per organisation
+
+One organisation inviting its whole list must not use every organisation's mail day. Two
+shares of `mail.daily_cap` bound email invitations, both in `config/invitations.php`:
+
+- `email_org_share` (`INVITATIONS_EMAIL_ORG_SHARE`, default 20): what one organisation may send
+  in a day. At the default cap of 500 that is 100 a day.
+- `email_share` (`INVITATIONS_EMAIL_SHARE`, default 40): what all organisations together may
+  send in a day. At the default cap that is 200 a day, so 300 of the day is left for
+  everything else.
+
+The rules:
+
+- **A day is the Addis Ababa day.**
+- **What does not fit is held.** The invitation's status stays `queued` and
+  `invitation_sends.held_until` says when it goes out: 08:00 Addis Ababa on the first day with
+  room.
+- **The day is chosen when the batch is queued** (`InvitationDispatcher::queue`,
+  `EmailInvitationCeiling`) **and checked again by `SendInvitationJob`**, which holds by
+  queueing a fresh job with a later delay, never by `release`.
+- **A single invitation sent by hand is never held**, but it counts in the organisation's day.
+- **Outside the ceiling:** password resets, sign-in codes and text invitations.
+- **`MAIL_DAILY_CAP=0` turns it off.**
+- **Nobody held is invited twice.** A reminder, or "resend to everyone", skips a person whose
+  invitation is held, including the morning it falls due, until it is sent.
+- **The share for all organisations is first come, first served.** An organisation held for it
+  is held again for the next morning, never failed, if the others fill the day before 08:00.
+- **A share of 0 still lets one invitation a day through.** A share of 100 lifts that ceiling.
+- **The progress card and the users list say so.** `GET /users/invitations/{batch}` returns
+  `held`, `held_until` and `daily_limit`; `queued` there is what is still to go today, so the
+  card stops polling when only held ones remain.
+
+Deploy: `migrate` goes with the deploy (the `held_until` column). No queue drain is needed;
+`SendInvitationJob`'s constructor did not change.
+
 ## Release
 
 Each PR goes local, then branch, then `main`, then `production`, then Plesk, in that order.

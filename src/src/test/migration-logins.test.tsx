@@ -49,6 +49,7 @@ const LOGINS = {
       phone: null,
       channel: "email",
       invited: false,
+      asked: null,
     },
     {
       employee_public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6R82",
@@ -57,6 +58,7 @@ const LOGINS = {
       phone: null,
       channel: "in_person",
       invited: false,
+      asked: null,
     },
   ],
   hire_dates_defaulted: 2,

@@ -36,6 +36,7 @@ final class RecordsProvider implements StepProvider
         EmployeeGaps::BANK => NextStepId::RecordsMissingBank,
         EmployeeGaps::EMERGENCY_CONTACT => NextStepId::RecordsMissingEmergencyContact,
         EmployeeGaps::PHONE => NextStepId::RecordsMissingPhone,
+        EmployeeGaps::SIGN_IN => NextStepId::RecordsCannotSignIn,
     ];
 
     public function __construct(private readonly FeatureGate $features) {}
@@ -92,6 +93,10 @@ final class RecordsProvider implements StepProvider
     {
         if (in_array($gap, EmployeeGaps::financial(), true)) {
             return $payroll && $user->hasPermission('employee.updateFinancial');
+        }
+
+        if ($gap === EmployeeGaps::SIGN_IN) {
+            return $user->hasPermission('users.invite') && $user->hasPermission('employee.update');
         }
 
         return $user->hasPermission('employee.update');

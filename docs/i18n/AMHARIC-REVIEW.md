@@ -441,3 +441,97 @@ Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
 `admin_tenant_detail_page.kind_read_only`. The kind's own name and the heading "Kind of
 organisation in law" are existing strings (`settings.organization_kind`, the catalogue's
 `name_am` and `name_om`), reused as they are. A wrong label moves no money.
+
+### Sign-in step option descriptions (2026-11-16)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `setup2.id_email_desc`, `setup2.id_phone_desc`,
+`setup2.id_code_desc` and `setup2.id_username_desc`. They were missing, so the Sign-in step of the
+guided setup showed English under each option. The Amharic drafts:
+
+- `setup2.id_email_desc`: የድርጅት ኢሜይል ላላቸው ሠራተኞች መደበኛ ነው።
+- `setup2.id_phone_desc`: ኢሜይል ለሌላቸው የሥራ ኃይሎች።
+- `setup2.id_code_desc`: ኢሜይል የሌላቸው ሰዎች በአካል ይነቃሉ፤ በዚህ ቁጥር ይገባሉ።
+- `setup2.id_username_desc`: ቡድናቸው ለሚመርጥ፣ በራስ የተመረጠ መጠሪያ።
+
+What to check first: the phone line ("workforces without email"), which is a short label rather than a
+sentence, and the username line, whose word order is unnatural in Amharic. "Activated in person" reuses
+the existing `activation_code.button` verb. A wrong label moves no money.
+
+### A sign-in column in the employee workbook (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A wrong word here can make HR read "yes" as "no" in a column that decides who is invited to sign
+in, so the values the column accepts matter most.
+
+| What | Where | Strings |
+|---|---|---|
+| The column's name "Sign in", what it takes, and the line on the workbook's instructions sheet | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_sign_in`, `employees_import_page.col_sign_in`, `setup2.template_line_sign_in` | 3 each |
+| The note beside a person the list says not to invite: "this list did not ask to invite them" | the same files, `migration_logins.list_said_no` | 1 each |
+| The card on the review step: its title, the four lines of counts (the title says they are for the people the list adds), the warning that people no invitation can reach cannot sign in by employee number here, and the link | the same files, `migration_ready.title`, `invited`, `afterwards`, `code`, `marked_no`, `warn_title`, `warn_desc`, `warn_link` | 8 each |
+| The refusal of a value that is not yes or no: "Sign in must be yes or no, or left empty." | `api/lang/{am,om}/validation.php`, `custom.sign_in.in` | 1 each |
+
+The words the import reads as yes and no are in `EmployeeImportRow::SIGN_IN_WORDS`: Amharic አዎ, አዎን and
+አይ, አይደለም; Afaan Oromoo eeyyee, eeyyeen, eyyee and lakki, miti. Add the spellings a native reader says an
+Ethiopian office actually types.
+
+What to check first: those yes and no words, then *Sign in* as the name of a column (the drafts use
+መግቢያ, "entrance", and Seensa, "entry"), and the sentence about a printed code, where "in person" must read
+as handing a paper over, not as visiting.
+
+### Who cannot sign in yet: the list, the bulk action and Next Steps (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A wrong word here can make HR think a person is invited when they are not, so the two states on
+a row and the sentence that says what the bulk action does matter most.
+
+| What | Where | Strings |
+|---|---|---|
+| The two notes beside a person on the Employees list: "No sign-in" and "Invited, not activated" | `src/src/lib/i18n/locales/{am,om}.json`, `employees.sign_in.none`, `employees.sign_in.invited` | 2 each |
+| The filter label "a way to sign in" and the banner "Showing current employees who cannot sign in yet." | the same files, `employees.missing.sign_in`, `employees.missing_banner_sign_in` | 2 each |
+| The bulk action: its button and title, the sentence on what happens to each kind of person, the count, the result sentence, the partial failure, the printed-code line, "Send the rest", "Nobody in the selection needs a way to sign in." and the left-out sentence | the same files, `employees.bulk.sign_in.*` | 10 each |
+| The Next Steps row: title, one-person title, reason and "See who" | the same files, `next_steps.step.records_cannot_sign_in.*` | 4 each |
+
+The Amharic drafts:
+
+- `employees.sign_in.none`: መግቢያ የለም
+- `employees.sign_in.invited`: ተጋብዟል፣ ገና አልነቃም (the existing `migration_logins.invited` wording)
+- `employees.missing.sign_in`: የመግቢያ መንገድ
+- `employees.missing_banner_sign_in`: ገና መግባት የማይችሉ የአሁን ሠራተኞችን በማሳየት ላይ።
+- `employees.bulk.sign_in.button` and `title`: የመግቢያ መንገድ ይስጡ
+- `employees.bulk.sign_in.description`: ኢሜይል ያላቸው ሰዎች በኢሜይል ግብዣ ይደርሳቸዋል፣ ስልክ ብቻ ያላቸው ደግሞ የጽሑፍ መልእክት ከበራ በጽሑፍ መልእክት ይጋበዛሉ። ሁለቱም የሌላቸው ለታተመ ኮድ ይዘረዘራሉ፣ አስቀድመው መግባት የሚችሉት እንዳሉ ይተዋሉ።
+- `employees.bulk.sign_in.count`: ይህ የተመረጡ :count ሰዎችን ይመለከታል።
+- `employees.bulk.sign_in.partial`: ከ:total ውስጥ :sent ተልኳል። :left ገና አልተላከም። :reason
+- `employees.bulk.sign_in.result`: የተፈጠሩ መግቢያዎች፦ :created። ለመላክ የተሰለፉ ግብዣዎች፦ :queued። አስቀድመው መግባት የሚችሉ፦ :active። በአካል ኮድ የሚያስፈልጋቸው፦ :in_person። በሌላ መግቢያ ጥቅም ላይ የዋለ ኢሜይል፦ :email_in_use።
+- `employees.bulk.sign_in.in_person`: አንዳንድ ሰዎች ኢሜይልም ስልክም የላቸውም። የታተመ ኮድ ይስጧቸው፣ ወይም የመነሻ የይለፍ ቃል ይስጧቸው።
+- `employees.bulk.sign_in.retry`: የቀሩትን ላክ
+- `employees.bulk.sign_in.nobody`: ከተመረጡት መካከል የመግቢያ መንገድ የሚያስፈልገው የለም።
+- `employees.bulk.sign_in.left_out`: ከተመረጡት ውስጥ :count ሰዎች አስቀድመው መግባት ይችላሉ ወይም ከእንግዲህ እዚህ አይሠሩም፣ ስለዚህ አይካተቱም።
+- `next_steps.step.records_cannot_sign_in.title`: :count ሰዎች ገና መግባት አይችሉም
+- `next_steps.step.records_cannot_sign_in.title_one`: 1 ሰው ገና መግባት አይችልም
+- `next_steps.step.records_cannot_sign_in.reason`: በ ETHR ውስጥ አሉ፣ ነገር ግን ማንም አልጋበዛቸውም፣ ወይም ምዝገባቸውን አልጨረሱም። የመገኘት መሣሪያዎችና የደመወዝ ሥራ ያለዚህ ይሠራሉ።
+- `next_steps.step.records_cannot_sign_in.cta`: ማን እንደሆኑ እይ
+
+The Afaan Oromoo drafts:
+
+- `employees.sign_in.none`: Seensi hin jiru
+- `employees.sign_in.invited`: Affeerame, ammallee hin jalqabsiifne
+- `employees.missing.sign_in`: karaa itti seenan
+- `employees.missing_banner_sign_in`: Hojjettoota ammaa ammaaf seenuu hin dandeenye agarsiisaa jira.
+- `employees.bulk.sign_in.button` and `title`: Karaa itti seenan kenniif
+- `employees.bulk.sign_in.description`: Namoonni imeelii qaban affeerraa imeeliin argatu, namoonni bilbila qofa qaban immoo yoo ergaan barreeffamaa banamee jiraate ergaadhaan affeeramu. Kan lamaanuu hin qabne koodii maxxanfameef tarreeffamu, kan duraanuu seenuu danda'an immoo akkuma jiranitti hafu.
+- `employees.bulk.sign_in.count`: Kun namoota filataman :count ilaallata.
+- `employees.bulk.sign_in.partial`: :total keessaa :sent ergameera. :left ammallee hin ergamne. :reason
+- `employees.bulk.sign_in.result`: Seensonni uumaman: :created. Affeerraawwan tarreeffaman: :queued. Duraanuu seenuu kan danda'an: :active. Koodii qaamaan kan barbaadan: :in_person. Imeeliin seensa biraatiin duraanuu qabame: :email_in_use.
+- `employees.bulk.sign_in.in_person`: Namoonni tokko tokko imeelii fi bilbila hin qaban. Koodii maxxanfame kenniif, yookaan jecha icciitii jalqabaa kenniif.
+- `employees.bulk.sign_in.retry`: Kan hafe ergi
+- `employees.bulk.sign_in.nobody`: Namoota filataman keessaa kan karaa itti seenan barbaadu hin jiru.
+- `employees.bulk.sign_in.left_out`: Namoota filataman keessaa :count duraanuu seenuu ni danda'u yookaan amma as hin hojjetan, kanaaf hin ramadaman.
+- `next_steps.step.records_cannot_sign_in.title`: :count namoonni ammaaf seenuu hin danda'an
+- `next_steps.step.records_cannot_sign_in.title_one`: Namni 1 ammaaf seenuu hin danda'u
+- `next_steps.step.records_cannot_sign_in.reason`: ETHR keessa jiru, garuu eenyullee hin affeerre, yookaan galmee isaanii hin xumurre. Meeshaaleen sa'aatii fi hojiin kaffaltii kana malee ni hojjetu.
+- `next_steps.step.records_cannot_sign_in.cta`: Eenyu akka ta'e ilaali
+
+What to check first: whether "መግቢያ የለም" and "Seensi hin jiru" read as "has no way to sign in" and not as
+"no entrance", the sentence about a printed code (the Amharic keeps the existing "ኮድ" and "የመነሻ የይለፍ ቃል"
+wording), and `ammaaf` ("for now") in the Afaan Oromoo, which is meant to say "yet". A wrong label moves no money.

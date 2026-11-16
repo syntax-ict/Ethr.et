@@ -3,6 +3,7 @@ import { Workbook } from "exceljs";
 import { toEthiopian } from "@/lib/calendar/ethiopian";
 import { toGrid } from "@/features/onboarding/v2/parse-people";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
+import { buildCompleteWorkbook } from "@/features/employees/complete-workbook";
 import {
   buildEnrolmentList,
   buildFixList,
@@ -717,5 +718,94 @@ describe("the example people of the employee template", () => {
     ]);
     expect(sheet.getCell(3, 3).value).toBe("fixed_term");
     expect(sheet.getCell(3, 4).value).toBe("2025-02-19");
+  });
+});
+
+describe("the sign-in column of the employee template", () => {
+  const text = employeeTemplateText((key, fallback) => fallback ?? key);
+  const spec: TemplateSpec = {
+    columns: [
+      { key: "name", group: "core", required: true },
+      { key: "email", group: "contact", required: false },
+      { key: "phone", group: "contact", required: false },
+      { key: "sign_in", group: "contact", required: false },
+      { key: "gender", group: "core", required: false },
+    ],
+    headers: ["name", "email", "phone", "sign_in", "gender"],
+    required: ["name"],
+    text_columns: ["phone"],
+    date_columns: [],
+    lists: { sign_in: ["yes", "no"], gender: ["male", "female"] },
+  };
+
+  it("is a column after Phone with a yes or no dropdown, and is explained on the instructions sheet", async () => {
+    const workbook = new Workbook();
+    await workbook.xlsx.load(await buildTemplate(spec, "gregorian", text));
+    const people = workbook.getWorksheet(SHEET_PEOPLE)!;
+
+    expect(people.getRow(1).values).toEqual([
+      undefined,
+      "name",
+      "email",
+      "phone",
+      "sign_in",
+      "gender",
+    ]);
+    expect(people.getCell(2, 4).dataValidation).toMatchObject({
+      type: "list",
+      allowBlank: true,
+      errorStyle: "warning",
+    });
+    expect(
+      workbook.getWorksheet(SHEET_LISTS)!.getColumn(1).values.slice(1),
+    ).toEqual(["sign_in", "yes", "no"]);
+
+    const help = workbook
+      .getWorksheet(SHEET_HELP)!
+      .getSheetValues()
+      .flat()
+      .filter((cell) => typeof cell === "string");
+    expect(help).toContain(
+      "The Sign in column says who is invited to sign in when the list is added: yes invites them, no does not, and blank follows the choice on the review screen.",
+    );
+  });
+
+  it("is shown to the first example person as yes and to the second as blank", async () => {
+    const workbook = new Workbook();
+    await workbook.xlsx.load(await buildTemplate(spec, "gregorian", text));
+    const example = workbook.getWorksheet(SHEET_EXAMPLE)!;
+
+    expect(example.getCell(2, 4).value).toBe("yes");
+    // The second person has no value of their own, so the list's first stands in:
+    // an example outside the list would not import. The column is not left
+    // empty by accident, it is the dropdown's first value.
+    expect(text.example[1].sign_in).toBeUndefined();
+  });
+
+  it("is not in the prefilled workbook that completes people already here, nor explained there", async () => {
+    const complete = await buildCompleteWorkbook(
+      { csv: "name,email,phone\nAbebe Kebede,a@x.et,0911\n", count: 1 },
+      spec,
+      text,
+    );
+    const workbook = new Workbook();
+    await workbook.xlsx.load(complete);
+
+    expect(workbook.getWorksheet(SHEET_PEOPLE)!.getRow(1).values).toEqual([
+      undefined,
+      "name",
+      "email",
+      "phone",
+      "gender",
+    ]);
+    const lists = workbook.getWorksheet(SHEET_LISTS)!.getColumn(1).values;
+    expect(lists.slice(1)).toEqual(["gender", "male", "female"]);
+    const strings = workbook
+      .getWorksheet(SHEET_HELP)!
+      .getSheetValues()
+      .flat()
+      .filter((cell): cell is string => typeof cell === "string");
+    expect(strings.some((cell) => cell.includes("Sign in"))).toBe(false);
+    expect(strings).not.toContain("sign_in");
   });
 });
