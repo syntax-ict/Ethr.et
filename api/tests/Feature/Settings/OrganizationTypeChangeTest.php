@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\PayrollRun;
 use App\Models\TenantProfileAssignment;
 use App\Services\Payroll\StatutoryRules;
+use App\Services\Tenancy\ProfileContext;
 use Illuminate\Support\Carbon;
 
 /**
@@ -180,4 +181,58 @@ it('withdraws a pending change only when asked to', function () {
 
     expect(AuditLog::query()->where('action', 'organization_profile.change_cancelled')->value('payload'))
         ->toMatchArray(['organization_type' => 'government', 'effective_from' => '2027-01-01']);
+});
+
+it('shows the kind in force once a scheduled change has taken effect', function () {
+    $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    approvedRunFor($tenant);
+
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government', 'effective_from' => '2027-01-01'])->assertOk();
+    expect($tenant->fresh()->organization_type)->toBe('private');
+
+    Carbon::setTestNow('2027-01-03 10:00:00');
+    app(ProfileContext::class)->forget();
+
+    test()->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('organization.organization_type', 'government')
+        ->assertJsonPath('organization.organization_type_pending', null);
+
+    expect($tenant->fresh()->organization_type)->toBe('government');
+});
+
+it('leaves the kind alone when a save omits it after a scheduled change took effect', function () {
+    $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    approvedRunFor($tenant);
+
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government', 'effective_from' => '2027-01-01'])->assertOk();
+
+    Carbon::setTestNow('2027-01-03 10:00:00');
+    app(ProfileContext::class)->forget();
+
+    test()->putJson(typeChangeUrl($tenant), ['name' => 'Abay Trading S.C.'])
+        ->assertOk()
+        ->assertJsonPath('organization.organization_type', 'government')
+        ->assertJsonPath('organization.organization_type_pending', null);
+
+    expect($tenant->fresh()->organization_type)->toBe('government');
+});
+
+it('treats re-choosing the new kind after the date as no change, and the column agrees', function () {
+    $tenant = createTenant(['organization_type' => 'private', 'settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    approvedRunFor($tenant);
+
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government', 'effective_from' => '2027-01-01'])->assertOk();
+
+    Carbon::setTestNow('2027-01-03 10:00:00');
+    app(ProfileContext::class)->forget();
+
+    test()->putJson(typeChangeUrl($tenant), ['organization_type' => 'government'])
+        ->assertOk()
+        ->assertJsonPath('organization.organization_type', 'government');
+
+    expect($tenant->fresh()->organization_type)->toBe('government');
 });

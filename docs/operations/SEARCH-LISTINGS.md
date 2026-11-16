@@ -1,5 +1,13 @@
 # Search listings: getting ETHR found outside its own site
 
+| At a glance | |
+|---|---|
+| **Purpose** | Lists the off-site steps, each one only the owner can take, that get ETHR found in search engines and directories. |
+| **Open it when** | You are working on ETHR's search visibility, or an organisation's address has a Search Console problem. |
+| **For** | Owner |
+| **Organisation types** | Not about an organisation. ETHR's own listings; its section on organisation addresses in Search Console applies to every kind alike. |
+| **Source of truth** | The owner's own records and the search engines' own consoles; no code backs these steps, and the measurements in it are dated. |
+
 Written 2026-10-19, after the on-site work in PR #314 went live (v2026.10.19.1)
 and ethr.et was verified in Google Search Console and imported into Bing
 Webmaster Tools.

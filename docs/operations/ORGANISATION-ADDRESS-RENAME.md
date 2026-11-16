@@ -1,5 +1,13 @@
 # Renaming an organisation's address
 
+| At a glance | |
+|---|---|
+| **Purpose** | Describes what happens when an organisation's administrator renames its address, and what to tell the organisation. |
+| **Open it when** | An organisation wants to change the name in its address. |
+| **For** | Platform operator |
+| **Organisation types** | Same for every kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `updateSubdomain` in `api/app/Http/Controllers/Api/V1/Settings/SettingsController.php`. |
+
 Added 2026-10-26. A tenant admin can change the name in the organisation's
 address, from **Settings → Address → Change name**: `ethr.et/{name}`, and
 `{name}.ethr.et` where subdomains are served. A verified custom domain is not

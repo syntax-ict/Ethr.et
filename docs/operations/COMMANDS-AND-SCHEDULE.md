@@ -1,5 +1,13 @@
 # Artisan commands and the schedule
 
+| At a glance | |
+|---|---|
+| **Purpose** | Lists every Artisan command and every scheduled entry, and what runs when. |
+| **Open it when** | You need to know what a command does, what the schedule runs, or what to check first when something looks wrong. |
+| **For** | Platform operator; whoever releases |
+| **Organisation types** | Same for every kind. No command or scheduled entry reads the kind; one reads the industry (`attendance:baseline`), and leave carry-forward follows each organisation's leave year, not its fiscal year. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `php artisan list` and `php artisan schedule:list` run against `api/`, and `api/routes/console.php`; when this disagrees with the code, the code is right. |
+
 **Rebuilt 2026-11-13 from `php artisan list` and `php artisan schedule:list` run against
 `api/`.** When this disagrees with the code, the code is right — those two commands print the
 live answer, and this page is only ever a snapshot of them.
@@ -167,6 +175,20 @@ Both halves have moved:
 This is what makes the entries at `:05`, `:20`, `:30` and `:45` safe, and they are now the
 majority. What a long gap between calls costs is **lateness**, not a skipped run: an entry due
 at 06:00 may not run until 09:00. Design against that, not against the minute.
+
+## Organisation types
+
+- No command and no scheduled entry reads the kind of organisation. A search of `api/app/Console`,
+  `api/app/Jobs` and `api/routes/console.php` for `organization_type`, `ProfileContext`,
+  `StatutoryRules` and `industry` finds one match, a comment in `AttendanceBaselineCommand.php`.
+- `attendance:baseline` reads the **industry**: an organisation with no shift gets its industry's
+  usual schedule.
+- Leave carry-forward follows each organisation's own leave year, `settings.leave_year`
+  (`api/app/Services/Leave/LeaveYear.php`), which a new organisation starts on as the Ethiopian
+  year whatever its kind. A government office whose fiscal year starts in Hamle still carries leave
+  forward in the first seven days of its own leave year.
+- Invoices, dunning, trial notices and retention sweeps treat every kind alike.
+- What each kind changes elsewhere is in [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Draining the queue by hand
 

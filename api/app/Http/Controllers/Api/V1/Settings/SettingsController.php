@@ -46,6 +46,7 @@ class SettingsController extends Controller
         Gate::authorize('settings.manage');
 
         $tenant = app(CurrentTenant::class)->get();
+        app(OrganisationProfile::class)->inForce($tenant);
 
         // The values as enforced, not as stored: a value saved before
         // PUT /settings validated these is normalised the same way the
@@ -194,7 +195,7 @@ class SettingsController extends Controller
         $tenant = app(CurrentTenant::class)->get();
 
         $tenantFields = array_intersect_key($validated, ['name' => 1, 'type' => 1, 'timezone' => 1]);
-        $typeBefore = $tenant->organization_type;
+        $typeBefore = app(OrganisationProfile::class)->inForce($tenant);
 
         // Choosing the organisation type, even the one it already had, is the
         // confirmation the migration asked existing organisations for.
