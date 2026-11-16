@@ -54,6 +54,7 @@ import type {
 } from "../types";
 import {
   type DateCalendar,
+  decodeText,
   MAX_PEOPLE,
   templateCsv,
   toGrid,
@@ -68,7 +69,7 @@ import {
   gridToText,
   MAX_LINES,
   NoSheet,
-  readWorkbook,
+  readWorkbookSheets,
   TooManyLines,
   XLSX_MIME,
 } from "../xlsx-grid";
@@ -237,10 +238,22 @@ export function MigrationStep({
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [matched, setMatched] = useState<ColumnMatch[] | null>(null);
   const [matching, setMatching] = useState(false);
+  // Where the column names are, when the reader has said: a line, or 0 for none.
+  const [headerLine, setHeaderLine] = useState<number | null>(null);
+  // Asked for by the reader, in a list where no column names were found.
+  const [pickingLine, setPickingLine] = useState(false);
+  // A workbook with more than one sheet that may hold people: the reader picks.
+  const [workbook, setWorkbook] = useState<{
+    data: ArrayBuffer;
+    sheets: string[];
+    sheet: string;
+  } | null>(null);
+  // What a text file had to be read as, when that was a guess.
+  const [fileEncoding, setFileEncoding] = useState<string | null>(null);
   const source = savedSources.find((s) => s.public_id === sourceId) ?? null;
   const named = useMemo(
-    () => ({ source: sourceId, mapping: matched }),
-    [sourceId, matched],
+    () => ({ source: sourceId, mapping: matched, header_line: headerLine }),
+    [sourceId, matched, headerLine],
   );
   const readQuery = useReadPeople(grid, dateCalendar, batchId === null, named);
   const read = csv.trim() === "" ? undefined : readQuery.data;
@@ -265,10 +278,15 @@ export function MigrationStep({
   // The columns were matched and none of them is the name.
   const nameless =
     read?.needs_name === true ||
-    (matched !== null && !matches.some((m) => m.column === "name"));
+    (matched !== null &&
+      !matches.some((m) => m.column === "name" || m.column === "first_name"));
   // A value under each column name, from the first person in the list.
+  const foundLine = read?.header_line ?? null;
   const samples = useMemo(() => {
-    const lines = grid.filter((line) => line.some((cell) => cell !== ""));
+    // From the line the column names are on, not from the top of the list.
+    const lines = grid
+      .slice(foundLine !== null ? foundLine - 1 : 0)
+      .filter((line) => line.some((cell) => cell !== ""));
     const [names = [], first = []] = lines;
     const found: Record<string, string> = {};
     names.forEach((cell, index) => {
@@ -278,7 +296,16 @@ export function MigrationStep({
       }
     });
     return found;
-  }, [grid]);
+  }, [grid, foundLine]);
+  // The first lines that have anything in them, for choosing which holds the column names.
+  const lineChoices = useMemo(
+    () =>
+      grid
+        .map((cells, index) => ({ line: index + 1, cells }))
+        .filter(({ cells }) => cells.some((cell) => cell !== ""))
+        .slice(0, 15),
+    [grid],
+  );
   const reading = csv.trim() !== "" && (rested !== csv || readQuery.isFetching);
   // What a staging the server refused said, until the list changes.
   const [refused, setRefused] = useState<{ csv: string; lines: string[] }>({
@@ -346,17 +373,41 @@ export function MigrationStep({
     }
     // Another file is another list: what was said about the last one's
     // columns does not carry over.
-    setSourceId(null);
-    setMatched(null);
-    setMatching(false);
-    if (!/\.xlsx$/i.test(file.name)) {
-      setCsv(await file.text());
+    startList();
+    if (!/.xlsx$/i.test(file.name)) {
+      // Decoded from its bytes: a file saved by Excel in a Western locale is
+      // Windows-1252, and a "Unicode text" one is UTF-16.
+      const decoded = decodeText(new Uint8Array(await file.arrayBuffer()));
+      setCsv(decoded.text);
+      setFileEncoding(decoded.guessed ? "Windows-1252" : null);
       return;
     }
     // A workbook is opened here, not on the server. Its cells go into the
     // box as text, to be seen and corrected like a pasted list.
+    await readSheet(await file.arrayBuffer());
+  }
+
+  /** What was said about the list before this one does not carry over to the next. */
+  function startList() {
+    setSourceId(null);
+    setMatched(null);
+    setMatching(false);
+    setHeaderLine(null);
+    setPickingLine(false);
+    setFileEncoding(null);
+    setWorkbook(null);
+  }
+
+  /** A workbook's sheet into the list box: the one named, or the one that is read by default. */
+  async function readSheet(data: ArrayBuffer, sheetName?: string) {
     try {
-      setCsv(gridToText(await readWorkbook(await file.arrayBuffer())));
+      const sheet = await readWorkbookSheets(data, sheetName);
+      setCsv(gridToText(sheet.grid));
+      setWorkbook(
+        sheet.sheets.length > 1
+          ? { data, sheets: sheet.sheets, sheet: sheet.sheet }
+          : null,
+      );
     } catch (err) {
       toast.error(
         err instanceof TooManyLines
@@ -845,6 +896,32 @@ export function MigrationStep({
                   }}
                 />
               </div>
+              {workbook && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">
+                    {t(
+                      "setup2.sheets_note",
+                      "This workbook has :count sheets. Reading: :sheet.",
+                      { count: workbook.sheets.length, sheet: workbook.sheet },
+                    )}
+                  </span>
+                  <select
+                    aria-label={t("setup2.sheet_pick", "Sheet to read")}
+                    value={workbook.sheet}
+                    onChange={(e) => {
+                      startList();
+                      void readSheet(workbook.data, e.target.value);
+                    }}
+                    className="h-8 rounded-md border border-border-default bg-background px-2 text-xs"
+                  >
+                    {workbook.sheets.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div
                 role="group"
                 aria-label={t("setup2.dates_in", "Hire dates are in")}
@@ -898,7 +975,10 @@ export function MigrationStep({
               )}
               <textarea
                 value={csv}
-                onChange={(e) => setCsv(e.target.value)}
+                onChange={(e) => {
+                  setCsv(e.target.value);
+                  setFileEncoding(null);
+                }}
                 rows={6}
                 aria-label={t(
                   "setup2.from_sheet",
@@ -955,6 +1035,87 @@ export function MigrationStep({
                       )}
                     </p>
                   )}
+                  {fileEncoding && (
+                    <p className="text-muted-foreground">
+                      {t(
+                        "setup2.file_read_as",
+                        "This file was read as :encoding text.",
+                        { encoding: fileEncoding },
+                      )}
+                    </p>
+                  )}
+                  {read &&
+                    (headerLine !== null ||
+                      (read.header_line ?? 1) > 1 ||
+                      (!read.header &&
+                        lineChoices.length > 1 &&
+                        pickingLine)) && (
+                      <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                        {read.header_line != null ? (
+                          <span>
+                            {t(
+                              "setup2.header_line_found",
+                              "Column names are on line :line.",
+                              { line: read.header_line },
+                            )}
+                          </span>
+                        ) : (
+                          <label htmlFor="people-header-line">
+                            {t(
+                              "setup2.header_line_pick",
+                              "Line with the column names",
+                            )}
+                          </label>
+                        )}
+                        <select
+                          id="people-header-line"
+                          aria-label={t(
+                            "setup2.header_line_pick",
+                            "Line with the column names",
+                          )}
+                          value={headerLine ?? read.header_line ?? 0}
+                          onChange={(e) => {
+                            // The columns matched were matched on another line.
+                            setMatched(null);
+                            setMatching(false);
+                            setHeaderLine(Number(e.target.value));
+                          }}
+                          className="h-8 max-w-full rounded-md border border-border-default bg-background px-2 text-xs"
+                        >
+                          {lineChoices.map(({ line, cells }) => (
+                            <option key={line} value={line}>
+                              {`${t("setup2.header_line_option", "Line :line", { line })}: ${cells
+                                .filter((cell) => cell !== "")
+                                .join(", ")
+                                .slice(0, 40)}`}
+                            </option>
+                          ))}
+                          <option value={0}>
+                            {t(
+                              "setup2.header_line_none",
+                              "There are no column names",
+                            )}
+                          </option>
+                        </select>
+                      </p>
+                    )}
+                  {read &&
+                    !read.header &&
+                    headerLine === null &&
+                    !pickingLine &&
+                    lineChoices.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPickingLine(true)}
+                      >
+                        {t(
+                          "setup2.header_line_other",
+                          "The column names are on another line",
+                        )}
+                      </Button>
+                    )}
                   {suggested && (
                     <p className="flex flex-wrap items-center gap-2 text-foreground">
                       {t(

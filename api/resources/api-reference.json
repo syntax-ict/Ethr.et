@@ -26710,7 +26710,7 @@
                     "write"
                 ],
                 "operationId": "migration.read",
-                "description": "`grid` is the list as lines of cells, the first line its column names\nor none. The answer says how many people are ready, which columns were\nread and which column names mean nothing here, and every line that\ncannot be staged, with its number as the reader counts it. Nothing is\nkept.\n\nA list from another system names its columns its own way. Send\n`mapping`, a list of `{header, column}` saying what each of its column\nnames is (null leaves one out), or `source`, a saved source whose\ncolumn names are already matched. `headers` describes the first line\nfor that: each name as written, the column it is read as, and for one\nthat is not read, what it might be. `suggested_source` is a saved\nsource whose column names this list has; `needs_name` says the columns\nwere matched and none of them is the name.",
+                "description": "`grid` is the list as lines of cells, the first line its column names\nor none, with a title or a date above it when the file has one.\n`header_line` names the line of the file that holds the column names\n(0: there are none); left out, the line that looks most like them is\nused, and the answer says which. The answer says how many people are\nready, which columns were read and which column names mean nothing\nhere, and every line that cannot be staged, with its number as the\nreader counts it. Nothing is kept.\n\nA list from another system names its columns its own way. Send\n`mapping`, a list of `{header, column}` saying what each of its column\nnames is (null leaves one out), or `source`, a saved source whose\ncolumn names are already matched. `headers` describes the first line\nfor that: each name as written, the column it is read as, and for one\nthat is not read, what it might be. `suggested_source` is a saved\nsource whose column names this list has; `needs_name` says the columns\nwere matched and none of them is the name.",
                 "summary": "Read a list of people without staging it",
                 "tags": [
                     "Onboarding"
@@ -26738,6 +26738,12 @@
                                         },
                                         "header": {
                                             "type": "boolean"
+                                        },
+                                        "header_line": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
                                         },
                                         "columns": {
                                             "type": "array",
@@ -26865,6 +26871,7 @@
                                     "required": [
                                         "people",
                                         "header",
+                                        "header_line",
                                         "columns",
                                         "ignored",
                                         "calendar",
@@ -52468,6 +52475,14 @@
                         "minLength": 26,
                         "maxLength": 26
                     },
+                    "header_line": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 5000
+                    },
                     "mapping": {
                         "type": "array",
                         "items": {
@@ -52484,6 +52499,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -53220,6 +53238,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -53780,6 +53801,14 @@
                         "minLength": 26,
                         "maxLength": 26
                     },
+                    "header_line": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 5000
+                    },
                     "mapping": {
                         "type": "array",
                         "items": {
@@ -53796,6 +53825,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -57620,6 +57652,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",

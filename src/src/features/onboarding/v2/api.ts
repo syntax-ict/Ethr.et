@@ -209,11 +209,14 @@ export function useReadPeople(
   });
 }
 
-/** Only what was said: a list that names no source and no columns sends neither. */
+/** Only what was said: a list that names no source, columns or header line sends none of them. */
 export function listColumns(columns: ListColumns): ListColumns {
   return {
     ...(columns.source ? { source: columns.source } : {}),
     ...(columns.mapping ? { mapping: columns.mapping } : {}),
+    ...(typeof columns.header_line === "number"
+      ? { header_line: columns.header_line }
+      : {}),
   };
 }
 
@@ -355,6 +358,8 @@ type StageRowsPayload =
       source?: string | null;
       /** Column names matched for this list. */
       mapping?: ColumnMatch[] | null;
+      /** The line that holds the column names; 0 for none. */
+      header_line?: number | null;
       /** `complete`: nobody is added; people already here are filled in. */
       mode?: "complete";
     }

@@ -23,6 +23,11 @@ export interface ColumnWords {
   help?: Words;
   /** The spelling the downloadable template uses, when it differs. */
   template?: string;
+  /**
+   * Part of a name, read only to build the name. A list may bring it, a
+   * column may be matched to it, and the template does not have it.
+   */
+  part?: true;
 }
 
 type Translate = (
@@ -36,6 +41,30 @@ export const EMPLOYEE_COLUMNS: Record<string, ColumnWords> = {
   name: {
     label: ["setup2.col_name", "Name"],
     help: ["employees_import_page.col_name", "Full name"],
+  },
+  first_name: {
+    label: ["setup2.col_first_name", "First name"],
+    help: [
+      "employees_import_page.col_first_name",
+      "Their own name. The name is built from this column and the two after it",
+    ],
+    part: true,
+  },
+  father_name: {
+    label: ["setup2.col_father_name", "Father's name"],
+    help: [
+      "employees_import_page.col_father_name",
+      "The father's name, or a middle name. Added after the first name",
+    ],
+    part: true,
+  },
+  grandfather_name: {
+    label: ["setup2.col_grandfather_name", "Grandfather's name"],
+    help: [
+      "employees_import_page.col_grandfather_name",
+      "The grandfather's name, or a last name. Added after the father's name",
+    ],
+    part: true,
   },
   name_am: {
     label: ["employee.name_am", "Name in Amharic"],
@@ -248,11 +277,12 @@ export const MAPPABLE_COLUMNS: readonly string[] =
 /**
  * The template's columns as the browser knows them, for the moment before the
  * server's own list arrives (or when it cannot be fetched). Only the name is
- * required.
+ * required. The parts of a name are not in the template: it asks for `name`.
  */
-export const FALLBACK_TEMPLATE_KEYS: readonly string[] = MAPPABLE_COLUMNS.map(
-  (key) => EMPLOYEE_COLUMNS[key].template ?? key,
-);
+export const FALLBACK_TEMPLATE_KEYS: readonly string[] =
+  MAPPABLE_COLUMNS.filter((key) => !EMPLOYEE_COLUMNS[key].part).map(
+    (key) => EMPLOYEE_COLUMNS[key].template ?? key,
+  );
 
 /** The words for a column, by any of its names. */
 export function columnWords(key: string): ColumnWords | undefined {

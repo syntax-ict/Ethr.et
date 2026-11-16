@@ -164,26 +164,54 @@ export function cellText(value: CellValue | undefined): string {
   return "";
 }
 
+/** The sheets of a workbook that may hold people: visible, and none of the ones this app writes for its own use. */
+function candidateSheets(workbook: ExcelWorkbook) {
+  return workbook.worksheets.filter(
+    (s) =>
+      s.state === "visible" &&
+      s.name !== SHEET_HELP &&
+      s.name !== SHEET_LISTS &&
+      s.name !== SHEET_EXAMPLE,
+  );
+}
+
+/** The sheet read when the reader has not named one: Employees, else the first of the candidates. */
+function defaultSheet(workbook: ExcelWorkbook) {
+  const candidates = candidateSheets(workbook);
+  return (
+    workbook.worksheets.find(
+      (s) => s.state === "visible" && s.name === SHEET_PEOPLE,
+    ) ?? candidates[0]
+  );
+}
+
+/** What reading a workbook gave: the lines, and which sheet they came from among which. */
+export interface WorkbookRead {
+  grid: string[][];
+  /** The sheet the lines came from. */
+  sheet: string;
+  /** Every sheet that may hold people, in workbook order. */
+  sheets: string[];
+}
+
 /**
- * The workbook's sheet of people as lines of cells. An empty row keeps its
- * place, so a line number the server reports is the row number in Excel.
+ * The workbook's sheet of people as lines of cells, with the names of the
+ * sheets that could have been read. Opens the file once, for a screen that
+ * shows which sheet it read and lets the reader pick another.
  */
-export async function readWorkbook(data: ArrayBuffer): Promise<string[][]> {
+export async function readWorkbookSheets(
+  data: ArrayBuffer,
+  sheetName?: string,
+): Promise<WorkbookRead> {
   const { Workbook } = await loadExcel();
   const workbook: ExcelWorkbook = new Workbook();
   await workbook.xlsx.load(data);
 
-  const visible = workbook.worksheets.filter(
-    (sheet) => sheet.state === "visible",
-  );
+  const sheets = candidateSheets(workbook);
   const sheet =
-    visible.find((s) => s.name === SHEET_PEOPLE) ??
-    visible.find(
-      (s) =>
-        s.name !== SHEET_HELP &&
-        s.name !== SHEET_LISTS &&
-        s.name !== SHEET_EXAMPLE,
-    );
+    sheetName === undefined
+      ? defaultSheet(workbook)
+      : sheets.find((s) => s.name === sheetName);
   if (!sheet) throw new NoSheet();
 
   const grid: string[][] = [];
@@ -201,7 +229,30 @@ export async function readWorkbook(data: ArrayBuffer): Promise<string[][]> {
   while (grid.length > 0 && grid[grid.length - 1].length === 0) grid.pop();
 
   if (grid.length > MAX_LINES) throw new TooManyLines(grid.length);
-  return grid;
+  return { grid, sheet: sheet.name, sheets: sheets.map((s) => s.name) };
+}
+
+/**
+ * The workbook's sheet of people as lines of cells: the one named, or
+ * Employees, or the first visible sheet that is not ours. An empty row keeps
+ * its place, so a line number the server reports is the row number in Excel.
+ */
+export async function readWorkbook(
+  data: ArrayBuffer,
+  sheetName?: string,
+): Promise<string[][]> {
+  return (await readWorkbookSheets(data, sheetName)).grid;
+}
+
+/**
+ * The names of the sheets of a workbook that may hold people: the visible
+ * ones, except Instructions, Lists and Example, in the order of the workbook.
+ */
+export async function workbookSheets(data: ArrayBuffer): Promise<string[]> {
+  const { Workbook } = await loadExcel();
+  const workbook: ExcelWorkbook = new Workbook();
+  await workbook.xlsx.load(data);
+  return candidateSheets(workbook).map((s) => s.name);
 }
 
 /**
