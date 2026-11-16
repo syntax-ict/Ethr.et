@@ -156,6 +156,9 @@ class BackupCommand extends Command
             $copy = $backups->copyOffHost($path, $disk);
             BackupHealth::recordOffHostCopy($copy['copied_at']);
             $this->line('  off-host  '.$copy['disk'].':'.$copy['key'].' ('.$this->humanBytes($copy['bytes']).', encrypted)');
+            if ($copy['fell_back']) {
+                $this->warn('  off-host  the primary storage failed; this copy went to '.$copy['disk'].' instead.');
+            }
 
             $removed = $backups->pruneOffHost((int) config('backup.off_host_keep', 14), $disk);
             if ($removed !== []) {

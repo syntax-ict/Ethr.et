@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminStatutoryLayoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminSupportController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantJourneyController;
+use App\Http\Controllers\Api\V1\Admin\BackupDriveController;
 use App\Http\Controllers\Api\V1\Admin\BackupStorageController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SmsDeliveryController;
@@ -1099,6 +1100,22 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/backups/storage/test', [BackupStorageController::class, 'testStorage'])
                 ->middleware('throttle:backup-storage-test');
             Route::post('/backups/key', [BackupStorageController::class, 'revealKey'])
+                ->middleware('throttle:backup-key');
+
+            // Google Drive, the fallback destination. The OAuth return is the
+            // console page itself, which posts `code` and `state` to
+            // /callback, so nothing here is reachable without the console's
+            // own sign-in.
+            Route::put('/backups/google-drive', [BackupDriveController::class, 'save']);
+            Route::delete('/backups/google-drive', [BackupDriveController::class, 'disconnect']);
+            Route::post('/backups/google-drive/connect', [BackupDriveController::class, 'connect'])
+                ->middleware('throttle:backup-storage-test');
+            Route::post('/backups/google-drive/callback', [BackupDriveController::class, 'callback'])
+                ->middleware('throttle:backup-storage-test');
+            Route::post('/backups/google-drive/test', [BackupDriveController::class, 'test'])
+                ->middleware('throttle:backup-storage-test');
+            Route::put('/backups/google-drive/settings', [BackupDriveController::class, 'updateSettings']);
+            Route::post('/backups/google-drive/key', [BackupDriveController::class, 'revealKey'])
                 ->middleware('throttle:backup-key');
 
             // The plan catalog the public pricing page renders. Safe to expose

@@ -31,10 +31,23 @@ class BackupStorageDisk
             throw new RuntimeException('The storage address points to an internal address.');
         }
 
-        // Non-AWS S3 storage, such as Huawei OBS (Ethio Telecom Telecloud), rejects the
-        // SDK's default trailing CRC32 checksums and aws-chunked uploads. `when_required`
-        // sends them only where an operation demands one, which is still correct for AWS.
-        return Storage::build([
+        return Storage::build($this->diskConfig($settings, $throw));
+    }
+
+    /**
+     * The disk's configuration, apart from building it so a test can read it.
+     *
+     * Non-AWS S3 storage, such as Huawei OBS (Ethio Telecom Telecloud), rejects the
+     * SDK's default trailing CRC32 checksums and aws-chunked uploads. `when_required`
+     * sends them only where an operation demands one, which is still correct for AWS.
+     * The `http` limits keep a dead storage from holding the night's run, so the
+     * fallback still has time.
+     *
+     * @return array<string, mixed>
+     */
+    public function diskConfig(BackupStorageSetting $settings, bool $throw = false): array
+    {
+        return [
             'driver' => 's3',
             'key' => $settings->access_key_id,
             'secret' => $settings->secret_access_key,
@@ -44,8 +57,12 @@ class BackupStorageDisk
             'use_path_style_endpoint' => $settings->path_style,
             'request_checksum_calculation' => 'when_required',
             'response_checksum_validation' => 'when_required',
+            'http' => [
+                'connect_timeout' => (int) config('backup.storage_http.connect_timeout', 10),
+                'timeout' => (int) config('backup.storage_http.timeout', 120),
+            ],
             'throw' => $throw,
-        ]);
+        ];
     }
 
     /**
