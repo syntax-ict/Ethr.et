@@ -406,3 +406,55 @@ describe("device detail when the device does not load", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
+
+/*
+ * Regenerating the token changes the address the terminal posts to, so one
+ * click must not do it: the page asks first and calls the API on confirm.
+ */
+describe("device detail: regenerating the webhook token", () => {
+  it("asks before it calls the API, and calls it once on confirm", async () => {
+    let calls = 0;
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () =>
+        HttpResponse.json({
+          ...DEVICE,
+          adapter_type: "hikvision",
+          receives_only: true,
+          webhook_token: "tok123",
+          webhook_url:
+            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/sync-logs", () =>
+        HttpResponse.json({
+          data: [],
+          meta: { current_page: 1, last_page: 1, per_page: 10, total: 0 },
+          links: {},
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/events", () =>
+        HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
+      ),
+      http.post("*/api/v1/devices/DEV1/regenerate-token", () => {
+        calls += 1;
+        return HttpResponse.json({ webhook_token: "new" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(
+      await screen.findByRole("button", { name: /regenerate token/i }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/current address stops working at once/i),
+    ).toBeInTheDocument();
+    expect(calls).toBe(0);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: /regenerate token/i }),
+    );
+    await vi.waitFor(() => expect(calls).toBe(1));
+  });
+});

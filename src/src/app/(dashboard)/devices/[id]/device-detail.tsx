@@ -45,6 +45,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
@@ -192,13 +193,21 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const canUpdate = hasPermission("device.update");
   const canDelete = hasPermission("device.delete");
 
+  // Regenerating changes the address the terminal posts to, so it asks first.
+  const [confirmRegen, setConfirmRegen] = useState(false);
+
   function regenerateToken() {
     regenTokenMutation.mutate(id, {
-      onSuccess: () => toast.success(t("device_detail_page.token_regenerated")),
-      onError: (err) =>
+      onSuccess: () => {
+        toast.success(t("device_detail_page.token_regenerated"));
+        setConfirmRegen(false);
+      },
+      onError: (err) => {
         toast.error(
           apiErrorMessage(err, t("device_detail_page.regenerate_failed")),
-        ),
+        );
+        setConfirmRegen(false);
+      },
     });
   }
 
@@ -458,7 +467,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={regenerateToken}
+                      onClick={() => setConfirmRegen(true)}
                       disabled={regenTokenMutation.isPending}
                     >
                       <RotateCw className="mr-2 h-3 w-3" />
@@ -719,6 +728,18 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             isPending={updateMutation.isPending}
           />
         )}
+
+        {/* Regenerate token confirmation */}
+        <ConfirmDialog
+          open={confirmRegen}
+          onOpenChange={setConfirmRegen}
+          title={t("devices_page.regenerate_confirm_title")}
+          description={t("devices_page.regenerate_confirm_desc")}
+          confirmLabel={t("device_detail_page.regenerate_token")}
+          variant="destructive"
+          loading={regenTokenMutation.isPending}
+          onConfirm={regenerateToken}
+        />
 
         {/* Delete Confirmation */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

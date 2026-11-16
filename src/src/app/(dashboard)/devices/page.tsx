@@ -10,14 +10,9 @@ import {
   WifiOff,
   RefreshCw,
   Loader2,
-  MoreVertical,
-  Pencil,
-  Trash2,
   Activity,
   Signal,
   AlertTriangle,
-  Users,
-  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,17 +36,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 
+import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
@@ -495,7 +484,6 @@ function DeviceCard({
   // from, asked for its users or asked for history: the card says what ETHR
   // last heard from it instead.
   const sendsOnly = device.receives_only === true;
-  const hasMenu = !sendsOnly || Boolean(onEdit) || Boolean(onDelete);
 
   const statusIcon = isOnline ? (
     <Wifi className="h-5 w-5 text-success" />
@@ -538,68 +526,17 @@ function DeviceCard({
           </div>
           <div className="flex items-center gap-1">
             <StatusBadge status={device.status} />
-            {hasMenu && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    aria-label={t("common.actions", "Actions")}
-                  >
-                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {!sendsOnly && (
-                    <DropdownMenuItem onClick={onTest} disabled={testing}>
-                      <Signal className="mr-2 h-4 w-4" />{" "}
-                      {t("devices_page.test_connection")}
-                    </DropdownMenuItem>
-                  )}
-                  {onPull && !sendsOnly && (
-                    <DropdownMenuItem onClick={onPull} disabled={pulling}>
-                      <RefreshCw className="mr-2 h-4 w-4" />{" "}
-                      {t("devices_page.pull_records")}
-                    </DropdownMenuItem>
-                  )}
-                  {!sendsOnly && (
-                    <DropdownMenuItem onClick={onDiscover}>
-                      <Users className="mr-2 h-4 w-4" />{" "}
-                      {t(
-                        "devices_page.discover_users",
-                        "Discover enrolled users",
-                      )}
-                    </DropdownMenuItem>
-                  )}
-                  {onImportHistory && !sendsOnly && (
-                    <DropdownMenuItem onClick={onImportHistory}>
-                      <History className="mr-2 h-4 w-4" />{" "}
-                      {t(
-                        "devices_page.import_history",
-                        "Import attendance history",
-                      )}
-                    </DropdownMenuItem>
-                  )}
-                  {(onEdit || onDelete) && !sendsOnly && (
-                    <DropdownMenuSeparator />
-                  )}
-                  {onEdit && (
-                    <DropdownMenuItem onClick={onEdit}>
-                      <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <DropdownMenuItem
-                      onClick={onDelete}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DeviceActionsMenu
+              device={device}
+              onTest={onTest}
+              onPull={onPull}
+              testing={testing}
+              pulling={pulling}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDiscover={onDiscover}
+              onImportHistory={onImportHistory}
+            />
           </div>
         </div>
 

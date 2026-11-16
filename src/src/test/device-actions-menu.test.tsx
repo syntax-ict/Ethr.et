@@ -1,0 +1,259 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { server } from "./msw/server";
+import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import type { Device } from "@/features/devices/api";
+
+/**
+ * One menu of device actions, shared by the list and the dashboard. What it
+ * offers follows the device (a terminal that only sends is never called) and
+ * the viewer's permissions.
+ */
+const granted = vi.hoisted(() => ({ abilities: null as string[] | null }));
+vi.mock("@/lib/hooks/usePermissions", () => ({
+  usePermissions: () => ({
+    hasPermission: (ability: string) =>
+      granted.abilities === null || granted.abilities.includes(ability),
+  }),
+}));
+
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast }));
+
+const ADDRESS =
+  "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=abc";
+
+const PULLED = {
+  public_id: "DEV1",
+  name: "Main gate",
+  adapter_type: "hikvision",
+  status: "online",
+  receives_only: false,
+  accepts_commands: false,
+  commands_enabled: false,
+  webhook_url: null,
+} as unknown as Device;
+
+const SENDS = {
+  ...PULLED,
+  receives_only: true,
+  webhook_url: ADDRESS,
+} as unknown as Device;
+
+const handlers = {
+  onEdit: vi.fn(),
+  onDelete: vi.fn(),
+  onDiscover: vi.fn(),
+  onImportHistory: vi.fn(),
+};
+
+function renderMenu(
+  device: Device,
+  props: Partial<Parameters<typeof DeviceActionsMenu>[0]> = {},
+) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <DeviceActionsMenu device={device} {...handlers} {...props} />
+    </QueryClientProvider>,
+  );
+}
+
+async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Actions" }));
+}
+
+const item = (name: RegExp) => screen.queryByRole("menuitem", { name });
+
+beforeEach(() => {
+  granted.abilities = null;
+  vi.clearAllMocks();
+});
+
+describe("<DeviceActionsMenu>", () => {
+  it("offers everything for a device ETHR calls, to a full administrator", async () => {
+    const user = userEvent.setup();
+    renderMenu(PULLED);
+    await openMenu(user);
+
+    for (const name of [
+      /view details/i,
+      /test connection/i,
+      /pull records/i,
+      /discover enrolled users/i,
+      /import attendance history/i,
+      /^edit$/i,
+      /^delete$/i,
+    ]) {
+      expect(item(name)).toBeInTheDocument();
+    }
+    expect(item(/copy webhook url/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/ETHR cannot call it/i)).not.toBeInTheDocument();
+  });
+
+  it("offers a terminal that only sends no test, pull, users or history, and says why", async () => {
+    const user = userEvent.setup();
+    renderMenu(SENDS);
+    await openMenu(user);
+
+    for (const name of [
+      /test connection/i,
+      /pull records/i,
+      /discover enrolled users/i,
+      /import attendance history/i,
+    ]) {
+      expect(item(name)).not.toBeInTheDocument();
+    }
+    for (const name of [/view details/i, /^edit$/i, /^delete$/i]) {
+      expect(item(name)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/ETHR cannot call it/i)).toBeInTheDocument();
+  });
+
+  it("links View details to the device page, and drops it on that page", async () => {
+    const user = userEvent.setup();
+    const first = renderMenu(PULLED);
+    await openMenu(user);
+    expect(item(/view details/i)).toHaveAttribute("href", "/devices/DEV1");
+    first.unmount();
+
+    renderMenu(PULLED, { hideDetailsLink: true });
+    await openMenu(user);
+    expect(item(/view details/i)).not.toBeInTheDocument();
+  });
+
+  it("copies the address only when the device has one", async () => {
+    const user = userEvent.setup();
+    const none = renderMenu(PULLED);
+    await openMenu(user);
+    expect(item(/copy webhook url/i)).not.toBeInTheDocument();
+    none.unmount();
+
+    renderMenu(SENDS);
+    await openMenu(user);
+    await user.click(item(/copy webhook url/i)!);
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(await navigator.clipboard.readText()).toBe(ADDRESS);
+  });
+
+  it("asks before regenerating the token, and calls the API once on confirm", async () => {
+    let calls = 0;
+    server.use(
+      http.post("*/api/v1/devices/DEV1/regenerate-token", () => {
+        calls += 1;
+        return HttpResponse.json({ webhook_token: "new" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderMenu(SENDS);
+    await openMenu(user);
+    await user.click(item(/regenerate token/i)!);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/current address stops working at once/i),
+    ).toBeInTheDocument();
+    expect(calls).toBe(0);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: /regenerate token/i }),
+    );
+    await waitFor(() => expect(calls).toBe(1));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  });
+
+  it("does not regenerate when the confirmation is cancelled", async () => {
+    let calls = 0;
+    server.use(
+      http.post("*/api/v1/devices/DEV1/regenerate-token", () => {
+        calls += 1;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+    renderMenu(SENDS);
+    await openMenu(user);
+    await user.click(item(/regenerate token/i)!);
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    expect(calls).toBe(0);
+  });
+
+  it("offers Set time and Send staff only to a device that takes commands, to someone who may update", async () => {
+    const user = userEvent.setup();
+    const off = renderMenu(PULLED);
+    await openMenu(user);
+    expect(item(/set clock now/i)).not.toBeInTheDocument();
+    expect(item(/send all staff/i)).not.toBeInTheDocument();
+    off.unmount();
+
+    const commands = {
+      ...PULLED,
+      accepts_commands: true,
+      commands_enabled: true,
+    } as unknown as Device;
+    const on = renderMenu(commands);
+    await openMenu(user);
+    expect(item(/set clock now/i)).toBeInTheDocument();
+    expect(item(/send all staff/i)).toBeInTheDocument();
+    on.unmount();
+
+    granted.abilities = ["device.viewAny", "device.view"];
+    renderMenu(commands);
+    await openMenu(user);
+    expect(item(/set clock now/i)).not.toBeInTheDocument();
+    expect(item(/send all staff/i)).not.toBeInTheDocument();
+  });
+
+  it("leaves out update and delete items the viewer may not use", async () => {
+    granted.abilities = ["device.viewAny", "device.view"];
+    const user = userEvent.setup();
+    renderMenu({ ...PULLED, webhook_url: ADDRESS } as unknown as Device);
+    await openMenu(user);
+
+    for (const name of [
+      /pull records/i,
+      /import attendance history/i,
+      /regenerate token/i,
+      /^edit$/i,
+      /^delete$/i,
+    ]) {
+      expect(item(name)).not.toBeInTheDocument();
+    }
+    expect(item(/test connection/i)).toBeInTheDocument();
+    expect(item(/copy webhook url/i)).toBeInTheDocument();
+  });
+
+  it("renders nothing when there is nothing to offer", () => {
+    granted.abilities = [];
+    // A terminal that only sends, with no address, no callbacks and no
+    // permissions, is offered only the link to its page; on that page, nothing.
+    const sends = { ...SENDS, webhook_url: null } as unknown as Device;
+    const { container } = renderMenu(sends, {
+      hideDetailsLink: true,
+      onEdit: undefined,
+      onDelete: undefined,
+      onDiscover: undefined,
+      onImportHistory: undefined,
+    });
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("uses the page's own test handler instead of firing a second request", async () => {
+    const onTest = vi.fn();
+    const user = userEvent.setup();
+    renderMenu(PULLED, { onTest, testing: false });
+    await openMenu(user);
+    await user.click(item(/test connection/i)!);
+    expect(onTest).toHaveBeenCalledTimes(1);
+  });
+});
