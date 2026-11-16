@@ -13045,6 +13045,43 @@
                                             "type": "integer",
                                             "minimum": 0
                                         },
+                                        "punches_today": {
+                                            "type": "object",
+                                            "properties": {
+                                                "recorded": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "held": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "waiting": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "recorded",
+                                                "held",
+                                                "waiting"
+                                            ]
+                                        },
+                                        "unmatched": {
+                                            "type": "object",
+                                            "properties": {
+                                                "badges": {
+                                                    "type": "integer"
+                                                },
+                                                "punches": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "badges",
+                                                "punches"
+                                            ]
+                                        },
                                         "last_sync_at": {
                                             "type": [
                                                 "string",
@@ -13083,6 +13120,8 @@
                                         "pending",
                                         "auto_sync_enabled",
                                         "events_today",
+                                        "punches_today",
+                                        "unmatched",
                                         "last_sync_at",
                                         "sync_stats_24h"
                                     ]

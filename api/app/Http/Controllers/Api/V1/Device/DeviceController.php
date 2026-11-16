@@ -18,8 +18,10 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Device;
+use App\Models\DeviceInboundPunch;
 use App\Models\DeviceSyncLog;
 use App\Models\Tenant;
+use App\Models\UnmatchedDevicePunch;
 use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCommandQueue;
@@ -34,6 +36,7 @@ use App\Services\Features\FeatureGate;
 use App\Services\PlanLimitService;
 use App\Support\DeviceErrorCode;
 use App\Support\FeatureUnavailable;
+use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -396,9 +399,14 @@ class DeviceController extends Controller
 
         $devices = Device::query()->get();
 
+        // Both "today" counts follow the organisation's own day, as attendance
+        // dates do; now() is UTC and is still yesterday for the first three
+        // hours of an Addis Ababa day.
+        $today = TenantTime::today(app(CurrentTenant::class)->get());
+
         $totalEvents = AttendanceRecord::query()
             ->where('source', AttendanceSource::BIOMETRIC)
-            ->whereDate('date', now()->format('Y-m-d'))
+            ->whereDate('date', $today->toDateString())
             ->count();
 
         // The last-sync line reads the devices still in the organisation, and the
@@ -414,6 +422,28 @@ class DeviceController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
+        // A terminal that only sends writes no sync log and, for a badge nobody
+        // matched, no attendance record: these counts are what it has done.
+        $deviceIds = $devices->pluck('id');
+
+        $heldToday = UnmatchedDevicePunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->where('status', UnmatchedDevicePunch::PENDING)
+            ->where('created_at', '>=', $today->utc())
+            ->count();
+
+        $waiting = DeviceInboundPunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->whereNull('processed_at')
+            ->count();
+
+        $pendingHeld = UnmatchedDevicePunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->where('status', UnmatchedDevicePunch::PENDING);
+
+        $unmatchedPunches = (int) (clone $pendingHeld)->count();
+        $unmatchedBadges = count($pendingHeld->select('device_id', 'badge')->distinct()->get());
+
         return response()->json([
             'total' => $devices->count(),
             'online' => $devices->where('status', 'online')->count(),
@@ -422,6 +452,15 @@ class DeviceController extends Controller
             'pending' => $devices->where('status', 'pending')->count(),
             'auto_sync_enabled' => $devices->where('auto_sync', true)->count(),
             'events_today' => $totalEvents,
+            'punches_today' => [
+                'recorded' => $totalEvents,
+                'held' => $heldToday,
+                'waiting' => $waiting,
+            ],
+            'unmatched' => [
+                'badges' => $unmatchedBadges,
+                'punches' => $unmatchedPunches,
+            ],
             'last_sync_at' => $lastSync?->toIso8601String(),
             'sync_stats_24h' => [
                 'success' => (int) $recentSyncs->get('success', 0),
