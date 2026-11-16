@@ -23,6 +23,8 @@ return [
         'duplicate_email' => 'Two lines have the same email address. Each person needs their own.',
         'already_committing' => 'This list is already being added. Wait for it to finish.',
         'still_staging' => 'This list is still being matched. Wait for it to finish.',
+        'discard_committing' => 'This list is being added, so it cannot be discarded.',
+        'discard_committed' => 'This list has been added. There is nothing to discard.',
         'accept_needs_match' => 'Choose which employee this line is before accepting a change.',
         'complete_adds_nobody' => 'This list completes people who are already here. Nobody is added from it.',
         'accept_locked' => 'A person\'s job and pay are changed with a personnel action, not from a list.',
