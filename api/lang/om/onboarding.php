@@ -26,6 +26,8 @@ return [
         'already_committing' => 'Tarreen kun dabalamaa jira. Hanga xumuramutti eegaa.',
         'still_staging' => 'Tarreen kun amma illee wal-bira qabamaa jira. Hanga xumuramutti eegaa.',
         'accept_needs_match' => 'Jijjiirama fudhachuu dura sararri kun hojjetaa kam akka ta\'e filadhaa.',
+        'complete_adds_nobody' => 'Tarreen kun namoota as jiran guutuu. Isaa irraa nama tokkollee hin dabalamu.',
+        'accept_locked' => 'Hojiin fi kaffaltiin namaa tarkaanfii hojjetaatiin jijjiirama, tarree irraa miti.',
         'device_user' => 'Fayyadamaa meeshaa :id',
         'line' => 'Sarara :line: :message',
         'nobody' => 'Tarree kana keessa namni hin jiru.',

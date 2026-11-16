@@ -25684,6 +25684,13 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [
+                                                "complete",
+                                                "add"
+                                            ]
+                                        },
                                         "arrival_status": {
                                             "type": [
                                                 "string",
@@ -25836,6 +25843,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "mode",
                                         "arrival_status",
                                         "totals",
                                         "summary",
@@ -26225,6 +26233,13 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [
+                                                "complete",
+                                                "add"
+                                            ]
+                                        },
                                         "arrival_status": {
                                             "type": [
                                                 "string",
@@ -26377,6 +26392,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "mode",
                                         "arrival_status",
                                         "totals",
                                         "summary",
@@ -26618,6 +26634,13 @@
                                                 "status": {
                                                     "type": "string"
                                                 },
+                                                "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "complete",
+                                                        "add"
+                                                    ]
+                                                },
                                                 "arrival_status": {
                                                     "type": [
                                                         "string",
@@ -26770,6 +26793,7 @@
                                                 "source_type",
                                                 "source_ref",
                                                 "status",
+                                                "mode",
                                                 "arrival_status",
                                                 "totals",
                                                 "summary",
@@ -53483,6 +53507,16 @@
                     "skip_problems": {
                         "type": "boolean"
                     },
+                    "mode": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "complete",
+                            null
+                        ]
+                    },
                     "rows": {
                         "type": "array",
                         "items": {
@@ -57651,7 +57685,13 @@
                                 "tin",
                                 "hire_date",
                                 "department",
-                                "salary_cents"
+                                "salary_cents",
+                                "name_am",
+                                "gender",
+                                "date_of_birth",
+                                "marital_status",
+                                "nationality",
+                                "nationality_status"
                             ]
                         }
                     }

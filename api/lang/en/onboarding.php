@@ -24,6 +24,8 @@ return [
         'already_committing' => 'This list is already being added. Wait for it to finish.',
         'still_staging' => 'This list is still being matched. Wait for it to finish.',
         'accept_needs_match' => 'Choose which employee this line is before accepting a change.',
+        'complete_adds_nobody' => 'This list completes people who are already here. Nobody is added from it.',
+        'accept_locked' => 'A person\'s job and pay are changed with a personnel action, not from a list.',
         'device_user' => 'Device user :id',
         'line' => 'Line :line: :message',
         'nobody' => 'This list has nobody in it.',
