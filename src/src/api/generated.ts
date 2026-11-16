@@ -13952,6 +13952,8 @@ export interface components {
                 queued_at: string;
                 /** Format: date-time */
                 sent_at: string | null;
+                /** Format: date-time */
+                held_until: string | null;
             } | null;
             /** Format: date-time */
             created_at: string | null;
@@ -25787,6 +25789,7 @@ export interface operations {
                         message: "Invitations are being sent.";
                         batch: string | null;
                         queued: number;
+                        held: number;
                         in_person: number;
                         skipped: number;
                     };
@@ -25817,6 +25820,9 @@ export interface operations {
                         batch: string;
                         total: number;
                         queued: number;
+                        held: number;
+                        held_until: string | null;
+                        daily_limit: number | null;
                         sent: number;
                         failed: number;
                         skipped: number;
@@ -38672,6 +38678,8 @@ export interface operations {
                                 queued_at: string;
                                 /** Format: date-time */
                                 sent_at: string | null;
+                                /** Format: date-time */
+                                held_until: string | null;
                             } | null;
                         })[];
                         links: {

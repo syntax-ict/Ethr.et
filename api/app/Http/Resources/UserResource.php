@@ -41,6 +41,7 @@ class UserResource extends JsonResource
                 'reminder' => $this->latestInvitation->reminder,
                 'queued_at' => $this->latestInvitation->queued_at,
                 'sent_at' => $this->latestInvitation->sent_at,
+                'held_until' => $this->latestInvitation->held_until,
             ] : null),
             'created_at' => $this->created_at,
         ];
