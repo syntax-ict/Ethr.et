@@ -1482,6 +1482,22 @@
   animation: ethr-punch-check 450ms ease-out 150ms 1 both;
 }
 
+/* The selfie shutter: a flash over the camera frame, once per capture. It ends
+   invisible, which is also the picture under reduced motion. */
+@keyframes ethr-punch-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.ethr-punch-flash {
+  opacity: 0;
+  animation: ethr-punch-flash 200ms ease-out 1 both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ethr-punch-check {
     animation-delay: 0ms !important;

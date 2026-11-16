@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import {
   Camera,
   CheckCircle2,
@@ -66,6 +66,8 @@ export function ReadinessList({
     cameraOn: boolean;
     cameraProblem: boolean;
     livenessPrompt: LivenessPrompt | null;
+    /** Goes up by one each time a photo is taken; plays the shutter flash. */
+    flashKey: number;
     onTake: () => void;
     onSnap: () => void;
   };
@@ -73,6 +75,26 @@ export function ReadinessList({
   children?: ReactNode;
 }) {
   const { t, locale } = useT();
+
+  // The shutter flash. Taking the photo stops the camera, which would hide the
+  // frame at once, so the frame is kept in view for the length of the flash.
+  const [seenFlash, setSeenFlash] = useState(selfie.flashKey);
+  const [flashing, setFlashing] = useState(false);
+  if (seenFlash !== selfie.flashKey) {
+    setSeenFlash(selfie.flashKey);
+    if (selfie.flashKey > 0) setFlashing(true);
+  }
+  useEffect(() => {
+    if (!flashing) return;
+    const id = window.setTimeout(() => setFlashing(false), 250);
+    return () => window.clearTimeout(id);
+  }, [flashing]);
+  const livenessText =
+    selfie.livenessPrompt === "blink"
+      ? t("liveness.blink", "Blink once")
+      : selfie.livenessPrompt === "turn"
+        ? t("liveness.turn", "Turn your head to one side")
+        : null;
 
   // Location: a good fix stays on screen while a refresh runs; only a person
   // with no fix yet sees "getting location".
@@ -249,25 +271,47 @@ export function ReadinessList({
           </div>
           {/* The video stays mounted so the stream has somewhere to attach. */}
           <div
-            className={cn("space-y-3 px-4 pb-4", !selfie.cameraOn && "hidden")}
+            className={cn(
+              "space-y-3 px-4 pb-4",
+              !selfie.cameraOn && !flashing && "hidden",
+            )}
           >
-            <video
-              ref={videoRef}
-              className="aspect-[4/3] w-full rounded-lg bg-muted object-cover"
-              playsInline
-              muted
-            />
+            {/* A portrait frame, mirrored for the person looking at it; the
+                photo itself is not mirrored. */}
+            <div className="relative mx-auto aspect-[3/4] h-[50vh] max-h-[50vh] max-w-full overflow-hidden rounded-lg">
+              <video
+                ref={videoRef}
+                className="h-full w-full -scale-x-100 rounded-lg bg-muted object-cover"
+                playsInline
+                muted
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-background/80"
+              />
+              {livenessText && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 bg-foreground/70 py-3 text-center text-lg font-semibold text-background"
+                >
+                  {livenessText}
+                </div>
+              )}
+              {selfie.flashKey > 0 && (
+                <div
+                  key={selfie.flashKey}
+                  aria-hidden="true"
+                  className="ethr-punch-flash pointer-events-none absolute inset-0 bg-background"
+                />
+              )}
+            </div>
             {selfie.cameraOn && (
               <Button
                 className="min-h-11 w-full"
                 disabled={selfie.livenessPrompt !== null}
                 onClick={selfie.onSnap}
               >
-                {selfie.livenessPrompt === "blink"
-                  ? t("liveness.blink", "Blink once")
-                  : selfie.livenessPrompt === "turn"
-                    ? t("liveness.turn", "Turn your head to one side")
-                    : t("attendance.mobile_page.capture")}
+                {livenessText ?? t("attendance.mobile_page.capture")}
               </Button>
             )}
           </div>
