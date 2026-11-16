@@ -276,24 +276,27 @@ All throttled responses must include `Retry-After` header.
 ### Colors
 
 ```
-Primary:          #0F4C75   Deep Teal Blue — authority, trust
-Primary Light:    #3282B8   Interactive blue — buttons, links
-Primary Dark:     #0A2E4A   Sidebar, headers
-Accent:           #E8A838   Ethiopian Gold — highlights, badges
+Primary:          #0F4C75   ETHR Blue — buttons, links, the tile
+Midnight:         #0A2540   Sidebar, text, hover, dark surfaces
+Accent:           #E8A838   Sunrise — highlights, badges (never text on white)
+Paper:            #F7F5F0   Marketing ground only; data screens stay white
 Success:          #047857   Green
 Warning:          #92400E   Amber
 Destructive:      #B91C1C   Red
 Neutral 50:       #F8FAFC   Page background
 Neutral 100:      #F1F5F9   Card background
 Neutral 200:      #E2E8F0   Borders
-Neutral 500:      #64748B   Secondary text
-Neutral 900:      #0F172A   Primary text
+Slate:            #475569   Secondary text
+Midnight:         #0A2540   Primary text
 ```
+
+The full palette, with contrast figures, is in [`brand/README.md`](brand/README.md).
 
 ### Typography
 
 ```
-Display/Body:     Inter (400, 500, 600, 700)
+Display:          Manrope (headings and dashboard figures)
+Body/Interface:   Inter (400, 500, 600, 700)
 Amharic:          Noto Sans Ethiopic (400, 500, 600, 700)
 Monospace:        JetBrains Mono (employee codes, amounts, timestamps)
 ```
@@ -328,15 +331,16 @@ Ethiopian geometric textile motif (tilf/tibeb pattern) as a subtle decorative bo
   --color-surface-primary: #FFFFFF;
   --color-surface-secondary: #F8FAFC;
   --color-surface-elevated: #FFFFFF;
-  --color-surface-sidebar: #0A2E4A;
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #64748B;
+  --color-surface-paper: #F7F5F0;
+  --color-surface-sidebar: #0A2540;
+  --color-text-primary: #0A2540;
+  --color-text-secondary: #475569;
   --color-text-inverse: #FFFFFF;
   --color-text-on-sidebar: #E2E8F0;
   --color-border-default: #E2E8F0;
   --color-border-strong: #CBD5E1;
   --color-interactive-primary: #0F4C75;
-  --color-interactive-hover: #3282B8;
+  --color-interactive-hover: #0A2540;
   --color-interactive-focus: #0F4C75;
   --color-accent: #E8A838;
   --color-status-success: #047857;

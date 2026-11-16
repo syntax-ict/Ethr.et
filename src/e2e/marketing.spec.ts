@@ -70,17 +70,28 @@ test.describe("public site, anonymous visitor", () => {
   // variables sat on <body>, so `--font-sans` (declared on :root) was invalid
   // and every page fell back to Tailwind's preflight system stack. Only a real
   // browser computes that cascade; jsdom does not, which is why this is here.
+  //
+  // Since 2026-11-16 a heading leads with Manrope, the display face, and then
+  // carries the same stack, so both are asserted: running text starts at Inter,
+  // a heading starts at Manrope and still reaches Inter and the Ethiopic face.
   test("renders in the shipped faces, not the system stack", async ({
     page,
   }) => {
     await page.goto("/am");
     await page.evaluate(() => document.fonts.ready);
 
+    const bodyFamily = await page
+      .locator("body")
+      .evaluate((el) => getComputedStyle(el).fontFamily);
+    expect(bodyFamily).toMatch(/^Inter\b/);
+    expect(bodyFamily).toContain("Noto Sans Ethiopic");
+
     const fontFamily = await page
       .locator("h1")
       .first()
       .evaluate((el) => getComputedStyle(el).fontFamily);
-    expect(fontFamily).toMatch(/^Inter\b/);
+    expect(fontFamily).toMatch(/^Manrope\b/);
+    expect(fontFamily).toMatch(/\bInter\b/);
     expect(fontFamily).toContain("Noto Sans Ethiopic");
 
     // The Amharic headline is drawn in the Ethiopic face, so the browser has
