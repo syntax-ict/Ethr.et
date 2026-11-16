@@ -13,6 +13,8 @@ use App\Models\Device;
 use App\Models\DeviceCommand;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Models\MigrationBatch;
+use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
 use App\Services\Device\DeviceCommandQueue;
 use Illuminate\Http\Client\Request as HttpRequest;
@@ -304,6 +306,86 @@ describe('the API', function () {
         test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$employee->public_id}/enrol-on-devices")
             ->assertStatus(202)
             ->assertExactJson(['devices' => 2]);
+    });
+
+    it('sends again the people whose newest command failed, and leaves a number the terminal still refuses unsent', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = commandDevice($tenant, $branch);
+        $refused = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => '21', 'status' => EmployeeStatus::HIRED]);
+        $fine = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => '22', 'status' => EmployeeStatus::HIRED]);
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => 'A23', 'status' => EmployeeStatus::HIRED]);
+        $device->commands()->where('employee_id', $refused->id)->update(['status' => 'failed', 'last_error' => 'The device answered with error 4.']);
+        $device->commands()->where('employee_id', $fine->id)->update(['status' => 'done']);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/commands/retry")
+            ->assertStatus(202)
+            ->assertExactJson(['queued' => 1, 'skipped' => 1]);
+
+        expect(commandsOn($device))->toBe([
+            ['type' => 'upsert_user', 'status' => 'failed', 'user' => '21'],
+            ['type' => 'upsert_user', 'status' => 'done', 'user' => '22'],
+            ['type' => 'upsert_user', 'status' => 'failed', 'user' => 'A23'],
+            ['type' => 'upsert_user', 'status' => 'pending', 'user' => '21'],
+        ]);
+
+        // A second request finds nobody whose newest command failed but the lettered number.
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/commands/retry")
+            ->assertStatus(202)
+            ->assertExactJson(['queued' => 0, 'skipped' => 1]);
+    });
+
+    it('sends again only the people of one list when it names one', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = commandDevice($tenant, $branch);
+        $inList = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => '31', 'status' => EmployeeStatus::HIRED]);
+        $outside = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'badge_number' => '32', 'status' => EmployeeStatus::HIRED]);
+        $device->commands()->update(['status' => 'failed', 'last_error' => 'The device answered with error 4.']);
+        $batch = MigrationBatch::create(['tenant_id' => $tenant->id, 'source_type' => 'manual', 'status' => 'committed', 'totals' => []]);
+        MigrationStagingRow::create([
+            'tenant_id' => $tenant->id, 'batch_id' => $batch->id, 'raw' => ['name' => 'x'], 'display_name' => 'x',
+            'resolved_employee_id' => $inList->id, 'action' => 'create', 'processed_at' => now(),
+        ]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/commands/retry", ['batch_public_id' => $batch->public_id])
+            ->assertStatus(202)
+            ->assertExactJson(['queued' => 1, 'skipped' => 0]);
+
+        expect($device->commands()->where('employee_id', $inList->id)->where('status', 'pending')->count())->toBe(1)
+            ->and($device->commands()->where('employee_id', $outside->id)->where('status', 'pending')->count())->toBe(0);
+    });
+
+    it('refuses a retry on a device that cannot be written to', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $off = commandDevice($tenant, $branch, ['commands_enabled' => false]);
+        $sendsOnly = commandDevice($tenant, $branch, ['adapter_type' => 'hikvision', 'connection_config' => ['mode' => 'push']]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$off->public_id}/commands/retry")->assertStatus(409);
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$sendsOnly->public_id}/commands/retry")->assertStatus(409);
+    });
+
+    it('refuses a retry from someone who may not update devices, and for another organisation\'s device or list', function () {
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = commandDevice($tenant, $branch);
+        $other = createTenant();
+        $otherBranch = Branch::factory()->create(['tenant_id' => $other->id]);
+        $otherDevice = commandDevice($other, $otherBranch);
+        $otherBatch = MigrationBatch::create(['tenant_id' => $other->id, 'source_type' => 'manual', 'status' => 'committed', 'totals' => []]);
+        $url = fn (Device $d) => "http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$d->public_id}/commands/retry";
+
+        test()->actingAs(createScopedUser($tenant, null, 'all', ['device.view', 'device.viewAny']));
+        test()->postJson($url($device))->assertForbidden();
+
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        test()->postJson($url($otherDevice))->assertNotFound();
+        test()->postJson($url($device), ['batch_public_id' => $otherBatch->public_id])->assertUnprocessable();
+        test()->postJson($url($device), ['batch_public_id' => 'not-a-batch'])->assertUnprocessable();
     });
 
     it('is closed to an employee', function () {

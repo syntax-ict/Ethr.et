@@ -20,6 +20,7 @@ use App\Models\OnboardingProgress;
 use App\Models\PersonnelAction;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
+use App\Services\Migration\MigrationTerminals;
 use App\Services\Migration\StagedChanges;
 use App\Services\Migration\StageProgress;
 use App\Services\Migration\WorkforceMigrationService;
@@ -41,6 +42,7 @@ class MigrationController extends Controller
         private readonly WorkforceMigrationService $migration,
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeLogins $logins,
+        private readonly MigrationTerminals $terminals,
     ) {}
 
     public function stageFromDevice(Device $device): JsonResponse
@@ -349,6 +351,31 @@ class MigrationController extends Controller
         Gate::authorize('employee.viewAny');
 
         return response()->json($this->loginsPayload($batch));
+    }
+
+    /**
+     * What the attendance terminals hold for the people a committed batch
+     * brought in: per device of their branches, how many were sent, are
+     * waiting, were refused or were not sent for their number, and for a
+     * terminal ETHR cannot write to, who to enrol by hand.
+     *
+     * Device information needs `device.viewAny`; without it the answer is the
+     * empty one with `visible` false. Someone the viewer may not open is
+     * neither named nor counted.
+     */
+    public function terminals(MigrationBatch $batch): JsonResponse
+    {
+        Gate::authorize('employee.viewAny');
+
+        if (! Gate::allows('device.viewAny')) {
+            return response()->json($this->terminals->hidden());
+        }
+
+        $people = $this->migration->employees($batch)
+            ->filter(fn (Employee $employee): bool => Gate::allows('view', $employee))
+            ->values();
+
+        return response()->json($this->terminals->read($people, $batch->tenant_id));
     }
 
     /**

@@ -432,6 +432,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/migration/batches/{batch}/stage', [MigrationController::class, 'stage'])->middleware('throttle:migration-commit');
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
+        Route::get('/migration/batches/{batch}/terminals', [MigrationController::class, 'terminals']);
     });
 
     // Setup & Next Steps: one list per person, built from their role, scope and plan.
@@ -703,6 +704,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
         Route::post('/{device}/commands/set-time', [DeviceCommandController::class, 'setTime']);
         Route::post('/{device}/commands/send-staff', [DeviceCommandController::class, 'sendStaff']);
+        Route::post('/{device}/commands/retry', [DeviceCommandController::class, 'retry']);
     });
     Route::apiResource('devices', DeviceController::class);
 
