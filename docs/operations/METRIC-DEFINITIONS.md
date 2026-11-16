@@ -1,5 +1,13 @@
 # Workforce metric definitions
 
+| At a glance | |
+|---|---|
+| **Purpose** | Defines what each figure on the executive dashboard and the analytics pages counts. |
+| **Open it when** | A figure on a dashboard is being questioned. |
+| **For** | Platform operator; whoever answers an organisation's question about a figure |
+| **Organisation types** | Same for every kind. The definitions take no kind or industry; which reports are suggested first follows the industry. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `api/app/Services/Analytics/ExecutiveDashboardService.php`; a figure that disagrees with this page is a defect in one of the two. |
+
 What each figure on the executive dashboard and the analytics pages counts,
 written from `api/app/Services/Analytics/ExecutiveDashboardService.php`. A
 figure that disagrees with this page is a defect in one of the two.
@@ -63,6 +71,18 @@ For a six-day or shift-based workforce it overstates attendance.
 All leave balances for the current year: days used ÷ days entitled, as a
 percentage. Entitlement includes days accrued so far this year, so early in
 the year the rate reads high.
+
+## Organisation types
+
+- The definitions read no kind of organisation and no industry.
+- The attendance **Known limit** above (the period rate divides by weekdays) bites hardest for
+  six-day and shift-based workforces. In practice that means the industries whose workforce profile
+  is continuous, rotating, two-shift or six-day. `api/app/Services/Onboarding/IndustryCatalog.php`
+  gives those profiles to some hospital entries (`continuous_24_7`, `extended_hours_two_shift`) and
+  some manufacturing entries (`rotating_three_shift`, `six_day_week`), among others.
+- Report presets are ordered by industry base and workforce profile, never restricted
+  (`api/app/Services/Report/ReportPresets.php`): every preset stays available to every organisation.
+- See [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Exports
 

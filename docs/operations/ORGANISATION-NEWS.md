@@ -1,5 +1,13 @@
 # Organisation news pages
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how an organisation publishes news on its public website, and what makes a story public. |
+| **Open it when** | An organisation asks why a story is or is not public, or you are deploying a change to the news pages. |
+| **For** | Platform operator |
+| **Organisation types** | Same for every kind. One shared template; neither the kind nor the industry is published. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `Announcement::publiclyListed()` and the news controllers. |
+
 *Added 2026-10-16.* Every organisation's public website has a news page at
 `/news` and one page per story at `/news/{id}`. One shared template serves every
 organisation; what differs is the organisation's own data: its stories, name,

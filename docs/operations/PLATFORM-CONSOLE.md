@@ -1,5 +1,13 @@
 # The platform console, page by page
 
+| At a glance | |
+|---|---|
+| **Purpose** | Tours the pages under `/admin`: what each is for, who may open it and where it is documented in depth. |
+| **Open it when** | You need to know what a console page does or where an action lives. |
+| **For** | Platform operator |
+| **Organisation types** | Varies in what the console shows. It shows an organisation's industry, labelled Type, and never its kind in law, and it can change neither. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `api/routes/api.php` for the routes and the pages under `src/src/app/(dashboard)/admin/`. |
+
 **What each page under `/admin` is for, and where it is documented in depth.** Written
 2026-11-13, because five of the ten pages had no operations document of any kind and an
 operator's only way to learn what they did was to open them and guess.
@@ -159,6 +167,21 @@ the site may not make (`PermittedMarketingClaim`). [`MARKETING-SITE.md`](MARKETI
 | A platform super admin's first account | `ethr:create-admin` on the host, or the `create-admin` maintenance task |
 | Resetting a lost authenticator | `ethr:reset-mfa` on the host |
 | Draining the queue or running a task now | Nothing. The console is read-only here (`OPERATIONS-CENTRE-SPEC.md`, G11) |
+| Changing an organisation's kind in law or its industry | Not built. The organisation's own administrator does it, in Settings → General → Organisation (*Kind of organisation in law* and *Industry*). [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| The catalogue of kinds of organisation | Not built. Migrations write it; [`STATUTORY-PARAMETERS.md`](../payroll/STATUTORY-PARAMETERS.md) says there is no editor in the console yet |
+
+## Organisation types
+
+- The organisations list and each organisation's page show its **industry**, under the label *Type*
+  (`api/app/Http/Resources/AdminTenantResource.php`, field `type`; the detail page reads the same
+  field in `AdminTenantController.php`). Neither shows the kind in law, the "kind needs confirming"
+  flag or a scheduled change of kind.
+- Search covers name and address (the subdomain). The filters are status, stage, health and trial
+  expired. Nothing filters or sorts by kind or industry.
+- No console page changes an organisation's kind or industry, and none edits the catalogue of
+  kinds, which migrations write. Both rows are in the table above.
+- To find an organisation's kind, and for what each kind changes, see
+  [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Related
 

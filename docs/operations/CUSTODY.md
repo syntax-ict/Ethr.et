@@ -1,5 +1,13 @@
 # Custody — who holds what
 
+| At a glance | |
+|---|---|
+| **Purpose** | Records who holds each platform credential and where it lives, as names and places and never values. |
+| **Open it when** | A credential holder is unreachable, someone joins or leaves, or the quarterly review is due. |
+| **For** | Owner; platform operator |
+| **Organisation types** | Not about an organisation. These are the platform's own credentials. |
+| **Source of truth** | The owner's own records; no code backs this table. |
+
 **Names and places only. Never a value, a password, a token or an address in this file.**
 Written 2026-10-14 because every credential below sat with one person and nothing said so:
 if that person is unreachable, this table is how someone else finds out what they need and

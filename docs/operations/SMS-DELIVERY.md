@@ -1,5 +1,13 @@
 # SMS delivery
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how ETHR sends text messages, where that is configured, and what to do on the day an SMS provider is subscribed. |
+| **Open it when** | Text messages are not arriving, or an SMS subscription is being set up. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Not about an organisation. One gateway configuration and one daily limit for the whole platform, whatever kind an organisation is. |
+| **Source of truth** | The SMS code and its tests in `api/tests/Feature/Sms/`; nothing here has been exercised against a real gateway. |
+
 How ETHR sends text messages (one-time sign-in codes and SMS notifications), where that is
 configured, and what to do on the day ETHR subscribes to an SMS provider.
 

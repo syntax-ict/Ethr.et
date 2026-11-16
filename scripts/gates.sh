@@ -6,7 +6,7 @@
 #   ./scripts/gates.sh backend     Pint + PHPStan + Pest + composer validate
 #   ./scripts/gates.sh frontend    i18n + prettier + eslint + tsc + Vitest
 #   ./scripts/gates.sh quick       everything except the test suites (~seconds)
-#   ./scripts/gates.sh docs        markdown link integrity only
+#   ./scripts/gates.sh docs        markdown link integrity + operations At a glance blocks
 #   ./scripts/gates.sh security    composer audit + npm audit (production deps)
 #   ./scripts/gates.sh performance the tests/Performance benchmarks only
 #   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
@@ -164,7 +164,16 @@ api_types_gate() { bash "$REPO_ROOT/scripts/api-types-check.sh"; }
 # ENTERPRISE_ROADMAP.md as a sibling when it lives one directory up, and twenty
 # cited audit files that are not in the tree and never were. All of it sat in a
 # header whose only job was to route readers to current status.
-docs_gate() { (cd "$REPO_ROOT" && node scripts/docs-link-check.cjs); }
+#
+# The second check holds docs/operations/ to its standard "At a glance" block, so
+# every runbook says whether it varies by organisation type. Both always run, and
+# either failing fails the gate.
+docs_gate() {
+    local rc=0
+    (cd "$REPO_ROOT" && node scripts/docs-link-check.cjs) || rc=1
+    (cd "$REPO_ROOT" && node scripts/operations-docs-check.cjs) || rc=1
+    return $rc
+}
 
 # composer.json and composer.lock agree, and the manifest is well-formed.
 # --no-check-publish because this is a private application, not a package:

@@ -1,5 +1,13 @@
 # Organisation questions (FAQ)
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how an organisation writes the questions and answers on its public page, and the rules the server applies. |
+| **Open it when** | An organisation asks why a question is missing or refused on its public page. |
+| **For** | Platform operator |
+| **Organisation types** | Same for every kind. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code: `App\Support\TenantLanding`. |
+
 An organisation's public page (its sign-in portal) can answer the questions
 people ask most: payday, working hours, how to apply. Added 2026-10-16.
 
