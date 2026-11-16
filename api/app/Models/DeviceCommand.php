@@ -8,6 +8,7 @@ use App\Enums\DeviceCommandStatus;
 use App\Enums\DeviceCommandType;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -71,6 +72,28 @@ class DeviceCommand extends Model
             'sent_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Each person's newest add-or-update on each device, and nothing older.
+     * Older ones are history; this is what the terminal was last told.
+     *
+     * @param  Builder<DeviceCommand>  $query
+     * @param  list<int>  $deviceIds
+     * @param  list<int>|null  $employeeIds  null for everyone
+     */
+    public function scopeNewestUpsert(Builder $query, int $tenantId, array $deviceIds, ?array $employeeIds = null): void
+    {
+        $newest = static::query()
+            ->where('tenant_id', $tenantId)
+            ->where('type', DeviceCommandType::UPSERT_USER->value)
+            ->whereIn('device_id', $deviceIds)
+            ->when($employeeIds !== null, fn (Builder $q) => $q->whereIn('employee_id', $employeeIds))
+            ->whereNotNull('employee_id')
+            ->groupBy('device_id', 'employee_id')
+            ->selectRaw('MAX(id)');
+
+        $query->where('tenant_id', $tenantId)->whereIn('id', $newest);
     }
 
     /** @return BelongsTo<Device, $this> */

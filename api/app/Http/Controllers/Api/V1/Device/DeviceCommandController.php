@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Device\RetryDeviceCommandsRequest;
 use App\Http\Resources\DeviceCommandResource;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\MigrationBatch;
 use App\Services\Device\DeviceCommandQueue;
+use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -25,7 +28,10 @@ use Illuminate\Support\Facades\Gate;
  */
 class DeviceCommandController extends Controller
 {
-    public function __construct(private readonly DeviceCommandQueue $queue) {}
+    public function __construct(
+        private readonly DeviceCommandQueue $queue,
+        private readonly WorkforceMigrationService $migration,
+    ) {}
 
     public function index(Request $request, Device $device): AnonymousResourceCollection
     {
@@ -57,6 +63,31 @@ class DeviceCommandController extends Controller
 
         $result = $this->queue->sendStaff($device, $request->user());
         AuditLog::record('device.command.send_staff', $device, $result);
+
+        return response()->json($result, 202);
+    }
+
+    /**
+     * Send again the people whose newest add-or-update on this device failed,
+     * all of them or only those a list brought in. The terminal's number
+     * rules apply once more: a number it does not take is still not sent.
+     */
+    public function retry(RetryDeviceCommandsRequest $request, Device $device): JsonResponse
+    {
+        Gate::authorize('device.update');
+        $this->ensureEnabled($device);
+        abort_unless($this->queue->supports($device), 409, 'ETHR cannot send people to this device.');
+
+        $batchId = $request->validated('batch_public_id');
+        $only = null;
+
+        if (is_string($batchId)) {
+            $batch = MigrationBatch::query()->where('public_id', $batchId)->firstOrFail();
+            $only = $this->migration->employees($batch)->pluck('id')->all();
+        }
+
+        $result = $this->queue->resend($device, $this->queue->failedPeople($device, $only), $request->user());
+        AuditLog::record('device.command.retry', $device, $result + ['batch' => $batchId]);
 
         return response()->json($result, 202);
     }
