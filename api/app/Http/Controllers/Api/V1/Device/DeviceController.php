@@ -401,11 +401,14 @@ class DeviceController extends Controller
             ->whereDate('date', now()->format('Y-m-d'))
             ->count();
 
-        $lastSync = DeviceSyncLog::query()
-            ->orderByDesc('created_at')
-            ->first();
+        // The last-sync line reads the devices still in the organisation, and the
+        // column a terminal that only sends keeps current, not the sync log, which
+        // such a terminal never writes and which outlives a removed device. The
+        // 24 hour counts are restricted to the same devices.
+        $lastSync = $devices->max('last_sync_at');
 
         $recentSyncs = DeviceSyncLog::query()
+            ->whereIn('device_id', $devices->pluck('id'))
             ->where('created_at', '>=', now()->subHours(24))
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
@@ -419,7 +422,7 @@ class DeviceController extends Controller
             'pending' => $devices->where('status', 'pending')->count(),
             'auto_sync_enabled' => $devices->where('auto_sync', true)->count(),
             'events_today' => $totalEvents,
-            'last_sync_at' => $lastSync?->created_at?->toIso8601String(),
+            'last_sync_at' => $lastSync?->toIso8601String(),
             'sync_stats_24h' => [
                 'success' => (int) $recentSyncs->get('success', 0),
                 'partial' => (int) $recentSyncs->get('partial', 0),

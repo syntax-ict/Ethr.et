@@ -6,10 +6,12 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
+use App\Models\DeviceSyncLog;
 use App\Models\Employee;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\HikvisionAdapter;
 use App\Services\Device\ZktecoAdapter;
+use Illuminate\Support\Carbon;
 
 // ── Device CRUD ──
 
@@ -398,6 +400,85 @@ test('hr admin can view device dashboard', function () {
         ->assertJsonPath('online', 1)
         ->assertJsonPath('offline', 1)
         ->assertJsonPath('pending', 1);
+});
+
+test('the dashboard counts a device that is not connected yet as pending, in the total', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'status' => 'pending']);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('online', 0)
+        ->assertJsonPath('pending', 1);
+});
+
+test('the dashboard last sync ignores the logs of a removed device', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    $kept = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'status' => 'pending', 'last_sync_at' => null]);
+    $removed = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => now()->subDays(30)]);
+    DeviceSyncLog::create([
+        'tenant_id' => $tenant->id,
+        'device_id' => $removed->id,
+        'status' => 'success',
+        'triggered_by' => 'schedule',
+    ]);
+    $removed->delete();
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('last_sync_at', null)
+        ->assertJsonPath('sync_stats_24h.success', 0);
+
+    expect($kept->fresh()->last_sync_at)->toBeNull();
+});
+
+test('the dashboard last sync is the newest last_sync_at of a device, including one that only sends', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    $older = now()->subDays(2)->startOfSecond();
+    $newer = now()->subMinutes(5)->startOfSecond();
+
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => $older]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => $newer]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'last_sync_at' => null]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard");
+
+    $response->assertOk();
+    expect(Carbon::parse($response->json('last_sync_at'))->equalTo($newer))->toBeTrue();
+});
+
+test('the dashboard 24 hour sync counts only the logs of devices that still exist', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    $kept = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $removed = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    foreach ([$kept, $removed, $removed] as $device) {
+        DeviceSyncLog::create([
+            'tenant_id' => $tenant->id,
+            'device_id' => $device->id,
+            'status' => 'success',
+            'triggered_by' => 'schedule',
+        ]);
+    }
+    $removed->delete();
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('sync_stats_24h.success', 1);
 });
 
 // ── Device Manager ──
