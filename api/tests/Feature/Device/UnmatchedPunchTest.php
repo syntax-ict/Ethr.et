@@ -323,6 +323,20 @@ it('carries on from where it stopped, replays nothing twice, and the totals add 
     expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe($replayed);
 });
 
+/**
+ * A stored JSON object, keys sorted: MySQL 8 keeps an object's keys in its own
+ * order, so a strict comparison of the payload as read back fails only there.
+ *
+ * @param  array<string, mixed>  $payload
+ * @return array<string, mixed>
+ */
+function storedPayloadSorted(array $payload): array
+{
+    ksort($payload);
+
+    return $payload;
+}
+
 it('writes one audit entry per call that replays punches: the link first, then each carry-on', function () {
     [$tenant, $device, $employee] = unmatchedSetup();
     heldDays($tenant, $device, 3);
@@ -332,7 +346,7 @@ it('writes one audit entry per call that replays punches: the link first, then e
     test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk();
     $first = AuditLog::where('action', 'device.badge_assigned')->get();
     expect($first)->toHaveCount(1)
-        ->and($first->first()->payload)->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'replayed' => 1, 'refused' => 0])
+        ->and(storedPayloadSorted($first->first()->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 1])
         ->and(AuditLog::where('action', 'device.held_punches_replayed')->count())->toBe(0);
 
     foreach ([2, 3] as $ignored) {
@@ -368,7 +382,7 @@ it('writes an entry for punches brought in for a number the import already confi
         ->assertOk()->assertJsonPath('replayed', 2);
 
     $entry = AuditLog::where('action', 'device.held_punches_replayed')->sole();
-    expect($entry->payload)->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'replayed' => 2, 'refused' => 0])
+    expect(storedPayloadSorted($entry->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 2])
         ->and(AuditLog::where('action', 'device.badge_assigned')->count())->toBe(0);
 });
 
