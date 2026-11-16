@@ -89,7 +89,7 @@ In an agent sandbox, set the token in the environment's own settings, not as a s
 ./scripts/gates.sh quick      # everything except the test suites — seconds
 ./scripts/gates.sh backend    # composer validate, Pint, PHPStan, Pest
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
-./scripts/gates.sh docs       # markdown link integrity
+./scripts/gates.sh docs       # markdown link integrity, and the At a glance block on every operations document
 ./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
 ./scripts/gates.sh concurrency     # attendance punches racing from separate processes
 ./scripts/gates.sh e2e-attendance  # browser journeys that read back what a punch saved

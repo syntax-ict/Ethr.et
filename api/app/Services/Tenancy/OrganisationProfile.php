@@ -160,6 +160,28 @@ final class OrganisationProfile
         return $end === null ? null : (string) $end;
     }
 
+    /**
+     * The kind in force today, read from the assignments, which is what
+     * payroll resolves. The column is written only when a profile is, so on
+     * the day a scheduled change takes effect it still holds the old kind
+     * until something brings it into step: every reader that shows or compares
+     * the kind calls this first, and the column is then right for those that
+     * do not. An organisation with no assignment keeps its column.
+     */
+    public function inForce(Tenant $tenant): string
+    {
+        $kind = $this->context->for($tenant->id, Carbon::today())['organization_type'];
+        if ($kind === null) {
+            return $tenant->organization_type;
+        }
+
+        if ($tenant->organization_type !== $kind) {
+            $tenant->forceFill(['organization_type' => $kind])->save();
+        }
+
+        return $kind;
+    }
+
     public function assign(Tenant $tenant, string $organizationType, ?string $sector, CarbonInterface $from, ?int $by = null): TenantProfileAssignment
     {
         $on = $from->format('Y-m-d');
@@ -185,10 +207,7 @@ final class OrganisationProfile
         $this->context->forget();
         $this->rules->forget();
 
-        $today = $this->context->for($tenant->id, Carbon::today());
-        if ($today['organization_type'] !== null && $tenant->organization_type !== $today['organization_type']) {
-            $tenant->forceFill(['organization_type' => $today['organization_type']])->save();
-        }
+        $this->inForce($tenant);
 
         AuditLog::record('organization_profile.assigned', $assignment, [
             'organization_type' => $organizationType,

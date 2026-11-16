@@ -1,5 +1,13 @@
 # Attendance photo consent
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how an employee's consent to an attendance selfie is asked for, enforced and recorded. |
+| **Open it when** | An employee or an organisation asks about selfie consent, or you need to know what the server enforces. |
+| **For** | Platform operator; owner |
+| **Organisation types** | Same for every kind. Consent is collected the same way for every organisation. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | The code (`App\Support\PhotoConsent`) for behaviour, and Proclamation No. 1321/2024 as read for this product for the law. |
+
 An attendance selfie is a photo of a face. The Personal Data Protection
 Proclamation No. 1321/2024 counts facial images as biometric data (Art. 2(6))
 and biometric data as sensitive (Art. 2(5)), and sensitive data is processed
@@ -81,6 +89,17 @@ The employer is the data controller. Whether it also relies on another lawful
 basis, its registration with the Ethiopian Communications Authority (Art. 33)
 and its breach notices (Arts. 43 and 44) are its own duties. This feature
 gives it the consent record; it does not make that choice for it.
+
+## Organisation types
+
+- Consent is collected, enforced and recorded the same way for every kind of organisation and every
+  industry. Nothing in `App\Support\PhotoConsent` or the check-in requests reads either.
+- No industry's starting setup switches selfies on. `mobile_photo_required` defaults to false
+  (`api/app/Models/AttendanceSetting.php`), `AttendanceBaseline` does not set it, and the only place
+  `WorkforceProfileCatalog.php` sets it true is the `field_distributed` workforce profile, which no
+  industry in `IndustryCatalog.php` uses by default.
+- An organisation can still switch selfies on in its attendance settings, and consent is then
+  required whatever its kind. See [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md).
 
 ## Deploying it
 

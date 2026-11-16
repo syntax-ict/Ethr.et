@@ -1,5 +1,13 @@
 # Reading the operations centre
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains each area, state and reason code on the operations page (`/admin/operations`) and what to do about it. |
+| **Open it when** | The operations page shows a state or reason you do not understand, or you want the whole picture of whether ETHR is doing its work. |
+| **For** | Platform operator (a super admin who signed in with a second factor) |
+| **Organisation types** | Not about an organisation. Every area reports on the platform as a whole. |
+| **Source of truth** | The code in `api/app/Services/Admin/OperationsStatusService.php`, `api/app/Support/BackupHealth.php` and `api/app/Support/DiskUsage.php`; where the page and this document disagree, one of them is defective. |
+
 **`/admin/operations` in the platform console, live since 2026-10-28.** Written 2026-11-13 from
 `api/app/Services/Admin/OperationsStatusService.php`, `api/app/Support/BackupHealth.php` and
 `api/app/Support/DiskUsage.php`. A state or reason on the page that disagrees with this document
