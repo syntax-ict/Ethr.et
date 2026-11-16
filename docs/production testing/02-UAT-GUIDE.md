@@ -97,13 +97,13 @@ are new (see 09 L10N-010, L10N-017, L10N-018).
 |---|---|---|
 | 1 | Go to **My Attendance** and click **Check In** | A confirmation with the time; status shows checked in |
 | 2 | Later, click **Check Out** | Hours worked appear for the day |
-| 3 | On your phone, open the mobile attendance page and check in at the office | Your location is accepted; if your organisation asks for a selfie, the camera opens |
+| 3 | On your phone, open the mobile attendance page and check in at the office | The location row says where you are and the button unlocks; if your organisation asks for a selfie, **Take a selfie** opens the camera, and the confirmation appears where the button was |
 | 4 | The first time a selfie is asked for, read the photo notice and agree | The notice explains why the photo is taken and how long it is kept (7 days by default) |
 | 5 | Check in about 30 minutes after your shift start (if your shift is 08:30, at 09:00 or later) | Your record shows **Late**, timed in Addis Ababa time, and the answer says by how many minutes ("Checked in, 30 min late") |
 | 6 | On a public holiday, a weekend or a day of approved leave, open the check-in page | A note names the day: "Today is" and the holiday's name, "Happy weekend", "Today is your day off" or "You are on approved leave today", with "No shift is expected today." |
 | 7 | After checking in on your phone, check in again by another way (web or kiosk) | "Already checked in at" the first time and method, and "Your day has one record, whichever way you punch." No second record appears |
 
-Changed 2026-11-14: steps 5 to 7 (see 05 PUNCH-007, PUNCH-008, PUNCH-010, MOB-013).
+Changed 2026-11-14: steps 5 to 7 (see 05 PUNCH-007, PUNCH-008, PUNCH-010, MOB-013). Changed 2026-11-16: step 3 (the rebuilt phone punch screen, 05 MOB-015 to MOB-027).
 
 **Done when:** your check-in and check-out are recorded with the right time and status, whichever way you punch.
 
