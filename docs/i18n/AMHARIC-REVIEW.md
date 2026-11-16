@@ -441,3 +441,19 @@ Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
 `admin_tenant_detail_page.kind_read_only`. The kind's own name and the heading "Kind of
 organisation in law" are existing strings (`settings.organization_kind`, the catalogue's
 `name_am` and `name_om`), reused as they are. A wrong label moves no money.
+
+### Sign-in step option descriptions (2026-11-16)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `setup2.id_email_desc`, `setup2.id_phone_desc`,
+`setup2.id_code_desc` and `setup2.id_username_desc`. They were missing, so the Sign-in step of the
+guided setup showed English under each option. The Amharic drafts:
+
+- `setup2.id_email_desc`: የድርጅት ኢሜይል ላላቸው ሠራተኞች መደበኛ ነው።
+- `setup2.id_phone_desc`: ኢሜይል ለሌላቸው የሥራ ኃይሎች።
+- `setup2.id_code_desc`: ኢሜይል የሌላቸው ሰዎች በአካል ይነቃሉ፤ በዚህ ቁጥር ይገባሉ።
+- `setup2.id_username_desc`: ቡድናቸው ለሚመርጥ፣ በራስ የተመረጠ መጠሪያ።
+
+What to check first: the phone line ("workforces without email"), which is a short label rather than a
+sentence, and the username line, whose word order is unnatural in Amharic. "Activated in person" reuses
+the existing `activation_code.button` verb. A wrong label moves no money.

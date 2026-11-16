@@ -102,7 +102,7 @@ return in `middleware.ts`, which is taken on every development machine.
 
 The onboarding wizard is the v2 guided flow at `/setup/guided`, composed by
 `features/onboarding/v2/components/guided-onboarding.tsx` — a 4-step stepper
-(configure, workforce, access, go live). The old 6-step `setup-wizard.tsx` no
+(configure, access, workforce, go live; access comes before workforce since 2026-11-16). The old 6-step `setup-wizard.tsx` no
 longer exists; `/setup` redirects to `/setup/guided`.
 
 ### Onboarding v2 — backend contract (frontend shipped)
