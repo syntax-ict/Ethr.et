@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
+import { MAPPABLE_COLUMNS } from "@/features/employees/employee-columns";
 import { useDeleteImportSource, useSaveImportSource } from "../api";
 import type { ColumnMatch, ImportSource } from "../types";
 
@@ -16,28 +17,7 @@ import type { ColumnMatch, ImportSource } from "../types";
  * The columns a file's column may be, in the order the template lists them
  * (`EmployeeImportRow::MAPPABLE`). The server refuses any other.
  */
-export const MATCH_COLUMNS = [
-  "name",
-  "name_am",
-  "employee_code",
-  "email",
-  "phone",
-  "gender",
-  "date_of_birth",
-  "hire_date",
-  "department_code",
-  "branch_code",
-  "position_code",
-  "salary",
-  "national_id",
-  "tin",
-  "badge_number",
-  "nationality",
-  "nationality_status",
-  "marital_status",
-  "status",
-  "external_id",
-] as const;
+export const MATCH_COLUMNS = MAPPABLE_COLUMNS;
 
 /**
  * Says which column of another system's file is which.

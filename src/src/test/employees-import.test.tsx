@@ -1,16 +1,30 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
+import { Workbook } from "exceljs";
 import { server } from "./msw/server";
 import EmployeeImportPage from "@/app/(dashboard)/employees/import/page";
 import type { MigrationBatch } from "@/features/onboarding/v2/types";
 import { readWorkbook } from "@/features/onboarding/v2/xlsx-grid";
 
 const push = vi.fn();
+const replace = vi.fn();
+// The address the page was opened at: `?batch=` when it was reloaded or linked to.
+let search = "";
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, back: vi.fn() }),
+  useRouter: () => ({ push, back: vi.fn(), replace }),
+  usePathname: () => "/employees/import",
+  useSearchParams: () => new URLSearchParams(search),
 }));
+
+afterEach(() => {
+  search = "";
+  replace.mockClear();
+  push.mockClear();
+  vi.mocked(toast.error).mockClear();
+});
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -230,8 +244,70 @@ describe("Employee import", () => {
     ]);
   });
 
+  it("carries the server's columns into the workbook: an Example sheet and a note on each header", async () => {
+    saved.length = 0;
+    savedCsv.length = 0;
+    const column = (
+      key: string,
+      name: string,
+      group: string,
+      kind: string,
+      required = false,
+    ) => ({
+      key,
+      column: name,
+      group,
+      kind,
+      required,
+      pay: false,
+      masked: false,
+    });
+    server.use(
+      http.post("*/employees/import/template", () =>
+        HttpResponse.json({
+          template: "name,hire_date,date_of_birth,gender,department\n",
+          headers: [
+            "name",
+            "hire_date",
+            "date_of_birth",
+            "gender",
+            "department",
+          ],
+          required: ["name"],
+          text_columns: [],
+          date_columns: ["hire_date", "date_of_birth"],
+          columns: [
+            column("name", "name", "core", "text", true),
+            column("hire_date", "hire_date", "job", "date"),
+            column("date_of_birth", "date_of_birth", "person", "date"),
+            column("gender", "gender", "person", "list"),
+            column("department_code", "department", "job", "list"),
+          ],
+          lists: { gender: ["male", "female"], department: ["Finance"] },
+        }),
+      ),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByText("Download template"));
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    expect(saved[0].name).toBe("ethr-employee-template.xlsx");
+
+    const bytes = await saved[0].blob.arrayBuffer();
+    const workbook = new Workbook();
+    await workbook.xlsx.load(bytes);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      "Employees",
+      "Example",
+      "Instructions",
+      "Lists",
+    ]);
+    expect(await readWorkbook(bytes)).toHaveLength(1);
+    expect(workbook.getWorksheet("Employees")!.getCell(1, 1).note).toBeTruthy();
+  });
+
   it("refuses a file over 5 MB without reading it into the page", async () => {
-    const { toast } = await import("sonner");
     const { container } = renderPage();
     const big = new File(["x"], "huge.csv", { type: "text/csv" });
     Object.defineProperty(big, "size", { value: 5 * 1024 * 1024 + 1 });
@@ -244,5 +320,136 @@ describe("Employee import", () => {
     expect(
       (container.querySelector("textarea") as HTMLTextAreaElement).value,
     ).toBe("");
+  });
+
+  describe("the open list is kept in the address", () => {
+    function readsOk() {
+      server.use(
+        http.post("*/onboarding/migration/read", () =>
+          HttpResponse.json({
+            people: 2,
+            header: true,
+            columns: ["name"],
+            ignored: [],
+            calendar: "gregorian",
+            calendar_from_header: false,
+            without_hire_date: 2,
+            problems: [],
+            warnings: [],
+            headers: [],
+            header_likely: false,
+            needs_name: false,
+            source: null,
+            suggested_source: null,
+          }),
+        ),
+      );
+    }
+
+    it("sets it when a list is staged, and clears it on start over", async () => {
+      readsOk();
+      server.use(
+        http.post("*/onboarding/migration/rows", () =>
+          HttpResponse.json(BATCH, { status: 201 }),
+        ),
+        http.get("*/onboarding/migration/batches/:batchId", () =>
+          HttpResponse.json(BATCH),
+        ),
+      );
+      renderPage();
+      chooseFile("Name\nAbebe Kebede\nHanna Girma");
+      expect(await screen.findByText(/2 people ready/)).toBeInTheDocument();
+      fireEvent.click(screen.getByText("Stage for review"));
+      expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+
+      expect(replace).toHaveBeenLastCalledWith(
+        `/employees/import?batch=${BATCH.public_id}`,
+        { scroll: false },
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+
+      expect(replace).toHaveBeenLastCalledWith("/employees/import", {
+        scroll: false,
+      });
+      expect(await screen.findByText("Stage for review")).toBeInTheDocument();
+    });
+
+    it("returns to the list in the address after a reload", async () => {
+      search = `batch=${BATCH.public_id}`;
+      server.use(
+        http.get("*/onboarding/migration/batches/:batchId", () =>
+          HttpResponse.json(BATCH),
+        ),
+      );
+      renderPage();
+
+      expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+      expect(screen.queryByText("Stage for review")).toBeNull();
+      // Opening what the address names does not rewrite the address.
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("sets it when a list in progress is opened", async () => {
+      server.use(
+        http.get("*/onboarding/migration/batches", () =>
+          HttpResponse.json({
+            data: [
+              {
+                public_id: BATCH.public_id,
+                status: "reviewing",
+                mode: "add",
+                source_type: "csv",
+                rows: 2,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                created_by_name: null,
+                mine: true,
+              },
+            ],
+          }),
+        ),
+        http.get("*/onboarding/migration/batches/:batchId", () =>
+          HttpResponse.json(BATCH),
+        ),
+        http.get("*/auth/me", () =>
+          HttpResponse.json({
+            user: { public_id: "01HZUSER0000000000000001", role: "hr_admin" },
+            permissions: ["employee.create"],
+            tenant: null,
+          }),
+        ),
+      );
+      renderPage();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+
+      expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+      expect(replace).toHaveBeenLastCalledWith(
+        `/employees/import?batch=${BATCH.public_id}`,
+        { scroll: false },
+      );
+    });
+
+    it("clears a list that is gone, quietly, and shows the normal screen", async () => {
+      search = "batch=01HZGONE000000000000000001";
+      server.use(
+        http.get("*/onboarding/migration/batches/:batchId", () =>
+          HttpResponse.json(
+            { status: 404, title: "Not Found" },
+            { status: 404 },
+          ),
+        ),
+      );
+      renderPage();
+
+      await waitFor(() =>
+        expect(replace).toHaveBeenCalledWith("/employees/import", {
+          scroll: false,
+        }),
+      );
+      expect(await screen.findByText("Stage for review")).toBeInTheDocument();
+      expect(toast.error).not.toHaveBeenCalled();
+    });
   });
 });

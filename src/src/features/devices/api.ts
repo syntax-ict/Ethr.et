@@ -411,6 +411,9 @@ export type DeviceCommand = components["schemas"]["DeviceCommandResource"];
 export type SendStaffResult =
   operations["deviceCommand.sendStaff"]["responses"][202]["content"]["application/json"];
 
+export type RetryCommandsResult =
+  operations["deviceCommand.retry"]["responses"][202]["content"]["application/json"];
+
 export function useDeviceCommands(
   publicId: string,
   params: { page?: number; per_page?: number },
@@ -435,6 +438,26 @@ export function useSendStaffToDevice() {
   return useDeviceMutation(
     async (publicId: string): Promise<SendStaffResult> =>
       (await apiClient.post(`/devices/${publicId}/commands/send-staff`)).data,
+  );
+}
+
+/**
+ * Send again the people whose newest command on a device failed: all of them,
+ * or only those a list brought in. The terminal's number rules apply once
+ * more, so a number it does not take is still not sent.
+ */
+export function useRetryDeviceCommands() {
+  return useDeviceMutation(
+    async (vars: {
+      publicId: string;
+      batchId?: string;
+    }): Promise<RetryCommandsResult> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/commands/retry`, {
+          batch_public_id: vars.batchId,
+        })
+      ).data,
+    [["onboarding", "migration"]],
   );
 }
 
@@ -504,6 +527,8 @@ export function useAssignUnmatchedBadge() {
       const { data } = await apiClient.post<{
         replayed: number;
         refused: number;
+        /** Held punches of this badge still waiting: ask again to carry on. */
+        remaining: number;
       }>("/devices/unmatched-punches/assign", payload);
       return data;
     },

@@ -166,6 +166,37 @@ describe("New employee from an unrecognised badge", () => {
     );
   }, 45_000);
 
+  it("says some punches are still waiting when one request did not replay them all", async () => {
+    const employee = buildEmployee();
+    let assigned = false;
+    server.use(
+      http.post("*/api/v1/employees", () =>
+        HttpResponse.json(employee, { status: 201 }),
+      ),
+      http.post("*/api/v1/devices/unmatched-punches/assign", () => {
+        assigned = true;
+        return HttpResponse.json({ replayed: 7, refused: 0, remaining: 5 });
+      }),
+    );
+    const { container } = renderPage(ALL);
+
+    await screen.findByText(/with 12 punches held/);
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
+      target: { value: "Dawit Bekele" },
+    });
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(assigned).toBe(true));
+    await waitFor(() =>
+      expect(toasts.warning).toHaveBeenCalledWith(
+        "7 held punches were recorded for them. 5 more are waiting. Open Devices, under Unrecognised badges, to bring them in.",
+      ),
+    );
+    expect(toasts.success).not.toHaveBeenCalledWith(
+      expect.stringContaining("held punches were recorded"),
+    );
+  }, 45_000);
+
   it("replays nothing when the badge was changed before saving", async () => {
     let assigned = false;
     server.use(

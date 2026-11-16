@@ -7,6 +7,7 @@ import {
   Plus,
   Users,
   Download,
+  FileSpreadsheet,
   Upload,
   Loader2,
   FileSignature,
@@ -39,10 +40,22 @@ import {
 import { DataTable } from "@/components/patterns/DataTable";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
 import { HeadcountCharts } from "@/features/employees/components/headcount-charts";
-import { exportEmployees, useEmployees } from "@/features/employees/api";
+import {
+  exportEmployees,
+  fetchEmployeeImportTemplate,
+  useEmployees,
+} from "@/features/employees/api";
+import {
+  buildCompleteWorkbook,
+  COMPLETE_FILE,
+  TooManyToComplete,
+} from "@/features/employees/complete-workbook";
+import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
+import { MAX_PEOPLE } from "@/features/onboarding/v2/parse-people";
+import { saveBlob, saveCsv } from "@/lib/utils/csv-export";
+import { XLSX_MIME } from "@/features/onboarding/v2/xlsx-grid";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
-import { saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
@@ -90,7 +103,15 @@ const FILTER_DEFAULTS = {
 };
 
 /** The record gaps a Next Steps row opens the list for (`EmployeeGaps`). */
-const MISSING = ["tin", "bank", "emergency_contact", "phone"] as const;
+const MISSING = [
+  "tin",
+  "bank",
+  "emergency_contact",
+  "phone",
+  "department",
+  "position",
+  "gender",
+] as const;
 
 function parseSort(sort?: string): SortingState {
   if (!sort) return [];
@@ -201,6 +222,46 @@ export default function EmployeesPage() {
       ),
   });
 
+  // The people the list is showing, as a workbook to fill in and bring back
+  // under Import. One file takes at most MAX_PEOPLE, so a longer list is
+  // asked to be narrowed and nothing is built from part of it.
+  const total = data?.meta.total ?? 0;
+  const downloadToComplete = useMutation({
+    mutationFn: async () => {
+      if (total > MAX_PEOPLE) throw new TooManyToComplete(total);
+      const [exported, spec] = await Promise.all([
+        exportEmployees({ search, sort, ...listFilters }),
+        fetchEmployeeImportTemplate(),
+      ]);
+      const workbook = await buildCompleteWorkbook(
+        exported,
+        spec,
+        employeeTemplateText(t),
+      );
+      saveBlob(COMPLETE_FILE, new Blob([workbook], { type: XLSX_MIME }));
+    },
+    onSuccess: () =>
+      toast.success(
+        t(
+          "employees.complete_downloaded",
+          "Saved. Fill in the blanks, then bring the file back under Import and choose Complete people who are already here.",
+        ),
+      ),
+    onError: (err) =>
+      toast.error(
+        err instanceof TooManyToComplete
+          ? t(
+              "employees.complete_too_many",
+              "This list has :count people and one file takes at most :max. Narrow the list with a filter, then download again.",
+              { count: err.count, max: err.max },
+            )
+          : apiErrorMessage(
+              err,
+              t("employees.complete_failed", "Could not build the workbook"),
+            ),
+      ),
+  });
+
   const columns: ColumnDef<Employee, unknown>[] = [
     {
       accessorKey: "name",
@@ -293,6 +354,23 @@ export default function EmployeesPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Download className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => downloadToComplete.mutate()}
+                disabled={downloadToComplete.isPending}
+                title={t("employees.complete_download", "Download to complete")}
+                aria-label={t(
+                  "employees.complete_download",
+                  "Download to complete",
+                )}
+              >
+                {downloadToComplete.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4" />
                 )}
               </Button>
               <Button

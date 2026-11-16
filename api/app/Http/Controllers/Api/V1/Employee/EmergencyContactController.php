@@ -9,6 +9,7 @@ use App\Http\Requests\Employee\StoreEmergencyContactRequest;
 use App\Http\Resources\EmergencyContactResource;
 use App\Models\Employee;
 use App\Models\EmployeeEmergencyContact;
+use App\Services\EmployeeRelatedRecords;
 use App\Support\EthiopianPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,13 +25,11 @@ class EmergencyContactController extends Controller
         );
     }
 
-    public function store(StoreEmergencyContactRequest $request, Employee $employee): JsonResponse
+    public function store(StoreEmergencyContactRequest $request, Employee $employee, EmployeeRelatedRecords $records): JsonResponse
     {
         $this->authorize('update', $employee);
 
-        $data = $request->validated();
-        $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
-        $contact = $employee->emergencyContacts()->create($data);
+        $contact = $records->addEmergencyContact($employee, $request->validated());
 
         return (new EmergencyContactResource($contact))
             ->response()

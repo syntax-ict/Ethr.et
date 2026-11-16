@@ -204,9 +204,9 @@ The platform console does not show it. The organisations list and the organisati
 | **Read what payroll used** | In a payroll run, the calculator icon on an entry opens its calculation log, which carries the organisation type and, for each rule, its value, layer and source | Impersonation, or the administrator's screenshot |
 | **See whether the pension scheme is the kind's or the organisation's own** | Settings, then Payroll Rules, then the Statutory rules tab, row "Your pension scheme". A badge "Your value" with "Default: ..." beneath means the organisation's own value, not the kind's. The line under the rule names the layer: "Set for your kind of organisation", "Set for the group your kind of organisation belongs to", "The law, for every organisation" or "Your organisation's own value" | Settings access. "Payroll Rules" is shown to tenant administrators |
 | **Read the audit trail** | The organisation's own audit log records the kind at sign-up and at every change (section 9). The console's lists show action names and times only, last twenty, with no details, so they cannot tell you the kind | The organisation's administrator |
-| **Ask engineering** | `tenants.organization_type` holds it | A database read |
+| **Ask engineering** | `tenants.organization_type` holds it, but on the day a scheduled change takes effect it lags until Settings, a save of the organisation card, or the setup wizard next reads the kind (section 11). To be sure, read the assignment in force on `tenant_profile_assignments` | A database read |
 
-The kind's Settings value and what payroll applies can differ for a short time after a scheduled change (section 11, last item), so for a pay question prefer the calculation log.
+Since 2026-11-15 the Settings card shows the kind in force on the day a scheduled change takes effect, the same as payroll applies. For a pay question the calculation log is still the record of what was used.
 
 ---
 
@@ -383,7 +383,7 @@ Stated plainly, so nobody promises a customer what the product does not do.
 - **The Amharic names** of the ten inheriting kinds, and the Afaan Oromoo names of all sixteen, are drafts awaiting a native reader ([`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md)).
 - **Impersonation refuses a change of kind and of the statutory settings, but not `POST /payroll/statutory-rules/use-law`**, which ends the organisation's own saved tax ladder and pension rates (situation 8).
 - **The fiscal year moves no amount** (section 3).
-- **A scheduled change of kind may not show on the Settings card once its date arrives.** `tenants.organization_type`, which the Settings card and `GET /settings` read, is written only when a change is saved (`OrganisationProfile::assign()`). Payroll reads the dated assignments instead, and nothing writes the column again when a scheduled date arrives. This was read from the code on 2026-11-15 and not run, and no test in `OrganizationTypeChangeTest` moves the clock past a scheduled date. If the reading is right, then after the date payroll applies the new kind while the card still shows the old one, with no pending line. Until an engineer has confirmed or fixed it, trust the calculation log for pay, and do not ask an administrator to choose the kind again to make the card agree.
+- **`tenants.organization_type` lags on the day a scheduled change takes effect, until something reads the kind.** Fixed for the Settings card on 2026-11-15: `GET /settings`, a save of the organisation card and the setup wizard's preview and apply bring the column into step with the assignment in force (`OrganisationProfile::inForce()`), so the card shows the new kind with no pending line and choosing it again is a no-op. No scheduled job writes it, because the production host has no worker. A reader that reads the column without going through those, such as a direct database read, can still see the old kind until an administrator opens Settings.
 
 ---
 
