@@ -137,8 +137,13 @@ taken without waiting, released in `finally`, 60 seconds at most if the request
 dies) keeps two requests from replaying the same punch. A caller that cannot
 take it gets `409` ("These punches are already being brought in") and nothing
 has been linked or replayed for it. Production's cache store is `database`,
-which supports locks. `device.badge_assigned` is written when the number is
-given or changes hands, not on each call that carries on.
+which supports locks. Every call that replays or refuses at least one punch writes one audit
+entry with that call's own counts: `device.badge_assigned` when the call made
+or changed the link, `device.held_punches_replayed` when it only carried on or
+the number was already confirmed (an import does that). A call that finds
+nothing pending writes nothing. Refused punches are marked `refused` with the
+reason and are shown nowhere in the product, only counted in the answer and
+the audit entry.
 
 After a list is added, the terminals read of that batch
 (`GET onboarding/migration/batches/{batch}/terminals`) lists, for someone with

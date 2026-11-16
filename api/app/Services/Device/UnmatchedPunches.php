@@ -77,8 +77,10 @@ final class UnmatchedPunches
      * from replaying the same punch; a caller that cannot take it is told to
      * try again (409), and nothing has been linked or replayed for it.
      *
-     * The audit entry is written when the number is given or changes hands,
-     * not on each call that carries on.
+     * Each call that replays or refuses a punch writes one audit entry with
+     * its own counts: `device.badge_assigned` when it made or changed the
+     * link, `device.held_punches_replayed` otherwise. A call that finds
+     * nothing pending writes none.
      *
      * @return array{replayed: int, refused: int, remaining: int}
      */
@@ -100,8 +102,13 @@ final class UnmatchedPunches
 
             [$replayed, $refused] = $this->replay($device, $badge, $employee, $by, $recorder);
 
-            if (! $alreadyTheirs) {
-                AuditLog::record('device.badge_assigned', $device, [
+            // Punches enter attendance at a person's click, so every call that
+            // replays or refuses one leaves an entry with its own counts. It is
+            // `device.badge_assigned` when this call made or changed the link,
+            // and `device.held_punches_replayed` when it only carried on, or
+            // the number was already confirmed (an import does that).
+            if ($replayed + $refused > 0) {
+                AuditLog::record($alreadyTheirs ? 'device.held_punches_replayed' : 'device.badge_assigned', $device, [
                     'badge' => $badge,
                     'employee_id' => $employee->public_id,
                     'replayed' => $replayed,

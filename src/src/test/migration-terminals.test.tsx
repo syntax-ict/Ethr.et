@@ -505,10 +505,10 @@ describe("<MigrationTerminals> held punches", () => {
     expect(
       screen.getByText(/1 punch was refused and not recorded\./),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open Devices" })).toHaveAttribute(
-      "href",
-      "/devices#unmatched",
-    );
+    // Refused punches are listed nowhere, so no link promises a place.
+    expect(
+      screen.queryByRole("link", { name: "Open Devices" }),
+    ).not.toBeInTheDocument();
     expect(posts).toEqual([
       { device_public_id: DEVICE, badge: "7777", employee_public_id: SELAM },
       { device_public_id: DEVICE, badge: "7777", employee_public_id: SELAM },

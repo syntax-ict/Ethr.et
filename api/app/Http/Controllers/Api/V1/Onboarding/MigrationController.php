@@ -364,6 +364,8 @@ class MigrationController extends Controller
      * neither named nor counted. `held` lists, for a viewer who may assign a
      * badge (`attendance.manage`), the held badges that are now exactly one of
      * those people; it is empty for anyone else.
+     *
+     * @response array{visible: bool, devices: list<array{device_public_id: string, device_name: string, adapter_type: string, writable: bool, receives_only: bool, queued: int, done: int, failed: int, not_sent: int, last_error: string|null, enrol_by_hand: list<array{employee_public_id: string, name: string, device_user_id: string}>}>, without_number: int, without_branch: int, can_assign: bool, held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
      */
     public function terminals(MigrationBatch $batch): JsonResponse
     {

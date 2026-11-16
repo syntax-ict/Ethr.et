@@ -372,8 +372,7 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
                       "migration_terminals.held_refused",
                       ":count punches were refused and not recorded.",
                       { count: bringIn.state.refused },
-                    )}{" "}
-                {devicesLink}
+                    )}
               </>
             )}
           </p>
