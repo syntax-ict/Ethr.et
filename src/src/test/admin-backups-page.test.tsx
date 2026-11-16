@@ -7,6 +7,7 @@ import { server } from "./msw/server";
 import BackupsPage from "@/app/(dashboard)/admin/backups/page";
 import type {
   BackupConsoleState,
+  BackupDriveState,
   BackupStorageState,
 } from "@/features/admin/backups";
 
@@ -40,6 +41,25 @@ const STORAGE: BackupStorageState = {
   last_test_error: "NoSuchBucket: The specified bucket does not exist",
 };
 
+const DRIVE_UNSET: BackupDriveState = {
+  redirect_uri: "https://admin.ethr.et/admin/backups",
+  saved: false,
+  client_id: null,
+  secret_set: false,
+  connected: false,
+  account_email: null,
+  connected_at: null,
+  enabled: false,
+  available: false,
+  blocker: null,
+  verified: false,
+  verified_at: null,
+  last_test_at: null,
+  last_test_ok: null,
+  last_test_error: null,
+  key: null,
+};
+
 function state(
   overrides: Partial<BackupConsoleState> = {},
 ): BackupConsoleState {
@@ -51,6 +71,7 @@ function state(
     keep: 14,
     storage: STORAGE,
     key: { revealed_at: null, saved_at: null },
+    google_drive: DRIVE_UNSET,
     health: {
       state: "warning",
       reasons: ["off_host_switched_off"],
@@ -61,6 +82,7 @@ function state(
       off_host: {
         configured: false,
         disk: "ethr-backups",
+        destination: null,
         last_copied_at: null,
       },
       disk: null,
