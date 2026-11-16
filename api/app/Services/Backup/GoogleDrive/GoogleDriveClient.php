@@ -290,7 +290,7 @@ class GoogleDriveClient
     private function sizedStream($stream): array
     {
         $size = fstat($stream)['size'] ?? null;
-        $seekable = (bool) (stream_get_meta_data($stream)['seekable'] ?? false);
+        $seekable = stream_get_meta_data($stream)['seekable'];
 
         if (is_int($size) && $size > 0 && $seekable) {
             return [$stream, $size];

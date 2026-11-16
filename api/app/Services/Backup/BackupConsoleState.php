@@ -78,7 +78,7 @@ class BackupConsoleState
             'connected' => $drive?->isConnected() ?? false,
             'account_email' => $drive?->account_email,
             'connected_at' => $drive?->connected_at?->toIso8601String(),
-            'enabled' => $drive?->enabled ?? false,
+            'enabled' => $drive->enabled ?? false,
             'available' => $target !== null && $target['blocker'] === null,
             'blocker' => $target['blocker'] ?? null,
             'verified' => $drive?->isVerified() ?? false,
