@@ -29,6 +29,32 @@ export interface BackupStorageState {
   last_test_error: string | null;
 }
 
+/**
+ * The Google Drive fallback (BackupDriveController). The client secret, the
+ * refresh token and the archive key are never in this state; `secret_set` and
+ * `connected` say only that they are stored.
+ */
+export interface BackupDriveState {
+  /** The console page's own address: what Google Cloud must allow as a redirect. */
+  redirect_uri: string;
+  saved: boolean;
+  client_id: string | null;
+  secret_set: boolean;
+  connected: boolean;
+  account_email: string | null;
+  connected_at: string | null;
+  enabled: boolean;
+  /** True when a copy can go to Drive now. */
+  available: boolean;
+  blocker: string | null;
+  verified: boolean;
+  verified_at: string | null;
+  last_test_at: string | null;
+  last_test_ok: boolean | null;
+  last_test_error: string | null;
+  key: { revealed_at: string | null; saved_at: string | null } | null;
+}
+
 export interface BackupConsoleState {
   /** Where off-host copies are configured: this page, `.env`, or nowhere. */
   source: "console" | "env" | "none";
@@ -41,6 +67,7 @@ export interface BackupConsoleState {
   keep: number;
   storage: BackupStorageState | null;
   key: { revealed_at: string | null; saved_at: string | null } | null;
+  google_drive: BackupDriveState;
   health: OperationsStatus["backups"];
 }
 
@@ -107,6 +134,78 @@ export function useRevealBackupKey() {
   return useMutation({
     mutationFn: async () =>
       (await apiClient.post<{ key: string }>("/admin/backups/key")).data.key,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+/** The first message of a failed call: a field's, else the server's own. */
+export function backupErrorDetail(err: unknown): string | undefined {
+  const data = (
+    err as {
+      response?: {
+        data?: { detail?: string; errors?: Record<string, string[]> };
+      };
+    }
+  ).response?.data;
+
+  return data?.errors
+    ? Object.values(data.errors)[0]?.[0]
+    : (data?.detail ?? undefined);
+}
+
+const DRIVE = "/admin/backups/google-drive";
+
+export function useSaveBackupDrive() {
+  return useBackupMutation(
+    async (payload: { client_id: string; client_secret: string | null }) =>
+      (await apiClient.put<BackupConsoleState>(DRIVE, payload)).data,
+  );
+}
+
+/** The Google consent URL; the page navigates the browser to it. */
+export function useConnectBackupDrive() {
+  return useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<{ url: string }>(`${DRIVE}/connect`)).data.url,
+  });
+}
+
+/** Completes the connection with what Google put in the page's address. */
+export function useCompleteBackupDrive() {
+  return useBackupMutation(
+    async (payload: { code: string; state: string }) =>
+      (await apiClient.post<BackupConsoleState>(`${DRIVE}/callback`, payload))
+        .data,
+  );
+}
+
+export function useDisconnectBackupDrive() {
+  return useBackupMutation(
+    async () => (await apiClient.delete<BackupConsoleState>(DRIVE)).data,
+  );
+}
+
+export function useTestBackupDrive() {
+  return useBackupMutation(
+    async () =>
+      (await apiClient.post<BackupConsoleState>(`${DRIVE}/test`)).data,
+  );
+}
+
+export function useUpdateBackupDriveSettings() {
+  return useBackupMutation(
+    async (payload: { enabled?: boolean; key_saved?: boolean }) =>
+      (await apiClient.put<BackupConsoleState>(`${DRIVE}/settings`, payload))
+        .data,
+  );
+}
+
+/** Shows Drive's own archive key; the server records each time. */
+export function useRevealBackupDriveKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<{ key: string }>(`${DRIVE}/key`)).data.key,
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
 }

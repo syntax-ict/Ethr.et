@@ -78,4 +78,31 @@ return [
      * host is the thing that was lost.
      */
     'encryption_key' => env('BACKUP_ENCRYPTION_KEY'),
+
+    /*
+     * Time limits, so a primary storage that has gone dark leaves the night
+     * enough time for the fallback (the run is not bounded by the web SAPI's
+     * limit, but a hung connection otherwise holds it for as long as the
+     * socket lasts). `timeout` is per request, so it must outlast one
+     * upload part: the S3 SDK sends a single PutObject up to 16 MB and 5 MB
+     * parts above that, which at 120 s needs about 1.1 Mbit/s.
+     */
+    'storage_http' => [
+        'connect_timeout' => (int) env('BACKUP_STORAGE_CONNECT_TIMEOUT', 10),
+        'timeout' => (int) env('BACKUP_STORAGE_TIMEOUT', 120),
+    ],
+
+    /*
+     * Google Drive, the fallback destination. `chunk_bytes` is the size of
+     * each resumable-upload request; Google requires a multiple of 256 KiB,
+     * and 8 MiB keeps memory flat on a 128 MB PHP limit. `timeout` covers
+     * metadata calls, `chunk_timeout` one chunk (8 MiB in 120 s needs about
+     * 0.6 Mbit/s).
+     */
+    'google_drive' => [
+        'chunk_bytes' => 8 * 1024 * 1024,
+        'connect_timeout' => 10,
+        'timeout' => 60,
+        'chunk_timeout' => 120,
+    ],
 ];

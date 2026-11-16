@@ -78,7 +78,7 @@ final class BackupHealth
      *     age_seconds: int|null,
      *     last_failed_at: string|null,
      *     last_failed_stage: string|null,
-     *     off_host: array{configured: bool, disk: string, last_copied_at: string|null},
+     *     off_host: array{configured: bool, disk: string, destination: 's3'|'google_drive'|null, last_copied_at: string|null},
      *     disk: array{measured_at: string, quota_bytes: int, total_bytes: int, database_bytes: int|null, documents_bytes: int, backups_bytes: int, logs_bytes: int, other_bytes: int}|null
      * }
      */
@@ -118,9 +118,12 @@ final class BackupHealth
             $critical[] = 'backup_failing';
         }
 
+        // Any destination that can take a copy counts: the blocker is null
+        // while the primary OR the Google Drive fallback is usable.
         $target = $this->backups->offHostTarget();
         $disk = $target['name'];
         $blocker = $target['blocker'];
+        $destination = is_string($latest['off_host']['destination'] ?? null) ? $latest['off_host']['destination'] : null;
         $copiedAt = $this->latestOf(
             $this->parse($latest['off_host']['copied_at'] ?? null),
             $this->parse(HealthSignals::store()->get(self::COPIED_KEY)),
@@ -140,6 +143,11 @@ final class BackupHealth
             $warning[] = 'off_host_copy_missing';
         } elseif ($copyAge > self::STALE_AFTER_SECONDS) {
             $critical[] = 'off_host_stale';
+        } elseif (($latest['off_host']['fell_back'] ?? false) === true) {
+            // A copy exists, but only because the primary failed and the
+            // fallback took it: the primary needs looking at before the
+            // fallback is the only thing between the data and its loss.
+            $warning[] = 'off_host_fell_back';
         }
 
         if ($failedAt !== null && $failedStage === 'off_host' && $blocker === null
@@ -173,6 +181,7 @@ final class BackupHealth
             'off_host' => [
                 'configured' => $blocker === null,
                 'disk' => $disk,
+                'destination' => $destination,
                 'last_copied_at' => $copiedAt?->toIso8601String(),
             ],
             'disk' => $usage === null ? null : [

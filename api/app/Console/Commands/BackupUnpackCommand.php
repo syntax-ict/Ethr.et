@@ -26,6 +26,7 @@ class BackupUnpackCommand extends Command
         {archive : A local .ethrbak file, or with --from-disk its key on the off-host disk}
         {--from-disk : Fetch the archive from the off-host disk first}
         {--disk= : Which .env disk; defaults to the console storage, then config backup.off_host_disk}
+        {--destination= : s3 or google_drive: read from that destination with its own key, for a copy that fell back to Drive}
         {--key= : The key the archive was made with, when it is not the configured one}';
 
     protected $description = 'Decrypt and unpack an off-host backup so ethr:restore can use it';
@@ -49,9 +50,16 @@ class BackupUnpackCommand extends Command
         }
 
         $disk = $this->option('disk') ? (string) $this->option('disk') : null;
+        $destination = $this->option('destination') ? (string) $this->option('destination') : null;
+
+        if ($destination !== null && ! in_array($destination, ['s3', 'google_drive'], true)) {
+            $this->error('--destination must be s3 or google_drive.');
+
+            return self::FAILURE;
+        }
 
         try {
-            $name = $backups->unpack((string) $this->argument('archive'), $cipher, (bool) $this->option('from-disk'), $disk);
+            $name = $backups->unpack((string) $this->argument('archive'), $cipher, (bool) $this->option('from-disk'), $disk, $destination);
         } catch (Throwable $e) {
             $this->error('Unpack FAILED: '.$e->getMessage());
 
