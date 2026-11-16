@@ -24,6 +24,27 @@ export class TooManyToComplete extends Error {
   }
 }
 
+/**
+ * Columns a list of new people may carry and a list of people already here
+ * does not: the server drops them from a list that completes people, so the
+ * workbook does not offer them.
+ */
+const NOT_FOR_EXISTING = ["sign_in"];
+
+/** The template without the columns that are not for people already here. */
+function forExisting(spec: TemplateSpec): TemplateSpec {
+  const kept = (header: string) => !NOT_FOR_EXISTING.includes(header);
+  return {
+    ...spec,
+    headers: spec.headers.filter(kept),
+    required: spec.required.filter(kept),
+    columns: spec.columns?.filter((c) => kept(c.column ?? c.key)),
+    lists: Object.fromEntries(
+      Object.entries(spec.lists).filter(([header]) => kept(header)),
+    ),
+  };
+}
+
 /** The statuses a list may bring someone in with; anyone who has left has none to give. */
 const LIST_STATUSES = ["hired", "probation", "confirmed"];
 
@@ -72,5 +93,5 @@ export async function buildCompleteWorkbook(
       return row;
     });
 
-  return buildTemplate(spec, "gregorian", text, rows);
+  return buildTemplate(forExisting(spec), "gregorian", text, rows);
 }

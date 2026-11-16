@@ -123,6 +123,7 @@ trait ReadsPeopleGrid
             $this->columnMapping(),
             $this->sourceName(),
             $this->headerLine(),
+            signIn: $this->input('mode') !== 'complete',
         );
     }
 }

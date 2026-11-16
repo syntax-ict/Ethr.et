@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Jobs\SendInvitationJob;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\InvitationSend;
+use App\Models\MigrationStagingRow;
 use App\Models\SmsGateway;
 use App\Models\SmsSetting;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Invitations\EmployeeLogins;
+use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
@@ -173,4 +177,168 @@ it('needs permission to invite users', function () {
     actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
 
     loginsApi($tenant, 'POST', 'employees/logins', ['employee_ids' => [$employee->public_id]])->assertForbidden();
+});
+
+/*
+ * The sign-in column of a staged list (owner decision 2026-11-16): a row says
+ * yes or no for its own person and outranks the tick on the review step. It
+ * lives on the staged row and is read back as `asked`; it is never written to
+ * a person.
+ */
+it('says after a commit what the list asked for each person, and writes it to nobody', function () {
+    $tenant = loginsTenant();
+
+    [$batch, $commit] = migrated($tenant, [
+        ['name' => 'Abebe Kebede', 'email' => 'abebe@acme.et', 'sign_in' => 'yes'],
+        ['name' => 'Hanna Girma', 'email' => 'hanna@acme.et', 'sign_in' => 'no'],
+        ['name' => 'Dawit Bekele', 'email' => 'dawit@acme.et'],
+    ]);
+
+    $commit->assertJsonPath('without_login.0.name', 'Abebe Kebede')
+        ->assertJsonPath('without_login.0.asked', true)
+        ->assertJsonPath('without_login.1.name', 'Hanna Girma')
+        ->assertJsonPath('without_login.1.asked', false)
+        ->assertJsonPath('without_login.2.name', 'Dawit Bekele')
+        ->assertJsonPath('without_login.2.asked', null);
+
+    loginsApi($tenant, 'GET', "onboarding/migration/batches/{$batch}/logins")->assertOk()
+        ->assertJsonPath('without_login.0.asked', true)
+        ->assertJsonPath('without_login.1.asked', false)
+        ->assertJsonPath('without_login.2.asked', null);
+
+    // On the staged row, as the list said it, and on nothing else.
+    $kept = MigrationStagingRow::query()->orderBy('id')->get()->map(fn (MigrationStagingRow $row): mixed => $row->raw['sign_in'] ?? null)->all();
+    expect($kept)->toBe(['yes', 'no', null]);
+
+    foreach (Employee::query()->where('tenant_id', $tenant->id)->get() as $employee) {
+        expect($employee->getAttributes())->not->toHaveKey('sign_in')
+            ->and(json_encode($employee->toArray()))->not->toContain('sign_in');
+    }
+    expect(User::query()->where('role', UserRole::EMPLOYEE)->count())->toBe(0)
+        ->and(AuditLog::query()->get()->contains(fn (AuditLog $log): bool => str_contains((string) json_encode($log->getAttributes()), 'sign_in')))->toBeFalse();
+});
+
+it('lets no win when two lines of one list are the same person', function (array $says) {
+    $tenant = loginsTenant();
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id, 'name' => 'Abebe Kebede', 'employee_code' => 'E-1',
+        'email' => 'abebe@acme.et', 'hire_date' => '2020-01-01',
+    ]);
+
+    $batch = app(WorkforceMigrationService::class)->stageFromRows(
+        array_map(fn (string $value): array => ['name' => 'Abebe Kebede', 'employee_code' => 'E-1', 'sign_in' => $value], $says),
+        $tenant->id,
+    );
+    expect($batch->rows()->pluck('resolved_employee_id')->unique()->count())->toBe(1);
+
+    loginsApi($tenant, 'POST', "onboarding/migration/batches/{$batch->public_id}/commit")
+        ->assertOk()
+        ->assertJsonCount(1, 'without_login')
+        ->assertJsonPath('without_login.0.asked', false);
+})->with([
+    'yes then no' => [['yes', 'no']],
+    'no then yes' => [['no', 'yes']],
+]);
+
+it('says before anyone is added what the list will do, by who an invitation can reach and what the list says', function () {
+    $tenant = loginsTenant();
+
+    $staged = loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['rows' => [
+        ['name' => 'Abebe Kebede', 'email' => 'abebe@acme.et', 'sign_in' => 'yes'],
+        ['name' => 'Hanna Girma', 'email' => 'hanna@acme.et', 'sign_in' => 'no'],
+        ['name' => 'Dawit Bekele', 'email' => 'dawit@acme.et'],
+        ['name' => 'Sara Tesfaye', 'phone' => '0911223344', 'sign_in' => 'yes'],
+        ['name' => 'Yonas Haile', 'sign_in' => 'no'],
+        ['name' => 'Guest card'],
+    ]])->assertCreated()->json();
+    $url = "onboarding/migration/batches/{$staged['public_id']}";
+
+    // Texts are off: a phone alone cannot be invited.
+    loginsApi($tenant, 'GET', $url)->assertOk()->assertJsonPath('sign_in_plan', [
+        'people' => 6,
+        'invitable' => ['yes' => 1, 'no' => 1, 'blank' => 1],
+        'in_person' => ['yes' => 1, 'no' => 1, 'blank' => 1],
+        'in_person_possible' => true,
+    ]);
+
+    // The same rule EmployeeLogins would use: with texts on, the phone is reached.
+    textsOn();
+    loginsApi($tenant, 'GET', $url)->assertOk()
+        ->assertJsonPath('sign_in_plan.invitable', ['yes' => 2, 'no' => 1, 'blank' => 1])
+        ->assertJsonPath('sign_in_plan.in_person', ['yes' => 0, 'no' => 1, 'blank' => 1]);
+
+    // A code handed over in person works only where people sign in by employee number.
+    $tenant->update(['settings' => ['login_identifiers' => ['email']]]);
+    loginsApi($tenant, 'GET', $url)->assertOk()->assertJsonPath('sign_in_plan.in_person_possible', false);
+});
+
+it('counts only the people a list creates, and a person set aside is not counted', function () {
+    $tenant = loginsTenant();
+
+    $staged = loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['rows' => [
+        ['name' => 'Abebe Kebede', 'email' => 'abebe@acme.et', 'sign_in' => 'yes'],
+        ['name' => 'Hanna Girma', 'email' => 'hanna@acme.et', 'sign_in' => 'yes'],
+    ]])->assertCreated()->json();
+
+    $row = $staged['rows'][1]['public_id'];
+    $this->patchJson("http://{$tenant->subdomain}.ethr.test/api/v1/onboarding/migration/rows/{$row}", ['action' => 'skip'])->assertOk();
+
+    loginsApi($tenant, 'GET', "onboarding/migration/batches/{$staged['public_id']}")->assertOk()
+        ->assertJsonPath('sign_in_plan.people', 1)
+        ->assertJsonPath('sign_in_plan.invitable.yes', 1);
+});
+
+it('drops the sign-in column from a list that completes people already here, and plans nothing', function () {
+    $tenant = loginsTenant();
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id, 'name' => 'Abebe Kebede', 'employee_code' => 'E-1',
+        'email' => null, 'phone' => null, 'hire_date' => '2020-01-01',
+    ]);
+
+    $staged = loginsApi($tenant, 'POST', 'onboarding/migration/rows', [
+        'mode' => 'complete',
+        'grid' => [['Name', 'Employee number', 'Sign in'], ['Abebe Kebede', 'E-1', 'yes']],
+    ])->assertCreated()->json();
+
+    expect(MigrationStagingRow::query()->firstOrFail()->raw)->not->toHaveKey('sign_in');
+    loginsApi($tenant, 'GET', "onboarding/migration/batches/{$staged['public_id']}")->assertOk()
+        ->assertJsonPath('mode', 'complete')
+        ->assertJsonPath('sign_in_plan', null);
+});
+
+it('answers 422, not 500, to a complete-mode list whose rows are not rows', function () {
+    $tenant = loginsTenant();
+
+    loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['mode' => 'complete', 'rows' => ['x']])->assertUnprocessable();
+});
+
+it('uses one rule to say how someone would be invited', function () {
+    $tenant = loginsTenant();
+    $logins = app(EmployeeLogins::class);
+
+    expect($logins->channelFor('abebe@acme.et', '0911223344'))->toBe(InvitationSend::EMAIL)
+        ->and($logins->channelFor(null, '0911223344'))->toBe(InvitationSend::IN_PERSON)
+        ->and($logins->channelFor('  ', null))->toBe(InvitationSend::IN_PERSON);
+
+    textsOn();
+    expect($logins->channelFor(null, '0911223344'))->toBe(InvitationSend::SMS);
+});
+
+it('ignores a sign-in value in a list that completes people, even one that would be refused in a list that adds them', function () {
+    $tenant = loginsTenant();
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id, 'name' => 'Abebe Kebede', 'employee_code' => 'E-1',
+        'email' => null, 'phone' => null, 'hire_date' => '2020-01-01',
+    ]);
+    $grid = [['Name', 'Employee number', 'Sign in'], ['Abebe Kebede', 'E-1', 'maybe']];
+
+    // Read as a list that adds people it is a problem; read as one that completes them it is not.
+    expect(loginsApi($tenant, 'POST', 'onboarding/migration/read', ['grid' => $grid])->assertOk()->json('problems'))->toHaveCount(1)
+        ->and(loginsApi($tenant, 'POST', 'onboarding/migration/read', ['grid' => $grid, 'mode' => 'complete'])->assertOk()->json('problems'))->toBe([]);
+
+    loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['grid' => $grid, 'mode' => 'complete'])->assertCreated();
+    loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['rows' => [['name' => 'Abebe Kebede', 'employee_code' => 'E-1', 'sign_in' => 'maybe']], 'mode' => 'complete'])->assertCreated();
+    loginsApi($tenant, 'POST', 'onboarding/migration/rows', ['rows' => [['name' => 'Abebe Kebede', 'employee_code' => 'E-1', 'sign_in' => 'maybe']]])->assertUnprocessable();
+
+    expect(MigrationStagingRow::query()->get()->every(fn (MigrationStagingRow $row): bool => ! array_key_exists('sign_in', $row->raw)))->toBeTrue();
 });

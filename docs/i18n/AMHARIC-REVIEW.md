@@ -457,3 +457,24 @@ guided setup showed English under each option. The Amharic drafts:
 What to check first: the phone line ("workforces without email"), which is a short label rather than a
 sentence, and the username line, whose word order is unnatural in Amharic. "Activated in person" reuses
 the existing `activation_code.button` verb. A wrong label moves no money.
+
+### A sign-in column in the employee workbook (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A wrong word here can make HR read "yes" as "no" in a column that decides who is invited to sign
+in, so the values the column accepts matter most.
+
+| What | Where | Strings |
+|---|---|---|
+| The column's name "Sign in", what it takes, and the line on the workbook's instructions sheet | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_sign_in`, `employees_import_page.col_sign_in`, `setup2.template_line_sign_in` | 3 each |
+| The note beside a person the list says not to invite: "this list did not ask to invite them" | the same files, `migration_logins.list_said_no` | 1 each |
+| The card on the review step: its title, the four lines of counts (the title says they are for the people the list adds), the warning that people no invitation can reach cannot sign in by employee number here, and the link | the same files, `migration_ready.title`, `invited`, `afterwards`, `code`, `marked_no`, `warn_title`, `warn_desc`, `warn_link` | 8 each |
+| The refusal of a value that is not yes or no: "Sign in must be yes or no, or left empty." | `api/lang/{am,om}/validation.php`, `custom.sign_in.in` | 1 each |
+
+The words the import reads as yes and no are in `EmployeeImportRow::SIGN_IN_WORDS`: Amharic አዎ, አዎን and
+አይ, አይደለም; Afaan Oromoo eeyyee, eeyyeen, eyyee and lakki, miti. Add the spellings a native reader says an
+Ethiopian office actually types.
+
+What to check first: those yes and no words, then *Sign in* as the name of a column (the drafts use
+መግቢያ, "entrance", and Seensa, "entry"), and the sentence about a printed code, where "in person" must read
+as handing a paper over, not as visiting.

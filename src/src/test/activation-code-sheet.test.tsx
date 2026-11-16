@@ -25,13 +25,17 @@ const HANNA = "01JBQ8Z6ZK3M9V2X7Y4W5T6R82";
 const SARA = "01JBQ8Z6ZK3M9V2X7Y4W5T6R83";
 const DAWIT = "01JBQ8Z6ZK3M9V2X7Y4W5T6R84";
 
-function renderPanel(autoSend = false) {
+function renderPanel(autoSend = false, inviteMarked = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MigrationLogins batchId={BATCH} autoSend={autoSend} />
+      <MigrationLogins
+        batchId={BATCH}
+        autoSend={autoSend}
+        inviteMarked={inviteMarked}
+      />
     </QueryClientProvider>,
   );
 }
@@ -51,6 +55,7 @@ const person = (
   name: string,
   channel: "email" | "in_person",
   invited = false,
+  asked: boolean | null = null,
 ) => ({
   employee_public_id: id,
   name,
@@ -59,6 +64,7 @@ const person = (
   phone: null,
   channel,
   invited,
+  asked,
 });
 
 /** One person to invite, one already invited, two no invitation can reach. */
@@ -553,5 +559,106 @@ describe("invitations in slices", () => {
 
     await waitFor(() => expect(posted).toHaveLength(3));
     expect(posted.map((ids) => ids.length)).toEqual([200, 200, 50]);
+  });
+});
+
+describe("a list that says, person by person, who is invited", () => {
+  const BATCHES = {
+    // Sara is marked yes and Hanna no; Abebe and Dawit are left to the tick.
+    without_login: [
+      person(ABEBE, "Abebe Kebede", "email"),
+      person(DAWIT, "Dawit Alemu", "email", false, true),
+      person(HANNA, "Hanna Girma", "email", false, false),
+      person(SARA, "Sara Tesfaye", "in_person", false, true),
+    ],
+    hire_dates_defaulted: 0,
+  };
+
+  it("invites the people marked yes by themselves when the tick is off, and nobody else", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(BATCHES));
+    const posted = invitations();
+    renderPanel(false, true);
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    // Dawit only: Abebe waits for the button, Hanna is marked no, and Sara
+    // can only be activated in person.
+    expect(posted[0].employee_ids).toEqual([DAWIT]);
+  });
+
+  it("invites everyone an invitation can reach except the people marked no when the tick is on", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(BATCHES));
+    const posted = invitations();
+    renderPanel(true, true);
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].employee_ids).toEqual([ABEBE, DAWIT]);
+  });
+
+  it("leaves the people marked no out of the button, and says why they are in the table", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(BATCHES));
+    const posted = invitations();
+    renderPanel(false, true);
+
+    // The automatic send went first; the button sends the rest, as before.
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(
+      await screen.findByText(/this list did not ask to invite them/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hanna Girma")).toBeInTheDocument();
+  });
+
+  it("sends the button's people, the ones marked no excepted", async () => {
+    server.use(
+      me(["users.invite", "employee.create"]),
+      logins({
+        without_login: [
+          person(ABEBE, "Abebe Kebede", "email"),
+          person(HANNA, "Hanna Girma", "email", false, false),
+        ],
+        hire_dates_defaulted: 0,
+      }),
+    );
+    const posted = invitations();
+    renderPanel(false);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send invitations" }),
+    );
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].employee_ids).toEqual([ABEBE]);
+    expect(
+      screen.getByText(/this list did not ask to invite them/),
+    ).toBeInTheDocument();
+  });
+
+  it("offers no button when everyone is marked no", async () => {
+    server.use(
+      me(["users.invite", "employee.create"]),
+      logins({
+        without_login: [person(HANNA, "Hanna Girma", "email", false, false)],
+        hire_dates_defaulted: 0,
+      }),
+    );
+    const posted = invitations();
+    renderPanel(true);
+
+    expect(await screen.findByText("Hanna Girma")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Send invitations" }),
+    ).not.toBeInTheDocument();
+    expect(posted).toHaveLength(0);
+  });
+
+  it("sends nothing by itself when the list is only opened again, even with people marked yes", async () => {
+    server.use(me(["users.invite", "employee.create"]), logins(BATCHES));
+    const posted = invitations();
+    renderPanel(false, false);
+
+    expect(await screen.findByText("Dawit Alemu")).toBeInTheDocument();
+    expect(posted).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: "Send invitations" }),
+    ).toBeEnabled();
   });
 });

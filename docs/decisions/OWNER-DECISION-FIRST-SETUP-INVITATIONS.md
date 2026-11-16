@@ -33,6 +33,13 @@
   The controller creates every login inside the request and only claims that a few hundred fit
   the host's 30 seconds, so the browser now sends 200 at a time.
 
+## What exists now: a sign-in column in the employee workbook
+
+A list may carry an optional **Sign in** column (`yes`, `no` or blank), and a row outranks the
+tick: `yes` invites that person even with the tick off, `no` leaves them out of this list even with
+it on, and blank leaves it to the tick. `no` is about this list only, is not stored on the person,
+and HR can still invite them later.
+
 ## What it costs
 
 An organisation that skips the offer to invite has staff who cannot use QR, mobile or web
@@ -43,7 +50,7 @@ commit. The kiosk, attendance terminals, payroll and leave recorded by HR do not
 
 - **A per-organisation daily ceiling on invitations.** The shared cap is real, but a ceiling is
   its own decision.
-- **A sign-in column in the employee workbook, and sign-in state on the Employees list.**
-  Planned next; this record only moves the default and the order.
+- **Sign-in state on the Employees list.** Planned next; this record only moves the default
+  and the order.
 
 See [`../MIGRATION.md`](../MIGRATION.md), "What the whole list is brought in with".

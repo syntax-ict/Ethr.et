@@ -574,7 +574,7 @@ describe("<MigrationStep>", () => {
         },
       ],
     };
-    reads({ people: 1, without_hire_date: 1 });
+    const asked = reads({ people: 1, without_hire_date: 1 });
     server.use(
       http.get("*/devices", () =>
         HttpResponse.json({ data: [], meta: {}, links: {} }),
@@ -603,6 +603,13 @@ describe("<MigrationStep>", () => {
       ),
     );
     expect(screen.queryByText(/has no hire date/)).not.toBeInTheDocument();
+
+    // The server is told the list completes people, so a sign-in column in
+    // it is ignored when the list is read, as it is when it is staged.
+    await waitFor(() =>
+      expect(asked.at(-1)).toMatchObject({ mode: "complete" }),
+    );
+    expect(asked[0]).not.toHaveProperty("mode");
 
     fireEvent.click(screen.getByText("Stage for review"));
     expect(await screen.findByText("1 not found")).toBeInTheDocument();

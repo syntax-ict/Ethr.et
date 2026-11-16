@@ -333,6 +333,30 @@ describe('employee import, read as people make files', function () {
         expect($empty->json('errors'))->toBeEmpty();
     });
 
+    it('reports a sign-in column among the columns it does not store, accepts whatever it holds, and returns the rows', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        // A list on the guided setup reads a bad value as a problem. This route has no such rule,
+        // and a value it never read must not make a line fail now that the column exists.
+        $response = previewCsv("name,hire_date,sign_in\nAbebe Kebede,2024-01-15,yes\nHanna Girma,2024-01-15,maybe\n")->assertOk();
+
+        expect($response->json('errors'))->toBe(['0' => [__('employee.import_not_stored', ['columns' => 'sign_in'])]])
+            ->and($response->json('rows'))->toHaveCount(2)
+            ->and(array_column($response->json('rows'), 'name'))->toBe(['Abebe Kebede', 'Hanna Girma'])
+            ->and($response->json('headers'))->toBe(['name', 'hire_date', 'sign_in']);
+
+        // Left empty, as an export or a template carries it, it says nothing.
+        expect(previewCsv("name,hire_date,sign_in\nAbebe Kebede,2024-01-15,\n")->assertOk()->json('errors'))->toBeEmpty();
+
+        // Committing it stores it nowhere.
+        $this->postJson('/api/v1/employees/import/commit', [
+            'import_key' => 'sign-in',
+            'rows' => [['name' => 'Abebe Kebede', 'hire_date' => '2024-01-15', 'sign_in' => 'yes']],
+        ])->assertCreated()->assertJsonPath('created', 1);
+        expect(Employee::where('name', 'Abebe Kebede')->firstOrFail()->getAttributes())->not->toHaveKey('sign_in');
+    });
+
     it('exports the profile columns to someone who may open the record, and never the bank', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

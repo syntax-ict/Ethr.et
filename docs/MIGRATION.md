@@ -636,6 +636,47 @@ thirty seconds, and nothing is sent inside any request (the invitations are queu
 paced as before). If the tab is closed first, nothing was sent and the card below still
 offers the button. Unticked, the screen is as it was: HR looks at the names, then sends.
 
+**Who is invited, person by person: the `sign_in` column (2026-11-16).** A list may carry
+one optional column, **Sign in**, beside email and phone (`EmployeeImportRow::SIGN_IN`),
+so the tick above need not decide for everyone (owner decision 2026-11-16,
+[`OWNER-DECISION-FIRST-SETUP-INVITATIONS.md`](decisions/OWNER-DECISION-FIRST-SETUP-INVITATIONS.md)).
+
+- **Three values.** `yes` invites that person when the list is added. `no` does not
+  invite them from this list. Blank leaves it to the tick. Read loosely, as `status` is:
+  Yes, y, true, 1, invite, አዎ, አዎን, Eeyyee are `yes`; No, n, false, 0, አይ, አይደለም,
+  Lakki, miti are `no`; anything else is refused as a problem of the `sign_in` column
+  (`code` `in`), and the workbook's cell is a yes/no dropdown.
+- **A row outranks the tick.** With the tick off, the people marked yes are still invited,
+  once, by the same slices of 200; with it on, everyone an invitation can reach is, except
+  the people marked no. **Send invitations** skips them too, and they are not on a code
+  sheet. They stay in the table with "this list did not ask to invite them", and HR can
+  still invite them from their profile.
+- **It is not stored on the person.** The answer lives only in the staged row's `raw`
+  (`migration_staging_rows`), is not in `StagedChanges::FIELDS`, is not a difference to
+  review on a matched row, and nothing in `WorkforceMigrationService` writes it to an
+  employee, a user or an audit entry. There is no account state and no organisation
+  setting for it. Two lines of one list that resolve to the same person: `no` wins.
+- **After the commit**, each entry of `without_login` carries `asked`: `true`, `false` or
+  `null` (`SignInChoices::asked`, one query for the list).
+- **Before the commit**, the list's payload carries `sign_in_plan` (`SignInChoices::plan`),
+  for a list that adds people and `null` for one that completes them: `people` the list
+  creates, `invitable` and `in_person` (by the same rule `EmployeeLogins::channelFor`
+  applies: email, else phone while texts are on, else in person), each split into
+  `yes`, `no` and `blank`, and `in_person_possible`, which is
+  `ActivationCodeService::canSignInAfterwards(null)`: whether the organisation signs in by
+  employee number. The review step says in words how many will be invited, how many are
+  listed for a code and how many the list marked no, and warns, with a link to the Sign-in
+  step, when people can only be activated in person and that is not possible.
+- **Never a password, never a role.** The header is "Sign in", never "Active", "Account"
+  or "Role", which are read as an employment status, a bank account and a position.
+  Headers read as the column: Sign in, Sign-in, sign_in, Signin, Invite, Invitation. A
+  bare "Login" is only suggested (a legacy export's login is a username).
+- **Where it does not apply.** The file import on `/employees/import` stores none of it and
+  says so among the columns it does not store, as for the profile columns, and refuses
+  nothing for it. A list that completes people already here ignores the column, whatever it
+  holds (`/migration/read` takes `mode: complete` for this, as the staging request does), and
+  the prefilled workbook for it does not offer it.
+
 ## After the commit: the terminals (2026-11-16)
 
 The people reach the terminals the way any new hire does: saving an employee queues an

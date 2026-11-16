@@ -519,3 +519,61 @@ it('drops a Problem cell only from the first line', function () {
 
     expect($read['header'])->toBeFalse()->and($read['people'])->toBe(2)->and($read['problems'])->toBe([]);
 });
+
+it('reads a sign-in column in three languages, keeps the answer on the staged row, and refuses a value that is not yes or no with its column named', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Email', 'Sign in'],
+        ['Abebe Kebede', 'abebe@acme.et', 'Yes'],
+        ['Hanna Girma', 'hanna@acme.et', 'አይ'],
+        ['Dawit Bekele', 'dawit@acme.et', 'Eeyyee'],
+        ['Sara Tesfaye', 'sara@acme.et', ''],
+        ['Yonas Haile', 'yonas@acme.et', 'maybe'],
+    ]);
+
+    expect($read['columns'])->toBe(['name', 'email', 'sign_in'])
+        ->and($read['people'])->toBe(4)
+        ->and($read['problems'])->toHaveCount(1)
+        ->and($read['problems'][0])->toMatchArray([
+            'line' => 6,
+            'column' => 'sign_in',
+            'code' => 'in',
+            'message' => 'Sign in must be yes or no, or left empty.',
+        ]);
+
+    $staged = test()->postJson(Staging::url($tenant, 'rows'), ['grid' => [
+        ['Name', 'Email', 'Sign in'],
+        ['Abebe Kebede', 'abebe@acme.et', 'Yes'],
+        ['Hanna Girma', 'hanna@acme.et', 'አይ'],
+        ['Dawit Bekele', 'dawit@acme.et', 'Lakki'],
+        ['Sara Tesfaye', 'sara@acme.et', ''],
+    ]])->assertCreated()->json();
+
+    $kept = MigrationBatch::where('public_id', $staged['public_id'])->firstOrFail()->rows()->orderBy('id')->get()
+        ->map(fn ($row) => $row->raw['sign_in'] ?? null)->all();
+    expect($kept)->toBe(['yes', 'no', 'no', null]);
+});
+
+it('refuses a sign-in value that is not yes or no in a list sent as keyed rows, and names no person for it', function () {
+    [$tenant] = Staging::organisation();
+
+    test()->postJson(Staging::url($tenant, 'rows'), ['rows' => [['name' => 'Abebe Kebede', 'sign_in' => 'maybe']]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['rows.0.sign_in' => 'Sign in must be yes or no, or left empty.']);
+
+    expect(MigrationBatch::count())->toBe(0);
+});
+
+it('reads a column named Invite as the sign-in column, and one named Login as nothing at all', function () {
+    [$tenant] = Staging::organisation();
+
+    $invite = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Invite'], ['Abebe Kebede', 'yes']]);
+    expect($invite['columns'])->toBe(['name', 'sign_in'])->and($invite['problems'])->toBe([]);
+
+    // A login is often a username: neither read as yes or no nor offered as a guess.
+    $login = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Login'], ['Abebe Kebede', 'abebe.k']]);
+    expect($login['columns'])->toBe(['name'])
+        ->and($login['ignored'])->toBe(['Login'])
+        ->and($login['headers'][1])->toMatchArray(['header' => 'Login', 'column' => null, 'suggested' => null]);
+});

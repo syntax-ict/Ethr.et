@@ -90,6 +90,11 @@ export interface TemplateText {
   title: string;
   /** The lines under it. */
   lines: string[];
+  /**
+   * Lines about one column, by header, written only into a workbook that has
+   * that column: a workbook built without it must not explain it.
+   */
+  columnLines?: Record<string, string>;
   /** Column name, then what it takes. */
   columnHeading: string;
   takesHeading: string;
@@ -430,6 +435,9 @@ export async function buildTemplate(
   help.getColumn(2).width = 90;
   help.addRow([text.title]).font = { bold: true, size: 14 };
   for (const line of text.lines) help.addRow([line]);
+  for (const [header, line] of Object.entries(text.columnLines ?? {})) {
+    if (spec.headers.includes(header)) help.addRow([line]);
+  }
   if (columns) help.addRow([text.exampleLine]);
   help.addRow([]);
   help.addRow([text.columnHeading, text.takesHeading]).font = { bold: true };

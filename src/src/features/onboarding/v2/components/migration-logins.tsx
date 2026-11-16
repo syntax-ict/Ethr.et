@@ -41,16 +41,26 @@ const INVITE_SLICE = 200;
  * People no invitation can reach get a printed code each, or one starting
  * password between them.
  *
+ * A list can say it per person, in its sign-in column, and a row outranks the
+ * tick: a person it marks yes is invited even with the tick off, and one it
+ * marks no is not invited by either the tick or the button. They stay in the
+ * table, and HR can still invite them from their profile.
+ *
  * @param autoSend Invite the reachable people as soon as the list is read.
+ * @param inviteMarked Invite the people the list marks yes, tick or no tick.
+ *   Only for the screen that has just added the list: a list opened again
+ *   later must not send anything by itself.
  */
 export function MigrationLogins({
   batchId,
   onContinue,
   autoSend = false,
+  inviteMarked = false,
 }: {
   batchId: string;
   onContinue?: () => void;
   autoSend?: boolean;
+  inviteMarked?: boolean;
 }) {
   const { t } = useT();
   const { can } = usePermissions();
@@ -65,8 +75,9 @@ export function MigrationLogins({
   const pending = query.data?.without_login ?? [];
   const defaulted = query.data?.hire_dates_defaulted ?? 0;
   // The people no invitation can reach: the ones a starting password is for.
+  // Someone the list says no to is not handed a code either.
   const inPerson = pending
-    .filter((p) => p.channel === "in_person")
+    .filter((p) => p.channel === "in_person" && p.asked !== false)
     .map((p) => p.employee_public_id);
 
   // Invited by themselves, once: the people an invitation can reach who
@@ -74,10 +85,17 @@ export function MigrationLogins({
   // sends nothing more.
   const sentOnce = useRef(false);
   const toInvite = pending
-    .filter((p) => p.channel !== "in_person" && !p.invited)
+    .filter(
+      (p) =>
+        p.channel !== "in_person" &&
+        !p.invited &&
+        p.asked !== false &&
+        (autoSend || (inviteMarked && p.asked === true)),
+    )
     .map((p) => p.employee_public_id);
+  // What the button sends: everyone but the people the list says not to.
+  const sendable = pending.filter((p) => p.asked !== false);
   const shouldSend =
-    autoSend &&
     can.inviteUsers &&
     query.isSuccess &&
     toInvite.length > 0 &&
@@ -105,7 +123,9 @@ export function MigrationLogins({
   const running = useRef(false);
   const [sending, setSending] = useState(false);
   async function sendAll(
-    ids = unsent.length > 0 ? unsent : pending.map((p) => p.employee_public_id),
+    ids = unsent.length > 0
+      ? unsent
+      : sendable.map((p) => p.employee_public_id),
   ) {
     if (running.current) return;
     running.current = true;
@@ -248,6 +268,9 @@ export function MigrationLogins({
                             {p.invited
                               ? ` · ${t("migration_logins.invited", "invited, not yet activated")}`
                               : ""}
+                            {p.asked === false
+                              ? ` · ${t("migration_logins.list_said_no", "this list did not ask to invite them")}`
+                              : ""}
                           </span>,
                         ],
                       }))}
@@ -294,7 +317,7 @@ export function MigrationLogins({
             <ActivationCodeSheetDialog employeeIds={inPerson} />
             <StartingPasswordDialog employeeIds={inPerson} />
             {can.inviteUsers &&
-              pending.length > 0 &&
+              sendable.length > 0 &&
               (!result || unsent.length > 0) && (
                 <Button onClick={() => sendAll()} disabled={sending}>
                   {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

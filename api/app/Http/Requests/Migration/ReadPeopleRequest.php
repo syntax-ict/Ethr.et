@@ -20,7 +20,10 @@ class ReadPeopleRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return $this->gridRules('required');
+        // `complete` reads the list as one that adds nobody: it has no sign-in column.
+        $rules = $this->gridRules('required');
+
+        return [...$rules, 'mode' => ['sometimes', 'nullable', 'string', 'in:complete']];
     }
 
     public function withValidator(Validator $validator): void
