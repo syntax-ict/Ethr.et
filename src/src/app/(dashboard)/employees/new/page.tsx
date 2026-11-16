@@ -307,7 +307,17 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
         badge: origin.badge,
         employee_public_id: employeeId,
       });
-      if (result.refused > 0) {
+      if (result.remaining > 0) {
+        // One request replays for a few seconds. The badge is theirs now, and
+        // the Devices card carries on from where this stopped.
+        toast.warning(
+          t(
+            "employee.badge_replayed_part",
+            ":replayed held punches were recorded for them. :remaining more are waiting. Open Devices, under Unrecognised badges, to bring them in.",
+            { replayed: result.replayed, remaining: result.remaining },
+          ),
+        );
+      } else if (result.refused > 0) {
         toast.warning(
           t(
             "employee.badge_replayed_some",

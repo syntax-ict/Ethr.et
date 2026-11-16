@@ -6,6 +6,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Services\Migration\StagedChanges;
 use App\Support\EmployeeImportGrid;
 use App\Support\EmployeeImportRow;
 use Illuminate\Http\UploadedFile;
@@ -182,4 +183,101 @@ test('the file import brings a person in with the status and the other system\'s
     ])->assertCreated()->assertJsonPath('created', 0)->assertJsonPath('matched', 1);
 
     expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(1);
+});
+
+test('every template header is in exactly one group', function () {
+    $seen = [];
+    foreach (EmployeeImportRow::GROUPS as $headers) {
+        foreach ($headers as $header) {
+            $seen[$header] = ($seen[$header] ?? 0) + 1;
+        }
+    }
+
+    expect(array_keys($seen))->toEqualCanonicalizing(EmployeeImportRow::TEMPLATE)
+        ->and(array_unique(array_values($seen)))->toBe([1]);
+});
+
+test('the template serves one entry per column, in the template order', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $template = test()->postJson('/api/v1/employees/import/template')->assertOk()->json();
+
+    $keys = array_column($template['columns'], 'key');
+    $required = array_column(array_filter($template['columns'], fn (array $c): bool => $c['required']), 'key');
+
+    expect($keys)->toBe(EmployeeImportRow::TEMPLATE)
+        ->and($keys)->toBe($template['headers'])
+        ->and($template['required'])->toBe($required)
+        ->and($required)->toBe(['name']);
+
+    foreach ($template['columns'] as $column) {
+        expect(EmployeeImportRow::header($column['key']))->toBe($column['column'])
+            ->and(EmployeeImportRow::GROUPS[$column['group']])->toContain($column['key']);
+    }
+});
+
+test('a column is masked or pay exactly as the staged review treats it', function () {
+    foreach (EmployeeImportRow::columnMeta() as $column) {
+        $staged = $column['column'] === 'salary' ? 'salary_cents' : $column['column'];
+
+        expect($column['masked'])->toBe(in_array($staged, StagedChanges::MASKED, true), $column['key'])
+            ->and($column['pay'])->toBe(in_array($staged, StagedChanges::PAY, true), $column['key']);
+    }
+
+    $byKey = array_column(EmployeeImportRow::columnMeta(), null, 'key');
+
+    expect($byKey['salary'])->toMatchArray(['kind' => 'number', 'pay' => true, 'masked' => true])
+        ->and($byKey['tin'])->toMatchArray(['kind' => 'id', 'pay' => true, 'masked' => true])
+        ->and($byKey['national_id'])->toMatchArray(['pay' => false, 'masked' => true])
+        ->and($byKey['hire_date']['kind'])->toBe('date')
+        ->and($byKey['department']['kind'])->toBe('list')
+        ->and($byKey['nationality']['kind'])->toBe('text');
+});
+
+test('every column the server reads, and every staged field, has words in the browser', function () {
+    $file = base_path('../src/src/features/employees/employee-columns.ts');
+    $source = file_get_contents($file);
+
+    // The map is keyed by internal column. A template spelling ("department")
+    // and a staged key ("salary_cents") are names for one of its entries.
+    $named = [...EmployeeImportRow::MAPPABLE, ...array_keys(StagedChanges::FIELDS), ...EmployeeImportRow::TEMPLATE];
+    $entries = array_unique(array_map(
+        fn (string $key): string => $key === 'salary_cents' ? 'salary' : EmployeeImportRow::header($key),
+        $named,
+    ));
+
+    foreach ($entries as $key) {
+        expect($source)->toMatch('/^\s+"?'.preg_quote($key, '/').'"?:/m', $key);
+    }
+})->skip(fn () => ! is_dir(base_path('../src/src/features')), 'Needs the frontend source beside api/, as in a full checkout.');
+
+test('every profile column is in the template, in one group, and described like the staged review describes it', function () {
+    $byKey = array_column(EmployeeImportRow::columnMeta(), null, 'key');
+
+    foreach (EmployeeImportRow::PROFILE as $column) {
+        $groups = array_keys(array_filter(EmployeeImportRow::GROUPS, fn (array $headers): bool => in_array($column, $headers, true)));
+
+        expect(EmployeeImportRow::TEMPLATE)->toContain($column)
+            ->and(EmployeeImportRow::MAPPABLE)->toContain($column)
+            ->and(EmployeeImportRow::COLUMNS)->toContain($column)
+            ->and($groups)->toHaveCount(1, $column)
+            ->and(EmployeeImportRow::header($column))->toBe($column);
+    }
+
+    expect($byKey['grade'])->toMatchArray(['group' => 'job', 'kind' => 'list', 'pay' => false])
+        ->and($byKey['cost_center'])->toMatchArray(['group' => 'job', 'kind' => 'list'])
+        ->and($byKey['contract_type'])->toMatchArray(['group' => 'job', 'kind' => 'list'])
+        ->and($byKey['probation_end_date'])->toMatchArray(['group' => 'job', 'kind' => 'date'])
+        ->and($byKey['contract_end_date'])->toMatchArray(['group' => 'job', 'kind' => 'date'])
+        ->and($byKey['bank_name'])->toMatchArray(['group' => 'pay', 'pay' => true, 'masked' => false])
+        ->and($byKey['bank_account'])->toMatchArray(['group' => 'pay', 'kind' => 'id', 'pay' => true, 'masked' => true])
+        ->and($byKey['emergency_phone'])->toMatchArray(['group' => 'contact', 'kind' => 'id'])
+        ->and(EmployeeImportRow::DATES)->toContain('probation_end_date', 'contract_end_date')
+        ->and(EmployeeImportRow::TEXT_COLUMNS)->toContain('bank_account');
+});
+
+test('the file import keeps the rules it had: none of the profile columns is among them', function () {
+    expect(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules())))->toBe([])
+        ->and(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules('rows.*.'))))->toBe([]);
 });

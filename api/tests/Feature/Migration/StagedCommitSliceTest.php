@@ -5,9 +5,13 @@ declare(strict_types=1);
 use App\Enums\OnboardingStep;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\EmployeeBankDetail;
+use App\Models\EmployeeContract;
+use App\Models\EmployeeEmergencyContact;
 use App\Models\MigrationBatch;
 use App\Models\OnboardingProgress;
 use App\Models\Tenant;
+use App\Services\EmployeeRelatedRecords;
 use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\Route;
 use Tests\Support\StagingFixtures as Staging;
@@ -136,4 +140,75 @@ it('gives the commit a rate limit of its own', function () {
 
     expect($route)->not->toBeNull()
         ->and($route->gatherMiddleware())->toContain('throttle:migration-commit');
+});
+
+/*
+ * What a new person is brought in with is written in the transaction of the
+ * chunk that made them. A related record that cannot be written takes the
+ * chunk with it: nobody is left without what their row brought.
+ */
+it('writes a new person\'s contract, bank account and emergency contact inside the slice', function () {
+    [$tenant, $user] = Staging::organisation();
+    $rows = array_map(fn (array $person): array => [
+        ...$person,
+        'hire_date' => '2026-01-15',
+        'bank_name' => 'Commercial Bank',
+        'bank_account' => '10001'.random_int(10000, 99999),
+        'contract_type' => 'permanent',
+        'emergency_name' => 'Hana Bekele',
+        'emergency_relationship' => 'Sister',
+        'emergency_phone' => '0911223344',
+    ], fivePeople());
+
+    $batch = Staging::stage($tenant, $rows);
+    $progress = Staging::service()->commitSlice($batch, $user);
+
+    // One chunk of two people, each whole.
+    expect($progress->done)->toBeFalse()
+        ->and(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(2)
+        ->and(EmployeeContract::query()->where('tenant_id', $tenant->id)->count())->toBe(2)
+        ->and(EmployeeBankDetail::query()->where('tenant_id', $tenant->id)->count())->toBe(2)
+        ->and(EmployeeEmergencyContact::query()->where('tenant_id', $tenant->id)->count())->toBe(2);
+
+    Staging::service()->commit($batch->refresh(), $user);
+
+    expect(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(5)
+        ->and(EmployeeContract::query()->where('tenant_id', $tenant->id)->count())->toBe(5)
+        ->and(EmployeeBankDetail::query()->where('tenant_id', $tenant->id)->count())->toBe(5);
+});
+
+it('leaves nobody half made when a related record cannot be written, and goes on once it can', function () {
+    [$tenant, $user] = Staging::organisation();
+    $rows = array_map(fn (array $person): array => [
+        ...$person,
+        'bank_name' => 'Commercial Bank',
+        'bank_account' => '1000123456789',
+    ], fivePeople());
+
+    $batch = Staging::stage($tenant, $rows);
+
+    app()->bind(EmployeeRelatedRecords::class, fn () => new class extends EmployeeRelatedRecords
+    {
+        public function addBankDetail(Employee $employee, array $data): EmployeeBankDetail
+        {
+            throw new RuntimeException('The bank account could not be written.');
+        }
+    });
+    app()->forgetInstance(WorkforceMigrationService::class);
+
+    expect(fn () => Staging::service()->commitSlice($batch, $user))->toThrow(RuntimeException::class);
+
+    // The chunk's first person is gone with the chunk, and the list has not moved.
+    expect(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(0)
+        ->and(EmployeeBankDetail::query()->where('tenant_id', $tenant->id)->count())->toBe(0)
+        ->and(MigrationBatch::query()->whereKey($batch->id)->value('commit_cursor'))->toBeNull()
+        ->and($batch->refresh()->status)->not->toBe('committed');
+
+    app()->bind(EmployeeRelatedRecords::class, EmployeeRelatedRecords::class);
+    app()->forgetInstance(WorkforceMigrationService::class);
+
+    Staging::service()->commit($batch->refresh(), $user);
+
+    expect(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(5)
+        ->and(EmployeeBankDetail::query()->where('tenant_id', $tenant->id)->count())->toBe(5);
 });

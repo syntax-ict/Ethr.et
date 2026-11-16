@@ -121,6 +121,38 @@ Listing needs `device.viewAny`; assigning and dismissing need
 and discarded the punch, so a day was lost for good once the badge was
 finally mapped.
 
+**Bringing the punches in is bounded and carries on (2026-11-16).** The host
+ends a request at about 30 seconds and a badge can hold hundreds of punches,
+so `POST devices/unmatched-punches/assign` links the number, replays held
+punches earliest first for about 12 seconds (`UnmatchedPunches::SLICE_SECONDS`,
+the same as an import slice) and answers `{replayed, refused, remaining}`. It
+always replays at least one punch, so every call makes progress. Sending the
+same three inputs again carries on from where it stopped; a punch already
+`replayed` or `refused` is never looked at again. The Devices card and the
+committed import screen do this themselves, with a Stop button and a Carry on
+button after a failure, and add the totals.
+
+One cache lock per organisation, device and badge (`UnmatchedPunches::lockKey`,
+taken without waiting, released in `finally`, 60 seconds at most if the request
+dies) keeps two requests from replaying the same punch. A caller that cannot
+take it gets `409` ("These punches are already being brought in") and nothing
+has been linked or replayed for it. Production's cache store is `database`,
+which supports locks. Every call that replays or refuses at least one punch writes one audit
+entry with that call's own counts: `device.badge_assigned` when the call made
+or changed the link, `device.held_punches_replayed` when it only carried on or
+the number was already confirmed (an import does that). A call that finds
+nothing pending writes nothing. Refused punches are marked `refused` with the
+reason and are shown nowhere in the product, only counted in the answer and
+the audit entry.
+
+After a list is added, the terminals read of that batch
+(`GET onboarding/migration/batches/{batch}/terminals`) lists, for someone with
+`attendance.manage`, the held badges that now resolve to exactly one of the
+list's people (`held`, at most 100, the rest counted in `held_more`; ambiguous
+or probable matches are never listed). One button there assigns them one
+badge after another through the same endpoint. It is never automatic: it gives
+each number to that person and cannot be undone from that screen.
+
 ## Attendance-history import (backfill)
 
 `POST /api/v1/devices/{device}/import-history` with `{ window }`:
@@ -251,8 +283,17 @@ Five rules:
   one already linked to that device (`employee_external_identities`), else the badge
   number. The badge number is set on the employee's profile or the new-employee form
   (*Badge / device ID*, since 2026-10-14; letters, digits and hyphens, at most 32, unique
-  in the organisation). ZKTeco terminals take digits only. Until then nothing in the
+  in the organisation). ZKTeco terminals take digits only, and `DeviceIdRules` enforces it: a number
+  with a letter in it is not queued for a `zkteco` or `zkteco_adms` device. It is kept as a failed
+  `upsert_user` whose error reads *Not sent: this terminal takes digits only as a person number*, so
+  the device's Commands tab says who was not sent, and **Send all staff** counts it as skipped. A
+  list read for import warns (`terminal_number_not_accepted`, in `warnings`) when a badge would be
+  refused by a type the organisation has a device of; the person is still added. Other types have no
+  rule of their own, and nothing is claimed for them. Until then nothing in the
   product could set it, so a new hire never reached a terminal by badge. A person with neither is skipped, and **Send all staff** reports how many.
+- **Only a device ETHR can write to is sent commands.** The switch is cleared when a terminal
+  becomes one that only sends (Hikvision push), and the `zkteco` (REST) adapter takes none, so a
+  ZKTeco terminal that carries commands is `zkteco_adms`.
 - **A newer command for the same person replaces one still waiting** (status
   `cancelled`). Two edits in a row reach the device once, and a hire followed by a
   termination never adds.
@@ -291,10 +332,42 @@ API, all under `auth:sanctum`:
 - `GET /devices/{device}/commands` (`device.view`)
 - `POST /devices/{device}/commands/set-time` and `/send-staff` (`device.update`; 409
   while commands are off)
+- `POST /devices/{device}/commands/retry` (`device.update`; 409 while commands are off or
+  for a type ETHR cannot write to). Body: optional `batch_public_id`, a list of this
+  organisation, to send again only its people. Answers `{queued, skipped}`.
 - `POST /employees/{employee}/enrol-on-devices` (`device.update`)
 
 Pinned in `tests/Feature/Device/DeviceCommandQueueTest.php` and
 `src/src/test/device-commands-tab.test.tsx`.
+
+### Sending again, and what a list left at the terminals (2026-11-16)
+
+**Retry goes through the same door as a save.** `DeviceCommandQueue::resend()` takes the
+people whose newest add-or-update on the device failed (`failedPeople()`) and calls the
+same private `upsert()` a save does, so `DeviceIdRules` applies again: a number the
+terminal still would not take stays "not sent" and is counted as `skipped`. Someone who has left the device's branch is skipped, so the removal queued when they moved is not cancelled by an add. Old rows are
+never flipped back to `pending`; a new command is queued beside them, and the newest one
+is what every count reads.
+
+**One way to tell a not-sent row.** A refusal of a number is a `failed` `upsert_user`
+whose `last_error` starts with `DeviceCommandQueue::NOT_SENT_PREFIX`; ask
+`DeviceCommandQueue::isNotSent()`, never repeat the text. A command the terminal itself
+refused (`The device answered with error 4.`) is a failure; the two are counted apart
+because only the second is cured by trying again.
+
+**Reading it back for a list.** `GET /onboarding/migration/batches/{batch}/terminals`
+(`employee.viewAny`, and `device.viewAny` for anything about devices; without it the
+answer is the empty shape with `visible: false`) lists, for each device of the branches
+the list's people are in, `queued` (pending or sent), `done`, `failed`, `not_sent`,
+the newest failure's `last_error`, and for a device ETHR cannot write to (`writable`
+false: commands off, or a type with no adapter that takes them, or a Hikvision terminal
+that only sends) `enrol_by_hand`, the people to enrol there with the number each is to be
+given. It also counts `without_number` (no badge and no id any device of the branch
+reported) and `without_branch`. Only people the viewer may open are named or counted.
+`MigrationTerminals` reads it in a fixed number of queries: the devices, the ids they
+reported, and each person's newest add-or-update per device
+(`DeviceCommand::newestUpsert`). Pinned in
+`tests/Feature/Migration/MigrationTerminalsTest.php`.
 
 ## ZKTeco ADMS (2026-10-14)
 

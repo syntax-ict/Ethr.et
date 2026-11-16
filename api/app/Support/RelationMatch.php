@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\Grade;
 use App\Models\Position;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Finds one of an organisation's departments, branches or positions from what
- * a person typed: its code, or its English or Amharic name, ignoring case and
- * surrounding spaces. A name two of them share matches neither, so the caller
+ * Finds one of an organisation's departments, branches, positions, grades or
+ * cost centres from what a person typed: its code, or its English or Amharic
+ * name, ignoring case and surrounding spaces. A grade has no code and no
+ * Amharic name, so it is found by its name alone. A name two of them share matches neither, so the caller
  * can ask for the code instead of guessing.
  *
  * DepartmentMatch held this rule for departments alone, and a staged list
@@ -44,17 +47,27 @@ final class RelationMatch
         return self::of(Position::class, ['title', 'title_am'], $tenantId);
     }
 
+    public static function grades(int $tenantId): self
+    {
+        return self::of(Grade::class, ['name'], $tenantId, hasCode: false);
+    }
+
+    public static function costCenters(int $tenantId): self
+    {
+        return self::of(CostCenter::class, ['name'], $tenantId);
+    }
+
     /**
      * @param  class-string<Model>  $model
      * @param  list<string>  $nameColumns
      */
-    private static function of(string $model, array $nameColumns, int $tenantId): self
+    private static function of(string $model, array $nameColumns, int $tenantId, bool $hasCode = true): self
     {
         $codes = [];
         $names = [];
 
-        foreach ($model::query()->where('tenant_id', $tenantId)->get(['id', 'code', ...$nameColumns]) as $record) {
-            $code = $record->getAttribute('code');
+        foreach ($model::query()->where('tenant_id', $tenantId)->get(['id', ...($hasCode ? ['code'] : []), ...$nameColumns]) as $record) {
+            $code = $hasCode ? $record->getAttribute('code') : null;
             if (is_string($code) && trim($code) !== '') {
                 $codes[self::key($code)] = (int) $record->getKey();
             }

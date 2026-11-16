@@ -13245,11 +13245,16 @@
                                         },
                                         "refused": {
                                             "type": "integer"
+                                        },
+                                        "remaining": {
+                                            "type": "integer",
+                                            "minimum": 0
                                         }
                                     },
                                     "required": [
                                         "replayed",
-                                        "refused"
+                                        "refused",
+                                        "remaining"
                                     ]
                                 }
                             }
@@ -13706,6 +13711,96 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/{device}/commands/retry": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "deviceCommand.retry",
+                "summary": "Send again the people whose newest add-or-update on this device failed,\nall of them or only those a list brought in. The terminal's number\nrules apply once more: a number it does not take is still not sent",
+                "tags": [
+                    "Devices"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RetryDeviceCommandsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "queued": {
+                                            "type": "integer"
+                                        },
+                                        "skipped": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "queued",
+                                        "skipped"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "ETHR cannot send people to this device."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -16092,7 +16187,7 @@
                     "employees"
                 ],
                 "operationId": "employeeImport.template",
-                "description": "`template` is the CSV header row. `lists` is what each choice column\nmay hold, for dropdowns: the fixed values, and this organisation's\ndepartments, branches and positions by name (by code where two share a\nname). `text_columns` must be formatted as text, or a spreadsheet drops\na leading zero and rounds a long number. `date_columns` hold dates.",
+                "description": "`template` is the CSV header row. `lists` is what each choice column\nmay hold, for dropdowns: the fixed values, and this organisation's\ndepartments, branches and positions by name (by code where two share a\nname). `text_columns` must be formatted as text, or a spreadsheet drops\na leading zero and rounds a long number. `date_columns` hold dates.\n`columns` says what each column is, in the template's order.",
                 "summary": "The employee template: its columns, and what a workbook built from it\nneeds to know",
                 "tags": [
                     "Employees"
@@ -16132,6 +16227,59 @@
                                                 "type": "string"
                                             }
                                         },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
+                                                    "group": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "core",
+                                                            "person",
+                                                            "contact",
+                                                            "job",
+                                                            "pay",
+                                                            "source"
+                                                        ]
+                                                    },
+                                                    "kind": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "date",
+                                                            "list",
+                                                            "id",
+                                                            "number",
+                                                            "text"
+                                                        ]
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "pay": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "masked": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "key",
+                                                    "column",
+                                                    "group",
+                                                    "kind",
+                                                    "required",
+                                                    "pay",
+                                                    "masked"
+                                                ]
+                                            }
+                                        },
                                         "lists": {
                                             "type": "object",
                                             "additionalProperties": {
@@ -16148,6 +16296,7 @@
                                         "required",
                                         "text_columns",
                                         "date_columns",
+                                        "columns",
                                         "lists"
                                     ]
                                 }
@@ -25630,6 +25779,13 @@
                                         "status": {
                                             "type": "string"
                                         },
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [
+                                                "complete",
+                                                "add"
+                                            ]
+                                        },
                                         "arrival_status": {
                                             "type": [
                                                 "string",
@@ -25695,6 +25851,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "resolved_employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "action": {
                                                         "type": "string"
                                                     },
@@ -25742,6 +25904,10 @@
                                                             ]
                                                         }
                                                     },
+                                                    "warnings": {
+                                                        "type": "array",
+                                                        "items": []
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -25763,8 +25929,10 @@
                                                     "match_confidence",
                                                     "candidates",
                                                     "resolved_employee_public_id",
+                                                    "resolved_employee_code",
                                                     "action",
                                                     "changes",
+                                                    "warnings",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -25777,6 +25945,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "mode",
                                         "arrival_status",
                                         "totals",
                                         "summary",
@@ -26122,6 +26291,187 @@
                 }
             }
         },
+        "/onboarding/migration/batches/{batch}/terminals": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "migration.terminals",
+                "description": "Device information needs `device.viewAny`; without it the answer is the\nempty one with `visible` false. Someone the viewer may not open is\nneither named nor counted. `held` lists, for a viewer who may assign a\nbadge (`attendance.manage`), the held badges that are now exactly one of\nthose people; it is empty for anyone else.",
+                "summary": "What the attendance terminals hold for the people a committed batch\nbrought in: per device of their branches, how many were sent, are\nwaiting, were refused or were not sent for their number, and for a\nterminal ETHR cannot write to, who to enrol by hand",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "visible": {
+                                            "type": "boolean"
+                                        },
+                                        "devices": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "adapter_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "writable": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "receives_only": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "queued": {
+                                                        "type": "integer"
+                                                    },
+                                                    "done": {
+                                                        "type": "integer"
+                                                    },
+                                                    "failed": {
+                                                        "type": "integer"
+                                                    },
+                                                    "not_sent": {
+                                                        "type": "integer"
+                                                    },
+                                                    "last_error": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "enrol_by_hand": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "device_user_id": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "name",
+                                                                "device_user_id"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "adapter_type",
+                                                    "writable",
+                                                    "receives_only",
+                                                    "queued",
+                                                    "done",
+                                                    "failed",
+                                                    "not_sent",
+                                                    "last_error",
+                                                    "enrol_by_hand"
+                                                ]
+                                            }
+                                        },
+                                        "without_number": {
+                                            "type": "integer"
+                                        },
+                                        "without_branch": {
+                                            "type": "integer"
+                                        },
+                                        "can_assign": {
+                                            "type": "boolean"
+                                        },
+                                        "held": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "badge": {
+                                                        "type": "string"
+                                                    },
+                                                    "punches": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "badge",
+                                                    "punches",
+                                                    "employee_public_id",
+                                                    "employee_name"
+                                                ]
+                                            }
+                                        },
+                                        "held_more": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "visible",
+                                        "devices",
+                                        "without_number",
+                                        "without_branch",
+                                        "can_assign",
+                                        "held",
+                                        "held_more"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/onboarding/migration/devices/{device}": {
             "post": {
                 "x-abilities": [
@@ -26165,6 +26515,13 @@
                                         },
                                         "status": {
                                             "type": "string"
+                                        },
+                                        "mode": {
+                                            "type": "string",
+                                            "enum": [
+                                                "complete",
+                                                "add"
+                                            ]
                                         },
                                         "arrival_status": {
                                             "type": [
@@ -26231,6 +26588,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "resolved_employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "action": {
                                                         "type": "string"
                                                     },
@@ -26278,6 +26641,10 @@
                                                             ]
                                                         }
                                                     },
+                                                    "warnings": {
+                                                        "type": "array",
+                                                        "items": []
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -26299,8 +26666,10 @@
                                                     "match_confidence",
                                                     "candidates",
                                                     "resolved_employee_public_id",
+                                                    "resolved_employee_code",
                                                     "action",
                                                     "changes",
+                                                    "warnings",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -26313,6 +26682,7 @@
                                         "source_type",
                                         "source_ref",
                                         "status",
+                                        "mode",
                                         "arrival_status",
                                         "totals",
                                         "summary",
@@ -26400,10 +26770,47 @@
                                                     },
                                                     "message": {
                                                         "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "code": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "line",
+                                                    "message",
+                                                    "column",
+                                                    "code"
+                                                ]
+                                            }
+                                        },
+                                        "warnings": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "line": {
+                                                        "type": "integer"
+                                                    },
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "message": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "line",
+                                                    "column",
+                                                    "code",
                                                     "message"
                                                 ]
                                             }
@@ -26464,6 +26871,7 @@
                                         "calendar_from_header",
                                         "without_hire_date",
                                         "problems",
+                                        "warnings",
                                         "headers",
                                         "header_likely",
                                         "needs_name",
@@ -26492,7 +26900,7 @@
                     "write"
                 ],
                 "operationId": "migration.stageFromRows",
-                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary or a TIN needs the pay permission, as the add-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.\n\nEvery person is stored at once and matched against the people already\nhere a slice at a time. A short list is matched before this answers and\nthe answer is the whole list for review. A long one answers with its\n`public_id`, `status` `staging`, how many are `staged` and how many\n`remaining`; the same request to `/migration/batches/{batch}/stage` is\nsent again until `status` is `reviewing`, and then the list is read\nfrom `/migration/batches/{batch}`.",
+                "description": "Send `grid` (the list as lines of cells, read as `/migration/read`\nreads it) or `rows` (people already keyed by field). A grid with a line\nthat cannot be staged is refused whole, each line named, unless\n`skip_problems` is set: then those lines are left out. A list that sets\na salary, a TIN or a bank account needs the pay permission, as the\nadd-employee form does.\n\n`source` and `mapping` say how the list names its columns, as for\n`/migration/read`. With a `source`, an id from the other system is kept\nagainst that source, so the same id in its next list is the same person.\n\nEvery person is stored at once and matched against the people already\nhere a slice at a time. A short list is matched before this answers and\nthe answer is the whole list for review. A long one answers with its\n`public_id`, `status` `staging`, how many are `staged` and how many\n`remaining`; the same request to `/migration/batches/{batch}/stage` is\nsent again until `status` is `reviewing`, and then the list is read\nfrom `/migration/batches/{batch}`.",
                 "summary": "Stage a list of people for review",
                 "tags": [
                     "Onboarding"
@@ -26530,6 +26938,13 @@
                                                 },
                                                 "status": {
                                                     "type": "string"
+                                                },
+                                                "mode": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "complete",
+                                                        "add"
+                                                    ]
                                                 },
                                                 "arrival_status": {
                                                     "type": [
@@ -26596,6 +27011,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "resolved_employee_code": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "action": {
                                                                 "type": "string"
                                                             },
@@ -26643,6 +27064,10 @@
                                                                     ]
                                                                 }
                                                             },
+                                                            "warnings": {
+                                                                "type": "array",
+                                                                "items": []
+                                                            },
                                                             "can_apply_changes": {
                                                                 "type": "boolean"
                                                             },
@@ -26664,8 +27089,10 @@
                                                             "match_confidence",
                                                             "candidates",
                                                             "resolved_employee_public_id",
+                                                            "resolved_employee_code",
                                                             "action",
                                                             "changes",
+                                                            "warnings",
                                                             "can_apply_changes",
                                                             "scheduled_action",
                                                             "processed_at"
@@ -26678,6 +27105,7 @@
                                                 "source_type",
                                                 "source_ref",
                                                 "status",
+                                                "mode",
                                                 "arrival_status",
                                                 "totals",
                                                 "summary",
@@ -26803,6 +27231,12 @@
                                                 "null"
                                             ]
                                         },
+                                        "resolved_employee_code": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "action": {
                                             "type": "string"
                                         },
@@ -26850,6 +27284,10 @@
                                                 ]
                                             }
                                         },
+                                        "warnings": {
+                                            "type": "array",
+                                            "items": []
+                                        },
                                         "can_apply_changes": {
                                             "type": "boolean"
                                         },
@@ -26871,8 +27309,10 @@
                                         "match_confidence",
                                         "candidates",
                                         "resolved_employee_public_id",
+                                        "resolved_employee_code",
                                         "action",
                                         "changes",
+                                        "warnings",
                                         "can_apply_changes",
                                         "scheduled_action",
                                         "processed_at"
@@ -52063,6 +52503,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -52605,6 +53056,20 @@
                 ],
                 "title": "RetirementType"
             },
+            "RetryDeviceCommandsRequest": {
+                "type": "object",
+                "properties": {
+                    "batch_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "title": "RetryDeviceCommandsRequest"
+            },
             "ReviewIntegrityFlagRequest": {
                 "type": "object",
                 "description": "Accepting or rejecting an integrity flag. A rejection voids the punch and\nthe note is sent to the employee, so it is required there.",
@@ -52774,6 +53239,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -53339,6 +53815,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -53352,6 +53839,16 @@
                     },
                     "skip_problems": {
                         "type": "boolean"
+                    },
+                    "mode": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "complete",
+                            null
+                        ]
                     },
                     "rows": {
                         "type": "array",
@@ -53526,6 +54023,87 @@
                                         "null"
                                     ],
                                     "maxLength": 100
+                                },
+                                "grade": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "cost_center": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "probation_end_date": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
+                                "contract_type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ContractType"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ]
+                                },
+                                "contract_end_date": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "date-time"
+                                },
+                                "bank_name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "bank_branch": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "bank_account": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 50
+                                },
+                                "emergency_name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                },
+                                "emergency_relationship": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 100
+                                },
+                                "emergency_phone": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
+                                    "maxLength": 20
                                 },
                                 "department": {
                                     "type": [
@@ -57061,6 +57639,17 @@
                                         "marital_status",
                                         "status",
                                         "external_id",
+                                        "grade",
+                                        "cost_center",
+                                        "probation_end_date",
+                                        "contract_type",
+                                        "contract_end_date",
+                                        "bank_name",
+                                        "bank_branch",
+                                        "bank_account",
+                                        "emergency_name",
+                                        "emergency_relationship",
+                                        "emergency_phone",
                                         null
                                     ]
                                 }
@@ -57429,7 +58018,13 @@
                                 "tin",
                                 "hire_date",
                                 "department",
-                                "salary_cents"
+                                "salary_cents",
+                                "name_am",
+                                "gender",
+                                "date_of_birth",
+                                "marital_status",
+                                "nationality",
+                                "nationality_status"
                             ]
                         }
                     }

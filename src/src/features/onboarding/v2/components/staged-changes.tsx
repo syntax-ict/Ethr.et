@@ -2,27 +2,28 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { useT } from "@/lib/i18n/useT";
+import { columnLabel } from "@/features/employees/employee-columns";
 import type { StagedChange, StagingRow } from "../types";
 
 type Translate = ReturnType<typeof useT>["t"];
 
-/** Where each field's name already lives in the dictionary. */
-const FIELD_LABELS: Record<string, [string, string]> = {
-  name: ["setup2.col_name", "Name"],
-  email: ["setup2.col_email", "Email"],
-  phone: ["setup2.col_phone", "Phone"],
-  employee_code: ["setup2.col_employee_code", "Employee number"],
-  badge_number: ["setup2.col_badge_number", "Badge number"],
-  national_id: ["employee.national_id", "National ID"],
-  tin: ["employee.tin", "TIN"],
-  hire_date: ["setup2.col_hire_date", "Hire date"],
-  department: ["setup2.col_department", "Department"],
-  salary_cents: ["employee.detail.salary", "Salary"],
-};
+/**
+ * What a list adds as a record of its own, for a person who has none. They
+ * are not columns, so they have words of their own here.
+ */
+const RECORDS = ["bank", "emergency_contact", "contract"];
 
 function fieldLabel(field: string, t: Translate): string {
-  const known = FIELD_LABELS[field];
-  return known ? t(known[0], known[1]) : field;
+  switch (field) {
+    case "bank":
+      return t("setup2.change_bank", "Bank account");
+    case "emergency_contact":
+      return t("setup2.change_emergency_contact", "Emergency contact");
+    case "contract":
+      return t("setup2.change_contract", "Contract");
+    default:
+      return columnLabel(field, t);
+  }
 }
 
 /** One change in words. A masked field is named and its values are not. */
@@ -35,6 +36,13 @@ function describe(change: StagedChange, t: Translate): string {
       ":field: :value belongs to someone else and is left as it is",
       { field, value: change.incoming ?? "" },
     );
+  }
+
+  if (change.kind === "fill" && RECORDS.includes(change.field)) {
+    return t("setup2.changes_adds", "Adds :field: :value", {
+      field,
+      value: change.incoming ?? "",
+    });
   }
 
   if (change.kind === "fill") {
@@ -71,7 +79,9 @@ function describe(change: StagedChange, t: Translate): string {
  *
  * A blank in ETHR is filled without asking. A difference is written only
  * where the reviewer ticks it, and ticking is offered only to someone who may
- * edit that employee. One employee record per person: the row never becomes
+ * edit that employee. A difference in a person's job (and, in a list that
+ * completes people, their pay) is locked: it is shown, said to be left as it
+ * is, and offers no tick. One employee record per person: the row never becomes
  * a second one, so this is where its details go.
  */
 export function StagedChanges({
@@ -137,6 +147,14 @@ export function StagedChanges({
               className="text-[11px] text-muted-foreground"
             >
               <span>{describe(change, t)}</span>
+              {change.kind === "locked" && (
+                <span className="ml-1 italic">
+                  {t(
+                    "setup2.changes_locked",
+                    "Left as it is. Change it with a personnel action.",
+                  )}
+                </span>
+              )}
               {choosable && (
                 <span className="ml-2 inline-flex items-center gap-1 align-middle">
                   <Checkbox

@@ -153,6 +153,23 @@ than `diplomatic_mission` read correctly against the Commercial Code's terms but
 native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is also *price*
 (`admin_plans.price`); no better established word was found in `om.json`.
 
+### Nationality column help in the import guide (2026-11-15)
+
+Drafted, not native-reviewed. The employee import guide had no line for the
+`nationality` column; `employees_import_page.col_nationality` adds one. A
+native reading is owed for both languages.
+
+| Key | English | Amharic | Afaan Oromoo |
+|---|---|---|---|
+| `employees_import_page.col_nationality` | Country of citizenship, such as Ethiopian | የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ | Biyyi lammummaa, fakkeenyaaf Itiyoophiyaa |
+
+### Employee workbook group headings, example line and note (2026-11-15)
+
+Drafted, not native-reviewed. `setup2.template_group_core`, `_person`, `_contact`, `_job`, `_pay` and
+`_source` head the column groups on the template's Instructions sheet, `setup2.template_line_example`
+points the reader to the Example sheet and the header notes, and `setup2.template_example_note` is the
+line under the Example sheet. A native reading is owed for the am and om strings.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |
@@ -294,6 +311,90 @@ What to check first:
 - **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
 - **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
   product's own word for a department is ክፍል / *Muummee*.
+
+### Terminal number warnings (2026-11-15)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. A wrong word
+moves no money: the person is added either way.
+
+| What | Where | Strings |
+|---|---|---|
+| Warning that a badge number is not one a ZKTeco terminal takes | `api/lang/{am,om}/onboarding.php`, `migration.terminal_number_digits_only` | 1 |
+| Notes that a terminal's own number is too long or not a badge number | the same file, `migration.device_id_too_long`, `migration.device_id_not_badge` | 2 |
+| Heading above those warnings in the People step | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.warnings_heading` | 1 |
+
+### Employee import profile columns (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker. They are the words for eleven new
+columns of the employee import (grade, cost centre, probation end, contract type and end date,
+bank name, branch and account, emergency contact name, relationship and phone). The English is
+final. A wrong word here misleads a person filling in a spreadsheet; it moves no money.
+
+| What | Where | Strings |
+|---|---|---|
+| Help lines under each new column | `src/src/lib/i18n/locales/{am,om}.json`, `employees_import_page.col_grade` to `col_emergency_phone` | 11 each |
+| Five new column names | the same files, `employees_import_page.label_contract_end_date`, `label_emergency_name`, `label_emergency_phone`, `label_bank_branch`, `label_bank_account` | 5 each |
+| Problems a list can have | `api/lang/{am,om}/onboarding.php`, `migration.profile_*` (one says a contract starts on the hire date, so the row needs one) | 5 each |
+| Row prefix, two field names and the "not stored" line | `api/lang/{am,om}/employee.php`, `import_row`, `import_field_grade`, `import_field_cost_center`, `import_not_stored` | 4 each |
+
+The other six column names reuse words the profile screens already have. What to check first: the
+contract type values (`probation`, `fixed_term`, `permanent`, `casual`, `consultancy`) are kept
+in Latin letters in both languages, because they are what the column takes; and *Sadarkaa* for a
+grade, which the proposal glossary already uses.
+
+### Completing people who are already here (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a reader about what a list will do; it moves no money, and a
+difference in a person's job is shown and never written whatever the words say.
+
+| What | Where | Strings |
+|---|---|---|
+| The choice between adding people and completing those already here, the review's title and hint, "Not found in ETHR, left out", and the confirmation, progress and done lines | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.mode_*`, `setup2.complete_*`, `setup2.not_found_left_out`, `setup2.left_out`, `setup2.completing`, `setup2.complete_commit`, `setup2.complete_continue`, `setup2.outcome_new_complete` ("not found", the count chip of a list that completes people) | 15 each |
+| The line under a difference that is left alone ("Left as it is. Change it with a personnel action."), the words for a bank account, emergency contact and contract a list adds, and "Adds :field: :value" | the same files, `setup2.changes_locked`, `setup2.change_bank`, `setup2.change_emergency_contact`, `setup2.change_contract`, `setup2.changes_adds` | 5 each |
+| The Download to complete button, its three messages, and the three new gaps a list can be filtered by | the same files, `employees.complete_*`, `employees.missing.department`, `employees.missing.position`, `employees.missing.gender` | 7 each |
+| Two refusals from the row endpoint: a list that completes people adds nobody, and a person's job and pay are changed with a personnel action | `api/lang/{am,om}/onboarding.php`, `migration.complete_adds_nobody`, `migration.accept_locked` | 2 each |
+
+What to check first: *personnel action* (the product's own word for a transfer, promotion or demotion
+that leaves a record) in `setup2.changes_locked` and `migration.accept_locked`, and the word for
+*left out* against the Amharic and Afaan Oromoo the import review already uses for a skipped row.
+
+### Problems by column, and the two files (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person correcting a spreadsheet; it moves no money and changes
+no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The heading and four column headings of the table of problems ("Lines to fix", "What to fix", "Lines", "Line numbers"), and "Whole list" for a problem about the list itself | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.problem_heading`, `problem_col_what`, `problem_col_count`, `problem_col_lines`, `problem_whole_list` | 5 each |
+| The button that downloads the refused lines, and the line shown when the file cannot be built | the same files, `setup2.problem_download_fix`, `problem_fix_failed` | 2 each |
+| The button that downloads what happened, the two headings of its sheet that are new ("What happened", "Note"), the words *Added*, *Filled in*, *Already here, nothing to change*, and its failure line | the same files, `setup2.result_download`, `result_what`, `result_note`, `result_added`, `result_filled`, `result_unchanged`, `result_failed` | 7 each |
+
+What to check first: *Already here, nothing to change* (`result_unchanged`), and *Filled in*
+against the Amharic and Afaan Oromoo the review already uses for a blank that was filled. The words
+for *Left out* and *Not found in ETHR, left out* in the result file are the review's own.
+
+### What a list left at the terminals (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether someone can clock in at a terminal; it
+moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The section on the committed screen: its title and line, "N sent or waiting", "N not accepted by the terminal", the last answer line, "N not sent. Their number is not one this terminal takes.", and the two lines for people with no badge number or no branch | `src/src/lib/i18n/locales/{am,om}.json`, `migration_terminals.title`, `desc`, `sent_or_waiting`, `failed`, `last_error`, `not_sent`, `without_number`, `without_branch`, and the singular `_one` form of `sent_or_waiting`, `failed`, `not_sent`, `without_number` and `without_branch` | 13 each |
+| The two lines for a terminal ETHR cannot write to ("This terminal only sends" and "ETHR does not send people to this terminal"), the download button, the sheet's two headings and its failure line | the same files, `migration_terminals.receives_only`, `enrol_by_hand`, `download`, `download_aria`, `col_number`, `col_name`, `download_failed`, `employees_link`, and the singular `receives_only_one` and `enrol_by_hand_one` | 10 each |
+| The Try again button, its name for a screen reader, and its two answers | the same files, `migration_terminals.retry`, `retry_aria`, `retry_done`, `retry_failed` | 4 each |
+| Bringing a badge's held punches in, in several requests: "N brought in, M still to go", Stop, Carry on, "Stopped.", "It stopped before it finished.", and the line when one request did not replay them all on the new-employee screen | the same files, `devices_page.unmatched.progress`, `stop`, `carry_on`, `stopped`, `carry_failed`, and `employee.badge_replayed_part` | 6 each |
+| After a list: the people whose held punches can now be brought in ("N people on this list have punches waiting at a terminal"), each line, the warning that it cannot be undone here, the button, the totals, the refused line, the line for matches past the cap, and the link to Devices. Each count has a singular `_one` form | the same files, `migration_terminals.punches`, `punches_one`, `held`, `held_one`, `held_row`, `held_warning`, `held_button`, `held_done`, `held_refused`, `held_refused_one`, `held_more`, `held_more_one`, `devices_link` | 13 each |
+| The audit label for bringing held punches in when the link already existed ("Held punches brought in"), and the new-employee line for refused punches, which no longer says they are listed on the attendance | `src/src/lib/i18n/locales/{am,om}.json`, `audit.action.device.held_punches_replayed` and `employee.badge_replayed_some` (reworded) | 2 each |
+| The 409 for a badge whose punches are already being brought in by another request | `api/lang/{am,om}/device.php`, `held_busy` | 1 each |
+
+What to check first: the word for a *terminal* (the drafts use the word the Commands tab already uses
+for a device, so "terminal" and "device" read alike), and *not accepted by the terminal* against *not
+sent* (the first is a refusal by the device, the second is ETHR holding back a number the device would
+refuse).
 
 ### The console shows the kind in law (2026-11-15)
 
