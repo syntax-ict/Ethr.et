@@ -1766,6 +1766,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/backups/google-drive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Google drive backups */
+        put: operations["backupDrive.save"];
+        post?: never;
+        /** Forget the connection: the refresh token is revoked at Google, best effort */
+        delete: operations["backupDrive.disconnect"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/google-drive/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The Google consent URL the browser is sent to */
+        post: operations["backupDrive.connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/google-drive/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Callback google drive */
+        post: operations["backupDrive.callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/google-drive/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test google drive */
+        post: operations["backupDrive.test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/google-drive/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update setting */
+        put: operations["backupDrive.updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/google-drive/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drive's own archive key. Audited and rate limited as the primary's is:
+         *     with the key and a copy anyone can read every tenant's data
+         */
+        post: operations["backupDrive.revealKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/backups": {
         parameters: {
             query?: never;
@@ -9665,6 +9771,11 @@ export interface components {
         AuthenticateKioskRequest: {
             token: string;
         };
+        /** BackupDriveCallbackRequest */
+        BackupDriveCallbackRequest: {
+            code: string;
+            state: string;
+        };
         /** BankDetailResource */
         BankDetailResource: {
             public_id: string;
@@ -11759,6 +11870,11 @@ export interface components {
             is_active?: boolean;
             employee_public_ids?: string[];
             department_public_ids?: string[];
+        };
+        /** SaveBackupDriveRequest */
+        SaveBackupDriveRequest: {
+            client_id: string;
+            client_secret?: string | null;
         };
         /** SaveBackupStorageRequest */
         SaveBackupStorageRequest: {
@@ -18804,6 +18920,528 @@ export interface operations {
             };
         };
     };
+    "backupDrive.save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBackupDriveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                destination: string | null;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupDrive.disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                destination: string | null;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupDrive.connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupDrive.callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupDriveCallbackRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                destination: string | null;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupDrive.test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                destination: string | null;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupDrive.updateSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateBackupSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: string;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        storage: {
+                            endpoint: string;
+                            region: string;
+                            bucket: string;
+                            access_key_id: string;
+                            secret_set: boolean;
+                            path_style: boolean;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                        } | null;
+                        key: {
+                            revealed_at: string | null;
+                            saved_at: string | null;
+                        } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
+                        health: {
+                            /** @enum {string} */
+                            state: "critical" | "warning" | "unknown" | "ok";
+                            reasons: unknown[];
+                            last_backup_at: string | null;
+                            age_seconds: number | null;
+                            last_failed_at: string | null;
+                            last_failed_stage: unknown;
+                            off_host: {
+                                configured: boolean;
+                                disk: string;
+                                destination: string | null;
+                                last_copied_at: string | null;
+                            };
+                            disk: {
+                                measured_at: string;
+                                quota_bytes: number;
+                                total_bytes: number;
+                                database_bytes: number | null;
+                                documents_bytes: number;
+                                backups_bytes: number;
+                                logs_bytes: number;
+                                other_bytes: number;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "backupDrive.revealKey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "backupStorage.show": {
         parameters: {
             query?: never;
@@ -18823,7 +19461,7 @@ export interface operations {
                         source: "console" | "env" | "none";
                         enabled: string;
                         available: boolean;
-                        blocker: string;
+                        blocker: string | null;
                         keep: number;
                         storage: {
                             endpoint: string;
@@ -18842,6 +19480,27 @@ export interface operations {
                             revealed_at: string | null;
                             saved_at: string | null;
                         } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
                         health: {
                             /** @enum {string} */
                             state: "critical" | "warning" | "unknown" | "ok";
@@ -18853,6 +19512,7 @@ export interface operations {
                             off_host: {
                                 configured: boolean;
                                 disk: string;
+                                destination: string | null;
                                 last_copied_at: string | null;
                             };
                             disk: {
@@ -18896,7 +19556,7 @@ export interface operations {
                         source: "console" | "env" | "none";
                         enabled: string;
                         available: boolean;
-                        blocker: string;
+                        blocker: string | null;
                         keep: number;
                         storage: {
                             endpoint: string;
@@ -18915,6 +19575,27 @@ export interface operations {
                             revealed_at: string | null;
                             saved_at: string | null;
                         } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
                         health: {
                             /** @enum {string} */
                             state: "critical" | "warning" | "unknown" | "ok";
@@ -18926,6 +19607,7 @@ export interface operations {
                             off_host: {
                                 configured: boolean;
                                 disk: string;
+                                destination: string | null;
                                 last_copied_at: string | null;
                             };
                             disk: {
@@ -18970,7 +19652,7 @@ export interface operations {
                         source: "console" | "env" | "none";
                         enabled: string;
                         available: boolean;
-                        blocker: string;
+                        blocker: string | null;
                         keep: number;
                         storage: {
                             endpoint: string;
@@ -18989,6 +19671,27 @@ export interface operations {
                             revealed_at: string | null;
                             saved_at: string | null;
                         } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
                         health: {
                             /** @enum {string} */
                             state: "critical" | "warning" | "unknown" | "ok";
@@ -19000,6 +19703,7 @@ export interface operations {
                             off_host: {
                                 configured: boolean;
                                 disk: string;
+                                destination: string | null;
                                 last_copied_at: string | null;
                             };
                             disk: {
@@ -19041,7 +19745,7 @@ export interface operations {
                         source: "console" | "env" | "none";
                         enabled: string;
                         available: boolean;
-                        blocker: string;
+                        blocker: string | null;
                         keep: number;
                         storage: {
                             endpoint: string;
@@ -19060,6 +19764,27 @@ export interface operations {
                             revealed_at: string | null;
                             saved_at: string | null;
                         } | null;
+                        google_drive: {
+                            redirect_uri: string;
+                            saved: string;
+                            client_id: string | null;
+                            secret_set: boolean;
+                            connected: boolean;
+                            account_email: string | null;
+                            connected_at: string | null;
+                            enabled: boolean;
+                            available: string;
+                            blocker: string | null;
+                            verified: boolean;
+                            verified_at: string | null;
+                            last_test_at: string | null;
+                            last_test_ok: boolean | null;
+                            last_test_error: string | null;
+                            key: {
+                                revealed_at: string | null;
+                                saved_at: string | null;
+                            } | null;
+                        };
                         health: {
                             /** @enum {string} */
                             state: "critical" | "warning" | "unknown" | "ok";
@@ -19071,6 +19796,7 @@ export interface operations {
                             off_host: {
                                 configured: boolean;
                                 disk: string;
+                                destination: string | null;
                                 last_copied_at: string | null;
                             };
                             disk: {
@@ -33168,6 +33894,8 @@ export interface operations {
                             off_host: {
                                 configured: boolean;
                                 disk: string;
+                                /** @enum {string|null} */
+                                destination: "s3" | "google_drive" | null;
                                 last_copied_at: string | null;
                             };
                             disk: {
