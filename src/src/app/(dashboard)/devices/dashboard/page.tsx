@@ -8,6 +8,7 @@ import {
   WifiOff,
   AlertTriangle,
   Clock,
+  Hourglass,
   Activity,
   ArrowLeft,
   Plus,
@@ -71,14 +72,14 @@ export default function DeviceDashboardPage() {
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />
         ) : statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
@@ -90,6 +91,12 @@ export default function DeviceDashboardPage() {
                 title={t("devices_page.online")}
                 value={stats.online}
                 color="success"
+              />
+              <StatusCard
+                icon={Hourglass}
+                title={t("devices_page.pending")}
+                value={stats.pending}
+                color="warning"
               />
               <StatusCard
                 icon={WifiOff}

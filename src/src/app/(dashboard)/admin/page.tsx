@@ -598,56 +598,59 @@ export default function AdminConsolePage() {
                           {timeAgo(job.failed_at)}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          retryJob.mutate(job.uuid, {
-                            onSuccess: () =>
-                              toast.success(
-                                t(
-                                  "admin_console_page.job_retried",
-                                  "Job retried",
-                                ),
-                              ),
-                            onError: (err) =>
-                              toast.error(
-                                apiErrorMessage(
-                                  err,
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            retryJob.mutate(job.uuid, {
+                              onSuccess: () =>
+                                toast.success(
                                   t(
-                                    "admin_console_page.retry_failed",
-                                    "Retry failed",
+                                    "admin_console_page.job_retried",
+                                    "Job retried",
                                   ),
                                 ),
-                              ),
-                          })
-                        }
-                        disabled={retryJob.isPending}
-                        title={t("admin_console_page.retry_job", "Retry job")}
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        <span className="sr-only">
-                          {t("admin_console_page.retry_job", "Retry job")}
-                        </span>
-                      </Button>
-                      {/* Dismiss, for the jobs that can never succeed. Without
+                              onError: (err) =>
+                                toast.error(
+                                  apiErrorMessage(
+                                    err,
+                                    t(
+                                      "admin_console_page.retry_failed",
+                                      "Retry failed",
+                                    ),
+                                  ),
+                                ),
+                            })
+                          }
+                          disabled={retryJob.isPending}
+                          title={t("admin_console_page.retry_job", "Retry job")}
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          <span className="sr-only sm:not-sr-only sm:ml-1.5">
+                            {t("admin_console_page.retry_job", "Retry job")}
+                          </span>
+                        </Button>
+                        {/* Dismiss, for the jobs that can never succeed. Without
                           it the alert counter only ever grew and the banner
                           stopped meaning anything. */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDismissTarget(job.uuid)}
-                        disabled={dismissJob.isPending}
-                        title={t(
-                          "admin_console_page.dismiss_job",
-                          "Dismiss job",
-                        )}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                        <span className="sr-only">
-                          {t("admin_console_page.dismiss_job", "Dismiss job")}
-                        </span>
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDismissTarget(job.uuid)}
+                          disabled={dismissJob.isPending}
+                          title={t(
+                            "admin_console_page.dismiss_job",
+                            "Dismiss job",
+                          )}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span className="sr-only sm:not-sr-only sm:ml-1.5">
+                            {t("admin_console_page.dismiss_job", "Dismiss job")}
+                          </span>
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
