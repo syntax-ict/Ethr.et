@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Loader2,
@@ -32,6 +32,7 @@ import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
   CommitStalled,
+  isNotFound,
   listColumns,
   StagingInterrupted,
   StagingStalled,
@@ -50,6 +51,7 @@ import type {
   ColumnMatch,
   ListMode,
   MatchOutcome,
+  MigrationListInProgress,
   StagingAction,
 } from "../types";
 import {
@@ -81,6 +83,7 @@ import {
 } from "../import-problems";
 import { ColumnMatcher } from "./column-matcher";
 import { ProblemTable } from "./problem-table";
+import { MigrationListsInProgress } from "./migration-lists-in-progress";
 import { MigrationLogins } from "./migration-logins";
 import { MigrationTerminals } from "./migration-terminals";
 import { StagedChanges } from "./staged-changes";
@@ -137,6 +140,11 @@ function refusedLines(err: unknown): string[] {
  *
  * @param onCommitted Called when the reviewer moves on after the commit, from
  *   the "give them a way to sign in" step, not at the commit itself.
+ * @param initialBatchId A list to open as the step appears, as one that was
+ *   just staged is opened. A page that keeps the open list in its address
+ *   passes it here and hears every change through `onBatchChange`.
+ * @param onBatchChange Called with the open list's id when one is opened, and
+ *   with null when it is closed (or turns out not to exist).
  * @param initialDeviceId Preselects the device, when opened from that device.
  * @param sources "list" leaves the attendance device out: the employee import
  *   is about a file.
@@ -148,6 +156,8 @@ function refusedLines(err: unknown): string[] {
  */
 export function MigrationStep({
   onCommitted,
+  initialBatchId = null,
+  onBatchChange,
   initialDeviceId,
   sources = "all",
   canComplete = false,
@@ -155,6 +165,8 @@ export function MigrationStep({
   description,
 }: {
   onCommitted?: () => void;
+  initialBatchId?: string | null;
+  onBatchChange?: (batchId: string | null) => void;
   initialDeviceId?: string;
   sources?: "all" | "list";
   canComplete?: boolean;
@@ -179,7 +191,16 @@ export function MigrationStep({
   const [remaining, setRemaining] = useState<number | null>(null);
   const commit = useCommitMigration((result) => setRemaining(result.remaining));
 
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const [openedId, setOpenedId] = useState<string | null>(initialBatchId);
+  // Every change of the open list goes through here, so a page that keeps it
+  // in its address hears all of them.
+  const setBatchId = useCallback(
+    (id: string | null) => {
+      setOpenedId(id);
+      onBatchChange?.(id);
+    },
+    [onBatchChange],
+  );
   // What the whole list is brought in with, chosen before it is added: what
   // its new people arrive as, and whether they are invited straight away.
   const [arrival, setArrival] = useState<ArrivalStatus>("hired");
@@ -191,8 +212,31 @@ export function MigrationStep({
   const [csv, setCsv] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const batchQuery = useMigrationBatch(batchId);
-  const batch = batchQuery.data;
+  const batchQuery = useMigrationBatch(openedId);
+  // A list that is gone, or is another organisation's, is let go quietly: the
+  // normal screen is shown as if none were open, and the page's address is
+  // told to forget it.
+  const gone = batchQuery.isError && isNotFound(batchQuery.error);
+  const batchId = gone ? null : openedId;
+  useEffect(() => {
+    if (gone) onBatchChange?.(null);
+  }, [gone, onBatchChange]);
+  // A list still being read has no review yet: it is carried on, as one whose
+  // matching stopped is, and not shown as a table of people nobody matched.
+  const stagingBatchId = batchQuery.data?.status === "staging" ? batchId : null;
+  const batch = stagingBatchId === null ? batchQuery.data : undefined;
+  const openingList = batchId !== null && batchQuery.isPending && !gone;
+  const pending: { batchId: string; message: string } | null =
+    interrupted ??
+    (stagingBatchId === null
+      ? null
+      : {
+          batchId: stagingBatchId,
+          message: t(
+            "setup2.staging_resumed",
+            "This list was still being read. Carry on to finish it.",
+          ),
+        });
 
   const allDevices = devicesQuery.data?.data ?? [];
   // Only a device ETHR can call can be asked who is enrolled on it. A
@@ -645,10 +689,10 @@ export function MigrationStep({
     });
   }
 
-  async function carryOnStagingList() {
-    if (!interrupted) return;
+  async function carryOnStagingList(id: string | undefined = pending?.batchId) {
+    if (!id) return;
     try {
-      const b = await carryOn.mutateAsync(interrupted.batchId);
+      const b = await carryOn.mutateAsync(id);
       setInterrupted(null);
       setStaging(null);
       setBatchId(b.public_id);
@@ -662,6 +706,24 @@ export function MigrationStep({
         apiErrorMessage(err, t("setup2.stage_failed", "Could not stage rows")),
       );
     }
+  }
+
+  /**
+   * A list from "lists in progress" is opened as one just staged is: its id
+   * is set and the screen for its state takes over. One still being read is
+   * carried on first, by the same request a stopped staging uses.
+   */
+  function openList(list: MigrationListInProgress) {
+    if (list.status === "staging") {
+      void carryOnStagingList(list.public_id);
+      return;
+    }
+    setBatchId(list.public_id);
+  }
+
+  function startOver() {
+    setInterrupted(null);
+    if (batchId !== null) setBatchId(null);
   }
 
   async function changeAction(
@@ -760,7 +822,26 @@ export function MigrationStep({
         </div>
       </div>
 
-      {!batch && (
+      {batchId === null && pending === null && !stageRows.isPending && (
+        <MigrationListsInProgress
+          onOpen={openList}
+          openingId={carryOn.isPending ? (carryOn.variables ?? null) : null}
+          openingText={staging ? stagingText(staging) : null}
+          disabled={stageDevice.isPending}
+        />
+      )}
+
+      {openingList && (
+        <p
+          role="status"
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          {t("migration_lists.opening", "Opening the list")}
+        </p>
+      )}
+
+      {!batch && !openingList && (
         <div className={noDevice ? "space-y-4" : "grid gap-4 lg:grid-cols-2"}>
           {!noDevice && (
             <Card>
@@ -1250,16 +1331,16 @@ export function MigrationStep({
                   "Without column names, the order is: name, email, phone, employee number, hire date (YYYY-MM-DD), department. Only the name is required.",
                 )}
               </p>
-              {interrupted && (
+              {pending && (
                 <div
                   role="alert"
                   className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground"
                 >
-                  <p>{interrupted.message}</p>
+                  <p>{pending.message}</p>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      onClick={carryOnStagingList}
+                      onClick={() => void carryOnStagingList()}
                       disabled={carryOn.isPending}
                     >
                       {carryOn.isPending ? (
@@ -1272,7 +1353,7 @@ export function MigrationStep({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setInterrupted(null)}
+                      onClick={startOver}
                       disabled={carryOn.isPending}
                     >
                       {t("setup2.start_over", "Start over")}
@@ -1286,7 +1367,7 @@ export function MigrationStep({
                 disabled={
                   stageRows.isPending ||
                   carryOn.isPending ||
-                  interrupted !== null ||
+                  pending !== null ||
                   csv.trim() === "" ||
                   problems.length > 0 ||
                   nameless ||
@@ -1306,9 +1387,7 @@ export function MigrationStep({
                   variant="outline"
                   onClick={() => stageCsv(true)}
                   disabled={
-                    stageRows.isPending ||
-                    carryOn.isPending ||
-                    interrupted !== null
+                    stageRows.isPending || carryOn.isPending || pending !== null
                   }
                 >
                   {read!.people === 1
@@ -1660,7 +1739,7 @@ export function MigrationStep({
               <MigrationLogins
                 batchId={batchId}
                 onContinue={onCommitted}
-                autoSend={inviteNow}
+                autoSend={inviteNow && commit.isSuccess}
               />
             )}
 

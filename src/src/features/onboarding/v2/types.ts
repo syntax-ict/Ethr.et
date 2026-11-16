@@ -276,6 +276,26 @@ export interface MigrationBatch {
   rows: StagingRow[];
 }
 
+/**
+ * A list the organisation has not finished: one line of "lists in progress".
+ * Nothing about the people on it, only what it is and where it stands.
+ */
+export interface MigrationListInProgress {
+  public_id: string;
+  /** Still being read, waiting for review, or part way through being added. */
+  status: "staging" | "reviewing" | "committing";
+  mode: ListMode;
+  source_type: string;
+  /** How many lines it holds. */
+  rows: number;
+  created_at: string | null;
+  updated_at: string | null;
+  /** Null when whoever started it has gone, or has no name on record. */
+  created_by_name: string | null;
+  /** The viewer started it. */
+  mine: boolean;
+}
+
 export interface CommitResult extends MigrationLogins {
   message: string;
   totals: Record<string, number>;
