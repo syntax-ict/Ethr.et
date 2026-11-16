@@ -288,7 +288,7 @@ describe("<MigrationTerminals>", () => {
 
     expect(
       await screen.findByText(
-        "ETHR does not send people to this terminal. Enrol these 1 people at the terminal with these numbers.",
+        "ETHR does not send people to this terminal. Enrol this person at the terminal with this number.",
       ),
     ).toBeInTheDocument();
   });
@@ -313,5 +313,58 @@ describe("<MigrationTerminals>", () => {
     expect(
       screen.getAllByRole("link", { name: "Open the employee list" }),
     ).toHaveLength(2);
+  });
+
+  it("uses the singular for one person on every line", async () => {
+    const one = {
+      employee_public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6E01",
+      name: "Abebe Kebede",
+      device_user_id: "42",
+    };
+    server.use(
+      me([]),
+      answer(
+        terminals({
+          devices: [
+            device({ queued: 1, failed: 1, not_sent: 1, last_error: "x" }),
+            device({
+              device_public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6D02",
+              device_name: "Hikvision gate",
+              writable: false,
+              receives_only: true,
+              enrol_by_hand: [one],
+            }),
+          ],
+          without_number: 1,
+          without_branch: 1,
+        }),
+      ),
+    );
+    renderPanel();
+
+    expect(await screen.findByText("1 sent or waiting")).toBeInTheDocument();
+    expect(
+      screen.getByText("1 not accepted by the terminal."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 not sent. Its number is not one this terminal takes./,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This terminal only sends. Enrol this person at the terminal with this number.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 person has no badge number, so they will not reach a terminal. Give one on their profile./,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 person has no branch, so they will not reach a terminal. Set a branch on their profile./,
+      ),
+    ).toBeInTheDocument();
   });
 });

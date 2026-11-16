@@ -130,22 +130,32 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
 
               {(device.writable || reached > 0) && (
                 <p className="text-sm text-muted-foreground">
-                  {t(
-                    "migration_terminals.sent_or_waiting",
-                    ":count sent or waiting",
-                    { count: reached },
-                  )}
+                  {reached === 1
+                    ? t(
+                        "migration_terminals.sent_or_waiting_one",
+                        "1 sent or waiting",
+                      )
+                    : t(
+                        "migration_terminals.sent_or_waiting",
+                        ":count sent or waiting",
+                        { count: reached },
+                      )}
                 </p>
               )}
 
               {device.failed > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-foreground">
-                    {t(
-                      "migration_terminals.failed",
-                      ":count not accepted by the terminal.",
-                      { count: device.failed },
-                    )}
+                    {device.failed === 1
+                      ? t(
+                          "migration_terminals.failed_one",
+                          "1 not accepted by the terminal.",
+                        )
+                      : t(
+                          "migration_terminals.failed",
+                          ":count not accepted by the terminal.",
+                          { count: device.failed },
+                        )}
                     {device.last_error && (
                       <span className="block text-xs text-muted-foreground">
                         {t(
@@ -184,11 +194,16 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
 
               {device.not_sent > 0 && (
                 <p className="text-sm text-foreground">
-                  {t(
-                    "migration_terminals.not_sent",
-                    ":count not sent. Their number is not one this terminal takes.",
-                    { count: device.not_sent },
-                  )}{" "}
+                  {device.not_sent === 1
+                    ? t(
+                        "migration_terminals.not_sent_one",
+                        "1 not sent. Its number is not one this terminal takes.",
+                      )
+                    : t(
+                        "migration_terminals.not_sent",
+                        ":count not sent. Their number is not one this terminal takes.",
+                        { count: device.not_sent },
+                      )}{" "}
                   {employeesLink}
                 </p>
               )}
@@ -197,16 +212,26 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-foreground">
                     {device.receives_only
-                      ? t(
-                          "migration_terminals.receives_only",
-                          "This terminal only sends. Enrol these :count people at the terminal with these numbers.",
-                          { count: byHand },
-                        )
-                      : t(
-                          "migration_terminals.enrol_by_hand",
-                          "ETHR does not send people to this terminal. Enrol these :count people at the terminal with these numbers.",
-                          { count: byHand },
-                        )}
+                      ? byHand === 1
+                        ? t(
+                            "migration_terminals.receives_only_one",
+                            "This terminal only sends. Enrol this person at the terminal with this number.",
+                          )
+                        : t(
+                            "migration_terminals.receives_only",
+                            "This terminal only sends. Enrol these :count people at the terminal with these numbers.",
+                            { count: byHand },
+                          )
+                      : byHand === 1
+                        ? t(
+                            "migration_terminals.enrol_by_hand_one",
+                            "ETHR does not send people to this terminal. Enrol this person at the terminal with this number.",
+                          )
+                        : t(
+                            "migration_terminals.enrol_by_hand",
+                            "ETHR does not send people to this terminal. Enrol these :count people at the terminal with these numbers.",
+                            { count: byHand },
+                          )}
                   </p>
                   <Button
                     variant="outline"
@@ -229,21 +254,31 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
 
         {data.without_number > 0 && (
           <p className="text-sm text-muted-foreground">
-            {t(
-              "migration_terminals.without_number",
-              ":count people have no badge number, so they will not reach a terminal. Give each one on their profile.",
-              { count: data.without_number },
-            )}{" "}
+            {data.without_number === 1
+              ? t(
+                  "migration_terminals.without_number_one",
+                  "1 person has no badge number, so they will not reach a terminal. Give one on their profile.",
+                )
+              : t(
+                  "migration_terminals.without_number",
+                  ":count people have no badge number, so they will not reach a terminal. Give each one on their profile.",
+                  { count: data.without_number },
+                )}{" "}
             {employeesLink}
           </p>
         )}
         {data.without_branch > 0 && (
           <p className="text-sm text-muted-foreground">
-            {t(
-              "migration_terminals.without_branch",
-              ":count people have no branch, so they will not reach a terminal. Set a branch on each profile.",
-              { count: data.without_branch },
-            )}{" "}
+            {data.without_branch === 1
+              ? t(
+                  "migration_terminals.without_branch_one",
+                  "1 person has no branch, so they will not reach a terminal. Set a branch on their profile.",
+                )
+              : t(
+                  "migration_terminals.without_branch",
+                  ":count people have no branch, so they will not reach a terminal. Set a branch on each profile.",
+                  { count: data.without_branch },
+                )}{" "}
             {employeesLink}
           </p>
         )}
