@@ -395,3 +395,21 @@ What to check first: the word for a *terminal* (the drafts use the word the Comm
 for a device, so "terminal" and "device" read alike), and *not accepted by the terminal* against *not
 sent* (the first is a refusal by the device, the second is ETHR holding back a number the device would
 refuse).
+
+### A list that comes out of other software (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about which column of their file is read as a name or
+which line holds the column names; it moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The three parts of a name, as columns a file's column can be matched to: "First name", "Father's name", "Grandfather's name", and what each takes | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_first_name`, `col_father_name`, `col_grandfather_name`, and `employees_import_page.col_first_name`, `col_father_name`, `col_grandfather_name` | 6 each |
+| The line that holds the column names: "Column names are on line N.", the choice's name for a screen reader, "Line N", and "There are no column names" | the same files, `setup2.header_line_found`, `header_line_pick`, `header_line_option`, `header_line_none` | 4 each |
+| A workbook with several sheets: "This workbook has N sheets. Reading: Sheet1.", and the sheet choice's name for a screen reader | the same files, `setup2.sheets_note`, `sheet_pick` | 2 each |
+| The note under a text file that was not UTF-8: "This file was read as Windows-1252 text." | the same files, `setup2.file_read_as` | 1 each |
+
+What to check first: the three part names against how a name is usually asked for on an Ethiopian
+form (the drafts use the Amharic words for the father's and the grandfather's name, and the
+column's English is "Last name" in many exports, which the server reads as the grandfather's name),
+and *Column names* against the word the matcher already uses for a file's first line.
