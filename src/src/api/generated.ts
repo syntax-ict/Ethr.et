@@ -5213,6 +5213,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organisation's lists that are not finished: still being read
+         *     (`staging`), waiting for review (`reviewing`) or part way through being
+         *     added (`committing`), newest first, at most twenty. A list that has been
+         *     added is not here; it is kept for a month but there is nothing left to
+         *     do with it
+         * @description Each is named by what it is, not by who is in it: `rows` is how many
+         *     lines it holds, `mode` is `add` or `complete`, `created_by_name` is
+         *     null when whoever started it has gone, and `mine` says the viewer
+         *     started it. Any member of the organisation who may view employees can
+         *     open any of these, as `/migration/batches/{batch}` already allows.
+         */
+        get: operations["migration.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/batches/{batch}": {
         parameters: {
             query?: never;
@@ -5224,7 +5252,15 @@ export interface paths {
         get: operations["migration.show"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard a list nobody will finish: the list and its lines are removed
+         * @description Only a list that has not begun to be added can go. Once its first slice
+         *     has run, people are written and the list is their record of how they
+         *     arrived, so it answers 409. The status is read again with the row
+         *     locked, so a commit that starts a moment earlier is waited for and then
+         *     seen, and one that starts a moment later finds the list gone.
+         */
+        delete: operations["migration.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -28024,6 +28060,39 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "migration.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            status: string;
+                            mode: string;
+                            source_type: string;
+                            rows: number;
+                            created_at: string | null;
+                            updated_at: string | null;
+                            created_by_name: string | null;
+                            mine: boolean;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "migration.show": {
         parameters: {
             query?: never;
@@ -28079,6 +28148,30 @@ export interface operations {
                         }[];
                     };
                 };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];

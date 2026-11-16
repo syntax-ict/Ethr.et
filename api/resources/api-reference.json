@@ -25735,6 +25735,97 @@
                 }
             }
         },
+        "/onboarding/migration/batches": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "migration.index",
+                "description": "Each is named by what it is, not by who is in it: `rows` is how many\nlines it holds, `mode` is `add` or `complete`, `created_by_name` is\nnull when whoever started it has gone, and `mine` says the viewer\nstarted it. Any member of the organisation who may view employees can\nopen any of these, as `/migration/batches/{batch}` already allows.",
+                "summary": "The organisation's lists that are not finished: still being read\n(`staging`), waiting for review (`reviewing`) or part way through being\nadded (`committing`), newest first, at most twenty. A list that has been\nadded is not here; it is kept for a month but there is nothing left to\ndo with it",
+                "tags": [
+                    "Onboarding"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "mode": {
+                                                        "type": "string"
+                                                    },
+                                                    "source_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "rows": {
+                                                        "type": "integer"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "updated_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_by_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "mine": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "status",
+                                                    "mode",
+                                                    "source_type",
+                                                    "rows",
+                                                    "created_at",
+                                                    "updated_at",
+                                                    "created_by_name",
+                                                    "mine"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/onboarding/migration/batches/{batch}": {
             "get": {
                 "x-abilities": [
@@ -25954,6 +26045,42 @@
                                 }
                             }
                         }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.destroy",
+                "description": "Only a list that has not begun to be added can go. Once its first slice\nhas run, people are written and the list is their record of how they\narrived, so it answers 409. The status is read again with the row\nlocked, so a commit that starts a moment earlier is waited for and then\nseen, and one that starts a moment later finds the list gone.",
+                "summary": "Discard a list nobody will finish: the list and its lines are removed",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"

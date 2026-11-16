@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -30,6 +31,12 @@ class MigrationBatch extends Model
      * `committing` (some of it added) or `committed`.
      */
     public const STAGING = 'staging';
+
+    /** The lists an organisation can still find again: not yet added. */
+    public const UNFINISHED = [self::STAGING, 'reviewing', 'committing'];
+
+    /** Lists shown in "lists in progress", newest first. */
+    public const IN_PROGRESS_SHOWN = 20;
 
     /**
      * The `mode` a list may be staged in. A list with none adds people: a row
@@ -70,6 +77,12 @@ class MigrationBatch extends Model
     public function rows(): HasMany
     {
         return $this->hasMany(MigrationStagingRow::class, 'batch_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
