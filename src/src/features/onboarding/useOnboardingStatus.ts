@@ -5,10 +5,13 @@ import { apiClient } from "@/api/client";
 import type { OnboardingProgress } from "./types";
 
 /**
- * The guided setup's steps, in order, as `OnboardingStep` numbers on the
- * server: configuration (3), workforce migration (4), access (5), go live (7).
+ * The guided setup's steps, in the order they are shown, as `OnboardingStep`
+ * numbers on the server: configuration (3), access (5), workforce migration
+ * (4), go live (7). The numbers are the server's and do not change; the order
+ * here is the screen's. Sign-in comes before People since 2026-11-16, so that
+ * the way people sign in is chosen before anyone is invited.
  */
-export const GUIDED_STEP_IDS: readonly number[] = [3, 4, 5, 7];
+export const GUIDED_STEP_IDS: readonly number[] = [3, 5, 4, 7];
 
 export function useOnboardingStatus(enabled = true) {
   const { data, isLoading, isError } = useQuery<OnboardingProgress>({
