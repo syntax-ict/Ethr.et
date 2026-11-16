@@ -20,6 +20,7 @@ import {
   verifyOtp,
 } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
@@ -35,6 +36,7 @@ export function OtpForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t } = useT();
+  const hydrated = useHydrated();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -290,7 +292,12 @@ export function OtpForm() {
       </div>
 
       {step === "address" ? (
-        <form onSubmit={handleRequestSubmit} className="space-y-5" noValidate>
+        <form
+          method="post"
+          onSubmit={handleRequestSubmit}
+          className="space-y-5"
+          noValidate
+        >
           {emailOffered && smsOffered && (
             <div
               role="radiogroup"
@@ -394,7 +401,7 @@ export function OtpForm() {
           <Button
             type="submit"
             className="h-11 w-full shadow-sm"
-            disabled={requesting}
+            disabled={!hydrated || requesting}
           >
             {requesting ? (
               <>
@@ -407,7 +414,7 @@ export function OtpForm() {
           </Button>
         </form>
       ) : (
-        <form onSubmit={handleVerifySubmit} className="space-y-5">
+        <form method="post" onSubmit={handleVerifySubmit} className="space-y-5">
           {info && (
             <div className="rounded-lg bg-status-info/10 p-3">
               <p className="text-sm text-status-info">{info}</p>
@@ -439,7 +446,9 @@ export function OtpForm() {
           <Button
             type="submit"
             className="h-11 w-full shadow-sm"
-            disabled={verifying || digits.join("").length !== CODE_LENGTH}
+            disabled={
+              !hydrated || verifying || digits.join("").length !== CODE_LENGTH
+            }
           >
             {verifying ? (
               <>
