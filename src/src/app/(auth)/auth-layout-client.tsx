@@ -35,6 +35,7 @@ import {
 import { usePathname } from "next/navigation";
 import { isFrontDoor } from "@/lib/auth/entry-organisation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
+import { scrubLeakedFields } from "@/lib/auth/scrub-leaked-fields";
 import { FormSlot } from "./form-slot";
 
 const taglineKeys = [
@@ -77,6 +78,17 @@ export function AuthLayoutClient({ children }: { children: React.ReactNode }) {
   // arrived, which mounted the form again and emptied what had been typed
   // (Playwright run 38951069888 on PR #286).
   const portal = !news && organisation && isFrontDoor(pathname);
+
+  // An address that carries typed credentials (a pre-hydration GET submit)
+  // is cleaned once, for every page under (auth). Effects run child first, so
+  // on first mount this would run before the app router has patched
+  // history.replaceState. Unpatched, the router never learns the new address
+  // and writes the leaked one back on its next change (seen after "Forgot
+  // password?" and Back). A task later the patch is in place.
+  useEffect(() => {
+    const id = window.setTimeout(scrubLeakedFields, 0);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // The colours go on the document so every control on the page - the
   // button, focus rings, links - takes them, as they do once signed in.

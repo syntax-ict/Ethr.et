@@ -18,6 +18,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { queryOrganisation, signInHref } from "@/lib/auth/entry-organisation";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const activateSchema = z
@@ -46,6 +47,7 @@ function Activate() {
   const params = useSearchParams();
   const router = useRouter();
   const { t } = useT();
+  const hydrated = useHydrated();
 
   const tenant = params.get("tenant") ?? "";
   const carryOrganisation = queryOrganisation(params.toString());
@@ -198,6 +200,7 @@ function Activate() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.activate_failed", "Could not activate the account."),
@@ -289,7 +292,11 @@ function Activate() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
