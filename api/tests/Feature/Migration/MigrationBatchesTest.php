@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
