@@ -784,6 +784,328 @@ describe("<MigrationStep>", () => {
     ]);
   });
 
+  it("shows which sheet of a workbook with several is read, and reads the one picked", async () => {
+    const asked = reads({ people: 1, header: true, columns: ["name"] });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const workbook = new Workbook();
+    workbook.addWorksheet("Sheet1").addRow(["Name"]);
+    workbook.getWorksheet("Sheet1")!.addRow(["First Sheet Person"]);
+    workbook.addWorksheet("Sheet2").addRow(["Name"]);
+    workbook.getWorksheet("Sheet2")!.addRow(["Second Sheet Person"]);
+    const file = new File([await workbook.xlsx.writeBuffer()], "staff.xlsx");
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [file] },
+    });
+
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    await waitFor(
+      () => expect(textarea.value).toContain("First Sheet Person"),
+      {
+        timeout: 10_000,
+      },
+    );
+    expect(
+      screen.getByText("This workbook has 2 sheets. Reading: Sheet1."),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Sheet to read"), {
+      target: { value: "Sheet2" },
+    });
+
+    await waitFor(
+      () => expect(textarea.value).toContain("Second Sheet Person"),
+      { timeout: 10_000 },
+    );
+    expect(textarea.value).not.toContain("First Sheet Person");
+    expect(
+      screen.getByText("This workbook has 2 sheets. Reading: Sheet2."),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(asked[asked.length - 1].grid).toEqual([
+        ["Name"],
+        ["Second Sheet Person"],
+      ]),
+    );
+  });
+
+  it("shows nothing about sheets for a workbook with one", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const workbook = new Workbook();
+    workbook.addWorksheet("Staff").addRow(["Abebe Kebede"]);
+    const file = new File([await workbook.xlsx.writeBuffer()], "staff.xlsx");
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [file] },
+    });
+
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    await waitFor(() => expect(textarea.value).toContain("Abebe Kebede"), {
+      timeout: 10_000,
+    });
+    expect(screen.queryByLabelText("Sheet to read")).not.toBeInTheDocument();
+    expect(screen.queryByText(/This workbook has/)).not.toBeInTheDocument();
+  });
+
+  it("says a text file was read as Windows-1252 when its bytes were not UTF-8, and reads it", async () => {
+    const asked = reads({ people: 1, header: true, columns: ["name"] });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    // "Name", a new line, "Jos" and 0xE9: an e with an acute accent in
+    // Windows-1252, which is not valid UTF-8.
+    const bytes = new Uint8Array([
+      ...[..."Name\nJos"].map((c) => c.charCodeAt(0)),
+      0xe9,
+    ]);
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [new File([bytes], "staff.csv", { type: "text/csv" })] },
+    });
+
+    await waitFor(() =>
+      expect(
+        (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      ).toBe("Name\nJosé"),
+    );
+    expect(
+      await screen.findByText("This file was read as Windows-1252 text."),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(asked[asked.length - 1].grid).toEqual([["Name"], ["José"]]),
+    );
+  });
+
+  it("says nothing about the encoding of a file that is UTF-8", async () => {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const bytes = new TextEncoder().encode("Name\nአበበ ከበደ");
+    fireEvent.change(screen.getByTestId("people-file"), {
+      target: { files: [new File([bytes], "staff.csv", { type: "text/csv" })] },
+    });
+
+    await waitFor(() =>
+      expect(
+        (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      ).toContain("አበበ ከበደ"),
+    );
+    await screen.findByText(/1 person ready/);
+    expect(screen.queryByText(/was read as/)).not.toBeInTheDocument();
+  });
+
+  it("says where the column names were found below the first line, and sends the line the reader chooses instead", async () => {
+    const asked = reads({
+      people: 1,
+      header: true,
+      header_line: 2,
+      columns: ["name", "email"],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+    const lastAsked = () =>
+      asked[asked.length - 1] as unknown as Record<string, unknown>;
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: "Staff list\nName\tEmail\nAbebe Kebede\tabebe@acme.et",
+      },
+    });
+
+    expect(
+      await screen.findByText("Column names are on line 2."),
+    ).toBeInTheDocument();
+    // Left to the server, nothing is said about the line.
+    expect(lastAsked().header_line).toBeUndefined();
+
+    const select = screen.getByLabelText("Line with the column names");
+    expect((select as HTMLSelectElement).value).toBe("2");
+    expect(
+      within(select).getByRole("option", { name: /^Line 3: Abebe Kebede/ }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: "3" } });
+    await waitFor(() => expect(lastAsked().header_line).toBe(3));
+
+    fireEvent.change(screen.getByLabelText("Line with the column names"), {
+      target: { value: "0" },
+    });
+    await waitFor(() => expect(lastAsked().header_line).toBe(0));
+    // The control stays, so the reader can go back.
+    expect(
+      screen.getByRole("option", { name: "There are no column names" }),
+    ).toBeInTheDocument();
+  });
+
+  it("lets the reader say where the column names are in a list under a title, when ETHR knows none of their words", async () => {
+    const asked = reads({
+      people: 2,
+      header: false,
+      header_line: null,
+      header_likely: false,
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+    const lastAsked = () =>
+      asked[asked.length - 1] as unknown as Record<string, unknown>;
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: "Payroll export\nEmp Nm\tPers Ref\nAbebe Kebede\tP-1042",
+      },
+    });
+
+    // Only a quiet button until the reader asks.
+    await screen.findByText(/1 person ready|2 people ready/);
+    expect(
+      screen.queryByLabelText("Line with the column names"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "The column names are on another line",
+      }),
+    );
+
+    const select = await screen.findByLabelText("Line with the column names");
+    expect(
+      screen.getByText("Line with the column names", { selector: "label" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "The column names are on another line",
+      }),
+    ).not.toBeInTheDocument();
+    expect((select as HTMLSelectElement).value).toBe("0");
+    expect(lastAsked().header_line).toBeUndefined();
+
+    fireEvent.change(select, { target: { value: "2" } });
+    await waitFor(() => expect(lastAsked().header_line).toBe(2));
+  });
+
+  it("says nothing about a line when the column names are on the first", async () => {
+    reads({ people: 1, header: true, header_line: 1, columns: ["name"] });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Name\nAbebe Kebede" },
+    });
+
+    await screen.findByText(/1 person ready/);
+    expect(
+      screen.queryByText(/Column names are on line/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Line with the column names"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("names the parts of a name by their words in the columns it read", async () => {
+    reads({
+      people: 1,
+      header: true,
+      header_line: 1,
+      columns: ["first_name", "father_name", "grandfather_name"],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: "First name\tFather name\tLast name\nAbebe\tKebede\tTadesse",
+      },
+    });
+
+    expect(
+      await screen.findByText(
+        /Columns: First name, Father's name, Grandfather's name/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("downloads the lines to fix under the column names found below a title, with their own numbers", async () => {
+    saved.length = 0;
+    reads({
+      people: 1,
+      header: true,
+      header_line: 3,
+      columns: ["name", "email"],
+      problems: [
+        {
+          line: 5,
+          column: "email",
+          code: "email",
+          message: "The email must be a valid email.",
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: [
+          "Staff export",
+          "",
+          "Staff name\tMail",
+          "Abebe Kebede\tabebe@acme.et",
+          "Bad Mail\tnope",
+        ].join("\n"),
+      },
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Download the lines to fix/ }),
+    );
+
+    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
+    // The first line of the file to fix is the names, not the title, and
+    // it reads back through the same reader as its own header.
+    expect(await readWorkbook(await saved[0].blob.arrayBuffer())).toEqual([
+      ["Staff name", "Mail", "Problem"],
+      ["Bad Mail", "nope", "Line 5: The email must be a valid email."],
+    ]);
+  });
+
   it("says an old .xls file is not read, and reads nothing", async () => {
     const { toast } = await import("sonner");
     server.use(

@@ -189,8 +189,10 @@ export interface StagingRow {
 export interface PeopleRead {
   /** People ready to be staged. */
   people: number;
-  /** Whether the first line was column names. */
+  /** Whether a line was column names. */
   header: boolean;
+  /** The line of the list that held the column names, as the reader counts it; null when none did. */
+  header_line?: number | null;
   /** The columns read, by the field each one is. */
   columns: string[];
   /** Column names that mean nothing here, as written. */
@@ -253,6 +255,8 @@ export interface ImportSource {
 export interface ListColumns {
   source?: string | null;
   mapping?: ColumnMatch[] | null;
+  /** The line that holds the column names; 0 for none; left out, the server finds it. */
+  header_line?: number | null;
 }
 
 /** What a list's new people arrive as. A line naming its own status keeps it. */
@@ -270,6 +274,26 @@ export interface MigrationBatch {
   totals: Record<string, number> | null;
   summary: Record<string, number>;
   rows: StagingRow[];
+}
+
+/**
+ * A list the organisation has not finished: one line of "lists in progress".
+ * Nothing about the people on it, only what it is and where it stands.
+ */
+export interface MigrationListInProgress {
+  public_id: string;
+  /** Still being read, waiting for review, or part way through being added. */
+  status: "staging" | "reviewing" | "committing";
+  mode: ListMode;
+  source_type: string;
+  /** How many lines it holds. */
+  rows: number;
+  created_at: string | null;
+  updated_at: string | null;
+  /** Null when whoever started it has gone, or has no name on record. */
+  created_by_name: string | null;
+  /** The viewer started it. */
+  mine: boolean;
 }
 
 export interface CommitResult extends MigrationLogins {

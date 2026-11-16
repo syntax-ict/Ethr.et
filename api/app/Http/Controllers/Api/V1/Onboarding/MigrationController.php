@@ -28,7 +28,9 @@ use App\Support\EmployeeImportRow;
 use App\Support\PeopleRead;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -60,10 +62,13 @@ class MigrationController extends Controller
      * Read a list of people without staging it.
      *
      * `grid` is the list as lines of cells, the first line its column names
-     * or none. The answer says how many people are ready, which columns were
-     * read and which column names mean nothing here, and every line that
-     * cannot be staged, with its number as the reader counts it. Nothing is
-     * kept.
+     * or none, with a title or a date above it when the file has one.
+     * `header_line` names the line of the file that holds the column names
+     * (0: there are none); left out, the line that looks most like them is
+     * used, and the answer says which. The answer says how many people are
+     * ready, which columns were read and which column names mean nothing
+     * here, and every line that cannot be staged, with its number as the
+     * reader counts it. Nothing is kept.
      *
      * A list from another system names its columns its own way. Send
      * `mapping`, a list of `{header, column}` saying what each of its column
@@ -86,6 +91,7 @@ class MigrationController extends Controller
         return response()->json([
             'people' => count($read->rows),
             'header' => $read->header,
+            'header_line' => $read->headerLine,
             'columns' => $read->columns,
             'ignored' => $read->ignored,
             'calendar' => $read->calendar,
@@ -224,6 +230,103 @@ class MigrationController extends Controller
             'staged' => $progress->staged,
             'remaining' => $progress->remaining,
         ];
+    }
+
+    /**
+     * The organisation's lists that are not finished: still being read
+     * (`staging`), waiting for review (`reviewing`) or part way through being
+     * added (`committing`), newest first, at most twenty. A list that has been
+     * added is not here; it is kept for a month but there is nothing left to
+     * do with it.
+     *
+     * Each is named by what it is, not by who is in it: `rows` is how many
+     * lines it holds, `mode` is `add` or `complete`, `created_by_name` is
+     * null when whoever started it has gone, and `mine` says the viewer
+     * started it. Any member of the organisation who may view employees can
+     * open any of these, as `/migration/batches/{batch}` already allows.
+     *
+     * @response array{data: list<array{public_id: string, status: string, mode: string, source_type: string, rows: int, created_at: string|null, updated_at: string|null, created_by_name: string|null, mine: bool}>}
+     */
+    public function index(Request $request): JsonResponse
+    {
+        Gate::authorize('employee.viewAny');
+
+        $batches = MigrationBatch::query()
+            ->whereIn('status', MigrationBatch::UNFINISHED)
+            ->withCount('rows')
+            ->with('creator:id,employee_id,display_name', 'creator.employee:id,name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(MigrationBatch::IN_PROGRESS_SHOWN)
+            ->get();
+
+        $viewer = $request->user()?->id;
+
+        return response()->json([
+            'data' => $batches->map(fn (MigrationBatch $batch): array => [
+                'public_id' => $batch->public_id,
+                'status' => $batch->status,
+                'mode' => $batch->mode(),
+                'source_type' => $batch->source_type,
+                'rows' => (int) $batch->getAttribute('rows_count'),
+                'created_at' => $batch->created_at?->format('c'),
+                'updated_at' => $batch->updated_at?->format('c'),
+                'created_by_name' => $this->creatorName($batch),
+                'mine' => $viewer !== null && $batch->created_by === $viewer,
+            ])->all(),
+        ]);
+    }
+
+    /**
+     * Who started the list, as the review would name them: their employee
+     * record, else the name an account without one carries. An account is
+     * never named by its email address here: the list is shown to anyone who
+     * may view employees.
+     */
+    private function creatorName(MigrationBatch $batch): ?string
+    {
+        $creator = $batch->creator;
+        $employee = $creator?->employee;
+        $name = $employee instanceof Employee ? $employee->name : $creator?->display_name;
+
+        return is_string($name) && trim($name) !== '' ? $name : null;
+    }
+
+    /**
+     * Discard a list nobody will finish: the list and its lines are removed.
+     *
+     * Only a list that has not begun to be added can go. Once its first slice
+     * has run, people are written and the list is their record of how they
+     * arrived, so it answers 409. The status is read again with the row
+     * locked, so a commit that starts a moment earlier is waited for and then
+     * seen, and one that starts a moment later finds the list gone.
+     */
+    public function destroy(MigrationBatch $batch): Response
+    {
+        Gate::authorize('employee.create');
+
+        DB::transaction(function () use ($batch): void {
+            $locked = MigrationBatch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
+
+            abort_if($locked->status === 'committing', 409, __('onboarding.migration.discard_committing'));
+            abort_if($locked->isCommitted(), 409, __('onboarding.migration.discard_committed'));
+
+            $rows = $locked->rows()->count();
+
+            // Before the delete, which takes the subject with it; the entry
+            // keeps the list's own id so it can still be told which one.
+            AuditLog::record('migration.discarded', $locked, [
+                'batch' => $locked->public_id,
+                'source' => $locked->source_type,
+                'mode' => $locked->mode(),
+                'status' => $locked->status,
+                'rows' => $rows,
+            ]);
+
+            $locked->delete();
+        });
+
+        return response()->noContent();
     }
 
     public function show(MigrationBatch $batch): JsonResponse

@@ -96,3 +96,53 @@ export function templateCsv(
       .join(",") + "\r\n"
   );
 }
+
+/** What a text file's bytes were read as. */
+export type TextEncoding = "utf-8" | "utf-16le" | "utf-16be" | "windows-1252";
+
+/**
+ * The text of a CSV or text file, from its bytes. A byte order mark is
+ * stripped and, for UTF-16, says which way round the bytes are. Without one
+ * the bytes are taken as UTF-8 if they are valid UTF-8, and otherwise as
+ * Windows-1252, which is what Excel writes for a "CSV" in a Western locale.
+ * `guessed` says the last was the way out, so the screen can say so: a file
+ * that is neither is read wrongly, and the reader should be able to see it.
+ */
+export function decodeText(bytes: Uint8Array): {
+  text: string;
+  encoding: TextEncoding;
+  guessed: boolean;
+} {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return {
+      text: new TextDecoder("utf-16le").decode(bytes.subarray(2)),
+      encoding: "utf-16le",
+      guessed: false,
+    };
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return {
+      text: new TextDecoder("utf-16be").decode(bytes.subarray(2)),
+      encoding: "utf-16be",
+      guessed: false,
+    };
+  }
+
+  const start =
+    bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
+  try {
+    return {
+      text: new TextDecoder("utf-8", { fatal: true }).decode(
+        bytes.subarray(start),
+      ),
+      encoding: "utf-8",
+      guessed: false,
+    };
+  } catch {
+    return {
+      text: new TextDecoder("windows-1252").decode(bytes.subarray(start)),
+      encoding: "windows-1252",
+      guessed: true,
+    };
+  }
+}
