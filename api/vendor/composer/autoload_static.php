@@ -1046,6 +1046,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Controllers\\OrganisationLogoController' => __DIR__ . '/../..' . '/app/Http/Controllers/OrganisationLogoController.php',
         'App\\Http\\Controllers\\OrganisationPreviewImageController' => __DIR__ . '/../..' . '/app/Http/Controllers/OrganisationPreviewImageController.php',
         'App\\Http\\Controllers\\OrganisationSitemapController' => __DIR__ . '/../..' . '/app/Http/Controllers/OrganisationSitemapController.php',
+        'App\\Http\\Controllers\\SignInPagePostController' => __DIR__ . '/../..' . '/app/Http/Controllers/SignInPagePostController.php',
         'App\\Http\\Middleware\\AcceptIdempotencyKeyHeader' => __DIR__ . '/../..' . '/app/Http/Middleware/AcceptIdempotencyKeyHeader.php',
         'App\\Http\\Middleware\\AuthenticateApiKey' => __DIR__ . '/../..' . '/app/Http/Middleware/AuthenticateApiKey.php',
         'App\\Http\\Middleware\\AuthenticateFromCookie' => __DIR__ . '/../..' . '/app/Http/Middleware/AuthenticateFromCookie.php',

@@ -5,6 +5,7 @@ use App\Http\Controllers\OrganisationEntryController;
 use App\Http\Controllers\OrganisationLoginPageController;
 use App\Http\Controllers\OrganisationPreviewImageController;
 use App\Http\Controllers\OrganisationSitemapController;
+use App\Http\Controllers\SignInPagePostController;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,9 @@ Route::get('/organisation-previews/{publicId}/{version}', OrganisationPreviewIma
 // shared host the file is served by Apache and this route is never reached.
 Route::get('/login', OrganisationLoginPageController::class)
     ->withoutMiddleware('web');
+// A native POST of the sign-in form (pressed before hydration) is answered 303 to the GET.
+Route::post('/login', SignInPagePostController::class)
+    ->withoutMiddleware('web');
 
 // /news and /news/{id} on an organisation's own host: the same treatment as
 // /login (.htaccess group 1a), so each article carries its own head. The id
@@ -55,5 +59,8 @@ Route::get('/news/{publicId}', [NewsPageController::class, 'show'])
 // habru instead of a 404. .htaccess group 2b matches [NC] to agree, and
 // SharedHostingHtaccessTest pins the pattern itself to the rule's.
 Route::get('/{slug}', OrganisationEntryController::class)
+    ->where('slug', '(?i)[a-z0-9][a-z0-9-]{0,62}')
+    ->withoutMiddleware('web');
+Route::post('/{slug}', SignInPagePostController::class)
     ->where('slug', '(?i)[a-z0-9][a-z0-9-]{0,62}')
     ->withoutMiddleware('web');

@@ -312,6 +312,7 @@ return array(
     'App\\Http\\Controllers\\OrganisationLogoController' => $baseDir . '/app/Http/Controllers/OrganisationLogoController.php',
     'App\\Http\\Controllers\\OrganisationPreviewImageController' => $baseDir . '/app/Http/Controllers/OrganisationPreviewImageController.php',
     'App\\Http\\Controllers\\OrganisationSitemapController' => $baseDir . '/app/Http/Controllers/OrganisationSitemapController.php',
+    'App\\Http\\Controllers\\SignInPagePostController' => $baseDir . '/app/Http/Controllers/SignInPagePostController.php',
     'App\\Http\\Middleware\\AcceptIdempotencyKeyHeader' => $baseDir . '/app/Http/Middleware/AcceptIdempotencyKeyHeader.php',
     'App\\Http\\Middleware\\AuthenticateApiKey' => $baseDir . '/app/Http/Middleware/AuthenticateApiKey.php',
     'App\\Http\\Middleware\\AuthenticateFromCookie' => $baseDir . '/app/Http/Middleware/AuthenticateFromCookie.php',
