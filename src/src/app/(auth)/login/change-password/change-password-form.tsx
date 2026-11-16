@@ -15,6 +15,7 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const changeSchema = z
@@ -45,6 +46,7 @@ type ChangeValues = z.infer<typeof changeSchema>;
  */
 export function ChangePasswordForm() {
   const { t } = useT();
+  const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
@@ -129,6 +131,7 @@ export function ChangePasswordForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.change_password_failed", "Your password was not changed."),
@@ -205,7 +208,11 @@ export function ChangePasswordForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
