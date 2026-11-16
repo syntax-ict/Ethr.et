@@ -80,7 +80,7 @@ The release needs **migrate**, then **`db:seed --class=PermissionSeeder`** (or t
   requests, and the server adds only the person's role, the release and the user agent
   (`App\Services\Support\SupportDesk::context()`). The request names its organisation by
   `public_id`, name and subdomain.
-- The console's support desk links to the organisation's page, which shows the industry only.
+- The console's support desk links to the organisation's page, which shows the kind in law and the industry.
 - For a question about pension, tax schedules, fiscal year, leave entitlement or working days,
   find the organisation's kind first. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) says how,
   and what each kind changes.

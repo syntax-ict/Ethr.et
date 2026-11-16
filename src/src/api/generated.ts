@@ -9157,6 +9157,8 @@ export interface components {
             /** @enum {string|null} */
             custom_domain_status: "verified" | "pending" | null;
             type: string | null;
+            organization_type: string;
+            organization_type_needs_review: boolean;
             status: string;
             employee_count: number;
             /** Format: date-time */
@@ -32067,6 +32069,8 @@ export interface operations {
     "adminTenant.index": {
         parameters: {
             query?: {
+                "filter[organization_type]"?: "private" | "sole_proprietor" | "private_limited_company" | "share_company" | "partnership" | "cooperative" | "foreign_company_branch" | "public_enterprise" | "government" | "regional_government" | "ngo" | "foreign_cso" | "religious_organization" | "international_organization" | "diplomatic_mission" | "defence_police" | null;
+                "filter[organization_type_group]"?: "private" | "non_profit" | "public" | "international" | null;
                 search?: string;
                 /**
                  * @description `withoutGlobalScopes()` above drops the soft-delete scope too, so a
@@ -32129,6 +32133,7 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "adminTenantJourney.summary": {
@@ -32284,6 +32289,12 @@ export interface operations {
                         address_mode_effective: string;
                         canonical_url: string | null;
                         type: string | null;
+                        organization_type: string;
+                        organization_type_needs_review: boolean;
+                        organization_type_pending: {
+                            organization_type: string;
+                            effective_from: string;
+                        } | null;
                         status: string;
                         /** Format: date-time */
                         trial_ends_at: string | null;

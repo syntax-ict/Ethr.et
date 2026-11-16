@@ -50,7 +50,7 @@ the reference for what each kind changes.
 | An organisation wants its data | [`DATA-EXPORT.md`](DATA-EXPORT.md) |
 | An organisation says its pension scheme, pension agency, fiscal year or leave rules are wrong for what it is | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 | An organisation is asked to confirm its kind, or wants to change it | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
-| I need to know what kind of organisation this is; the console shows only its industry | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md), and [`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) |
+| I need to know what kind of organisation this is; the console shows its kind and its industry | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md), and [`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) |
 | **An organisation is leaving** | [`DATA-EXPORT.md`](DATA-EXPORT.md) first, then [`TENANT-DELETION.md`](TENANT-DELETION.md). Deletion keeps every record and emails nobody |
 | An organisation wants to change its address | [`ORGANISATION-ADDRESS-RENAME.md`](ORGANISATION-ADDRESS-RENAME.md) |
 | An organisation wants to be named on the ETHR site | [`TRUSTED-BY.md`](TRUSTED-BY.md) |
@@ -101,7 +101,7 @@ Recorded so it is not rediscovered each time. None of it is a code task.
 | An SMS subscription. SMS is configured but off, and invitations by text need a "set a password" step first | [`SMS-DELIVERY.md`](SMS-DELIVERY.md) |
 | The accountant's confirmation of pension coverage for five kinds of organisation | [`ACCOUNTANT-SIGN-OFF.md`](../payroll/ACCOUNTANT-SIGN-OFF.md), row 11 |
 | A native review of the Amharic names of the kinds that inherit their parent's rules | [`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md) |
-| Whether the console should show an organisation's kind. Impersonation now refuses a change of kind; whether it should also refuse `use-law` is open | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| Whether impersonation should also refuse `use-law`, which ends an organisation's own tax bands and pension rules (it already refuses a change of kind, and the console now shows the kind) | [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
 
 ## Everything in this folder
 
