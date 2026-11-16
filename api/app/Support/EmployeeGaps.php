@@ -30,10 +30,16 @@ final class EmployeeGaps
 
     public const PHONE = 'phone';
 
+    public const DEPARTMENT = 'department';
+
+    public const POSITION = 'position';
+
+    public const GENDER = 'gender';
+
     /** @return list<string> */
     public static function keys(): array
     {
-        return [self::TIN, self::BANK, self::EMERGENCY_CONTACT, self::PHONE];
+        return [self::TIN, self::BANK, self::EMERGENCY_CONTACT, self::PHONE, self::DEPARTMENT, self::POSITION, self::GENDER];
     }
 
     /**
@@ -89,6 +95,9 @@ final class EmployeeGaps
             self::BANK => $query->whereDoesntHave('bankDetails', fn (Builder $bank) => $bank->withoutGlobalScope('tenant')),
             self::EMERGENCY_CONTACT => $query->whereDoesntHave('emergencyContacts'),
             self::PHONE => $query->where(fn (Builder $q) => $q->whereNull('phone')->orWhere('phone', '')),
+            self::DEPARTMENT => $query->whereNull('department_id'),
+            self::POSITION => $query->whereNull('position_id'),
+            self::GENDER => $query->where(fn (Builder $q) => $q->whereNull('gender')->orWhere('gender', '')),
             default => $query->whereRaw('1 = 0'),
         };
     }

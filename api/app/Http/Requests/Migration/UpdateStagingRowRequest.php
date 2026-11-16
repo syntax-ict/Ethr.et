@@ -32,7 +32,7 @@ class UpdateStagingRowRequest extends FormRequest
             // raw validation rule does not itself see the tenant scope).
             'employee_public_id' => ['nullable', 'string', 'exists:employees,public_id'],
             'accept' => ['sometimes', 'array'],
-            'accept.*' => ['string', 'distinct', Rule::in(array_keys(StagedChanges::FIELDS))],
+            'accept.*' => ['string', 'distinct', Rule::in(StagedChanges::acceptable())],
         ];
     }
 }

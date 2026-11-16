@@ -427,11 +427,14 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/migration/sources', [ImportMappingController::class, 'store']);
         Route::put('/migration/sources/{importMapping}', [ImportMappingController::class, 'update']);
         Route::delete('/migration/sources/{importMapping}', [ImportMappingController::class, 'destroy']);
+        Route::get('/migration/batches', [MigrationController::class, 'index']);
         Route::get('/migration/batches/{batch}', [MigrationController::class, 'show']);
+        Route::delete('/migration/batches/{batch}', [MigrationController::class, 'destroy']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/stage', [MigrationController::class, 'stage'])->middleware('throttle:migration-commit');
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
+        Route::get('/migration/batches/{batch}/terminals', [MigrationController::class, 'terminals']);
     });
 
     // Setup & Next Steps: one list per person, built from their role, scope and plan.
@@ -703,6 +706,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
         Route::post('/{device}/commands/set-time', [DeviceCommandController::class, 'setTime']);
         Route::post('/{device}/commands/send-staff', [DeviceCommandController::class, 'sendStaff']);
+        Route::post('/{device}/commands/retry', [DeviceCommandController::class, 'retry']);
     });
     Route::apiResource('devices', DeviceController::class);
 
@@ -820,9 +824,11 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/sources', [ReportController::class, 'sources']);
         Route::get('/presets', [ReportController::class, 'presets']);
         Route::post('/generate', [ReportController::class, 'generate'])
-            ->middleware(RequiresFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])
-            ->middleware(RequiresFeature::class.':reports');
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
 
         // `custom_reports` is the Enterprise tier's own key, distinct from
         // `reports`: saving and scheduling a report definition is the paid

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -116,12 +122,13 @@ function serves(saved: ImportSource[] = [], first: Partial<PeopleRead> = {}) {
       }
 
       const columns = told.map((m) => m.column);
+      const named = columns.includes("name") || columns.includes("first_name");
       return HttpResponse.json({
         ...UNMATCHED,
-        people: columns.includes("name") ? 1 : 0,
+        people: named ? 1 : 0,
         header: true,
         header_likely: false,
-        needs_name: !columns.includes("name"),
+        needs_name: !named,
         columns: columns.filter((c) => c !== null),
         headers: told.map((m) => ({ ...m, suggested: null })),
         source: body.source ?? null,
@@ -184,6 +191,44 @@ describe("matching another system's columns", () => {
     // A value from the first person, so the column is recognisable.
     expect(screen.getByText("For example: P-1042")).toBeInTheDocument();
     expect(await screen.findByText(/^1 person ready/)).toBeInTheDocument();
+  });
+
+  it("offers the parts of a name as columns a column can be, and a first name satisfies the need for a name", async () => {
+    const { asked } = serves();
+    renderStep();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Match columns" }),
+    );
+    const select = await screen.findByRole("combobox", {
+      name: "What Pers Ref is",
+    });
+    const offered = within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(offered).toEqual(
+      expect.arrayContaining([
+        "First name",
+        "Father's name",
+        "Grandfather's name",
+      ]),
+    );
+
+    // Nothing says it is the whole name, but the first name is enough to go on.
+    fireEvent.change(screen.getByRole("combobox", { name: "What Emp Nm is" }), {
+      target: { value: "first_name" },
+    });
+    await waitFor(() =>
+      expect(last(asked).mapping).toEqual([
+        { header: "Emp Nm", column: "first_name" },
+        { header: "Pers Ref", column: null },
+        { header: "Cell", column: "phone" },
+      ]),
+    );
+    expect(await screen.findByText(/^1 person ready/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/choose which column holds/i),
+    ).not.toBeInTheDocument();
   });
 
   it("reads the list again as each column is chosen, and stages it as matched", async () => {

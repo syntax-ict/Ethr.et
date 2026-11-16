@@ -30,8 +30,9 @@ class EmployeeImportController extends Controller
      * departments, branches and positions by name (by code where two share a
      * name). `text_columns` must be formatted as text, or a spreadsheet drops
      * a leading zero and rounds a long number. `date_columns` hold dates.
+     * `columns` says what each column is, in the template's order.
      *
-     * @response array{template: string, headers: list<string>, required: list<string>, text_columns: list<string>, date_columns: list<string>, lists: array<string, list<string>>}
+     * @response array{template: string, headers: list<string>, required: list<string>, text_columns: list<string>, date_columns: list<string>, columns: list<array{key: string, column: string, group: 'core'|'person'|'contact'|'job'|'pay'|'source', kind: 'date'|'list'|'id'|'number'|'text', required: bool, pay: bool, masked: bool}>, lists: array<string, list<string>>}
      */
     public function template(): JsonResponse
     {
@@ -43,13 +44,18 @@ class EmployeeImportController extends Controller
         // that had fallen behind it and omitted `national_id`.
         $headers = EmployeeImportRow::TEMPLATE;
         $lists = EmployeeImportChoices::forTenant(app(CurrentTenant::class)->id());
+        $columns = EmployeeImportRow::columnMeta();
 
         return response()->json([
             'template' => $csv,
             'headers' => $headers,
-            'required' => ['name'],
+            'required' => array_values(array_map(
+                fn (array $column): string => $column['key'],
+                array_filter($columns, fn (array $column): bool => $column['required']),
+            )),
             'text_columns' => EmployeeImportRow::TEXT_COLUMNS,
             'date_columns' => EmployeeImportRow::DATES,
+            'columns' => $columns,
             'lists' => $lists,
         ]);
     }

@@ -67,9 +67,9 @@ final class StagingFixtures
      *
      * @param  list<array<string, mixed>>  $rows
      */
-    public static function stage(Tenant $tenant, array $rows): MigrationBatch
+    public static function stage(Tenant $tenant, array $rows, ?string $mode = null): MigrationBatch
     {
-        return self::service()->stageFromRows($rows, $tenant->id);
+        return self::service()->stageFromRows($rows, $tenant->id, mode: $mode);
     }
 
     public static function firstRow(MigrationBatch $batch): MigrationStagingRow

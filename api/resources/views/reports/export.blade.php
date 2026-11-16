@@ -19,8 +19,14 @@
 <body>
     <div class="header">
         <h1>{{ $organisation }}</h1>
-        <p>{{ __('report.pdf_title', [], $locale) }}</p>
+        <p>{{ __('report.pdf_title', [], $locale) }}@if(! empty($source_name)): {{ $source_name }}@endif</p>
+        @if(! empty($period_text))
+        <p>{{ $period_text }}</p>
+        @endif
         <p>{{ __('report.pdf_generated', ['date' => $generated_at], $locale) }}</p>
+        @if(! empty($note))
+        <p>{{ $note }}</p>
+        @endif
     </div>
 
     <table>

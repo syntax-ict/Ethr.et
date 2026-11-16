@@ -7,18 +7,61 @@ import { calendarDayParts } from "@/lib/utils/date";
 import {
   formatReportCell,
   reportFieldLabel,
+  reportCutNote,
   reportGroupLabel,
   reportSourceLabel,
+  reportValueLabel,
 } from "@/features/reports/field-labels";
 import { FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
-import { type ReportResult } from "@/features/reports/api";
+import { type ReportConfig, type ReportResult } from "@/features/reports/api";
 import { useT } from "@/lib/i18n/useT";
 
-export function PreviewResult({ result }: { result: ReportResult }) {
+/**
+ * Rows past this many are not drawn on screen, where the table scrolls and the
+ * note below says so; they are in the markup so that paper carries every row
+ * that was loaded.
+ */
+const SCREEN_ROWS = 200;
+
+type T = ReturnType<typeof useT>["t"];
+
+/**
+ * The period a report covers, in the reader's calendar, or null when its
+ * settings name none (headcount has no period). `from` and `to` are the
+ * date filters; leave balances filter on a `year`.
+ */
+function reportPeriod(
+  t: T,
+  filters: ReportConfig["filters"],
+  formatDate: (iso: string) => string,
+): string | null {
+  const from = filters?.from ? formatDate(filters.from) : null;
+  const to = filters?.to ? formatDate(filters.to) : null;
+  if (from && to)
+    return t("reports_page.period_range", undefined, { from, to });
+  if (from) return t("reports_page.period_from", undefined, { from });
+  if (to) return t("reports_page.period_to", undefined, { to });
+  if (filters?.year) {
+    return t("reports_page.period_year", undefined, { year: filters.year });
+  }
+  return null;
+}
+
+export function PreviewResult({
+  result,
+  title,
+  config,
+}: {
+  result: ReportResult;
+  /** The report's name when it is not its source's (a ready-made report). */
+  title?: string;
+  /** The settings that produced `result`, for the period on a printed sheet. */
+  config?: ReportConfig;
+}) {
   const { t, locale } = useT();
   const { formatDate: formatCalendarDate } = useCalendar();
   // Built from parts: `new Date(iso)` is UTC midnight, the previous day west
@@ -27,7 +70,18 @@ export function PreviewResult({ result }: { result: ReportResult }) {
     const [y, m, d] = iso.split("-").map(Number);
     return formatCalendarDate(new Date(y, m - 1, d), locale);
   };
-  const { timeZone, formatTime, formatDateTime } = useDateFormatters();
+  const { timeZone, formatTime, formatDateTime, formatDate } =
+    useDateFormatters();
+  const name = title ?? reportSourceLabel(t, result.source);
+  // The dates the server applied, else what the settings say.
+  const period = reportPeriod(
+    t,
+    result.period
+      ? { from: result.period.from, to: result.period.to }
+      : config?.filters,
+    formatDate,
+  );
+  const cutNote = reportCutNote(t, result);
   // A check-in in the reader's clock, with its date only when it is not the
   // row's own day: a check-out after midnight says which day it fell on.
   const showInstant = (iso: string, day: unknown) => {
@@ -45,22 +99,37 @@ export function PreviewResult({ result }: { result: ReportResult }) {
   );
   const groups = result.summary?.groups;
   const groupSums = result.summary?.group_sums;
+  const groupedBy =
+    typeof result.summary?.grouped_by === "string"
+      ? result.summary.grouped_by
+      : undefined;
 
   return (
     <div className="space-y-4">
+      {/* What a printed sheet is: the page header carries only "Reports". */}
+      <div data-testid="report-print-heading" className="hidden print:block">
+        <h2 className="text-base font-semibold">{name}</h2>
+        {period && <p className="text-sm">{period}</p>}
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            <span>{reportSourceLabel(t, result.source)}</span> ·{" "}
+            <span>{name}</span> ·{" "}
             {t("reports_page.records_count", ":count records", {
               count: result.total,
             })}
           </p>
-          {result.truncated && (
+          {cutNote && (
+            <p role="note" className="mt-1 text-xs text-status-warning">
+              {cutNote}
+            </p>
+          )}
+          {result.summary?.complete === false && (
             <p role="note" className="mt-1 text-xs text-status-warning">
               {t(
-                "reports_page.truncated",
-                "Only the newest 1,000 rows are shown. Narrow the dates to see the rest.",
+                "reports_page.totals_partial",
+                "The group totals are partial: this report is too large to total in one go. Narrow the dates or filters.",
               )}
             </p>
           )}
@@ -80,7 +149,7 @@ export function PreviewResult({ result }: { result: ReportResult }) {
             <div className="flex flex-wrap gap-2">
               {Object.entries(groups).map(([key, count]) => (
                 <Badge key={key} variant="outline" className="text-xs">
-                  {reportGroupLabel(t, key)}:{" "}
+                  {reportGroupLabel(t, key, groupedBy)}:{" "}
                   <span className="ml-1 font-semibold">{count}</span>
                 </Badge>
               ))}
@@ -93,7 +162,7 @@ export function PreviewResult({ result }: { result: ReportResult }) {
                 {Object.entries(groupSums).map(([key, sums]) => (
                   <div key={key} className="text-xs">
                     <span className="font-semibold text-foreground">
-                      {reportGroupLabel(t, key)}:
+                      {reportGroupLabel(t, key, groupedBy)}:
                     </span>{" "}
                     {Object.entries(sums)
                       .map(
@@ -118,29 +187,36 @@ export function PreviewResult({ result }: { result: ReportResult }) {
         />
       ) : (
         <Card>
-          <CardContent className="p-0">
+          {/* print-expand: the table's own height limit and scroll end on paper. */}
+          <CardContent className="print-expand p-0">
             <SimpleTable
               caption={t("reports_page.title", "Report results")}
               maxHeight="calc(100vh - 280px)"
               headers={headers.map((col) => (
                 <span key={col}>{reportFieldLabel(t, col)}</span>
               ))}
-              rows={result.data.slice(0, 200).map((row, i) => ({
+              rows={result.data.map((row, i) => ({
                 key: String(i),
+                className: i >= SCREEN_ROWS ? "hidden print:table-row" : "",
                 cells: headers.map((h) => (
                   <span key={h} className="whitespace-nowrap">
-                    {formatReportCell(h, row[h], showDate, (iso) =>
-                      showInstant(iso, row.date),
+                    {formatReportCell(
+                      h,
+                      reportValueLabel(t, h, row[h]),
+                      showDate,
+                      (iso) => showInstant(iso, row.date),
                     )}
                   </span>
                 )),
               }))}
             />
-            {result.data.length > 200 && (
-              <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-                {t("reports_page.showing_first_200_prefix")}{" "}
-                {result.data.length}{" "}
-                {t("reports_page.showing_first_200_suffix")}
+            {result.data.length > SCREEN_ROWS && (
+              <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground print:hidden">
+                {t(
+                  "reports_page.showing_first_rows",
+                  "Showing the first :shown of :total rows. Download CSV for full data.",
+                  { shown: SCREEN_ROWS, total: result.data.length },
+                )}
               </div>
             )}
           </CardContent>
