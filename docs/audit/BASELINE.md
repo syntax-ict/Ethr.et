@@ -4788,3 +4788,5 @@ token. `OperationsStatusService` already reported `route_cache_stale`; nothing a
 older than `release.json`'s `built_at`, and the next `/cron/schedule` tick rebuilds both
 (`recache` in its response). It shares the ops page's blind spot: a cache built after CI but before
 Plesk deploys is not seen as stale. `packages.php`, `services.php` and `migrate` are out of scope.
+
+**Google Drive fallback for off-host backups (2026-11-15).** `BackupService::offHostTargets()` orders destinations (primary S3, then Google Drive), `copyOffHost()` falls back on failure and records `destination` and `fell_back` in the manifest, each destination has its own archive key, and `BackupHealth` reports `off_host_fell_back`. The Drive adapter is a custom Flysystem adapter over Google's REST API (no composer package), `drive.file` scope only, OAuth return through the console page. Proven against `Http::fake` and a scratch MariaDB migration; **not proven against real Google** until the owner connects an account and the first nightly copy lands. See `docs/deployment/BACKUP-RESTORE.md`.
