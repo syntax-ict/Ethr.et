@@ -177,7 +177,7 @@ export function useMigrationBatch(batchId: string | null) {
     queryFn: async () =>
       (await apiClient.get(`/onboarding/migration/batches/${batchId}`)).data,
     enabled: !!batchId,
-    retry: (failures, err) => !isNotFound(err) && failures < 3,
+    retry: (failures, err) => !isNotFound(err) && failures < 1,
   });
 }
 

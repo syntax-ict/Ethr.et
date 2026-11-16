@@ -6949,6 +6949,7 @@
   "audit.action.loan.created": "Liqiin dabalame",
   "audit.action.loan.updated": "Liqiin haaromfame",
   "audit.action.migration.committed": "Dabarsi daataa xumurame",
+  "audit.action.migration.discarded": "Tarreen dabarsa daataa haqame",
   "audit.action.migration.staged": "Dabarsi daataa qophaa'e",
   "audit.action.onboarding.access_updated": "Qophii jalqabaa: hayyamni seensaa haaromfame",
   "audit.action.onboarding.configuration_applied": "Qophii jalqabaa: qindaa'inni hojiirra oole",

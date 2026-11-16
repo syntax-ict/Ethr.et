@@ -6949,6 +6949,7 @@
   "audit.action.loan.created": "Loan added",
   "audit.action.loan.updated": "Loan updated",
   "audit.action.migration.committed": "Data migration completed",
+  "audit.action.migration.discarded": "Data migration list discarded",
   "audit.action.migration.staged": "Data migration prepared",
   "audit.action.onboarding.access_updated": "Setup: access updated",
   "audit.action.onboarding.configuration_applied": "Setup: configuration applied",

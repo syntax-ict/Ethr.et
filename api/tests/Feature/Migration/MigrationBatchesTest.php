@@ -73,6 +73,20 @@ describe('the index', function () {
             ->and(json_encode($data))->not->toContain('Person 1');
     });
 
+    it('names whoever started a list by their employee record, never by their email address', function () {
+        [$tenant] = Staging::organisation();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Marta Alemu']);
+        $starter = User::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'display_name' => null, 'email' => 'marta@example.et']);
+        $nameless = User::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => null, 'display_name' => null, 'email' => 'nobody@example.et']);
+        inProgressBatch($tenant, 'reviewing', 1, ['created_by' => $starter->id, 'created_at' => Carbon::parse('2026-11-02 08:00:00')]);
+        inProgressBatch($tenant, 'reviewing', 1, ['created_by' => $nameless->id, 'created_at' => Carbon::parse('2026-11-01 08:00:00')]);
+
+        $response = test()->getJson(Staging::url($tenant, 'batches'))->assertOk();
+
+        expect(array_column($response->json('data'), 'created_by_name'))->toBe(['Marta Alemu', null])
+            ->and($response->getContent())->not->toContain('example.et');
+    });
+
     it('lists at most twenty, the newest', function () {
         [$tenant] = Staging::organisation();
 

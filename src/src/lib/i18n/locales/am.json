@@ -6949,6 +6949,7 @@
   "audit.action.loan.created": "ብድር ታከለ",
   "audit.action.loan.updated": "ብድር ተዘመነ",
   "audit.action.migration.committed": "የውሂብ ዝውውር ተጠናቀቀ",
+  "audit.action.migration.discarded": "የውሂብ ዝውውር ዝርዝር ተወገደ",
   "audit.action.migration.staged": "የውሂብ ዝውውር ተዘጋጀ",
   "audit.action.onboarding.access_updated": "ዝግጅት፦ መዳረሻ ተዘመነ",
   "audit.action.onboarding.configuration_applied": "ዝግጅት፦ ውቅር ተተገበረ",

@@ -575,7 +575,8 @@ the list. The name is the creator's employee name, else the name an account with
 else null; an email address is never used, because anyone who may view employees can read the list.
 Any member of the organisation who may view employees can open any of these lists, as
 `GET /batches/{batch}` already allowed; there is no check on who started one. The lines are
-counted in one grouped query, so the index costs the same however many lists there are.
+counted by a subquery in the same select, and the creators and their employees are read in two
+eager loads, so the index costs three queries however many lists there are.
 
 `DELETE /batches/{batch}` removes a list nobody will finish. Only `staging` and `reviewing`:
 once a commit's first slice has run, people are written and the list is the record of how they
