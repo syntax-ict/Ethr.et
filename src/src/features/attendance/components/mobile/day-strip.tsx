@@ -3,6 +3,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import type { MyShift } from "@/features/attendance/api";
 import { dayNoteText } from "@/features/attendance/components/day-note";
+import { ShiftRail } from "@/features/attendance/components/mobile/shift-rail";
+import { shiftMoment } from "@/lib/attendance/shift-moment";
+import { shiftMomentText } from "@/lib/attendance/shift-moment-text";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +21,8 @@ export function DayStrip({
   shiftLoading,
   timeOf,
   formatTimeOfDay,
+  now,
+  pendingPunch = null,
 }: {
   dateLine: string;
   clock: string;
@@ -25,9 +30,41 @@ export function DayStrip({
   shiftLoading: boolean;
   timeOf: (iso: string | null | undefined) => string;
   formatTimeOfDay: (time: string) => string;
+  now: Date;
+  /** A punch just made, shown on the rail before the server's data refreshes. */
+  pendingPunch?: { type: "check_in" | "check_out"; at: Date } | null;
 }) {
   const { t, locale } = useT();
   const status = shift?.attendance.status;
+  const showShift =
+    !shiftLoading &&
+    !dayNoteText(shift?.day, t, locale) &&
+    Boolean(shift?.shift && shift.working_day);
+
+  // A punch the server has not yet reported is drawn at once, from its own
+  // time, so the dot lands on the rail the moment the person taps.
+  let railStatus = status ?? "not_checked_in";
+  let railIn = shift?.attendance.check_in ?? null;
+  let railOut = shift?.attendance.check_out ?? null;
+  if (pendingPunch?.type === "check_in") {
+    railStatus = "checked_in";
+    railIn = pendingPunch.at.toISOString();
+    railOut = null;
+  } else if (pendingPunch?.type === "check_out") {
+    railStatus = "checked_out";
+    railOut = pendingPunch.at.toISOString();
+  }
+  const moment =
+    showShift && shift?.shift
+      ? shiftMoment({
+          startsAt: shift.shift.starts_at,
+          endsAt: shift.shift.ends_at,
+          status: railStatus,
+          checkIn: railIn,
+          checkOut: railOut,
+          now,
+        })
+      : null;
 
   return (
     <section className="px-1">
@@ -81,6 +118,34 @@ export function DayStrip({
           </span>
         ) : null}
       </div>
+
+      {showShift && shift?.shift && (
+        <>
+          <div className="mt-3">
+            <ShiftRail
+              startsAt={shift.shift.starts_at}
+              endsAt={shift.shift.ends_at}
+              checkIn={railIn}
+              checkOut={railOut}
+              now={now}
+              landing={pendingPunch?.type ?? null}
+              label={t(
+                "attendance.punch.rail_label",
+                "Your shift today, from :start to :end",
+                {
+                  start: formatTimeOfDay(shift.shift.start_time),
+                  end: formatTimeOfDay(shift.shift.end_time),
+                },
+              )}
+            />
+          </div>
+          {moment && (
+            <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+              {shiftMomentText(moment, t)}
+            </p>
+          )}
+        </>
+      )}
 
       {shift?.attendance.auto_checked_out && (
         <p className="mt-2 text-xs text-muted-foreground">
