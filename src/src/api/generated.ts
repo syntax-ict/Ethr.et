@@ -5333,7 +5333,9 @@ export interface paths {
          *     terminal ETHR cannot write to, who to enrol by hand
          * @description Device information needs `device.viewAny`; without it the answer is the
          *     empty one with `visible` false. Someone the viewer may not open is
-         *     neither named nor counted.
+         *     neither named nor counted. `held` lists, for a viewer who may assign a
+         *     badge (`attendance.manage`), the held badges that are now exactly one of
+         *     those people; it is empty for anyone else.
          */
         get: operations["migration.terminals"];
         put?: never;
@@ -28325,16 +28327,25 @@ export interface operations {
                         }[];
                         without_number: number;
                         without_branch: number;
+                        can_assign: boolean;
+                        held: string[];
+                        held_more: number;
                     } | {
                         visible: boolean;
                         devices: string[];
                         without_number: number;
                         without_branch: number;
+                        can_assign: boolean;
+                        held: string[];
+                        held_more: number;
                     }) | {
                         visible: boolean;
                         devices: string[];
                         without_number: number;
                         without_branch: number;
+                        can_assign: boolean;
+                        held: string[];
+                        held_more: number;
                     };
                 };
             };
@@ -37703,6 +37714,7 @@ export interface operations {
                     "application/json": {
                         replayed: number;
                         refused: number;
+                        remaining: number;
                     };
                 };
             };

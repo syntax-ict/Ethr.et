@@ -45,7 +45,7 @@ final class MigrationTerminals
     /**
      * The answer for a viewer who may not see device information.
      *
-     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array<string, mixed>>, held_more: int}
+     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
      */
     public function hidden(): array
     {
@@ -55,7 +55,7 @@ final class MigrationTerminals
     /**
      * @param  Collection<int, Employee>  $people  the batch's people the viewer may open: nobody else is named or counted
      * @param  bool  $canAssign  the viewer holds `attendance.manage`; without it nothing is looked up or listed
-     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array<string, mixed>>, held_more: int}
+     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
      */
     public function read(Collection $people, int $tenantId, bool $canAssign = false): array
     {

@@ -13245,11 +13245,16 @@
                                         },
                                         "refused": {
                                             "type": "integer"
+                                        },
+                                        "remaining": {
+                                            "type": "integer",
+                                            "minimum": 0
                                         }
                                     },
                                     "required": [
                                         "replayed",
-                                        "refused"
+                                        "refused",
+                                        "remaining"
                                     ]
                                 }
                             }
@@ -26292,7 +26297,7 @@
                     "read"
                 ],
                 "operationId": "migration.terminals",
-                "description": "Device information needs `device.viewAny`; without it the answer is the\nempty one with `visible` false. Someone the viewer may not open is\nneither named nor counted.",
+                "description": "Device information needs `device.viewAny`; without it the answer is the\nempty one with `visible` false. Someone the viewer may not open is\nneither named nor counted. `held` lists, for a viewer who may assign a\nbadge (`attendance.manage`), the held badges that are now exactly one of\nthose people; it is empty for anyone else.",
                 "summary": "What the attendance terminals hold for the people a committed batch\nbrought in: per device of their branches, how many were sent, are\nwaiting, were refused or were not sent for their number, and for a\nterminal ETHR cannot write to, who to enrol by hand",
                 "tags": [
                     "Onboarding"
@@ -26406,13 +26411,31 @@
                                                         "without_branch": {
                                                             "type": "integer",
                                                             "minimum": 0
+                                                        },
+                                                        "can_assign": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "held": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "minItems": 0,
+                                                            "maxItems": 0,
+                                                            "additionalItems": false
+                                                        },
+                                                        "held_more": {
+                                                            "type": "integer"
                                                         }
                                                     },
                                                     "required": [
                                                         "visible",
                                                         "devices",
                                                         "without_number",
-                                                        "without_branch"
+                                                        "without_branch",
+                                                        "can_assign",
+                                                        "held",
+                                                        "held_more"
                                                     ]
                                                 },
                                                 {
@@ -26436,13 +26459,31 @@
                                                         "without_branch": {
                                                             "type": "integer",
                                                             "minimum": 0
+                                                        },
+                                                        "can_assign": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "held": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "minItems": 0,
+                                                            "maxItems": 0,
+                                                            "additionalItems": false
+                                                        },
+                                                        "held_more": {
+                                                            "type": "integer"
                                                         }
                                                     },
                                                     "required": [
                                                         "visible",
                                                         "devices",
                                                         "without_number",
-                                                        "without_branch"
+                                                        "without_branch",
+                                                        "can_assign",
+                                                        "held",
+                                                        "held_more"
                                                     ]
                                                 }
                                             ]
@@ -26467,13 +26508,31 @@
                                                 },
                                                 "without_branch": {
                                                     "type": "integer"
+                                                },
+                                                "can_assign": {
+                                                    "type": "boolean"
+                                                },
+                                                "held": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "minItems": 0,
+                                                    "maxItems": 0,
+                                                    "additionalItems": false
+                                                },
+                                                "held_more": {
+                                                    "type": "integer"
                                                 }
                                             },
                                             "required": [
                                                 "visible",
                                                 "devices",
                                                 "without_number",
-                                                "without_branch"
+                                                "without_branch",
+                                                "can_assign",
+                                                "held",
+                                                "held_more"
                                             ]
                                         }
                                     ]
