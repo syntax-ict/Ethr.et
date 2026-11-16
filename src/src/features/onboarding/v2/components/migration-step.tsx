@@ -1042,7 +1042,9 @@ export function MigrationStep({
                     </p>
                   )}
                   {read &&
-                    (headerLine !== null || (read.header_line ?? 1) > 1) && (
+                    (headerLine !== null ||
+                      (read.header_line ?? 1) > 1 ||
+                      (!read.header && lineChoices.length > 1)) && (
                       <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
                         {read.header_line != null && (
                           <span>

@@ -960,6 +960,36 @@ describe("<MigrationStep>", () => {
     ).toBeInTheDocument();
   });
 
+  it("lets the reader say where the column names are in a list under a title, when ETHR knows none of their words", async () => {
+    const asked = reads({
+      people: 2,
+      header: false,
+      header_line: null,
+      header_likely: false,
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+    const lastAsked = () =>
+      asked[asked.length - 1] as unknown as Record<string, unknown>;
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: {
+        value: "Payroll export\nEmp Nm\tPers Ref\nAbebe Kebede\tP-1042",
+      },
+    });
+
+    const select = await screen.findByLabelText("Line with the column names");
+    expect((select as HTMLSelectElement).value).toBe("0");
+    expect(lastAsked().header_line).toBeUndefined();
+
+    fireEvent.change(select, { target: { value: "2" } });
+    await waitFor(() => expect(lastAsked().header_line).toBe(2));
+  });
+
   it("says nothing about a line when the column names are on the first", async () => {
     reads({ people: 1, header: true, header_line: 1, columns: ["name"] });
     server.use(
