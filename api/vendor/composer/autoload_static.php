@@ -1890,6 +1890,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\EmployeeImportProfile' => __DIR__ . '/../..' . '/app/Support/EmployeeImportProfile.php',
         'App\\Support\\EmployeeImportRow' => __DIR__ . '/../..' . '/app/Support/EmployeeImportRow.php',
         'App\\Support\\EmployeeRelations' => __DIR__ . '/../..' . '/app/Support/EmployeeRelations.php',
+        'App\\Support\\EmployeeSignIn' => __DIR__ . '/../..' . '/app/Support/EmployeeSignIn.php',
         'App\\Support\\EthiopianPhone' => __DIR__ . '/../..' . '/app/Support/EthiopianPhone.php',
         'App\\Support\\ExecutiveBranchScope' => __DIR__ . '/../..' . '/app/Support/ExecutiveBranchScope.php',
         'App\\Support\\ExitClearanceTemplate' => __DIR__ . '/../..' . '/app/Support/ExitClearanceTemplate.php',

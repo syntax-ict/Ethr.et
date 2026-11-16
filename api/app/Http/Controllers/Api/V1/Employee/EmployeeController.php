@@ -30,6 +30,7 @@ use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
 use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
+use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
 use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
@@ -100,6 +101,7 @@ class EmployeeController extends Controller
         // cannot be used to learn who has no TIN or bank account.
         $missing = $request->input('filter.missing');
         EmployeeGaps::restrict($query, $missing);
+        EmployeeSignIn::withState($query);
 
         if ($request->has('filter.department_id')) {
             $dept = Department::where('public_id', $request->input('filter.department_id'))->first();

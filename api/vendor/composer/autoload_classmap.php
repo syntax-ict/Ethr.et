@@ -1156,6 +1156,7 @@ return array(
     'App\\Support\\EmployeeImportProfile' => $baseDir . '/app/Support/EmployeeImportProfile.php',
     'App\\Support\\EmployeeImportRow' => $baseDir . '/app/Support/EmployeeImportRow.php',
     'App\\Support\\EmployeeRelations' => $baseDir . '/app/Support/EmployeeRelations.php',
+    'App\\Support\\EmployeeSignIn' => $baseDir . '/app/Support/EmployeeSignIn.php',
     'App\\Support\\EthiopianPhone' => $baseDir . '/app/Support/EthiopianPhone.php',
     'App\\Support\\ExecutiveBranchScope' => $baseDir . '/app/Support/ExecutiveBranchScope.php',
     'App\\Support\\ExitClearanceTemplate' => $baseDir . '/app/Support/ExitClearanceTemplate.php',
