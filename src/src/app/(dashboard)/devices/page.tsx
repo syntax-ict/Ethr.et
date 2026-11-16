@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { branchesApi } from "@/features/organization/api";
 import Link from "next/link";
 import {
@@ -173,6 +173,19 @@ export default function DevicesPage() {
   const canCreate = hasPermission("device.create");
   const canUpdate = hasPermission("device.update");
   const canDelete = hasPermission("device.delete");
+
+  // The health dashboard's Add device button arrives here as /devices#add.
+  // Once, so closing the dialog does not bring it back on the next render.
+  const openedFromHash = useRef(false);
+  useEffect(() => {
+    if (openedFromHash.current || !canCreate) return;
+    if (window.location.hash !== "#add") return;
+    const timer = window.setTimeout(() => {
+      openedFromHash.current = true;
+      setCreateOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [canCreate]);
 
   function syncAll() {
     syncAllMutation.mutate(undefined, {
