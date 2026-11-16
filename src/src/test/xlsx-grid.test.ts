@@ -13,6 +13,8 @@ import {
   NoSheet,
   PROBLEM_HEADING,
   readWorkbook,
+  readWorkbookSheets,
+  workbookSheets,
   SHEET_ENROLMENT,
   SHEET_EXAMPLE,
   SHEET_HELP,
@@ -186,6 +188,55 @@ describe("reading a workbook into cells", () => {
     renamed.addWorksheet(SHEET_HELP).addRow(["How to fill this in"]);
     renamed.addWorksheet("ሰራተኞች").addRow(["ስም"]);
     expect(await readWorkbook(await bytes(renamed))).toEqual([["ስም"]]);
+  });
+
+  it("lists the sheets that may hold people, in workbook order, without the ones that are ours or hidden", async () => {
+    const workbook = new Workbook();
+    workbook.addWorksheet("Sheet1").addRow(["First"]);
+    workbook.addWorksheet(SHEET_HELP).addRow(["How"]);
+    workbook.addWorksheet("Old data", { state: "hidden" }).addRow(["Nobody"]);
+    workbook.addWorksheet(SHEET_EXAMPLE).addRow(["Example"]);
+    workbook.addWorksheet(SHEET_LISTS, { state: "veryHidden" }).addRow(["x"]);
+    workbook.addWorksheet(SHEET_PEOPLE).addRow(["Name"]);
+    workbook.addWorksheet("Sheet3").addRow(["Third"]);
+    const data = await bytes(workbook);
+
+    expect(await workbookSheets(data)).toEqual([
+      "Sheet1",
+      SHEET_PEOPLE,
+      "Sheet3",
+    ]);
+    // With no name, what is read is what it always was.
+    expect(await readWorkbook(data)).toEqual([["Name"]]);
+  });
+
+  it("reads the sheet it is told to, and says which it read among which", async () => {
+    const workbook = new Workbook();
+    workbook.addWorksheet("Sheet1").addRow(["First"]);
+    workbook.addWorksheet("Sheet2").addRow(["Second"]);
+    const data = await bytes(workbook);
+
+    expect(await readWorkbook(data, "Sheet2")).toEqual([["Second"]]);
+    expect(await readWorkbookSheets(data)).toEqual({
+      grid: [["First"]],
+      sheet: "Sheet1",
+      sheets: ["Sheet1", "Sheet2"],
+    });
+    expect(await readWorkbookSheets(data, "Sheet2")).toMatchObject({
+      sheet: "Sheet2",
+    });
+  });
+
+  it("refuses a sheet that is not one of the candidates", async () => {
+    const workbook = new Workbook();
+    workbook.addWorksheet("Sheet1").addRow(["First"]);
+    workbook.addWorksheet(SHEET_HELP).addRow(["How"]);
+    const data = await bytes(workbook);
+
+    await expect(readWorkbook(data, SHEET_HELP)).rejects.toBeInstanceOf(
+      NoSheet,
+    );
+    await expect(readWorkbook(data, "Nope")).rejects.toBeInstanceOf(NoSheet);
   });
 
   it("says when there is no sheet of people, or too many lines", async () => {

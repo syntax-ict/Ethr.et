@@ -71,6 +71,15 @@ final class EmployeeImportRow
         'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
 
+    /**
+     * A name written in parts, as another system's export writes it. They are
+     * read only to build `name` (withName), never stored as fields of their own,
+     * and the template does not ask for them: it asks for `name`.
+     *
+     * @var list<string>
+     */
+    public const NAME_PARTS = ['first_name', 'father_name', 'grandfather_name'];
+
     /** The columns that hold a date, each of which may name its calendar: "Hire date (E.C.)". */
     public const DATES = ['hire_date', 'date_of_birth', 'probation_end_date', 'contract_end_date'];
 
@@ -110,7 +119,7 @@ final class EmployeeImportRow
      * @var list<string>
      */
     public const MAPPABLE = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'first_name', 'father_name', 'grandfather_name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
@@ -274,6 +283,23 @@ final class EmployeeImportRow
         'emergency_contact_phone' => 'emergency_phone',
     ];
 
+    /**
+     * Spellings of the name parts, after key(). Kept apart from ALIASES so the
+     * file import, which reads none of them, reads its headers as it always did.
+     * A bare "Name" and "ስም" are the full name and are not here.
+     */
+    private const PART_ALIASES = [
+        'given_name' => 'first_name',
+        'middle_name' => 'father_name',
+        'father_s_name' => 'father_name',
+        'የአባት_ስም' => 'father_name',
+        'last_name' => 'grandfather_name',
+        'surname' => 'grandfather_name',
+        'family_name' => 'grandfather_name',
+        'grandfather_s_name' => 'grandfather_name',
+        'የአያት_ስም' => 'grandfather_name',
+    ];
+
     /** What a column name, or a date itself, may end with to say which calendar it is in. */
     private const CALENDAR_MARKS = [
         'ec' => 'ethiopian',
@@ -343,18 +369,29 @@ final class EmployeeImportRow
     /** A header cell as the key it names: "Employee Code" and "employee-code" are `employee_code`. */
     public static function header(string $cell): string
     {
-        return self::column($cell)[0];
+        return self::column($cell, parts: false)[0];
+    }
+
+    /** Whether a list's column of this key is read: a column of a person, or a part of the name. */
+    public static function reads(string $key): bool
+    {
+        return in_array($key, self::COLUMNS, true) || in_array($key, self::NAME_PARTS, true);
     }
 
     /**
      * A header cell as the key it names, and the calendar it says its dates
      * are in, when it says: "Hire date (E.C.)" is `hire_date`, Ethiopian.
      *
+     * @param  bool  $parts  whether a name in parts ("First name") is read as such; the file import does not
      * @return array{0: string, 1: 'gregorian'|'ethiopian'|null}
      */
-    public static function column(string $cell): array
+    public static function column(string $cell, bool $parts = true): array
     {
         $key = self::key($cell);
+
+        if ($parts && (isset(self::PART_ALIASES[$key]) || in_array($key, self::NAME_PARTS, true))) {
+            return [self::PART_ALIASES[$key] ?? $key, null];
+        }
 
         if (isset(self::ALIASES[$key]) || in_array($key, self::COLUMNS, true)) {
             return [self::ALIASES[$key] ?? $key, null];
@@ -525,6 +562,31 @@ final class EmployeeImportRow
         }
 
         return $rules;
+    }
+
+    /**
+     * The row with its name built from the parts of it, and the parts taken
+     * out. A row that has a name keeps it; one with a first name and no name
+     * gets the parts that are there, in order, one space apart.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public static function withName(array $row): array
+    {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '' && trim((string) ($row['first_name'] ?? '')) !== '') {
+            $parts = [];
+            foreach (self::NAME_PARTS as $part) {
+                $value = trim((string) ($row[$part] ?? ''));
+                if ($value !== '') {
+                    $parts[] = $value;
+                }
+            }
+            $row['name'] = implode(' ', $parts);
+        }
+
+        return array_diff_key($row, array_flip(self::NAME_PARTS));
     }
 
     /**

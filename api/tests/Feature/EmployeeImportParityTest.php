@@ -281,3 +281,20 @@ test('the file import keeps the rules it had: none of the profile columns is amo
     expect(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules())))->toBe([])
         ->and(array_intersect(EmployeeImportRow::PROFILE, array_keys(EmployeeImportRow::rules('rows.*.'))))->toBe([]);
 });
+
+test('the parts of a name are mappable and read by a list, and are not columns of the template or of a person', function () {
+    $source = file_get_contents(base_path('../src/src/features/employees/employee-columns.ts'));
+
+    foreach (EmployeeImportRow::NAME_PARTS as $part) {
+        expect(EmployeeImportRow::MAPPABLE)->toContain($part)
+            ->and(EmployeeImportRow::TEMPLATE)->not->toContain($part)
+            ->and(EmployeeImportRow::COLUMNS)->not->toContain($part)
+            ->and(EmployeeImportRow::PROFILE)->not->toContain($part)
+            ->and(EmployeeImportRow::reads($part))->toBeTrue()
+            ->and(EmployeeImportRow::column($part)[0])->toBe($part)
+            ->and($source)->toMatch('/^\s+"?'.preg_quote($part, '/').'"?:/m', $part);
+    }
+
+    expect(EmployeeImportRow::MAPPABLE[0])->toBe('name')
+        ->and(array_values(array_diff(EmployeeImportRow::MAPPABLE, EmployeeImportRow::COLUMNS)))->toBe(EmployeeImportRow::NAME_PARTS);
+})->skip(fn () => ! is_dir(base_path('../src/src/features')), 'Needs the frontend source beside api/, as in a full checkout.');

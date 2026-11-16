@@ -396,6 +396,43 @@ for a device, so "terminal" and "device" read alike), and *not accepted by the t
 sent* (the first is a refusal by the device, the second is ETHR holding back a number the device would
 refuse).
 
+### A list that comes out of other software (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about which column of their file is read as a name or
+which line holds the column names; it moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The three parts of a name, as columns a file's column can be matched to: "First name", "Father's name", "Grandfather's name", and what each takes | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_first_name`, `col_father_name`, `col_grandfather_name`, and `employees_import_page.col_first_name`, `col_father_name`, `col_grandfather_name` | 6 each |
+| The line that holds the column names: "Column names are on line N.", the choice's name and label, "Line N", "There are no column names", and the button "The column names are on another line" | the same files, `setup2.header_line_found`, `header_line_pick`, `header_line_option`, `header_line_none`, `header_line_other` | 5 each |
+| A workbook with several sheets: "This workbook has N sheets. Reading: Sheet1.", and the sheet choice's name for a screen reader | the same files, `setup2.sheets_note`, `sheet_pick` | 2 each |
+| The note under a text file that was not UTF-8: "This file was read as Windows-1252 text." | the same files, `setup2.file_read_as` | 1 each |
+
+What to check first: the three part names against how a name is usually asked for on an Ethiopian
+form (the drafts use the Amharic words for the father's and the grandfather's name, and the
+column's English is "Last name" in many exports, which the server reads as the grandfather's name),
+and *Column names* against the word the matcher already uses for a file's first line.
+
+### Lists in progress (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether a list can still be thrown away; it moves
+no money, and a list that has begun to be added cannot be discarded at all.
+
+| What | Where | Strings |
+|---|---|---|
+| The card above the list box: its title and line, the two kinds of list ("Adding people", "Completing people who are already here"), the three states ("Still being read", "Waiting for your review", "Being added"), "N lines" and "1 line", the three ways to say who started it ("Started 5 min ago by you", "by NAME", "by someone else"), Open, "Opening the list" | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.title`, `hint`, `mode_add`, `mode_complete`, `status_staging`, `status_reviewing`, `status_committing`, `lines`, `lines_one`, `started_you`, `started_by`, `started_other`, `open`, `opening` | 14 each |
+| Discarding: the question, its two forms of "The N lines on it are removed. Nobody on it has been added.", the button, the two answers | the same files, `migration_lists.discard_title`, `discard_desc`, `discard_desc_one`, `discard`, `discarded`, `discard_failed` | 6 each |
+| The line over a list that was still being read when the page was opened, before Carry on | the same files, `setup2.staging_resumed` | 1 each |
+| The audit label "Data migration list discarded" | `src/src/lib/i18n/locales/{am,om}.json`, `audit.action.migration.discarded` | 1 each |
+| The two refusals when a list is being added or was added | `api/lang/{am,om}/onboarding.php`, `migration.discard_committing`, `discard_committed` | 2 each |
+
+What to check first: *Open* and *Discard* as verbs on a button (the drafts use the imperative; the Amharic
+for discard is "remove"), and the three
+"started" sentences, where a person's name sits inside the Amharic and Oromo word order. The Oromo for
+the second one puts the name before the verb and may need a suffix on the name.
+
 ### The console shows the kind in law (2026-11-15)
 
 Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in

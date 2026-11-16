@@ -60,7 +60,33 @@ describe("the employee column words", () => {
     expect(MAPPABLE_COLUMNS[0]).toBe("name");
     expect(FALLBACK_TEMPLATE_KEYS).toContain("department");
     expect(FALLBACK_TEMPLATE_KEYS).not.toContain("department_code");
-    expect(FALLBACK_TEMPLATE_KEYS).toHaveLength(MAPPABLE_COLUMNS.length);
+    const parts = MAPPABLE_COLUMNS.filter((key) => EMPLOYEE_COLUMNS[key].part);
+    expect(FALLBACK_TEMPLATE_KEYS).toHaveLength(
+      MAPPABLE_COLUMNS.length - parts.length,
+    );
+  });
+
+  it("the parts of a name can be matched and have words, and the template does not have them", () => {
+    const parts = ["first_name", "father_name", "grandfather_name"];
+    expect(MAPPABLE_COLUMNS).toEqual(expect.arrayContaining(parts));
+    expect(MAPPABLE_COLUMNS.indexOf("name")).toBe(0);
+    for (const part of parts) {
+      expect(FALLBACK_TEMPLATE_KEYS).not.toContain(part);
+      for (const dict of Object.values(dictionaries)) {
+        for (const [key] of [
+          EMPLOYEE_COLUMNS[part].label,
+          EMPLOYEE_COLUMNS[part].help!,
+        ]) {
+          expect(dict[key], key).toBeTruthy();
+          expect(dict[key], key).not.toMatch(/—| - |!$/);
+        }
+      }
+      expect(dictionaries.am[EMPLOYEE_COLUMNS[part].help![0]]).not.toBe(
+        dictionaries.en[EMPLOYEE_COLUMNS[part].help![0]],
+      );
+    }
+    const t = (key: string, fallback?: string) => fallback ?? key;
+    expect(columnLabel("first_name", t)).toBe("First name");
   });
 
   it("a column nobody has words for shows under its own key", () => {

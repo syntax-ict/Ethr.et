@@ -73,8 +73,9 @@ export interface FixLine {
 }
 
 /**
- * The lines a read refused, with the reader's own header line. Without a
- * header line, the columns the server read the list as stand in for one, in
+ * The lines a read refused, with the reader's own header line: the line the
+ * server found the column names on, which a title above them may have pushed
+ * down. Without a header line, the columns the server read the list as stand in for one, in
  * the order it read them.
  *
  * `say` composes a line's messages into the cell's words, in the reader's
@@ -83,23 +84,24 @@ export interface FixLine {
  */
 export function fixList(
   grid: readonly (readonly string[])[],
-  read: Pick<PeopleRead, "header" | "columns" | "problems">,
+  read: Pick<PeopleRead, "header" | "header_line" | "columns" | "problems">,
   say: (line: number, messages: string[]) => string,
 ): { header: string[]; lines: FixLine[] } | null {
   const firstLine = grid.findIndex((cells) =>
     cells.some((c) => c.trim() !== ""),
   );
+  // The line the names were on, as the reader counts: the server says, and
+  // for an answer that does not, the first line with anything in it.
+  const headerAt = read.header_line ?? firstLine + 1;
   const header = read.header
-    ? firstLine >= 0
-      ? [...grid[firstLine]]
-      : []
+    ? [...(grid[headerAt - 1] ?? [])]
     : read.columns.map(templateKey);
 
   const messages = new Map<number, string[]>();
   for (const problem of read.problems) {
     // A problem about the whole list, or about the header line, has no line to fix.
     if (problem.column === null && problem.code === "too_many") continue;
-    if (read.header && problem.line === firstLine + 1) continue;
+    if (read.header && problem.line === headerAt) continue;
     if (problem.line < 1 || problem.line > grid.length) continue;
     messages.set(problem.line, [
       ...(messages.get(problem.line) ?? []),
