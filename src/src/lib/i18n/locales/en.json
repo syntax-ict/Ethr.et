@@ -6103,6 +6103,7 @@
   "setup2.header_line_pick": "Line with the column names",
   "setup2.header_line_option": "Line :line",
   "setup2.header_line_none": "There are no column names",
+  "setup2.header_line_other": "The column names are on another line",
   "setup2.sheets_note": "This workbook has :count sheets. Reading: :sheet.",
   "setup2.sheet_pick": "Sheet to read",
   "setup2.file_read_as": "This file was read as :encoding text.",

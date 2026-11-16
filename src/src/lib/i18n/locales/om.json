@@ -6103,6 +6103,7 @@
   "setup2.header_line_pick": "Sararri maqaalee kolomii qabu",
   "setup2.header_line_option": "Sararri :line",
   "setup2.header_line_none": "Maqaaleen kolomii hin jiran",
+  "setup2.header_line_other": "Maqaaleen kolomii sararaa biraa irra jiru",
   "setup2.sheets_note": "Kitaabni hojii kun waraqaa :count qaba. Kan dubbifamu: :sheet.",
   "setup2.sheet_pick": "Waraqaa dubbifamu",
   "setup2.file_read_as": "Faayiliin kun akka barruu :encoding dubbifameera.",

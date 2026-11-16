@@ -6103,6 +6103,7 @@
   "setup2.header_line_pick": "የአምድ ስሞች ያሉበት መስመር",
   "setup2.header_line_option": "መስመር :line",
   "setup2.header_line_none": "የአምድ ስሞች የሉም",
+  "setup2.header_line_other": "የአምድ ስሞች በሌላ መስመር ላይ ናቸው",
   "setup2.sheets_note": "ይህ የሥራ መጽሐፍ :count ሉሆች አሉት። እየተነበበ ያለው፦ :sheet።",
   "setup2.sheet_pick": "የሚነበበው ሉህ",
   "setup2.file_read_as": "ይህ ፋይል እንደ :encoding ጽሑፍ ተነብቧል።",

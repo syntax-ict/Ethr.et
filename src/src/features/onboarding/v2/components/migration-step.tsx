@@ -240,6 +240,8 @@ export function MigrationStep({
   const [matching, setMatching] = useState(false);
   // Where the column names are, when the reader has said: a line, or 0 for none.
   const [headerLine, setHeaderLine] = useState<number | null>(null);
+  // Asked for by the reader, in a list where no column names were found.
+  const [pickingLine, setPickingLine] = useState(false);
   // A workbook with more than one sheet that may hold people: the reader picks.
   const [workbook, setWorkbook] = useState<{
     data: ArrayBuffer;
@@ -391,6 +393,7 @@ export function MigrationStep({
     setMatched(null);
     setMatching(false);
     setHeaderLine(null);
+    setPickingLine(false);
     setFileEncoding(null);
     setWorkbook(null);
   }
@@ -1044,9 +1047,11 @@ export function MigrationStep({
                   {read &&
                     (headerLine !== null ||
                       (read.header_line ?? 1) > 1 ||
-                      (!read.header && lineChoices.length > 1)) && (
+                      (!read.header &&
+                        lineChoices.length > 1 &&
+                        pickingLine)) && (
                       <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                        {read.header_line != null && (
+                        {read.header_line != null ? (
                           <span>
                             {t(
                               "setup2.header_line_found",
@@ -1054,8 +1059,16 @@ export function MigrationStep({
                               { line: read.header_line },
                             )}
                           </span>
+                        ) : (
+                          <label htmlFor="people-header-line">
+                            {t(
+                              "setup2.header_line_pick",
+                              "Line with the column names",
+                            )}
+                          </label>
                         )}
                         <select
+                          id="people-header-line"
                           aria-label={t(
                             "setup2.header_line_pick",
                             "Line with the column names",
@@ -1085,6 +1098,23 @@ export function MigrationStep({
                           </option>
                         </select>
                       </p>
+                    )}
+                  {read &&
+                    !read.header &&
+                    headerLine === null &&
+                    !pickingLine &&
+                    lineChoices.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPickingLine(true)}
+                      >
+                        {t(
+                          "setup2.header_line_other",
+                          "The column names are on another line",
+                        )}
+                      </Button>
                     )}
                   {suggested && (
                     <p className="flex flex-wrap items-center gap-2 text-foreground">

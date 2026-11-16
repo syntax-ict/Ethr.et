@@ -982,7 +982,26 @@ describe("<MigrationStep>", () => {
       },
     });
 
+    // Only a quiet button until the reader asks.
+    await screen.findByText(/1 person ready|2 people ready/);
+    expect(
+      screen.queryByLabelText("Line with the column names"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "The column names are on another line",
+      }),
+    );
+
     const select = await screen.findByLabelText("Line with the column names");
+    expect(
+      screen.getByText("Line with the column names", { selector: "label" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "The column names are on another line",
+      }),
+    ).not.toBeInTheDocument();
     expect((select as HTMLSelectElement).value).toBe("0");
     expect(lastAsked().header_line).toBeUndefined();
 

@@ -405,7 +405,7 @@ which line holds the column names; it moves no money and changes no record.
 | What | Where | Strings |
 |---|---|---|
 | The three parts of a name, as columns a file's column can be matched to: "First name", "Father's name", "Grandfather's name", and what each takes | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_first_name`, `col_father_name`, `col_grandfather_name`, and `employees_import_page.col_first_name`, `col_father_name`, `col_grandfather_name` | 6 each |
-| The line that holds the column names: "Column names are on line N.", the choice's name for a screen reader, "Line N", and "There are no column names" | the same files, `setup2.header_line_found`, `header_line_pick`, `header_line_option`, `header_line_none` | 4 each |
+| The line that holds the column names: "Column names are on line N.", the choice's name and label, "Line N", "There are no column names", and the button "The column names are on another line" | the same files, `setup2.header_line_found`, `header_line_pick`, `header_line_option`, `header_line_none`, `header_line_other` | 5 each |
 | A workbook with several sheets: "This workbook has N sheets. Reading: Sheet1.", and the sheet choice's name for a screen reader | the same files, `setup2.sheets_note`, `sheet_pick` | 2 each |
 | The note under a text file that was not UTF-8: "This file was read as Windows-1252 text." | the same files, `setup2.file_read_as` | 1 each |
 
