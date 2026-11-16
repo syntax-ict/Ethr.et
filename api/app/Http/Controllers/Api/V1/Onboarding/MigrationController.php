@@ -60,10 +60,13 @@ class MigrationController extends Controller
      * Read a list of people without staging it.
      *
      * `grid` is the list as lines of cells, the first line its column names
-     * or none. The answer says how many people are ready, which columns were
-     * read and which column names mean nothing here, and every line that
-     * cannot be staged, with its number as the reader counts it. Nothing is
-     * kept.
+     * or none, with a title or a date above it when the file has one.
+     * `header_line` names the line of the file that holds the column names
+     * (0: there are none); left out, the line that looks most like them is
+     * used, and the answer says which. The answer says how many people are
+     * ready, which columns were read and which column names mean nothing
+     * here, and every line that cannot be staged, with its number as the
+     * reader counts it. Nothing is kept.
      *
      * A list from another system names its columns its own way. Send
      * `mapping`, a list of `{header, column}` saying what each of its column
@@ -86,6 +89,7 @@ class MigrationController extends Controller
         return response()->json([
             'people' => count($read->rows),
             'header' => $read->header,
+            'header_line' => $read->headerLine,
             'columns' => $read->columns,
             'ignored' => $read->ignored,
             'calendar' => $read->calendar,
