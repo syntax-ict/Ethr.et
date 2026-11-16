@@ -374,3 +374,20 @@ no record.
 What to check first: *Already here, nothing to change* (`result_unchanged`), and *Filled in*
 against the Amharic and Afaan Oromoo the review already uses for a blank that was filled. The words
 for *Left out* and *Not found in ETHR, left out* in the result file are the review's own.
+
+### What a list left at the terminals (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether someone can clock in at a terminal; it
+moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The section on the committed screen: its title and line, "N sent or waiting", "N not accepted by the terminal", the last answer line, "N not sent. Their number is not one this terminal takes.", and the two lines for people with no badge number or no branch | `src/src/lib/i18n/locales/{am,om}.json`, `migration_terminals.title`, `desc`, `sent_or_waiting`, `failed`, `last_error`, `not_sent`, `without_number`, `without_branch` | 8 each |
+| The two lines for a terminal ETHR cannot write to ("This terminal only sends" and "ETHR does not send people to this terminal"), the download button, the sheet's two headings and its failure line | the same files, `migration_terminals.receives_only`, `enrol_by_hand`, `download`, `col_number`, `col_name`, `download_failed`, `employees_link` | 7 each |
+| The Try again button, its name for a screen reader, and its two answers | the same files, `migration_terminals.retry`, `retry_aria`, `retry_done`, `retry_failed` | 4 each |
+
+What to check first: the word for a *terminal* (the drafts use the word the Commands tab already uses
+for a device, so "terminal" and "device" read alike), and *not accepted by the terminal* against *not
+sent* (the first is a refusal by the device, the second is ETHR holding back a number the device would
+refuse).

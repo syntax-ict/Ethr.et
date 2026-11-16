@@ -22,6 +22,7 @@ import type {
   LoginIdentifier,
   MigrationBatch,
   MigrationLogins,
+  MigrationTerminals,
   PeopleRead,
   ReadinessReport,
   StagingAction,
@@ -504,6 +505,20 @@ export function useMigrationLogins(batchId: string | null) {
     queryFn: async () =>
       (await apiClient.get(`/onboarding/migration/batches/${batchId}/logins`))
         .data,
+    enabled: !!batchId,
+  });
+}
+
+/** What the attendance terminals hold for a committed batch's people. */
+export function useMigrationTerminals(batchId: string | null) {
+  return useQuery<MigrationTerminals>({
+    queryKey: ["onboarding", "migration", batchId, "terminals"],
+    queryFn: async () =>
+      (
+        await apiClient.get(
+          `/onboarding/migration/batches/${batchId}/terminals`,
+        )
+      ).data,
     enabled: !!batchId,
   });
 }
