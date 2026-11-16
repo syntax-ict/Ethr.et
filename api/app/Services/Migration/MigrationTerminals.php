@@ -6,14 +6,20 @@ namespace App\Services\Migration;
 
 use App\Enums\DeviceCommandStatus;
 use App\Enums\EmployeeStatus;
+use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Models\Device;
 use App\Models\DeviceCommand;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Models\UnmatchedDevicePunch;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
+use App\Services\Identity\IdentityMatch;
+use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\IdentitySignals;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * What the attendance terminals hold for the people a list brought in.
@@ -23,26 +29,35 @@ use Illuminate\Support\Collection;
  * reads what became of that. A fixed number of queries whatever the size of
  * the list: the people's branches' devices, the ids those devices reported,
  * and each person's newest command on each device.
+ *
+ * It also says which held punches the list has just made placeable (held()),
+ * for a viewer who may assign them: one resolver lookup for each held badge of
+ * the people it names, at most `heldLimit` of them.
  */
 final class MigrationTerminals
 {
-    public function __construct(private readonly DeviceCommandQueue $queue) {}
+    public function __construct(
+        private readonly DeviceCommandQueue $queue,
+        private readonly IdentityResolver $resolver,
+        private readonly int $heldLimit = UnmatchedPunchController::RESOLVE_LIMIT,
+    ) {}
 
     /**
      * The answer for a viewer who may not see device information.
      *
-     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int}
+     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array<string, mixed>>, held_more: int}
      */
     public function hidden(): array
     {
-        return ['visible' => false, 'devices' => [], 'without_number' => 0, 'without_branch' => 0];
+        return ['visible' => false, 'devices' => [], 'without_number' => 0, 'without_branch' => 0, 'can_assign' => false, 'held' => [], 'held_more' => 0];
     }
 
     /**
      * @param  Collection<int, Employee>  $people  the batch's people the viewer may open: nobody else is named or counted
-     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int}
+     * @param  bool  $canAssign  the viewer holds `attendance.manage`; without it nothing is looked up or listed
+     * @return array{visible: bool, devices: list<array<string, mixed>>, without_number: int, without_branch: int, can_assign: bool, held: list<array<string, mixed>>, held_more: int}
      */
-    public function read(Collection $people, int $tenantId): array
+    public function read(Collection $people, int $tenantId, bool $canAssign = false): array
     {
         $current = $people
             ->filter(fn (Employee $e): bool => in_array($e->status, EmployeeStatus::current(), true))
@@ -53,7 +68,14 @@ final class MigrationTerminals
             'devices' => [],
             'without_number' => 0,
             'without_branch' => $current->whereNull('branch_id')->count(),
+            'can_assign' => $canAssign,
+            'held' => [],
+            'held_more' => 0,
         ];
+
+        if ($canAssign) {
+            ['held' => $answer['held'], 'held_more' => $answer['held_more']] = $this->held($people, $tenantId);
+        }
 
         $branchIds = $current->pluck('branch_id')->filter()->unique()->values()->all();
         $devices = $branchIds === []
@@ -143,6 +165,116 @@ final class MigrationTerminals
             ->count();
 
         return $answer;
+    }
+
+    /**
+     * Held badges that are, by the resolver the Devices page uses, now
+     * exactly one of these people.
+     *
+     * Narrowed first, in one query, to held groups whose badge equals (as the
+     * resolver compares, ignoring case) a number these people hold: the badge
+     * number on their record, or one a terminal reported for them. Then at
+     * most `heldLimit` of those are resolved, newest first; the rest are only
+     * counted in `held_more`. Only a `matched` outcome that names one of
+     * `$people` is listed, so an ambiguous or probable badge, and one that is
+     * somebody else's, never is.
+     *
+     * @param  Collection<int, Employee>  $people  the people the viewer may open
+     * @return array{held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
+     */
+    private function held(Collection $people, int $tenantId): array
+    {
+        $none = ['held' => [], 'held_more' => 0];
+
+        if ($people->isEmpty()) {
+            return $none;
+        }
+
+        $anywhere = [];
+        foreach ($people as $employee) {
+            $badge = mb_strtolower(trim((string) $employee->badge_number));
+            if ($badge !== '') {
+                $anywhere[$badge] = true;
+            }
+        }
+
+        $onDevice = [];
+        EmployeeExternalIdentity::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $people->pluck('id')->all())
+            ->where('identifier_type', 'device_user_id')
+            ->where('source_ref', 'like', 'device:%')
+            ->get(['source_ref', 'identifier_value'])
+            ->each(function (EmployeeExternalIdentity $identity) use (&$onDevice): void {
+                $value = mb_strtolower(trim((string) $identity->identifier_value));
+                if ($value !== '') {
+                    $onDevice[substr($identity->source_ref, 7).'|'.$value] = true;
+                }
+            });
+
+        $numbers = array_values(array_unique([
+            ...array_map('strval', array_keys($anywhere)),
+            ...array_map(static fn (string $key): string => substr($key, (int) strpos($key, '|') + 1), array_map('strval', array_keys($onDevice))),
+        ]));
+
+        if ($numbers === []) {
+            return $none;
+        }
+
+        $groups = UnmatchedDevicePunch::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', UnmatchedDevicePunch::PENDING)
+            ->whereIn(DB::raw('LOWER(badge)'), $numbers)
+            ->select(['device_id', 'badge', DB::raw('COUNT(*) as punches'), DB::raw('MAX(created_at) as last_seen')])
+            ->groupBy('device_id', 'badge')
+            ->orderByDesc('last_seen')
+            ->orderBy('device_id')
+            ->orderBy('badge')
+            ->get()
+            ->filter(function (UnmatchedDevicePunch $group) use ($anywhere, $onDevice): bool {
+                $badge = mb_strtolower((string) $group->getAttribute('badge'));
+
+                return isset($anywhere[$badge]) || isset($onDevice[$group->getAttribute('device_id').'|'.$badge]);
+            })
+            ->values();
+
+        if ($groups->isEmpty()) {
+            return $none;
+        }
+
+        $devices = Device::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $groups->pluck('device_id')->unique()->all())
+            ->get()
+            ->keyBy('id');
+        $byId = $people->keyBy('id');
+        $held = [];
+
+        foreach ($groups->take($this->heldLimit) as $group) {
+            $device = $devices->get($group->getAttribute('device_id'));
+            if (! $device instanceof Device) {
+                continue;
+            }
+
+            $badge = (string) $group->getAttribute('badge');
+            $match = $this->resolver->resolve($tenantId, IdentitySignals::forDeviceUser($device, $badge));
+            $employee = $match->outcome === IdentityMatch::MATCHED ? $match->employee : null;
+
+            if ($employee === null || ! $byId->has($employee->id)) {
+                continue;
+            }
+
+            $held[] = [
+                'device_public_id' => (string) $device->public_id,
+                'device_name' => (string) $device->name,
+                'badge' => $badge,
+                'punches' => (int) $group->getAttribute('punches'),
+                'employee_public_id' => (string) $employee->public_id,
+                'employee_name' => (string) $employee->name,
+            ];
+        }
+
+        return ['held' => $held, 'held_more' => max(0, $groups->count() - $this->heldLimit)];
     }
 
     /**

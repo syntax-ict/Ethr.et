@@ -361,7 +361,9 @@ class MigrationController extends Controller
      *
      * Device information needs `device.viewAny`; without it the answer is the
      * empty one with `visible` false. Someone the viewer may not open is
-     * neither named nor counted.
+     * neither named nor counted. `held` lists, for a viewer who may assign a
+     * badge (`attendance.manage`), the held badges that are now exactly one of
+     * those people; it is empty for anyone else.
      */
     public function terminals(MigrationBatch $batch): JsonResponse
     {
@@ -375,7 +377,7 @@ class MigrationController extends Controller
             ->filter(fn (Employee $employee): bool => Gate::allows('view', $employee))
             ->values();
 
-        return response()->json($this->terminals->read($people, $batch->tenant_id));
+        return response()->json($this->terminals->read($people, $batch->tenant_id, Gate::allows('attendance.manage')));
     }
 
     /**

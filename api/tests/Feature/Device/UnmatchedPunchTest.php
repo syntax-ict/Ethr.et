@@ -16,8 +16,10 @@ use App\Models\EmployeeExternalIdentity;
 use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
+use App\Services\Device\UnmatchedPunches;
 use App\Services\Migration\WorkforceMigrationService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
 
 // A punch from a badge no employee matched is held, not dropped, and replayed
@@ -245,4 +247,139 @@ it('resolves only the most recent badges, and lists the rest without a suggestio
         ->and($data[$limit - 1]['match'])->not->toBeNull()
         ->and($data[$limit]['badge'])->toBe('B'.($limit + 1))
         ->and($data[$limit]['match'])->toBeNull();
+});
+
+// A badge with hundreds of held punches ran past the host's 30 seconds and the
+// request died part-way. The replay now works for a time budget, says how many
+// are left, and carries on when asked again with the same three inputs.
+
+/** @return list<UnmatchedDevicePunch> one check-in a day, oldest first */
+function heldDays(Tenant $tenant, Device $device, int $days, string $badge = '7777'): array
+{
+    $held = [];
+    foreach (range(1, $days) as $n) {
+        $held[] = UnmatchedDevicePunch::create([
+            'tenant_id' => $tenant->id,
+            'device_id' => $device->id,
+            'badge' => $badge,
+            'punch_type' => 'check_in',
+            'occurred_raw' => sprintf('2026-10-%02d 08:00:00', $n),
+            'idempotency_key' => "held-{$badge}-{$n}",
+            'status' => UnmatchedDevicePunch::PENDING,
+        ]);
+    }
+
+    return $held;
+}
+
+/** @return array<string, mixed> */
+function heldAssignBody(Device $device, Employee $employee, string $badge = '7777'): array
+{
+    return ['device_public_id' => $device->public_id, 'badge' => $badge, 'employee_public_id' => $employee->public_id];
+}
+
+it('replays one punch a call when the budget is spent, and says how many are left', function () {
+    [$tenant, $device, $employee] = unmatchedSetup();
+    heldDays($tenant, $device, 5);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    app()->when(UnmatchedPunches::class)->needs('$sliceSeconds')->give(0.0);
+
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))
+        ->assertOk()
+        ->assertExactJson(['replayed' => 1, 'refused' => 0, 'remaining' => 4]);
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe(1)
+        ->and(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::REPLAYED)->count())->toBe(1)
+        ->and(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::PENDING)->count())->toBe(4)
+        // The earliest punch goes first, as it always has.
+        ->and(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::REPLAYED)->value('idempotency_key'))->toBe('held-7777-1');
+});
+
+it('carries on from where it stopped, replays nothing twice, and the totals add up', function () {
+    [$tenant, $device, $employee] = unmatchedSetup();
+    heldDays($tenant, $device, 5);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    app()->when(UnmatchedPunches::class)->needs('$sliceSeconds')->give(0.0);
+
+    $replayed = 0;
+    $refused = 0;
+    $calls = 0;
+    do {
+        $answer = test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk()->json();
+        $replayed += $answer['replayed'];
+        $refused += $answer['refused'];
+        $calls++;
+    } while ($answer['remaining'] > 0 && $calls < 10);
+
+    expect($calls)->toBe(5)
+        ->and($replayed + $refused)->toBe(5)
+        ->and(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe($replayed)
+        ->and(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::PENDING)->count())->toBe(0)
+        ->and(UnmatchedDevicePunch::whereIn('status', [UnmatchedDevicePunch::REPLAYED, UnmatchedDevicePunch::REFUSED])->count())->toBe(5);
+
+    // Nothing is left to replay, and a further call changes nothing.
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))
+        ->assertOk()->assertExactJson(['replayed' => 0, 'refused' => 0, 'remaining' => 0]);
+    expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe($replayed);
+});
+
+it('writes the audit entry when the number is given, not on every call that carries on', function () {
+    [$tenant, $device, $employee] = unmatchedSetup();
+    heldDays($tenant, $device, 3);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    app()->when(UnmatchedPunches::class)->needs('$sliceSeconds')->give(0.0);
+
+    foreach (range(1, 3) as $ignored) {
+        test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk();
+    }
+
+    $entries = AuditLog::where('action', 'device.badge_assigned')->get();
+    expect($entries)->toHaveCount(1)
+        ->and($entries->first()->payload['employee_id'])->toBe($employee->public_id)
+        ->and($entries->first()->payload['badge'])->toBe('7777');
+
+    // Given to someone else, the number changes hands and that is written again.
+    $other = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Other Person', 'status' => EmployeeStatus::CONFIRMED]);
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $other))->assertOk();
+    expect(AuditLog::where('action', 'device.badge_assigned')->count())->toBe(2);
+});
+
+it('refuses a second caller while the same badge is being brought in, and replays nothing for it', function () {
+    [$tenant, $device, $employee] = unmatchedSetup();
+    heldDays($tenant, $device, 2);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $held = Cache::lock(UnmatchedPunches::lockKey($device, '7777'), 60);
+    expect($held->get())->toBeTrue();
+
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))
+        ->assertStatus(409)
+        ->assertJsonPath('detail', 'These punches are already being brought in. Try again in a moment.');
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe(0)
+        ->and(UnmatchedDevicePunch::where('status', UnmatchedDevicePunch::PENDING)->count())->toBe(2)
+        ->and(EmployeeExternalIdentity::where('employee_id', $employee->id)->count())->toBe(0)
+        ->and(AuditLog::where('action', 'device.badge_assigned')->count())->toBe(0);
+
+    // Another badge of the same device is not held up by it.
+    heldDays($tenant, $device, 1, '8888');
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee, '8888'))->assertOk();
+
+    // Released, the badge goes through.
+    $held->release();
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk()->assertJsonPath('remaining', 0);
+});
+
+it('lets go of the lock when the replay fails part-way', function () {
+    [$tenant, $device, $employee] = unmatchedSetup();
+    heldDays($tenant, $device, 2);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    AttendanceRecord::creating(fn () => throw new RuntimeException('database went away'));
+
+    test()->withoutExceptionHandling();
+    expect(fn () => test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee)))->toThrow(RuntimeException::class);
+
+    $lock = Cache::lock(UnmatchedPunches::lockKey($device, '7777'), 5);
+    expect($lock->get())->toBeTrue();
+    $lock->release();
 });
