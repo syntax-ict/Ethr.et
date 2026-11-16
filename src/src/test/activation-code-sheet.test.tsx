@@ -585,6 +585,75 @@ describe("a list that says, person by person, who is invited", () => {
     expect(posted[0].employee_ids).toEqual([DAWIT]);
   });
 
+  it("keeps the button for a blank cell after the automatic send, sends only that person, and then drops it", async () => {
+    const CHALTU = "01JBQ8Z6ZK3M9V2X7Y4W5T6R85";
+    server.use(
+      me(["users.invite", "employee.create"]),
+      logins({
+        without_login: [
+          person(DAWIT, "Dawit Alemu", "email", false, true),
+          person(CHALTU, "Chaltu Blank Email", "email"),
+          person(HANNA, "Hanna Girma", "email", false, false),
+        ],
+        hire_dates_defaulted: 0,
+      }),
+    );
+    const posted = invitations();
+    renderPanel(false, true);
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].employee_ids).toEqual([DAWIT]);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send invitations" }),
+    );
+    await waitFor(() => expect(posted).toHaveLength(2));
+    expect(posted[1].employee_ids).toEqual([CHALTU]);
+    // Hanna, marked no, is in neither request.
+    expect(posted.flat().flatMap((p) => p.employee_ids)).not.toContain(HANNA);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Send invitations" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("does not keep the button for someone the server still reports as not invited after a send", async () => {
+    server.use(
+      me(["users.invite", "employee.create"]),
+      logins({
+        without_login: [person(ABEBE, "Abebe Kebede", "email")],
+        hire_dates_defaulted: 0,
+      }),
+      http.post("*/api/v1/employees/logins", () =>
+        HttpResponse.json(
+          {
+            message: "Queued",
+            created: 0,
+            active: 0,
+            in_person: 0,
+            email_in_use: 1,
+            batch: null,
+            queued: 0,
+          },
+          { status: 202 },
+        ),
+      ),
+    );
+    renderPanel(false);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Send invitations" }),
+    );
+
+    expect(
+      await screen.findByText(/Email already used by another login: 1/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Send invitations" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("invites everyone an invitation can reach except the people marked no when the tick is on", async () => {
     server.use(me(["users.invite", "employee.create"]), logins(BATCHES));
     const posted = invitations();

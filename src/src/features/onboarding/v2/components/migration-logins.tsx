@@ -71,6 +71,10 @@ export function MigrationLogins({
   const [invitationBatches, setInvitationBatches] = useState<string[]>([]);
   // The ids a failed slice and the ones after it left unsent.
   const [unsent, setUnsent] = useState<string[]>([]);
+  // The ids this card has posted successfully. Someone whose email another
+  // login already uses stays "not invited" on the server for good, so what was
+  // posted once must not keep the button alive.
+  const [posted, setPosted] = useState<Set<string>>(new Set());
 
   const pending = query.data?.without_login ?? [];
   const defaulted = query.data?.hire_dates_defaulted ?? 0;
@@ -95,6 +99,15 @@ export function MigrationLogins({
     .map((p) => p.employee_public_id);
   // What the button sends: everyone but the people the list says not to.
   const sendable = pending.filter((p) => p.asked !== false);
+  // Reachable, not yet invited, and not posted from here: a blank cell in a
+  // list that only marked some people is left for the button after the
+  // automatic send of the marked ones.
+  const waiting = sendable.filter(
+    (p) =>
+      p.channel !== "in_person" &&
+      !p.invited &&
+      !posted.has(p.employee_public_id),
+  );
   const shouldSend =
     can.inviteUsers &&
     query.isSuccess &&
@@ -125,7 +138,7 @@ export function MigrationLogins({
   async function sendAll(
     ids = unsent.length > 0
       ? unsent
-      : sendable.map((p) => p.employee_public_id),
+      : (result === null ? sendable : waiting).map((p) => p.employee_public_id),
   ) {
     if (running.current) return;
     running.current = true;
@@ -155,7 +168,9 @@ export function MigrationLogins({
         const r = await create.mutateAsync(
           ids.slice(sent, sent + INVITE_SLICE),
         );
+        const slice = ids.slice(sent, sent + INVITE_SLICE);
         sent += INVITE_SLICE;
+        setPosted((prev) => new Set([...prev, ...slice]));
         total.message = r.message;
         total.created += r.created;
         total.active += r.active;
@@ -318,7 +333,7 @@ export function MigrationLogins({
             <StartingPasswordDialog employeeIds={inPerson} />
             {can.inviteUsers &&
               sendable.length > 0 &&
-              (!result || unsent.length > 0) && (
+              (!result || unsent.length > 0 || waiting.length > 0) && (
                 <Button onClick={() => sendAll()} disabled={sending}>
                   {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t("migration_logins.send", "Send invitations")}
