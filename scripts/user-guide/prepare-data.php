@@ -187,7 +187,6 @@ foreach ($accounts as [$seededEmail, $role, $employee]) {
     $values = [
         'display_name' => DB::table('employees')->where('id', $employee)->value('name_am'),
         'email' => $email,
-        'email_normalized' => strtolower($email),
         'role' => $role,
         'employee_id' => $employee,
         'locale' => 'am',
