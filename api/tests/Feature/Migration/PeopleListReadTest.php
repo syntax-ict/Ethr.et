@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Models\ImportMapping;
 use App\Models\MigrationBatch;
 use App\Models\Position;
 use App\Services\Device\AdmsRoster;
@@ -343,4 +344,178 @@ it('carries what staging noted about a device-staged row in the batch', function
     expect($rows['Odd Id']['warnings'])->toHaveCount(1)
         ->and($rows['Odd Id']['warnings'][0]['code'])->toBe('device_id_not_badge')
         ->and($rows['Plain Id']['warnings'])->toBe([]);
+});
+
+it('says which column each problem is about, and a code derived from what was refused', function () {
+    [$tenant] = Staging::organisation();
+    Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Finance']);
+    Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Sales', 'code' => 'S1']);
+    Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Sales', 'code' => 'S2']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Email', 'Employee number', 'Hire date', 'Department', 'Gender', 'Contract type', 'Contract end date', 'Probation end date', 'Bank name', 'Bank account'],
+        ['Abebe Kebede', 'abebe@acme.et', 'EMP-1', '2019-07-08', 'Finance', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', '', '', ''],
+        ['Bad Mail', 'not-an-email', '', '', '', '', '', '', '', '', ''],
+        ['Bad Date', '', '', '2019-02-30', '', '', '', '', '', '', ''],
+        ['Bad Gender', '', '', '', '', 'robot', '', '', '', '', ''],
+        ['Same Number', '', 'emp-1', '', '', '', '', '', '', '', ''],
+        ['No Such Dept', '', '', '', 'Marketing', '', '', '', '', '', ''],
+        ['Two Depts', '', '', '', 'Sales', '', '', '', '', '', ''],
+        ['Contract No Type', '', '', '2020-01-01', '', '', '', '2021-01-01', '', '', ''],
+        ['Fixed No End', '', '', '2020-01-01', '', '', 'fixed_term', '', '', '', ''],
+        ['Probation Early', '', '', '2020-01-01', '', '', '', '', '2019-01-01', '', ''],
+        ['Half Bank', '', '', '', '', '', '', '', '', 'CBE', ''],
+    ]);
+
+    $by = collect($read['problems'])->groupBy('line')->map(fn ($found) => $found->map(fn ($p) => [$p['column'], $p['code']])->all());
+
+    expect($by[4])->toBe([['email', 'email']])
+        ->and($by[5])->toBe([['hire_date', 'date']])
+        ->and($by[6])->toBe([['gender', 'in']])
+        ->and($by[7])->toBe([['employee_code', 'duplicate_in_list']])
+        ->and($by[8])->toBe([['department', 'relation_not_found']])
+        ->and($by[9])->toBe([['department', 'relation_ambiguous']])
+        ->and($by[10])->toBe([['contract_type', 'contract_type_needed']])
+        ->and($by[11])->toBe([['contract_end_date', 'contract_end_needed']])
+        ->and($by[12])->toBe([['probation_end_date', 'probation_before_hire']])
+        ->and($by[13])->toBe([['bank_account', 'required_with']])
+        ->and($read['problems'][0])->toHaveKeys(['line', 'message', 'column', 'code']);
+});
+
+it('names the contract problems that need a hire date or a later end', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Hire date', 'Contract type', 'Contract end date'],
+        ['No Hire', '', 'permanent', ''],
+        ['Ends Early', '2020-01-01', 'fixed_term', '2019-12-31'],
+    ]);
+
+    $by = collect($read['problems'])->mapWithKeys(fn ($p) => [$p['line'] => [$p['column'], $p['code']]])->all();
+
+    expect($by)->toBe([
+        2 => ['hire_date', 'contract_needs_hire_date'],
+        3 => ['contract_end_date', 'contract_end_before_start'],
+    ]);
+});
+
+it('gives the problem about a whole list no column', function () {
+    [$tenant] = Staging::organisation();
+
+    $grid = [['Name']];
+    for ($i = 1; $i <= 2001; $i++) {
+        $grid[] = ["Person {$i}"];
+    }
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), $grid);
+
+    expect($read['problems'][0])->toMatchArray(['column' => null, 'code' => 'too_many']);
+});
+
+it('says which column a warning is about', function () {
+    [$tenant] = Staging::organisation();
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id, 'adapter_type' => 'zkteco_adms']);
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Badge'], ['Abebe Kebede', 'A12']]);
+
+    expect($read['warnings'][0])->toMatchArray(['line' => 2, 'column' => 'badge_number', 'code' => 'terminal_number_not_accepted']);
+});
+
+it('ignores a Problem column when the lines to fix come back, and changes nothing because of it', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Name', 'Email', 'Problem'],
+        ['Abebe Kebede', 'abebe@acme.et', 'Line 4: The email must be a valid email address.'],
+        ['Hanna Girma', '', 'hire_date'],
+    ]);
+
+    expect($read['people'])->toBe(2)
+        ->and($read['problems'])->toBe([])
+        ->and($read['ignored'])->toBe([])
+        ->and($read['columns'])->toBe(['name', 'email'])
+        ->and(array_column($read['headers'], 'header'))->toBe(['Name', 'Email'])
+        ->and(array_column($read['headers'], 'suggested'))->toBe([null, null]);
+
+    // A column headed differently is still reported as not read.
+    $other = readPeopleList(Staging::url($tenant, 'read'), [['Name', 'Notes'], ['Abebe Kebede', 'senior']]);
+    expect($other['ignored'])->toBe(['Notes']);
+});
+
+it('carries the number of the person a row matched, for someone who may open that person', function () {
+    [$tenant] = Staging::organisation();
+    $abebe = Staging::employee($tenant, ['employee_code' => 'E-77']);
+
+    $staged = test()->postJson(Staging::url($tenant, 'rows'), [
+        'rows' => [['name' => 'Abebe Kebede', 'employee_code' => 'E-77'], ['name' => 'Nobody Yet']],
+    ])->assertCreated()->json();
+
+    $shown = collect(test()->getJson(Staging::url($tenant, "batches/{$staged['public_id']}"))->assertOk()->json('rows'))->keyBy('display_name');
+
+    expect($shown['Abebe Kebede'])->toMatchArray(['resolved_employee_public_id' => $abebe->public_id, 'resolved_employee_code' => 'E-77'])
+        ->and($shown['Nobody Yet'])->toMatchArray(['resolved_employee_public_id' => null, 'resolved_employee_code' => null]);
+});
+
+it('reads the example people of the employee template without a problem', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['name', 'hire_date', 'probation_end_date', 'contract_type', 'contract_end_date', 'bank_name', 'bank_branch', 'bank_account', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
+        ['Abebe Kebede', '2019-07-08', '2019-10-08', 'permanent', '', 'Example Bank', 'Main branch', '1000000000001', 'Almaz Kebede', 'Sister', '0911000011'],
+        ['Hanna Girma', '2023-02-20', '2023-05-20', 'fixed_term', '2025-02-19', 'Example Bank', 'Bole branch', '1000000000002', 'Dawit Girma', 'Brother', '0911000022'],
+    ]);
+
+    expect($read['problems'])->toBe([])->and($read['people'])->toBe(2);
+});
+
+it('drops a Problem column whole, whatever else was said about the list', function () {
+    [$tenant] = Staging::organisation();
+    $url = Staging::url($tenant, 'read');
+
+    // The first line is not recognised as column names, so the reader matches them.
+    $without = readPeopleList($url, [['Staff', 'Mail'], ['Abebe Kebede', 'abebe@acme.et']]);
+    expect($without['header'])->toBeFalse();
+
+    $mapping = [['header' => 'Staff', 'column' => 'name'], ['header' => 'Mail', 'column' => 'email']];
+    $plain = test()->postJson($url, ['grid' => [['Staff', 'Mail'], ['Abebe Kebede', 'abebe@acme.et']], 'mapping' => $mapping])->assertOk()->json();
+    $with = test()->postJson($url, ['grid' => [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'Line 2: The email is wrong']], 'mapping' => $mapping])->assertOk()->json();
+
+    expect($with['people'])->toBe($plain['people'])->toBe(1)
+        ->and($with['problems'])->toBe([])
+        ->and($with['columns'])->toBe($plain['columns'])
+        ->and($with['ignored'])->toBe([])
+        ->and(array_column($with['headers'], 'header'))->toBe(['Staff', 'Mail']);
+
+    // Not matched at all, and not recognised: the Problem cell is no phone number.
+    $positional = readPeopleList($url, [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'x y z']]);
+    expect(array_column($positional['headers'], 'header'))->toBe(['Staff', 'Mail'])
+        ->and($positional['ignored'])->toBe([]);
+});
+
+it('still finds a saved source for a file that has gained a Problem column', function () {
+    [$tenant] = Staging::organisation();
+    $url = Staging::url($tenant, 'read');
+    $source = ImportMapping::query()->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Old payroll',
+        'slug' => 'old-payroll',
+        'columns' => [['header' => 'Staff', 'column' => 'name'], ['header' => 'Mail', 'column' => 'email']],
+    ]);
+
+    $read = readPeopleList($url, [['Staff', 'Mail', 'Problem'], ['Abebe Kebede', 'abebe@acme.et', 'Line 2: x']]);
+
+    expect($read['suggested_source'])->toBe($source->public_id)
+        ->and(array_column($read['headers'], 'header'))->toBe(['Staff', 'Mail']);
+});
+
+it('drops a Problem cell only from the first line', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = readPeopleList(Staging::url($tenant, 'read'), [
+        ['Abebe Kebede', 'abebe@acme.et', '0911223344', 'Problem solving'],
+        ['Hanna Girma', 'hanna@acme.et', '0911223355', 'Problem'],
+    ]);
+
+    expect($read['header'])->toBeFalse()->and($read['people'])->toBe(2)->and($read['problems'])->toBe([]);
 });

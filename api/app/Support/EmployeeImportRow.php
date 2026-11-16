@@ -11,6 +11,7 @@ use App\Services\Identity\IdentitySignals;
 use App\Services\Migration\StagedChanges;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -83,6 +84,9 @@ final class EmployeeImportRow
      * arrives already rounded is refused, not stored (ROUNDED).
      */
     public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id', 'bank_account', 'emergency_phone'];
+
+    /** Headers a file ETHR wrote carries and nothing reads: the `Problem` column of the lines to fix. */
+    private const IGNORED_HEADERS = ['problem'];
 
     /** A number a spreadsheet rounded and wrote in scientific notation: 1.23457E+15. */
     private const ROUNDED = '/^\d(\.\d+)?e\+?\d+$/i';
@@ -767,9 +771,61 @@ final class EmployeeImportRow
      */
     public static function messages(array $row, array $rules): array
     {
-        return array_values(Validator::make($row, $rules, [
+        return array_column(self::problems($row, $rules), 'message');
+    }
+
+    /**
+     * The same, each with the template column it is about and a code: the
+     * failed rule as the validator names it, lower-cased (`date`, `in`,
+     * `required_with`). The messages and their order are messages()'s.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, list<string>>  $rules
+     * @return list<array{column: string, code: string, message: string}>
+     */
+    public static function problems(array $row, array $rules): array
+    {
+        $validator = Validator::make($row, $rules, [
             'not_regex' => __('employee.import_excel_rounded'),
-        ])->errors()->all());
+        ]);
+
+        $messages = $validator->errors()->messages();
+        $failed = $validator->failed();
+        $found = [];
+
+        foreach ($messages as $attribute => $list) {
+            $names = array_keys($failed[$attribute] ?? []);
+            foreach (array_values($list) as $index => $message) {
+                $found[] = [
+                    'column' => self::templateColumn((string) $attribute),
+                    'code' => isset($names[$index]) ? Str::snake(class_basename((string) $names[$index])) : 'invalid',
+                    'message' => $message,
+                ];
+            }
+        }
+
+        return $found;
+    }
+
+    /** The column as the template spells it: `department_code` is `department`, `salary_cents` is `salary`. */
+    public static function templateColumn(string $key): string
+    {
+        return match ($key) {
+            'department_code' => 'department',
+            'branch_code' => 'branch',
+            'position_code' => 'position',
+            'salary_cents' => 'salary',
+            default => $key,
+        };
+    }
+
+    /**
+     * A column of a file ETHR itself wrote and the reader may have left in:
+     * what is in it changes nothing, and it is not reported as unread.
+     */
+    public static function isIgnoredHeader(string $cell): bool
+    {
+        return in_array(self::key($cell), self::IGNORED_HEADERS, true);
     }
 
     /**

@@ -426,6 +426,38 @@ the list. The file is `ethr-employees-to-complete.xlsx`; it is brought back on
 **Import**, choosing *Complete people who are already here*. The choice is not
 offered in the setup or for a device's roster.
 
+### Problems by column, and two files (2026-11-16)
+
+A read's `problems` are `{line, message, column, code}`. `column` is the
+column as the template spells it (`hire_date`, `department`, `bank_name`), and
+null for a problem about the whole list (`too_many`). `code` is derived, not a
+second list: for a rule the failed rule as the validator names it, lower-cased
+(`date`, `in`, `required_with`; `EmployeeImportRow::problems()`), and for the
+rest a fixed code where the message is raised (`relation_not_found`,
+`relation_ambiguous`, `duplicate_in_list`, `too_many`, and the profile ones
+`probation_before_hire`, `contract_type_needed`, `contract_end_needed`,
+`contract_end_before_start`, `contract_needs_hire_date`).
+`EmployeeImportRow::messages()` keeps returning strings, so the legacy file
+import is unchanged. A warning carries its `column` too (`badge_number`).
+
+The screen groups them: one row for each column and kind, the first message,
+how many lines and which (ten, then "and N more"), largest first. Every group
+is shown.
+
+**Download the lines to fix** builds `ethr-employees-to-fix.xlsx` in the
+browser from the list the reader already holds: one `Employees` sheet, the
+list's own header line, only the refused lines as text, and a last column
+headed `Problem` ("Line 14: ..."). Nothing is sent to the server for it. The
+file comes back through the same reader, which ignores a column headed
+`Problem` (it is not reported as not read and is never suggested as anything),
+so the corrected lines are chosen as they are. A list matched by hand loses
+its matching with the file; the header line is what it was.
+
+**Download what happened** is on the committed screen: `ethr-import-result.xlsx`,
+one `Result` sheet with a row for each line (name, employee number, what
+happened, note). The number is the batch row's `resolved_employee_code`, which
+is null for a viewer who may not open that person's record.
+
 ### A list is committed a slice at a time (2026-11-11)
 
 One request has thirty seconds on the host and the whole list was one

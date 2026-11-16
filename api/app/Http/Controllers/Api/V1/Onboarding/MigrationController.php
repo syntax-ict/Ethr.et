@@ -391,6 +391,7 @@ class MigrationController extends Controller
     {
         $processedAt = $row->getAttribute('processed_at');
         $employee = $row->resolvedEmployee;
+        $mayView = $employee !== null && Gate::allows('view', $employee);
 
         return [
             'public_id' => $row->public_id,
@@ -400,8 +401,9 @@ class MigrationController extends Controller
             'match_confidence' => $row->match_confidence,
             'candidates' => $row->candidates,
             'resolved_employee_public_id' => $employee?->public_id,
+            'resolved_employee_code' => $mayView ? $this->codeOf($employee) : null,
             'action' => $row->action,
-            'changes' => $this->changesPayload($row, $employee),
+            'changes' => $this->changesPayload($row, $employee, $mayView),
             'warnings' => $this->warningsPayload($row),
             'can_apply_changes' => $this->mayEdit($employee),
             'scheduled_action' => $this->isScheduled($employee, $scheduled),
@@ -424,6 +426,14 @@ class MigrationController extends Controller
             fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
             array_filter($warnings, 'is_array'),
         ));
+    }
+
+    /** The matched employee's number, to be shown only to a viewer who may open that person's record. */
+    private function codeOf(?Employee $employee): ?string
+    {
+        $code = $employee?->getAttribute('employee_code');
+
+        return is_string($code) && $code !== '' ? $code : null;
     }
 
     /** The viewer may edit the employee this row matched. */
@@ -450,13 +460,12 @@ class MigrationController extends Controller
      *
      * @return list<array{field: string, kind: string, current: string|null, incoming: string|null, masked: bool, accepted: bool, taken: bool}>
      */
-    private function changesPayload(MigrationStagingRow $row, ?Employee $employee): array
+    private function changesPayload(MigrationStagingRow $row, ?Employee $employee, bool $mayView): array
     {
         if ($employee === null) {
             return [];
         }
 
-        $mayView = Gate::allows('view', $employee);
         // A move the reviewer may not make is not promised: the commit would
         // drop it, so it is shown as left alone.
         $mayMove = Gate::allows('transition', $employee);

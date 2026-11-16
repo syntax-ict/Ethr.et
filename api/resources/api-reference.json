@@ -25756,6 +25756,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "resolved_employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "action": {
                                                         "type": "string"
                                                     },
@@ -25828,6 +25834,7 @@
                                                     "match_confidence",
                                                     "candidates",
                                                     "resolved_employee_public_id",
+                                                    "resolved_employee_code",
                                                     "action",
                                                     "changes",
                                                     "warnings",
@@ -26305,6 +26312,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "resolved_employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "action": {
                                                         "type": "string"
                                                     },
@@ -26377,6 +26390,7 @@
                                                     "match_confidence",
                                                     "candidates",
                                                     "resolved_employee_public_id",
+                                                    "resolved_employee_code",
                                                     "action",
                                                     "changes",
                                                     "warnings",
@@ -26480,11 +26494,22 @@
                                                     },
                                                     "message": {
                                                         "type": "string"
+                                                    },
+                                                    "column": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "code": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "line",
-                                                    "message"
+                                                    "message",
+                                                    "column",
+                                                    "code"
                                                 ]
                                             }
                                         },
@@ -26496,6 +26521,9 @@
                                                     "line": {
                                                         "type": "integer"
                                                     },
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
                                                     "code": {
                                                         "type": "string"
                                                     },
@@ -26505,6 +26533,7 @@
                                                 },
                                                 "required": [
                                                     "line",
+                                                    "column",
                                                     "code",
                                                     "message"
                                                 ]
@@ -26706,6 +26735,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "resolved_employee_code": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "action": {
                                                                 "type": "string"
                                                             },
@@ -26778,6 +26813,7 @@
                                                             "match_confidence",
                                                             "candidates",
                                                             "resolved_employee_public_id",
+                                                            "resolved_employee_code",
                                                             "action",
                                                             "changes",
                                                             "warnings",
@@ -26919,6 +26955,12 @@
                                                 "null"
                                             ]
                                         },
+                                        "resolved_employee_code": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
                                         "action": {
                                             "type": "string"
                                         },
@@ -26991,6 +27033,7 @@
                                         "match_confidence",
                                         "candidates",
                                         "resolved_employee_public_id",
+                                        "resolved_employee_code",
                                         "action",
                                         "changes",
                                         "warnings",

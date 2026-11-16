@@ -2,16 +2,21 @@ import { describe, expect, it } from "vitest";
 import { Workbook } from "exceljs";
 import { toEthiopian } from "@/lib/calendar/ethiopian";
 import { toGrid } from "@/features/onboarding/v2/parse-people";
+import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import {
+  buildFixList,
+  buildResult,
   buildTemplate,
   gridToText,
   MAX_LINES,
   NoSheet,
+  PROBLEM_HEADING,
   readWorkbook,
   SHEET_EXAMPLE,
   SHEET_HELP,
   SHEET_LISTS,
   SHEET_PEOPLE,
+  SHEET_RESULT,
   TooManyLines,
   type TemplateSpec,
   type TemplateText,
@@ -469,5 +474,173 @@ describe("the employee template as a workbook", () => {
       expect(names).not.toContain("Core");
       expect(names).not.toContain(TEXT.exampleLine);
     });
+  });
+});
+
+describe("the lines to fix, as a workbook", () => {
+  const header = ["Staff name", "Mail", "Phone"];
+  const lines = [
+    {
+      cells: ["Bad Mail", "nope", "0911223344"],
+      problem: "Line 3: Not an email",
+    },
+    { cells: ["Short"], problem: "Line 9: The phone is wrong; Not an email" },
+  ];
+
+  async function built() {
+    const workbook = new Workbook();
+    await workbook.xlsx.load(await buildFixList(header, lines));
+    return workbook;
+  }
+
+  it("is one Employees sheet, the header as it was read and a Problem column last", async () => {
+    const workbook = await built();
+    expect(workbook.worksheets.map((s) => s.name)).toEqual([SHEET_PEOPLE]);
+
+    const sheet = workbook.getWorksheet(SHEET_PEOPLE)!;
+    expect(sheet.getRow(1).values).toEqual([
+      undefined,
+      "Staff name",
+      "Mail",
+      "Phone",
+      PROBLEM_HEADING,
+    ]);
+    expect(PROBLEM_HEADING).toBe("Problem");
+  });
+
+  it("keeps every cell as text, so a leading zero and a date survive", async () => {
+    const sheet = (await built()).getWorksheet(SHEET_PEOPLE)!;
+    expect(sheet.getCell(2, 3).value).toBe("0911223344");
+    expect(sheet.getCell(2, 3).numFmt).toBe("@");
+    expect(sheet.getColumn(3).numFmt).toBe("@");
+    expect(sheet.getCell(2, 4).value).toBe("Line 3: Not an email");
+  });
+
+  it("reads back through the reader as the header, the lines and the reason", async () => {
+    expect(await readWorkbook(await buildFixList(header, lines))).toEqual([
+      ["Staff name", "Mail", "Phone", "Problem"],
+      ["Bad Mail", "nope", "0911223344", "Line 3: Not an email"],
+      ["Short", "", "", "Line 9: The phone is wrong; Not an email"],
+    ]);
+  });
+
+  it("puts the Problem column after the widest line, so it never lands on a cell", async () => {
+    expect(
+      await readWorkbook(
+        await buildFixList(["a"], [{ cells: ["1", "2", "3"], problem: "why" }]),
+      ),
+    ).toEqual([
+      ["a", "", "", "Problem"],
+      ["1", "2", "3", "why"],
+    ]);
+  });
+});
+
+describe("what happened to a list, as a workbook", () => {
+  it("is one Result sheet of text, a heading row and a row for each line", async () => {
+    const bytes = await buildResult(
+      ["Name", "Employee number", "What happened", "Note"],
+      [
+        ["Abebe Kebede", "0001", "Added", ""],
+        ["Hanna Girma", "1002", "Left out", "A note; another"],
+      ],
+    );
+    const workbook = new Workbook();
+    await workbook.xlsx.load(bytes);
+
+    expect(workbook.worksheets.map((s) => s.name)).toEqual([SHEET_RESULT]);
+    const sheet = workbook.getWorksheet(SHEET_RESULT)!;
+    expect(sheet.getCell(2, 2).value).toBe("0001");
+    expect(sheet.getCell(2, 2).numFmt).toBe("@");
+    expect(sheet.getCell(3, 4).value).toBe("A note; another");
+    expect(sheet.rowCount).toBe(3);
+  });
+});
+
+describe("the example people of the employee template", () => {
+  const text = employeeTemplateText((key, fallback) => fallback ?? key);
+  const PROFILE = [
+    "grade",
+    "cost_center",
+    "probation_end_date",
+    "contract_type",
+    "contract_end_date",
+    "bank_name",
+    "bank_branch",
+    "bank_account",
+    "emergency_name",
+    "emergency_relationship",
+    "emergency_phone",
+  ];
+  const [permanent, fixedTerm] = text.example;
+
+  it("gives both people a value for every profile column but the one a contract does not need", () => {
+    for (const person of text.example) {
+      for (const key of PROFILE) {
+        if (
+          key === "contract_end_date" &&
+          person.contract_type === "permanent"
+        ) {
+          expect(person[key]).toBeUndefined();
+        } else {
+          expect(person[key], key).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it("is consistent: probation ends after the hire date, a permanent contract has no end, a fixed term ends later", () => {
+    expect(permanent.contract_type).toBe("permanent");
+    expect(fixedTerm.contract_type).toBe("fixed_term");
+    for (const person of text.example) {
+      expect(person.hire_date < person.probation_end_date).toBe(true);
+      expect(person.probation_end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(person.emergency_phone).toMatch(/^09\d{8}$/);
+      expect(person.bank_account).toMatch(/^\d{13}$/);
+    }
+    expect(fixedTerm.hire_date < fixedTerm.contract_end_date).toBe(true);
+  });
+
+  it("is written on the Example sheet, dates in the calendar of the workbook, a list keeping only what the organisation has", async () => {
+    const spec: TemplateSpec = {
+      columns: [
+        { key: "name", group: "core", required: true },
+        { key: "probation_end_date", group: "job", required: false },
+        { key: "contract_type", group: "job", required: false },
+        { key: "contract_end_date", group: "job", required: false },
+        { key: "emergency_phone", group: "contact", required: false },
+        { key: "grade", group: "job", required: false },
+      ],
+      headers: [
+        "name",
+        "probation_end_date",
+        "contract_type",
+        "contract_end_date",
+        "emergency_phone",
+        "grade",
+      ],
+      required: ["name"],
+      text_columns: ["emergency_phone"],
+      date_columns: ["probation_end_date", "contract_end_date"],
+      lists: {
+        contract_type: ["permanent", "fixed_term"],
+        grade: ["G1", "G2"],
+      },
+    };
+    const workbook = new Workbook();
+    await workbook.xlsx.load(await buildTemplate(spec, "gregorian", text));
+    const sheet = workbook.getWorksheet(SHEET_EXAMPLE)!;
+
+    expect(sheet.getRow(2).values).toEqual([
+      undefined,
+      "Abebe Kebede",
+      "2019-10-08",
+      "permanent",
+      undefined,
+      "0911000011",
+      "G1",
+    ]);
+    expect(sheet.getCell(3, 3).value).toBe("fixed_term");
+    expect(sheet.getCell(3, 4).value).toBe("2025-02-19");
   });
 });

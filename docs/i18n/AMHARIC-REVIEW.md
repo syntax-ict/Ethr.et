@@ -358,3 +358,19 @@ difference in a person's job is shown and never written whatever the words say.
 What to check first: *personnel action* (the product's own word for a transfer, promotion or demotion
 that leaves a record) in `setup2.changes_locked` and `migration.accept_locked`, and the word for
 *left out* against the Amharic and Afaan Oromoo the import review already uses for a skipped row.
+
+### Problems by column, and the two files (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person correcting a spreadsheet; it moves no money and changes
+no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The heading and four column headings of the table of problems ("Lines to fix", "What to fix", "Lines", "Line numbers"), and "Whole list" for a problem about the list itself | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.problem_heading`, `problem_col_what`, `problem_col_count`, `problem_col_lines`, `problem_whole_list` | 5 each |
+| The button that downloads the refused lines, and the line shown when the file cannot be built | the same files, `setup2.problem_download_fix`, `problem_fix_failed` | 2 each |
+| The button that downloads what happened, the two headings of its sheet that are new ("What happened", "Note"), the words *Added*, *Filled in*, *Already here, nothing to change*, and its failure line | the same files, `setup2.result_download`, `result_what`, `result_note`, `result_added`, `result_filled`, `result_unchanged`, `result_failed` | 7 each |
+
+What to check first: *Already here, nothing to change* (`result_unchanged`), and *Filled in*
+against the Amharic and Afaan Oromoo the review already uses for a blank that was filled. The words
+for *Left out* and *Not found in ETHR, left out* in the result file are the review's own.
