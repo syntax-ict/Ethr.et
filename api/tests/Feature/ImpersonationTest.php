@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\TenantProfileAssignment;
 use App\Models\User;
 use App\Services\Auth\SessionCookie;
+use App\Services\Onboarding\IndustryCatalog;
 use Carbon\Carbon;
 use Laravel\Sanctum\PersonalAccessToken;
 use PragmaRX\Google2FA\Google2FA;
@@ -442,4 +443,74 @@ test('the own administrator of the organisation can still change the kind and a 
 
     expect(kindWrites($tenant)['kind'])->toBe('ngo')
         ->and(Tenant::query()->whereKey($tenant->id)->value('settings')['pension_scheme'])->toBe('public');
+});
+
+// The setup wizard's apply writes the same kind and the same settings keys as
+// the Settings routes, so it is refused by the same fields.
+
+test('an impersonated session cannot apply the setup wizard with a kind', function () {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+    $settings = Tenant::query()->whereKey($tenant->id)->value('settings');
+
+    freshBearer($impersonation);
+    test()->postJson(kindUrl($tenant, 'onboarding/configuration/apply'), [
+        'organization_type' => 'ngo',
+        'plan' => ['settings' => ['run_day' => 12]],
+    ])
+        ->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect(kindWrites($tenant))->toBe($before)
+        ->and(Tenant::query()->whereKey($tenant->id)->value('settings'))->toEqual($settings)
+        ->and(Tenant::query()->whereKey($tenant->id)->value('organization_type'))->toBe('private');
+});
+
+test('an impersonated session cannot apply a statutory setting through the setup wizard', function (string $key, mixed $value) {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+    $settings = Tenant::query()->whereKey($tenant->id)->value('settings');
+
+    freshBearer($impersonation);
+    test()->postJson(kindUrl($tenant, 'onboarding/configuration/apply'), [
+        'plan' => ['settings' => ['run_day' => 12, $key => $value]],
+    ])
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect(kindWrites($tenant))->toBe($before)
+        ->and(Tenant::query()->whereKey($tenant->id)->value('settings'))->toEqual($settings);
+})->with([
+    'the pension scheme' => ['pension_scheme', 'public'],
+    'the fiscal year' => ['fiscal_year_start_month', 11],
+    'the Pagume rule' => ['pagumen_proration_strategy', 'daily_rate'],
+    'working days per month' => ['working_days_per_month', 26],
+]);
+
+test('an impersonated session can still preview the setup wizard, which writes nothing', function () {
+    [$tenant, $impersonation] = kindFixture();
+    $before = kindWrites($tenant);
+
+    freshBearer($impersonation);
+    test()->postJson(kindUrl($tenant, 'onboarding/configuration/preview'), [
+        'industry' => app(IndustryCatalog::class)->keys()[0],
+        'organization_type' => 'ngo',
+    ])->assertOk();
+
+    expect(kindWrites($tenant))->toBe($before);
+});
+
+test('the own administrator of the organisation can still apply the setup wizard with a kind', function () {
+    [$tenant, , $own] = kindFixture();
+
+    freshBearer($own);
+    test()->postJson(kindUrl($tenant, 'onboarding/configuration/apply'), [
+        'organization_type' => 'ngo',
+        'plan' => ['settings' => ['run_day' => 12, 'pension_scheme' => 'public']],
+    ])->assertOk();
+
+    $stored = Tenant::query()->whereKey($tenant->id)->first();
+    expect($stored->organization_type)->toBe('ngo')
+        ->and($stored->settings['pension_scheme'])->toBe('public');
 });

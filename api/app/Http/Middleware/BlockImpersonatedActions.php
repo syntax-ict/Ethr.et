@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
+use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\User\StartingPasswordController;
 use App\Services\Auth\ImpersonationToken;
@@ -64,6 +65,18 @@ class BlockImpersonatedActions
                 static fn (string $key): string => 'settings.'.$key,
                 array_values(StatutorySettingsBridge::SETTINGS),
             ),
+            // The setup wizard's apply writes the same two things by another
+            // route: the kind, and plan.settings, which is held to what
+            // PUT /settings may write. Its screen always sends the kind, so an
+            // operator cannot apply it; the organisation's own administrator
+            // does. The preview writes nothing and stays open.
+            ConfigurationController::class.'@apply' => [
+                'organization_type',
+                ...array_map(
+                    static fn (string $key): string => 'plan.settings.'.$key,
+                    array_values(StatutorySettingsBridge::SETTINGS),
+                ),
+            ],
         ];
     }
 
