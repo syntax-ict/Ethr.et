@@ -22120,6 +22120,15 @@ export interface operations {
                         pending: number;
                         auto_sync_enabled: number;
                         events_today: number;
+                        punches_today: {
+                            recorded: number;
+                            held: number;
+                            waiting: number;
+                        };
+                        unmatched: {
+                            badges: number;
+                            punches: number;
+                        };
                         last_sync_at: string | null;
                         sync_stats_24h: {
                             success: number;

@@ -183,4 +183,18 @@ describe("<DevicesPage> register dialog", () => {
       within(dialog).getByRole("button", { name: /^register$/i }),
     ).toBeEnabled();
   });
+  it("opens by itself when the address ends in #add, as the health dashboard's button sends it", async () => {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    window.location.hash = "#add";
+    try {
+      renderPage();
+
+      const dialog = await screen.findByRole("dialog");
+      expect(
+        within(dialog).getByRole("button", { name: /^register$/i }),
+      ).toBeInTheDocument();
+    } finally {
+      window.location.hash = "";
+    }
+  });
 });

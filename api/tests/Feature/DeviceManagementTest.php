@@ -6,8 +6,12 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
+use App\Models\DeviceInboundPunch;
 use App\Models\DeviceSyncLog;
 use App\Models\Employee;
+use App\Models\Tenant;
+use App\Models\UnmatchedDevicePunch;
+use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\HikvisionAdapter;
 use App\Services\Device\ZktecoAdapter;
@@ -479,6 +483,140 @@ test('the dashboard 24 hour sync counts only the logs of devices that still exis
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
         ->assertOk()
         ->assertJsonPath('sync_stats_24h.success', 1);
+});
+
+function heldPunch(Tenant $tenant, Device $device, string $badge, string $key, array $extra = []): UnmatchedDevicePunch
+{
+    return UnmatchedDevicePunch::create([
+        'tenant_id' => $tenant->id,
+        'device_id' => $device->id,
+        'badge' => $badge,
+        'punch_type' => 'check_in',
+        'occurred_raw' => '2026-11-16 08:00:00',
+        'idempotency_key' => $key,
+        'status' => UnmatchedDevicePunch::PENDING,
+        ...$extra,
+    ]);
+}
+
+function inboundPunch(Tenant $tenant, Device $device, string $key, array $extra = []): DeviceInboundPunch
+{
+    return DeviceInboundPunch::create([
+        'tenant_id' => $tenant->id,
+        'device_id' => $device->id,
+        'badge' => '7001',
+        'punch_type' => 'check_in',
+        'occurred_raw' => '2026-11-16 08:00:00',
+        'idempotency_key' => $key,
+        'processed_at' => null,
+        ...$extra,
+    ]);
+}
+
+test('the dashboard counts held punches of today and leaves out a dismissed or replayed one', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    heldPunch($tenant, $device, '7001', 'k1');
+    heldPunch($tenant, $device, '7002', 'k2', ['status' => UnmatchedDevicePunch::DISMISSED]);
+    heldPunch($tenant, $device, '7003', 'k3', ['status' => UnmatchedDevicePunch::REPLAYED]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('punches_today.held', 1)
+        ->assertJsonPath('unmatched.badges', 1)
+        ->assertJsonPath('unmatched.punches', 1);
+});
+
+test('the dashboard counts two punches of one badge on one device as one badge', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $other = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    heldPunch($tenant, $device, '7001', 'k1');
+    heldPunch($tenant, $device, '7001', 'k2');
+    heldPunch($tenant, $other, '7001', 'k3');
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('unmatched.badges', 2)
+        ->assertJsonPath('unmatched.punches', 3)
+        ->assertJsonPath('punches_today.held', 3);
+});
+
+test('the dashboard does not count held or waiting punches of another organisation or a removed device', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $removed = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    heldPunch($tenant, $removed, '7001', 'k1');
+    inboundPunch($tenant, $removed, 'i1');
+    $removed->delete();
+
+    $stranger = Tenant::factory()->create();
+    $strangerBranch = Branch::factory()->create(['tenant_id' => $stranger->id]);
+    $strangerDevice = Device::factory()->create(['tenant_id' => $stranger->id, 'branch_id' => $strangerBranch->id]);
+    heldPunch($stranger, $strangerDevice, '9001', 'k2');
+    inboundPunch($stranger, $strangerDevice, 'i2');
+
+    app(CurrentTenant::class)->set($tenant);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('punches_today.held', 0)
+        ->assertJsonPath('punches_today.waiting', 0)
+        ->assertJsonPath('unmatched.badges', 0)
+        ->assertJsonPath('unmatched.punches', 0);
+});
+
+test('the dashboard counts a pushed punch the queue has not worked yet as waiting', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    inboundPunch($tenant, $device, 'i1');
+    inboundPunch($tenant, $device, 'i2', ['processed_at' => now()]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('punches_today.waiting', 1)
+        ->assertJsonPath('punches_today.recorded', 0);
+});
+
+test('the dashboard counts events by the organisation day, not the UTC date', function () {
+    // 22:30 UTC on the 16th is 01:30 on the 17th in Addis Ababa.
+    Carbon::setTestNow(Carbon::parse('2026-11-16 22:30:00', 'UTC'));
+
+    try {
+        $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+        $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+        foreach (['2026-11-17', '2026-11-16'] as $date) {
+            AttendanceRecord::factory()->create([
+                'tenant_id' => $tenant->id,
+                'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+                'device_id' => $device->id,
+                'source' => 'biometric',
+                'date' => $date,
+            ]);
+        }
+
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+            ->assertOk()
+            ->assertJsonPath('events_today', 1)
+            ->assertJsonPath('punches_today.recorded', 1);
+    } finally {
+        Carbon::setTestNow();
+    }
 });
 
 // ── Device Manager ──
