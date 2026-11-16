@@ -53,8 +53,9 @@ final class EmployeeImportGrid
      * @param  array<string, string|null>|null  $mapping  what the reader said each column name is (ImportMapping::mapOf), null for a column left out; null when they said nothing
      * @param  string  $source  the saved source the list is read as: its ids from the other system are kept against it
      * @param  int|null  $headerLine  the line of the file that holds the column names, as the reader counts; 0 says there are none; null leaves it to be found
+     * @param  bool  $signIn  whether the sign-in column is read; a list that completes people already here invites nobody, so it is ignored, whatever it holds
      */
-    public function read(array $grid, string $calendar = 'gregorian', ?array $mapping = null, string $source = EmployeeImportRow::DEFAULT_SOURCE, ?int $headerLine = null): PeopleRead
+    public function read(array $grid, string $calendar = 'gregorian', ?array $mapping = null, string $source = EmployeeImportRow::DEFAULT_SOURCE, ?int $headerLine = null, bool $signIn = true): PeopleRead
     {
         $lines = [];
         foreach (array_values($grid) as $index => $cells) {
@@ -158,6 +159,10 @@ final class EmployeeImportGrid
                 if ($key !== null && $value !== '' && ! isset($row[$key])) {
                     $row[$key] = $value;
                 }
+            }
+
+            if (! $signIn) {
+                unset($row[EmployeeImportRow::SIGN_IN]);
             }
 
             $row = EmployeeImportRow::normalize(EmployeeImportRow::withName($row), $calendar, $calendars);

@@ -21,6 +21,7 @@ use App\Models\PersonnelAction;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Migration\MigrationTerminals;
+use App\Services\Migration\SignInChoices;
 use App\Services\Migration\StagedChanges;
 use App\Services\Migration\StageProgress;
 use App\Services\Migration\WorkforceMigrationService;
@@ -45,6 +46,7 @@ class MigrationController extends Controller
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeLogins $logins,
         private readonly MigrationTerminals $terminals,
+        private readonly SignInChoices $signIn,
     ) {}
 
     public function stageFromDevice(Device $device): JsonResponse
@@ -486,16 +488,17 @@ class MigrationController extends Controller
     }
 
     /**
-     * @return array{without_login: list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool}>, hire_dates_defaulted: int}
+     * @return array{without_login: list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool, asked: bool|null}>, hire_dates_defaulted: int}
      */
     private function loginsPayload(MigrationBatch $batch, bool $finished = true): array
     {
         // Until the whole list is added the answer would be about part of
         // it, and reading it costs two queries a slice for nothing.
         $people = $finished ? $this->migration->employees($batch) : new Collection;
+        $asked = $finished ? $this->signIn->byPublicId($people, $this->signIn->asked($batch)) : [];
 
         return [
-            'without_login' => $this->logins->pending($people),
+            'without_login' => $this->logins->pending($people, $asked),
             'hire_dates_defaulted' => $finished ? $this->migration->hireDatesDefaulted($batch) : 0,
         ];
     }
@@ -514,6 +517,7 @@ class MigrationController extends Controller
             'arrival_status' => $batch->arrivalStatus(),
             'totals' => $batch->totals,
             'summary' => $this->summarize($batch),
+            'sign_in_plan' => $this->signIn->plan($batch, $rows),
             'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled))->all(),
         ];
     }

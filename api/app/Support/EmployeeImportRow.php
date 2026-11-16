@@ -48,7 +48,7 @@ final class EmployeeImportRow
 {
     /** @var list<string> */
     public const COLUMNS = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary', 'salary_cents',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
@@ -70,6 +70,17 @@ final class EmployeeImportRow
         'bank_name', 'bank_branch', 'bank_account',
         'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
+
+    /**
+     * The column that says, person by person, who is invited to sign in when
+     * a staged list is added. It is kept on the staged row and read once the
+     * list is committed; it is never a field of a person, and the file import
+     * stores none of it.
+     */
+    public const SIGN_IN = 'sign_in';
+
+    /** What the column may say. Blank leaves it to the choice made on the screen. */
+    public const SIGN_IN_VALUES = ['yes', 'no'];
 
     /**
      * A name written in parts, as another system's export writes it. They are
@@ -119,7 +130,7 @@ final class EmployeeImportRow
      * @var list<string>
      */
     public const MAPPABLE = [
-        'name', 'first_name', 'father_name', 'grandfather_name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'first_name', 'father_name', 'grandfather_name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
@@ -164,6 +175,12 @@ final class EmployeeImportRow
         'status' => ['status'],
         'name' => ['name', 'nm', 'ስም'],
         'employee_code' => ['code', 'number', 'no', 'id'],
+        // Last, so no header that already has a suggestion changes it:
+        // "Login email" is the email, "Role" the position. A login is often a
+        // username or a date, so they are not hints at all; these only suggest
+        // and are never read unasked. "መግቢያ" is an exact alias, not a hint: as
+        // a substring it would match a date column such as "የመግቢያ ቀን".
+        'sign_in' => ['invite', 'invitation', 'ግብዣ'],
     ];
 
     /**
@@ -173,7 +190,7 @@ final class EmployeeImportRow
      * @var list<string>
      */
     public const TEMPLATE = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department', 'branch', 'position', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
@@ -191,7 +208,7 @@ final class EmployeeImportRow
     public const GROUPS = [
         'core' => ['name', 'employee_code', 'gender', 'hire_date', 'department', 'position', 'status'],
         'person' => ['name_am', 'date_of_birth', 'marital_status', 'nationality', 'nationality_status', 'national_id'],
-        'contact' => ['email', 'phone', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
+        'contact' => ['email', 'phone', 'sign_in', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
         'job' => ['branch', 'badge_number', 'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date'],
         'pay' => ['salary', 'tin', 'bank_name', 'bank_branch', 'bank_account'],
         'source' => ['external_id'],
@@ -300,6 +317,35 @@ final class EmployeeImportRow
         'የአያት_ስም' => 'grandfather_name',
     ];
 
+    /**
+     * Other spellings of the sign-in column, after key(). Kept apart from
+     * ALIASES so the file import, which does not read it, reads its headers as
+     * it always did. A bare "Login" is not here: a legacy export's login is a
+     * username, and reading it as yes or no would refuse every line.
+     */
+    private const SIGN_IN_ALIASES = [
+        'signin' => 'sign_in',
+        'invite' => 'sign_in',
+        'invited' => 'sign_in',
+        'invitation' => 'sign_in',
+        'ግብዣ' => 'sign_in',
+        'መግቢያ' => 'sign_in',
+    ];
+
+    /**
+     * What a cell of the sign-in column may say, after key(): the English
+     * words, and the Amharic and Afaan Oromoo ones. Anything else is left as
+     * written and the rule refuses it.
+     */
+    private const SIGN_IN_WORDS = [
+        'yes' => 'yes', 'y' => 'yes', 'true' => 'yes', '1' => 'yes', 'invite' => 'yes',
+        'አዎ' => 'yes', 'አዎን' => 'yes',
+        'eeyyee' => 'yes', 'eeyyeen' => 'yes', 'eyyee' => 'yes',
+        'no' => 'no', 'n' => 'no', 'false' => 'no', '0' => 'no',
+        'አይ' => 'no', 'አይደለም' => 'no',
+        'lakki' => 'no', 'miti' => 'no',
+    ];
+
     /** What a column name, or a date itself, may end with to say which calendar it is in. */
     private const CALENDAR_MARKS = [
         'ec' => 'ethiopian',
@@ -391,6 +437,10 @@ final class EmployeeImportRow
 
         if ($parts && (isset(self::PART_ALIASES[$key]) || in_array($key, self::NAME_PARTS, true))) {
             return [self::PART_ALIASES[$key] ?? $key, null];
+        }
+
+        if ($parts && isset(self::SIGN_IN_ALIASES[$key])) {
+            return [self::SIGN_IN_ALIASES[$key], null];
         }
 
         if (isset(self::ALIASES[$key]) || in_array($key, self::COLUMNS, true)) {
@@ -553,6 +603,7 @@ final class EmployeeImportRow
         $rules = self::rules($prefix);
         $rules[$prefix.'name'] = [$nameRequired ? 'required' : 'nullable', 'string', 'max:255'];
         $rules[$prefix.'hire_date'] = ['nullable', 'date'];
+        $rules[$prefix.self::SIGN_IN] = ['nullable', 'string', 'in:'.implode(',', self::SIGN_IN_VALUES)];
 
         foreach (EmployeeImportProfile::rules($prefix) as $field => $fieldRules) {
             if (in_array(substr($field, strlen($prefix)), self::TEXT_COLUMNS, true)) {
@@ -668,6 +719,12 @@ final class EmployeeImportRow
         if (is_string($row['status'] ?? null)) {
             $status = self::key($row['status']);
             $row['status'] = self::STATUS_ALIASES[$status] ?? $status;
+        }
+
+        // "Y", "Invite" and "አዎ" are `yes`; a word it does not know stays as
+        // written, so the rule refuses it.
+        if (is_string($row[self::SIGN_IN] ?? null)) {
+            $row[self::SIGN_IN] = self::SIGN_IN_WORDS[self::key($row[self::SIGN_IN])] ?? $row[self::SIGN_IN];
         }
 
         // "Fixed term" and "fixed-term" are `fixed_term`.

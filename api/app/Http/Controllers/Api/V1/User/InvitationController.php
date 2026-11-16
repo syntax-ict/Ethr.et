@@ -37,6 +37,7 @@ class InvitationController extends Controller
             'message' => __('user.invitation.queued'),
             'batch' => $result['batch'],
             'queued' => $result['queued'],
+            'held' => $result['held'],
             'in_person' => $result['in_person'],
             'skipped' => $result['skipped'],
         ], 202);

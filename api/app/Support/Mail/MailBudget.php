@@ -42,6 +42,8 @@ final class MailBudget
 
     private const HELD = 'ethr:mail:held:';
 
+    private const INVITATIONS = 'ethr:mail:invitations:';
+
     private const TTL = 172800;
 
     /** The daily cap, or 0 when none is set. */
@@ -72,6 +74,17 @@ final class MailBudget
     public static function recordHeld(): void
     {
         self::increment(self::HELD);
+    }
+
+    /** One queued email invitation delivered, from any organisation (EmailInvitationCeiling). */
+    public static function recordInvitation(): void
+    {
+        self::increment(self::INVITATIONS);
+    }
+
+    public static function invitationsToday(): int
+    {
+        return self::read(self::INVITATIONS);
     }
 
     public static function sentToday(): int
