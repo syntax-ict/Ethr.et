@@ -8,6 +8,7 @@ use App\Enums\OrgScope;
 use App\Enums\ProfileUpdateStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
+use App\Http\Resources\EmployeeResource;
 use App\Models\Branch;
 use App\Models\CustomRole;
 use App\Models\Department;
@@ -568,4 +569,150 @@ test('the list for an administrator stays within a query budget', function () {
     DB::disableQueryLog();
 
     expect($queries)->toBeLessThan(80);
+});
+
+// ── Who cannot sign in yet ──
+
+function nsEmployeesUrl(Tenant $tenant, string $query = ''): string
+{
+    return "http://{$tenant->subdomain}.ethr.test/api/v1/employees{$query}";
+}
+
+/** @return array<string, string> the sign_in value of every row the list returns, by employee name */
+function nsSignInRows(Tenant $tenant, string $query = '?per_page=100'): array
+{
+    return collect(test()->getJson(nsEmployeesUrl($tenant, $query))->assertOk()->json('data'))
+        ->mapWithKeys(fn (array $row) => [$row['name'] => $row['sign_in']])
+        ->all();
+}
+
+test('who cannot sign in is the same set on the list, the filter and the Next Steps card', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN, ['name' => 'Admin']);
+
+    $none = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'No login']);
+    $invited = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Invited']);
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $invited->id, 'status' => 'invited'], $tenant);
+    foreach (['active', 'inactive', 'suspended'] as $status) {
+        $person = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => ucfirst($status)]);
+        createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $person->id, 'status' => $status], $tenant);
+    }
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Leaver', 'status' => EmployeeStatus::RESIGNED]);
+
+    $rows = nsSignInRows($tenant);
+    ksort($rows);
+
+    expect($rows)->toBe([
+        'Active' => 'active',
+        'Admin' => 'active',
+        'Inactive' => 'inactive',
+        'Invited' => 'invited',
+        'Leaver' => 'none',
+        'No login' => 'none',
+        'Suspended' => 'suspended',
+    ]);
+
+    $listed = test()->getJson(nsEmployeesUrl($tenant, '?filter[missing]=sign_in&per_page=100'))->assertOk();
+    $names = collect($listed->json('data'))->pluck('name')->sort()->values()->all();
+    $step = nsSteps($tenant)['records_cannot_sign_in'];
+
+    expect($names)->toBe(['Invited', 'No login'])
+        ->and($listed->json('meta.total'))->toBe(2)
+        ->and($step['count'])->toBe(2)
+        ->and($step['group'])->toBe('records')
+        ->and($step['href'])->toBe('/employees?missing=sign_in');
+});
+
+test('a login linked only through the employee row counts, and a deleted login does not', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN, ['name' => 'Admin']);
+
+    $linked = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Linked by employee']);
+    $login = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => null, 'status' => 'active'], $tenant);
+    $linked->update(['user_id' => $login->id]);
+
+    $removed = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Login removed']);
+    $gone = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $removed->id, 'status' => 'active'], $tenant);
+    $removed->update(['user_id' => $gone->id]);
+    $gone->delete();
+
+    $rows = nsSignInRows($tenant);
+
+    expect($rows['Linked by employee'])->toBe('active')
+        ->and($rows['Login removed'])->toBe('none');
+
+    $names = collect(test()->getJson(nsEmployeesUrl($tenant, '?filter[missing]=sign_in&per_page=100'))->json('data'))->pluck('name')->all();
+
+    expect($names)->toBe(['Login removed'])
+        ->and(nsSteps($tenant)['records_cannot_sign_in']['count'])->toBe(1);
+});
+
+test('another organisation\'s login never gives an employee a way to sign in', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN, ['name' => 'Admin']);
+    $mine = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Mine']);
+
+    $other = createTenant();
+    $theirs = Employee::factory()->create(['tenant_id' => $other->id, 'name' => 'Theirs']);
+    // A login of the other organisation that names this organisation's
+    // employee row, as an id collision between two tenants would.
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $mine->id, 'status' => 'active'], $other);
+    $stray = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => null, 'status' => 'active'], $other);
+    $theirs->update(['user_id' => $stray->id]);
+    $mine->update(['user_id' => $stray->id]);
+
+    expect(nsSignInRows($tenant)['Mine'])->toBe('none')
+        ->and(nsSteps($tenant)['records_cannot_sign_in']['count'])->toBe(1)
+        ->and(test()->getJson(nsEmployeesUrl($tenant, '?filter[missing]=sign_in&per_page=100'))->json('meta.total'))->toBe(1);
+});
+
+test('the sign-in step goes only to someone who can invite and edit', function () {
+    $tenant = createTenant();
+    Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+
+    $editsOnly = createScopedUser($tenant, null, OrgScope::ALL->value, ['employee.viewAny', 'employee.update']);
+    test()->actingAs($editsOnly);
+    expect(nsSteps($tenant))->not->toHaveKey('records_cannot_sign_in');
+
+    $invitesOnly = createScopedUser($tenant, null, OrgScope::ALL->value, ['employee.viewAny', 'users.invite']);
+    test()->actingAs($invitesOnly);
+    expect(nsSteps($tenant))->not->toHaveKey('records_cannot_sign_in');
+
+    $both = createScopedUser($tenant, null, OrgScope::ALL->value, ['employee.viewAny', 'employee.update', 'users.invite']);
+    test()->actingAs($both);
+    expect(nsSteps($tenant)['records_cannot_sign_in']['count'])->toBe(3);
+});
+
+test('the sign-in step is information, not a blocker, and a list without the column omits it', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN);
+    Employee::factory()->count(2)->create(['tenant_id' => $tenant->id]);
+
+    $steps = nsSteps($tenant);
+
+    expect($steps['records_cannot_sign_in']['severity'])->toBe('info');
+
+    $resource = (new EmployeeResource(Employee::query()->firstOrFail()))->resolve(request());
+    expect($resource)->not->toHaveKey('sign_in');
+});
+
+test('an invited login on one side of the link and an active one on the other reads as active', function () {
+    $tenant = createTenant();
+    nsPerson($tenant, UserRole::HR_ADMIN, ['name' => 'Admin']);
+
+    $split = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Split']);
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $split->id, 'status' => 'invited'], $tenant);
+    $other = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => null, 'status' => 'active'], $tenant);
+    $split->update(['user_id' => $other->id]);
+
+    $reverse = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Reverse']);
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $reverse->id, 'status' => 'suspended'], $tenant);
+    $waiting = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => null, 'status' => 'invited'], $tenant);
+    $reverse->update(['user_id' => $waiting->id]);
+
+    $rows = nsSignInRows($tenant);
+
+    expect($rows['Split'])->toBe('active')
+        ->and($rows['Reverse'])->toBe('suspended')
+        ->and(test()->getJson(nsEmployeesUrl($tenant, '?filter[missing]=sign_in&per_page=100'))->json('meta.total'))->toBe(0);
 });

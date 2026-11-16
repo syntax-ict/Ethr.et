@@ -465,6 +465,16 @@ Settings → Users & Access → Invite:
 - Enter email, assign role
 - User receives email and sets their own password
 
+#### Finding everyone who cannot sign in yet
+
+The guided setup invites nobody unless you choose to, so people you added may have no way to sign in. To see them:
+
+1. Follow the **people cannot sign in yet** row in Next Steps, which opens **Employees** filtered to them (the address is `/employees?missing=sign_in`). The list shows current employees with no login, or with an invitation they have not finished. A small note beside each name says "No sign-in" or "Invited, not activated".
+2. Tick the people you want, or tick the whole page.
+3. Choose **Give a way to sign in**. People with an email get an invitation by email; people with only a phone get a text message if texts are on; people with neither are listed so you can print them a code or give them a starting password. People who can already sign in, and people who no longer work here, are left out of the send, and the dialog says how many. A long selection is sent 200 people at a time, and if one part fails the dialog says how many went and lets you send the rest.
+
+You need permission to invite users and to edit employees to see the action.
+
 ### Roles
 
 Each user has one role. The built-in roles and what they hold today:

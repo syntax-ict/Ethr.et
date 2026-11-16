@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\OrgScope;
 use App\Enums\UserRole;
 use App\Jobs\SendInvitationJob;
 use App\Models\AuditLog;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\InvitationSend;
 use App\Models\MigrationStagingRow;
@@ -177,6 +179,33 @@ it('needs permission to invite users', function () {
     actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
 
     loginsApi($tenant, 'POST', 'employees/logins', ['employee_ids' => [$employee->public_id]])->assertForbidden();
+});
+
+it('stops at the requester\'s reach: people in it get logins, one beyond it refuses everything', function () {
+    Queue::fake();
+    $tenant = createTenant(['settings' => ['login_identifiers' => ['employee_code', 'email']]]);
+    $mine = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $theirs = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $head = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id, 'email' => 'head@acme.et']);
+    $near = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id, 'email' => 'near@acme.et']);
+    $far = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $theirs->id, 'email' => 'far@acme.et']);
+    test()->actingAs(createScopedUser($tenant, $head->id, OrgScope::DEPARTMENT->value, ['users.invite', 'employee.update']));
+
+    $refused = loginsApi($tenant, 'POST', 'employees/logins', ['employee_ids' => [$near->public_id, $far->public_id]])
+        ->assertStatus(422)->json('errors.employee_ids');
+    $unknown = loginsApi($tenant, 'POST', 'employees/logins', ['employee_ids' => [$near->public_id, str_repeat('Z', 26)]])
+        ->assertStatus(422)->json('errors.employee_ids');
+
+    expect($refused)->toBe($unknown)
+        ->and($near->fresh()->user)->toBeNull()
+        ->and($far->fresh()->user)->toBeNull();
+
+    loginsApi($tenant, 'POST', 'employees/logins', ['employee_ids' => [$near->public_id]])
+        ->assertStatus(202)
+        ->assertJsonPath('created', 1);
+
+    expect($near->fresh()->user)->not->toBeNull()
+        ->and($far->fresh()->user)->toBeNull();
 });
 
 /*

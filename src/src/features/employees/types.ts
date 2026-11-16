@@ -24,6 +24,7 @@ export type Employee = Pick<
   | "photo_thumb_url"
   | "hire_date"
   | "salary_cents"
+  | "sign_in"
   | "department"
   | "branch"
   | "position"

@@ -596,6 +596,8 @@ export function useCreateEmployeeLogins() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["onboarding", "migration"] });
       qc.invalidateQueries({ queryKey: ["users"] });
+      // The Employees list says who cannot sign in yet.
+      qc.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }
