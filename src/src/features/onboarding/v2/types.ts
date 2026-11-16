@@ -341,4 +341,20 @@ export interface MigrationTerminals {
   without_number: number;
   /** People with no branch, so no terminal. */
   without_branch: number;
+  /** The viewer may give a held badge to a person (`attendance.manage`). */
+  can_assign: boolean;
+  /** Held badges that are now exactly one of this list's people. */
+  held: HeldBadge[];
+  /** Matches past the cap, not listed: the Devices page has them. */
+  held_more: number;
+}
+
+export interface HeldBadge {
+  device_public_id: string;
+  device_name: string;
+  badge: string;
+  /** Punches waiting for it. */
+  punches: number;
+  employee_public_id: string;
+  employee_name: string;
 }
