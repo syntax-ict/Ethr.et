@@ -63,6 +63,7 @@ class E2eAttendanceSeeder extends Seeder
                 ['code' => 'ATT-0001', 'name' => 'Abebe Bekele', 'badge' => '9001', 'login' => 'emp1', 'salary_cents' => 1500000],
                 ['code' => 'ATT-0002', 'name' => 'Tigist Haile', 'badge' => '9002', 'login' => null, 'salary_cents' => 1500000],
                 ['code' => 'ATT-0003', 'name' => 'Dawit Tesfaye', 'badge' => '9003', 'login' => 'emp3', 'salary_cents' => 1500000],
+                ['code' => 'ATT-0004', 'name' => 'Mulu Girma', 'badge' => '9004', 'login' => 'emp4', 'salary_cents' => 1500000],
             ],
             'staff' => ['admin' => UserRole::TENANT_ADMIN],
         ],
