@@ -60,10 +60,13 @@ class MigrationController extends Controller
      * Read a list of people without staging it.
      *
      * `grid` is the list as lines of cells, the first line its column names
-     * or none. The answer says how many people are ready, which columns were
-     * read and which column names mean nothing here, and every line that
-     * cannot be staged, with its number as the reader counts it. Nothing is
-     * kept.
+     * or none, with a title or a date above it when the file has one.
+     * `header_line` names the line of the file that holds the column names
+     * (0: there are none); left out, the line that looks most like them is
+     * used, and the answer says which. The answer says how many people are
+     * ready, which columns were read and which column names mean nothing
+     * here, and every line that cannot be staged, with its number as the
+     * reader counts it. Nothing is kept.
      *
      * A list from another system names its columns its own way. Send
      * `mapping`, a list of `{header, column}` saying what each of its column
@@ -86,6 +89,7 @@ class MigrationController extends Controller
         return response()->json([
             'people' => count($read->rows),
             'header' => $read->header,
+            'header_line' => $read->headerLine,
             'columns' => $read->columns,
             'ignored' => $read->ignored,
             'calendar' => $read->calendar,
@@ -361,7 +365,11 @@ class MigrationController extends Controller
      *
      * Device information needs `device.viewAny`; without it the answer is the
      * empty one with `visible` false. Someone the viewer may not open is
-     * neither named nor counted.
+     * neither named nor counted. `held` lists, for a viewer who may assign a
+     * badge (`attendance.manage`), the held badges that are now exactly one of
+     * those people; it is empty for anyone else.
+     *
+     * @response array{visible: bool, devices: list<array{device_public_id: string, device_name: string, adapter_type: string, writable: bool, receives_only: bool, queued: int, done: int, failed: int, not_sent: int, last_error: string|null, enrol_by_hand: list<array{employee_public_id: string, name: string, device_user_id: string}>}>, without_number: int, without_branch: int, can_assign: bool, held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
      */
     public function terminals(MigrationBatch $batch): JsonResponse
     {
@@ -375,7 +383,7 @@ class MigrationController extends Controller
             ->filter(fn (Employee $employee): bool => Gate::allows('view', $employee))
             ->values();
 
-        return response()->json($this->terminals->read($people, $batch->tenant_id));
+        return response()->json($this->terminals->read($people, $batch->tenant_id, Gate::allows('attendance.manage')));
     }
 
     /**

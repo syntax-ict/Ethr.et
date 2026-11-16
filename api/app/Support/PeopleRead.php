@@ -22,6 +22,7 @@ final readonly class PeopleRead
      * @param  list<array{header: string, column: string|null, suggested: string|null}>  $headers  the first line as column names: each as written, the column it is read as, and for one that is not read, what it might be
      * @param  bool  $headerLikely  the first line was read as a person and looks like column names ETHR does not know
      * @param  list<array{line: int, column: string, code: string, message: string}>  $warnings  lines that are staged all the same, with what the reader should know about them
+     * @param  int|null  $headerLine  the line of the list that held the column names, as the reader counts it; null when there were none
      * @param  bool  $needsName  the reader said which column is which and none of them is the name; nothing was read
      */
     public function __construct(
@@ -37,5 +38,6 @@ final readonly class PeopleRead
         public bool $headerLikely = false,
         public bool $needsName = false,
         public array $warnings = [],
+        public ?int $headerLine = null,
     ) {}
 }

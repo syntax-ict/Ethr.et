@@ -13245,11 +13245,16 @@
                                         },
                                         "refused": {
                                             "type": "integer"
+                                        },
+                                        "remaining": {
+                                            "type": "integer",
+                                            "minimum": 0
                                         }
                                     },
                                     "required": [
                                         "replayed",
-                                        "refused"
+                                        "refused",
+                                        "remaining"
                                     ]
                                 }
                             }
@@ -26292,7 +26297,7 @@
                     "read"
                 ],
                 "operationId": "migration.terminals",
-                "description": "Device information needs `device.viewAny`; without it the answer is the\nempty one with `visible` false. Someone the viewer may not open is\nneither named nor counted.",
+                "description": "Device information needs `device.viewAny`; without it the answer is the\nempty one with `visible` false. Someone the viewer may not open is\nneither named nor counted. `held` lists, for a viewer who may assign a\nbadge (`attendance.manage`), the held badges that are now exactly one of\nthose people; it is empty for anyone else.",
                 "summary": "What the attendance terminals hold for the people a committed batch\nbrought in: per device of their branches, how many were sent, are\nwaiting, were refused or were not sent for their number, and for a\nterminal ETHR cannot write to, who to enrol by hand",
                 "tags": [
                     "Onboarding"
@@ -26314,168 +26319,142 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "anyOf": [
-                                        {
-                                            "anyOf": [
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "visible": {
-                                                            "type": "boolean"
-                                                        },
-                                                        "devices": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "device_public_id": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "device_name": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "adapter_type": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "writable": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "receives_only": {
-                                                                        "type": "boolean"
-                                                                    },
-                                                                    "queued": {
-                                                                        "type": "integer"
-                                                                    },
-                                                                    "done": {
-                                                                        "type": "integer"
-                                                                    },
-                                                                    "failed": {
-                                                                        "type": "integer"
-                                                                    },
-                                                                    "not_sent": {
-                                                                        "type": "integer"
-                                                                    },
-                                                                    "last_error": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "enrol_by_hand": {
-                                                                        "type": "array",
-                                                                        "items": {
-                                                                            "type": "object",
-                                                                            "properties": {
-                                                                                "employee_public_id": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "device_user_id": {
-                                                                                    "type": [
-                                                                                        "string",
-                                                                                        "null"
-                                                                                    ]
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "employee_public_id",
-                                                                                "name",
-                                                                                "device_user_id"
-                                                                            ]
-                                                                        }
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "device_public_id",
-                                                                    "device_name",
-                                                                    "adapter_type",
-                                                                    "writable",
-                                                                    "receives_only",
-                                                                    "queued",
-                                                                    "done",
-                                                                    "failed",
-                                                                    "not_sent",
-                                                                    "last_error",
-                                                                    "enrol_by_hand"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "without_number": {
-                                                            "type": "integer",
-                                                            "minimum": 0
-                                                        },
-                                                        "without_branch": {
-                                                            "type": "integer",
-                                                            "minimum": 0
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "visible",
-                                                        "devices",
-                                                        "without_number",
-                                                        "without_branch"
-                                                    ]
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "visible": {
-                                                            "type": "boolean"
-                                                        },
-                                                        "devices": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "string"
-                                                            },
-                                                            "minItems": 0,
-                                                            "maxItems": 0,
-                                                            "additionalItems": false
-                                                        },
-                                                        "without_number": {
-                                                            "type": "integer"
-                                                        },
-                                                        "without_branch": {
-                                                            "type": "integer",
-                                                            "minimum": 0
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "visible",
-                                                        "devices",
-                                                        "without_number",
-                                                        "without_branch"
-                                                    ]
-                                                }
-                                            ]
+                                    "type": "object",
+                                    "properties": {
+                                        "visible": {
+                                            "type": "boolean"
                                         },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "visible": {
-                                                    "type": "boolean"
-                                                },
-                                                "devices": {
-                                                    "type": "array",
-                                                    "items": {
+                                        "devices": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
                                                         "type": "string"
                                                     },
-                                                    "minItems": 0,
-                                                    "maxItems": 0,
-                                                    "additionalItems": false
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "adapter_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "writable": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "receives_only": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "queued": {
+                                                        "type": "integer"
+                                                    },
+                                                    "done": {
+                                                        "type": "integer"
+                                                    },
+                                                    "failed": {
+                                                        "type": "integer"
+                                                    },
+                                                    "not_sent": {
+                                                        "type": "integer"
+                                                    },
+                                                    "last_error": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "enrol_by_hand": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "device_user_id": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "name",
+                                                                "device_user_id"
+                                                            ]
+                                                        }
+                                                    }
                                                 },
-                                                "without_number": {
-                                                    "type": "integer"
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "adapter_type",
+                                                    "writable",
+                                                    "receives_only",
+                                                    "queued",
+                                                    "done",
+                                                    "failed",
+                                                    "not_sent",
+                                                    "last_error",
+                                                    "enrol_by_hand"
+                                                ]
+                                            }
+                                        },
+                                        "without_number": {
+                                            "type": "integer"
+                                        },
+                                        "without_branch": {
+                                            "type": "integer"
+                                        },
+                                        "can_assign": {
+                                            "type": "boolean"
+                                        },
+                                        "held": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "badge": {
+                                                        "type": "string"
+                                                    },
+                                                    "punches": {
+                                                        "type": "integer"
+                                                    },
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    }
                                                 },
-                                                "without_branch": {
-                                                    "type": "integer"
-                                                }
-                                            },
-                                            "required": [
-                                                "visible",
-                                                "devices",
-                                                "without_number",
-                                                "without_branch"
-                                            ]
+                                                "required": [
+                                                    "device_public_id",
+                                                    "device_name",
+                                                    "badge",
+                                                    "punches",
+                                                    "employee_public_id",
+                                                    "employee_name"
+                                                ]
+                                            }
+                                        },
+                                        "held_more": {
+                                            "type": "integer"
                                         }
+                                    },
+                                    "required": [
+                                        "visible",
+                                        "devices",
+                                        "without_number",
+                                        "without_branch",
+                                        "can_assign",
+                                        "held",
+                                        "held_more"
                                     ]
                                 }
                             }
@@ -26731,7 +26710,7 @@
                     "write"
                 ],
                 "operationId": "migration.read",
-                "description": "`grid` is the list as lines of cells, the first line its column names\nor none. The answer says how many people are ready, which columns were\nread and which column names mean nothing here, and every line that\ncannot be staged, with its number as the reader counts it. Nothing is\nkept.\n\nA list from another system names its columns its own way. Send\n`mapping`, a list of `{header, column}` saying what each of its column\nnames is (null leaves one out), or `source`, a saved source whose\ncolumn names are already matched. `headers` describes the first line\nfor that: each name as written, the column it is read as, and for one\nthat is not read, what it might be. `suggested_source` is a saved\nsource whose column names this list has; `needs_name` says the columns\nwere matched and none of them is the name.",
+                "description": "`grid` is the list as lines of cells, the first line its column names\nor none, with a title or a date above it when the file has one.\n`header_line` names the line of the file that holds the column names\n(0: there are none); left out, the line that looks most like them is\nused, and the answer says which. The answer says how many people are\nready, which columns were read and which column names mean nothing\nhere, and every line that cannot be staged, with its number as the\nreader counts it. Nothing is kept.\n\nA list from another system names its columns its own way. Send\n`mapping`, a list of `{header, column}` saying what each of its column\nnames is (null leaves one out), or `source`, a saved source whose\ncolumn names are already matched. `headers` describes the first line\nfor that: each name as written, the column it is read as, and for one\nthat is not read, what it might be. `suggested_source` is a saved\nsource whose column names this list has; `needs_name` says the columns\nwere matched and none of them is the name.",
                 "summary": "Read a list of people without staging it",
                 "tags": [
                     "Onboarding"
@@ -26759,6 +26738,12 @@
                                         },
                                         "header": {
                                             "type": "boolean"
+                                        },
+                                        "header_line": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
                                         },
                                         "columns": {
                                             "type": "array",
@@ -26886,6 +26871,7 @@
                                     "required": [
                                         "people",
                                         "header",
+                                        "header_line",
                                         "columns",
                                         "ignored",
                                         "calendar",
@@ -52489,6 +52475,14 @@
                         "minLength": 26,
                         "maxLength": 26
                     },
+                    "header_line": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 5000
+                    },
                     "mapping": {
                         "type": "array",
                         "items": {
@@ -52505,6 +52499,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -53241,6 +53238,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -53801,6 +53801,14 @@
                         "minLength": 26,
                         "maxLength": 26
                     },
+                    "header_line": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 5000
+                    },
                     "mapping": {
                         "type": "array",
                         "items": {
@@ -53817,6 +53825,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",
@@ -57641,6 +57652,9 @@
                                     ],
                                     "enum": [
                                         "name",
+                                        "first_name",
+                                        "father_name",
+                                        "grandfather_name",
                                         "name_am",
                                         "employee_code",
                                         "email",

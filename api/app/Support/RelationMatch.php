@@ -30,11 +30,12 @@ final class RelationMatch
     private function __construct(
         private readonly array $codes,
         private readonly array $names,
+        private readonly bool $paths = false,
     ) {}
 
     public static function departments(int $tenantId): self
     {
-        return self::of(Department::class, ['name', 'name_am'], $tenantId);
+        return self::of(Department::class, ['name', 'name_am'], $tenantId, paths: true);
     }
 
     public static function branches(int $tenantId): self
@@ -61,7 +62,7 @@ final class RelationMatch
      * @param  class-string<Model>  $model
      * @param  list<string>  $nameColumns
      */
-    private static function of(string $model, array $nameColumns, int $tenantId, bool $hasCode = true): self
+    private static function of(string $model, array $nameColumns, int $tenantId, bool $hasCode = true, bool $paths = false): self
     {
         $codes = [];
         $names = [];
@@ -80,7 +81,7 @@ final class RelationMatch
             }
         }
 
-        return new self($codes, $names);
+        return new self($codes, $names, $paths);
     }
 
     /** The record's id, or null when nothing, or more than one, matches. */
@@ -90,22 +91,51 @@ final class RelationMatch
             return null;
         }
 
-        $key = self::key($value);
-        if (isset($this->codes[$key])) {
-            return $this->codes[$key];
-        }
-
-        $ids = $this->names[$key] ?? [];
-
-        return count($ids) === 1 ? $ids[0] : null;
+        return $this->lookup($value)[0];
     }
 
     /** Whether the value names more than one record and no code. */
     public function ambiguous(string $value): bool
     {
-        $key = self::key($value);
+        return $this->lookup($value)[1];
+    }
 
-        return ! isset($this->codes[$key]) && count($this->names[$key] ?? []) > 1;
+    /**
+     * What a value names: the one record, or whether it names several. A
+     * department written as a path ("Head office / Finance", "A > B") that
+     * matches nothing whole is looked up by its last part, so a name that
+     * itself holds a slash is still found as written first.
+     *
+     * @return array{0: int|null, 1: bool}
+     */
+    private function lookup(string $value): array
+    {
+        $key = self::key($value);
+        if (isset($this->codes[$key])) {
+            return [$this->codes[$key], false];
+        }
+
+        $ids = $this->names[$key] ?? [];
+        if (count($ids) === 1) {
+            return [$ids[0], false];
+        }
+        if (count($ids) > 1 || ! $this->paths) {
+            return [null, count($ids) > 1];
+        }
+
+        $parts = array_values(array_filter(array_map(trim(...), preg_split('#[/\\\\>]#u', $value) ?: []), fn (string $part): bool => $part !== ''));
+        $last = $parts === [] ? null : $parts[array_key_last($parts)];
+        if ($last === null || self::key($last) === $key) {
+            return [null, false];
+        }
+
+        $key = self::key($last);
+        if (isset($this->codes[$key])) {
+            return [$this->codes[$key], false];
+        }
+        $ids = $this->names[$key] ?? [];
+
+        return [count($ids) === 1 ? $ids[0] : null, count($ids) > 1];
     }
 
     private static function key(string $value): string

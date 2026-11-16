@@ -17,8 +17,10 @@ use App\Services\Device\DeviceIdRules;
  * The guided setup's paste box made those decisions itself, in the browser,
  * and differently (2026-11-11).
  *
- * A first line of column names is recognised and says which column is which,
- * in any order. Without one the columns are read in
+ * A line of column names is recognised and says which column is which, in
+ * any order: the first line, or the one that looks most like column names
+ * among the first fifteen (an export's title and date come above it), or the
+ * line the reader names. Without one the columns are read in
  * EmployeeImportRow::DEFAULT_ORDER. A line that cannot be staged is reported
  * with its number as the reader counts it and left out; nothing is guessed.
  *
@@ -31,6 +33,9 @@ final class EmployeeImportGrid
 {
     /** The most people one list brings (StageRowsRequest). */
     public const MAX_PEOPLE = 2000;
+
+    /** How many lines, from the top, may hold the column names. */
+    private const HEADER_WITHIN = 15;
 
     /** Columns two lines of one list cannot share. */
     private const UNIQUE_IN_LIST = ['employee_code', 'email', 'badge_number', 'external_id'];
@@ -47,8 +52,9 @@ final class EmployeeImportGrid
      * @param  'gregorian'|'ethiopian'  $calendar  the calendar dates are written in, unless a column name says
      * @param  array<string, string|null>|null  $mapping  what the reader said each column name is (ImportMapping::mapOf), null for a column left out; null when they said nothing
      * @param  string  $source  the saved source the list is read as: its ids from the other system are kept against it
+     * @param  int|null  $headerLine  the line of the file that holds the column names, as the reader counts; 0 says there are none; null leaves it to be found
      */
-    public function read(array $grid, string $calendar = 'gregorian', ?array $mapping = null, string $source = EmployeeImportRow::DEFAULT_SOURCE): PeopleRead
+    public function read(array $grid, string $calendar = 'gregorian', ?array $mapping = null, string $source = EmployeeImportRow::DEFAULT_SOURCE, ?int $headerLine = null): PeopleRead
     {
         $lines = [];
         foreach (array_values($grid) as $index => $cells) {
@@ -65,21 +71,48 @@ final class EmployeeImportGrid
             return new PeopleRead([], [], false, [], [], $calendar, false, 0);
         }
 
-        $first = array_key_first($lines);
+        // The line that holds the column names: the reader's word for it, or
+        // the one that looks most like column names among the first few. A
+        // title, a date or an export note above it is not a person and is
+        // skipped; the lines keep the numbers the reader counts.
+        $told = $headerLine !== null && $headerLine >= 1;
+        $none = $headerLine === 0;
+        if ($told) {
+            $at = null;
+            foreach (array_keys($lines) as $number) {
+                if ($number >= $headerLine) {
+                    $at = $number;
+                    break;
+                }
+            }
+            if ($at === null) {
+                return new PeopleRead([], [], false, [], [], $calendar, false, 0);
+            }
+        } else {
+            $at = $none ? array_key_first($lines) : ($this->findHeader($lines, $mapping) ?? array_key_first($lines));
+        }
+
+        $lines = array_filter($lines, fn (int $number): bool => $number >= $at, ARRAY_FILTER_USE_KEY);
+        $cells = $lines[$at];
 
         // A column ETHR wrote for the reader (the lines to fix) is dropped
         // whole before anything else reads the list: it is never a person's
         // field, never listed, and never needs a mapping.
-        $dropped = array_keys(array_filter($lines[$first], EmployeeImportRow::isIgnoredHeader(...)));
+        $dropped = array_keys(array_filter($cells, EmployeeImportRow::isIgnoredHeader(...)));
         if ($dropped !== []) {
-            foreach ($lines as $number => $cells) {
-                $lines[$number] = array_values(array_diff_key($cells, array_flip($dropped)));
+            foreach ($lines as $number => $line) {
+                $lines[$number] = array_values(array_diff_key($line, array_flip($dropped)));
             }
+            $cells = $lines[$at];
         }
 
-        $named = $this->named($lines[$first], $mapping ?? []);
-        $header = $mapping !== null ? $named : $this->headerOf($lines[$first]);
-        $headers = $this->headers($lines[$first], $named, $mapping ?? []);
+        $named = $this->named($cells, $mapping ?? []);
+        $header = match (true) {
+            $none => null,
+            $told || $mapping !== null => $named,
+            default => $this->headerOf($cells),
+        };
+        $headers = $none ? [] : $this->headers($cells, $named, $mapping ?? []);
         $calendars = [];
         $ignored = [];
 
@@ -88,23 +121,23 @@ final class EmployeeImportGrid
         } else {
             $keys = [];
             foreach ($header as $position => [$key, $calendarNamed]) {
-                $known = in_array($key, EmployeeImportRow::COLUMNS, true);
+                $known = EmployeeImportRow::reads($key);
                 $keys[$position] = $known ? $key : null;
                 if ($known && $calendarNamed !== null) {
                     $calendars[$key] = $calendarNamed;
                 }
-                if (! $known && $key !== '' && $lines[$first][$position] !== '' && ! EmployeeImportRow::isIgnoredHeader($lines[$first][$position])) {
-                    $ignored[] = $lines[$first][$position];
+                if (! $known && $key !== '' && $cells[$position] !== '' && ! EmployeeImportRow::isIgnoredHeader($cells[$position])) {
+                    $ignored[] = $cells[$position];
                 }
             }
 
             // Told which column is which, and none of them is the name:
             // every line would be refused for the same reason. Say it once.
-            if (! in_array('name', $keys, true)) {
-                return new PeopleRead([], [], true, [], $ignored, $calendar, false, 0, $headers, false, true);
+            if (! in_array('name', $keys, true) && ! in_array('first_name', $keys, true)) {
+                return new PeopleRead([], [], true, [], $ignored, $calendar, false, 0, $headers, false, true, [], $at);
             }
 
-            unset($lines[$first]);
+            unset($lines[$at]);
         }
 
         $rows = [];
@@ -113,13 +146,13 @@ final class EmployeeImportGrid
         $terminals = $this->terminalTypes();
         $firstSeen = [];
         $rules = EmployeeImportRow::stagedRules();
-        $last = $first;
+        $last = $at;
 
-        foreach ($lines as $line => $cells) {
+        foreach ($lines as $line => $values) {
             $last = $line;
             $row = [];
             foreach ($keys as $position => $key) {
-                $value = $cells[$position] ?? '';
+                $value = $values[$position] ?? '';
                 // A second column with the same meaning ("Department" beside
                 // "department_code") fills a gap and never overwrites.
                 if ($key !== null && $value !== '' && ! isset($row[$key])) {
@@ -127,7 +160,7 @@ final class EmployeeImportGrid
                 }
             }
 
-            $row = EmployeeImportRow::normalize($row, $calendar, $calendars);
+            $row = EmployeeImportRow::normalize(EmployeeImportRow::withName($row), $calendar, $calendars);
 
             $found = [
                 ...EmployeeImportRow::problems($row, $rules),
@@ -165,9 +198,44 @@ final class EmployeeImportGrid
             calendarFromHeader: $hireDateCalendar !== null,
             withoutHireDate: count(array_filter($rows, fn (array $row): bool => ! isset($row['hire_date']))),
             headers: $headers,
-            headerLikely: $header === null && $this->looksLikeNames($lines[$first]) && count($lines) > 1,
+            headerLikely: $header === null && ! $none && $this->looksLikeNames($lines[$at]) && count($lines) > 1,
             warnings: $warnings,
+            headerLine: $header !== null ? $at : null,
         );
+    }
+
+    /**
+     * The line of column names among the first few: the one with the most
+     * cells that are column names, at least two, the earliest on a tie. What
+     * the reader matched counts as a column name too. Null when no line
+     * qualifies, or when the best one would not be read as column names on its
+     * own (a person's line is not), and the first line is read as it always was.
+     *
+     * @param  array<int, list<string>>  $lines  by the number the reader counts
+     * @param  array<string, string|null>|null  $mapping
+     */
+    private function findHeader(array $lines, ?array $mapping): ?int
+    {
+        $best = null;
+        $most = 1;
+        foreach (array_slice($lines, 0, self::HEADER_WITHIN, true) as $number => $cells) {
+            $known = 0;
+            foreach ($cells as $cell) {
+                if ($cell !== '' && (EmployeeImportRow::reads(EmployeeImportRow::column($cell)[0]) || array_key_exists(EmployeeImportRow::headerKey($cell), $mapping ?? []))) {
+                    $known++;
+                }
+            }
+            if ($known > $most) {
+                $best = $number;
+                $most = $known;
+            }
+        }
+
+        if ($best === null || $mapping !== null) {
+            return $best;
+        }
+
+        return $this->headerOf($lines[$best]) !== null ? $best : null;
     }
 
     /**
@@ -208,7 +276,7 @@ final class EmployeeImportGrid
     {
         $taken = [];
         foreach ($named as [$key]) {
-            if (in_array($key, EmployeeImportRow::COLUMNS, true)) {
+            if (EmployeeImportRow::reads($key)) {
                 $taken[$key] = true;
             }
         }
@@ -220,7 +288,7 @@ final class EmployeeImportGrid
             }
 
             $key = $named[$position][0];
-            $column = in_array($key, EmployeeImportRow::COLUMNS, true) ? $key : null;
+            $column = EmployeeImportRow::reads($key) ? $key : null;
             $suggested = null;
             if ($column === null && ! array_key_exists(EmployeeImportRow::headerKey($cell), $mapping)) {
                 $guess = EmployeeImportRow::suggest($cell);
@@ -272,7 +340,8 @@ final class EmployeeImportGrid
     {
         $columns = array_map(EmployeeImportRow::column(...), $cells);
 
-        if (! in_array('name', array_column($columns, 0), true)) {
+        $found = array_column($columns, 0);
+        if (! in_array('name', $found, true) && ! in_array('first_name', $found, true)) {
             return null;
         }
 
