@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Clock,
   Hourglass,
-  Activity,
   ArrowLeft,
   Plus,
 } from "lucide-react";
@@ -25,6 +24,7 @@ import {
   useDevices,
   type Device,
 } from "@/features/devices/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { ErrorState } from "@/components/shared/error-state";
@@ -32,6 +32,8 @@ import { ErrorState } from "@/components/shared/error-state";
 export default function DeviceDashboardPage() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("device.create");
   const {
     data: stats,
     isLoading: statsLoading,
@@ -52,6 +54,10 @@ export default function DeviceDashboardPage() {
 
   const allDevices: Device[] = devices?.data ?? [];
 
+  // Sync logs are written only when ETHR pulls from a device, so for a
+  // terminal that only sends the card would be four zeros that mean nothing.
+  const anyPulled = allDevices.some((d) => d.receives_only !== true);
+
   return (
     <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
@@ -62,24 +68,49 @@ export default function DeviceDashboardPage() {
               {t("devices_dashboard_page.all_devices")}
             </Link>
           </Button>
-          <Button size="sm" asChild>
-            <Link href="/devices">
-              <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
-            </Link>
-          </Button>
+          {canCreate && (
+            <Button size="sm" asChild>
+              <Link href="/devices#add">
+                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
+              </Link>
+            </Button>
+          )}
         </div>
+
+        {stats && stats.unmatched.badges > 0 && (
+          <div
+            role="status"
+            className="space-y-1 rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            <p className="font-medium">
+              {t("devices_dashboard_page.attention_title")}
+            </p>
+            <p>
+              {t("devices_dashboard_page.attention_body", undefined, {
+                badges: stats.unmatched.badges.toLocaleString(),
+                punches: stats.unmatched.punches.toLocaleString(),
+              })}
+            </p>
+            <Link
+              href="/devices#unmatched"
+              className="inline-block font-medium underline underline-offset-2"
+            >
+              {t("devices_dashboard_page.review_badges")}
+            </Link>
+          </div>
+        )}
 
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />
         ) : statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
@@ -110,63 +141,98 @@ export default function DeviceDashboardPage() {
                 value={stats.error}
                 color="danger"
               />
-              <StatusCard
-                icon={Activity}
-                title={t("devices_dashboard_page.events_today")}
-                value={stats.events_today}
-                color="brand"
-              />
             </div>
 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">
-                  {t("devices_dashboard_page.sync_overview")}
+                  {t("devices_dashboard_page.punches_today")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      {t("devices_dashboard_page.successful")}
-                    </p>
-                    <p className="text-xl font-bold text-success">
-                      {stats.sync_stats_24h.success}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      {t("devices_dashboard_page.partial")}
-                    </p>
-                    <p className="text-xl font-bold text-warning">
-                      {stats.sync_stats_24h.partial}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      {t("devices_dashboard_page.failed")}
-                    </p>
-                    <p className="text-xl font-bold text-destructive">
-                      {stats.sync_stats_24h.failed}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      {t("devices_dashboard_page.auto_sync_enabled")}
+                      {t("devices_dashboard_page.punches_recorded")}
                     </p>
                     <p className="text-xl font-bold text-foreground">
-                      {stats.auto_sync_enabled}
+                      {stats.punches_today.recorded.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("devices_dashboard_page.punches_held")}
+                    </p>
+                    <p
+                      className={`text-xl font-bold ${stats.punches_today.held > 0 ? "text-warning" : "text-foreground"}`}
+                    >
+                      {stats.punches_today.held.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("devices_dashboard_page.punches_waiting")}
+                    </p>
+                    <p className="text-xl font-bold text-foreground">
+                      {stats.punches_today.waiting.toLocaleString()}
                     </p>
                   </div>
                 </div>
                 {stats.last_sync_at && (
                   <p className="mt-3 text-xs text-muted-foreground">
-                    {t("devices_dashboard_page.last_sync_across")}:{" "}
-                    {timeAgo(stats.last_sync_at)}
+                    {t("devices_dashboard_page.last_heard", undefined, {
+                      time: timeAgo(stats.last_sync_at),
+                    })}
                   </p>
                 )}
               </CardContent>
             </Card>
+
+            {anyPulled && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">
+                    {t("devices_dashboard_page.sync_overview")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {t("devices_dashboard_page.successful")}
+                      </p>
+                      <p className="text-xl font-bold text-success">
+                        {stats.sync_stats_24h.success}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {t("devices_dashboard_page.partial")}
+                      </p>
+                      <p className="text-xl font-bold text-warning">
+                        {stats.sync_stats_24h.partial}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {t("devices_dashboard_page.failed")}
+                      </p>
+                      <p className="text-xl font-bold text-destructive">
+                        {stats.sync_stats_24h.failed}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {t("devices_dashboard_page.auto_sync_enabled")}
+                      </p>
+                      <p className="text-xl font-bold text-foreground">
+                        {stats.auto_sync_enabled}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
 
@@ -195,12 +261,12 @@ export default function DeviceDashboardPage() {
                 caption={t("devices_page.title", "Devices")}
                 headers={[
                   t("devices_page.device_name"),
-                  t("devices_dashboard_page.adapter"),
+                  t("devices_dashboard_page.make"),
                   t("devices_dashboard_page.serial"),
                   t("attendance.kiosks_page.branch").replace(" *", ""),
                   t("common.status"),
                   t("devices_page.records"),
-                  t("devices_dashboard_page.last_sync"),
+                  t("devices_dashboard_page.last_contact"),
                 ]}
                 align={[
                   "left",

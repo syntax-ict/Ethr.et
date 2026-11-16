@@ -257,7 +257,7 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   "/devices/dashboard": {
     section: "Operations",
     parent: { label: "Devices", href: "/devices" },
-    label: "Device Status",
+    label: "Device health",
     description: "Device status and connectivity overview",
   },
 
