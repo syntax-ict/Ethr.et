@@ -358,6 +358,24 @@ describe('the API', function () {
             ->and($device->commands()->where('employee_id', $outside->id)->where('status', 'pending')->count())->toBe(0);
     });
 
+    it('does not put someone back on a device of the branch they have left', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $from = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $to = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = commandDevice($tenant, $from);
+        $mover = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $from->id, 'badge_number' => '41', 'status' => EmployeeStatus::HIRED]);
+        $device->commands()->update(['status' => 'failed', 'last_error' => 'The device answered with error 4.']);
+        $mover->update(['branch_id' => $to->id]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/commands/retry")
+            ->assertStatus(202)
+            ->assertExactJson(['queued' => 0, 'skipped' => 1]);
+
+        expect(commandsOn($device)[1])->toBe(['type' => 'delete_user', 'status' => 'pending', 'user' => '41'])
+            ->and($device->commands()->where('type', 'upsert_user')->where('status', 'pending')->exists())->toBeFalse();
+    });
+
     it('refuses a retry on a device that cannot be written to', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

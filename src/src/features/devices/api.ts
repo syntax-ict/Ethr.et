@@ -411,7 +411,8 @@ export type DeviceCommand = components["schemas"]["DeviceCommandResource"];
 export type SendStaffResult =
   operations["deviceCommand.sendStaff"]["responses"][202]["content"]["application/json"];
 
-export type RetryCommandsResult = { queued: number; skipped: number };
+export type RetryCommandsResult =
+  operations["deviceCommand.retry"]["responses"][202]["content"]["application/json"];
 
 export function useDeviceCommands(
   publicId: string,

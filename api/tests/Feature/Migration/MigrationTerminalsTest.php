@@ -264,17 +264,16 @@ it('does not read another organisation\'s batch', function () {
     test()->getJson(terminalsUrl($tenant, $batch))->assertNotFound();
 });
 
-it('reads a list in a fixed number of queries whatever its size', function () {
+it('reads a list in a fixed number of queries whatever the number of people or of devices', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
     $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
-    terminalsDevice($tenant, $branch);
     terminalsDevice($tenant, $branch);
 
     $count = function (int $people) use ($tenant, $branch): int {
         $list = [];
         for ($i = 0; $i < $people; $i++) {
-            $list[] = terminalsPerson($tenant, $branch, (string) (1000 + $i + $people * 100));
+            $list[] = terminalsPerson($tenant, $branch, (string) (1000 + $i + $people * 100 + Employee::query()->count()));
         }
         $batch = terminalsBatch($tenant, $list);
         test()->getJson(terminalsUrl($tenant, $batch))->assertOk();
@@ -288,5 +287,10 @@ it('reads a list in a fixed number of queries whatever its size', function () {
         return $queries;
     };
 
-    expect($count(12))->toBe($count(3));
+    $oneDevice = $count(3);
+    expect($count(12))->toBe($oneDevice);
+
+    terminalsDevice($tenant, $branch);
+    terminalsDevice($tenant, $branch);
+    expect($count(12))->toBe($oneDevice);
 });

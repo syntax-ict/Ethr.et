@@ -3809,6 +3809,7 @@
   "migration_terminals.col_number": "Lakkoofsa",
   "migration_terminals.desc": "Wanta meeshaan hunduu namoota amma galan qabu.",
   "migration_terminals.download": "Tarree buusi",
+  "migration_terminals.download_aria": "Tarree :device buusi",
   "migration_terminals.download_failed": "Faayiliin hin hojjetamne.",
   "migration_terminals.employees_link": "Tarree hojjettootaa bani",
   "migration_terminals.enrol_by_hand": "ETHR meeshaa kanatti namoota hin erguu. Namoota :count kana meeshaa irratti lakkoofsota kanaan galmeessaa.",

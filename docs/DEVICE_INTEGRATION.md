@@ -313,7 +313,7 @@ Pinned in `tests/Feature/Device/DeviceCommandQueueTest.php` and
 **Retry goes through the same door as a save.** `DeviceCommandQueue::resend()` takes the
 people whose newest add-or-update on the device failed (`failedPeople()`) and calls the
 same private `upsert()` a save does, so `DeviceIdRules` applies again: a number the
-terminal still would not take stays "not sent" and is counted as `skipped`. Old rows are
+terminal still would not take stays "not sent" and is counted as `skipped`. Someone who has left the device's branch is skipped, so the removal queued when they moved is not cancelled by an add. Old rows are
 never flipped back to `pending`; a new command is queued beside them, and the newest one
 is what every count reads.
 

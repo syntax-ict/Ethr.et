@@ -3809,6 +3809,7 @@
   "migration_terminals.col_number": "ቁጥር",
   "migration_terminals.desc": "አሁን ለገቡት ሰዎች እያንዳንዱ መሣሪያ የያዘው።",
   "migration_terminals.download": "ዝርዝሩን አውርድ",
+  "migration_terminals.download_aria": "የ:device ዝርዝሩን አውርድ",
   "migration_terminals.download_failed": "ፋይሉን መገንባት አልተቻለም።",
   "migration_terminals.employees_link": "የሠራተኞችን ዝርዝር ክፈት",
   "migration_terminals.enrol_by_hand": "ETHR ወደዚህ መሣሪያ ሰዎችን አይልክም። እነዚህን :count ሰዎች በመሣሪያው ላይ በእነዚህ ቁጥሮች ያስመዝግቡ።",

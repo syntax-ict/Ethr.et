@@ -3809,6 +3809,7 @@
   "migration_terminals.col_number": "Number",
   "migration_terminals.desc": "What each terminal holds for the people just brought in.",
   "migration_terminals.download": "Download the list",
+  "migration_terminals.download_aria": "Download the list for :device",
   "migration_terminals.download_failed": "The file could not be built.",
   "migration_terminals.employees_link": "Open the employee list",
   "migration_terminals.enrol_by_hand": "ETHR does not send people to this terminal. Enrol these :count people at the terminal with these numbers.",

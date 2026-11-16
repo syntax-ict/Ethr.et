@@ -211,6 +211,11 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label={t(
+                      "migration_terminals.download_aria",
+                      "Download the list for :device",
+                      { device: device.device_name },
+                    )}
                     onClick={() => void downloadList(device)}
                   >
                     <Download className="mr-2 h-4 w-4" aria-hidden="true" />

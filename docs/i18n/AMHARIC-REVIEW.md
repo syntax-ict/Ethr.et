@@ -384,7 +384,7 @@ moves no money and changes no record.
 | What | Where | Strings |
 |---|---|---|
 | The section on the committed screen: its title and line, "N sent or waiting", "N not accepted by the terminal", the last answer line, "N not sent. Their number is not one this terminal takes.", and the two lines for people with no badge number or no branch | `src/src/lib/i18n/locales/{am,om}.json`, `migration_terminals.title`, `desc`, `sent_or_waiting`, `failed`, `last_error`, `not_sent`, `without_number`, `without_branch` | 8 each |
-| The two lines for a terminal ETHR cannot write to ("This terminal only sends" and "ETHR does not send people to this terminal"), the download button, the sheet's two headings and its failure line | the same files, `migration_terminals.receives_only`, `enrol_by_hand`, `download`, `col_number`, `col_name`, `download_failed`, `employees_link` | 7 each |
+| The two lines for a terminal ETHR cannot write to ("This terminal only sends" and "ETHR does not send people to this terminal"), the download button, the sheet's two headings and its failure line | the same files, `migration_terminals.receives_only`, `enrol_by_hand`, `download`, `download_aria`, `col_number`, `col_name`, `download_failed`, `employees_link` | 8 each |
 | The Try again button, its name for a screen reader, and its two answers | the same files, `migration_terminals.retry`, `retry_aria`, `retry_done`, `retry_failed` | 4 each |
 
 What to check first: the word for a *terminal* (the drafts use the word the Commands tab already uses

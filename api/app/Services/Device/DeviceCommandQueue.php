@@ -149,15 +149,18 @@ final class DeviceCommandQueue
      * the terminal's number rules apply once more, so a number it still would
      * not take stays "not sent". Old commands are left as they are.
      *
+     * Someone who has left or moved off this device's branch is skipped: the
+     * removal queued when they moved must not be cancelled by an add.
+     *
      * @param  Collection<int, Employee>  $employees
-     * @return array{queued: int, skipped: int} skipped: no number, or one the terminal does not take
+     * @return array{queued: int, skipped: int} skipped: no number, one the terminal does not take, or not of this branch
      */
     public function resend(Device $device, Collection $employees, ?User $by = null): array
     {
         $result = ['queued' => 0, 'skipped' => 0];
 
         foreach ($employees as $employee) {
-            if (! in_array($employee->status, EmployeeStatus::current(), true)) {
+            if (! in_array($employee->status, EmployeeStatus::current(), true) || $employee->branch_id !== $device->branch_id) {
                 $result['skipped']++;
 
                 continue;

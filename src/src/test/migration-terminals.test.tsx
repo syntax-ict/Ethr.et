@@ -250,7 +250,9 @@ describe("<MigrationTerminals>", () => {
     expect(screen.queryByText(/sent or waiting/)).toBeNull();
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Download the list" }),
+      screen.getByRole("button", {
+        name: "Download the list for Hikvision gate",
+      }),
     );
 
     await waitFor(() => expect(saved).toHaveLength(1), { timeout: 10_000 });
