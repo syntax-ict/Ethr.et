@@ -69,12 +69,19 @@ class ConfigurationController extends Controller
             'region' => $request->input('region'),
             'workforce_profile' => $request->input('workforce_profile'),
             'policy_profile' => $request->input('policy_profile'),
-            'organization_type' => $request->input('organization_type') ?? $this->currentTenant->get()?->organization_type,
+            'organization_type' => $request->input('organization_type') ?? $this->kindInForce(),
         ], static fn ($value): bool => $value !== null);
 
         $plan = $this->resolver->resolve($request->string('industry')->value(), $signals);
 
         return response()->json($plan->toArray());
+    }
+
+    private function kindInForce(): ?string
+    {
+        $tenant = $this->currentTenant->get();
+
+        return $tenant === null ? null : $this->profile->inForce($tenant);
     }
 
     public function apply(ApplyConfigurationRequest $request): JsonResponse
@@ -153,7 +160,7 @@ class ConfigurationController extends Controller
             // No statutory row is written for it; the profile is the reference.
             $kind = $request->input('organization_type');
             if (is_string($kind) || $industry !== null) {
-                $this->profile->set($tenant, is_string($kind) ? $kind : $tenant->organization_type, $request->user()?->id, $industry['key'] ?? null);
+                $this->profile->set($tenant, is_string($kind) ? $kind : $this->profile->inForce($tenant), $request->user()?->id, $industry['key'] ?? null);
                 if (is_string($kind)) {
                     $tenant->update(['organization_type_needs_review' => ! $this->sectors->isPlausible($industry['base'] ?? $tenant->type, $kind)]);
                 }
