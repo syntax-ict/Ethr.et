@@ -7,6 +7,7 @@ namespace App\Http\Requests\Migration;
 use App\Http\Requests\Migration\Concerns\ReadsPeopleGrid;
 use App\Services\CurrentTenant;
 use App\Support\EmployeeImportGrid;
+use App\Support\EmployeeImportProfile;
 use App\Support\EmployeeImportRow;
 use App\Support\RelationMatch;
 use Illuminate\Foundation\Http\FormRequest;
@@ -46,6 +47,7 @@ class StageRowsRequest extends FormRequest
             'source_ref' => ['nullable', 'string', 'max:100'],
             ...$this->gridRules('required_without:rows'),
             'skip_problems' => ['sometimes', 'boolean'],
+            'mode' => ['sometimes', 'nullable', 'string', 'in:complete'],
             'rows' => ['required_without:grid', 'array', 'min:1', 'max:2000'],
             'rows.*' => ['array'],
             ...EmployeeImportRow::stagedRules('rows.*.', nameRequired: false),
@@ -57,6 +59,17 @@ class StageRowsRequest extends FormRequest
             'rows.*.branch' => ['nullable', 'string', 'max:255'],
             'rows.*.position' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * `complete` when the list is for the people already here: nobody is
+     * added, and a line that matches nobody is left out. Null adds people.
+     */
+    public function mode(): ?string
+    {
+        $mode = $this->validated('mode');
+
+        return is_string($mode) ? $mode : null;
     }
 
     /**
@@ -160,7 +173,20 @@ class StageRowsRequest extends FormRequest
                 'position' => null,
             ];
 
+            $profileMatches = [];
+            $profileRelation = function (string $column) use (&$profileMatches, $tenantId): RelationMatch {
+                return $profileMatches[$column] ??= $column === 'grade'
+                    ? RelationMatch::grades($tenantId)
+                    : RelationMatch::costCenters($tenantId);
+            };
+
             foreach ($rows as $index => $row) {
+                if (is_array($row)) {
+                    foreach (EmployeeImportProfile::problems($row, $profileRelation, (int) $index + 1) as $problem) {
+                        $validator->errors()->add("rows.{$index}.{$problem['column']}", $problem['message']);
+                    }
+                }
+
                 foreach (self::RELATIONS as $named => $column) {
                     $value = is_array($row) ? ($row[$named] ?? $row[$column] ?? null) : null;
                     if (! is_string($value) || trim($value) === '') {

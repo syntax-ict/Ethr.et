@@ -142,13 +142,18 @@ export interface StagingCandidate {
   reasons: string[];
 }
 
+/** What a list is for: adding people, or completing those already here. */
+export type ListMode = "add" | "complete";
+
 /**
  * One thing adding a matched row would change on the employee it matched.
- * A `fill` goes into a blank; a `conflict` is written only once accepted.
+ * A `fill` goes into a blank; a `conflict` is written only once accepted; a
+ * `locked` difference is shown and never written, because a list is not how
+ * a person's job and pay are changed.
  */
 export interface StagedChange {
   field: string;
-  kind: "fill" | "conflict";
+  kind: "fill" | "conflict" | "locked";
   /** What ETHR holds. Null when blank, masked, or not the viewer's to see. */
   current: string | null;
   /** What the list brings. Null for a national ID, a TIN and a salary. */
@@ -167,8 +172,12 @@ export interface StagingRow {
   match_confidence: number | null;
   candidates: StagingCandidate[] | null;
   resolved_employee_public_id: string | null;
+  /** The matched person's number, for a viewer who may open their record. */
+  resolved_employee_code?: string | null;
   action: StagingAction;
   changes: StagedChange[];
+  /** What staging noted about the row. Its number may not fit a terminal. */
+  warnings?: { code: string; message: string }[];
   /** The viewer may edit the matched employee. */
   can_apply_changes: boolean;
   /** The matched employee has a change waiting for a later date. */
@@ -192,7 +201,20 @@ export interface PeopleRead {
   /** People ready who bring no hire date, so the day they are added is used. */
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
-  problems: { line: number; message: string }[];
+  problems: {
+    line: number;
+    message: string;
+    /** The template column the problem is about; null for the whole list. */
+    column: string | null;
+    code: string;
+  }[];
+  /** Lines that are staged all the same, with what to know about them. */
+  warnings?: {
+    line: number;
+    column: string;
+    code: string;
+    message: string;
+  }[];
   /**
    * The first line as column names: each as written, the column it is read
    * as, and for one that is not read, what it might be.
@@ -241,6 +263,8 @@ export interface MigrationBatch {
   source_type: string;
   source_ref: string | null;
   status: "staging" | "reviewing" | "committing" | "committed";
+  /** `complete` for a list that adds nobody and fills in people who are here. */
+  mode?: ListMode;
   /** Chosen when the list began to be added; null when nothing was. */
   arrival_status?: ArrivalStatus | null;
   totals: Record<string, number> | null;
@@ -281,4 +305,56 @@ export interface CreateLoginsResult {
   email_in_use: number;
   batch: string | null;
   queued: number;
+}
+
+/** A person to enrol by hand at a terminal ETHR cannot write to. */
+export interface TerminalPerson {
+  employee_public_id: string;
+  name: string;
+  device_user_id: string;
+}
+
+/** What one terminal holds for the people a list brought in. */
+export interface MigrationTerminalDevice {
+  device_public_id: string;
+  device_name: string;
+  adapter_type: string;
+  /** Commands are on for it and ETHR can write to this kind of terminal. */
+  writable: boolean;
+  receives_only: boolean;
+  /** People whose newest add or update is waiting or was handed over. */
+  queued: number;
+  done: number;
+  /** The terminal refused the newest add or update. */
+  failed: number;
+  /** ETHR did not send it: the number is not one this terminal takes. */
+  not_sent: number;
+  last_error: string | null;
+  enrol_by_hand: TerminalPerson[];
+}
+
+export interface MigrationTerminals {
+  /** False for someone who may not see devices: nothing else is filled in. */
+  visible: boolean;
+  devices: MigrationTerminalDevice[];
+  /** People whose branch has a terminal but who have no number to send. */
+  without_number: number;
+  /** People with no branch, so no terminal. */
+  without_branch: number;
+  /** The viewer may give a held badge to a person (`attendance.manage`). */
+  can_assign: boolean;
+  /** Held badges that are now exactly one of this list's people. */
+  held: HeldBadge[];
+  /** Matches past the cap, not listed: the Devices page has them. */
+  held_more: number;
+}
+
+export interface HeldBadge {
+  device_public_id: string;
+  device_name: string;
+  badge: string;
+  /** Punches waiting for it. */
+  punches: number;
+  employee_public_id: string;
+  employee_name: string;
 }

@@ -12,7 +12,7 @@ final readonly class PeopleRead
 {
     /**
      * @param  list<array<string, mixed>>  $rows  the people ready to stage, as a staged list keeps them
-     * @param  list<array{line: int, message: string}>  $problems  lines that cannot be staged; `line` counts as the reader sees it, the header included
+     * @param  list<array{line: int, message: string, column: string|null, code: string}>  $problems  lines that cannot be staged; `line` counts as the reader sees it, the header included; `column` is the template column the problem is about, null for one about the whole list
      * @param  bool  $header  whether the first line was column names
      * @param  list<string>  $columns  the columns read, in the order they were found
      * @param  list<string>  $ignored  column names that mean nothing here, as written
@@ -21,6 +21,7 @@ final readonly class PeopleRead
      * @param  int  $withoutHireDate  people ready who bring no hire date
      * @param  list<array{header: string, column: string|null, suggested: string|null}>  $headers  the first line as column names: each as written, the column it is read as, and for one that is not read, what it might be
      * @param  bool  $headerLikely  the first line was read as a person and looks like column names ETHR does not know
+     * @param  list<array{line: int, column: string, code: string, message: string}>  $warnings  lines that are staged all the same, with what the reader should know about them
      * @param  bool  $needsName  the reader said which column is which and none of them is the name; nothing was read
      */
     public function __construct(
@@ -35,5 +36,6 @@ final readonly class PeopleRead
         public array $headers = [],
         public bool $headerLikely = false,
         public bool $needsName = false,
+        public array $warnings = [],
     ) {}
 }

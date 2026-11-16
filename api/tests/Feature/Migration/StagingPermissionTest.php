@@ -33,6 +33,8 @@ it('links the person and edits nothing for someone who may add employees but not
     // They are told the row differs, not what ETHR holds: they may not open
     // this employee's record.
     expect($row['can_apply_changes'])->toBeFalse()
+        ->and($row['resolved_employee_public_id'])->toBe($abebe->public_id)
+        ->and($row['resolved_employee_code'])->toBeNull()
         ->and(Staging::change($row['changes'], 'phone'))->toMatchArray(['kind' => 'conflict', 'current' => null])
         ->and(json_encode($staged))->not->toContain('+251911000001');
 

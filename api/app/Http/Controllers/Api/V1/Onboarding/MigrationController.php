@@ -20,6 +20,7 @@ use App\Models\OnboardingProgress;
 use App\Models\PersonnelAction;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
+use App\Services\Migration\MigrationTerminals;
 use App\Services\Migration\StagedChanges;
 use App\Services\Migration\StageProgress;
 use App\Services\Migration\WorkforceMigrationService;
@@ -41,6 +42,7 @@ class MigrationController extends Controller
         private readonly WorkforceMigrationService $migration,
         private readonly CurrentTenant $currentTenant,
         private readonly EmployeeLogins $logins,
+        private readonly MigrationTerminals $terminals,
     ) {}
 
     public function stageFromDevice(Device $device): JsonResponse
@@ -90,6 +92,7 @@ class MigrationController extends Controller
             'calendar_from_header' => $read->calendarFromHeader,
             'without_hire_date' => $read->withoutHireDate,
             'problems' => $read->problems,
+            'warnings' => $read->warnings,
             'headers' => $read->headers,
             'header_likely' => $read->headerLikely,
             'needs_name' => $read->needsName,
@@ -139,7 +142,8 @@ class MigrationController extends Controller
      * reads it) or `rows` (people already keyed by field). A grid with a line
      * that cannot be staged is refused whole, each line named, unless
      * `skip_problems` is set: then those lines are left out. A list that sets
-     * a salary or a TIN needs the pay permission, as the add-employee form does.
+     * a salary, a TIN or a bank account needs the pay permission, as the
+     * add-employee form does.
      *
      * `source` and `mapping` say how the list names its columns, as for
      * `/migration/read`. With a `source`, an id from the other system is kept
@@ -164,7 +168,7 @@ class MigrationController extends Controller
 
         $rows = $request->staged();
         foreach ($rows as $row) {
-            if (isset($row['salary_cents']) || isset($row['tin'])) {
+            if (array_intersect(StagedChanges::PAY, array_keys($row)) !== []) {
                 Gate::authorize('employee.updateFinancial');
                 break;
             }
@@ -177,9 +181,10 @@ class MigrationController extends Controller
             $request->string('source_type', 'csv')->value(),
             $request->importSource() === null ? $request->input('source_ref') : $request->sourceName(),
             $request->user(),
+            $request->mode(),
         );
 
-        AuditLog::record('migration.staged', $batch, ['source' => $batch->source_type, 'rows' => count($rows)]);
+        AuditLog::record('migration.staged', $batch, ['source' => $batch->source_type, 'rows' => count($rows), 'mode' => $batch->mode()]);
 
         if (! $progress->done) {
             return response()->json($this->stagingPayload($batch, $progress), 201);
@@ -247,6 +252,9 @@ class MigrationController extends Controller
         abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
         abort_unless($batch->isReviewing(), 409, __('onboarding.migration.already_committing'));
 
+        // A list that completes people adds nobody.
+        abort_if($batch->isCompleting() && $request->validated('action') === MigrationStagingRow::ACTION_CREATE, 422, __('onboarding.migration.complete_adds_nobody'));
+
         // Accepting a difference is deciding to edit that employee, so it
         // takes what editing them takes: employee.update with reach over the
         // person, and the pay permission for salary or TIN. Without them the
@@ -255,6 +263,9 @@ class MigrationController extends Controller
         $target = $employee ?? $row->resolvedEmployee;
         if (is_array($accept) && $accept !== []) {
             abort_if($target === null, 422, __('onboarding.migration.accept_needs_match'));
+            // Decided by the field and the list's mode, not by what is stored on
+            // the row, which the same request may be about to redraw.
+            abort_if(array_diff($accept, StagedChanges::acceptable($batch->isCompleting())) !== [], 422, __('onboarding.migration.accept_locked'));
             Gate::authorize('update', $target);
             if (array_intersect($accept, StagedChanges::PAY) !== []) {
                 Gate::authorize('updateFinancial', $target);
@@ -343,6 +354,35 @@ class MigrationController extends Controller
     }
 
     /**
+     * What the attendance terminals hold for the people a committed batch
+     * brought in: per device of their branches, how many were sent, are
+     * waiting, were refused or were not sent for their number, and for a
+     * terminal ETHR cannot write to, who to enrol by hand.
+     *
+     * Device information needs `device.viewAny`; without it the answer is the
+     * empty one with `visible` false. Someone the viewer may not open is
+     * neither named nor counted. `held` lists, for a viewer who may assign a
+     * badge (`attendance.manage`), the held badges that are now exactly one of
+     * those people; it is empty for anyone else.
+     *
+     * @response array{visible: bool, devices: list<array{device_public_id: string, device_name: string, adapter_type: string, writable: bool, receives_only: bool, queued: int, done: int, failed: int, not_sent: int, last_error: string|null, enrol_by_hand: list<array{employee_public_id: string, name: string, device_user_id: string}>}>, without_number: int, without_branch: int, can_assign: bool, held: list<array{device_public_id: string, device_name: string, badge: string, punches: int, employee_public_id: string, employee_name: string}>, held_more: int}
+     */
+    public function terminals(MigrationBatch $batch): JsonResponse
+    {
+        Gate::authorize('employee.viewAny');
+
+        if (! Gate::allows('device.viewAny')) {
+            return response()->json($this->terminals->hidden());
+        }
+
+        $people = $this->migration->employees($batch)
+            ->filter(fn (Employee $employee): bool => Gate::allows('view', $employee))
+            ->values();
+
+        return response()->json($this->terminals->read($people, $batch->tenant_id, Gate::allows('attendance.manage')));
+    }
+
+    /**
      * @return array{without_login: list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool}>, hire_dates_defaulted: int}
      */
     private function loginsPayload(MigrationBatch $batch, bool $finished = true): array
@@ -367,6 +407,7 @@ class MigrationController extends Controller
             'source_type' => $batch->source_type,
             'source_ref' => $batch->source_ref,
             'status' => $batch->status,
+            'mode' => $batch->mode(),
             'arrival_status' => $batch->arrivalStatus(),
             'totals' => $batch->totals,
             'summary' => $this->summarize($batch),
@@ -381,6 +422,7 @@ class MigrationController extends Controller
     {
         $processedAt = $row->getAttribute('processed_at');
         $employee = $row->resolvedEmployee;
+        $mayView = $employee !== null && Gate::allows('view', $employee);
 
         return [
             'public_id' => $row->public_id,
@@ -390,12 +432,39 @@ class MigrationController extends Controller
             'match_confidence' => $row->match_confidence,
             'candidates' => $row->candidates,
             'resolved_employee_public_id' => $employee?->public_id,
+            'resolved_employee_code' => $mayView ? $this->codeOf($employee) : null,
             'action' => $row->action,
-            'changes' => $this->changesPayload($row, $employee),
+            'changes' => $this->changesPayload($row, $employee, $mayView),
+            'warnings' => $this->warningsPayload($row),
             'can_apply_changes' => $this->mayEdit($employee),
             'scheduled_action' => $this->isScheduled($employee, $scheduled),
             'processed_at' => $processedAt instanceof \DateTimeInterface ? $processedAt->format('c') : null,
         ];
+    }
+
+    /**
+     * What staging noted about the row: a number that did not fit, each as a
+     * code and a message. Read from the row's own details.
+     *
+     * @return list<array{code: string, message: string}>
+     */
+    private function warningsPayload(MigrationStagingRow $row): array
+    {
+        $raw = $row->getAttribute('raw');
+        $warnings = is_array($raw) && is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [];
+
+        return array_values(array_map(
+            fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
+            array_filter($warnings, 'is_array'),
+        ));
+    }
+
+    /** The matched employee's number, to be shown only to a viewer who may open that person's record. */
+    private function codeOf(?Employee $employee): ?string
+    {
+        $code = $employee?->getAttribute('employee_code');
+
+        return is_string($code) && $code !== '' ? $code : null;
     }
 
     /** The viewer may edit the employee this row matched. */
@@ -422,13 +491,15 @@ class MigrationController extends Controller
      *
      * @return list<array{field: string, kind: string, current: string|null, incoming: string|null, masked: bool, accepted: bool, taken: bool}>
      */
-    private function changesPayload(MigrationStagingRow $row, ?Employee $employee): array
+    private function changesPayload(MigrationStagingRow $row, ?Employee $employee, bool $mayView): array
     {
         if ($employee === null) {
             return [];
         }
 
-        $mayView = Gate::allows('view', $employee);
+        // A move the reviewer may not make is not promised: the commit would
+        // drop it, so it is shown as left alone.
+        $mayMove = Gate::allows('transition', $employee);
         $payload = [];
 
         foreach ($row->changes ?? [] as $change) {
@@ -439,7 +510,7 @@ class MigrationController extends Controller
 
             $payload[] = [
                 'field' => $field,
-                'kind' => (string) ($change['kind'] ?? ''),
+                'kind' => $field === StagedChanges::STATUS && ! $mayMove ? StagedChanges::LOCKED : (string) ($change['kind'] ?? ''),
                 'current' => $masked || ! $mayView || ! is_string($current) ? null : $current,
                 'incoming' => $masked || ! is_string($incoming) ? null : $incoming,
                 'masked' => $masked,

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "./msw/server";
 import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
@@ -384,5 +385,156 @@ describe("<UnmatchedBadgesCard> row states", () => {
       { badge_number: "7777" },
       { badge_number: "8888" },
     ]);
+  });
+});
+
+// One request replays for a few seconds and says how many are left; the card
+// asks again with the same inputs until none are (2026-11-16).
+describe("<UnmatchedBadgesCard> carrying on", () => {
+  const MANY = { ...ROW, punches: 3 };
+
+  function answers(
+    list: Array<
+      { replayed: number; refused: number; remaining: number } | number
+    >,
+    posts: unknown[],
+    gates: Array<Promise<void> | undefined> = [],
+  ) {
+    let call = 0;
+    return http.post(
+      "*/api/v1/devices/unmatched-punches/assign",
+      async ({ request }) => {
+        posts.push(await request.json());
+        const n = call++;
+        await gates[n];
+        const answer = list[n];
+        return typeof answer === "number"
+          ? HttpResponse.json(
+              {
+                detail:
+                  "These punches are already being brought in. Try again in a moment.",
+              },
+              { status: answer },
+            )
+          : HttpResponse.json(answer);
+      },
+    );
+  }
+
+  async function assignFirst() {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+    return user;
+  }
+
+  beforeEach(() => {
+    granted.list = ["attendance.manage"];
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+  });
+
+  it("asks again with the same inputs until nothing is left, and says the summed total once", async () => {
+    const posts: unknown[] = [];
+    renderCard([MANY], () => {});
+    server.use(
+      answers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          { replayed: 1, refused: 0, remaining: 1 },
+          { replayed: 1, refused: 0, remaining: 0 },
+        ],
+        posts,
+      ),
+    );
+
+    await assignFirst();
+
+    await vi.waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "3 held punches were recorded.",
+      ),
+    );
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    const body = {
+      device_public_id: ROW.device_public_id,
+      badge: "7777",
+      employee_public_id: "01HZEMP0000000000000000001",
+    };
+    expect(posts).toEqual([body, body, body]);
+  });
+
+  it("shows how far it has got, stops when asked and carries on from there", async () => {
+    const posts: unknown[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    renderCard([MANY], () => {});
+    server.use(
+      answers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          { replayed: 1, refused: 0, remaining: 1 },
+          { replayed: 1, refused: 0, remaining: 0 },
+        ],
+        posts,
+        [undefined, gate],
+      ),
+    );
+
+    const user = await assignFirst();
+    expect(
+      await screen.findByText("1 brought in, 2 still to go"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    release();
+
+    expect(
+      await screen.findByText("Stopped. 2 brought in, 1 still to go"),
+    ).toBeInTheDocument();
+    expect(posts).toHaveLength(2);
+    expect(toast.success).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Carry on" }));
+    await vi.waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "3 held punches were recorded.",
+      ),
+    );
+    expect(posts).toHaveLength(3);
+  });
+
+  it("stops on a failure, says why, and carries on with the same inputs", async () => {
+    const posts: unknown[] = [];
+    renderCard([MANY], () => {});
+    server.use(
+      answers(
+        [
+          { replayed: 1, refused: 0, remaining: 2 },
+          409,
+          { replayed: 2, refused: 0, remaining: 0 },
+        ],
+        posts,
+      ),
+    );
+
+    const user = await assignFirst();
+    expect(
+      await screen.findByText(
+        "These punches are already being brought in. Try again in a moment. 1 brought in, 2 still to go",
+      ),
+    ).toBeInTheDocument();
+    expect(posts).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Carry on" }));
+
+    await vi.waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "3 held punches were recorded.",
+      ),
+    );
+    expect(posts).toHaveLength(3);
+    expect(posts[2]).toEqual(posts[1]);
   });
 });

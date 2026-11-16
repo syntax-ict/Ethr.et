@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Migration;
 
+use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Exceptions\DeviceRosterUnavailable;
 use App\Models\Device;
@@ -12,8 +13,12 @@ use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
+use App\Services\EmployeeContractService;
 use App\Services\EmployeeNumbering;
+use App\Services\EmployeeRelatedRecords;
+use App\Services\EmployeeTransitionService;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
@@ -63,12 +68,15 @@ final class WorkforceMigrationService
     /** Rows written per insert statement when a list is stored. */
     private const INSERT_CHUNK = 250;
 
+    /** employees.employee_code is a 30 character column. */
+    private const EMPLOYEE_CODE_MAX = 30;
+
     private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
 
     /** A new person's own details, staged under the employee column they fill. */
     private const DETAILS = ['name_am', 'national_id', 'tin', 'gender', 'date_of_birth', 'marital_status', 'nationality'];
 
-    /** @var array<string, RelationMatch> branches and positions, read once per organisation */
+    /** @var array<string, RelationMatch> branches, positions, grades and cost centres, read once per organisation */
     private array $relations = [];
 
     public function __construct(
@@ -79,6 +87,9 @@ final class WorkforceMigrationService
         private readonly EmployeeIntake $intake,
         private readonly StagedChanges $changes,
         private readonly EmployeeUpdater $updater,
+        private readonly EmployeeRelatedRecords $related,
+        private readonly EmployeeContractService $contracts,
+        private readonly EmployeeTransitionService $transitions,
         private readonly float $sliceSeconds = self::SLICE_SECONDS,
         private readonly int $chunk = self::CHUNK,
     ) {}
@@ -111,7 +122,8 @@ final class WorkforceMigrationService
                 'card_number' => $card,
                 'department' => $enrollment['department'] ?? null,
                 'employee_code' => $userId,
-                'badge_number' => $card ?? $userId,
+                // The terminal's own number: a punch carries it, never the card.
+                'badge_number' => $userId,
                 'source_type' => $device->adapter_type,
                 'source_ref' => 'device:'.$device->id,
                 'identifier_type' => 'device_user_id',
@@ -121,10 +133,37 @@ final class WorkforceMigrationService
                 'code_is_guess' => true,
             ];
 
-            $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId, $departments);
+            $this->stageRow($batch, $this->flagUnfitDeviceId($raw, $userId), $enrollment['name'] ?? null, $userId, $departments);
         }
 
         return $batch->refresh();
+    }
+
+    /**
+     * A terminal's number that cannot be an employee number or a badge number
+     * (the columns are 30 and 50 wide, and the badge rule allows 32 letters,
+     * digits and hyphens) is left out of those two and flagged on the row, so
+     * it is seen at review and not as a failure at commit. It stays the
+     * terminal's own number: the identity is linked all the same.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function flagUnfitDeviceId(array $raw, string $userId): array
+    {
+        $warnings = [];
+
+        if (mb_strlen($userId) > self::EMPLOYEE_CODE_MAX) {
+            unset($raw['employee_code']);
+            $warnings[] = ['code' => 'device_id_too_long', 'message' => __('onboarding.migration.device_id_too_long', ['value' => $userId, 'max' => self::EMPLOYEE_CODE_MAX])];
+        }
+
+        if (! DeviceIdRules::fitsBadge($userId)) {
+            unset($raw['badge_number']);
+            $warnings[] = ['code' => 'device_id_not_badge', 'message' => __('onboarding.migration.device_id_not_badge', ['value' => $userId])];
+        }
+
+        return $warnings === [] ? $raw : [...$raw, 'warnings' => $warnings];
     }
 
     /**
@@ -137,9 +176,9 @@ final class WorkforceMigrationService
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
-    public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): MigrationBatch
+    public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null, ?string $mode = null): MigrationBatch
     {
-        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator);
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator, $mode);
 
         // No time limit: for a caller that is not a request.
         $this->resolveChunks($batch, null);
@@ -158,9 +197,9 @@ final class WorkforceMigrationService
      * @param  array<int, array<string, mixed>>  $rows
      * @return array{0: MigrationBatch, 1: StageProgress}
      */
-    public function beginStaging(array $rows, int $tenantId, float $startedAt, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): array
+    public function beginStaging(array $rows, int $tenantId, float $startedAt, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null, ?string $mode = null): array
     {
-        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator);
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator, $mode);
         $progress = $this->resolveChunks($batch, $startedAt);
 
         return [$batch->refresh(), $progress];
@@ -193,9 +232,9 @@ final class WorkforceMigrationService
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
-    private function storeRows(array $rows, int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
+    private function storeRows(array $rows, int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, ?string $mode = null): MigrationBatch
     {
-        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator, MigrationBatch::STAGING);
+        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator, MigrationBatch::STAGING, $mode === MigrationBatch::MODE_COMPLETE ? ['mode' => $mode] : null);
         $stamp = now()->toDateTimeString();
 
         foreach (array_chunk(array_values($rows), self::INSERT_CHUNK) as $chunk) {
@@ -240,6 +279,7 @@ final class WorkforceMigrationService
     private function resolveChunks(MigrationBatch $batch, ?float $startedAt): StageProgress
     {
         $departments = DepartmentMatch::forTenant($batch->tenant_id);
+        $completing = $batch->isCompleting();
 
         do {
             $rows = $batch->rows()->whereNull('match_outcome')->orderBy('id')->limit($this->chunk)->get();
@@ -248,7 +288,7 @@ final class WorkforceMigrationService
                 // Written only while the row is still unmatched: a request
                 // that was slow behind another must not overwrite a decision
                 // made on a row the other had already finished.
-                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments));
+                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments, $completing));
                 MigrationStagingRow::query()
                     ->whereKey($row->getKey())
                     ->whereNull('match_outcome')
@@ -297,6 +337,8 @@ final class WorkforceMigrationService
                 $resolvedEmployee,
                 $this->rawOf($row),
                 DepartmentMatch::forTenant($row->tenant_id),
+                [],
+                $row->batch()->first()?->isCompleting() === true,
             );
         }
 
@@ -361,11 +403,15 @@ final class WorkforceMigrationService
         }
 
         if ($options !== null) {
+            // What the list was staged with (its mode) is kept beside what the
+            // reviewer chose now.
+            $stored = $batch->getAttribute('options');
+
             MigrationBatch::query()
                 ->whereKey($batch->getKey())
                 ->where('tenant_id', $batch->tenant_id)
                 ->where('status', 'reviewing')
-                ->update(['options' => json_encode($options)]);
+                ->update(['options' => json_encode([...(is_array($stored) ? $stored : []), ...$options])]);
             $batch->refresh();
         }
 
@@ -398,13 +444,14 @@ final class WorkforceMigrationService
             }
 
             $cursor = (int) ($locked->commit_cursor ?? 0);
+            $completing = $locked->isCompleting();
 
             // The plan's limit, on everyone this list still has to add, before
             // any of them is written: as the file import applies it.
             $this->planLimits->assertCanAdd(
                 $tenant,
                 'employees',
-                $batch->rows()->where('id', '>', $cursor)->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
+                $completing ? 0 : $batch->rows()->where('id', '>', $cursor)->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
             );
 
             $rows = $batch->rows()->where('id', '>', $cursor)->orderBy('id')->limit($this->chunk)->get();
@@ -413,7 +460,7 @@ final class WorkforceMigrationService
             // Numbers for the people who bring none, read once for the chunk
             // as the file import does. Each used to read every employee code
             // to find the next one.
-            $unnumbered = $rows->filter(
+            $unnumbered = $completing ? 0 : $rows->filter(
                 fn (MigrationStagingRow $row): bool => $row->action === MigrationStagingRow::ACTION_CREATE
                     && trim((string) ($this->rawOf($row)['employee_code'] ?? '')) === ''
             )->count();
@@ -425,6 +472,12 @@ final class WorkforceMigrationService
 
                 switch ($row->action) {
                     case MigrationStagingRow::ACTION_CREATE:
+                        // A list that completes people adds nobody, whatever a row says.
+                        if ($completing) {
+                            $totals['skipped']++;
+                            break;
+                        }
+
                         $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
                         $employee = $admitted->record();
 
@@ -432,6 +485,7 @@ final class WorkforceMigrationService
                             // A reviewer chose this row's action, so the number
                             // goes where they said, even from a confirmed holder.
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                            $this->writeProfile($employee, $raw, $actor);
                             $totals['created']++;
                         } else {
                             // The person is here now and was not when the
@@ -451,7 +505,7 @@ final class WorkforceMigrationService
                         $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
                         if ($employee !== null) {
                             $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
-                            if ($this->applyChanges($row, $employee, $raw, $departments, $actor)) {
+                            if ($this->applyChanges($row, $employee, $raw, $departments, $actor, $completing)) {
                                 $totals['updated']++;
                             }
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
@@ -521,7 +575,7 @@ final class WorkforceMigrationService
      *
      * @param  array<string, mixed>  $raw
      */
-    private function applyChanges(MigrationStagingRow $row, Employee $employee, array $raw, DepartmentMatch $departments, ?User $actor): bool
+    private function applyChanges(MigrationStagingRow $row, Employee $employee, array $raw, DepartmentMatch $departments, ?User $actor, bool $completing = false): bool
     {
         if ($actor === null || $employee->trashed()) {
             return false;
@@ -532,21 +586,81 @@ final class WorkforceMigrationService
             return false;
         }
 
-        $changes = $this->changes->between($employee, $raw, $departments, $row->changes ?? []);
+        $changes = $this->changes->between($employee, $raw, $departments, $row->changes ?? [], $completing);
         $fields = $this->changes->applicable($changes);
 
         if (array_intersect($fields, StagedChanges::PAY) !== [] && ! $gate->inspect('updateFinancial', $employee)->allowed()) {
             $fields = array_values(array_diff($fields, StagedChanges::PAY));
         }
 
-        $attributes = $this->changes->attributes($employee, $changes, $fields, $departments);
-        if ($attributes === []) {
-            return false;
+        // Moving someone through the statuses is its own permission, which
+        // editing them does not imply.
+        if (in_array(StagedChanges::STATUS, $fields, true) && ! $gate->allows('transition', $employee)) {
+            $fields = array_values(array_diff($fields, [StagedChanges::STATUS]));
         }
 
-        $this->updater->update($employee, $attributes, $actor);
+        $wrote = false;
 
-        return true;
+        $attributes = $this->changes->attributes($employee, $changes, $fields, $departments);
+        if ($attributes !== []) {
+            $this->updater->update($employee, $attributes, $actor);
+            $wrote = true;
+        }
+
+        if (array_intersect(StagedChanges::RECORDS, $fields) !== []) {
+            $this->writeRecords($employee, $raw, $fields, $actor);
+            $wrote = true;
+        }
+
+        // A person still hired is moved by the service every other status
+        // change goes through, so the move has its record and its audit entry.
+        if (in_array(StagedChanges::STATUS, $fields, true)) {
+            $to = EmployeeStatus::tryFrom(mb_strtolower(trim(is_scalar($raw['status'] ?? null) ? (string) $raw['status'] : '')));
+            if ($to !== null && $employee->status === EmployeeStatus::HIRED && $employee->status->canTransitionTo($to)) {
+                $this->transitions->transition($employee, $to, EmployeeTransitionService::today(), null, $actor->id);
+                $wrote = true;
+            }
+        }
+
+        return $wrote;
+    }
+
+    /**
+     * The records a list adds for a person who has none: the bank account
+     * (primary), the emergency contact and the contract. Written in the
+     * chunk's transaction, through the services their own screens use.
+     *
+     * @param  array<string, mixed>  $raw
+     * @param  list<string>  $fields  the changes being applied
+     */
+    private function writeRecords(Employee $employee, array $raw, array $fields, User $actor): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        if (in_array('contract', $fields, true)) {
+            $this->contracts->create($employee, [
+                'contract_type' => $text('contract_type'),
+                'start_date' => $employee->hire_date->toDateString(),
+                'end_date' => $text('contract_end_date'),
+            ], $actor->id);
+        }
+
+        if (in_array('bank', $fields, true)) {
+            $this->related->addBankDetail($employee, [
+                'bank_name' => (string) $text('bank_name'),
+                'branch_name' => $text('bank_branch'),
+                'account_number' => (string) $text('bank_account'),
+                'is_primary' => true,
+            ]);
+        }
+
+        if (in_array('emergency_contact', $fields, true)) {
+            $this->related->addEmergencyContact($employee, [
+                'name' => (string) $text('emergency_name'),
+                'relationship' => (string) $text('emergency_relationship'),
+                'phone' => (string) $text('emergency_phone'),
+            ]);
+        }
     }
 
     /**
@@ -601,7 +715,8 @@ final class WorkforceMigrationService
         return is_array($raw) ? $raw : [];
     }
 
-    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, string $status = 'reviewing'): MigrationBatch
+    /** @param  array<string, string>|null  $options */
+    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, string $status = 'reviewing', ?array $options = null): MigrationBatch
     {
         return MigrationBatch::create([
             'tenant_id' => $tenantId,
@@ -609,6 +724,7 @@ final class WorkforceMigrationService
             'source_type' => $sourceType,
             'source_ref' => $sourceRef,
             'status' => $status,
+            'options' => $options,
         ]);
     }
 
@@ -635,7 +751,7 @@ final class WorkforceMigrationService
      * @param  array<string, mixed>  $raw
      * @return array<string, mixed>
      */
-    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments): array
+    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments, bool $completing = false): array
     {
         $match = $this->resolver->resolve($tenantId, $this->signalsFromRaw($raw));
         $employee = $match->employee;
@@ -645,9 +761,13 @@ final class WorkforceMigrationService
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $employee?->id,
-            'action' => $this->suggestedAction($match, $displayName),
+            // Nobody is added by a list that completes people: a row that
+            // matches no one is left out, and the reviewer is told so.
+            'action' => $completing && $match->outcome === IdentityMatch::NEW
+                ? MigrationStagingRow::ACTION_SKIP
+                : $this->suggestedAction($match, $displayName),
             'changes' => $employee !== null && ! $employee->trashed()
-                ? $this->changes->between($employee, $raw, $departments)
+                ? $this->changes->between($employee, $raw, $departments, [], $completing)
                 : null,
         ];
     }
@@ -778,6 +898,15 @@ final class WorkforceMigrationService
         if ($text('position') !== null) {
             $details['position_id'] = $this->relation('position', $batch->tenant_id)->id($text('position'));
         }
+        if ($text('grade') !== null) {
+            $details['grade_id'] = $this->relation('grade', $batch->tenant_id)->id($text('grade'));
+        }
+        if ($text('cost_center') !== null) {
+            $details['cost_center_id'] = $this->relation('cost_center', $batch->tenant_id)->id($text('cost_center'));
+        }
+        if ($text('probation_end_date') !== null) {
+            $details['probation_end_date'] = $text('probation_end_date');
+        }
         if (isset($raw['salary_cents']) && (int) $raw['salary_cents'] > 0) {
             $details['salary_cents'] = (int) $raw['salary_cents'];
         }
@@ -802,10 +931,61 @@ final class WorkforceMigrationService
         ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
     }
 
+    /**
+     * The rest of a new person's profile, written in the transaction of the
+     * chunk that made them: a contract, a bank account, an emergency contact.
+     * Each is written through the service its own screen uses, so what the
+     * list brings is what the profile would hold had it been typed.
+     *
+     * The list was read against every rule of these records before it was
+     * staged. One that still fails here throws, and the chunk is rolled back
+     * with the person: nobody is left without the records their row brought,
+     * and nothing the row says is dropped.
+     *
+     * The contract starts on the hire date and states no salary: a contract
+     * that carries one overwrites the employee's (EmployeeContractService),
+     * and the salary column stays the one source of pay.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function writeProfile(Employee $employee, array $raw, ?User $actor): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        $type = $text('contract_type');
+        if ($type !== null) {
+            $this->contracts->create($employee, [
+                'contract_type' => $type,
+                'start_date' => $employee->hire_date->toDateString(),
+                'end_date' => $text('contract_end_date'),
+            ], $actor?->id);
+        }
+
+        if ($text('bank_name') !== null && $text('bank_account') !== null) {
+            $this->related->addBankDetail($employee, [
+                'bank_name' => $text('bank_name'),
+                'branch_name' => $text('bank_branch'),
+                'account_number' => $text('bank_account'),
+                'is_primary' => true,
+            ]);
+        }
+
+        if ($text('emergency_name') !== null && $text('emergency_relationship') !== null && $text('emergency_phone') !== null) {
+            $this->related->addEmergencyContact($employee, [
+                'name' => $text('emergency_name'),
+                'relationship' => $text('emergency_relationship'),
+                'phone' => $text('emergency_phone'),
+            ]);
+        }
+    }
+
     private function relation(string $kind, int $tenantId): RelationMatch
     {
-        return $this->relations["{$kind}:{$tenantId}"] ??= $kind === 'branch'
-            ? RelationMatch::branches($tenantId)
-            : RelationMatch::positions($tenantId);
+        return $this->relations["{$kind}:{$tenantId}"] ??= match ($kind) {
+            'branch' => RelationMatch::branches($tenantId),
+            'grade' => RelationMatch::grades($tenantId),
+            'cost_center' => RelationMatch::costCenters($tenantId),
+            default => RelationMatch::positions($tenantId),
+        };
     }
 }

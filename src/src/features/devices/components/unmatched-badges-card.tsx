@@ -8,11 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmployeeSelect } from "@/components/shared/employee-select";
 import {
-  useAssignUnmatchedBadge,
   useDismissUnmatchedBadge,
   useUnmatchedBadges,
   type UnmatchedBadge,
 } from "@/features/devices/api";
+import { useBringInPunches } from "@/features/devices/bring-in";
+import { BringInProgress } from "@/features/devices/components/bring-in-progress";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
 import { matchReasonLabel } from "@/features/employees/likeness";
@@ -181,8 +182,12 @@ function UnmatchedRow({
   const timeZone = useTenantTimezone();
   const [employee, setEmployee] = useState("");
   const [confirmDismiss, setConfirmDismiss] = useState(false);
-  const assign = useAssignUnmatchedBadge();
+  const bringIn = useBringInPunches();
   const dismiss = useDismissUnmatchedBadge();
+  const assigning = bringIn.state.phase === "running";
+  const carrying =
+    bringIn.state.phase === "stopped" || bringIn.state.phase === "failed";
+  const toldDone = useRef(false);
   const target = { device_public_id: row.device_public_id, badge: row.badge };
 
   const match = row.match ?? null;
@@ -201,22 +206,26 @@ function UnmatchedRow({
   const canBeBadgeNumber = BADGE_NUMBER.test(row.badge);
 
   function onAssign(employeePublicId: string) {
-    assign.mutate(
-      { ...target, employee_public_id: employeePublicId },
+    toldDone.current = false;
+    bringIn.start([
       {
-        onSuccess: (result) =>
-          toast.success(
-            t("devices_page.unmatched.assigned", undefined, {
-              count: result.replayed,
-            }),
-          ),
-        onError: (err: unknown) =>
-          toast.error(
-            apiErrorDetail(err) || t("devices_page.unmatched.assign_failed"),
-          ),
+        ...target,
+        employee_public_id: employeePublicId,
+        punches: row.punches,
       },
-    );
+    ]);
   }
+
+  // Said once, with the totals over every call, when the last one is in.
+  useEffect(() => {
+    if (bringIn.state.phase !== "done" || toldDone.current) return;
+    toldDone.current = true;
+    toast.success(
+      t("devices_page.unmatched.assigned", undefined, {
+        count: bringIn.state.replayed,
+      }),
+    );
+  }, [bringIn.state.phase, bringIn.state.replayed, t]);
 
   const newEmployeeHref = `/employees/new?${new URLSearchParams({
     badge: row.badge,
@@ -276,6 +285,11 @@ function UnmatchedRow({
             )}
           </p>
         )}
+        <BringInProgress
+          state={bringIn.state}
+          onStop={bringIn.stop}
+          onCarryOn={bringIn.carryOn}
+        />
       </div>
       {canManage && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -283,11 +297,9 @@ function UnmatchedRow({
             <Button
               size="sm"
               onClick={() => onAssign(holder.employee_public_id)}
-              disabled={assign.isPending}
+              disabled={assigning || carrying}
             >
-              {assign.isPending && (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              )}
+              {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               {t(
                 "devices_page.unmatched.assign_replay",
                 "Assign and replay :count punches",
@@ -317,11 +329,9 @@ function UnmatchedRow({
               <Button
                 size="sm"
                 onClick={() => onAssign(employee)}
-                disabled={employee === "" || assign.isPending}
+                disabled={employee === "" || assigning || carrying}
               >
-                {assign.isPending && (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                )}
+                {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 {t("devices_page.unmatched.assign")}
               </Button>
             </>

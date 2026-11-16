@@ -8,8 +8,10 @@ use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Migration\StagedChanges;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -50,10 +52,27 @@ final class EmployeeImportRow
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary', 'salary_cents',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
+    ];
+
+    /**
+     * The columns that complete a new person's profile: a grade, a cost
+     * centre, a probation end, a contract, a bank account, an emergency
+     * contact. A staged list writes them for a person it creates. The file
+     * import on `/employees/import` stores none of them, and its preview says so.
+     *
+     * @var list<string>
+     */
+    public const PROFILE = [
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
 
     /** The columns that hold a date, each of which may name its calendar: "Hire date (E.C.)". */
-    public const DATES = ['hire_date', 'date_of_birth'];
+    public const DATES = ['hire_date', 'date_of_birth', 'probation_end_date', 'contract_end_date'];
 
     /** A list with no column names is read in this order. Only the name is required. */
     public const DEFAULT_ORDER = ['name', 'email', 'phone', 'employee_code', 'hire_date', 'department_code'];
@@ -64,7 +83,10 @@ final class EmployeeImportRow
      * digits. The workbook template formats these as text, and a value that
      * arrives already rounded is refused, not stored (ROUNDED).
      */
-    public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id'];
+    public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id', 'bank_account', 'emergency_phone'];
+
+    /** Headers a file ETHR wrote carries and nothing reads: the `Problem` column of the lines to fix. */
+    private const IGNORED_HEADERS = ['problem'];
 
     /** A number a spreadsheet rounded and wrote in scientific notation: 1.23457E+15. */
     private const ROUNDED = '/^\d(\.\d+)?e\+?\d+$/i';
@@ -92,6 +114,9 @@ final class EmployeeImportRow
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
 
     /**
@@ -102,6 +127,15 @@ final class EmployeeImportRow
      * @var array<string, list<string>>
      */
     private const HINTS = [
+        'bank_account' => ['account', 'iban'],
+        'bank_name' => ['bank'],
+        'emergency_phone' => ['emergency_phone', 'emergency_mobile', 'emergency_tel'],
+        'emergency_relationship' => ['relationship', 'kin', 'relation'],
+        'emergency_name' => ['emergency', 'next_of_kin'],
+        'probation_end_date' => ['probation'],
+        'contract_end_date' => ['contract_end', 'contract_expiry'],
+        'contract_type' => ['contract'],
+        'grade' => ['grade', 'scale'],
         'external_id' => ['legacy', 'old_id', 'system_id', 'source_id', 'record_id', 'person_id'],
         'name_am' => ['amharic', 'አማርኛ'],
         'email' => ['mail'],
@@ -134,6 +168,24 @@ final class EmployeeImportRow
         'hire_date', 'department', 'branch', 'position', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
+    ];
+
+    /**
+     * How the template's columns are grouped, for a screen that lists them.
+     * Every TEMPLATE header is in exactly one group.
+     *
+     * @var array<string, list<string>>
+     */
+    public const GROUPS = [
+        'core' => ['name', 'employee_code', 'gender', 'hire_date', 'department', 'position', 'status'],
+        'person' => ['name_am', 'date_of_birth', 'marital_status', 'nationality', 'nationality_status', 'national_id'],
+        'contact' => ['email', 'phone', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
+        'job' => ['branch', 'badge_number', 'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date'],
+        'pay' => ['salary', 'tin', 'bank_name', 'bank_branch', 'bank_account'],
+        'source' => ['external_id'],
     ];
 
     /** Other spellings of a column, after key() has lower-cased it and joined its words with `_`. */
@@ -203,6 +255,23 @@ final class EmployeeImportRow
         'legacy_id' => 'external_id',
         'old_id' => 'external_id',
         'source_id' => 'external_id',
+        'job_grade' => 'grade',
+        'grade_name' => 'grade',
+        'cost_centre' => 'cost_center',
+        'costcenter' => 'cost_center',
+        'probation_end' => 'probation_end_date',
+        'probation_ends' => 'probation_end_date',
+        'contract' => 'contract_type',
+        'contract_expiry' => 'contract_end_date',
+        'contract_end' => 'contract_end_date',
+        'bank' => 'bank_name',
+        'bank_branch_name' => 'bank_branch',
+        'account_number' => 'bank_account',
+        'bank_account_number' => 'bank_account',
+        'emergency_contact' => 'emergency_name',
+        'emergency_contact_name' => 'emergency_name',
+        'emergency_contact_relationship' => 'emergency_relationship',
+        'emergency_contact_phone' => 'emergency_phone',
     ];
 
     /** What a column name, or a date itself, may end with to say which calendar it is in. */
@@ -225,6 +294,51 @@ final class EmployeeImportRow
         'on_probation' => 'probation',
         'new' => 'hired',
     ];
+
+    /**
+     * What each column of the template is, in the template's order: the list a
+     * screen shows, a workbook is built from, and a new column is added to.
+     *
+     * @return list<array{key: string, column: string, group: 'core'|'person'|'contact'|'job'|'pay'|'source', kind: 'date'|'list'|'id'|'number'|'text', required: bool, pay: bool, masked: bool}>
+     */
+    public static function columnMeta(): array
+    {
+        $groupOf = [];
+        foreach (self::GROUPS as $group => $headers) {
+            foreach ($headers as $header) {
+                $groupOf[$header] = $group;
+            }
+        }
+
+        $lists = array_keys(EmployeeImportChoices::forTenant(null));
+
+        $meta = [];
+        foreach (self::TEMPLATE as $key) {
+            $column = self::header($key);
+            // A salary is staged as cents; the other columns keep their name.
+            $staged = $column === 'salary' ? 'salary_cents' : $column;
+
+            $kind = match (true) {
+                in_array($column, self::DATES, true) => 'date',
+                in_array($key, $lists, true) => 'list',
+                in_array($column, self::TEXT_COLUMNS, true) => 'id',
+                $column === 'salary' => 'number',
+                default => 'text',
+            };
+
+            $meta[] = [
+                'key' => $key,
+                'column' => $column,
+                'group' => $groupOf[$key],
+                'kind' => $kind,
+                'required' => $key === 'name',
+                'pay' => in_array($staged, StagedChanges::PAY, true),
+                'masked' => in_array($staged, StagedChanges::MASKED, true),
+            ];
+        }
+
+        return $meta;
+    }
 
     /** A header cell as the key it names: "Employee Code" and "employee-code" are `employee_code`. */
     public static function header(string $cell): string
@@ -372,8 +486,13 @@ final class EmployeeImportRow
             'external_id' => ['nullable', 'string', 'max:100'],
         ];
 
+        // Only the columns this method states: the file import's rules are
+        // frozen, and a rule added for a column it does not read would
+        // validate it alone.
         foreach (self::TEXT_COLUMNS as $column) {
-            $rules[$column][] = 'not_regex:'.self::ROUNDED;
+            if (isset($rules[$column])) {
+                $rules[$column][] = 'not_regex:'.self::ROUNDED;
+            }
         }
 
         $prefixed = [];
@@ -397,6 +516,13 @@ final class EmployeeImportRow
         $rules = self::rules($prefix);
         $rules[$prefix.'name'] = [$nameRequired ? 'required' : 'nullable', 'string', 'max:255'];
         $rules[$prefix.'hire_date'] = ['nullable', 'date'];
+
+        foreach (EmployeeImportProfile::rules($prefix) as $field => $fieldRules) {
+            if (in_array(substr($field, strlen($prefix)), self::TEXT_COLUMNS, true)) {
+                $fieldRules[] = 'not_regex:'.self::ROUNDED;
+            }
+            $rules[$field] = $fieldRules;
+        }
 
         return $rules;
     }
@@ -480,6 +606,11 @@ final class EmployeeImportRow
         if (is_string($row['status'] ?? null)) {
             $status = self::key($row['status']);
             $row['status'] = self::STATUS_ALIASES[$status] ?? $status;
+        }
+
+        // "Fixed term" and "fixed-term" are `fixed_term`.
+        if (is_string($row['contract_type'] ?? null)) {
+            $row['contract_type'] = self::key($row['contract_type']);
         }
 
         foreach (self::DATES as $field) {
@@ -640,9 +771,61 @@ final class EmployeeImportRow
      */
     public static function messages(array $row, array $rules): array
     {
-        return array_values(Validator::make($row, $rules, [
+        return array_column(self::problems($row, $rules), 'message');
+    }
+
+    /**
+     * The same, each with the template column it is about and a code: the
+     * failed rule as the validator names it, lower-cased (`date`, `in`,
+     * `required_with`). The messages and their order are messages()'s.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, list<string>>  $rules
+     * @return list<array{column: string, code: string, message: string}>
+     */
+    public static function problems(array $row, array $rules): array
+    {
+        $validator = Validator::make($row, $rules, [
             'not_regex' => __('employee.import_excel_rounded'),
-        ])->errors()->all());
+        ]);
+
+        $messages = $validator->errors()->messages();
+        $failed = $validator->failed();
+        $found = [];
+
+        foreach ($messages as $attribute => $list) {
+            $names = array_keys($failed[$attribute] ?? []);
+            foreach (array_values($list) as $index => $message) {
+                $found[] = [
+                    'column' => self::templateColumn((string) $attribute),
+                    'code' => isset($names[$index]) ? Str::snake(class_basename((string) $names[$index])) : 'invalid',
+                    'message' => $message,
+                ];
+            }
+        }
+
+        return $found;
+    }
+
+    /** The column as the template spells it: `department_code` is `department`, `salary_cents` is `salary`. */
+    public static function templateColumn(string $key): string
+    {
+        return match ($key) {
+            'department_code' => 'department',
+            'branch_code' => 'branch',
+            'position_code' => 'position',
+            'salary_cents' => 'salary',
+            default => $key,
+        };
+    }
+
+    /**
+     * A column of a file ETHR itself wrote and the reader may have left in:
+     * what is in it changes nothing, and it is not reported as unread.
+     */
+    public static function isIgnoredHeader(string $cell): bool
+    {
+        return in_array(self::key($cell), self::IGNORED_HEADERS, true);
     }
 
     /**

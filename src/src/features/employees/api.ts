@@ -279,6 +279,20 @@ export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTempl
   return data;
 }
 
+/**
+ * The template's spec, for a screen that lists its columns. The columns do not
+ * change while a page is open, and a person's own departments only matter to
+ * the workbook, so it is read once and kept.
+ */
+export function useEmployeeImportTemplate() {
+  return useQuery<EmployeeImportTemplate>({
+    queryKey: ["employees", "import-template"],
+    queryFn: fetchEmployeeImportTemplate,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
 // ── Personnel actions (employment history) ─────────────────────────
 
 export type PersonnelActionType =

@@ -2936,6 +2936,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/commands/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send again the people whose newest add-or-update on this device failed,
+         *     all of them or only those a list brought in. The terminal's number
+         *     rules apply once more: a number it does not take is still not sent
+         */
+        post: operations["deviceCommand.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices": {
         parameters: {
             query?: never;
@@ -3266,6 +3287,7 @@ export interface paths {
          *     departments, branches and positions by name (by code where two share a
          *     name). `text_columns` must be formatted as text, or a spreadsheet drops
          *     a leading zero and rounds a long number. `date_columns` hold dates.
+         *     `columns` says what each column is, in the template's order.
          */
         post: operations["employeeImport.template"];
         delete?: never;
@@ -5117,7 +5139,8 @@ export interface paths {
          *     reads it) or `rows` (people already keyed by field). A grid with a line
          *     that cannot be staged is refused whole, each line named, unless
          *     `skip_problems` is set: then those lines are left out. A list that sets
-         *     a salary or a TIN needs the pay permission, as the add-employee form does.
+         *     a salary, a TIN or a bank account needs the pay permission, as the
+         *     add-employee form does.
          *
          *     `source` and `mapping` say how the list names its columns, as for
          *     `/migration/read`. With a `source`, an id from the other system is kept
@@ -5288,6 +5311,33 @@ export interface paths {
          *     the source had none
          */
         get: operations["migration.logins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/terminals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the attendance terminals hold for the people a committed batch
+         *     brought in: per device of their branches, how many were sent, are
+         *     waiting, were refused or were not sent for their number, and for a
+         *     terminal ETHR cannot write to, who to enrol by hand
+         * @description Device information needs `device.viewAny`; without it the answer is the
+         *     empty one with `visible` false. Someone the viewer may not open is
+         *     neither named nor counted. `held` lists, for a viewer who may assign a
+         *     badge (`attendance.manage`), the held badges that are now exactly one of
+         *     those people; it is empty for anyone else.
+         */
+        get: operations["migration.terminals"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11395,7 +11445,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /** RecallLeaveRequest */
@@ -11630,6 +11680,10 @@ export interface components {
          * @enum {string}
          */
         RetirementType: "mandatory" | "voluntary" | "early";
+        /** RetryDeviceCommandsRequest */
+        RetryDeviceCommandsRequest: {
+            batch_public_id?: string | null;
+        };
         /**
          * ReviewIntegrityFlagRequest
          * @description Accepting or rejecting an integrity flag. A rejection voids the punch and
@@ -11695,7 +11749,7 @@ export interface components {
             mapping: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /** SaveReportRequest */
@@ -11894,9 +11948,11 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
             skip_problems?: boolean;
+            /** @enum {string|null} */
+            mode?: "complete" | null;
             rows?: {
                 name?: string | null;
                 name_am?: string | null;
@@ -11926,6 +11982,19 @@ export interface components {
                 /** @enum {string|null} */
                 status?: "hired" | "probation" | "confirmed" | null;
                 external_id?: string | null;
+                grade?: string | null;
+                cost_center?: string | null;
+                /** Format: date-time */
+                probation_end_date?: string | null;
+                contract_type?: components["schemas"]["ContractType"] | null;
+                /** Format: date-time */
+                contract_end_date?: string | null;
+                bank_name?: string | null;
+                bank_branch?: string | null;
+                bank_account?: string | null;
+                emergency_name?: string | null;
+                emergency_relationship?: string | null;
+                emergency_phone?: string | null;
                 department?: string | null;
                 branch?: string | null;
                 position?: string | null;
@@ -13090,7 +13159,7 @@ export interface components {
             mapping?: {
                 header: string;
                 /** @enum {string|null} */
-                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | null;
+                column: "name" | "name_am" | "employee_code" | "email" | "phone" | "gender" | "date_of_birth" | "hire_date" | "department_code" | "branch_code" | "position_code" | "salary" | "national_id" | "tin" | "badge_number" | "nationality" | "nationality_status" | "marital_status" | "status" | "external_id" | "grade" | "cost_center" | "probation_end_date" | "contract_type" | "contract_end_date" | "bank_name" | "bank_branch" | "bank_account" | "emergency_name" | "emergency_relationship" | "emergency_phone" | null;
             }[];
         };
         /**
@@ -13508,7 +13577,7 @@ export interface components {
              *     raw validation rule does not itself see the tenant scope).
              */
             employee_public_id?: string | null;
-            accept?: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents")[];
+            accept?: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents" | "name_am" | "gender" | "date_of_birth" | "marital_status" | "nationality" | "nationality_status")[];
         };
         /**
          * UpdateSubdomainRequest
@@ -21764,6 +21833,54 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "deviceCommand.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RetryDeviceCommandsRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: number;
+                        skipped: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example ETHR cannot send people to this device.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "devices.index": {
         parameters: {
             query?: {
@@ -22481,6 +22598,17 @@ export interface operations {
                         required: string[];
                         text_columns: string[];
                         date_columns: string[];
+                        columns: {
+                            key: string;
+                            column: string;
+                            /** @enum {string} */
+                            group: "core" | "person" | "contact" | "job" | "pay" | "source";
+                            /** @enum {string} */
+                            kind: "date" | "list" | "id" | "number" | "text";
+                            required: boolean;
+                            pay: boolean;
+                            masked: boolean;
+                        }[];
                         lists: {
                             [key: string]: string[];
                         };
@@ -27599,6 +27727,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
@@ -27612,6 +27742,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -27622,6 +27753,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27662,6 +27794,14 @@ export interface operations {
                         without_hire_date: number;
                         problems: {
                             line: number;
+                            message: string;
+                            column: string | null;
+                            code: string;
+                        }[];
+                        warnings: {
+                            line: number;
+                            column: string;
+                            code: string;
                             message: string;
                         }[];
                         headers: {
@@ -27704,6 +27844,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
@@ -27717,6 +27859,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -27727,6 +27870,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27896,6 +28040,8 @@ export interface operations {
                         source_type: string;
                         source_ref: string | null;
                         status: string;
+                        /** @enum {string} */
+                        mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
                         summary: {
@@ -27909,6 +28055,7 @@ export interface operations {
                             match_confidence: number | null;
                             candidates: unknown[] | null;
                             resolved_employee_public_id: string | null;
+                            resolved_employee_code: string | null;
                             action: string;
                             changes: {
                                 field: string;
@@ -27919,6 +28066,7 @@ export interface operations {
                                 accepted: boolean;
                                 taken: boolean;
                             }[];
+                            warnings: unknown[];
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -27960,6 +28108,7 @@ export interface operations {
                         match_confidence: number | null;
                         candidates: unknown[] | null;
                         resolved_employee_public_id: string | null;
+                        resolved_employee_code: string | null;
                         action: string;
                         changes: {
                             field: string;
@@ -27970,6 +28119,7 @@ export interface operations {
                             accepted: boolean;
                             taken: boolean;
                         }[];
+                        warnings: unknown[];
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;
@@ -28131,6 +28281,62 @@ export interface operations {
                             invited: boolean;
                         }[];
                         hire_dates_defaulted: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.terminals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        visible: boolean;
+                        devices: {
+                            device_public_id: string;
+                            device_name: string;
+                            adapter_type: string;
+                            writable: boolean;
+                            receives_only: boolean;
+                            queued: number;
+                            done: number;
+                            failed: number;
+                            not_sent: number;
+                            last_error: string | null;
+                            enrol_by_hand: {
+                                employee_public_id: string;
+                                name: string;
+                                device_user_id: string;
+                            }[];
+                        }[];
+                        without_number: number;
+                        without_branch: number;
+                        can_assign: boolean;
+                        held: {
+                            device_public_id: string;
+                            device_name: string;
+                            badge: string;
+                            punches: number;
+                            employee_public_id: string;
+                            employee_name: string;
+                        }[];
+                        held_more: number;
                     };
                 };
             };
@@ -37499,6 +37705,7 @@ export interface operations {
                     "application/json": {
                         replayed: number;
                         refused: number;
+                        remaining: number;
                     };
                 };
             };
