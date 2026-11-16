@@ -320,10 +320,10 @@ EMP-027, IDN-001 to IDN-004; more in UAT-H14).
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees and Instructions, dropdowns for gender, status, department, branch and position, and no example row |
+| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees, Example and Instructions (a hidden Lists sheet holds the dropdown choices), dropdowns for gender, status, department, branch and position, and no example row on the Employees sheet itself: the example people are on the Example sheet |
 | 2 | Fill 5 rows (one with Amharic names, one phone starting with 0, one 16 digit national ID) and choose the file | "5 people ready", with the columns named. The leading zero and all 16 digits are kept. An old .xls file is refused with a message telling you to save as .xlsx or CSV |
 | 3 | **Stage for review** | A table with one row a person and its match: new, matched, or to review, and any problem per row (for example a department that does not exist). **Nobody is added yet** |
-| 4 | Choose what the new people arrive as (newly hired, on probation, or already work here, confirmed). Untick "Invite them to sign in as soon as they are added" unless the addresses are the team's. Commit with **Bring them in** | The summary says how many were created, matched and skipped. People arrive with the status you chose |
+| 4 | Choose what the new people arrive as (newly hired, on probation, or already work here, confirmed). "Invite them to sign in as soon as they are added" is ticked here, so untick it unless the addresses are the team's. Commit with **Bring them in** | The summary says how many were created, matched and skipped. People arrive with the status you chose |
 | 5 | Stage the same list again, and commit | Every row is matched to the person it made; nothing is duplicated |
 | 6 | Stage a line for someone already here, with their employee number, a phone they lack and a different department | "Changes to their record": the phone is offered as a fill, the department as a difference with the box "Use this list's value". Salary, national ID and TIN differences are flagged without showing either value |
 | 7 | Paste a list from another system whose first line is column names ETHR does not know (for example Emp Nm, Pers Ref, Cell) | The page says so and offers **Match columns**; choose which column is which, name the system and save it. The next list from it is read without asking |
@@ -468,7 +468,7 @@ Needs employee code sign-in on.
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | Commit a staged list (UAT-H2) with "Invite them to sign in as soon as they are added" ticked | For the people with an email: "Logins created" and "Invitations queued", with a progress card; nothing more to press. Unticked, nothing is sent and **Send invitations** is offered |
+| 1 | Commit a staged list (UAT-H2, Employees → Import) with "Invite them to sign in as soon as they are added" ticked, as it starts there. In the guided setup it starts **unticked** since 2026-11-16, so tick it first to try this | For the people with an email: "Logins created" and "Invitations queued", with a progress card; nothing more to press. Unticked, nothing is sent and **Send invitations** is offered |
 | 2 | For the people with no email, on the card that follows, click **Print a code sheet** | A dialog asking how long the codes work (3 or 7 days), a tick for "I will check each person's identity document before I hand them their slip.", and your password |
 | 3 | Confirm | One slip a person: name, employee code, a QR and a code like XXXX-XXXX-XXXX, "Each code works once, until" a date. Closing the sheet drops the codes; they cannot be read back |
 | 4 | Instead, click **Give a starting password** for the same kind of people and type a password of your own | A warning that until a person first signs in, anyone who knows the password and their employee code could sign in as them. The password is shown once with the people it was given to, and stops working after 72 hours |

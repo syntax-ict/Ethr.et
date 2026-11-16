@@ -20,15 +20,17 @@ import {
 
 // Numbered, not iconised: the four steps are a sequence, and a number says
 // where you are in it. The sparkle and rocket icons said nothing a label
-// did not, and read as decoration (2026-10-14).
+// did not, and read as decoration (2026-10-14). Sign-in comes before People
+// since 2026-11-16, so the way people sign in is chosen before anyone is added
+// or invited.
 const STEPS = [
   {
     key: "config",
     titleKey: "setup2.step_organisation",
     title: "Organisation",
   },
-  { key: "migrate", titleKey: "setup2.step_people", title: "People" },
   { key: "access", titleKey: "setup2.step_signin", title: "Sign-in" },
+  { key: "migrate", titleKey: "setup2.step_people", title: "People" },
   { key: "launch", titleKey: "setup2.step_launch", title: "Go live" },
 ] as const;
 
@@ -146,8 +148,13 @@ export function GuidedOnboarding() {
       <Card>
         <CardContent className="p-6 sm:p-8">
           {step === 0 && <IndustryConfigStep onApplied={() => complete(0)} />}
-          {step === 1 && <MigrationStep onCommitted={() => complete(1)} />}
-          {step === 2 && <AccessStep onSaved={() => complete(2)} />}
+          {step === 1 && <AccessStep onSaved={() => complete(1)} />}
+          {step === 2 && (
+            <MigrationStep
+              inviteByDefault={false}
+              onCommitted={() => complete(2)}
+            />
+          )}
           {step === 3 && (
             <ReadinessStep onLive={() => router.push("/dashboard")} />
           )}

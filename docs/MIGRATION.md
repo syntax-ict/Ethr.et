@@ -620,10 +620,18 @@ have worked somewhere for years were being recorded as if they had started today
 - Anything outside `EmployeeImportRow::STATUSES` is refused: nobody is brought in as a
   leaver.
 
-**Whether they are invited straight away.** Ticked by default. When the list has been
-added, the people an invitation can reach and who have not been sent one are invited by
-one request to `POST /api/v1/employees/logins`, without a second button, once. The
-browser makes that request, not the commit: the commit's slices stay inside the host's
+**Whether they are invited straight away.** Ticked by default wherever a list is brought
+into a running organisation (Employees → Import, an attendance device's roster). **In the
+guided setup it starts unticked** (owner decision 2026-11-16,
+[`OWNER-DECISION-FIRST-SETUP-INVITATIONS.md`](decisions/OWNER-DECISION-FIRST-SETUP-INVITATIONS.md)):
+the organisation has not yet chosen how people sign in, and a first list is the least-checked
+data, so nothing is sent until HR ticks it or presses **Send invitations** later. When it is
+ticked and the list has been added, the people an invitation can reach and who have not been
+sent one are invited through `POST /api/v1/employees/logins`, without a second button, once, **in slices
+of 200 ids, one request after another** (the server accepts 1,000 a request, but creates every
+login inside it; a list of 2,000 people got a 422 when it was sent whole). If a slice fails, what
+the earlier slices did stays on the card and the button sends only the ids not yet sent. The
+browser makes the requests, not the commit: the commit's slices stay inside the host's
 thirty seconds, and nothing is sent inside any request (the invitations are queued and
 paced as before). If the tab is closed first, nothing was sent and the card below still
 offers the button. Unticked, the screen is as it was: HR looks at the names, then sends.

@@ -1448,6 +1448,62 @@
   animation: ethr-punch-ready 450ms var(--ease-out-quart) 1 forwards;
 }
 
+/* The punch that has just been made. Both end in the resting picture: the dot
+   at full size and opacity on the rail, the check fully drawn. The check draws
+   by stroke-dashoffset (its one allowed non-transform property) along a path
+   whose pathLength is 1. */
+@keyframes ethr-punch-land {
+  from {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ethr-punch-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ethr-punch-land {
+  animation: ethr-punch-land 500ms ease-out 1 both;
+}
+
+.ethr-punch-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: ethr-punch-check 450ms ease-out 150ms 1 both;
+}
+
+/* The selfie shutter: a flash over the camera frame, once per capture. It ends
+   invisible, which is also the picture under reduced motion. */
+@keyframes ethr-punch-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.ethr-punch-flash {
+  opacity: 0;
+  animation: ethr-punch-flash 200ms ease-out 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ethr-punch-check {
+    animation-delay: 0ms !important;
+  }
+}
+
 /* ============================================================================
    Landing page: the animated stories, the problems ledger's six and the
    hero's one (components/marketing/landing/problem-stories.tsx,

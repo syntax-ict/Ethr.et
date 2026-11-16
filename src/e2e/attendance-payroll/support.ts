@@ -38,6 +38,7 @@ export const SESSIONS: Array<{ organisation: Organisation; login: string }> = [
   { organisation: "e2e-att", login: "admin" },
   { organisation: "e2e-att", login: "emp1" },
   { organisation: "e2e-att", login: "emp3" },
+  { organisation: "e2e-att", login: "emp4" },
   { organisation: "e2e-pay", login: "admin" },
   { organisation: "e2e-pay", login: "finance" },
   { organisation: "e2e-other", login: "admin" },
