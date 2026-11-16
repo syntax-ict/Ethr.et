@@ -104,7 +104,14 @@ answered `403 Action Restricted`:
   `settings.pagumen_proration_strategy` or `settings.working_days_per_month`, the four keys
   `StatutorySettingsBridge::SETTINGS` writes through to the organisation's statutory
   parameters. The whole request is refused, so a permitted key sent beside one is not saved
-  either. The settings screens send these keys only when the person changed them.
+  either. The settings screens send these keys only when the person changed them;
+- **the setup wizard's apply**, which writes the same two things by another route:
+  `POST /onboarding/configuration/apply` (`Onboarding\ConfigurationController@apply`) with
+  `organization_type`, or with any of the four statutory keys under `plan.settings`
+  (`plan.settings.pension_scheme` and the rest). The wizard's screen always sends the kind, so
+  **an operator cannot apply the wizard while impersonating**. That is intended: the
+  organisation's own administrator applies it. The wizard's preview
+  (`POST /onboarding/configuration/preview`) records no choice and stays open.
 
 The kind and the statutory keys are refused whatever value the request gives, including the
 value already stored. The refusal is the same `403 Action Restricted` problem response as any
@@ -112,9 +119,17 @@ other (`type` `https://ethr.et/errors/impersonation-restricted`).
 
 **Not blocked, and worth knowing:** the rest of `PUT /settings/organization`, so an operator can
 still correct the organisation's name, industry, timezone or language for a customer who asks,
-and the rest of `PUT /settings` (the payroll run day, for one). `POST /payroll/statutory-rules/use-law`
-is also not blocked: it ends an organisation's own tax ladder and pension rates, saved before both became the law's alone, which
-resetting a statutory value by `DELETE` would be refused for. It is recorded as a follow-up, not decided.
+and the rest of `PUT /settings` (the payroll run day, for one).
+
+**Not blocked, and left to the owner:** `POST /payroll/statutory-rules/use-law`
+(`StatutoryRuleController@useLaw`). It ends the organisation's own tax ladder bands and pension
+rules, saved before both became the law's alone, so payroll applies the law's from today
+(`OwnStatutoryRates::end()`), and it audits `statutory_parameter.own_rates_ended`. So an
+operator can change how an organisation's pay is worked out with it, but only for an
+organisation that still has such rows. It cannot create them: `PUT /tax-brackets` and
+`POST /pension-rules` answer 422, and for every other organisation it ends nothing. The
+`DELETE` beside it is refused by its method; this one is a `POST`. Whether to refuse it too
+is the owner's decision.
 
 Everything else the impersonated tenant admin could do, the operator can do — including
 approving payroll and leave. The protection there is the audit tag, not a block. The middleware
@@ -171,6 +186,9 @@ lands on `/login`, clearing it) — harmless, but a banner can show over an expi
 - **Read it, do not save it.** The card shows the kind to an operator as it does to the
   administrator. A change of kind is the organisation's own decision, and its own administrator
   makes it: close the session and tell the administrator what and why.
+- The setup wizard's apply is refused too, since it writes the kind and `plan.settings` by
+  another route. An operator cannot apply the wizard while impersonating; the organisation's own
+  administrator does.
 - **What you can still fix** while impersonating is the organisation's name, industry, timezone
   and language, when a customer asks.
 - The test is `tests/Feature/ImpersonationTest.php`, the cases whose names mention the kind and
