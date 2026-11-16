@@ -31,7 +31,7 @@ const META: Record<
     icon: IdCard,
     key: "setup2.id_code",
     label: "Employee number",
-    desc: "Field staff and contractors.",
+    desc: "People without an email are activated in person and sign in with this number.",
   },
   username: {
     icon: AtSign,

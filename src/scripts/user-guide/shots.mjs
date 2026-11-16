@@ -745,12 +745,12 @@ export const SHOTS = [
       },
       {
         target: (page) =>
-          page.locator("main").getByText("ሠራተኞች", { exact: true }).first(),
+          page.locator("main").getByText("መግቢያ", { exact: true }).first(),
         pin: "below",
       },
       {
         target: (page) =>
-          page.locator("main").getByText("መግቢያ", { exact: true }).first(),
+          page.locator("main").getByText("ሠራተኞች", { exact: true }).first(),
         pin: "below",
       },
       {
