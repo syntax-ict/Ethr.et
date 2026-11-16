@@ -240,4 +240,86 @@ describe("the phone punch screen", () => {
       await screen.findByText("2 punches saved on this phone."),
     ).toBeInTheDocument();
   });
+
+  /** A working day whose shift is under way, so the rail has a window. */
+  function shiftUnderWay(over: Record<string, unknown> = {}) {
+    const now = Date.now();
+    return {
+      ...myShift,
+      day: { kind: "working", weekend: false, holiday: null },
+      shift: {
+        public_id: "S1",
+        name: "Day shift",
+        start_time: "08:00:00",
+        end_time: "17:00:00",
+        crosses_midnight: false,
+        grace_minutes: 10,
+        early_departure_minutes: 10,
+        starts_at: new Date(now - 60 * 60_000).toISOString(),
+        ends_at: new Date(now + 7 * 60 * 60_000).toISOString(),
+      },
+      ...over,
+    };
+  }
+
+  it("draws the shift rail and a moment line on a working day with a shift", async () => {
+    signedInAs("E1");
+    server.use(
+      http.get("*/api/v1/attendance/my-shift", () =>
+        HttpResponse.json(shiftUnderWay()),
+      ),
+    );
+    renderScreen();
+
+    expect(
+      await screen.findByRole("img", { name: /Your shift today, from/ }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/Started .* ago/)).toBeInTheDocument();
+  });
+
+  it("draws no rail when there is no shift", async () => {
+    signedInAs("E1");
+    server.use(
+      http.get("*/api/v1/attendance/my-shift", () =>
+        HttpResponse.json(myShift),
+      ),
+    );
+    renderScreen();
+
+    await screen.findByRole("button", { name: /check in/i });
+    expect(screen.queryByRole("img", { name: /Your shift today/ })).toBeNull();
+    expect(screen.queryByText(/Started .* ago/)).toBeNull();
+  });
+
+  it("confirms a check-in in place and drops what the punch needed", async () => {
+    signedInAs("E1");
+    server.use(
+      http.get("*/api/v1/attendance/my-shift", () =>
+        HttpResponse.json(shiftUnderWay()),
+      ),
+      http.post("*/api/v1/attendance/mobile/check-in", () =>
+        HttpResponse.json({
+          id: "R1",
+          outcome: { code: "checked_in", minutes: 0, by: "mobile", at: null },
+        }),
+      ),
+    );
+    renderScreen();
+
+    const button = await screen.findByRole("button", { name: /^check in/i });
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(screen.getByRole("button", { name: /take a selfie/i })).toBeTruthy();
+    fireEvent.click(button);
+
+    expect(
+      await screen.findByText("Checked in successfully"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/so far/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Done" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /take a selfie/i })).toBeNull();
+    // The day strip stays above it.
+    expect(
+      screen.getByRole("img", { name: /Your shift today/ }),
+    ).toBeInTheDocument();
+  });
 });
