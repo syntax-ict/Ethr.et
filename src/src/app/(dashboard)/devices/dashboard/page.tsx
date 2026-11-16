@@ -8,6 +8,7 @@ import {
   WifiOff,
   AlertTriangle,
   Clock,
+  Hourglass,
   Activity,
   ArrowLeft,
   Plus,
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -70,14 +72,14 @@ export default function DeviceDashboardPage() {
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />
         ) : statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
@@ -89,6 +91,12 @@ export default function DeviceDashboardPage() {
                 title={t("devices_page.online")}
                 value={stats.online}
                 color="success"
+              />
+              <StatusCard
+                icon={Hourglass}
+                title={t("devices_page.pending")}
+                value={stats.pending}
+                color="warning"
               />
               <StatusCard
                 icon={WifiOff}
@@ -215,9 +223,13 @@ export default function DeviceDashboardPage() {
                 rows={allDevices.map((d) => ({
                   key: d.public_id,
                   cells: [
-                    <span key="n" className="font-medium">
+                    <Link
+                      key="n"
+                      href={`/devices/${d.public_id}`}
+                      className="font-medium hover:underline"
+                    >
                       {d.name}
-                    </span>,
+                    </Link>,
                     <span key="a" className="capitalize text-muted-foreground">
                       {d.adapter_type === "mock"
                         ? t("devices_page.mock_simulator")
@@ -256,6 +268,11 @@ export default function DeviceDashboardPage() {
                       )}
                     </span>,
                   ],
+                  actions: (
+                    <div className="flex justify-end">
+                      <DeviceActionsMenu device={d} />
+                    </div>
+                  ),
                 }))}
               />
             )}
