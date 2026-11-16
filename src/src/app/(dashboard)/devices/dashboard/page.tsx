@@ -72,14 +72,14 @@ export default function DeviceDashboardPage() {
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />
         ) : statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
