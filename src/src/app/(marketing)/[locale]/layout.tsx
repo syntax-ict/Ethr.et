@@ -104,7 +104,7 @@ export default async function MarketingLocaleLayout({
         locale={locale}
         dictionary={publicDictionary(locale)}
       >
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="ground-paper flex min-h-screen flex-col bg-background">
           <MarketingHeader />
           <main className="flex-1">{children}</main>
           <MarketingFooter />

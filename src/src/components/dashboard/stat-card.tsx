@@ -129,7 +129,7 @@ export function StatCard({
       <div className="mt-2 flex items-end justify-between gap-3">
         <div
           className={cn(
-            "min-w-0 text-2xl font-semibold leading-tight tracking-tight text-foreground tabular-nums sm:text-[1.75rem]",
+            "min-w-0 font-display text-2xl font-semibold leading-tight tracking-tight text-foreground tabular-nums sm:text-[1.75rem]",
             hasSpark && "shrink-0 whitespace-nowrap",
           )}
         >

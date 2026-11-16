@@ -7,7 +7,7 @@ ETHR is an Ethiopian enterprise product. It must project visual authority and cu
 Three principles guide every design decision:
 
 1. **Density over decoration.** HR power users manage hundreds of employees. Every pixel of whitespace must earn its place.
-2. **Ethiopian identity, not Ethiopian kitsch.** One cultural element (tibeb pattern), Ethiopian gold accent, and Amharic typography. No flags, no coffee imagery, no maps.
+2. **Ethiopian identity, not Ethiopian kitsch.** One cultural element (tibeb pattern), Sunrise accent, and Amharic typography. No flags, no coffee imagery, no maps.
 3. **Mobile-first for employees, desktop-first for admins.** Employees check attendance on their phones. HR managers process payroll on desktops. Design for both realities.
 
 ---
@@ -19,9 +19,12 @@ Three principles guide every design decision:
 | Token | Hex | Usage |
 |---|---|---|
 | Primary | `#0F4C75` | Sidebar background, primary buttons, active states |
-| Primary Light | `#3282B8` | Interactive elements, links, hover states |
-| Primary Dark | `#0A2E4A` | Sidebar, headers, emphasis |
-| Accent | `#E8A838` | Ethiopian Gold — badges, highlights, active indicators |
+| Midnight | `#0A2540` | Sidebar, headers, text, hover states |
+| Sky | `#4A9FD8` | Interactive blue in dark mode |
+| Accent | `#E8A838` | Sunrise — badges, highlights, active indicators |
+| Paper | `#F7F5F0` | Marketing ground only |
+
+The palette and its contrast figures are in [`brand/README.md`](brand/README.md).
 
 ### Status Colors
 
@@ -53,13 +56,14 @@ All components reference semantic tokens, never raw hex values:
 | `--color-surface-primary` | Page background | `#FFFFFF` | `#0F172A` |
 | `--color-surface-secondary` | Card background | `#F8FAFC` | `#1E293B` |
 | `--color-surface-elevated` | Modal/dropdown bg | `#FFFFFF` | `#1E293B` |
-| `--color-surface-sidebar` | Sidebar | `#0A2E4A` | `#020617` |
-| `--color-text-primary` | Headings, body | `#0F172A` | `#F1F5F9` |
-| `--color-text-secondary` | Labels, captions | `#64748B` | `#94A3B8` |
+| `--color-surface-paper` | Marketing ground | `#F7F5F0` | `#0F172A` |
+| `--color-surface-sidebar` | Sidebar | `#0A2540` | `#020617` |
+| `--color-text-primary` | Headings, body | `#0A2540` | `#F1F5F9` |
+| `--color-text-secondary` | Labels, captions | `#475569` | `#94A3B8` |
 | `--color-text-inverse` | Text on primary bg | `#FFFFFF` | `#0F172A` |
 | `--color-border-default` | Card borders | `#E2E8F0` | `#334155` |
 | `--color-interactive-primary` | Buttons, links | `#0F4C75` | `#3282B8` |
-| `--color-interactive-hover` | Hover states | `#3282B8` | `#60A5FA` |
+| `--color-interactive-hover` | Hover states | `#0A2540` | `#60A5FA` |
 
 ### Status Soft Containers
 
@@ -73,7 +77,7 @@ write a `dark:` variant** for status colour.
 | `text-{family}-on-soft` | Text/icon colour that sits on that tint |
 | `border-{family}-edge` | Border of the tinted container |
 
-Families: `success`, `warning`, `destructive`, `info`, `brand` (Ethiopian gold),
+Families: `success`, `warning`, `destructive`, `info`, `brand` (Sunrise),
 `neutral`. Every family/theme pair is ≥ 5.7:1 contrast (most ≥ 7:1) in Light, Dark
 and High Contrast.
 
@@ -207,7 +211,7 @@ A geometric border pattern derived from Ethiopian traditional textile weaving (t
 - Login page card border accent (bottom border only)
 - Payslip PDF decorative header border
 
-The pattern is an SVG consisting of repeating diamond and cross geometric shapes in `--color-accent` (Ethiopian Gold) with 20-40% opacity. It must be subtle — a cultural whisper, not a shout.
+The pattern is an SVG consisting of repeating diamond and cross geometric shapes in `--color-accent` (Sunrise) with 20-40% opacity. It must be subtle — a cultural whisper, not a shout.
 
 ---
 
