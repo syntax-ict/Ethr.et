@@ -8,9 +8,11 @@ use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
+use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\User\StartingPasswordController;
 use App\Services\Auth\ImpersonationToken;
+use App\Services\Payroll\StatutorySettingsBridge;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,6 +38,48 @@ class BlockImpersonatedActions
         StartingPasswordController::class.'@store',
     ];
 
+    /**
+     * Actions an operator may use, except for the fields named here.
+     *
+     * The organisation's kind in law decides which statutory rules apply and so
+     * who its pension schedule is addressed to; the four statutory settings
+     * decide how pay is worked out. An operator fixing a name, a timezone or a
+     * language for a customer who asked must still be able to, so these are
+     * refused by what the request carries, not by the action: a request that
+     * names any of them is refused, whatever value it gives. (The settings
+     * screens send these keys only when the person changed them.)
+     *
+     * Keys are dotted paths into the request, as Request::has() reads them.
+     *
+     * @return array<string, list<string>>
+     */
+    private static function blockedFields(): array
+    {
+        return [
+            SettingsController::class.'@updateOrganization' => [
+                'organization_type',
+                'effective_from',
+                'cancel_pending_organization_type',
+            ],
+            SettingsController::class.'@update' => array_map(
+                static fn (string $key): string => 'settings.'.$key,
+                array_values(StatutorySettingsBridge::SETTINGS),
+            ),
+            // The setup wizard's apply writes the same two things by another
+            // route: the kind, and plan.settings, which is held to what
+            // PUT /settings may write. Its screen always sends the kind, so an
+            // operator cannot apply it; the organisation's own administrator
+            // does. The preview writes nothing and stays open.
+            ConfigurationController::class.'@apply' => [
+                'organization_type',
+                ...array_map(
+                    static fn (string $key): string => 'plan.settings.'.$key,
+                    array_values(StatutorySettingsBridge::SETTINGS),
+                ),
+            ],
+        ];
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->user()?->currentAccessToken();
@@ -46,7 +90,7 @@ class BlockImpersonatedActions
         if ($token && in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
             $action = $request->route()?->getActionName();
 
-            if ($request->isMethod('delete') || in_array($action, self::BLOCKED_ACTIONS, true)) {
+            if ($request->isMethod('delete') || in_array($action, self::BLOCKED_ACTIONS, true) || $this->carriesBlockedField($request, $action)) {
                 return response()->json([
                     'type' => 'https://ethr.et/errors/impersonation-restricted',
                     'title' => 'Action Restricted',
@@ -57,5 +101,12 @@ class BlockImpersonatedActions
         }
 
         return $next($request);
+    }
+
+    private function carriesBlockedField(Request $request, ?string $action): bool
+    {
+        $fields = $action === null ? null : (self::blockedFields()[$action] ?? null);
+
+        return $fields !== null && $request->hasAny($fields);
     }
 }
