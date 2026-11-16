@@ -279,3 +279,21 @@ describe("<MigrationStep> lists in progress", () => {
     expect(invited).toBe(false);
   });
 });
+
+describe("<MigrationStep> the invitation tick", () => {
+  async function openReviewing(props: { inviteByDefault?: boolean }) {
+    setup([], [batch(REVIEWING_ID)]);
+    renderStep({ initialBatchId: REVIEWING_ID, ...props });
+    return screen.findByRole("checkbox", {
+      name: /Invite them to sign in as soon as they are added/,
+    });
+  }
+
+  it("starts ticked, where a list is brought into a running organisation", async () => {
+    expect(await openReviewing({})).toBeChecked();
+  });
+
+  it("starts unticked in the guided setup, which passes inviteByDefault false", async () => {
+    expect(await openReviewing({ inviteByDefault: false })).not.toBeChecked();
+  });
+});

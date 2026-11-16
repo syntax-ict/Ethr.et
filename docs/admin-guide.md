@@ -19,8 +19,8 @@ The guided setup is at `/setup/guided` (`/setup` redirects there). While setup i
 | Step | What it does |
 |------|--------------|
 | 1 | **Configure** — pick your industry, approximate employee count and region; ETHR generates a configuration (departments, positions, grades, shifts, leave types, holidays) that you review, trim and apply |
-| 2 | **Workforce** — bring in your people, either from an attendance device's enrolled users or from a pasted list; review each match and commit |
-| 3 | **Access** — choose how employees log in (email, phone, employee code, username) |
+| 2 | **Access** — choose how employees log in (email, phone, employee code, username). It comes before the people are added, so that how they sign in is settled before anyone is invited (2026-11-16) |
+| 3 | **Workforce** — bring in your people, either from an attendance device's enrolled users or from a pasted list; review each match and commit. "Invite them to sign in as soon as they are added" starts unticked here, and invitations are sent later from the card that follows or from Employees |
 | 4 | **Go live** — a readiness score with the remaining gaps and links to fix them, then go live |
 
 You can skip steps and return later. All settings are editable after setup.

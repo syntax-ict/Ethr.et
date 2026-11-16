@@ -8,7 +8,9 @@
 
 This record covers the starting password only. The other two parts of the same decision (a
 login for everyone by default, and migrated staff arriving as Confirmed) and the printable code
-sheet belong to PR 9 and are not built here.
+sheet belong to PR 9 and are not built here. The guided setup is the exception to "a login for
+everyone by default": since 2026-11-16 its invitation tick starts unticked
+([`OWNER-DECISION-FIRST-SETUP-INVITATIONS.md`](OWNER-DECISION-FIRST-SETUP-INVITATIONS.md)).
 
 ## What forced it
 
