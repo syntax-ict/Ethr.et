@@ -553,11 +553,49 @@ The lines to fix are written under the line the names were on.
 | POST | `/sources` | save a source: `name` and `mapping`, one column of which is the name |
 | PUT | `/sources/{importMapping}` | rename a source or match its columns again. The slug its ids are kept against does not change |
 | DELETE | `/sources/{importMapping}` | forget a source's column names. The people it brought and their ids stay |
+| GET | `/batches` | the organisation's lists in progress (below): `staging`, `reviewing` or `committing`, newest first, at most 20. Needs `employee.viewAny` |
 | GET | `/batches/{batch}` | review queue with verdicts and summary |
+| DELETE | `/batches/{batch}` | discard a list that has not begun to be added (below). 204; 409 once it is `committing` or `committed`. Needs `employee.create` |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
 | GET | `/batches/{batch}/terminals` | what the attendance terminals hold for the people the list brought in (below) |
+
+## Lists in progress: found again, resumed, discarded (2026-11-16)
+
+A staged list is kept for 30 days from its last activity, but the page held its id in memory
+alone: a reload, a closed tab, or a staging request that died left a list on the server that no
+screen named. Two routes and a card close that.
+
+`GET /batches` answers `{data: [...]}`, one item for each list that is `staging`,
+`reviewing` or `committing`, newest first, at most 20. An item is `public_id`, `status`,
+`mode` (`add` or `complete`), `source_type`, `rows` (how many lines it holds),
+`created_at`, `updated_at`, `created_by_name` and `mine`. It carries nothing about the people on
+the list. The name is the creator's employee name, else the name an account without one carries,
+else null; an email address is never used, because anyone who may view employees can read the list.
+Any member of the organisation who may view employees can open any of these lists, as
+`GET /batches/{batch}` already allowed; there is no check on who started one. The lines are
+counted in one grouped query, so the index costs the same however many lists there are.
+
+`DELETE /batches/{batch}` removes a list nobody will finish. Only `staging` and `reviewing`:
+once a commit's first slice has run, people are written and the list is the record of how they
+arrived, so `committing` and `committed` answer 409 and delete nothing. The status is read
+again inside a transaction with the batch row taken `FOR UPDATE`, the same row `commitSlice`
+locks, so a commit that starts a moment earlier is waited for and then seen, and one that starts
+a moment later finds the list gone (404). A stage slice does not lock the batch: one running at
+the moment of a discard writes to no rows and answers 404 when it re-reads the list. Staging
+rows go by the foreign key's cascade; nothing else hangs off a batch. The audit entry
+`migration.discarded` is written first, carrying the list's `public_id`, `source`, `mode`,
+`status` and `rows`, because its subject is gone once the list is.
+
+In the browser the card "Lists in progress" is shown above the list box whenever no list is
+open. **Open** sets the list's id in `MigrationStep`, which is how a list just staged is opened,
+so the screen for each state takes over; a list still being read is carried on first, by the
+request a stopped staging uses, because a table of people nobody has matched cannot be committed.
+**Discard** asks first and is offered only for `staging` and `reviewing` to someone who may add
+employees. The Employees import page keeps the open list in the address (`?batch=<public_id>`)
+so a reload returns to it; a list that is gone or not this organisation's clears the parameter
+without a message. The setup wizard and the device read keep their own state, as before.
 
 ## What the whole list is brought in with (2026-11-12)
 

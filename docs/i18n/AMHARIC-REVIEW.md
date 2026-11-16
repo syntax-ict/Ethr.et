@@ -413,3 +413,21 @@ What to check first: the three part names against how a name is usually asked fo
 form (the drafts use the Amharic words for the father's and the grandfather's name, and the
 column's English is "Last name" in many exports, which the server reads as the grandfather's name),
 and *Column names* against the word the matcher already uses for a file's first line.
+
+### Lists in progress (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether a list can still be thrown away; it moves
+no money, and a list that has begun to be added cannot be discarded at all.
+
+| What | Where | Strings |
+|---|---|---|
+| The card above the list box: its title and line, the two kinds of list ("Adding people", "Completing people who are already here"), the three states ("Still being read", "Waiting for your review", "Being added"), "N lines" and "1 line", the three ways to say who started it ("Started 5 min ago by you", "by NAME", "by someone else"), Open, "Opening the list" | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.title`, `hint`, `mode_add`, `mode_complete`, `status_staging`, `status_reviewing`, `status_committing`, `lines`, `lines_one`, `started_you`, `started_by`, `started_other`, `open`, `opening` | 14 each |
+| Discarding: the question, its two forms of "The N lines on it are removed. Nobody on it has been added.", the button, the two answers | the same files, `migration_lists.discard_title`, `discard_desc`, `discard_desc_one`, `discard`, `discarded`, `discard_failed` | 6 each |
+| The line over a list that was still being read when the page was opened, before Carry on | the same files, `setup2.staging_resumed` | 1 each |
+| The two refusals when a list is being added or was added | `api/lang/{am,om}/onboarding.php`, `migration.discard_committing`, `discard_committed` | 2 each |
+
+What to check first: *Open* and *Discard* as verbs on a button (the drafts use the imperative; the Amharic
+for discard is "remove"), and the three
+"started" sentences, where a person's name sits inside the Amharic and Oromo word order. The Oromo for
+the second one puts the name before the verb and may need a suffix on the name.
