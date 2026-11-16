@@ -48961,6 +48961,20 @@
                     "salary_cents": {
                         "type": "integer"
                     },
+                    "sign_in": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "none",
+                            "invited",
+                            "active",
+                            "inactive",
+                            "suspended",
+                            null
+                        ]
+                    },
                     "photo_path": {
                         "type": [
                             "string",
@@ -51348,6 +51362,7 @@
                     "complete_profile",
                     "records_missing_emergency_contact",
                     "records_missing_phone",
+                    "records_cannot_sign_in",
                     "unmatched_badges",
                     "team_absent",
                     "setup_device_linked",

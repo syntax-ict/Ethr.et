@@ -272,6 +272,49 @@ describe("<NextStepsCard>", () => {
     ]);
   });
 
+  it("tells HR how many people cannot sign in yet, in the singular too, and opens the list for them", async () => {
+    me("hr_admin");
+    serve([
+      step({
+        id: "records_cannot_sign_in",
+        group: "records",
+        severity: "info",
+        count: 1,
+        href: "/employees?missing=sign_in",
+      }),
+    ]);
+    const { unmount } = renderCard();
+
+    expect(
+      await screen.findByText("1 person cannot sign in yet"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "They are in ETHR, but nobody has invited them, or they have not finished signing up. Attendance terminals and payroll work without it.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See who" })).toHaveAttribute(
+      "href",
+      "/employees?missing=sign_in",
+    );
+    unmount();
+
+    serve([
+      step({
+        id: "records_cannot_sign_in",
+        group: "records",
+        severity: "info",
+        count: 240,
+        href: "/employees?missing=sign_in",
+      }),
+    ]);
+    renderCard();
+
+    expect(
+      await screen.findByText("240 people cannot sign in yet"),
+    ).toBeInTheDocument();
+  });
+
   it("names the payroll period and where to open the run", async () => {
     me("finance_admin");
     serve([

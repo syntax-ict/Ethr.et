@@ -36,10 +36,17 @@ final class EmployeeGaps
 
     public const GENDER = 'gender';
 
+    /**
+     * No login that is past `invited`. Not in the readiness scorer: the platform
+     * console runs it with no tenant resolved, where the User query behind this
+     * gap matches nothing and everyone would read as unable to sign in.
+     */
+    public const SIGN_IN = 'sign_in';
+
     /** @return list<string> */
     public static function keys(): array
     {
-        return [self::TIN, self::BANK, self::EMERGENCY_CONTACT, self::PHONE, self::DEPARTMENT, self::POSITION, self::GENDER];
+        return [self::TIN, self::BANK, self::EMERGENCY_CONTACT, self::PHONE, self::DEPARTMENT, self::POSITION, self::GENDER, self::SIGN_IN];
     }
 
     /**
@@ -98,6 +105,7 @@ final class EmployeeGaps
             self::DEPARTMENT => $query->whereNull('department_id'),
             self::POSITION => $query->whereNull('position_id'),
             self::GENDER => $query->where(fn (Builder $q) => $q->whereNull('gender')->orWhere('gender', '')),
+            self::SIGN_IN => EmployeeSignIn::cannotSignIn($query),
             default => $query->whereRaw('1 = 0'),
         };
     }

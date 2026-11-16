@@ -48,11 +48,33 @@ commit. The kiosk, attendance terminals, payroll and leave recorded by HR do not
 
 ## Not done, on purpose
 
-The per-organisation daily ceiling on invitations, first listed here, was added afterwards
-(2026-11-16): see "A daily ceiling per organisation" in
+Both things first listed here were added afterwards, on 2026-11-16. The per-organisation daily
+ceiling on invitations: see "A daily ceiling per organisation" in
 [`../EMPLOYEE-INVITATIONS-PLAN.md`](../EMPLOYEE-INVITATIONS-PLAN.md#a-daily-ceiling-per-organisation).
-
-- **Sign-in state on the Employees list.** Planned next; this record only moves the default
-  and the order.
+Sign-in state on the Employees list: see "nobody is forgotten" below.
 
 See [`../MIGRATION.md`](../MIGRATION.md), "What the whole list is brought in with".
+
+## 2026-11-16: nobody is forgotten
+
+Off must not mean forgotten. After a first setup that invited nobody, the Employees list and the
+Next Steps card keep saying who cannot sign in yet, and offer the way to fix it.
+
+- **One meaning.** "Cannot sign in yet" is a current employee with no login, or with a login that
+  was invited and never activated. A login that is active, inactive or suspended counts as a login,
+  exactly as `EmployeeLogins::forEmployees()` leaves those people alone. It is defined once, in
+  `App\Support\EmployeeSignIn`, and read by the list filter, the list's row state and the Next Steps
+  count, so the three cannot disagree. Whose login it is follows `Employee::hasLogin()`: either side
+  of the link, live rows only.
+- **The list.** `GET /employees?filter[missing]=sign_in` and the page link `/employees?missing=sign_in`.
+  Each row carries `sign_in` (`none`, `invited`, `active`, `inactive`, `suspended`) and the page
+  shows a quiet note beside the person only for `none` and `invited`.
+- **The bulk action.** "Give a way to sign in" in the selection bar, for someone who holds both
+  `users.invite` and `employee.update`. It posts the selected people to `POST /employees/logins` in
+  slices of 200, shows the totals, and offers the printed code sheet and the starting password for
+  selected people with no email and no phone.
+- **Next Steps.** `records_cannot_sign_in`, an information step in the Records group, offered to the
+  same two permissions. It is not a blocker and does not count as setup progress.
+
+This replaces PR 11 of the workbook plan together with the sign-in column above: the column decides
+who is invited when a list is added, and this keeps the people it left out in view.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, GitBranch, Loader2, UserCog } from "lucide-react";
+import { Building2, GitBranch, KeyRound, Loader2, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,9 @@ import {
 } from "@/components/ui/select";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useBulkUpdateEmployees } from "@/features/employees/api";
+import { GiveSignInDialog } from "@/features/employees/components/give-sign-in-dialog";
+import type { SignInPerson } from "@/features/employees/sign-in";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
 import { todayIn } from "@/lib/utils/date";
@@ -61,13 +64,20 @@ interface BulkActionsBarProps {
   selectedIds: string[];
   /** Called after a bulk action succeeds, so the caller can clear selection. */
   onComplete: () => void;
+  /** The rows on screen, so the sign-in dialog can tell who has no email and no phone. */
+  people?: SignInPerson[];
 }
 
 export function BulkActionsBar({
   selectedIds,
   onComplete,
+  people = [],
 }: BulkActionsBarProps) {
   const { t } = useT();
+  const { can, hasPermission } = usePermissions();
+  // The endpoint needs both: it makes logins and it edits the employee.
+  const maySignIn = can.inviteUsers && hasPermission("employee.update");
+  const [signInOpen, setSignInOpen] = useState(false);
   const timeZone = useTenantTimezone();
   // Today where the organisation is, not the UTC date `toISOString()` gives.
   const today = () => todayIn(timeZone);
@@ -174,8 +184,28 @@ export function BulkActionsBar({
             <UserCog className="mr-2 h-3.5 w-3.5" />
             {t("employees.bulk.change_status", "Change status")}
           </Button>
+          {maySignIn && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSignInOpen(true)}
+            >
+              <KeyRound className="mr-2 h-3.5 w-3.5" />
+              {t("employees.bulk.sign_in.button", "Give a way to sign in")}
+            </Button>
+          )}
         </div>
       </div>
+
+      {maySignIn && (
+        <GiveSignInDialog
+          open={signInOpen}
+          onOpenChange={setSignInOpen}
+          selectedIds={selectedIds}
+          people={people}
+          onComplete={onComplete}
+        />
+      )}
 
       <Dialog
         open={field !== null}

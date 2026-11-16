@@ -31,9 +31,12 @@ class EmployeeLoginController extends Controller
         /** @var list<string> $ids */
         $ids = $request->validated('employee_ids');
 
-        // The tenant scope keeps another organisation's employees out, and
-        // one of them is answered exactly as an id that matches nobody.
-        $employees = Employee::query()->whereIn('public_id', $ids)->with('user')->get();
+        // The tenant scope keeps another organisation's employees out, and the
+        // requester's reach keeps out people beyond it; either is answered
+        // exactly as an id that matches nobody.
+        $query = Employee::query()->whereIn('public_id', $ids)->with('user');
+        $request->user()->scopeAccessibleEmployees($query);
+        $employees = $query->get();
         if ($employees->count() !== count($ids)) {
             throw ValidationException::withMessages([
                 'employee_ids' => __('validation.exists', ['attribute' => 'employee ids']),

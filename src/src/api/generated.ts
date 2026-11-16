@@ -10328,6 +10328,8 @@ export interface components {
             confirmation_date: string | null;
             termination_date: string | null;
             salary_cents?: number;
+            /** @enum {string|null} */
+            sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;
             photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
@@ -11114,7 +11116,7 @@ export interface components {
          * @description Every step `GET /next-steps` can return. The case order is the tie-break order inside one severity: the steps that hold up other people's work come before configuration, and configuration before housekeeping. The frontend registry is keyed by this enum, which Scramble publishes as a union type, so a case added here without copy there fails the TypeScript build rather than rendering a blank row.  Severity is a property of the step, not of a moment, so a step that cannot be dismissed for good (a blocker) is known from its id alone.
          * @enum {string}
          */
-        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "statutory_override" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "setup_employer_tin" | "setup_tax_center" | "setup_pension_registration" | "setup_payout_method" | "setup_employee_salaries" | "leave_below_law" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "unmatched_badges" | "team_absent" | "setup_device_linked" | "profile_legal_review";
+        NextStepId: "attendance_blockers" | "payroll_failed" | "setup_admin_present" | "setup_admin_active" | "owner_phone" | "statutory_override" | "integrity" | "payroll_approve" | "approvals" | "contracts_ending" | "setup_wizard" | "setup_branch" | "setup_departments" | "setup_positions" | "setup_shifts" | "setup_leave_types" | "setup_holidays" | "setup_employees" | "setup_employee_departments" | "setup_attendance_source" | "setup_employer_tin" | "setup_tax_center" | "setup_pension_registration" | "setup_payout_method" | "setup_employee_salaries" | "leave_below_law" | "records_missing_tin" | "records_missing_bank" | "nationality_review" | "complete_profile" | "records_missing_emergency_contact" | "records_missing_phone" | "records_cannot_sign_in" | "unmatched_badges" | "team_absent" | "setup_device_linked" | "profile_legal_review";
         /** NextStepResource */
         NextStepResource: {
             id: components["schemas"]["NextStepId"];

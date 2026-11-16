@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/patterns/DataTable";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
+import { SignInBadge } from "@/features/employees/components/sign-in-badge";
 import { HeadcountCharts } from "@/features/employees/components/headcount-charts";
 import {
   exportEmployees,
@@ -111,6 +112,7 @@ const MISSING = [
   "department",
   "position",
   "gender",
+  "sign_in",
 ] as const;
 
 function parseSort(sort?: string): SortingState {
@@ -286,6 +288,15 @@ export default function EmployeesPage() {
                 {employee.name}
               </p>
               <p className="text-xs text-muted-foreground">{employee.email}</p>
+              {(employee.sign_in === "none" ||
+                employee.sign_in === "invited") && (
+                <div className="mt-1">
+                  <SignInBadge
+                    state={employee.sign_in}
+                    status={employee.status}
+                  />
+                </div>
+              )}
             </div>
           </Link>
         );
@@ -456,9 +467,11 @@ export default function EmployeesPage() {
         {missing !== "" && (
           <div className="flex flex-col gap-2 rounded-lg border border-info-edge bg-info-soft p-3 text-sm text-info-on-soft sm:flex-row sm:items-center sm:justify-between">
             <p>
-              {t("employees.missing_banner", undefined, {
-                gap: t(`employees.missing.${missing}`),
-              })}
+              {missing === "sign_in"
+                ? t("employees.missing_banner_sign_in")
+                : t("employees.missing_banner", undefined, {
+                    gap: t(`employees.missing.${missing}`),
+                  })}
             </p>
             <Button
               size="sm"
@@ -602,6 +615,7 @@ export default function EmployeesPage() {
           bulkActions={(selectedIds) => (
             <BulkActionsBar
               selectedIds={selectedIds}
+              people={data?.data ?? []}
               onComplete={() => setSelectionResetKey((k) => k + 1)}
             />
           )}
