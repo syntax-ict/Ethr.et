@@ -265,6 +265,7 @@ describe("<MigrationStep> lists in progress", () => {
               phone: null,
               channel: "email",
               invited: false,
+              asked: null,
             },
           ],
           hire_dates_defaulted: 0,

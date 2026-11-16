@@ -7628,5 +7628,17 @@
   "devices_page.rejected.token_retired": "ቶከኑ ዳግም ከመፈጠሩ በፊት የነበረውን ቶከን አሁንም እየላከ ነው። በዚህ ገጽ ላይ የሚታየውን የአሁኑን አድራሻ በመሣሪያው ላይ ያስገቡ።",
   "devices_page.rejected.token_truncated": "የቶከኑን መጀመሪያ ብቻ ልኳል፣ ስለዚህ በመሣሪያው ላይ ያለው አድራሻ ተቆርጧል። በዚህ ገጽ ላይ የሚታየውን ሙሉ አድራሻ ያስገቡ፣ መሣሪያውም ሙሉውን መያዙን ያረጋግጡ።",
   "devices_page.rejected.token_missing": "ያለ ቶከን ደውሏል። በዚህ ገጽ ላይ የሚታየውን ሙሉ አድራሻ፣ ከ ?token= በኋላ ያለውን ክፍል ጨምሮ፣ ያስገቡ።",
-  "devices_page.rejected.ip_not_allowed": "ከ :ip ደውሏል፣ ይህ አድራሻ በዚህ መሣሪያ የተፈቀዱ አድራሻዎች ዝርዝር ውስጥ የለም።"
+  "devices_page.rejected.ip_not_allowed": "ከ :ip ደውሏል፣ ይህ አድራሻ በዚህ መሣሪያ የተፈቀዱ አድራሻዎች ዝርዝር ውስጥ የለም።",
+  "setup2.col_sign_in": "መግቢያ",
+  "employees_import_page.col_sign_in": "አዎ፦ ዝርዝሩ ሲጨመር ይጋበዛሉ። አይ፦ ይህ ዝርዝር አይጋብዛቸውም። ባዶ፦ በግምገማው ገጽ ላይ የተመረጠው ይወስናል። ዝርዝሩ ለሚጨምራቸው ሰዎች ብቻ።",
+  "setup2.template_line_sign_in": "የመግቢያ ዓምድ ዝርዝሩ ሲጨመር ማን እንደሚጋበዝ ይናገራል፦ አዎ ይጋብዛል፣ አይ አይጋብዝም፣ ባዶ ከሆነ በግምገማው ገጽ ላይ የተመረጠው ይሠራል።",
+  "migration_logins.list_said_no": "ይህ ዝርዝር እንዲጋበዙ አልጠየቀም",
+  "migration_ready.title": "ይህን ዝርዝር ማከል ስለ መግቢያ ምን ያደርጋል፣ ለሚጨምራቸው ሰዎች",
+  "migration_ready.invited": "ዝርዝሩ ሲጨመር በኢሜይል ወይም በጽሑፍ መልእክት የሚጋበዙ፦ :count",
+  "migration_ready.afterwards": "ዝርዝሩ ከተጨመረ በኋላ በአንድ ቁልፍ መጋበዝ የሚችሉ፦ :count",
+  "migration_ready.code": "በአካል ለሚሰጥ የታተመ ኮድ የተዘረዘሩ፦ :count",
+  "migration_ready.marked_no": "በዝርዝሩ ውስጥ «አይ» የተባሉ፣ ስለዚህ የማይጋበዙ፦ :count",
+  "migration_ready.warn_title": "አንዳንዶች በአካል ብቻ ነው ማንቃት የሚቻለው",
+  "migration_ready.warn_desc": ":count ሰዎች በግብዣ ሊደረስባቸው አይችልም፣ ድርጅትዎም በሰራተኛ ቁጥር መግባትን አልፈቀደም፤ ስለዚህ በአካል የሚሰጥ ኮድ አያስገባቸውም። በመመሪያ ማዋቀሩ የመግቢያ ደረጃ ላይ የሰራተኛ ቁጥርን ያብሩ፣ ወይም ኢሜይል ይጨምሩላቸው።",
+  "migration_ready.warn_link": "የመግቢያ ደረጃውን ክፈት"
 }

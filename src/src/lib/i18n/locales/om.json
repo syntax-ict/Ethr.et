@@ -7628,5 +7628,17 @@
   "devices_page.rejected.token_retired": "Ammallee tookanii osoo tookaniin hin haaromsamin dura ture erguu irra jira. Teessoo ammaa fuula kana irratti mul'atu teerminaalicha irratti galchaa.",
   "devices_page.rejected.token_truncated": "Jalqaba tookanii qofa erge, kanaaf teessoon teerminaalicha irra jiru gabaabbateera. Teessoo guutuu fuula kana irratti mul'atu galchaatii teerminaalichi hunda isaa qabachuu isaa mirkaneessaa.",
   "devices_page.rejected.token_missing": "Tookanii malee bilbile. Teessoo guutuu fuula kana irratti mul'atu, kutaa ?token= booda jiru dabalatee, galchaa.",
-  "devices_page.rejected.ip_not_allowed": "Teessoo :ip irraa bilbile, kunis tarree teessoowwan meeshaa kanaaf hayyamamanii keessa hin jiru."
+  "devices_page.rejected.ip_not_allowed": "Teessoo :ip irraa bilbile, kunis tarree teessoowwan meeshaa kanaaf hayyamamanii keessa hin jiru.",
+  "setup2.col_sign_in": "Seensa",
+  "employees_import_page.col_sign_in": "eeyyee: yeroo tarreen dabalamu ni afeeramu. lakki: tarreen kun isaan hin affeeru. Duwwaa: filannoon fuula sakatta'iinsaa murteessa. Namoota tarreen dabalu qofaaf.",
+  "setup2.template_line_sign_in": "Kutaan Seensaa tarreen yeroo dabalamu eenyu akka afeeramu ibsa: eeyyee ni affeera, lakki hin affeeru, duwwaa yoo ta'e filannoon fuula sakatta'iinsaa ni hordofama.",
+  "migration_logins.list_said_no": "tarreen kun akka afeeraman hin gaafanne",
+  "migration_ready.title": "Tarree kana dabaluun seenuu ilaalchisee maal ta'a, namoota inni dabaluuf",
+  "migration_ready.invited": "Tarreen yeroo dabalamu imeelii yookaan ergaa barreeffamaan kan afeeraman: :count",
+  "migration_ready.afterwards": "Tarreen erga dabalamee booda button tokkoon kan afeeramuu danda'an: :count",
+  "migration_ready.code": "Koodii maxxanfame qaamaan kennamuuf kan tarreeffaman: :count",
+  "migration_ready.marked_no": "Tarree keessatti «Lakki» jedhaman, kanaaf kan hin afeeramne: :count",
+  "migration_ready.warn_title": "Namoonni tokko tokko qaamaan qofa hojiirra oolu",
+  "migration_ready.warn_desc": "Namoonni :count affeerraan isaan quunnamuu hin danda'u, dhaabbatni keessan lakkoofsa hojjetaatiin seenuu hin eyyamne; kanaaf koodiin qaamaan kennamu isaan hin seensisu. Sadarkaa Seensaa qindaa'ina qajeelfamaa keessatti Lakkoofsa hojjetaa banaa, yookaan imeelii isaaniif dabalaa.",
+  "migration_ready.warn_link": "Sadarkaa Seensaa bani"
 }

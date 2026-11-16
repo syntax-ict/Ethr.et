@@ -320,7 +320,7 @@ EMP-027, IDN-001 to IDN-004; more in UAT-H14).
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees, Example and Instructions (a hidden Lists sheet holds the dropdown choices), dropdowns for gender, status, department, branch and position, and no example row on the Employees sheet itself: the example people are on the Example sheet |
+| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees, Example and Instructions (a hidden Lists sheet holds the dropdown choices), dropdowns for gender, status, department, branch and position, a **Sign in** column after Phone with a yes or no dropdown (yes invites that person when the list is added, no does not, blank follows the tick on the review step), and no example row on the Employees sheet itself: the example people are on the Example sheet |
 | 2 | Fill 5 rows (one with Amharic names, one phone starting with 0, one 16 digit national ID) and choose the file | "5 people ready", with the columns named. The leading zero and all 16 digits are kept. An old .xls file is refused with a message telling you to save as .xlsx or CSV |
 | 3 | **Stage for review** | A table with one row a person and its match: new, matched, or to review, and any problem per row (for example a department that does not exist). **Nobody is added yet** |
 | 4 | Choose what the new people arrive as (newly hired, on probation, or already work here, confirmed). "Invite them to sign in as soon as they are added" is ticked here, so untick it unless the addresses are the team's. Commit with **Bring them in** | The summary says how many were created, matched and skipped. People arrive with the status you chose |

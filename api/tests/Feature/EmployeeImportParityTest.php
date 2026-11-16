@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Services\Migration\StagedChanges;
+use App\Support\EmployeeImportChoices;
 use App\Support\EmployeeImportGrid;
 use App\Support\EmployeeImportRow;
 use Illuminate\Http\UploadedFile;
@@ -298,3 +299,84 @@ test('the parts of a name are mappable and read by a list, and are not columns o
     expect(EmployeeImportRow::MAPPABLE[0])->toBe('name')
         ->and(array_values(array_diff(EmployeeImportRow::MAPPABLE, EmployeeImportRow::COLUMNS)))->toBe(EmployeeImportRow::NAME_PARTS);
 })->skip(fn () => ! is_dir(base_path('../src/src/features')), 'Needs the frontend source beside api/, as in a full checkout.');
+
+test('the sign-in column is in the template after the phone, in the contact group, a yes or no list, and read by a staged list only', function () {
+    $template = EmployeeImportRow::TEMPLATE;
+    $byKey = array_column(EmployeeImportRow::columnMeta(), null, 'key');
+    $groups = array_keys(array_filter(EmployeeImportRow::GROUPS, fn (array $headers): bool => in_array('sign_in', $headers, true)));
+
+    expect($template[array_search('phone', $template, true) + 1])->toBe('sign_in')
+        ->and(EmployeeImportRow::MAPPABLE)->toContain('sign_in')
+        ->and(EmployeeImportRow::COLUMNS)->toContain('sign_in')
+        ->and($groups)->toBe(['contact'])
+        ->and($byKey['sign_in'])->toMatchArray(['group' => 'contact', 'kind' => 'list', 'required' => false, 'pay' => false, 'masked' => false])
+        ->and(EmployeeImportChoices::forTenant(null)['sign_in'])->toBe(['yes', 'no'])
+        ->and(EmployeeImportRow::reads('sign_in'))->toBeTrue()
+        // The file import keeps the rules it had: the staged rule is not among them.
+        ->and(array_keys(EmployeeImportRow::rules()))->not->toContain('sign_in')
+        ->and(array_keys(EmployeeImportRow::rules('rows.*.')))->not->toContain('rows.*.sign_in')
+        ->and(EmployeeImportRow::stagedRules()['sign_in'])->toBe(['nullable', 'string', 'in:yes,no']);
+});
+
+test('a header reads as the sign-in column however it is written, and only a staged list reads the extra spellings', function (string $header) {
+    expect(EmployeeImportRow::column($header)[0])->toBe('sign_in');
+})->with(['Sign in', 'Sign-in', 'sign_in', 'SIGN IN', 'Signin', 'Invite', 'Invitation', 'ግብዣ']);
+
+test('the file import reads its headers as it always did', function () {
+    expect(EmployeeImportRow::header('Sign in'))->toBe('sign_in')
+        ->and(EmployeeImportRow::header('Invite'))->toBe('invite')
+        ->and(EmployeeImportRow::header('Invitation'))->toBe('invitation')
+        ->and(EmployeeImportRow::header('Login'))->toBe('login');
+});
+
+test('a column no one has named may be suggested as the sign-in column, and no suggestion that existed changes', function () {
+    expect(EmployeeImportRow::suggest('Login'))->not->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('Last login'))->not->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('የመግቢያ ቀን'))->not->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('Invite'))->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('ግብዣ'))->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('Invite them'))->toBe('sign_in')
+        ->and(EmployeeImportRow::suggest('Role'))->toBe('position_code')
+        ->and(EmployeeImportRow::suggest('Account'))->toBe('bank_account')
+        ->and(EmployeeImportRow::suggest('Account number'))->toBe('bank_account')
+        ->and(EmployeeImportRow::suggest('Login email'))->toBe('email')
+        ->and(EmployeeImportRow::suggest('Login ID'))->toBe('employee_code')
+        ->and(EmployeeImportRow::suggest('Status'))->toBe('status');
+
+    // A bare "Login" is neither read nor suggested: a legacy export's login is a username.
+    expect(EmployeeImportRow::column('Login')[0])->toBe('login');
+});
+
+test('the sign-in column reads yes and no in three languages, and leaves the rest for the rule to refuse', function (string $written, string $read) {
+    expect(EmployeeImportRow::normalize(['sign_in' => $written])['sign_in'])->toBe($read);
+})->with([
+    ['Yes', 'yes'], ['YES', 'yes'], ['y', 'yes'], ['TRUE', 'yes'], ['1', 'yes'], ['Invite', 'yes'],
+    ['አዎ', 'yes'], ['አዎን', 'yes'],
+    ['Eeyyee', 'yes'], ['eyyee', 'yes'],
+    ['No', 'no'], ['n', 'no'], ['false', 'no'], ['0', 'no'],
+    ['አይ', 'no'], ['አይደለም', 'no'],
+    ['Lakki', 'no'], ['miti', 'no'],
+    ['maybe', 'maybe'], ['2', '2'],
+]);
+
+test('a blank sign-in cell stays blank and a value that is not yes or no is a problem of its own column, in every language', function (string $locale, string $message) {
+    app()->setLocale($locale);
+    $rules = EmployeeImportRow::stagedRules();
+
+    expect(EmployeeImportRow::problems(EmployeeImportRow::normalize(['name' => 'Abebe', 'sign_in' => '  ']), $rules))->toBe([])
+        ->and(EmployeeImportRow::problems(EmployeeImportRow::normalize(['name' => 'Abebe', 'sign_in' => 'yes']), $rules))->toBe([])
+        ->and(EmployeeImportRow::problems(EmployeeImportRow::normalize(['name' => 'Abebe', 'sign_in' => 'maybe']), $rules))
+        ->toBe([['column' => 'sign_in', 'code' => 'in', 'message' => $message]]);
+})->with([
+    ['en', 'Sign in must be yes or no, or left empty.'],
+    ['am', 'የመግቢያ ዓምድ አዎ ወይም አይ መሆን አለበት፤ ወይም ባዶ ሊተው ይችላል።'],
+    ['om', 'Kutaa Seensaa keessatti Eeyyee yookaan Lakki qofa barreessi, yookaan duwwaa dhiisi.'],
+]);
+
+test('a staged row keeps the sign-in answer and nothing about a person reads it', function () {
+    $row = EmployeeImportRow::staged(['name' => 'Abebe', 'sign_in' => 'no']);
+
+    expect($row['sign_in'])->toBe('no')
+        ->and(array_keys(StagedChanges::FIELDS))->not->toContain('sign_in')
+        ->and(EmployeeImportRow::staged(['name' => 'Abebe']))->not->toHaveKey('sign_in');
+});

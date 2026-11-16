@@ -7628,5 +7628,17 @@
   "devices_page.rejected.token_retired": "It is still sending the token from before the token was regenerated. Enter the current address, shown on this page, on the terminal.",
   "devices_page.rejected.token_truncated": "It sent only the start of the token, so the address on the terminal is cut short. Enter the whole address shown on this page and check the terminal kept all of it.",
   "devices_page.rejected.token_missing": "It called without a token. Enter the whole address shown on this page, including the part after ?token=.",
-  "devices_page.rejected.ip_not_allowed": "It called from :ip, which is not on this device's list of allowed addresses."
+  "devices_page.rejected.ip_not_allowed": "It called from :ip, which is not on this device's list of allowed addresses.",
+  "setup2.col_sign_in": "Sign in",
+  "employees_import_page.col_sign_in": "yes: invited when the list is added. no: this list does not invite them. Blank: the choice on the review screen decides. Only for people the list adds.",
+  "setup2.template_line_sign_in": "The Sign in column says who is invited to sign in when the list is added: yes invites them, no does not, and blank follows the choice on the review screen.",
+  "migration_logins.list_said_no": "this list did not ask to invite them",
+  "migration_ready.title": "What adding this list will do about signing in, for the people it adds",
+  "migration_ready.invited": "Invited by email or text when the list is added: :count",
+  "migration_ready.afterwards": "Can be invited with one button after the list is added: :count",
+  "migration_ready.code": "Listed for a printed code to hand over in person: :count",
+  "migration_ready.marked_no": "Marked no in the list, so not invited: :count",
+  "migration_ready.warn_title": "Some people can only be activated in person",
+  "migration_ready.warn_desc": ":count people cannot be reached by an invitation, and your organisation does not let people sign in with their employee number, so a code handed over in person would not let them in. Turn on Employee number in the Sign-in step of the guided setup, or add an email for them.",
+  "migration_ready.warn_link": "Open the Sign-in step"
 }

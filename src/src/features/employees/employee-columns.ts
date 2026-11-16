@@ -85,6 +85,13 @@ export const EMPLOYEE_COLUMNS: Record<string, ColumnWords> = {
     label: ["setup2.col_phone", "Phone"],
     help: ["employees_import_page.col_phone", "09... or +251..."],
   },
+  sign_in: {
+    label: ["setup2.col_sign_in", "Sign in"],
+    help: [
+      "employees_import_page.col_sign_in",
+      "yes: invited when the list is added. no: this list does not invite them. Blank: the choice on the review screen decides. Only for people the list adds.",
+    ],
+  },
   gender: {
     label: ["common.gender", "Gender"],
     help: ["employees_import_page.col_gender", "male or female, M or F"],
