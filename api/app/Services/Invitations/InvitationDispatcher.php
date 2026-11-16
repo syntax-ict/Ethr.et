@@ -10,6 +10,7 @@ use App\Models\InvitationSend;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Sms\ConfiguredSmsSender;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -26,12 +27,17 @@ use RuntimeException;
  * One invitation for one person (the employee form, the resend button) is still
  * sent at once by UserProvisioningService::sendActivationLink(), because
  * someone may be standing there waiting for it.
+ *
+ * An organisation's email invitations are also limited per day
+ * (EmailInvitationCeiling), because every organisation sends from one mailbox.
+ * What does not fit today is queued for a later morning and called held.
  */
 final class InvitationDispatcher
 {
     public function __construct(
         private readonly CurrentTenant $currentTenant,
         private readonly ConfiguredSmsSender $sms,
+        private readonly EmailInvitationCeiling $ceiling,
     ) {}
 
     /**
@@ -63,11 +69,17 @@ final class InvitationDispatcher
      *
      * Skipped: anyone not `invited`, anyone from another organisation, and
      * anyone with an invitation queued or sent in the last few minutes (a
-     * double click, or "resend to everyone" pressed twice, sends once). People
+     * double click, or "resend to everyone" pressed twice, sends once), and
+     * anyone whose invitation is held for a later day and not sent yet, however
+     * old it is, and including the morning it falls due (until it is sent, or
+     * abandoned: InvitationSend::scopeHeldAndUnsent). People
      * who can only be invited in person are counted, not queued.
      *
+     * `queued` counts every row made; `held` is how many of them wait for a
+     * later day.
+     *
      * @param  iterable<User>  $users
-     * @return array{batch: string|null, queued: int, in_person: int, skipped: int}
+     * @return array{batch: string|null, queued: int, held: int, in_person: int, skipped: int}
      */
     public function queue(iterable $users, ?User $by = null, bool $reminder = false): array
     {
@@ -87,12 +99,20 @@ final class InvitationDispatcher
             ->pluck('user_id')
             ->flip();
 
+        $held = InvitationSend::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('user_id', $users->pluck('id')->all())
+            ->heldAndUnsent()
+            ->pluck('user_id')
+            ->flip();
+
         $batch = (string) Str::ulid();
-        $counts = ['queued' => 0, 'in_person' => 0, 'skipped' => 0];
+        $counts = ['queued' => 0, 'held' => 0, 'in_person' => 0, 'skipped' => 0];
         $position = [InvitationSend::EMAIL => 0, InvitationSend::SMS => 0];
+        $planner = $this->ceiling->planner($tenant->id, $this->perMinute(InvitationSend::EMAIL));
 
         foreach ($users->unique('id') as $user) {
-            if ($user->tenant_id !== $tenant->id || $user->status !== 'invited' || $recent->has($user->id)) {
+            if ($user->tenant_id !== $tenant->id || $user->status !== 'invited' || $recent->has($user->id) || $held->has($user->id)) {
                 $counts['skipped']++;
 
                 continue;
@@ -105,6 +125,8 @@ final class InvitationDispatcher
                 continue;
             }
 
+            $slot = $channel === InvitationSend::EMAIL ? $planner->next() : null;
+
             $send = InvitationSend::query()->create([
                 'tenant_id' => $tenant->id,
                 'user_id' => $user->id,
@@ -114,13 +136,19 @@ final class InvitationDispatcher
                 'reminder' => $reminder,
                 'queued_by' => $by?->id,
                 'queued_at' => now(),
+                'held_until' => $slot,
             ]);
 
             // Spread over the minutes the per-minute limit implies, so the
             // limiter in the job is a backstop and not the normal path.
-            $minute = intdiv($position[$channel]++, $this->perMinute($channel));
+            if ($slot instanceof Carbon) {
+                SendInvitationJob::dispatch($tenant->id, $send->id)->delay($slot);
+                $counts['held']++;
+            } else {
+                $minute = intdiv($position[$channel]++, $this->perMinute($channel));
 
-            SendInvitationJob::dispatch($tenant->id, $send->id)->delay(now()->addMinutes($minute));
+                SendInvitationJob::dispatch($tenant->id, $send->id)->delay(now()->addMinutes($minute));
+            }
 
             $counts['queued']++;
         }
@@ -140,7 +168,10 @@ final class InvitationDispatcher
      * Where a batch stands, for the progress card. Null when the organisation
      * has no batch of that id, which answers 404 whoever's it is.
      *
-     * @return array{batch: string, total: int, queued: int, sent: int, failed: int, skipped: int, failures: list<array{user_id: string, name: string|null, channel: string, error_code: string|null}>}|null
+     * `queued` leaves out the held ones, which are on their way but not today.
+     * `daily_limit` is what one day of email invitations may hold, null for no limit.
+     *
+     * @return array{batch: string, total: int, queued: int, held: int, held_until: string|null, daily_limit: int|null, sent: int, failed: int, skipped: int, failures: list<array{user_id: string, name: string|null, channel: string, error_code: string|null}>}|null
      */
     public function summary(string $batch): ?array
     {
@@ -161,10 +192,18 @@ final class InvitationDispatcher
 
         $count = fn (string $status): int => $rows->where('status', $status)->count();
 
+        $waiting = $rows->where('status', InvitationSend::QUEUED);
+        $isHeld = fn (InvitationSend $row): bool => $row->held_until?->isFuture() === true;
+        $held = $waiting->filter($isHeld);
+        $latest = $held->max('held_until');
+
         return [
             'batch' => $batch,
             'total' => $rows->count(),
-            'queued' => $count(InvitationSend::QUEUED),
+            'queued' => $waiting->reject($isHeld)->count(),
+            'held' => $held->count(),
+            'held_until' => $latest instanceof Carbon ? $latest->toIso8601String() : null,
+            'daily_limit' => $this->ceiling->orgLimit(),
             'sent' => $count(InvitationSend::SENT),
             'failed' => $count(InvitationSend::FAILED),
             'skipped' => $count(InvitationSend::SKIPPED),

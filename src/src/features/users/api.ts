@@ -143,14 +143,24 @@ export function useSendInvitations() {
   });
 }
 
-/** Where a batch stands. Polls while anything is still waiting to go out. */
+/**
+ * How long to wait before asking again. `queued` is what is still to go
+ * today; invitations held for a later morning are not in it, so a batch with
+ * only held ones left stops polling.
+ */
+export function invitationPollInterval(
+  data: Pick<InvitationBatch, "queued"> | undefined,
+): number | false {
+  return data && data.queued === 0 ? false : 15_000;
+}
+
+/** Where a batch stands. Polls while anything is still to go out today. */
 export function useInvitationBatch(batch: string | null) {
   return useQuery<InvitationBatch>({
     queryKey: ["users", "invitations", batch],
     enabled: batch !== null,
     queryFn: async () =>
       (await apiClient.get(`/users/invitations/${batch}`)).data,
-    refetchInterval: (query) =>
-      query.state.data && query.state.data.queued === 0 ? false : 15_000,
+    refetchInterval: (query) => invitationPollInterval(query.state.data),
   });
 }

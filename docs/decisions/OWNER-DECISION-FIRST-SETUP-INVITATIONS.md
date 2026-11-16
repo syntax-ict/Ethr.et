@@ -41,8 +41,10 @@ commit. The kiosk, attendance terminals, payroll and leave recorded by HR do not
 
 ## Not done, on purpose
 
-- **A per-organisation daily ceiling on invitations.** The shared cap is real, but a ceiling is
-  its own decision.
+The per-organisation daily ceiling on invitations, first listed here, was added afterwards
+(2026-11-16): see "A daily ceiling per organisation" in
+[`../EMPLOYEE-INVITATIONS-PLAN.md`](../EMPLOYEE-INVITATIONS-PLAN.md#a-daily-ceiling-per-organisation).
+
 - **A sign-in column in the employee workbook, and sign-in state on the Employees list.**
   Planned next; this record only moves the default and the order.
 

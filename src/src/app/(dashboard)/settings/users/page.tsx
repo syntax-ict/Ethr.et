@@ -58,6 +58,7 @@ import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { OwnershipCard } from "@/features/settings/components/ownership-card";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { InvitationProgress } from "@/features/users/components/invitation-progress";
 import { InvitationRemindersSetting } from "@/features/users/components/invitation-reminders-setting";
@@ -90,14 +91,22 @@ function userStatusClass(status: UserStatus | string): string {
 function invitationLine(
   u: TenantUser,
   t: ReturnType<typeof useT>["t"],
+  formatDate: (dateStr: string) => string,
 ): string {
   if (!u.email && u.last_invitation?.channel !== "sms") {
     return t("users_page.invitation.in_person", "Activate in person");
   }
 
   switch (u.last_invitation?.status) {
-    case "queued":
+    case "queued": {
+      const heldUntil = u.last_invitation.held_until;
+      if (heldUntil && new Date(heldUntil).getTime() > Date.now()) {
+        return t("users_page.invitation.held", "Invitation goes out on :date", {
+          date: formatDate(heldUntil),
+        });
+      }
       return t("users_page.invitation.queued", "Invitation on its way");
+    }
     case "sent":
       return u.last_invitation.reminder
         ? t("users_page.invitation.reminder_sent", "Reminder sent")
@@ -120,6 +129,7 @@ function personName(u: {
 
 export default function UsersSettingsPage() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   // Every page, and the API's search: it pages at 25 ordered by email, and the
   // screen read only the first page, so accounts past the 25th could not be
   // edited, re-invited or removed (audit N68).
@@ -396,7 +406,7 @@ export default function UsersSettingsPage() {
                       </Badge>
                       {u.status === "invited" && (
                         <span className="mt-1 block text-xs text-muted-foreground">
-                          {invitationLine(u, t)}
+                          {invitationLine(u, t, formatDate)}
                         </span>
                       )}
                     </div>,

@@ -51,9 +51,19 @@ const INVITED = {
     reminder: false,
     queued_at: "2026-10-27T08:00:00Z",
     sent_at: null,
+    held_until: null,
   },
   created_at: "2026-10-27T08:00:00Z",
 };
+
+function usersWith(lastInvitation: Record<string, unknown>) {
+  return [
+    {
+      ...INVITED,
+      last_invitation: { ...INVITED.last_invitation, ...lastInvitation },
+    },
+  ];
+}
 
 let userQueries: URLSearchParams[] = [];
 let posted: unknown[] = [];
@@ -86,6 +96,7 @@ beforeEach(() => {
           message: "Invitations are being sent.",
           batch: BATCH,
           queued: 1,
+          held: 0,
           in_person: 0,
           skipped: 0,
         },
@@ -97,6 +108,9 @@ beforeEach(() => {
         batch: BATCH,
         total: 1,
         queued: 1,
+        held: 0,
+        held_until: null,
+        daily_limit: 100,
         sent: 0,
         failed: 0,
         skipped: 0,
@@ -124,6 +138,45 @@ describe("users page invitations", () => {
     expect(
       await screen.findByText("Invitation could not be sent"),
     ).toBeInTheDocument();
+  });
+
+  it("says when a held invitation goes out", async () => {
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    server.use(
+      http.get("*/api/v1/users", () =>
+        HttpResponse.json({
+          data: usersWith({ status: "queued", held_until: future }),
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 1 },
+          links: { next: null, prev: null },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText(/^Invitation goes out on .+/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Invitation on its way")).not.toBeInTheDocument();
+  });
+
+  it("still says on its way when nothing is held", async () => {
+    server.use(
+      http.get("*/api/v1/users", () =>
+        HttpResponse.json({
+          data: usersWith({ status: "queued", held_until: null }),
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 1 },
+          links: { next: null, prev: null },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText("Invitation on its way"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Invitation goes out on/),
+    ).not.toBeInTheDocument();
   });
 
   it("resends to everyone not activated and shows the send in progress", async () => {
