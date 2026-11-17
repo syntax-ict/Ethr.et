@@ -596,7 +596,9 @@ organisation had 83 such numbers (R011, T022, "66") and none of its employees ca
   department), each a button that only fills the picker. Assign stays a separate click. The name also goes
   to the resolver, so a small number that equals some employee's code while the two names share no word is
   shown as "Possibly", not "This is". The new-employee link and the downloaded list start from the name.
-- **What it does not do.** It never assigns a badge and never touches the live punch path. A name of one
+- **What it does not do.** It never assigns a badge and never touches the live punch path. The words of the terminal's name must match the employee's name in the same order from the
+  first (given name, father's name, grandfather's name), so a father's name does not suggest his
+  child. A name of one
   word suggests nobody, and so does a name that more than five people fit. Only people the viewer may open
   are listed, and only this organisation's. A terminal whose users were enrolled without names sends none,
   and then the card is as it was.

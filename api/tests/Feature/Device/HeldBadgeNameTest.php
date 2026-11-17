@@ -268,3 +268,34 @@ it('leaves out a person the viewer may not open', function () {
     expect(array_column($row['name_matches'], 'employee_public_id'))->toBe([$visible->public_id])
         ->and(json_encode($row))->not->toContain('Tesfaye');
 });
+
+it('finds the name of a held badge whatever the case the terminal first sent it in', function () {
+    [$tenant, $device] = badgeNamesOrganisation();
+    badgeNamesStaff($tenant, 'Abebe Kebede Tesfaye');
+    badgeNamesNote($device, 'r011', 'Abebe Kebede');
+    badgeNamesHold($tenant, $device, 'R011');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $row = test()->getJson(badgeNamesUrl($tenant))->assertOk()->json('data.0');
+
+    expect($row['badge'])->toBe('R011')
+        ->and($row['name_on_device'])->toBe('Abebe Kebede')
+        ->and($row['name_matches'])->toHaveCount(1);
+});
+
+it('matches the words of a terminal name to the employee name from the first, in order', function () {
+    [$tenant] = badgeNamesOrganisation();
+    $child = badgeNamesStaff($tenant, 'Abebe Kebede Tesfaye');
+    $names = app(TerminalNames::class);
+    $ids = fn (string $name): array => array_map(fn (Employee $e) => $e->id, $names->lookalikes($tenant->id, $name));
+
+    expect($ids('Abebe Kebede'))->toBe([$child->id])
+        ->and($ids('Abebe Kebede Tesfaye'))->toBe([$child->id])
+        ->and($ids('Abe Keb'))->toBe([$child->id])
+        // His father, whose names are the child's second and third.
+        ->and($ids('Kebede Tesfaye'))->toBe([])
+        ->and($ids('Kebede Abebe'))->toBe([])
+        ->and($ids('Tigist Abebe Kebede'))->toBe([])
+        ->and($ids('Abebe Tesfaye Kebede'))->toBe([])
+        ->and($ids('Abebe Kebede Tesfaye Alemu'))->toBe([]);
+});

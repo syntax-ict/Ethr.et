@@ -55,8 +55,10 @@ final class TerminalNames
 
     /**
      * The names held for these (device, badge) pairs, read as
-     * `$names[$deviceId][$badge]`. One query, this organisation only. The
-     * badge is matched as stored: the unique index's collation decides case.
+     * `$names[$deviceId][mb_strtolower($badge)]`. One query, this organisation
+     * only. The query matches as the index's collation does (MariaDB ignores
+     * case, so a row kept as "r011" answers for a held "R011"); the map is
+     * keyed by the lowercased badge so the reader finds it either way.
      *
      * @param  list<array{0: int, 1: string}>  $pairs
      * @return array<int, array<string, string>>
@@ -68,7 +70,15 @@ final class TerminalNames
         }
 
         $deviceIds = array_values(array_unique(array_column($pairs, 0)));
-        $badges = array_values(array_unique(array_map(fn (array $pair): string => mb_substr($pair[1], 0, 64), $pairs)));
+        // Both spellings, so an engine that compares case-sensitively (the
+        // SQLite of the test suite) finds what MariaDB's collation would.
+        $badges = [];
+        foreach ($pairs as $pair) {
+            $badge = mb_substr($pair[1], 0, 64);
+            $badges[$badge] = true;
+            $badges[mb_strtolower($badge)] = true;
+        }
+        $badges = array_map('strval', array_keys($badges));
 
         $rows = DB::table('device_enrollment_snapshots')
             ->where('tenant_id', $tenantId)
@@ -79,7 +89,7 @@ final class TerminalNames
 
         $names = [];
         foreach ($rows as $row) {
-            $names[(int) $row->device_id][(string) $row->device_user_id] = (string) $row->name;
+            $names[(int) $row->device_id][mb_strtolower((string) $row->device_user_id)] = (string) $row->name;
         }
 
         return $names;
@@ -87,6 +97,11 @@ final class TerminalNames
 
     /**
      * Current employees who could be the person a terminal calls `$name`.
+     *
+     * Ethiopian names run given name, father's name, grandfather's name, so the
+     * terminal's words must match the employee's from the first, in order:
+     * "Abebe Kebede" fits "Abebe Kebede Tesfaye", and "Kebede Tesfaye" (the
+     * father) does not fit his child.
      *
      * A single given name among thousands of people is noise, so fewer than
      * two words suggests nobody; so does a name that more than `$limit` people
@@ -150,28 +165,20 @@ final class TerminalNames
     }
 
     /**
-     * Every terminal word is the start of, or equal to, some word of the
-     * employee's name, or some word of the name is the start of the terminal
-     * word. "Abebe Kebede" fits "Abebe Kebede Tesfaye" and not "Kebede Alemu".
+     * Terminal word i matches the employee's word i, for every terminal word:
+     * one is the start of, or equal to, the other. "Abebe Kebede" fits
+     * "Abebe Kebede Tesfaye" and "Abebe Kebedew X", not "Kebede Abebe",
+     * "Tigist Abebe Kebede" or "Abebe Tesfaye Kebede".
      *
      * @param  list<string>  $words
      */
     private function sharesEveryWord(array $words, string $field): bool
     {
         $theirs = $this->words($field);
-        if ($theirs === []) {
-            return false;
-        }
 
-        foreach ($words as $word) {
-            $hit = false;
-            foreach ($theirs as $other) {
-                if (str_starts_with($other, $word) || str_starts_with($word, $other)) {
-                    $hit = true;
-                    break;
-                }
-            }
-            if (! $hit) {
+        foreach ($words as $position => $word) {
+            $other = $theirs[$position] ?? null;
+            if ($other === null || ! (str_starts_with($other, $word) || str_starts_with($word, $other))) {
                 return false;
             }
         }

@@ -239,7 +239,6 @@ function UnmatchedRow({
     badge: row.badge,
     device: row.device_public_id,
     hire_date: heldSinceDate(row.first_seen, timeZone),
-    ...(row.name_on_device ? { name: row.name_on_device } : {}),
   }).toString()}`;
 
   return (

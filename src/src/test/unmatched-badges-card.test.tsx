@@ -625,7 +625,7 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
     ).toHaveLength(1);
   });
 
-  it("carries the name on the new-employee link and into the downloaded list", async () => {
+  it("keeps the name out of the new-employee link, and puts it in the downloaded list", async () => {
     const user = userEvent.setup();
     server.use(
       http.post("*/api/v1/employees/import/template", () =>
@@ -650,13 +650,10 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
       name: "Add as a new employee",
     });
     const href = new URL(links[0].getAttribute("href")!, "http://x");
-    expect(href.searchParams.get("name")).toBe("Abebe Kebede");
+    // A name in the address would be written to the server's access log.
+    expect(href.searchParams.has("name")).toBe(false);
     expect(href.searchParams.get("badge")).toBe("7777");
-    expect(
-      new URL(links[1].getAttribute("href")!, "http://x").searchParams.has(
-        "name",
-      ),
-    ).toBe(false);
+    expect(links[0].getAttribute("href")).not.toContain("Abebe");
 
     await user.click(
       screen.getByRole("button", { name: "Download these badges as a list" }),

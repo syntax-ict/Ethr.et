@@ -4823,8 +4823,8 @@ Hikvision `AccessControllerEvent` carries the enrolled person's `name` beside `e
 
 The name is now kept (`HikvisionEvent::personName`, `TerminalNames::note` into
 `device_enrollment_snapshots`, no schema change) and shown on the card to anyone with `attendance.manage`,
-with the current employees the name could be: every word of the terminal's name must begin, or be begun
-by, a word of the employee's name, a one-word name suggests nobody, and so does a name more than five
+with the current employees the name could be: the words of the terminal's name must begin, or be begun
+by, the employee's words in the same order from the first, a one-word name suggests nobody, and so does a name more than five
 people fit. The resolver also receives the name, so a number that equals some employee's code while the
 names share no word is "probable", not "matched". Nothing is assigned automatically. Pinned by
 `tests/Feature/Device/HeldBadgeNameTest.php`.

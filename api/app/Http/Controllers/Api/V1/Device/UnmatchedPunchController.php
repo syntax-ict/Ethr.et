@@ -145,7 +145,7 @@ class UnmatchedPunchController extends Controller
      */
     private function nameOnDevice(array $names, array $group): ?string
     {
-        $name = $names[$group['device_id']][$group['badge']] ?? null;
+        $name = $names[$group['device_id']][mb_strtolower($group['badge'])] ?? null;
 
         return $name === null ? null : (string) $name;
     }
