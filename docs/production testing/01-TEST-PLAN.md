@@ -328,6 +328,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The pack corrected against the code, from the 2026-11-17 UAT pass: HOL-001 (the three Islamic feasts are stored estimated, and the Holidays screen draws no mark), UAT-A8 step 3 (the setup's "How you pay" never asked the pension registration number), UAT-F4 step 1 (Reconcile opens on the Gregorian month to date, not the Ethiopian month), REP-006 (a timesheet span over 31 days is cut, never a 422), MASS-002h (the Employees list pages 25 at a time) | pack correction | HOL-001, REP-006, MASS-002h changed; [02](02-UAT-GUIDE.md): UAT-A8, UAT-F4 |
 | The UAT guide brought up to date with what shipped since 2026-11-14 | this edition | [02](02-UAT-GUIDE.md): UAT-A5, UAT-A8, UAT-E3, UAT-F4, UAT-H2, UAT-H6, UAT-H13, UAT-H15, UAT-H16, UAT-H18, UAT-P1 changed 2026-11-17 |
 | A held badge says what the Hikvision terminal calls it, offers the employees that name could be (never assigns), carries the name into "Add as a new employee" and the downloaded list | #785 | DEV-070 to DEV-072 |
+| A pulled terminal's sync interval has a floor of 5 minutes (the scheduler ticks every five), the select and the API refuse less, a device stored lower reads as 5, and the screen says "At most every :count min" with a hint that a late pull loses nothing | #788 | DEV-073 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone

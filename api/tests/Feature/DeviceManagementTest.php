@@ -186,6 +186,60 @@ test('tenant admin can register a device', function () {
         ->assertJsonMissingPath('id');
 });
 
+test('a sync interval under five minutes is refused, on register and on update', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/devices";
+
+    foreach ([1, 4] as $minutes) {
+        test()->postJson($base, [
+            'name' => 'Interval terminal',
+            'adapter_type' => 'mock',
+            'branch_public_id' => $branch->public_id,
+            'connection_config' => ['ip' => '192.168.1.100', 'port' => 80],
+            'sync_interval_minutes' => $minutes,
+        ])->assertStatus(422)->assertJsonValidationErrors('sync_interval_minutes');
+
+        test()->putJson("{$base}/{$device->public_id}", ['sync_interval_minutes' => $minutes])
+            ->assertStatus(422)->assertJsonValidationErrors('sync_interval_minutes');
+    }
+
+    foreach ([5, 1440] as $minutes) {
+        test()->putJson("{$base}/{$device->public_id}", ['sync_interval_minutes' => $minutes])
+            ->assertOk()->assertJsonPath('sync_interval_minutes', $minutes);
+    }
+});
+
+test('a device stored with an interval under five minutes reads, shows and waits as five', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 09:00:00', 'UTC'));
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'auto_sync' => true,
+        'last_sync_at' => now(),
+    ]);
+    Device::withoutGlobalScopes()->whereKey($device->getKey())->toBase()->update(['sync_interval_minutes' => 1]);
+    $device = Device::withoutGlobalScopes()->findOrFail($device->getKey());
+
+    expect($device->sync_interval_minutes)->toBe(5);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}")
+        ->assertOk()->assertJsonPath('sync_interval_minutes', 5);
+
+    Carbon::setTestNow(Carbon::parse('2026-11-17 09:04:00', 'UTC'));
+    expect($device->isDueForSync())->toBeFalse();
+
+    Carbon::setTestNow(Carbon::parse('2026-11-17 09:05:01', 'UTC'));
+    expect($device->isDueForSync())->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
 test('hr admin cannot register a device', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

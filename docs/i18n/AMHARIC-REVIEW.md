@@ -553,3 +553,24 @@ The Amharic drafts:
 
 What to check first: that "ተርሚናል" is the word people at the office already use for the fingerprint or face
 device, and that the second line reads as a reason to look, not as a verdict.
+
+### The sync interval hint, and "At most every" (2026-11-17)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. The hint sits under the Sync Interval select and says the interval is a ceiling: ETHR pulls when its
+scheduler runs, and a late pull loses nothing. `:action` is replaced by the pull button's own label, so the
+hint follows the language of the button ("ፑል" in Amharic).
+
+| What | Where | Strings |
+|---|---|---|
+| Hint under the Sync Interval select | `src/src/lib/i18n/locales/{am,om}.json`, `device_detail_page.sync_interval_hint` | 1 each |
+| "At most every :count min" (was "Every :count min") | `devices_page.every_minutes` | 1 each |
+| "Every 1 minute" option removed | `device_detail_page.every_1_min` | removed |
+
+The Amharic drafts:
+
+- `device_detail_page.sync_interval_hint`: ETHR ከዚህ መሣሪያ ፑል የሚያደርገው መርሐ ግብሩ ሲሠራ ነው፣ ከዚህ በበለጠ ቶሎ አይደለም፣ አንዳንዴም ዘግይቶ ይሆናል። ዘግይቶ ፑል ማድረግ ምንም አያጠፋም፤ እያንዳንዱ ምዝገባ የተፈጸመበትን ጊዜ ይይዛል። ወዲያውኑ ሲፈልጉ :action ይጠቀሙ።
+- `devices_page.every_minutes`: ቢበዛ በየ:count ደቂቃ
+
+What to check first: that "ቢበዛ" ("at most") reads as a ceiling on a card, and that "ፑል" is still the word the
+button uses.

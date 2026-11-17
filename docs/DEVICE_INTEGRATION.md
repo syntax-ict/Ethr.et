@@ -260,6 +260,23 @@ The rule now:
 
 Pinned in `tests/Feature/Device/DeviceOfflineRetryTest.php`.
 
+## How often a pulled terminal is read (2026-11-17)
+
+The owner can set a pulled terminal's sync interval to 5 to 1,440 minutes (default 5). The floor is 5 because
+`devices:sync` is scheduled `everyFiveMinutes()` and production has no cron of its own: the scheduler is
+driven from outside, best effort. An interval under 5 minutes could not be kept, so the API refuses it with a
+422 (`Device::MIN_SYNC_INTERVAL_MINUTES`, used by both the store and update requests), the select offers 5
+minutes and up, and the screen says "At most every :count min" with a hint that a pull can come later than
+the interval.
+
+A terminal already stored at 1 to 4 minutes needs no migration: the model reads `sync_interval_minutes` as
+`max(5, stored value)`, so the card, the resource, `isDueForSync()` and the retry wait all see 5. The next
+save of that device stores 5.
+
+A late pull delays when punches appear and loses none: each pull reads from where the last one stopped, and a
+punch keeps the time it happened. A terminal that sends to ETHR does not depend on any of this, and shows no
+interval.
+
 ## Commands to devices (2026-10-14)
 
 Until this, device management was one-way. Punches came in and nothing went out: every

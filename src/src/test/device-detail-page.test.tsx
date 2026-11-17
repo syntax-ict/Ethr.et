@@ -318,6 +318,81 @@ describe("device detail for a terminal that has not been heard from", () => {
     expect(await within(dialog).findByLabelText("IP Address")).toBeRequired();
   });
 
+  describe("the sync interval", () => {
+    const PULLED = {
+      ...DEVICE,
+      adapter_type: "hikvision",
+      receives_only: false,
+    };
+
+    it("starts at 5 minutes, offers no 1 minute, and says the interval is a ceiling", async () => {
+      granted.abilities = null;
+      serveDevice(PULLED);
+      const user = userEvent.setup();
+      renderDetail();
+
+      expect(
+        await screen.findByText("At most every 5 min"),
+      ).toBeInTheDocument();
+      await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+      const dialog = await screen.findByRole("dialog");
+
+      expect(
+        within(dialog).getByText(
+          /at most this often, and sometimes later.*Use Pull when you need them at once\./,
+        ),
+      ).toBeInTheDocument();
+
+      await user.click(within(dialog).getByLabelText("Sync Interval"));
+      const options = await screen.findAllByRole("option");
+      expect(options.map((o) => o.textContent)).toEqual([
+        "Every 5 minutes",
+        "Every 10 minutes",
+        "Every 15 minutes",
+        "Every 30 minutes",
+        "Every 1 hour",
+      ]);
+    });
+
+    it("opens a device that arrives under 5 minutes on 5, and saves 5", async () => {
+      granted.abilities = null;
+      serveDevice({ ...PULLED, sync_interval_minutes: 1 });
+      let sent: Record<string, unknown> | null = null;
+      server.use(
+        http.put("*/api/v1/devices/DEV1", async ({ request }) => {
+          sent = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ ...PULLED, sync_interval_minutes: 5 });
+        }),
+      );
+      const user = userEvent.setup();
+      renderDetail();
+
+      await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByLabelText("Sync Interval")).toHaveTextContent(
+        "Every 5 minutes",
+      );
+
+      await user.click(
+        within(dialog).getByRole("button", { name: /save changes/i }),
+      );
+      await vi.waitFor(() => expect(sent).not.toBeNull());
+      expect(sent!.sync_interval_minutes).toBe(5);
+    });
+
+    it("shows neither the select nor the hint for a terminal that only sends", async () => {
+      granted.abilities = null;
+      serveDevice(PUSH);
+      const user = userEvent.setup();
+      renderDetail();
+
+      await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).queryByLabelText("Sync Interval")).toBeNull();
+      expect(within(dialog).queryByText(/at most this often/i)).toBeNull();
+    });
+  });
+
   it("shows why a pull failed, with advice, on a terminal ETHR calls", async () => {
     serveDevice(
       { ...DEVICE, adapter_type: "hikvision", receives_only: false },
