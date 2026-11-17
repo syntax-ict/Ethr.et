@@ -13226,7 +13226,38 @@
                                                     "last_seen": {
                                                         "type": "string"
                                                     },
-                                                    "match": []
+                                                    "match": [],
+                                                    "name_on_device": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "name_matches": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "department": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "employee_name",
+                                                                "department"
+                                                            ]
+                                                        }
+                                                    }
                                                 },
                                                 "required": [
                                                     "device_public_id",
@@ -13235,7 +13266,9 @@
                                                     "punches",
                                                     "first_seen",
                                                     "last_seen",
-                                                    "match"
+                                                    "match",
+                                                    "name_on_device",
+                                                    "name_matches"
                                                 ]
                                             }
                                         }

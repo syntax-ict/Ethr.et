@@ -1741,6 +1741,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Device\\MockAdapter' => __DIR__ . '/../..' . '/app/Services/Device/MockAdapter.php',
         'App\\Services\\Device\\SupremaAdapter' => __DIR__ . '/../..' . '/app/Services/Device/SupremaAdapter.php',
         'App\\Services\\Device\\TerminalKeepAlive' => __DIR__ . '/../..' . '/app/Services/Device/TerminalKeepAlive.php',
+        'App\\Services\\Device\\TerminalNames' => __DIR__ . '/../..' . '/app/Services/Device/TerminalNames.php',
         'App\\Services\\Device\\UnmatchedPunches' => __DIR__ . '/../..' . '/app/Services/Device/UnmatchedPunches.php',
         'App\\Services\\Device\\WebhookRejections' => __DIR__ . '/../..' . '/app/Services/Device/WebhookRejections.php',
         'App\\Services\\Device\\ZktecoAdapter' => __DIR__ . '/../..' . '/app/Services/Device/ZktecoAdapter.php',
