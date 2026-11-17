@@ -377,7 +377,7 @@ MASS-001). Staged lists are kept 30 days. At most 2,000 people are added at a ti
 | Step | Do | Expect |
 |---|---|---|
 | 1 | **Settings → Leave types**: check Annual is 16 days with 1 more day for every 2 years of service | Matches the Labour Proclamation 1156/2019 |
-| 2 | **Settings → Holidays → Auto-detect** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays marked as estimated) |
+| 2 | **Settings → Holidays → Add Ethiopian public holidays** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays marked as estimated) |
 | 3 | Bring in opening leave balances from the previous system with the balance import | Balances show on each person's leave page |
 | 4 | Read the **Leave year** card (an organisation admin changes it; HR only reads) | Ethiopian year (Meskerem to Pagume) or Gregorian year. Once leave is recorded it cannot be changed: "Leave has already been used, requested or carried over in this year, so the leave year can no longer change." |
 | 5 | Try to set Annual Leave to 15 days, then 17 | 15 refused: "The law grants at least 16 days of this leave (Labour Proclamation No. 1156/2019, Art. 77(1)). A leave type may give more, never less." 17 saved. Put it back to 16 |
@@ -720,11 +720,12 @@ Changed 2026-11-14: step 6 (see 03 ACC-029).
 | 1 | **Settings → Organisation**: confirm the kind of organisation in law | The pension scheme and fiscal year match it |
 | 2 | **Settings → Attendance**: choose reconciliation Off, Advisory or Required | Saved |
 | 3 | Turn on lateness deductions, first without and then with the work-rules clause as the basis | Refused without a basis; saved with one |
-| 4 | **Settings → Payroll → Payroll schedule**: read **Working days per month**; try 19, then 32 | The field shows 22 with its help text. 32 is refused: "Enter a number of days from 20 to 31" (19 is a valid choice only if the organisation really pays on a 19 day month; put it back to 22) |
+| 4 | **Settings → Payroll → Payroll schedule**: read **Working days per month**; try 19, then 32 | The field shows 22 with its help text. 19 and 32 are both refused when you save: "Enter a number of days from 20 to 31", and nothing is saved. Leave it at 22 |
 | 5 | **Settings → Payroll → Statutory rules** | Each rule says where it comes from (the law for everyone, your kind of organisation, or your own). Rules the law sets are locked; there is **Reset to default** for your own. A tax ladder or pension rate below the law is refused with the law cited |
 | 6 | If your organisation changes its kind after its first approved run | The change needs an effective date, the first of a month, and the pending change is shown until then |
 
-Changed 2026-11-14: steps 4 to 6 (see 07 PAY-032, STAT-006 to STAT-013).
+Changed 2026-11-14: steps 4 to 6 (see 07 PAY-032, STAT-006 to STAT-013). Corrected 2026-11-17: step 4
+said 19 could be saved; the field takes 20 to 31 (`payroll_config.working_days_per_month_range`, 07 PAY-032).
 
 **Done when:** payroll follows the law that applies to you and the rules you agreed with staff.
 
