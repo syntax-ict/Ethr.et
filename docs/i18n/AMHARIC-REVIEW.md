@@ -535,3 +535,21 @@ The Afaan Oromoo drafts:
 What to check first: whether "መግቢያ የለም" and "Seensi hin jiru" read as "has no way to sign in" and not as
 "no entrance", the sentence about a printed code (the Amharic keeps the existing "ኮድ" and "የመነሻ የይለፍ ቃል"
 wording), and `ammaaf` ("for now") in the Afaan Oromoo, which is meant to say "yet". A wrong label moves no money.
+
+### The name a terminal sends for a held badge (2026-11-17)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. The two strings sit on the Unrecognised badges card: the first says what the terminal calls a
+held number, the second explains why a person is offered. Neither assigns anything.
+
+| What | Where | Strings |
+|---|---|---|
+| "The terminal calls this person :name" and "same name on the terminal" | `src/src/lib/i18n/locales/{am,om}.json`, `devices_page.unmatched.name_on_device`, `devices_page.unmatched.same_name` | 2 each |
+
+The Amharic drafts:
+
+- `devices_page.unmatched.name_on_device`: ተርሚናሉ ይህን ሰው :name ብሎ ይጠራዋል
+- `devices_page.unmatched.same_name`: በተርሚናሉ ላይ ያለው ስም ተመሳሳይ ነው
+
+What to check first: that "ተርሚናል" is the word people at the office already use for the fingerprint or face
+device, and that the second line reads as a reason to look, not as a verdict.

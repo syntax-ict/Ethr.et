@@ -497,6 +497,14 @@ export interface UnmatchedBadge {
   first_seen: string;
   last_seen: string;
   match?: UnmatchedBadgeMatch | null;
+  /** What the terminal calls this number; for attendance managers, when the terminal sent a name. */
+  name_on_device?: string | null;
+  /** Employees that name could be, never when the badge is already matched. */
+  name_matches?: {
+    employee_public_id: string;
+    employee_name: string;
+    department: string | null;
+  }[];
 }
 
 const UNMATCHED_KEY = ["devices", "unmatched-punches"];

@@ -55,7 +55,7 @@ class E2eAttendanceSeeder extends Seeder
 {
     public const PASSWORD = 'password';
 
-    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}> */
+    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}> */
     private const ORGANISATIONS = [
         'e2e-att' => [
             'name' => 'E2E Attendance',
@@ -87,6 +87,8 @@ class E2eAttendanceSeeder extends Seeder
             'name' => 'E2E Devices',
             'people' => [
                 ['code' => 'DEV-0001', 'name' => 'Kebede Worku', 'badge' => '9301', 'login' => null, 'salary_cents' => 1000000],
+                // No terminal number: the person a terminal's name points to (held-badge-name journey).
+                ['code' => 'DEV-0002', 'name' => 'Hirut Alemayehu Bekele', 'badge' => null, 'login' => null, 'salary_cents' => 1000000],
             ],
             'staff' => ['admin' => UserRole::TENANT_ADMIN],
             // The only terminal this organisation has sends its punches and
@@ -144,7 +146,7 @@ class E2eAttendanceSeeder extends Seeder
     }
 
     /**
-     * @param  array{name: string, people: list<array{code: string, name: string, badge: string, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}  $organisation
+     * @param  array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}  $organisation
      */
     private function create(string $subdomain, array $organisation): void
     {
@@ -205,7 +207,7 @@ class E2eAttendanceSeeder extends Seeder
                 'tenant_id' => $tenant->id,
                 'name' => $person['name'],
                 'email' => Str::lower($person['code'])."@{$subdomain}.ethr.test",
-                'phone' => '+25191100'.$person['badge'],
+                'phone' => '+25191100'.($person['badge'] ?? '9302'),
                 'employee_code' => $person['code'],
                 'badge_number' => $person['badge'],
                 'gender' => 'female',
