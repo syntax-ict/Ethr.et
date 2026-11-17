@@ -591,9 +591,13 @@ function DeviceCard({
               <p>
                 {t("devices_page.sync")}:{" "}
                 {device.auto_sync
-                  ? t("devices_page.every_minutes", "Every :count min", {
-                      count: device.sync_interval_minutes,
-                    })
+                  ? t(
+                      "devices_page.every_minutes",
+                      "At most every :count min",
+                      {
+                        count: device.sync_interval_minutes,
+                      },
+                    )
                   : t("devices_page.manual_only")}
               </p>
               <p>

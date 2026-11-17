@@ -96,6 +96,9 @@ function isNotFound(error: unknown): boolean {
   );
 }
 
+// Mirrors Device::MIN_SYNC_INTERVAL_MINUTES on the API.
+const MIN_SYNC_INTERVAL_MINUTES = 5;
+
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
   zkteco: "ZKTeco",
@@ -403,9 +406,13 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               label={t("device_detail_page.auto_sync")}
               value={
                 device.auto_sync
-                  ? t("devices_page.every_minutes", "Every :count min", {
-                      count: device.sync_interval_minutes,
-                    })
+                  ? t(
+                      "devices_page.every_minutes",
+                      "At most every :count min",
+                      {
+                        count: device.sync_interval_minutes,
+                      },
+                    )
                   : t("device_detail_page.disabled")
               }
             />
@@ -820,7 +827,9 @@ function EditDeviceDialog({
     serial_number: device.serial_number ?? "",
     auto_sync: device.auto_sync,
     commands_enabled: device.commands_enabled,
-    sync_interval_minutes: String(device.sync_interval_minutes),
+    sync_interval_minutes: String(
+      Math.max(MIN_SYNC_INTERVAL_MINUTES, device.sync_interval_minutes),
+    ),
     timezone: device.timezone ?? "",
     webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
     // How the terminal reaches ETHR. The stored address is never returned (it
@@ -874,8 +883,11 @@ function EditDeviceDialog({
               ...(device.accepts_commands && {
                 commands_enabled: form.commands_enabled,
               }),
-              sync_interval_minutes:
-                parseInt(form.sync_interval_minutes, 10) || 5,
+              sync_interval_minutes: Math.max(
+                MIN_SYNC_INTERVAL_MINUTES,
+                parseInt(form.sync_interval_minutes, 10) ||
+                  MIN_SYNC_INTERVAL_MINUTES,
+              ),
               timezone: form.timezone || null,
               webhook_ip_allowlist: form.webhook_ip_allowlist
                 .split(/[\s,]+/)
@@ -1119,9 +1131,6 @@ function EditDeviceDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">
-                    {t("device_detail_page.every_1_min")}
-                  </SelectItem>
                   <SelectItem value="5">
                     {t("device_detail_page.every_5_min")}
                   </SelectItem>
@@ -1139,6 +1148,15 @@ function EditDeviceDialog({
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(
+                  "device_detail_page.sync_interval_hint",
+                  "ETHR pulls from this terminal when its scheduler runs, at most this often, and sometimes later. A late pull loses nothing: each punch keeps the time it happened. Use :action when you need them at once.",
+                  {
+                    action: t("devices_page.pull"),
+                  },
+                )}
+              </p>
             </div>
           )}
           <DialogFooter>
