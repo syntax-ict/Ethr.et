@@ -29,7 +29,7 @@ Times are approximate, within about five minutes. Nothing was typed into a passw
 | #772, #776, #777, #779 | First setup order, the daily invitation ceiling, the sign-in form before hydration, who cannot sign in yet | Not covered. #772 and #779 were seen working in passing; the guide mentions #772 only in UAT-H15 step 1 |
 | #780, #781 | Quiet terminals, a tap on a button that cannot punch | Not covered. Live from about 15:38 EAT, part-way through the pass; #780 has its mention in UAT-H16 step 3 only |
 
-Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 21 were run in part (16 in the first session, 4 more in the second, 1 in the third); the table at the end says what is left and why.
+Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 25 were run in part (16 in the first session, 4 more in the second, 1 in the third, 4 in the fourth); the table at the end says what is left and why.
 
 ## Release smoke (10, section 3)
 
@@ -110,6 +110,21 @@ The owner said the logins were ready. **None was found:** at 16:31 every one of 
 
 **Changed in this session:** QA-EMP Hana Bekele now reports to QA-SUP Genet Mekonnen ("Employee updated"), so the supervisor scenarios have a team once both can sign in. The inline edit offers no Branch field, so QA-EMP still has no branch. The announcement above is published, internal only.
 
+## Fourth session, same day (about 17:20 to 17:45), on `d993487e1f`
+
+Chrome had disconnected and was reconnected by the owner. Still no login beyond the TA's, so this is what the TA can run alone. `Chrome, unguarded`; the console showed its sign-in form at 17:20.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| UAT-F3 | Pass (step 1; step 2 on a preview) | Claude Code | 17:24 | TA | en | Chrome, unguarded. New Loan for QA-SUP, 3,000 ETB at 1,000 a month: "Loan created", Active, Remaining 3,000.00. A dry run of 10 November to 9 December then shows QA-SUP's net at 9,750.00 against 10,750.00 without the loan; the dialog was closed and no run was made, so the balance moving on approval (step 2), the void (step 3) and steps 4 and 5 were not run. The TA has no employee record, so step 5 cannot be run as TA |
+| UAT-H5 | Pass (steps 1, 2) | Claude Code | 17:27 | TA | en | Chrome, unguarded. New Shift opens on the Ethiopian standard (08:30 to 17:30, grace 15, break 60, early leave 15, Monday to Friday): "QA Day" created, "8h worked · 60 min break · 15 min grace". Assign Shift, to the department QA from 17 November 2026: "Shift assigned successfully", listed as Active with no end date. O-6 applies here too: "Effective From" reads "Hidar 8, 2019" |
+| UAT-H10 | Pass (steps 1 to 3, 5 in part), Blocked (step 4) | Claude Code | 17:31 to 17:36 | TA | en | Chrome, unguarded. On the open vacancy already in QA Audit ("io expert"): QA-Applicant One recorded, moved Applied, Screening, Interview ("Stage updated" each time), then Make an offer with a start date and 7,000 ETB: "Waiting for approval by someone other than" the person who made it, and no Approve button is offered to them. QA-Applicant Two recorded and rejected; Reject asks for a reason. **"Erase personal details" was not pressed:** it is a permanent deletion and is left to the owner. Step 4 needs a second administrator |
+| UAT-H11 | Pass (step 2 read) | Claude Code | 17:38 | TA | en | Chrome, unguarded. Attendance, Phones: "People with a phone 0 / 11", "Waiting for approval 0", "Still to register 11", with the four lists. The rule was not changed, so steps 1 and 3 to 7 were not run; they need phones |
+| UAT-A4 | Pass (steps 1, 2, 4 read) | Claude Code | 17:40 | TA | en | Chrome, unguarded. Settings, Branding: a logo, a dark-background logo and a square mark are in use, three colours with a preview, and the public website's words, about, contact, links, services, questions and sections in English, አማርኛ and Afaan Oromoo. "Show our organisation on the ETHR website" is **off** for QA Audit, as 01 section 12 asks. Nothing was changed. Steps 3 and 5 not run |
+| LAND-007 | Pass (sitemap) | Claude Code | 17:42 | | | Chrome, unguarded. `sitemap-organisations.xml` lists 13 organisations and not QA Audit, two hours after its headcount went from 3 to 11 (a trial is listed from 5 people). Checked because of that change |
+
+**Created in this session:** a loan of 3,000 ETB for QA-SUP (active; end it at clean-up); the shift "QA Day" and its assignment to the department QA; two applicants on the vacancy "io expert", QA-Applicant One with an offer waiting for approval and QA-Applicant Two rejected and not erased.
+
 ## What was created or changed in QA Audit (01, section 12)
 
 Second session: **the payroll run was approved** (below); a **manual attendance record** for QA-EMP on 16 November 2026; a **leave request**, Excused Absence for QA-PAY-1 on 12 November 2026, **still waiting** for an approver other than the TA; the custom role **"QA Branch HR"**, held by nobody. Reconciliation went Off, Advisory, Off. A scheduled promotion for QA-PAY-4 was made and cancelled.
@@ -180,6 +195,6 @@ Second session: **the payroll run was approved** (below); a **manual attendance 
 |---|---|---|---|---|
 | Release smoke (15 rows) | 5 | 3 | 0 | 7 |
 | Detailed cases (ORG-009, 012, 015, 016, PAY-032, CHT-001) | 4 | 2 | 0 | |
-| UAT scenarios (52) | 0 in full | 21 | 0 | 31 |
+| UAT scenarios (52) | 0 in full | 25 | 0 | 27 |
 
 The second session added UAT-F4, H3, H5 step 5, H8, A2 and S1's reject dialog, and took F2 through approval. No S1 or S2 defect was seen. The four drafts are S3 or S4. The exit criteria of 01, section 7.2 are not met and were not expected to be: most of the guide still needs logins for the other personas, a phone and a terminal, and 30 live changes have no case.
