@@ -97,13 +97,13 @@ are new (see 09 L10N-010, L10N-017, L10N-018).
 |---|---|---|
 | 1 | Go to **My Attendance** and click **Check In** | A confirmation with the time; status shows checked in |
 | 2 | Later, click **Check Out** | Hours worked appear for the day |
-| 3 | On your phone, open the mobile attendance page and check in at the office | The location row says where you are and the button unlocks; if your organisation asks for a selfie, **Take a selfie** opens the camera, and the confirmation appears where the button was |
+| 3 | On your phone, open the mobile attendance page. While the line under the round button still says it is waiting (for your location, or for a selfie), tap the button once. Then check in at the office | That first tap sends nothing: the line under the button shakes once, the phone buzzes where it can, and the screen shows you the row that fixes it (location, or selfie). Once the location row says where you are the button unlocks; if your organisation asks for a selfie, **Take a selfie** opens the camera, and the confirmation appears where the button was |
 | 4 | The first time a selfie is asked for, read the photo notice and agree | The notice explains why the photo is taken and how long it is kept (7 days by default) |
 | 5 | Check in about 30 minutes after your shift start (if your shift is 08:30, at 09:00 or later) | Your record shows **Late**, timed in Addis Ababa time, and the answer says by how many minutes ("Checked in, 30 min late") |
 | 6 | On a public holiday, a weekend or a day of approved leave, open the check-in page | A note names the day: "Today is" and the holiday's name, "Happy weekend", "Today is your day off" or "You are on approved leave today", with "No shift is expected today." |
 | 7 | After checking in on your phone, check in again by another way (web or kiosk) | "Already checked in at" the first time and method, and "Your day has one record, whichever way you punch." No second record appears |
 
-Changed 2026-11-14: steps 5 to 7 (see 05 PUNCH-007, PUNCH-008, PUNCH-010, MOB-013). Changed 2026-11-16: step 3 (the rebuilt phone punch screen, 05 MOB-015 to MOB-027).
+Changed 2026-11-14: steps 5 to 7 (see 05 PUNCH-007, PUNCH-008, PUNCH-010, MOB-013). Changed 2026-11-16: step 3 (the rebuilt phone punch screen, 05 MOB-015 to MOB-027). Changed 2026-11-17: step 3 (a tap on a button that cannot punch yet, 05 MOB-028 to MOB-031).
 
 **Done when:** your check-in and check-out are recorded with the right time and status, whichever way you punch.
 
@@ -320,18 +320,24 @@ EMP-027, IDN-001 to IDN-004; more in UAT-H14).
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees, Example and Instructions (a hidden Lists sheet holds the dropdown choices), dropdowns for gender, status, department, branch and position, a **Sign in** column after Phone with a yes or no dropdown (yes invites that person when the list is added, no does not, blank follows the tick on the review step), and no example row on the Employees sheet itself: the example people are on the Example sheet |
+| 1 | **Employees → Import**, download the template | An Excel workbook with the sheets Employees, Example and Instructions (a hidden Lists sheet holds the dropdown choices). The column names on Employees are coloured by group and each has a note saying what it takes; there are dropdowns for gender, status, department, branch, position, grade, cost centre and contract type, a **Sign in** column after Phone with a yes or no dropdown (yes invites that person when the list is added, no does not, blank follows the tick on the review step), and eleven columns for a new person's grade, cost centre, probation end, contract, bank account and emergency contact. There is no example row on the Employees sheet itself: the example people are on the Example sheet, and nothing on it is read (04 XLS-005 to XLS-009) |
 | 2 | Fill 5 rows (one with Amharic names, one phone starting with 0, one 16 digit national ID) and choose the file | "5 people ready", with the columns named. The leading zero and all 16 digits are kept. An old .xls file is refused with a message telling you to save as .xlsx or CSV |
-| 3 | **Stage for review** | A table with one row a person and its match: new, matched, or to review, and any problem per row (for example a department that does not exist). **Nobody is added yet** |
-| 4 | Choose what the new people arrive as (newly hired, on probation, or already work here, confirmed). "Invite them to sign in as soon as they are added" is ticked here, so untick it unless the addresses are the team's. Commit with **Bring them in** | The summary says how many were created, matched and skipped. People arrive with the status you chose |
+| 3 | **Stage for review** | Before you stage, anything that cannot be staged is a table headed "Lines to fix": one row for each kind of problem and column (for example a department that does not exist), with how many lines and their numbers, and **Download the lines to fix** gives a workbook to correct and choose again. After you stage (a long list shows "Matching people: :done of :total" first), a table with one row a person and its match: new, matched, or to review. Below the table a card, "What adding this list will do about signing in, for the people it adds", counts who will be invited by email or text, who is listed for a printed code, and who the list marked no. **Nobody is added yet** (04 STG-022, STG-036, STG-037) |
+| 4 | Choose what the new people arrive as (newly hired, on probation, or already work here, confirmed). "Invite them to sign in as soon as they are added" is ticked here, so untick it unless the addresses are the team's. A line whose Sign in cell says yes is invited even with the box unticked, and one that says no is not invited even with it ticked. Commit with **Bring them in** | The summary says how many were created, matched and skipped. People arrive with the status you chose. The card that follows lists who cannot sign in yet, with "this list did not ask to invite them" beside anyone marked no |
 | 5 | Stage the same list again, and commit | Every row is matched to the person it made; nothing is duplicated |
 | 6 | Stage a line for someone already here, with their employee number, a phone they lack and a different department | "Changes to their record": the phone is offered as a fill, the department as a difference with the box "Use this list's value". Salary, national ID and TIN differences are flagged without showing either value |
 | 7 | Paste a list from another system whose first line is column names ETHR does not know (for example Emp Nm, Pers Ref, Cell) | The page says so and offers **Match columns**; choose which column is which, name the system and save it. The next list from it is read without asking |
-| 8 | Export the employee list | A CSV with the same columns (salary, TIN and national ID are left out on purpose) |
+| 8 | Export the employee list | A CSV with the same columns (salary, TIN, national ID and the bank columns are left out on purpose). For HR, who may open records, it also carries grade, cost centre, probation end, contract and emergency contact columns (04 IMP-E-010) |
+| 9 | On **Employees** press the icon **Download to complete**, fill in blanks (a gender, a position, a bank account), then **Employees → Import**, choose **Complete people who are already here (nobody new is added)** and choose the file | "Completing people who are already here"; each person shows "Fills in Gender: …" or "Adds Bank account: …"; a line for nobody ETHR knows is "Not found in ETHR, left out". **Fill in these people** → **Fill them in** reads "Done: :updated people filled in, :skipped left out". Nobody was added (04 STG-029 to STG-034) |
+| 10 | After any commit, press **Download what happened** | A workbook with one row for each line: Added, Filled in, Already here, nothing to change, or Left out (04 STG-038) |
+| 11 | Paste a list that has a title above its column names, a name in parts (First name, Father's name, Grandfather's name) and a department written as "Head office / Finance" | "Column names are on line 3."; the people are named in full; the department is found by its last part (04 STG-040 to STG-042) |
+| 12 | Stage a list and do not commit it; leave the page and open **Employees → Import** again. Open the list from the card, reload the page, then discard another unfinished list | The card **Lists in progress** names the list ("Waiting for your review", how many lines, who started it); **Open** returns to the review and a reload comes back to the same list. **Discard** asks "Discard this list?" first; a list that has been added cannot be discarded (04 MASS-006 to MASS-011) |
 
 Changed 2026-11-14: the template is a workbook, and preview and commit are one staged review in which
 nothing is added until you commit (see 04 IDN-005 to IDN-011, XLS-001 to XLS-003, MAP-001 to MAP-003,
-MASS-001). Staged lists are kept 30 days. At most 2,000 people are added at a time.
+MASS-001). Staged lists are kept 30 days. At most 2,000 people are added at a time. Changed 2026-11-17:
+steps 1, 3, 4 and 8 corrected and steps 9 to 12 added (#731, #747, #750 to #753, #759, #764, #778; see 04
+XLS-005 to XLS-009, STG-022 to STG-050, MASS-002c to MASS-002f, MASS-006 to MASS-014).
 
 **Done when:** a spreadsheet of staff can be brought in without duplicates or silent losses.
 
@@ -377,12 +383,12 @@ MASS-001). Staged lists are kept 30 days. At most 2,000 people are added at a ti
 | Step | Do | Expect |
 |---|---|---|
 | 1 | **Settings → Leave types**: check Annual is 16 days with 1 more day for every 2 years of service | Matches the Labour Proclamation 1156/2019 |
-| 2 | **Settings → Holidays → Add Ethiopian public holidays** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays marked as estimated) |
+| 2 | **Settings → Holidays → Add Ethiopian public holidays** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays, which are stored as estimated; the list draws no mark for that) |
 | 3 | Bring in opening leave balances from the previous system with the balance import | Balances show on each person's leave page |
 | 4 | Read the **Leave year** card (an organisation admin changes it; HR only reads) | Ethiopian year (Meskerem to Pagume) or Gregorian year. Once leave is recorded it cannot be changed: "Leave has already been used, requested or carried over in this year, so the leave year can no longer change." |
 | 5 | Try to set Annual Leave to 15 days, then 17 | 15 refused: "The law grants at least 16 days of this leave (Labour Proclamation No. 1156/2019, Art. 77(1)). A leave type may give more, never less." 17 saved. Put it back to 16 |
 
-Changed 2026-11-14: steps 4 and 5 (see 06 LB-009, LT-006).
+Changed 2026-11-14: steps 4 and 5 (see 06 LB-009, LT-006). Changed 2026-11-17: step 2 (observation O-3 of `docs/audit/QA-PRODUCTION-2026-11-17-log.md`: the Islamic feasts are stored estimated, the Holidays screen shows no mark; 05 HOL-001).
 
 **Done when:** leave rules and holidays match your organisation's policy.
 
@@ -468,7 +474,7 @@ Needs employee code sign-in on.
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | Commit a staged list (UAT-H2, Employees → Import) with "Invite them to sign in as soon as they are added" ticked, as it starts there. In the guided setup it starts **unticked** since 2026-11-16, so tick it first to try this | For the people with an email: "Logins created" and "Invitations queued", with a progress card; nothing more to press. Unticked, nothing is sent and **Send invitations** is offered |
+| 1 | Commit a staged list (UAT-H2, Employees → Import) with "Invite them to sign in as soon as they are added" ticked, as it starts there. In the guided setup it starts **unticked** since 2026-11-16, so tick it first to try this. A line whose Sign in cell says yes is invited even with the box unticked, and one that says no is never invited by the box or by **Send invitations**, nor given a printed code or a starting password | For the people with an email: "Logins created" and "Invitations queued", with a progress card; nothing more to press. Unticked, nothing is sent (apart from the people marked yes) and **Send invitations** is offered for the rest. Past the organisation's day of invitation emails the card says how many are held and when the last goes out (#776, #778) |
 | 2 | For the people with no email, on the card that follows, click **Print a code sheet** | A dialog asking how long the codes work (3 or 7 days), a tick for "I will check each person's identity document before I hand them their slip.", and your password |
 | 3 | Confirm | One slip a person: name, employee code, a QR and a code like XXXX-XXXX-XXXX, "Each code works once, until" a date. Closing the sheet drops the codes; they cannot be read back |
 | 4 | Instead, click **Give a starting password** for the same kind of people and type a password of your own | A warning that until a person first signs in, anyone who knows the password and their employee code could sign in as them. The password is shown once with the people it was given to, and stops working after 72 hours |
@@ -476,6 +482,8 @@ Needs employee code sign-in on.
 | 6 | Try a code for someone invited by email today, and for someone invited three or more days ago who has not answered | Today: refused, they can be reached by the normal invitation. Three days or more: a code is issued |
 
 (See 04 MASS-001 to MASS-005, SPW-001; 03 section 5c, STP-001 to STP-012.)
+
+Changed 2026-11-17: step 1 (a Sign in cell outranks the tick; a daily ceiling holds the rest, #776, #778; 03 INV-014 to INV-017; 04 MASS-002c to MASS-002f).
 
 **Done when:** every person on a list has a way to sign in that fits what you know about them, and
 codes and passwords stay with the people they were meant for.
@@ -492,13 +500,20 @@ codes and passwords stay with the people they were meant for.
 | 4 | Have the terminal send a burst of punches at once (for example after being offline) | None is lost and none is recorded twice. Allow up to 10 minutes: they are worked by the queue |
 | 5 | Give the terminal a wrong token (the owner arranges this) | The device page says "The terminal called" a time "and ETHR refused it." |
 | 6 | In **Employees → Add employee → From an attendance terminal**, pick that terminal | "sends its punches to ETHR and cannot be asked who is enrolled on it", and a pointer to the badges it has sent. A terminal that ETHR calls itself can be read |
-| 7 | Punch with a badge no one owns. Open **Devices** (or **Add employee → Unrecognised badges**) and find it under **Unrecognised badges** | The badge, the terminal and how many punches are held. If ETHR knows who it is: "This is" a name, with **Assign and replay** the punches in one click. If it might be someone: "Possibly" a name, confirmed through the picker. Otherwise **Add as a new employee** |
+| 7 | Punch with a badge no one owns. Open **Devices** (or **Add employee → Unrecognised badges**) and find it under **Unrecognised badges** | The badge, the terminal and how many punches are held. If ETHR knows who it is: "This is" a name, with **Assign and replay** the punches in one click. If it might be someone: "Possibly" a name, confirmed through the picker. Otherwise **Add as a new employee**. A badge with a great many punches is brought in a slice at a time, with a line "brought in, still to go", **Stop** and **Carry on** |
 | 8 | Choose **Add as a new employee**, fill the form, save | The form says "Badge" and the number "from" the terminal, "with" a number of "punches held" and that they are recorded when you save. After saving: "held punches were recorded for them." The badge leaves the list |
 | 9 | Choose **Download these badges as a list** | A workbook with one row for each badge that still needs a person |
+| 10 | Open **Devices → Health Dashboard** | The page is titled "Device health". The cards count every state (Online, Quiet, Not connected yet, Offline, Error). "Punches today" says how many punches were recorded, how many are held because the badge is not recognised, and how many wait to be worked. If badges are held, a warning "Badges not recognised" links to them with **Review badges** |
+| 11 | On a test terminal only, open the terminal's menu (three dots) and choose **Regenerate Token** | A question "Regenerate the token?" says the current address stops working at once. **Cancel** changes nothing; confirming gives a new address that must be entered on the terminal before it sends again |
+| 12 | Commit a list of people in the terminal's branch (UAT-H2) and read **At the attendance terminals** under the committed list | One block for each terminal: "N sent or waiting"; "1 not sent. Its number is not one this terminal takes." for a number it cannot take; for a terminal that only sends, "This terminal only sends. Enrol these :count people at the terminal with these numbers." and **Download the list**; a person the terminal refused has **Try again** (#753; 04 STG-045 to STG-048) |
+
+Changed 2026-11-17: steps 7, 10, 11 and 12 (#742, #753, #754, #765, #769; 05 DEV-048, DEV-049, DEV-056 to DEV-063; 04 STG-045 to STG-048).
 
 (See 05 DEV-007, DEV-008, DEV-018 to DEV-023; DEV-024 to DEV-027 for step 6 (#707); DEV-028 to DEV-032
 for steps 2 and 3 (#709); DEV-033 to DEV-038 for steps 7 to 9 (#710); DEV-039 and DEV-040 for step 5
-(#712); DEV-041 to DEV-044 for steps 3 and 4 (#720). Those cases are new in this edition: if your copy
+(#712); DEV-041 to DEV-044 for steps 3 and 4 (#720); DEV-067 for step 3 (#780); DEV-054 and DEV-055 for
+step 6 (#748); DEV-056 to DEV-060 for step 7 (#754); DEV-048, DEV-049 and DEV-061 to DEV-063 for steps
+10 and 11 (#742, #765, #769). Those cases are new in this edition: if your copy
 of 05 does not have them yet, use DEV-018 to DEV-023.)
 
 **Done when:** a terminal that cannot be heard says so, and every badge ends as a person with their
@@ -525,12 +540,15 @@ their own leave.
 | 1 | **Reports → Quick Reports → Monthly timesheet**, pick last month | One row per employee: workdays, present, late, absent, on leave, holidays, worked and overtime hours. Compare one employee with their My Attendance: they agree. Late days never exceed present days |
 | 2 | Read the month picker | A month of your own calendar (an Ethiopian month if you use that calendar) |
 | 3 | Read the list of recommended reports | They fit the kind of organisation you are (a government body sees different ones from a private company) |
-| 4 | Generate the timesheet as PDF and CSV, once with the interface in Amharic | Column headings and values read as words in the language chosen, not codes |
+| 4 | Download the timesheet as CSV, once with the interface in Amharic. Then run a report with a period such as Last month (Builder, Add filter, Period) and read the dates it says it covers | Column headings and values read as words in the language chosen, not codes. A report that was cut at 1,000 rows says so under its rows. A report saved with a period follows the calendar; one saved with fixed dates repeats them (the PDF is reached by the API only: the Reports page offers CSV) |
 | 5 | Print an employee list or Approvals from the browser | A4, the whole page, no sidebar, header or buttons; a top line with the organisation, the page title and the date in your calendar; table headings repeat on each page |
 | 6 | **Support → Organisation requests**: answer the request from UAT-E15, then **Mark resolved** | The employee is told "Your help request has an answer." and later that it was marked resolved. You see their email and role. **Pass to ETHR support** (with a note) sends it on; the employee never sees the note |
 | 7 | **Analytics**, choose a period and read "vs previous period"; press **Show as table** on a chart | The months named in your calendar; the figures agree with the dashboard; the table has headings and the chart returns with **Show as chart** |
+| 8 | **Reports → Saved**: schedule your own saved report weekly to a team address (Enterprise), then delete the schedule. Look at a colleague's saved report | Yours has a Schedule button and the list says "Weekly, Monday 6:00 AM"; a colleague's has none, because only the person who saved a report may schedule it. The schedule sends real email at its next run, so delete it at once |
 
-(See 08 REP-006 to REP-009, PRN-001, PRN-002, CHT-001, ANA-003, HELP-003, HELP-004.)
+(See 08 REP-006 to REP-014, PRN-001, PRN-002, CHT-001, ANA-003, HELP-003, HELP-004.)
+
+Changed 2026-11-17: steps 4 and 8 (#741; see 08 REP-010 to REP-021).
 
 **Done when:** you can hand the month's attendance to finance and a manager on paper or file, and the
 numbers match what staff see.
@@ -552,11 +570,14 @@ Only with addresses the team controls.
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | Settings → Users → **Not activated** | Everyone who has not set a password, each with what became of their last invitation |
-| 2 | **Resend to everyone not activated** | "Invitations are being sent", then "Invitations sent" a few minutes later. You can leave the page meanwhile |
+| 1 | Settings → Users → **Not activated** | Everyone who has not set a password, each with what became of their last invitation, including "Invitation goes out on :date" for one held because the organisation's day of invitation emails is used |
+| 2 | **Resend to everyone not activated** | "Invitations are being sent", then "Invitations sent" a few minutes later. For a list longer than the organisation's day (the card says "Your organisation can send :limit invitation emails a day") the rest are held: the card reads "Today's invitations are sent" and ":count are held and go out over the next days, the last on :date.", and nothing more needs pressing. You can leave the page meanwhile |
 | 3 | The person opens the email and sets a password | They leave the Not activated list |
 | 4 | Find someone with only a phone | "Activate in person"; activate them with a code (UAT-H9) |
 | 5 | After a device migration, read **Give them a way to sign in** and **Check the hire dates** | Who still cannot sign in, and how many people were given today as their hire date; correct those dates on their profiles |
+| 6 | On the dashboard's Next steps card, on the row "people cannot sign in yet", press **See who** (it opens `/employees?missing=sign_in`); tick a few people and choose **Give a way to sign in** | A banner "Showing current employees who cannot sign in yet."; each person shows "No sign-in" or "Invited, not activated". The dialog says how many it covers, and after **Confirm** one sentence gives logins created, invitations queued, already able to sign in, need a code in person and email already used. People with no email and no phone are offered a printed code or a starting password (UAT-H9, UAT-H15) |
+
+Changed 2026-11-17: steps 1, 2 and 6 (#776, #779; see 03 INV-014 to INV-017; 04 EMP-031, EMP-032, MASS-002g to MASS-002i).
 
 **Done when:** everyone who should use ETHR has been invited, and you can see who has not yet signed in.
 
@@ -622,10 +643,14 @@ Changed 2026-11-14: step 5 (see 07 LOAN-009).
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | **Payroll → Reconcile**, set From and To to the Ethiopian month | Each employee's absences, late arrivals and missing punches, with Open, Waiting or Settled |
+| 1 | **Payroll → Reconcile**. It opens on the **Gregorian month to date** (the 1st of this month to today, `monthToDate()` in `reconcile-panel.tsx`; the From and To boxes are `DualCalendarDateInput`s, which follow the calendar context; on 2026-11-17 they showed "Tikimt 22" to "Hidar 8" with the table in Gregorian dates, O-6, cause not found). Set From and To to the pay period you will process, which is not the Ethiopian month unless you type it | Each employee's absences, late arrivals and missing punches, with Open, Waiting or Settled. An organisation recording no attendance at all in the period lists nothing (`PayrollEngine::unexplainedAbsencesFor`) |
 | 2 | The administrator settles them: absences as Unpaid Leave, Excused Absence or Business Trip; lateness by deducting or waiving the minutes | They move to Waiting, then Settled once approved |
 | 3 | **Attendance → Corrections**: approve the lateness decisions | Approved |
 | 4 | Process the month | An unpaid day costs basic divided by the organisation's working days per month (22 unless the organisation set another number, UAT-A6). Lateness never takes more than a third of basic together with loans and cost sharing, and a payslip over that third is listed before approval |
+
+Changed 2026-11-17: step 1 corrected against the code (observation O-6 of
+`docs/audit/QA-PRODUCTION-2026-11-17-log.md`): the screen opens on the Gregorian month to date, not the
+Ethiopian month.
 
 **Done when:** the month's pay follows decisions people made, not gaps in the records.
 
@@ -709,7 +734,9 @@ Changed 2026-11-14: step 6 (see 03 ACC-029).
 | Step | Do | Expect |
 |---|---|---|
 | 1 | **Billing**: read the current plan and trial days remaining | Shown correctly |
-| 2 | Open an invoice and download the receipt | A PDF receipt |
+| 2 | Open an invoice and download the receipt | A PDF receipt with the invoice number, your organisation's name (in Amharic letters if that is how it is written) and the address your people sign in at, and PAID once the invoice is paid (#737; 08 PRN-003, PRN-004) |
+
+Changed 2026-11-17: step 2 (the receipt names the organisation and its address, #737; 08 PRN-003, PRN-004).
 
 **Done when:** you understand what you pay for and what you have paid.
 
@@ -749,12 +776,12 @@ Only on a new `uat-` organisation, registered for this test.
 |---|---|---|
 | 1 | Open the sign-up page, fill the organisation name and an address, and choose an industry first | The list **Kind of organisation in law** follows the industry (a bank suggests the private kinds, a government body the public ones). A link **Show every** type brings back the full list. Next stays disabled until a kind is chosen |
 | 2 | On the administrator step, type a phone number that is too short, then correct it | A message under the field: "Enter a valid Ethiopian phone number, e.g. 0911223344". Next is disabled until the number is valid |
-| 3 | Finish sign-up and open the guided set-up | The industry's kind, shift patterns and rules lists are narrowed to suggestions, with a way to show every one. A value you already hold stays selectable. Headcount is a range, and the section **How you pay** asks the kind, the calendar and the pension registration number |
+| 3 | Finish sign-up and open the guided set-up | The industry's kind, shift patterns and rules lists are narrowed to suggestions, with a way to show every one. A value you already hold stays selectable. Headcount is a range, and the section **How you pay** asks the kind in law, the calendar and how often you pay (monthly only). It does **not** ask the pension registration number: that is under **Settings → Payroll → Payroll setup → Statutory filing** (`statutory-details-card.tsx`) and is one of the Next steps of step 4 |
 | 4 | Read the Next steps card | "Ready for first payroll" with a count out of 9, and each missing item as a step with its button (employer TIN, tax centre, pension registration number and others) |
-| 5 | In the **People** step paste a list (UAT-H2) | The staged review in the set-up, with Ethiopian hire dates read correctly, and people already counted as done |
+| 5 | In the **Sign-in** step (the second) choose how people sign in and save, then in the **People** step (the third) paste a list (UAT-H2) | The steps run Organisation, Sign-in, People, Go live. The staged review in the set-up, with Ethiopian hire dates read correctly, and people already counted as done. "Invite them to sign in as soon as they are added" starts unticked here, so nothing is sent until you tick it or press **Send invitations**. Reload the page: it opens on the first step not done |
 | 6 | Switch to Amharic and then Afaan Oromoo | The kind, rules and preview read in each language |
 
-Changed 2026-11-14: new (see 03 ORG-009 to ORG-017; 04 SET-008 to SET-028; 09 L10N-021).
+Changed 2026-11-14: new (see 03 ORG-009 to ORG-017; 04 SET-008 to SET-028; 09 L10N-021). Changed 2026-11-17: step 3 corrected against the screen (observation O-4 of `docs/audit/QA-PRODUCTION-2026-11-17-log.md`: "How you pay" never asked the pension registration number) and step 5 for Sign-in before People (#772; see 04 SET-029 to SET-031, MASS-002a).
 
 **Done when:** a new organisation can be registered, set up and shown ready for its first payroll
 without being offered choices that make no sense for its kind.
@@ -767,19 +794,19 @@ without being offered choices that make no sense for its kind.
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | Sign in at `https://admin.ethr.et` with MFA | You arrive directly on the console dashboard: Operations, tenants, recurring revenue and payments this month, health, failed jobs |
-| 2 | Find QA Audit in the tenant list and open it | Its plan, status, trial, address and invoices |
+| 1 | Sign in at `https://admin.ethr.et` with MFA | You arrive directly on the console dashboard: Operations, tenants, recurring revenue and payments this month, health, failed jobs; each failed job shows "Retry job" and "Dismiss job" side by side (look only, press neither; #739) |
+| 2 | Find QA Audit in the tenant list and open it. Note the kind of organisation under each name in the list and filter the list by one kind | Its plan, status, trial, address and invoices, and a card "Kind of organisation in law" that you can read but not change. The list names each organisation's kind beside its industry and shows only that kind when filtered |
 | 3 | Extend a `uat-` organisation's trial by 30 days | The trial end moves 30 days |
-| 4 | Impersonate QA Audit (MFA code asked) | You work as its administrator; deleting, plan changes and password changes are blocked; leaving returns you to the console |
+| 4 | Impersonate QA Audit (MFA code asked) | You work as its administrator; deleting, plan changes, password changes and changes to its kind of organisation in law or its pension scheme, fiscal year, Pagume rule and working days are blocked (a name, timezone or language can still be corrected); leaving returns you to the console |
 | 5 | Mark a test invoice paid | Paid; marking again changes nothing |
 | 6 | Edit the landing page in **Marketing** (a test row, then delete it) | The public site shows the change, then not |
 | 7 | Cancel, then delete, a `uat-` organisation (give a reason) | No address to type and no authenticator code; it is closed and its users signed out; **Restore** brings it back cancelled |
-| 8 | Open **Operations** after a release | Each area Healthy, or Needs a look with a reason you understand; the release shown is the one just deployed |
+| 8 | Open **Operations** after a release, and again 10 minutes later | Each area Healthy, or Needs a look with a reason you understand; the release shown is the one just deployed. Just after the deploy the Release area may say the configuration or routes are not cached: it clears by itself within about ten minutes, with no one running optimize (#736; 09 OPS-007) |
 | 9 | Read **Platform Settings → Sidebar product mark** (change nothing without the owner) | Shown, with the standard wording, in every organisation's sidebar |
 | 10 | Open **Features** | Grouped as Modules, Integrations and Public pages; each row shows its state and "Organisation exceptions". Attendance, leave, employee management and notifications read "Always on". Open **Change** on one row and cancel: the dialog states that the new state applies to every organisation on its next request and asks for a reason |
 | 11 | Open **Support → Requests passed to ETHR** after HR passes one on (UAT-H18 step 6) | The organisation, who asked, the note and the technical details, "Waiting for ETHR". Your reply reaches the employee and HR as "ETHR support", never your name |
 
-Changed 2026-11-14: steps 10 and 11 (see 08 FC-001, HELP-004).
+Changed 2026-11-14: steps 10 and 11 (see 08 FC-001, HELP-004). Changed 2026-11-17: steps 1, 2, 4 and 8 (#736, #739, #744, #746; see 03 IMP-009 to IMP-012; 08 CON-P-011, CON-P-028 to CON-P-030; 09 OPS-007).
 
 **Done when:** the platform can be operated from the console without database access.
 

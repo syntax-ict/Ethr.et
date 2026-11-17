@@ -205,7 +205,7 @@ fix that is merged but not released is recorded as still open there.
 | Sign-in code | 6 digits, 5 minutes, single use |
 | Reset link / invitation | 60 minutes / 72 hours |
 | In-person activation code | 12 characters, 24 hours, single use, locked after 5 wrong tries; purged 30 days after expiry |
-| Bulk invitations | Queued; 30 emails a minute per organisation (texts 10); a second request for the same person within 10 minutes sends nothing; reminders 3 days after the last invitation, at most 2, only for invitations under 30 days old; text invitations off |
+| Bulk invitations | Queued; 30 emails a minute per organisation (texts 10); at most 20 percent of the day's mail cap a day for one organisation and 40 percent for all (100 and 200 at the default cap of 500), the rest held for 08:00 Addis Ababa of a later day (#776, `api/config/invitations.php`, INV-014); a second request for the same person within 10 minutes sends nothing; reminders 3 days after the last invitation, at most 2, only for invitations under 30 days old; text invitations off |
 | Payroll run states | processing, completed (or failed), approved, paid; voided. **A paid run cannot be voided** |
 | Rounding | Every amount rounded once, half away from zero; cost sharing rounds down |
 | Registered phones | Passkeys for the platform domain (`ethr.et`): they work on `www.ethr.et/{slug}` and `{slug}.ethr.et`, not on a custom domain. Off by default |
@@ -225,9 +225,9 @@ Times are UTC (EAT is +3).
 | Leave accrual | Daily, 00:30 | Raises annual balances when a new month of the leave year starts |
 | Holiday roll-forward | 1st of the month, 01:30 | Copies recurring holidays to next year |
 | Leave carry-forward | Daily 01:00 in the first week of the leave year (1 January, or Meskerem 1) | Sets carried days |
-| Backup | daily 01:00 | `ethr:backup`: a local archive, an encrypted off-host copy when storage is set in the console, and a disk-use reading against the plan's quota |
+| Backup | daily 01:00 | `ethr:backup`: a local archive, an encrypted off-host copy when storage is set in the console (a connected Google Drive is the fallback destination, tried after the main storage, #766), and a disk-use reading against the plan's quota |
 | Tenant journeys | hourly at :20 | Recomputes each organisation's journey stage in the console |
-| Data clean-up | daily 02:00 | Notifications over 90 days, webhook deliveries over 30 days, import staging over 7 days removed |
+| Data clean-up | daily 02:00 | Notifications over 90 days, webhook deliveries over 30 days, import staging over 30 days removed (`MigrationBatch::RETENTION_DAYS`, 30 since 2026-11-10) |
 | Monthly invoices | 1st of the month, 03:00 | Raises invoices for paid plans |
 | Overdue invoices | daily 04:00 | Overdue at 7 days, past due 30, suspended 60 |
 | Trial expiry notices | daily 05:00 | Warns organisations near trial end |
