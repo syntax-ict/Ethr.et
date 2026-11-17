@@ -137,6 +137,48 @@ describe("<HeadcountCharts>", () => {
     expect(rows[2]).toHaveAccessibleName("Finance 3");
   });
 
+  it("names the employees with no gender on file, in the legend and in the table", async () => {
+    const user = userEvent.setup();
+    session.executive = true;
+    server.use(
+      http.get("*/api/v1/dashboard/executive", () =>
+        HttpResponse.json({
+          headcount: { total: 11, active: 11, by_department: [] },
+          attendance_rate: { today: null, period: null },
+          payroll_summary: { net_cents: 0 },
+          turnover: { rate: 0, exits: 0 },
+          workforce_growth: [],
+          leave_utilization: null,
+        }),
+      ),
+      http.get("*/api/v1/dashboard/executive/workforce", () =>
+        HttpResponse.json({
+          headcount_trend: [],
+          by_gender: [
+            { gender: null, count: 2 },
+            { gender: "", count: 1 },
+            { gender: "female", count: 5 },
+            { gender: "male", count: 3 },
+          ],
+          by_tenure: [],
+        }),
+      ),
+    );
+    renderCharts();
+
+    await screen.findByRole("heading", { name: "Gender Distribution" });
+    // A legend item with no name was an empty cell next to a count of 3.
+    expect(screen.getByText("Not recorded")).toBeInTheDocument();
+
+    const toggles = screen.getAllByRole("button", { name: "Show as table" });
+    await user.click(toggles[toggles.length - 1]);
+    const table = screen.getByRole("table", { name: "Gender Distribution" });
+    const rows = within(table).getAllByRole("row");
+    expect(rows[1]).toHaveAccessibleName("Not recorded 3");
+    expect(rows[2]).toHaveAccessibleName("Female 5");
+    expect(rows[3]).toHaveAccessibleName("Male 3");
+  });
+
   it("draws nothing for a reader without the executive dashboard", () => {
     session.executive = false;
     const { container } = renderCharts();

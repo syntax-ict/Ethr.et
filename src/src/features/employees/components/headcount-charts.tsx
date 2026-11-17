@@ -28,6 +28,7 @@ import {
 } from "@/features/dashboard/executive-api";
 import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { namedGenders } from "@/lib/i18n/genderLabel";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -140,6 +141,8 @@ function GenderDonut() {
       {(data) => {
         const genders = data.by_gender ?? [];
         const total = genders.reduce((sum, g) => sum + g.count, 0);
+        // Named here, so the legend, the table and the tooltip agree.
+        const named = namedGenders(t, genders);
         return (
           <ChartCard title={title}>
             {(view) =>
@@ -150,10 +153,7 @@ function GenderDonut() {
                     { key: "gender", label: t("common.gender", "Gender") },
                     { key: "count", label: people, numeric: true },
                   ]}
-                  rows={genders.map((g) => ({
-                    gender: <span className="capitalize">{g.gender}</span>,
-                    count: g.count,
-                  }))}
+                  rows={named}
                 />
               ) : (
                 <div className="flex flex-col items-center gap-6 sm:flex-row">
@@ -161,7 +161,7 @@ function GenderDonut() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={genders}
+                          data={named}
                           dataKey="count"
                           nameKey="gender"
                           innerRadius={62}
@@ -169,7 +169,7 @@ function GenderDonut() {
                           paddingAngle={2}
                           strokeWidth={0}
                         >
-                          {genders.map((_, i) => (
+                          {named.map((_, i) => (
                             <Cell key={i} fill={seriesColor(i)} />
                           ))}
                         </Pie>
@@ -187,8 +187,8 @@ function GenderDonut() {
                   </div>
                   <ChartLegend
                     stacked
-                    items={genders.map((g, i) => ({
-                      label: <span className="capitalize">{g.gender}</span>,
+                    items={named.map((g, i) => ({
+                      label: g.gender,
                       color: seriesColor(i),
                       value: g.count,
                     }))}
