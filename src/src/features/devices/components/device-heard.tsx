@@ -8,13 +8,14 @@ import type { Device } from "@/features/devices/api";
 /**
  * What a terminal that only sends can honestly say about itself: when ETHR
  * last heard from it, or that it has not yet. Such a terminal is never probed,
- * so a Test button would only repeat this.
+ * so a Test button would only repeat this. A quiet one (heard from today, not
+ * just now) says why ETHR cannot tell more.
  */
 export function DeviceHeardLine({
   device,
   showSetupLink = false,
 }: {
-  device: Pick<Device, "last_sync_at" | "public_id">;
+  device: Pick<Device, "last_sync_at" | "public_id" | "status">;
   /** On the list card the setup steps are one click away, on the device page. */
   showSetupLink?: boolean;
 }) {
@@ -38,10 +39,40 @@ export function DeviceHeardLine({
     );
   }
 
+  if (device.status === "quiet") {
+    return (
+      <p>
+        {t("devices_page.quiet_hint", undefined, {
+          time: timeAgo(device.last_sync_at),
+        })}
+      </p>
+    );
+  }
+
   return (
     <p>
       {t("devices_page.last_heard", undefined, {
         time: timeAgo(device.last_sync_at),
+      })}
+    </p>
+  );
+}
+
+/** Shown only when the terminal has been seen posting while nobody used it. */
+export function DeviceKeepAliveLine({
+  lastKeepaliveAt,
+}: {
+  lastKeepaliveAt: string | null | undefined;
+}) {
+  const { t } = useT();
+  const { timeAgo } = useDateFormatters();
+
+  if (!lastKeepaliveAt) return null;
+
+  return (
+    <p className="text-xs">
+      {t("devices_page.keepalive_seen", undefined, {
+        time: timeAgo(lastKeepaliveAt),
       })}
     </p>
   );

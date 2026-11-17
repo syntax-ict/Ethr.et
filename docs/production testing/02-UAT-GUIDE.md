@@ -488,7 +488,7 @@ codes and passwords stay with the people they were meant for.
 |---|---|---|
 | 1 | **Devices → Add device**, a Hikvision terminal, tick "The terminal is on our office network" and leave the address empty | Saved with no address. A panel, "Enter these on the terminal", gives the values to type on the terminal itself |
 | 2 | Before the terminal sends anything, open the device list and page | The badge reads "Not connected yet", never Offline or Online, with "Nothing received from this terminal yet." and a hint to enter the address shown into the terminal |
-| 3 | Punch on the terminal, or wait for its heartbeat | **Last heard** moves and the device reads Online (for 24 hours after it was last heard, then Offline). The punch is recorded once, even if the terminal sends it twice |
+| 3 | Punch on the terminal, or wait for its heartbeat | **Last heard** moves and the device reads Online (for 15 minutes after it was last heard, then Quiet until 24 hours have passed, then Offline; changed 2026-11-17). The punch is recorded once, even if the terminal sends it twice |
 | 4 | Have the terminal send a burst of punches at once (for example after being offline) | None is lost and none is recorded twice. Allow up to 10 minutes: they are worked by the queue |
 | 5 | Give the terminal a wrong token (the owner arranges this) | The device page says "The terminal called" a time "and ETHR refused it." |
 | 6 | In **Employees → Add employee → From an attendance terminal**, pick that terminal | "sends its punches to ETHR and cannot be asked who is enrolled on it", and a pointer to the badges it has sent. A terminal that ETHR calls itself can be read |

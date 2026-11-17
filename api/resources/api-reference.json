@@ -13033,6 +13033,10 @@
                                             "type": "integer",
                                             "minimum": 0
                                         },
+                                        "quiet": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        },
                                         "pending": {
                                             "type": "integer",
                                             "minimum": 0
@@ -13117,6 +13121,7 @@
                                         "online",
                                         "offline",
                                         "error",
+                                        "quiet",
                                         "pending",
                                         "auto_sync_enabled",
                                         "events_today",
@@ -14544,8 +14549,9 @@
                                         "status": {
                                             "type": "string",
                                             "enum": [
-                                                "online",
+                                                "quiet",
                                                 "offline",
+                                                "online",
                                                 "pending"
                                             ]
                                         },
@@ -47958,6 +47964,12 @@
                             "reason",
                             "ip",
                             "at"
+                        ]
+                    },
+                    "last_keepalive_at": {
+                        "type": [
+                            "string",
+                            "null"
                         ]
                     },
                     "branch": {

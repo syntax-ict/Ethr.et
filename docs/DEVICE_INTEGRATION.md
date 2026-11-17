@@ -499,15 +499,21 @@ by its token. A terminal may now be registered with **no address**.
   from `webhook_url`. **The terminal must post over HTTPS to `www`**: the host answers
   plain HTTP and the apex with a 301, which a terminal does not follow (measured
   2026-11-11 on `/api/v1/devices/webhook/hikvision`).
-- **Alive or not (three states, 2026-11-12).** Anything the terminal sends counts as
-  contact, a heartbeat included, and sets `last_sync_at`. The stored `status` then follows
-  one rule, `HikvisionPushAdapter::statusFor()`: `last_sync_at` null is `pending` (shown
-  "Not connected yet": configured, never heard from), within
-  `HikvisionPushAdapter::OFFLINE_AFTER_HOURS` (24) is `online`, older is `offline` (shown
-  with "Last heard 3 days ago"). Online therefore means ETHR heard from the terminal; it
-  never means only that the terminal was set up. That is a label, not a gate: a punch from
-  an "offline" terminal is recorded. For a terminal ETHR also pulls, only a punch moves
-  `last_sync_at`, because there it is the pull cursor.
+- **Alive or not (four states; three from 2026-11-12, `quiet` added 2026-11-17).** Anything the
+  terminal sends counts as contact, a heartbeat included, and sets `last_sync_at`. The stored
+  `status` then follows one rule, `HikvisionPushAdapter::statusFor()`: `last_sync_at` null is
+  `pending` (shown "Not connected yet": configured, never heard from); heard within
+  `ONLINE_WITHIN_MINUTES` (15) is `online`; heard within `OFFLINE_AFTER_HOURS` (24) but not
+  within 15 minutes is `quiet`; older is `offline` (shown with "Last heard 3 days ago").
+  Online therefore means ETHR has fresh evidence, never only that the terminal was set up.
+  `quiet` exists because ETHR cannot call this terminal: once the evidence is stale it cannot
+  tell a switched-off terminal from one nobody is using, so it says exactly that ("Last heard
+  3 hours ago. ETHR cannot call this terminal, so it cannot tell whether it is switched off or
+  just not in use.") instead of "Online" (before 2026-11-17 the rule was `online` for 24
+  hours, and a terminal silent for 11 hours still read Online). `quiet` is not an alarm: no
+  notification, no error, and it counts as set up, not as live. That is a label, not a gate: a
+  punch from an "offline" or "quiet" terminal is recorded. For a terminal ETHR also pulls, only
+  a punch moves `last_sync_at`, because there it is the pull cursor.
 - **The push inbox (2026-11-13).** A terminal re-sends any event not answered 200, at once and
   without backing off, and production has five PHP workers. So the post does one insert into
   `device_inbound_punches` (unique on the same idempotency key as before, so a re-sent event
@@ -530,11 +536,22 @@ by its token. A terminal may now be registered with **no address**.
 - **Who writes it.** The rule is written by `devices:sync` on every run for every such
   device (nothing else moves a terminal off `online` when it goes quiet, because it is
   never pulled), by `PUT /devices/{id}` when the mode changes, and by
-  `GET /devices/{id}/status`. A terminal switched from pulling to sending has its
+  `GET /devices/{id}/status`, and since 2026-11-17 by `GET /devices`, `GET /devices/{id}` and
+  `GET /devices/dashboard`, which settle the organisation's sending terminals before they
+  answer, because the scheduler (a GitHub Actions call) is often 10 to 20 minutes late; they
+  write only on change. The same `devices:sync` run also moves a ZKTeco ADMS terminal whose
+  automatic work is switched off to `offline` once it has been silent past
+  `ZktecoAdmsAdapter::OFFLINE_AFTER_MINUTES`, with no pull, no sync log row and no
+  `DeviceOffline` notice; it comes back by its own next call. A terminal switched from pulling to sending has its
   `last_sync_at` cleared, since it was the pull cursor and would read as "heard just now";
   switched back to an address it is `pending`. `DeviceOffline` is **not** raised for these
   devices: a 24-hour threshold plus a weekend closure would alarm every Saturday unless the
-  terminal sends heartbeats, which nobody has observed this model do.
+  terminal sends heartbeats, which nobody has observed this model do. Since 2026-11-17 that
+  is being measured: `TerminalKeepAlive` records, per device, the last time such a terminal
+  posted something that was not an access event (cache, 30 days, written at most once a
+  minute), and the device page shows it as "Reports in when idle, last 2 hours ago" once there
+  is one. It is measurement only; the status rule does not read it yet, and may once a
+  terminal has been seen doing it.
 - **Never pulled.** `devices:sync` does not dispatch it and `PullDeviceEventsJob` returns
   at once. A pull found nothing and moved `last_sync_at` to now, which made a silent
   terminal look as if it had just been heard from. The device page and list card offer no

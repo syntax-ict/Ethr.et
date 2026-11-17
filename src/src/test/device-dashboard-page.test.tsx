@@ -85,6 +85,7 @@ const stats = {
   online: 0,
   offline: 0,
   error: 0,
+  quiet: 0,
   pending: 1,
   auto_sync_enabled: 0,
   events_today: 0,
@@ -114,6 +115,16 @@ describe("<DeviceDashboardPage> cards", () => {
     expect(card).toHaveTextContent("1");
     expect(screen.queryByText(/last sync across/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Events Today")).not.toBeInTheDocument();
+  });
+
+  it("counts a quiet terminal in its own card, not under Online", async () => {
+    serveStats({ total: 2, online: 1, quiet: 1, pending: 0 });
+    server.use(emptyList());
+    renderPage();
+
+    const label = await screen.findByText("Quiet");
+    const card = label.closest('[class*="rounded-xl"]') as HTMLElement;
+    expect(card).toHaveTextContent("1");
   });
 
   it("shows the three punch figures and where the last contact was", async () => {

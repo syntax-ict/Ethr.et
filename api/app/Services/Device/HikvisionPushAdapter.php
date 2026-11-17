@@ -27,6 +27,13 @@ use App\Models\Device;
 final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
 {
     /**
+     * Heard from inside this window, a terminal is `online`: ETHR has fresh
+     * evidence, which is all "online" can honestly mean for a terminal it
+     * cannot call.
+     */
+    public const ONLINE_WITHIN_MINUTES = 15;
+
+    /**
      * A terminal that has sent nothing for this long is shown as offline. It
      * is a label, not a gate: a punch from an "offline" terminal is still
      * recorded. Long enough to cover a night; a weekend will show offline.
@@ -82,13 +89,16 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
     /**
      * What the stored `status` of a terminal that only sends must read. One
      * rule, so the badge, the list filter and the health counts cannot
-     * disagree: `online` means ETHR heard from the terminal inside the last
-     * 24 hours, `pending` that it has never been heard from (configured, not
-     * yet contacted), `offline` that it has gone quiet. The pull job never
-     * touches such a device, so without this a first punch left it Online
-     * for good, whatever happened to the terminal afterwards.
+     * disagree: `pending` is never heard from (configured, not yet
+     * contacted), `online` heard from in the last 15 minutes, `quiet` heard
+     * from in the last 24 hours but not the last 15, `offline` older than
+     * that. `quiet` is its own state because ETHR cannot call this terminal:
+     * once the evidence is stale it cannot tell a switched-off terminal from
+     * one nobody is using, and "Online" would claim more than it knows. The
+     * pull job never touches such a device, so without this a first punch
+     * left it Online for good, whatever happened to the terminal afterwards.
      *
-     * @return 'pending'|'online'|'offline'
+     * @return 'pending'|'online'|'quiet'|'offline'
      */
     public static function statusFor(Device $device): string
     {
@@ -96,8 +106,12 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
             return 'pending';
         }
 
+        if ($device->last_sync_at->greaterThan(now()->subMinutes(self::ONLINE_WITHIN_MINUTES))) {
+            return 'online';
+        }
+
         return $device->last_sync_at->greaterThan(now()->subHours(self::OFFLINE_AFTER_HOURS))
-            ? 'online'
+            ? 'quiet'
             : 'offline';
     }
 
