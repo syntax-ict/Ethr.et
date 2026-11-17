@@ -31,6 +31,7 @@ import {
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
 import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
+import { namedGenders } from "@/lib/i18n/genderLabel";
 
 export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t, locale } = useT();
@@ -169,10 +170,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                           numeric: true,
                         },
                       ]}
-                      rows={data.by_gender.map((g) => ({
-                        gender: <span className="capitalize">{g.gender}</span>,
-                        count: g.count,
-                      }))}
+                      rows={namedGenders(t, data.by_gender)}
                     />
                   ) : (
                     <div className="flex flex-col items-center gap-6 sm:flex-row">
@@ -180,7 +178,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={data.by_gender}
+                              data={namedGenders(t, data.by_gender)}
                               dataKey="count"
                               nameKey="gender"
                               innerRadius={62}
@@ -188,7 +186,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                               paddingAngle={2}
                               strokeWidth={0}
                             >
-                              {data.by_gender.map((_, i) => (
+                              {namedGenders(t, data.by_gender).map((_, i) => (
                                 <Cell key={i} fill={seriesColor(i)} />
                               ))}
                             </Pie>
@@ -198,8 +196,8 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       </div>
                       <ChartLegend
                         stacked
-                        items={data.by_gender.map((g, i) => ({
-                          label: <span className="capitalize">{g.gender}</span>,
+                        items={namedGenders(t, data.by_gender).map((g, i) => ({
+                          label: g.gender,
                           color: seriesColor(i),
                           value: g.count,
                         }))}

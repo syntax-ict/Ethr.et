@@ -131,6 +131,31 @@ describe("analytics head-count charts", () => {
     expect(await yAxes(2)).toEqual(["false", "false"]);
   });
 
+  it("workforce: the gender split names the people with no gender on file", async () => {
+    server.use(
+      http.get("*/api/v1/dashboard/executive/workforce", () =>
+        HttpResponse.json({
+          headcount_trend: [],
+          by_gender: [
+            { gender: "", count: 3 },
+            { gender: "female", count: 5 },
+          ],
+          by_tenure: [],
+        }),
+      ),
+      http.get("*/api/v1/dashboard/executive/forecast", () =>
+        HttpResponse.json({
+          headcount: { history: [], projected: [] },
+          payroll_gross: { history: [], projected: [] },
+        }),
+      ),
+    );
+    renderTab(<WorkforceTab />);
+
+    expect(await screen.findByText("Not recorded")).toBeInTheDocument();
+    expect(screen.getByText("Female")).toBeInTheDocument();
+  });
+
   it("attendance: people present per day uses whole numbers", async () => {
     server.use(
       http.get("*/api/v1/dashboard/executive/attendance", () =>
