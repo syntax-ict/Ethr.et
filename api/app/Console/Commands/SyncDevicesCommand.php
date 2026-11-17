@@ -44,7 +44,8 @@ class SyncDevicesCommand extends Command
             // in the database rather than being decrypted every five minutes.
             $devices = Device::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenant->id)
-                ->where(fn ($q) => $q->where('auto_sync', true)->orWhere('adapter_type', 'hikvision'))
+                ->where(fn ($q) => $q->where('auto_sync', true)
+                    ->orWhereIn('adapter_type', ['hikvision', AdmsDeviceResolver::ADAPTER]))
                 ->get();
 
             foreach ($devices as $device) {
@@ -78,6 +79,15 @@ class SyncDevicesCommand extends Command
         }
 
         if (! $device->auto_sync) {
+            // An ADMS terminal calls ETHR by itself, so its silence is known.
+            // The owner switched automatic work off for it, so no pull, sync
+            // log or notification, but the badge must still be true.
+            if ($device->adapter_type === AdmsDeviceResolver::ADAPTER
+                && $device->status === 'online'
+                && ! (app(DeviceManager::class)->adapter($device)->getStatus($device)['online'] ?? false)) {
+                $device->update(['status' => 'offline']);
+            }
+
             return false;
         }
 

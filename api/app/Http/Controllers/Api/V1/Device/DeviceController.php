@@ -29,6 +29,7 @@ use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
+use App\Services\Device\TerminalKeepAlive;
 use App\Services\Device\WebhookRejections;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
@@ -44,6 +45,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class DeviceController extends Controller
 {
@@ -55,6 +57,8 @@ class DeviceController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('device.viewAny');
+
+        $this->settleSendingTerminals();
 
         $query = Device::query()->with('branch')->withCount(['attendanceRecords', 'syncLogs']);
 
@@ -140,6 +144,10 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.view');
 
+        if (DeviceManager::receivesOnly($device)) {
+            HikvisionPushAdapter::settleStatus($device);
+        }
+
         $device->load('branch');
         $device->loadCount(['attendanceRecords', 'syncLogs']);
 
@@ -215,6 +223,34 @@ class DeviceController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Bring the stored status of this organisation's sending-only terminals up
+     * to date before a page reads it. Such a terminal moves off `online` only
+     * when `devices:sync` runs, and in production the scheduler is a GitHub
+     * Actions call that is often 10 to 20 minutes late, so a page could say
+     * Online well past 15 minutes. `settleStatus()` writes only on change, so
+     * a page polling every 30 seconds costs one small select and no write in
+     * the steady state.
+     */
+    private function settleSendingTerminals(): void
+    {
+        $devices = Device::query()
+            ->where('adapter_type', 'hikvision')
+            ->whereIn('status', ['online', 'quiet'])
+            ->get();
+
+        foreach ($devices as $device) {
+            // One device whose config will not decrypt must not break the page.
+            try {
+                if (DeviceManager::receivesOnly($device)) {
+                    HikvisionPushAdapter::settleStatus($device);
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
     public function status(Device $device): JsonResponse
     {
         Gate::authorize('device.view');
@@ -231,7 +267,7 @@ class DeviceController extends Controller
         // A terminal that only sends was not probed: it answers from when it
         // was last heard, and "never heard" is its own state, not offline.
         $sendsOnly = DeviceManager::receivesOnly($device);
-        /** @var 'pending'|'online'|'offline' $newStatus */
+        /** @var 'pending'|'online'|'quiet'|'offline' $newStatus */
         $newStatus = $sendsOnly
             ? HikvisionPushAdapter::settleStatus($device)
             : ($online ? 'online' : 'offline');
@@ -397,6 +433,8 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.viewAny');
 
+        $this->settleSendingTerminals();
+
         $devices = Device::query()->get();
 
         // Both "today" counts follow the organisation's own day, as attendance
@@ -449,6 +487,7 @@ class DeviceController extends Controller
             'online' => $devices->where('status', 'online')->count(),
             'offline' => $devices->where('status', 'offline')->count(),
             'error' => $devices->where('status', 'error')->count(),
+            'quiet' => $devices->where('status', 'quiet')->count(),
             'pending' => $devices->where('status', 'pending')->count(),
             'auto_sync_enabled' => $devices->where('auto_sync', true)->count(),
             'events_today' => $totalEvents,
@@ -507,6 +546,10 @@ class DeviceController extends Controller
         }
 
         if ($event === null) {
+            if (DeviceManager::receivesOnly($device)) {
+                TerminalKeepAlive::note($device);
+            }
+
             return response()->json(['status' => 'ignored'], 200);
         }
 
@@ -760,7 +803,7 @@ class DeviceController extends Controller
                 'ip' => $ip,
                 'reason' => $reason,
             ]);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // swallow — denial already returned to the caller
         }
     }
