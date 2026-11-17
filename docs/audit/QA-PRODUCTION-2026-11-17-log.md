@@ -151,6 +151,21 @@ Second session: **the payroll run was approved** (below); a **manual attendance 
 | UAT-P1 | The platform console is never driven by an agent in Chrome |
 | Mode X cases, rate-limit and secret-path probes | A person's, with the owner's go-ahead |
 
+## The fixes deployed, and rechecked on production (about 20:09 to 20:20 EAT)
+
+**D-1 to D-4 are fixed by [#783](https://github.com/syntax-ict/Ethr.et/pull/783)** (`8d02c50c06`), after an independent review that found a regression in the first D-4 fix (late days counted on rest days, so late could exceed present) and an unconfirmed risk in D-1 (NULL and empty gender as two groups); both were fixed and tested before the merge. All 13 CI checks were green on the merged head, MySQL 8 and Playwright included.
+
+**Deployed** 2026-11-17 by Plesk Pull now (20:09 EAT; the live commit did not move in two minutes) and then Deploy now: `release.json` read `8d02c50c0620d15a65e45b7a5288dd0dbcf6fbe5`, built 17:02:52Z, from 17:12:07Z (20:12 EAT). Health healthy, `failed_jobs` 0. **One migration pending** (`2026_11_17_000001_drop_internal_file_name_from_statutory_references`, a data rewrite only): `pending_migrations` 1 at 17:12Z, 17:19Z and 17:21Z. The owner then ran the release steps with the maintenance token (`private-docs/release-steps-2026-11-17b.ps1`): at 17:57Z health read `pending_migrations` 0, healthy, `failed_jobs` 0.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| D-1, CHT-001 | Pass | Claude Code | ~20:16 | TA | en | Chrome, unguarded, on `8d02c50c06`. Employees, Gender Distribution, Show as table: "Not recorded" 3, Female 5, Male 3. One row, named |
+| D-4, REP-006 | Pass | Claude Code | ~20:18 | TA | en | Chrome, unguarded, on `8d02c50c06`. Quick Reports, Monthly timesheet, October 2026, 10 rows: QA Employee A Workdays 27, Present 1, Late 0, Absent 26 (was Present 2); QA Employee B 27, 1, 0, 26. No row has present, absent, leave and holidays above its workdays, and none has late above present. Worked hours unchanged (QA Employee A 13.6) |
+| D-3 | Pass | Claude Code | ~21:00 | TA | en | Chrome, unguarded, on `8d02c50c06` after the release steps: `pending_migrations` 0 at 17:57Z. Settings, Payroll rules, Statutory rules: "Working days in a month" reads "Set for your kind of organisation · ETHR convention, set per organisation type · version 2026.11.1". No rule on the tab names a `.md` file |
+| D-2 | Not run | | | | | The note is shown only on the guided setup's proposal; QA Audit's setup was applied today, so reading it again means opening a new proposal. Covered by `SetupLeaveNoteTest` in #783 |
+
+The TA's language was put back to አማርኛ after the checks.
+
 ## Defect drafts (10, section 1), for the tester to file
 
 **D-1. People with no gender on file are a row with no name in Gender Distribution.** S4, usability.
