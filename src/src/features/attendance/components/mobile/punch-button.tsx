@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, LogIn, LogOut } from "lucide-react";
 import { haptic } from "@/lib/attendance/haptics";
 import { useT } from "@/lib/i18n/useT";
@@ -28,6 +28,8 @@ export function PunchButton({
   reason,
   phase = "idle",
   onSlow,
+  onBlockedPress,
+  nudgeKey = 0,
 }: {
   type: "check_in" | "check_out";
   state: PunchButtonState;
@@ -37,8 +39,13 @@ export function PunchButton({
   phase?: PunchPhase;
   /** Called once when a send has taken longer than 8 seconds. */
   onSlow?: () => void;
+  /** A tap while the button is waiting or blocked: say why, send nothing. */
+  onBlockedPress?: () => void;
+  /** Goes up by one on each such tap; the reason line shakes once. */
+  nudgeKey?: number;
 }) {
   const { t } = useT();
+  const statusId = useId();
   const [prev, setPrev] = useState(state);
   const [pulseKey, setPulseKey] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -80,6 +87,13 @@ export function PunchButton({
         ? t("attendance.punch.sending", "Sending…")
         : t("attendance.punch.confirming", "Confirming it is you…")
     : reason;
+
+  // Only a punch in flight is disabled for real. A button that is waiting or
+  // blocked stays focusable and answers a tap with the reason (aria-disabled).
+  function handleClick() {
+    if (state === "ready") onPress();
+    else if (state === "waiting" || state === "blocked") onBlockedPress?.();
+  }
 
   return (
     <>
@@ -134,12 +148,13 @@ export function PunchButton({
         </svg>
         <button
           type="button"
-          onClick={onPress}
-          disabled={state !== "ready"}
+          onClick={handleClick}
+          disabled={busy}
           aria-disabled={state !== "ready"}
+          aria-describedby={status ? statusId : undefined}
           aria-busy={busy}
           className={cn(
-            "flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full border text-lg font-semibold shadow-lg transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-95 disabled:cursor-not-allowed disabled:active:scale-100",
+            "flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full border text-lg font-semibold shadow-lg transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-95 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100",
             notReady
               ? "border-border bg-muted text-muted-foreground shadow-none"
               : type === "check_in"
@@ -158,8 +173,19 @@ export function PunchButton({
         </button>
       </div>
       {status && (
-        <p className="text-center text-sm text-muted-foreground" role="status">
-          {status}
+        <p
+          id={statusId}
+          className="text-center text-sm text-muted-foreground"
+          role="status"
+          data-nudged={nudgeKey > 0 ? "true" : undefined}
+        >
+          {nudgeKey > 0 ? (
+            <span key={nudgeKey} className="ethr-punch-nudge inline-block">
+              {status}
+            </span>
+          ) : (
+            status
+          )}
         </p>
       )}
     </>

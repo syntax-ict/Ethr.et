@@ -1498,9 +1498,57 @@
   animation: ethr-punch-flash 200ms ease-out 1 both;
 }
 
+/* A tap on a button that cannot punch yet: the reason line shakes once, and the
+   row that fixes it flashes once. Both end at rest (no offset, invisible). */
+@keyframes ethr-punch-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  45% {
+    transform: translateX(5px);
+  }
+  70% {
+    transform: translateX(-3px);
+  }
+  88% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes ethr-punch-attn {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.5;
+  }
+}
+
+.ethr-punch-nudge {
+  animation: ethr-punch-nudge 320ms ease-out 1 both;
+}
+
+.ethr-punch-attn {
+  opacity: 0;
+  animation: ethr-punch-attn 900ms ease-out 1 both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ethr-punch-check {
     animation-delay: 0ms !important;
+  }
+  /* No movement: the line stays where it is, and the row still flashes (an
+     opacity change only). */
+  .ethr-punch-nudge {
+    animation: none !important;
+  }
+  .ethr-punch-attn {
+    animation-duration: 900ms !important;
   }
 }
 

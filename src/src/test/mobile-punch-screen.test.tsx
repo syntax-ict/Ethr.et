@@ -33,6 +33,24 @@ vi.mock("@/lib/offline-queue", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/offline-queue")>()),
   enqueueOfflineRecord: queue.enqueue,
 }));
+const signer = vi.hoisted(() => ({ calls: 0 }));
+vi.mock("@/features/attendance/api", async (importOriginal) => {
+  const real =
+    await importOriginal<typeof import("@/features/attendance/api")>();
+  return {
+    ...real,
+    usePunchSigner: (...args: Parameters<typeof real.usePunchSigner>) => {
+      const sign = real.usePunchSigner(...args);
+      return () => {
+        signer.calls += 1;
+        return sign();
+      };
+    },
+  };
+});
+vi.mock("@/lib/uploads/selfie", () => ({
+  captureSelfie: () => "data:image/jpeg;base64,AAAA",
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -113,24 +131,37 @@ function signedInAs(employee: string | null) {
   );
 }
 
+/** Sets what the phone's location does; returns the spy for each ask. */
 function geolocation(
-  behaviour: "fix" | { code: number; message: string },
-): void {
+  behaviour: "fix" | "pending" | { code: number; message: string },
+) {
+  const getCurrentPosition = vi.fn(
+    (ok: PositionCallback, fail: PositionErrorCallback) => {
+      if (behaviour === "pending") return;
+      if (behaviour === "fix") {
+        ok({
+          coords: { latitude: 9.02, longitude: 38.75, accuracy: 10 },
+          timestamp: Date.now(),
+        } as GeolocationPosition);
+      } else {
+        fail(behaviour as unknown as GeolocationPositionError);
+      }
+    },
+  );
   Object.defineProperty(navigator, "geolocation", {
     configurable: true,
-    value: {
-      getCurrentPosition: (
-        ok: PositionCallback,
-        fail: PositionErrorCallback,
-      ) =>
-        behaviour === "fix"
-          ? ok({
-              coords: { latitude: 9.02, longitude: 38.75, accuracy: 10 },
-              timestamp: Date.now(),
-            } as GeolocationPosition)
-          : fail(behaviour as unknown as GeolocationPositionError),
-    },
+    value: { getCurrentPosition },
   });
+  return getCurrentPosition;
+}
+
+/**
+ * Waits until the button can really punch. toBeEnabled is not enough: a
+ * waiting or blocked button is aria-disabled but not disabled, and jest-dom
+ * looks only at the attribute.
+ */
+async function untilReady(button: HTMLElement) {
+  await waitFor(() => expect(button).toHaveAttribute("aria-disabled", "false"));
 }
 
 function renderScreen() {
@@ -151,6 +182,7 @@ beforeEach(() => {
   geolocation("fix");
   queue.enqueue.mockReset();
   queue.enqueue.mockResolvedValue(undefined);
+  signer.calls = 0;
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -180,7 +212,7 @@ describe("the phone punch screen", () => {
     expect(
       await screen.findByRole("radiogroup", {}, { timeout: 6000 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /check in/i })).toBeEnabled();
+    await untilReady(screen.getByRole("button", { name: /check in/i }));
   }, 15000);
 
   it("explains a refused location in words, not the browser's message", async () => {
@@ -215,7 +247,7 @@ describe("the phone punch screen", () => {
     renderScreen();
 
     const button = await screen.findByRole("button", { name: /check in/i });
-    await waitFor(() => expect(button).toBeEnabled());
+    await untilReady(button);
 
     act(() => {
       fireEvent.click(button);
@@ -314,7 +346,7 @@ describe("the phone punch screen", () => {
     renderScreen();
 
     const button = await screen.findByRole("button", { name: /^check in/i });
-    await waitFor(() => expect(button).toBeEnabled());
+    await untilReady(button);
     expect(screen.getByRole("button", { name: /take a selfie/i })).toBeTruthy();
     fireEvent.click(button);
 
@@ -349,6 +381,198 @@ describe("the phone punch screen", () => {
     await waitFor(() => expect(lookups).toBe(2), { timeout: 4000 });
   });
 
+  describe("a tap on a button that cannot punch yet", () => {
+    const scrolled = vi.fn();
+    let hadScroll: PropertyDescriptor | undefined;
+    let vibrate: ReturnType<typeof vi.fn>;
+    let posts = 0;
+
+    beforeEach(() => {
+      posts = 0;
+      scrolled.mockReset();
+      hadScroll = Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        "scrollIntoView",
+      );
+      Element.prototype.scrollIntoView = scrolled;
+      vibrate = vi.fn().mockReturnValue(true);
+      Object.defineProperty(navigator, "vibrate", {
+        configurable: true,
+        value: vibrate,
+      });
+      server.use(
+        http.post("*/api/v1/attendance/mobile/check-in", async () => {
+          posts += 1;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return HttpResponse.json({ id: "R1" });
+        }),
+      );
+    });
+    afterEach(() => {
+      if (hadScroll) {
+        Object.defineProperty(Element.prototype, "scrollIntoView", hadScroll);
+      } else {
+        delete (Element.prototype as { scrollIntoView?: unknown })
+          .scrollIntoView;
+      }
+      delete (navigator as { vibrate?: unknown }).vibrate;
+    });
+
+    function withPolicy(over: Record<string, unknown> = {}) {
+      server.use(
+        http.get("*/api/v1/attendance/my-shift", () =>
+          HttpResponse.json({
+            ...myShift,
+            policy: { ...myShift.policy, ...over },
+          }),
+        ),
+      );
+    }
+
+    it("answers a tap while waiting for a location fix, and sends nothing", async () => {
+      signedInAs("E1");
+      withPolicy();
+      geolocation("pending");
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      expect(button).not.toBeDisabled();
+      expect(button).toHaveAttribute("aria-disabled", "true");
+
+      fireEvent.click(button);
+
+      const line = screen
+        .getByText("Waiting for your location…")
+        .closest('[role="status"]');
+      expect(line).toHaveAttribute("data-nudged", "true");
+      expect(vibrate).toHaveBeenCalledTimes(1);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(posts).toBe(0);
+      expect(signer.calls).toBe(0);
+    });
+
+    it("points at the selfie row when a check-in needs a selfie", async () => {
+      signedInAs("E1");
+      withPolicy({ photo_required: true });
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await screen.findByText("Take a selfie to check in.");
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      expect(button).not.toBeDisabled();
+      expect(document.querySelector('[data-attention="true"]')).toBeNull();
+
+      fireEvent.click(button);
+
+      const row = document.querySelector('[data-attention="true"]');
+      expect(row).not.toBeNull();
+      expect(row?.textContent).toMatch(/selfie/i);
+      expect(scrolled).toHaveBeenCalled();
+      expect(vibrate).toHaveBeenCalledTimes(1);
+      expect(
+        screen
+          .getByText("Take a selfie to check in.")
+          .closest('[role="status"]'),
+      ).toHaveAttribute("data-nudged", "true");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(posts).toBe(0);
+      expect(signer.calls).toBe(0);
+    });
+
+    it("asks for the location again when it was refused, and points at that row", async () => {
+      signedInAs("E1");
+      withPolicy();
+      const ask = geolocation({ code: 1, message: "User denied Geolocation" });
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await screen.findByText(/Allow location for ETHR in your browser/);
+      await waitFor(() =>
+        expect(button).toHaveAttribute("aria-disabled", "true"),
+      );
+      expect(ask).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(button);
+
+      await waitFor(() => expect(ask).toHaveBeenCalledTimes(2));
+      const rows = document.querySelectorAll('[data-attention="true"]');
+      expect(rows).toHaveLength(1);
+      expect(rows[0].tagName).toBe("BUTTON");
+      expect(rows[0].textContent).toMatch(/location/i);
+      expect(scrolled).toHaveBeenCalled();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(posts).toBe(0);
+      expect(signer.calls).toBe(0);
+    });
+
+    it("does not move the attention by itself when the blocking reason changes", async () => {
+      signedInAs("E1");
+      // A required selfie, and a fence the fix at 9.02, 38.75 is outside of.
+      withPolicy({
+        photo_required: true,
+        geofence_required: true,
+        geofence: { latitude: 0, longitude: 0, radius_meters: 50 },
+      });
+      const stream = { getTracks: () => [] };
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+      });
+      const play = vi
+        .spyOn(HTMLMediaElement.prototype, "play")
+        .mockResolvedValue(undefined);
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await screen.findByText("Take a selfie to check in.");
+      fireEvent.click(button);
+
+      const marked = () =>
+        Array.from(document.querySelectorAll('[data-attention="true"]'));
+      expect(marked()).toHaveLength(1);
+      expect(marked()[0].textContent).toMatch(/selfie/i);
+      expect(scrolled).toHaveBeenCalledTimes(1);
+
+      // The selfie is supplied: the reason is now the fence, with no tap.
+      fireEvent.click(screen.getByRole("button", { name: /take a selfie/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /capture/i }));
+      await screen.findByText("Move inside your branch area to check in.");
+
+      expect(marked()).toHaveLength(1);
+      expect(marked()[0].textContent).toMatch(/selfie|photo/i);
+      expect(document.querySelector("button[data-attention]")).toBeNull();
+      expect(scrolled).toHaveBeenCalledTimes(1);
+      play.mockRestore();
+    });
+
+    it("still sends one request when the button is ready", async () => {
+      signedInAs("E1");
+      withPolicy();
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await untilReady(button);
+      fireEvent.click(button);
+
+      await waitFor(() => expect(posts).toBe(1));
+      expect(signer.calls).toBe(1);
+      expect(document.querySelector('[data-attention="true"]')).toBeNull();
+    });
+
+    it("is really disabled while a punch is in flight", async () => {
+      signedInAs("E1");
+      withPolicy();
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await untilReady(button);
+      fireEvent.click(button);
+
+      await waitFor(() => expect(button).toBeDisabled());
+      await waitFor(() => expect(posts).toBe(1));
+    });
+  });
+
   describe("a punch the server does not answer", () => {
     /** The shift lookup, and a check-in route that the test controls. */
     function withShift(over: Record<string, unknown> = {}) {
@@ -364,7 +588,7 @@ describe("the phone punch screen", () => {
 
     async function pressCheckIn() {
       const button = await screen.findByRole("button", { name: /^check in/i });
-      await waitFor(() => expect(button).toBeEnabled());
+      await untilReady(button);
       fireEvent.click(button);
     }
 
