@@ -383,12 +383,12 @@ XLS-005 to XLS-009, STG-022 to STG-050, MASS-002c to MASS-002f, MASS-006 to MASS
 | Step | Do | Expect |
 |---|---|---|
 | 1 | **Settings → Leave types**: check Annual is 16 days with 1 more day for every 2 years of service | Matches the Labour Proclamation 1156/2019 |
-| 2 | **Settings → Holidays → Add Ethiopian public holidays** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays marked as estimated) |
+| 2 | **Settings → Holidays → Add Ethiopian public holidays** | Ethiopian public holidays for the year (Enkutatash, Meskel, Genna, Timkat, Adwa, Siklet, Fasika, Labour Day, Patriots, Derg, and the Muslim holidays, which are stored as estimated; the list draws no mark for that) |
 | 3 | Bring in opening leave balances from the previous system with the balance import | Balances show on each person's leave page |
 | 4 | Read the **Leave year** card (an organisation admin changes it; HR only reads) | Ethiopian year (Meskerem to Pagume) or Gregorian year. Once leave is recorded it cannot be changed: "Leave has already been used, requested or carried over in this year, so the leave year can no longer change." |
 | 5 | Try to set Annual Leave to 15 days, then 17 | 15 refused: "The law grants at least 16 days of this leave (Labour Proclamation No. 1156/2019, Art. 77(1)). A leave type may give more, never less." 17 saved. Put it back to 16 |
 
-Changed 2026-11-14: steps 4 and 5 (see 06 LB-009, LT-006).
+Changed 2026-11-14: steps 4 and 5 (see 06 LB-009, LT-006). Changed 2026-11-17: step 2 (observation O-3 of `docs/audit/QA-PRODUCTION-2026-11-17-log.md`: the Islamic feasts are stored estimated, the Holidays screen shows no mark; 05 HOL-001).
 
 **Done when:** leave rules and holidays match your organisation's policy.
 
