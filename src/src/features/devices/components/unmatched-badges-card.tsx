@@ -96,7 +96,11 @@ export function UnmatchedBadgesCard() {
         spec,
         calendar,
         employeeTemplateText(t),
-        rows.map((row) => ({ badge_number: row.badge })),
+        rows.map((row) => ({
+          badge_number: row.badge,
+          // What the terminal calls this number, typed over or kept.
+          ...(row.name_on_device ? { name: row.name_on_device } : {}),
+        })),
       );
       saveBlob(
         "ethr-unrecognised-badges.xlsx",
@@ -203,6 +207,10 @@ function UnmatchedRow({
   const possible =
     !holder && match && match.outcome !== "new" ? candidates : [];
   const isNew = match?.outcome === "new";
+  // People the terminal's own name fits, other than those already listed.
+  const sameName = (!holder ? (row.name_matches ?? []) : []).filter(
+    (p) => !possible.some((c) => c.employee_public_id === p.employee_public_id),
+  );
   const canBeBadgeNumber = BADGE_NUMBER.test(row.badge);
 
   function onAssign(employeePublicId: string) {
@@ -231,6 +239,7 @@ function UnmatchedRow({
     badge: row.badge,
     device: row.device_public_id,
     hire_date: heldSinceDate(row.first_seen, timeZone),
+    ...(row.name_on_device ? { name: row.name_on_device } : {}),
   }).toString()}`;
 
   return (
@@ -246,6 +255,15 @@ function UnmatchedRow({
             date: formatDate(row.last_seen),
           })}
         </p>
+        {canManage && row.name_on_device && (
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "devices_page.unmatched.name_on_device",
+              "The terminal calls this person :name",
+              { name: row.name_on_device },
+            )}
+          </p>
+        )}
         {canManage && holder && (
           <p className="text-sm text-status-success">
             {t("devices_page.unmatched.this_is", "This is :name", {
@@ -273,6 +291,33 @@ function UnmatchedRow({
                     ({c.reasons.map((r) => matchReasonLabel(r, t)).join(", ")})
                   </span>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canManage && sameName.length > 0 && (
+          <ul className="space-y-0.5 text-xs text-muted-foreground">
+            {sameName.map((p) => (
+              <li key={p.employee_public_id}>
+                <button
+                  type="button"
+                  className="text-primary underline underline-offset-2 hover:no-underline"
+                  onClick={() => setEmployee(p.employee_public_id)}
+                >
+                  {t("devices_page.unmatched.possibly", "Possibly :name", {
+                    name: p.employee_name,
+                  })}
+                </button>
+                {p.department && <> · {p.department}</>}
+                <span className="italic">
+                  {" "}
+                  (
+                  {t(
+                    "devices_page.unmatched.same_name",
+                    "same name on the terminal",
+                  )}
+                  )
+                </span>
               </li>
             ))}
           </ul>

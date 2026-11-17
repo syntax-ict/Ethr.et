@@ -11,6 +11,7 @@ use App\Models\Device;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\TerminalNames;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
@@ -36,6 +37,7 @@ class UnmatchedPunchController extends Controller
     public function __construct(
         private readonly UnmatchedPunches $unmatched,
         private readonly IdentityResolver $resolver,
+        private readonly TerminalNames $terminalNames,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -48,9 +50,13 @@ class UnmatchedPunchController extends Controller
             ->get(['id', 'tenant_id', 'public_id', 'name', 'adapter_type'])
             ->keyBy('id');
 
-        $matches = Gate::allows('attendance.manage')
-            ? $this->suggestions($groups, $devices, $request->user())
-            : [];
+        $viewer = $request->user();
+        $manages = Gate::allows('attendance.manage');
+
+        // Only a manager is told what the terminal calls a badge: the name is
+        // evidence for assigning it, and assigning needs `attendance.manage`.
+        $names = $manages ? $this->namesFor($groups, $devices) : [];
+        $matches = $manages ? $this->suggestions($groups, $devices, $viewer, $names) : [];
 
         $data = [];
         foreach ($groups as $index => $group) {
@@ -58,6 +64,8 @@ class UnmatchedPunchController extends Controller
             if (! $device instanceof Device) {
                 continue;
             }
+            $match = $matches[$index] ?? null;
+            $nameOnDevice = $this->nameOnDevice($names, $group);
             $data[] = [
                 'device_public_id' => (string) $device->public_id,
                 'device_name' => (string) $device->name,
@@ -65,7 +73,9 @@ class UnmatchedPunchController extends Controller
                 'punches' => $group['punches'],
                 'first_seen' => $group['first_seen'],
                 'last_seen' => $group['last_seen'],
-                'match' => $matches[$index] ?? null,
+                'match' => $match,
+                'name_on_device' => $nameOnDevice,
+                'name_matches' => $this->nameMatches($device, $nameOnDevice, $match, $index < self::RESOLVE_LIMIT, $viewer),
             ];
         }
 
@@ -84,9 +94,10 @@ class UnmatchedPunchController extends Controller
      *
      * @param  list<array{device_id: int, badge: string, punches: int, first_seen: string, last_seen: string}>  $groups
      * @param  Collection<int, Device>  $devices
+     * @param  array<int, array<string, string>>  $names
      * @return array<int, array{outcome: string, employee_public_id: string|null, confidence: float, candidates: list<array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}>}>
      */
-    private function suggestions(array $groups, Collection $devices, User $viewer): array
+    private function suggestions(array $groups, Collection $devices, User $viewer, array $names): array
     {
         $matches = [];
         foreach (array_slice($groups, 0, self::RESOLVE_LIMIT, true) as $index => $group) {
@@ -94,12 +105,79 @@ class UnmatchedPunchController extends Controller
             if ($device instanceof Device) {
                 $matches[$index] = $this->resolver->resolve(
                     $device->tenant_id,
-                    IdentitySignals::forDeviceUser($device, $group['badge']),
+                    IdentitySignals::forDeviceUser($device, $group['badge'], null, $this->nameOnDevice($names, $group)),
                 );
             }
         }
 
         return IdentityMatch::visibleTo($matches, $viewer);
+    }
+
+    /**
+     * What each terminal calls the held badges, read once.
+     *
+     * @param  list<array{device_id: int, badge: string, punches: int, first_seen: string, last_seen: string}>  $groups
+     * @param  Collection<int, Device>  $devices
+     * @return array<int, array<string, string>>
+     */
+    private function namesFor(array $groups, Collection $devices): array
+    {
+        $names = [];
+        foreach ($devices->groupBy('tenant_id') as $tenantId => $tenantDevices) {
+            $ids = $tenantDevices->pluck('id')->all();
+            $pairs = [];
+            foreach (array_slice($groups, 0, self::RESOLVE_LIMIT) as $group) {
+                if (in_array($group['device_id'], $ids, true)) {
+                    $pairs[] = [$group['device_id'], $group['badge']];
+                }
+            }
+            foreach ($this->terminalNames->forBadges((int) $tenantId, $pairs) as $deviceId => $byBadge) {
+                $names[$deviceId] = $byBadge;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * @param  array<int, array<string, string>>  $names
+     * @param  array{device_id: int, badge: string, punches: int, first_seen: string, last_seen: string}  $group
+     */
+    private function nameOnDevice(array $names, array $group): ?string
+    {
+        $name = $names[$group['device_id']][$group['badge']] ?? null;
+
+        return $name === null ? null : (string) $name;
+    }
+
+    /**
+     * Employees the terminal's name could be, for a person to choose from.
+     * Empty when the card already says whose the badge is, and for anyone the
+     * viewer may not open.
+     *
+     * @param  array<string, mixed>|null  $match
+     * @return list<array{employee_public_id: string, employee_name: string, department: string|null}>
+     */
+    private function nameMatches(Device $device, ?string $name, ?array $match, bool $withinLimit, User $viewer): array
+    {
+        if ($name === null || ! $withinLimit || ($match['outcome'] ?? null) === IdentityMatch::MATCHED) {
+            return [];
+        }
+
+        $people = [];
+        foreach ($this->terminalNames->lookalikes($device->tenant_id, $name) as $employee) {
+            if (! $viewer->canAccessEmployee($employee)) {
+                continue;
+            }
+            $department = $employee->department?->name;
+            $people[] = [
+                'employee_public_id' => (string) $employee->public_id,
+                'employee_name' => (string) $employee->name,
+                'department' => $department === null ? null : (string) $department,
+            ];
+        }
+
+        return $people;
     }
 
     public function assign(AssignUnmatchedBadgeRequest $request, DevicePunchRecorder $recorder): JsonResponse

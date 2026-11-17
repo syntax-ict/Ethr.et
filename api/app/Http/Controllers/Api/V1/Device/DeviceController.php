@@ -30,6 +30,7 @@ use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
 use App\Services\Device\TerminalKeepAlive;
+use App\Services\Device\TerminalNames;
 use App\Services\Device\WebhookRejections;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
@@ -52,6 +53,7 @@ class DeviceController extends Controller
     public function __construct(
         private readonly DeviceManager $deviceManager,
         private readonly DevicePunchRecorder $punches,
+        private readonly TerminalNames $terminalNames,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -559,6 +561,10 @@ class DeviceController extends Controller
         if ($badge === null) {
             return response()->json(['status' => 'no_badge'], 200);
         }
+
+        // The name the terminal holds for this number is kept so a held badge
+        // can be traced to a person; it never assigns anything.
+        $this->terminalNames->note($device, $badge, HikvisionEvent::personName($event));
 
         // One insert and an answer: the terminal sends again anything not
         // answered 200, and the host has five PHP workers, so the engine's

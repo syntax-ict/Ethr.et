@@ -2445,6 +2445,8 @@
   "devices_page.unmatched.assign_replay": "Assign and replay :count punches",
   "devices_page.unmatched.possibly": "Possibly :name",
   "devices_page.unmatched.this_is": "This is :name",
+  "devices_page.unmatched.name_on_device": "The terminal calls this person :name",
+  "devices_page.unmatched.same_name": "same name on the terminal",
   "devices_page.update_failed": "Failed to update device",
   "devices_page.updated": "Device updated",
   "devices_page.username": "Username",

@@ -579,6 +579,28 @@ is a field test, first owed on a DS-K1T321MFWX-B.
   terminal. It is set by hand.
 - The adapter speaks plain HTTP to the terminal; there is no HTTPS option.
 
+### The name a Hikvision terminal sends (2026-11-17)
+
+An `AccessControllerEvent` carries the enrolled person's `name` beside `employeeNoString`. ETHR used to
+keep only the number, so a number that matched no employee could not be traced to anyone: one
+organisation had 83 such numbers (R011, T022, "66") and none of its employees carried a terminal number.
+
+- **Where it is kept.** `HikvisionEvent::personName()` reads and cleans it (control characters out, spaces
+  collapsed, 100 characters at most). `TerminalNames::note()` upserts it into
+  `device_enrollment_snapshots`, one row per (device, user number), touching only `name`, `seen_at` and
+  `updated_at`, so a row an ADMS roster wrote keeps its card, admin flag and template counts. A failure to
+  keep it is reported and swallowed: a name never costs a punch. Nothing here changes how a punch is
+  resolved or recorded.
+- **What the card does with it.** For someone with `attendance.manage`, each held badge says "The terminal
+  calls this person :name" and lists current employees the name could be (`name_matches`, with their
+  department), each a button that only fills the picker. Assign stays a separate click. The name also goes
+  to the resolver, so a small number that equals some employee's code while the two names share no word is
+  shown as "Possibly", not "This is". The new-employee link and the downloaded list start from the name.
+- **What it does not do.** It never assigns a badge and never touches the live punch path. A name of one
+  word suggests nobody, and so does a name that more than five people fit. Only people the viewer may open
+  are listed, and only this organisation's. A terminal whose users were enrolled without names sends none,
+  and then the card is as it was.
+
 ## Why a pull failed (2026-11-12)
 
 `PullDeviceEventsJob` stored the literal "Device is not reachable" and threw away the

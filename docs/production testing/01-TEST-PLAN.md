@@ -292,6 +292,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The shift drawn as a rail with "Starts in", "so far · ends in" and "Worked" under it (no grace period); the confirmation in the place the button was, with My history and Done; "Sending N punches…" then "All punches sent." | #771 | MOB-021 to MOB-023; MOB-010, MOB-013, OFF-002 changed |
 | A phone punch the server never answered: "Save on this phone" (recorded at the time of the first tap, under the same key) and "Try again"; a real refusal offers neither; the same offer after 8 seconds of a slow send; no save where offline punches are off | #773 (open) | MOB-024 to MOB-026 |
 | The selfie frame is portrait, mirrored, with a face guide, the blink or turn instruction over the picture and a shutter flash | #773 (open) | MOB-027 |
+| A held badge says what the Hikvision terminal calls it, offers the employees that name could be (never assigns), carries the name into "Add as a new employee" and the downloaded list | #TBD (open) | DEV-045 to DEV-047 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone

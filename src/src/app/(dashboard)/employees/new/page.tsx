@@ -107,13 +107,15 @@ type EmployeeForm = typeof EMPTY_FORM;
  */
 /**
  * A badge a terminal sent that nobody has, opened from Unrecognised badges
- * on Devices: `?badge=&device=&hire_date=`. Read inside a Suspense boundary,
+ * on Devices: `?badge=&device=&hire_date=&name=`. Read inside a Suspense boundary,
  * which the static export needs for search params.
  */
 interface BadgeOrigin {
   badge: string;
   device: string;
   hireDate: string;
+  /** What the terminal calls the number, to start the name field from. */
+  name: string;
 }
 
 function FromBadgeParams() {
@@ -127,6 +129,7 @@ function FromBadgeParams() {
           badge,
           device,
           hireDate: /^\d{4}-\d{2}-\d{2}$/.test(hireDate) ? hireDate : "",
+          name: (params.get("name") ?? "").trim().slice(0, 100),
         }
       : null;
 
@@ -177,6 +180,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
           ...EMPTY_FORM,
           badge_number: origin.badge,
           hire_date: origin.hireDate,
+          name: origin.name,
         }
       : EMPTY_FORM,
   );

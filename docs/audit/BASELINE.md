@@ -4811,3 +4811,24 @@ organisation held for it is held again (never failed) on a day other organisatio
 of 100 or a cap of 0. A held invitation that has fallen due is not queued or reminded a second time
 while it waits for the queue, and a queued row due more than three days ago has no live job and
 uses no room (`InvitationSend::scopeHeldAndUnsent`, `EmailInvitationCeiling::ABANDONED_AFTER_DAYS`).
+
+### 25p. Held badges had a number and no name — measured 2026-11-17, changed the same day
+
+Measured on production on 2026-11-17: the Habru woreda organisation's one Hikvision terminal, in push
+mode, had sent punches for **83** device user numbers (R011, T022, Trans005, "66", "1" and others) that
+match no employee, **24,501** punches held under Unrecognised badges at 00:01Z and growing, against
+**3,927** employees, none of whom carries a terminal number. An employee search for "R011" finds nobody.
+ETHR kept only the number from each event, so nobody could tell from the card who R011 is, although a
+Hikvision `AccessControllerEvent` carries the enrolled person's `name` beside `employeeNoString`.
+
+The name is now kept (`HikvisionEvent::personName`, `TerminalNames::note` into
+`device_enrollment_snapshots`, no schema change) and shown on the card to anyone with `attendance.manage`,
+with the current employees the name could be: every word of the terminal's name must begin, or be begun
+by, a word of the employee's name, a one-word name suggests nobody, and so does a name more than five
+people fit. The resolver also receives the name, so a number that equals some employee's code while the
+names share no word is "probable", not "matched". Nothing is assigned automatically. Pinned by
+`tests/Feature/Device/HeldBadgeNameTest.php`.
+
+**Not yet observed:** whether Habru's terminal sends names at all. A terminal whose users were enrolled
+without names sends none, and the card is then as it was. The first look at the card after this change is
+live is what settles it.

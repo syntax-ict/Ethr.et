@@ -42,6 +42,22 @@ final class HikvisionEvent
         return $badge === '' ? null : $badge;
     }
 
+    /** The name the terminal holds for the enrolled person, cleaned and capped at 100 characters, or null when it sends none. */
+    public static function personName(array $event): ?string
+    {
+        $name = $event['name'] ?? null;
+
+        if (! is_scalar($name) || is_bool($name)) {
+            return null;
+        }
+
+        $name = preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', (string) $name) ?? '';
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        $name = mb_substr($name, 0, 100);
+
+        return $name === '' ? null : $name;
+    }
+
     /** `check_in`, `check_out`, `break_out`, `break_in`, or `auto` when the terminal does not say. */
     public static function direction(array $event): string
     {

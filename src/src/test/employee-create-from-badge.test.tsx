@@ -104,6 +104,22 @@ describe("New employee from an unrecognised badge", () => {
     router.push.mockClear();
   });
 
+  it("starts the name from what the terminal calls the number, only with a badge origin", async () => {
+    search.params =
+      "badge=7777&device=01HZDEV0000000000000000001&hire_date=2026-10-14&name=Abebe%20Kebede";
+    const { unmount } = renderPage(ALL);
+    await screen.findByText("Badge 7777 from Main gate", { exact: false });
+    expect(document.getElementById("name")).toHaveValue("Abebe Kebede");
+    unmount();
+
+    search.params = "name=Abebe%20Kebede";
+    renderPage(ALL);
+    await waitFor(() =>
+      expect(document.getElementById("name")).toBeInTheDocument(),
+    );
+    expect(document.getElementById("name")).toHaveValue("");
+  });
+
   it("arrives with the badge and the day it was first held, and says what saving does", async () => {
     renderPage(ALL);
 
