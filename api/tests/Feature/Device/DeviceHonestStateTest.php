@@ -18,10 +18,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 /*
- * A Hikvision terminal that only sends reports one of three honest states
- * (2026-11-12). Online means ETHR heard from it, so a terminal nobody has
- * contacted is "not connected yet", and one that has gone quiet stops reading
- * Online. The pull job never touches such a device, so the scheduler is what
+ * A Hikvision terminal that only sends reports one of four honest states
+ * (three on 2026-11-12, `quiet` added 2026-11-17). Online means ETHR heard from
+ * it a moment ago, so a terminal nobody has contacted is "not connected yet",
+ * and one that has gone quiet stops reading Online. The pull job never touches such a device, so the scheduler is what
  * moves it. The failed pull also says why, as a code the dictionaries turn
  * into advice.
  */
@@ -49,7 +49,7 @@ function honestPushDevice(Tenant $tenant, Branch $branch, array $attributes = []
     ]);
 }
 
-it('reads the same three states from last_sync_at, with the day as a strict edge', function () {
+it('reads the same four states from last_sync_at, with the quarter hour and the day as strict edges', function () {
     [$tenant, $branch] = honestOrganisation();
 
     $at = fn (?Carbon $when): string => HikvisionPushAdapter::statusFor(
@@ -58,7 +58,12 @@ it('reads the same three states from last_sync_at, with the day as a strict edge
 
     expect($at(null))->toBe('pending')
         ->and($at(now()->subMinutes(5)))->toBe('online')
-        ->and($at(now()->subHours(24)->addSecond()))->toBe('online')
+        ->and($at(now()->subMinutes(15)->addSecond()))->toBe('online')
+        ->and($at(now()->subMinutes(15)))->toBe('quiet')
+        ->and($at(now()->subMinutes(16)))->toBe('quiet')
+        ->and($at(now()->subHours(23)))->toBe('quiet')
+        ->and($at(now()->subHours(24)->addSecond()))->toBe('quiet')
+        ->and($at(now()->subHours(25)))->toBe('offline')
         ->and($at(now()->subHours(24)))->toBe('offline')
         ->and($at(now()->subDays(3)))->toBe('offline');
 });
@@ -71,7 +76,9 @@ it('moves a terminal that only sends to the rule on every run, whatever it was a
     $never = honestPushDevice($tenant, $branch, ['status' => 'offline', 'last_sync_at' => null, 'auto_sync' => false]);
     // Online forever after its first punch, though it has been quiet for three days.
     $quiet = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subDays(3)]);
-    $heard = honestPushDevice($tenant, $branch, ['status' => 'pending', 'last_sync_at' => now()->subHour()]);
+    $heard = honestPushDevice($tenant, $branch, ['status' => 'pending', 'last_sync_at' => now()->subMinutes(5)]);
+    // Online when last settled, heard 20 minutes ago: the run moves it to quiet, not offline.
+    $idle = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subMinutes(20)]);
     // Another organisation's terminal, which the same run must settle on its own terms.
     $other = createTenant();
     // Neither Hikvision nor auto-synced: nothing for this run, so it must not be loaded, which also keeps its encrypted config from being decrypted every run.
@@ -88,11 +95,12 @@ it('moves a terminal that only sends to the rule on every run, whatever it was a
     test()->artisan('devices:sync')->assertSuccessful();
 
     $read = fn (Device $d): string => Device::withoutGlobalScope('tenant')->findOrFail($d->id)->status;
-    expect($loaded)->toContain($never->id, $quiet->id, $heard->id, $otherDevice->id)
+    expect($loaded)->toContain($never->id, $quiet->id, $heard->id, $idle->id, $otherDevice->id)
         ->and($loaded)->not->toContain($manual->id)
         ->and($read($never))->toBe('pending')
         ->and($read($quiet))->toBe('offline')
         ->and($read($heard))->toBe('online')
+        ->and($read($idle))->toBe('quiet')
         ->and($read($otherDevice))->toBe('online')
         ->and($read($manual))->toBe('online');
     Queue::assertNotPushed(PullDeviceEventsJob::class);
@@ -265,8 +273,12 @@ it('answers Test for a terminal that only sends from when it was last heard, nev
     test()->getJson($url)->assertOk()->assertJsonPath('status', 'pending')->assertJsonPath('error_code', null);
     expect($device->refresh()->status)->toBe('pending');
 
-    $device->update(['last_sync_at' => now()->subHour()]);
+    $device->update(['last_sync_at' => now()->subMinutes(5)]);
     test()->getJson($url)->assertOk()->assertJsonPath('status', 'online');
+
+    $device->update(['last_sync_at' => now()->subHour()]);
+    test()->getJson($url)->assertOk()->assertJsonPath('status', 'quiet');
+    expect($device->refresh()->status)->toBe('quiet');
 
     Http::assertNothingSent();
 });
@@ -325,3 +337,70 @@ it('derives one code per cause', function (?string $message, ?string $code) {
     'the old message' => ['Device is not reachable', 'unreachable'],
     'something else' => ['Stopped at 2026-11-01T10:00:00+03:00: the device returned a full page', 'other'],
 ]);
+
+it('settles a sending terminal when a page reads it, without waiting for devices:sync', function () {
+    [$tenant, $branch] = honestOrganisation();
+    $idle = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subMinutes(20)]);
+    $gone = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subHours(25)]);
+    $pulled = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '203.0.113.10', 'port' => 80],
+        'status' => 'online',
+        'last_sync_at' => now()->subHours(25),
+    ]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/devices";
+
+    $list = collect(test()->getJson($base)->assertOk()->json('data'))->pluck('status', 'public_id');
+    expect($list[$idle->public_id])->toBe('quiet')
+        ->and($list[$gone->public_id])->toBe('offline')
+        ->and($list[$pulled->public_id])->toBe('online');
+
+    expect(Device::withoutGlobalScope('tenant')->find($idle->id)->status)->toBe('quiet');
+});
+
+it('settles on a single device read and on the dashboard, and the filter follows', function () {
+    [$tenant, $branch] = honestOrganisation();
+    $idle = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subMinutes(20)]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1/devices";
+
+    test()->getJson("{$base}/{$idle->public_id}")->assertOk()->assertJsonPath('status', 'quiet');
+    expect($idle->refresh()->status)->toBe('quiet');
+
+    $idle->update(['status' => 'online']);
+    test()->getJson("{$base}/dashboard")->assertOk()
+        ->assertJsonPath('quiet', 1)->assertJsonPath('online', 0);
+    expect($idle->refresh()->status)->toBe('quiet');
+
+    $idle->update(['status' => 'online']);
+    test()->getJson("{$base}?filter[status]=online")->assertOk()->assertJsonCount(0, 'data');
+    test()->getJson("{$base}?filter[status]=quiet")->assertOk()->assertJsonCount(1, 'data');
+});
+
+it('moves an ADMS terminal with automatic work off to offline when it has gone silent, with no pull and no notice', function () {
+    Queue::fake();
+    Event::fake([DeviceOffline::class]);
+    [$tenant, $branch] = honestOrganisation();
+    $make = fn (array $attrs): Device => Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'zkteco_adms',
+        'connection_config' => [],
+        'auto_sync' => false,
+        'status' => 'online',
+        ...$attrs,
+    ]);
+    $silent = $make(['last_sync_at' => now()->subMinutes(30)]);
+    $calling = $make(['last_sync_at' => now()->subMinutes(2)]);
+
+    app()->forgetScopedInstances();
+    test()->artisan('devices:sync')->assertSuccessful();
+
+    $read = fn (Device $d): string => Device::withoutGlobalScope('tenant')->findOrFail($d->id)->status;
+    expect($read($silent))->toBe('offline')
+        ->and($read($calling))->toBe('online');
+    Queue::assertNotPushed(PullDeviceEventsJob::class);
+    Event::assertNotDispatched(DeviceOffline::class);
+    expect(DeviceSyncLog::withoutGlobalScope('tenant')->count())->toBe(0);
+});

@@ -10082,6 +10082,7 @@ export interface components {
                 ip: string | null;
                 at: string;
             } | null;
+            last_keepalive_at?: string | null;
             branch?: components["schemas"]["BranchResource"] | null;
             branch_public_id: string | null;
             attendance_records_count?: number;
@@ -22125,6 +22126,7 @@ export interface operations {
                         online: number;
                         offline: number;
                         error: number;
+                        quiet: number;
                         pending: number;
                         auto_sync_enabled: number;
                         events_today: number;
@@ -22195,7 +22197,7 @@ export interface operations {
                     "application/json": {
                         device_public_id: string;
                         /** @enum {string} */
-                        status: "online" | "offline" | "pending";
+                        status: "quiet" | "offline" | "online" | "pending";
                         /** @enum {string|null} */
                         error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
                         details: unknown[];

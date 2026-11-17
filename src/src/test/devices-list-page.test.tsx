@@ -140,6 +140,39 @@ describe("<DevicesPage> cards", () => {
   });
 });
 
+describe("<DevicesPage> quiet terminals", () => {
+  it("reads Quiet, with why ETHR cannot say more, for a terminal that only sends, and offers it as a filter", async () => {
+    serve([
+      {
+        ...base,
+        public_id: "QUIET1",
+        name: "Habru front door",
+        adapter_type: "hikvision",
+        receives_only: true,
+        status: "quiet",
+        auto_sync: false,
+        last_sync_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+      },
+    ]);
+    renderPage();
+
+    const card = (await screen.findByText("Habru front door")).closest(
+      '[class*="p-4"]',
+    ) as HTMLElement;
+
+    expect(within(card).getByText("Quiet")).toBeInTheDocument();
+    expect(within(card).queryByText("Online")).not.toBeInTheDocument();
+    expect(
+      within(card).getByText(/ETHR cannot call this terminal/),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("combobox", { name: /status/i }));
+    expect(
+      await screen.findByRole("option", { name: "Quiet" }),
+    ).toBeInTheDocument();
+  });
+});
+
 // QA 2026-11-14, D-3: Register with no branch answered "The branch public id
 // field is required.", from a form that did not say a branch was needed.
 describe("<DevicesPage> register dialog", () => {

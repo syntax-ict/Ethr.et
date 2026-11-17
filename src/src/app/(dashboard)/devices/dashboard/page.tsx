@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Clock,
   Hourglass,
+  Moon,
   ArrowLeft,
   Plus,
 } from "lucide-react";
@@ -16,6 +17,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  deviceStatusBadgeClass,
+  deviceStatusDotClass,
+  deviceStatusLabelKey,
+} from "@/features/devices/status";
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -103,14 +109,14 @@ export default function DeviceDashboardPage() {
         {statsError ? (
           <ErrorState compact onRetry={() => refetchStats()} />
         ) : statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />
             ))}
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <StatusCard
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
@@ -122,6 +128,12 @@ export default function DeviceDashboardPage() {
                 title={t("devices_page.online")}
                 value={stats.online}
                 color="success"
+              />
+              <StatusCard
+                icon={Moon}
+                title={t("devices_page.quiet")}
+                value={stats.quiet}
+                color="info"
               />
               <StatusCard
                 icon={Hourglass}
@@ -310,10 +322,10 @@ export default function DeviceDashboardPage() {
                     <Badge
                       key="s"
                       variant="outline"
-                      className={statusClass(d.status)}
+                      className={deviceStatusBadgeClass(d.status)}
                     >
                       <span
-                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dotClass(d.status)}`}
+                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${deviceStatusDotClass(d.status)}`}
                       />
                       {statusLabel(d.status, t)}
                     </Badge>,
@@ -387,35 +399,10 @@ function StatusCard({
   );
 }
 
-function statusClass(status: string): string {
-  const map: Record<string, string> = {
-    online: "border-0 bg-success-soft text-success-on-soft",
-    offline: "border-0 bg-neutral-soft text-neutral-on-soft",
-    error: "border-0 bg-destructive-soft text-destructive-on-soft",
-    pending: "border-0 bg-warning-soft text-warning-on-soft",
-  };
-  return map[status] ?? "";
-}
-
-function dotClass(status: string): string {
-  const map: Record<string, string> = {
-    online: "bg-success animate-pulse",
-    offline: "bg-muted-foreground",
-    error: "bg-destructive",
-    pending: "bg-warning",
-  };
-  return map[status] ?? "bg-muted-foreground";
-}
-
 function statusLabel(
   status: string,
   t: (key: string, fallback?: string) => string,
 ): string {
-  const map: Record<string, string> = {
-    online: t("devices_page.online"),
-    offline: t("devices_page.offline"),
-    error: t("devices_page.error"),
-    pending: t("devices_page.pending"),
-  };
-  return map[status] ?? status;
+  const key = deviceStatusLabelKey(status);
+  return key ? t(key) : status;
 }

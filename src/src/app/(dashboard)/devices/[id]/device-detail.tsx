@@ -51,6 +51,7 @@ import { DeviceCommandsTab } from "@/features/devices/components/device-commands
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
   DeviceHeardLine,
+  DeviceKeepAliveLine,
   WebhookRejectedLine,
   SyncErrorHint,
   syncErrorHintKeys,
@@ -74,6 +75,11 @@ import {
   type DeviceSyncLog,
   type DeviceUpdate,
 } from "@/features/devices/api";
+import {
+  deviceStatusBadgeClass,
+  deviceStatusDotClass,
+  deviceStatusLabelKey,
+} from "@/features/devices/status";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -96,13 +102,6 @@ const ADAPTER_LABELS: Record<string, string> = {
   zkteco_adms: "ZKTeco (ADMS)",
   suprema: "Suprema",
   mock: "Mock (Simulator)",
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  online: "bg-success-soft text-success-on-soft border-0",
-  offline: "bg-muted text-muted-foreground border-0",
-  error: "bg-destructive-soft text-destructive-on-soft border-0",
-  pending: "bg-warning-soft text-warning-on-soft border-0",
 };
 
 const SYNC_STATUS_ICON: Record<string, React.ReactNode> = {
@@ -286,10 +285,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </h1>
               <Badge
                 variant="outline"
-                className={STATUS_STYLES[device.status] ?? ""}
+                className={deviceStatusBadgeClass(device.status)}
               >
                 <span
-                  className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isOnline ? "bg-success animate-pulse" : device.status === "error" ? "bg-destructive" : "bg-muted-foreground"}`}
+                  className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${deviceStatusDotClass(device.status)}`}
                 />
                 {statusLabel(device.status, t)}
               </Badge>
@@ -305,6 +304,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             {sendsOnly && (
               <div className="mt-2 text-sm text-muted-foreground">
                 <DeviceHeardLine device={device} />
+                <DeviceKeepAliveLine
+                  lastKeepaliveAt={device.last_keepalive_at}
+                />
               </div>
             )}
             <WebhookRejectedLine rejected={device.webhook_rejected} />
@@ -690,7 +692,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                           <Badge
                             key="s"
                             variant="outline"
-                            className={STATUS_STYLES[ev.status] ?? "border-0"}
+                            className={
+                              deviceStatusBadgeClass(ev.status) || "border-0"
+                            }
                           >
                             {ev.status}
                           </Badge>,
@@ -1160,13 +1164,8 @@ function statusLabel(
   status: string,
   t: (key: string, fallback?: string) => string,
 ): string {
-  const map: Record<string, string> = {
-    online: t("devices_page.online"),
-    offline: t("devices_page.offline"),
-    error: t("devices_page.error"),
-    pending: t("devices_page.pending"),
-  };
-  return map[status] ?? status;
+  const key = deviceStatusLabelKey(status);
+  return key ? t(key) : status;
 }
 
 function syncStatusLabel(

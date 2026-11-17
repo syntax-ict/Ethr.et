@@ -420,6 +420,21 @@ test('the dashboard counts a device that is not connected yet as pending, in the
         ->assertJsonPath('pending', 1);
 });
 
+test('the dashboard counts a quiet terminal under quiet, not under online or offline', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'status' => 'quiet', 'last_sync_at' => now()->subHours(2)]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/dashboard")
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('online', 0)
+        ->assertJsonPath('offline', 0)
+        ->assertJsonPath('quiet', 1);
+});
+
 test('the dashboard last sync ignores the logs of a removed device', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

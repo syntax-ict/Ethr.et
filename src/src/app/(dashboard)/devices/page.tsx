@@ -5,6 +5,7 @@ import { branchesApi } from "@/features/organization/api";
 import Link from "next/link";
 import {
   Fingerprint,
+  Moon,
   Plus,
   Wifi,
   WifiOff,
@@ -71,6 +72,11 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { UnmatchedBadgesCard } from "@/features/devices/components/unmatched-badges-card";
 import {
+  deviceStatusBadgeClass,
+  deviceStatusDotClass,
+  deviceStatusLabelKey,
+} from "@/features/devices/status";
+import {
   DeviceHeardLine,
   syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
@@ -96,7 +102,7 @@ export default function DevicesPage() {
   // In the address: "offline devices" is a link someone can send.
   const filters = useQueryFilters(
     { q: "", status: "all" },
-    { status: ["all", "online", "offline", "error", "pending"] },
+    { status: ["all", "online", "quiet", "offline", "error", "pending"] },
   );
   const search = filters.values.q;
   const statusFilter = filters.values.status;
@@ -317,6 +323,7 @@ export default function DevicesPage() {
                 {t("devices_page.all_status")}
               </SelectItem>
               <SelectItem value="online">{t("devices_page.online")}</SelectItem>
+              <SelectItem value="quiet">{t("devices_page.quiet")}</SelectItem>
               <SelectItem value="offline">
                 {t("devices_page.offline")}
               </SelectItem>
@@ -493,6 +500,7 @@ function DeviceCard({
   const { formatDateTime } = useDateFormatters();
   const isOnline = device.status === "online";
   const isError = device.status === "error";
+  const isQuiet = device.status === "quiet";
   // A terminal that only sends is never called, so it cannot be tested, pulled
   // from, asked for its users or asked for history: the card says what ETHR
   // last heard from it instead.
@@ -502,6 +510,8 @@ function DeviceCard({
     <Wifi className="h-5 w-5 text-success" />
   ) : isError ? (
     <AlertTriangle className="h-5 w-5 text-destructive" />
+  ) : isQuiet ? (
+    <Moon className="h-5 w-5 text-info" />
   ) : (
     <WifiOff className="h-5 w-5 text-muted-foreground" />
   );
@@ -510,7 +520,9 @@ function DeviceCard({
     ? "bg-success-soft"
     : isError
       ? "bg-destructive-soft"
-      : "bg-neutral-soft";
+      : isQuiet
+        ? "bg-info-soft"
+        : "bg-neutral-soft";
 
   return (
     <Card>
@@ -638,32 +650,14 @@ function DeviceCard({
 
 function StatusBadge({ status }: { status: string }) {
   const { t } = useT();
-  const labels: Record<string, string> = {
-    online: t("devices_page.online"),
-    offline: t("devices_page.offline"),
-    error: t("devices_page.error"),
-    pending: t("devices_page.pending"),
-  };
-  const styles: Record<string, string> = {
-    online: "bg-success-soft text-success-on-soft border-0",
-    offline: "bg-neutral-soft text-neutral-on-soft border-0",
-    error: "bg-destructive-soft text-destructive-on-soft border-0",
-    pending: "bg-warning-soft text-warning-on-soft border-0",
-  };
-
-  const dots: Record<string, string> = {
-    online: "bg-success animate-pulse",
-    offline: "bg-muted-foreground",
-    error: "bg-destructive",
-    pending: "bg-warning",
-  };
+  const labelKey = deviceStatusLabelKey(status);
 
   return (
-    <Badge variant="outline" className={styles[status] ?? ""}>
+    <Badge variant="outline" className={deviceStatusBadgeClass(status)}>
       <span
-        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dots[status] ?? "bg-muted-foreground"}`}
+        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${deviceStatusDotClass(status)}`}
       />
-      {labels[status] ?? status}
+      {labelKey ? t(labelKey) : status}
     </Badge>
   );
 }

@@ -248,6 +248,45 @@ describe("device detail for a terminal that has not been heard from", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("reads Quiet, with why ETHR cannot say more, for a terminal heard from today", async () => {
+    serveDevice({
+      ...PUSH,
+      status: "quiet",
+      last_sync_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+    });
+    renderDetail();
+
+    expect(await screen.findByText("Quiet")).toBeInTheDocument();
+    expect(
+      screen.getByText(/ETHR cannot call this terminal/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Online")).not.toBeInTheDocument();
+  });
+
+  it("shows when a terminal last reported in while idle, and nothing when it has not", async () => {
+    serveDevice({
+      ...PUSH,
+      status: "quiet",
+      last_sync_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+      last_keepalive_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    });
+    const { unmount } = renderDetail();
+    expect(
+      await screen.findByText(/^Reports in when idle/),
+    ).toBeInTheDocument();
+    unmount();
+
+    serveDevice({
+      ...PUSH,
+      status: "quiet",
+      last_sync_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+      last_keepalive_at: null,
+    });
+    renderDetail();
+    expect(await screen.findByText("Quiet")).toBeInTheDocument();
+    expect(screen.queryByText(/^Reports in when idle/)).not.toBeInTheDocument();
+  });
+
   it("says how long an offline terminal has been silent", async () => {
     serveDevice({
       ...PUSH,
