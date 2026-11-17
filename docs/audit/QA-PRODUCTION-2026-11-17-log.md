@@ -29,7 +29,7 @@ Times are approximate, within about five minutes. Nothing was typed into a passw
 | #772, #776, #777, #779 | First setup order, the daily invitation ceiling, the sign-in form before hydration, who cannot sign in yet | Not covered. #772 and #779 were seen working in passing; the guide mentions #772 only in UAT-H15 step 1 |
 | #780, #781 | Quiet terminals, a tap on a button that cannot punch | Not live |
 
-Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 20 were run in part (16 in the first session, 4 more in the second); the table at the end says what is left and why.
+Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 21 were run in part (16 in the first session, 4 more in the second, 1 in the third); the table at the end says what is left and why.
 
 ## Release smoke (10, section 3)
 
@@ -98,6 +98,17 @@ The owner signed Chrome in to QA Audit again, said to approve the payroll run an
 | UAT-A2 | Pass (step 1) | Claude Code | 16:13 | TA | en | Chrome, unguarded. Create role: "QA Branch HR", reach "Their branch", three permissions (view employee details, view employees list, update employee records): "Role QA Branch HR created", 3 permissions, 0 users. Steps 2 and 3 need a test user |
 | UAT-A3 | Not run (read only) | Claude Code | 16:14 | TA | en | Chrome, unguarded. Approval chains: none; the page explains that without one a request is decided in one step and that nobody approves their own. No chain was made: it needs a supervisor and an HR account to prove |
 | UAT-E5, S1 step 2, H17 | Blocked | | | | | "Apply for Leave" is for the signed-in person, and the TA has no employee record. Annual leave needs an employee login to ask and a second account to approve |
+
+## Third session, same day (about 16:30 to 16:40)
+
+The owner said the logins were ready. **None was found:** at 16:31 every one of the eleven employees still read "No sign-in" on the employee list, and Settings, Users & access listed one account, the Organisation admin. The session in Chrome was still the TA's. So the scenarios that wait for an employee, a supervisor or a second approver stay Blocked, and only what the TA can do alone was run. `Chrome, unguarded`; the console showed its sign-in form at 16:30.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| UAT-H7 | Pass (step 1, no picture) | Claude Code | 16:36 | TA | en | Chrome, unguarded. New Announcement, "QA-Announcement 2026-11-17", Publish now, "Show on the organisation's public website" left off: "Announcement published" and it heads the list as Published. No cover picture (a file upload), and nobody but the TA can sign in to be notified. Steps 2 and 3 not run |
+| UAT-E3 to E15, S1 to S4, H8, H17, A2 steps 2 and 3, A3 | Blocked | | | | | No login exists for QA-EMP, QA-SUP or a second approver |
+
+**Changed in this session:** QA-EMP Hana Bekele now reports to QA-SUP Genet Mekonnen ("Employee updated"), so the supervisor scenarios have a team once both can sign in. The inline edit offers no Branch field, so QA-EMP still has no branch. The announcement above is published, internal only.
 
 ## What was created or changed in QA Audit (01, section 12)
 
@@ -169,6 +180,6 @@ Second session: **the payroll run was approved** (below); a **manual attendance 
 |---|---|---|---|---|
 | Release smoke (15 rows) | 5 | 3 | 0 | 7 |
 | Detailed cases (ORG-009, 012, 015, 016, PAY-032, CHT-001) | 4 | 2 | 0 | |
-| UAT scenarios (52) | 0 in full | 20 | 0 | 32 |
+| UAT scenarios (52) | 0 in full | 21 | 0 | 31 |
 
 The second session added UAT-F4, H3, H5 step 5, H8, A2 and S1's reject dialog, and took F2 through approval. No S1 or S2 defect was seen. The four drafts are S3 or S4. The exit criteria of 01, section 7.2 are not met and were not expected to be: most of the guide still needs logins for the other personas, a phone and a terminal, and 30 live changes have no case.
