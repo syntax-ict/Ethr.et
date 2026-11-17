@@ -4,7 +4,7 @@ Pack: [`docs/production testing/`](<../production testing/README.md>), seventh e
 
 | | |
 |---|---|
-| Release under test | `v2026.11.17.3`, `release.json` commit `d993487e1fa3` (#781), built 2026-11-17T12:03:33Z, read with `scripts/release-status.sh https://www.ethr.et` at about 19:00 EAT: schema current, no migration waiting. Every pull request the seventh edition covers (#731 to #781) is in it. `production` already carried `v2026.11.17.4` (#782, documentation only) and was not deployed; #783 (the D-1 to D-4 fixes) merged during the pass and is **not live** |
+| Release under test | `v2026.11.17.3`, `release.json` commit `d993487e1fa3` (#781), built 2026-11-17T12:03:33Z, read with `scripts/release-status.sh https://www.ethr.et` at about 19:00 EAT: schema current, no migration waiting. Every pull request the seventh edition covers (#731 to #781) is in it. `production` already carried `v2026.11.17.4` (#782, documentation only) and was not deployed; #783 (the D-1 to D-4 fixes) merged during the pass. **The release changed after the pass:** read again at 20:15 EAT, `release.json` names `8d02c50c0620` (#783), `built_at` 2026-11-17T17:02:52Z (20:02 EAT). A release cannot go live before it is built, so every row up to 20:00 ran on `d993487e1f`, REP-006 among them. INV-001 (20:05) may have run on either; it depends on nothing #783 changed |
 | Organisation | QA Audit (`qa-audit`, reached at `qa-audit.ethr.et`), the name read in the header before each case. No other organisation was opened |
 | Persona | TA in QA Audit, signed in by the owner in the browser window. The account has no employee record and QA Audit has no HR-only, finance-only, supervisor or employee login, so every case was run as TA |
 | Browser | Chrome, unguarded (the Claude in Chrome extension, the owner's connected Chrome). Mode R and Mode W in QA Audit agreed by the owner in chat for this session. No guarded Playwright run |
@@ -58,6 +58,6 @@ The seventh edition added or changed 161 case rows. Besides the rows above:
 
 ## Findings
 
-- **D-4 reproduced on the live release** (REP-006): on the monthly timesheet for October 2026, QA Employee A has 27 workdays, 2 present and 26 absent. Fixed on `main` by #783, merged during this pass and not yet deployed. No new defect.
+- **D-4 reproduced on the live release** (REP-006): on the monthly timesheet for October 2026, QA Employee A has 27 workdays, 2 present and 26 absent. Fixed by #783, which was built at 20:02 EAT and was live (`8d02c50c06`) when `release.json` was read again after the pass; REP-006 ran at about 19:35, on `d993487e1f`. Run REP-006 again on `8d02c50c06`. No new defect.
 - No other Fail. Every message read matched the pack's quoted text word for word.
 - **Data the next pass needs in QA Audit**, without which several cases stay partial: an invited and not activated person and one with an active login (MASS-002g, EMP-032, INV-001), a pulled device and an ADMS device (DEV-048), a held badge (DEV-063), and a second login with HR rights and no pay permission (STG-026). The owner's go-ahead for file downloads and uploads would open the workbook and file cases (XLS, STG-008, STG-029).
