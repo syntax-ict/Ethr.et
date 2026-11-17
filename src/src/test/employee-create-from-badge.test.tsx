@@ -56,7 +56,11 @@ const HELD = {
   match: null,
 };
 
-function renderPage(permissions: string[]) {
+function renderPage(
+  permissions: string[],
+  held: unknown = HELD,
+  gate?: Promise<void>,
+) {
   localStorage.setItem("ethr.calendar", "gregorian");
   server.use(
     http.get("*/api/v1/auth/me", () =>
@@ -72,9 +76,10 @@ function renderPage(permissions: string[]) {
     http.get("*/api/v1/organization/:kind", () =>
       HttpResponse.json(paginated([])),
     ),
-    http.get("*/api/v1/devices/unmatched-punches", () =>
-      HttpResponse.json({ data: [HELD] }),
-    ),
+    http.get("*/api/v1/devices/unmatched-punches", async () => {
+      await gate;
+      return HttpResponse.json({ data: [held] });
+    }),
   );
 
   const qc = new QueryClient({
@@ -102,6 +107,41 @@ describe("New employee from an unrecognised badge", () => {
       "badge=7777&device=01HZDEV0000000000000000001&hire_date=2026-10-14";
     Object.values(toasts).forEach((fn) => fn.mockClear());
     router.push.mockClear();
+  });
+
+  it("starts the name from the held badge's terminal name, never from the address", async () => {
+    // A name in the address would be written to the server's access log: it
+    // is ignored, and the field starts from the held list.
+    search.params =
+      "badge=7777&device=01HZDEV0000000000000000001&hire_date=2026-10-14&name=Leaked%20Name";
+    renderPage(ALL, { ...HELD, name_on_device: "Abebe Kebede" });
+    await waitFor(() =>
+      expect(document.getElementById("name")).toHaveValue("Abebe Kebede"),
+    );
+  });
+
+  it("leaves a name the person has already typed", async () => {
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    renderPage(ALL, { ...HELD, name_on_device: "Abebe Kebede" }, gate);
+    await waitFor(() =>
+      expect(document.getElementById("name")).toBeInTheDocument(),
+    );
+    const field = document.getElementById("name") as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "Typed Name" } });
+    open();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(document.getElementById("name")).toHaveValue("Typed Name");
+  });
+
+  it("fills nothing without a held badge behind the address", async () => {
+    search.params = "name=Abebe%20Kebede";
+    renderPage(ALL, { ...HELD, name_on_device: "Abebe Kebede" });
+    await waitFor(() =>
+      expect(document.getElementById("name")).toBeInTheDocument(),
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    expect(document.getElementById("name")).toHaveValue("");
   });
 
   it("arrives with the badge and the day it was first held, and says what saving does", async () => {

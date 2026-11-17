@@ -160,6 +160,7 @@ export async function hikvisionPunch(
   at: Date,
   status: "checkIn" | "checkOut",
   token = "e2e-dev-hik-token",
+  name?: string,
 ): Promise<string> {
   const target = new URL(origin(organisation));
   if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
@@ -173,6 +174,7 @@ export async function hikvisionPunch(
         AccessControllerEvent: {
           employeeNoString: badge,
           attendanceStatus: status,
+          ...(name === undefined ? {} : { name }),
           majorEventType: 5,
           subEventType: 75,
         },
@@ -196,6 +198,8 @@ export type UnmatchedBadge = {
     employee_public_id: string | null;
     candidates: Array<{ employee_public_id: string; employee_name: string }>;
   } | null;
+  name_on_device?: string | null;
+  name_matches?: Array<{ employee_public_id: string; employee_name: string; department: string | null }>;
 };
 
 /** The badges held for nobody, as the Devices card is given them. */

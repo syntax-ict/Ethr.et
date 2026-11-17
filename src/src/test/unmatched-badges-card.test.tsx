@@ -538,3 +538,158 @@ describe("<UnmatchedBadgesCard> carrying on", () => {
     expect(posts[2]).toEqual(posts[1]);
   });
 });
+
+// A Hikvision terminal sends the person's name beside the number; the card
+// shows it, and the people it could be, for a person to choose from.
+describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
+  const NEW = {
+    outcome: "new",
+    employee_public_id: null,
+    confidence: 0,
+    candidates: [],
+  };
+  const ABEBE = {
+    employee_public_id: "01HZEMP0000000000000000042",
+    employee_name: "Abebe Kebede Tesfaye",
+    department: "Land Office",
+  };
+
+  beforeEach(() => {
+    granted.list = ["attendance.manage", "employee.create"];
+    built.rows = [];
+  });
+
+  it("says what the terminal calls the number, and fills the select from a same-name match without assigning", async () => {
+    const posts: Array<[string, unknown]> = [];
+    const user = userEvent.setup();
+    renderCard(
+      [
+        {
+          ...ROW,
+          match: NEW,
+          name_on_device: "Abebe Kebede",
+          name_matches: [ABEBE],
+        },
+      ],
+      (path, body) => posts.push([path, body]),
+    );
+
+    expect(
+      await screen.findByText("The terminal calls this person Abebe Kebede"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Land Office/)).toBeInTheDocument();
+    expect(screen.getByText(/same name on the terminal/)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Possibly Abebe Kebede Tesfaye" }),
+    );
+    expect(posts).toEqual([]);
+
+    // The pick is the select's value: Assign now sends that person.
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+    await vi.waitFor(() =>
+      expect(posts).toEqual([
+        [
+          "assign",
+          expect.objectContaining({
+            employee_public_id: ABEBE.employee_public_id,
+          }),
+        ],
+      ]),
+    );
+  });
+
+  it("does not list a person twice when the resolver already offers them", async () => {
+    renderCard(
+      [
+        {
+          ...ROW,
+          match: {
+            outcome: "probable",
+            employee_public_id: ABEBE.employee_public_id,
+            confidence: 0.7,
+            candidates: [{ ...ABEBE, score: 0.7, reasons: ["badge_number"] }],
+          },
+          name_on_device: "Abebe Kebede",
+          name_matches: [ABEBE],
+        },
+      ],
+      () => {},
+    );
+
+    await screen.findByRole("button", {
+      name: "Possibly Abebe Kebede Tesfaye",
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Possibly Abebe Kebede Tesfaye" }),
+    ).toHaveLength(1);
+  });
+
+  it("keeps the name out of the new-employee link, and puts it in the downloaded list", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post("*/api/v1/employees/import/template", () =>
+        HttpResponse.json({
+          headers: ["name", "hire_date", "badge_number"],
+          required: ["name"],
+          date_columns: ["hire_date"],
+          text_columns: ["badge_number"],
+          lists: {},
+        }),
+      ),
+    );
+    renderCard(
+      [
+        { ...ROW, match: NEW, name_on_device: "Abebe Kebede" },
+        { ...ROW, badge: "8888", match: NEW },
+      ],
+      () => {},
+    );
+
+    const links = await screen.findAllByRole("link", {
+      name: "Add as a new employee",
+    });
+    const href = new URL(links[0].getAttribute("href")!, "http://x");
+    // A name in the address would be written to the server's access log.
+    expect(href.searchParams.has("name")).toBe(false);
+    expect(href.searchParams.get("badge")).toBe("7777");
+    expect(links[0].getAttribute("href")).not.toContain("Abebe");
+
+    await user.click(
+      screen.getByRole("button", { name: "Download these badges as a list" }),
+    );
+    await vi.waitFor(() =>
+      expect(built.rows).toEqual([
+        { badge_number: "7777", name: "Abebe Kebede" },
+        { badge_number: "8888" },
+      ]),
+    );
+  });
+
+  it("shows nothing about a name when the server sent none", async () => {
+    renderCard(
+      [{ ...ROW, match: NEW, name_on_device: null, name_matches: [] }],
+      () => {},
+    );
+
+    expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
+    expect(screen.queryByText(/The terminal calls/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/same name on the terminal/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no name to someone who cannot manage attendance", async () => {
+    granted.list = [];
+    renderCard(
+      [{ ...ROW, name_on_device: "Abebe Kebede", name_matches: [ABEBE] }],
+      () => {},
+    );
+
+    expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
+    expect(screen.queryByText(/The terminal calls/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Possibly/ }),
+    ).not.toBeInTheDocument();
+  });
+});

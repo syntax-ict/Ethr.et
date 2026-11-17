@@ -38581,6 +38581,12 @@ export interface operations {
                             first_seen: string;
                             last_seen: string;
                             match: unknown;
+                            name_on_device: string | null;
+                            name_matches: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                department: string | null;
+                            }[];
                         }[];
                     };
                 };

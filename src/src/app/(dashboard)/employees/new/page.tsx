@@ -4,7 +4,7 @@ import {
   NationalityStatusSelect,
   type NationalityStatus,
 } from "@/features/employees/components/nationality-status-select";
-import { Suspense, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   branchesApi,
   departmentsApi,
@@ -185,6 +185,22 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const [formKey, setFormKey] = useState(0);
   const afterSave = useRef<"open" | "another">("open");
 
+  // The name the terminal calls the badge starts an empty name field, once,
+  // when the held list arrives. It comes from that list and not from the
+  // address, which a web server writes to its access log. Anything the person
+  // has typed, or cleared, is never overwritten.
+  const nameFilled = useRef(false);
+  const nameTouched = useRef(false);
+  const nameOnDevice = held?.name_on_device ?? null;
+  useEffect(() => {
+    if (nameFilled.current || !nameOnDevice) return;
+    nameFilled.current = true;
+    if (nameTouched.current) return;
+    setForm((prev) =>
+      prev.name === "" ? { ...prev, name: nameOnDevice } : prev,
+    );
+  }, [nameOnDevice]);
+
   // Whether the person gets an ETHR login with this record. The API always
   // supported it (`create_login`) and no screen sent it, so in a new
   // organisation no employee could sign in — nobody could request leave or see
@@ -212,6 +228,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const branchId = form.branch_id || onlyBranch;
 
   function updateField(field: keyof EmployeeForm, value: string) {
+    if (field === "name") nameTouched.current = true;
     setForm((prev) => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
     // Clear this field's error as soon as the user edits it — leaving a stale
