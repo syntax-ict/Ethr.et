@@ -565,6 +565,13 @@ final class ReportEngine
                 if ($counted !== null) {
                     $days[$id][$counted] = ($days[$id][$counted] ?? 0) + 1;
                 }
+                // Present is a workday somebody attended, the other half of
+                // absent, so the two always add up to the workdays. A punch on
+                // a rest day, a holiday or a day of leave is in the hours, and
+                // is not a second classification of that day.
+                if ($kind === ExpectedDay::WORKDAY && isset($attended[$id][$key])) {
+                    $days[$id]['present'] = ($days[$id]['present'] ?? 0) + 1;
+                }
                 if ($kind === ExpectedDay::WORKDAY && $records->isNotEmpty() && ! isset($attended[$id][$key])) {
                     $days[$id]['absent'] = ($days[$id]['absent'] ?? 0) + 1;
                 }
@@ -574,9 +581,9 @@ final class ReportEngine
         $rows = [];
         foreach ($employees as $employee) {
             $id = $employee->id;
-            $present = count($attended[$id] ?? []);
+            $present = $days[$id]['present'] ?? 0;
             // Not employed in the month, or rest days only: nothing to report.
-            if (($days[$id]['work'] ?? 0) === 0 && $present === 0 && ($days[$id]['leave'] ?? 0) === 0) {
+            if (($days[$id]['work'] ?? 0) === 0 && empty($attended[$id]) && ($days[$id]['leave'] ?? 0) === 0) {
                 continue;
             }
             $rows[] = [

@@ -31,6 +31,7 @@ import {
   tooltipProps,
 } from "@/components/dashboard/chart-theme";
 import { ChartCard, ChartTable } from "@/components/dashboard/chart-card";
+import { genderLabel } from "@/lib/i18n/genderLabel";
 
 export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t, locale } = useT();
@@ -170,7 +171,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                         },
                       ]}
                       rows={data.by_gender.map((g) => ({
-                        gender: <span className="capitalize">{g.gender}</span>,
+                        gender: genderLabel(t, g.gender),
                         count: g.count,
                       }))}
                     />
@@ -180,7 +181,10 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={data.by_gender}
+                              data={data.by_gender.map((g) => ({
+                                ...g,
+                                gender: genderLabel(t, g.gender),
+                              }))}
                               dataKey="count"
                               nameKey="gender"
                               innerRadius={62}
@@ -199,7 +203,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       <ChartLegend
                         stacked
                         items={data.by_gender.map((g, i) => ({
-                          label: <span className="capitalize">{g.gender}</span>,
+                          label: genderLabel(t, g.gender),
                           color: seriesColor(i),
                           value: g.count,
                         }))}

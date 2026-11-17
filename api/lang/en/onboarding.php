@@ -5,7 +5,7 @@ return [
     // a default that is legally or financially sensitive, so a template proposes
     // it and says so instead of applying it as if it were settled.
     'review' => [
-        'leave_private' => 'Leave types use the values ETHR proposes (annual 16 days, sick 30, maternity 120, paternity 3, marriage and bereavement 3). Labour Proclamation 1156/2019 also adds an annual-leave day for every two years of service and pays sick leave in steps; ETHR does not calculate either automatically. Confirm each value before employees request leave.',
+        'leave_private' => 'Leave types use the values ETHR proposes (annual 16 days, sick 30, maternity 120, paternity 3, marriage and bereavement 3). Labour Proclamation 1156/2019 also adds an annual-leave day for every two years of service and pays sick leave in steps. ETHR applies both: the service day is added to each employee\'s annual entitlement, and sick leave is paid in those steps. Keep those settings as proposed unless your policy gives more, and confirm each value before employees request leave.',
         'leave_public' => 'Civil servants are governed by the Federal Civil Servants Proclamation 1064/2017 or a regional civil service law, not the Labour Proclamation. The leave values proposed are ETHR\'s general defaults, not values taken from those laws. Confirm each one against the law that applies to you.',
         'leave_custom' => 'Only annual, sick and unpaid leave are proposed, with ETHR\'s general default days. Set the entitlements your own policy provides.',
         'payroll_public' => 'Government salary scales and allowances are set by the civil service commission. ETHR does not load them: enter your scale on the grades and allowances before running payroll.',

@@ -28,6 +28,7 @@ import {
 } from "@/features/dashboard/executive-api";
 import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { genderLabel } from "@/lib/i18n/genderLabel";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -140,6 +141,11 @@ function GenderDonut() {
       {(data) => {
         const genders = data.by_gender ?? [];
         const total = genders.reduce((sum, g) => sum + g.count, 0);
+        // Named here, so the legend, the table and the tooltip agree.
+        const named = genders.map((g) => ({
+          ...g,
+          gender: genderLabel(t, g.gender),
+        }));
         return (
           <ChartCard title={title}>
             {(view) =>
@@ -151,7 +157,7 @@ function GenderDonut() {
                     { key: "count", label: people, numeric: true },
                   ]}
                   rows={genders.map((g) => ({
-                    gender: <span className="capitalize">{g.gender}</span>,
+                    gender: genderLabel(t, g.gender),
                     count: g.count,
                   }))}
                 />
@@ -161,7 +167,7 @@ function GenderDonut() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={genders}
+                          data={named}
                           dataKey="count"
                           nameKey="gender"
                           innerRadius={62}
@@ -188,7 +194,7 @@ function GenderDonut() {
                   <ChartLegend
                     stacked
                     items={genders.map((g, i) => ({
-                      label: <span className="capitalize">{g.gender}</span>,
+                      label: genderLabel(t, g.gender),
                       color: seriesColor(i),
                       value: g.count,
                     }))}

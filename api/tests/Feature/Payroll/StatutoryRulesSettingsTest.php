@@ -6,6 +6,8 @@ use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\StatutoryParameter;
 use App\Models\Tenant;
+use App\Services\Payroll\StatutoryRules;
+use Illuminate\Support\Facades\DB;
 
 /*
  * Settings → Payroll → Statutory rules (2026-11-09, Phase 2): every rule the
@@ -128,4 +130,33 @@ it('accepts only the payout methods and pay frequency payroll can carry out', fu
     $this->putJson(rulesUrl($tenant, '/settings'), ['settings' => ['pay_period' => 'weekly']])
         ->assertUnprocessable()->assertJsonValidationErrors('settings.pay_period');
     $this->putJson(rulesUrl($tenant, '/settings'), ['settings' => ['pay_period' => 'monthly', 'payout_method' => 'cash']])->assertOk();
+});
+
+it('shows no internal file name as the source of a rule, whatever the stored row said before', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    // The query builder, not the model: the platform's rows have no tenant, and
+    // the model's scope would not see them. These are the two shapes
+    // production holds, as the earlier migrations wrote them.
+    $rows = fn () => DB::table('statutory_parameters')->whereNull('tenant_id')->where('code', 'payroll.working_days_per_month');
+    (clone $rows())->whereNull('organization_type')->update(['legal_reference' => 'ETHR convention (ACCOUNTANT-SIGN-OFF.md)']);
+    (clone $rows())->where('organization_type', 'private')->update(['legal_reference' => 'ETHR convention, set per organisation type (ACCOUNTANT-SIGN-OFF.md)']);
+
+    $shown = function () use ($tenant) {
+        app(StatutoryRules::class)->forget();
+
+        return ruleNamed(
+            $this->getJson(rulesUrl($tenant, '/payroll/statutory-rules'))->assertOk()->json('data'),
+            'payroll.working_days_per_month',
+        )['legal_reference'];
+    };
+
+    expect($shown())->toBe('ETHR convention, set per organisation type (ACCOUNTANT-SIGN-OFF.md)');
+
+    (require database_path('migrations/2026_11_17_000001_drop_internal_file_name_from_statutory_references.php'))->up();
+
+    expect($shown())->toBe('ETHR convention, set per organisation type')
+        ->and(DB::table('statutory_parameters')->where('legal_reference', 'like', '%.md%')->count())->toBe(0)
+        ->and((clone $rows())->whereNull('organization_type')->value('legal_reference'))->toBe('ETHR convention');
 });
