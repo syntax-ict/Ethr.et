@@ -4,7 +4,7 @@ Pack: [`docs/production testing/`](<../production testing/README.md>), sixth edi
 
 | | |
 |---|---|
-| Release under test | `v2026.11.16.22`, `release.json` commit `467a3cb606ba` (#779), built 2026-11-16 21:51:40Z. `main` is at `d993487e1f` (#781); #780 and #781 are merged and not deployed (`production` carries `c126f02ddf11`, #780) |
+| Release under test | `v2026.11.16.22`, `release.json` commit `467a3cb606ba` (#779), built 2026-11-16 21:51:40Z. `main` is at `d993487e1f` (#781); #780 and #781 were merged and not deployed when the pass began (`production` carried `c126f02ddf11`, #780). **The release changed during the pass:** `d993487e1f` (#780, #781; built 12:03:33Z, no migration) went live at about 15:38 EAT, so the rows before that time ran on `467a3cb606ba` and the rows after it on `d993487e1f`. Read again at 17:00: `release.json` names `d993487e1fa3`, health is healthy, `failed_jobs` still 0, `pending_migrations` 0 (the app's built-in browser, signed out, because Chrome had disconnected). Nothing in #780 or #781 was tested |
 | Organisation | Public pages of the marketing site and QA Audit (`qa-audit`); then QA Audit signed in, writes agreed by the owner in chat for this session |
 | Persona | TA in QA Audit, signed in by the owner at about 15:28. The account has no employee record, so no employee, supervisor, HR-only or finance-only persona was available. The platform console showed its sign-in form at 15:20 and was never opened signed in |
 | Browser | Chrome, unguarded (the Claude in Chrome extension), the owner's connected Chrome, not the dedicated ETHR QA profile of 11, section 6.1. Other organisations' hosts were not checked for a session. No guarded Playwright run today |
@@ -27,7 +27,7 @@ Times are approximate, within about five minutes. Nothing was typed into a passw
 | #736, #737, #741, #744 | Release without a manual optimize, receipts and PDF page numbers, report totals, impersonation limits | Not covered |
 | #767, #768 | Brand tokens and Manrope, tall menus | Not covered. Manrope was seen on the `/en` heading |
 | #772, #776, #777, #779 | First setup order, the daily invitation ceiling, the sign-in form before hydration, who cannot sign in yet | Not covered. #772 and #779 were seen working in passing; the guide mentions #772 only in UAT-H15 step 1 |
-| #780, #781 | Quiet terminals, a tap on a button that cannot punch | Not live |
+| #780, #781 | Quiet terminals, a tap on a button that cannot punch | Not covered. Live from about 15:38 EAT, part-way through the pass; #780 has its mention in UAT-H16 step 3 only |
 
 Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 21 were run in part (16 in the first session, 4 more in the second, 1 in the third); the table at the end says what is left and why.
 
