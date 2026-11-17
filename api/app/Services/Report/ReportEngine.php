@@ -571,6 +571,10 @@ final class ReportEngine
                 // is not a second classification of that day.
                 if ($kind === ExpectedDay::WORKDAY && isset($attended[$id][$key])) {
                     $days[$id]['present'] = ($days[$id]['present'] ?? 0) + 1;
+                    // Late is a kind of present, so only on a present day.
+                    if (isset($lateOn[$id][$key])) {
+                        $days[$id]['late'] = ($days[$id]['late'] ?? 0) + 1;
+                    }
                 }
                 if ($kind === ExpectedDay::WORKDAY && $records->isNotEmpty() && ! isset($attended[$id][$key])) {
                     $days[$id]['absent'] = ($days[$id]['absent'] ?? 0) + 1;
@@ -593,7 +597,7 @@ final class ReportEngine
                 'branch' => $employee->branch->name ?? '',
                 'work_days' => $days[$id]['work'] ?? 0,
                 'present_days' => $present,
-                'late_days' => count($lateOn[$id] ?? []),
+                'late_days' => $days[$id]['late'] ?? 0,
                 'absent_days' => $days[$id]['absent'] ?? 0,
                 'leave_days' => $days[$id]['leave'] ?? 0,
                 'holiday_days' => $days[$id]['holiday'] ?? 0,

@@ -28,7 +28,7 @@ import {
 } from "@/features/dashboard/executive-api";
 import { useThisMonth } from "@/features/dashboard/use-this-month";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { genderLabel } from "@/lib/i18n/genderLabel";
+import { namedGenders } from "@/lib/i18n/genderLabel";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -142,10 +142,7 @@ function GenderDonut() {
         const genders = data.by_gender ?? [];
         const total = genders.reduce((sum, g) => sum + g.count, 0);
         // Named here, so the legend, the table and the tooltip agree.
-        const named = genders.map((g) => ({
-          ...g,
-          gender: genderLabel(t, g.gender),
-        }));
+        const named = namedGenders(t, genders);
         return (
           <ChartCard title={title}>
             {(view) =>
@@ -156,10 +153,7 @@ function GenderDonut() {
                     { key: "gender", label: t("common.gender", "Gender") },
                     { key: "count", label: people, numeric: true },
                   ]}
-                  rows={genders.map((g) => ({
-                    gender: genderLabel(t, g.gender),
-                    count: g.count,
-                  }))}
+                  rows={named}
                 />
               ) : (
                 <div className="flex flex-col items-center gap-6 sm:flex-row">
@@ -175,7 +169,7 @@ function GenderDonut() {
                           paddingAngle={2}
                           strokeWidth={0}
                         >
-                          {genders.map((_, i) => (
+                          {named.map((_, i) => (
                             <Cell key={i} fill={seriesColor(i)} />
                           ))}
                         </Pie>
@@ -193,8 +187,8 @@ function GenderDonut() {
                   </div>
                   <ChartLegend
                     stacked
-                    items={genders.map((g, i) => ({
-                      label: genderLabel(t, g.gender),
+                    items={named.map((g, i) => ({
+                      label: g.gender,
                       color: seriesColor(i),
                       value: g.count,
                     }))}

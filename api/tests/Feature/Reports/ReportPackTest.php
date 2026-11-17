@@ -111,6 +111,23 @@ test('a punch on a rest day is not a second classification: present and absent a
         ->and((float) $row['worked_hours'])->toBeGreaterThan(15.0);
 });
 
+test('a late punch on a rest day is not a late day, so late never exceeds present', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Hana Girma']);
+    rpAttend($tenant, $employee, '2026-10-10', AttendanceStatus::LATE);
+    rpAttend($tenant, $employee, '2026-10-12', AttendanceStatus::LATE);
+
+    $row = collect(test()->postJson(rpUrl($tenant, 'generate'), ['source' => 'timesheet', 'filters' => ['month' => '2026-10']])
+        ->assertOk()->json('data'))->firstWhere('employee_name', 'Hana Girma');
+
+    // Saturday the 10th is a rest day: its hours count, its lateness does not.
+    expect($row['present_days'])->toBe(1)
+        ->and($row['late_days'])->toBe(1)
+        ->and($row['late_days'])->toBeLessThanOrEqual($row['present_days']);
+});
+
 test('a punch on a day of approved leave is not also a present day', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

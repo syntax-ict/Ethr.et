@@ -20,3 +20,21 @@ export function genderLabel(
   }
   return gender;
 }
+
+/**
+ * The gender split with every group named, and groups that read the same
+ * added together. A person whose gender is NULL and one whose gender is an
+ * empty string (an import can store either) are one group to a reader, not
+ * two rows both called "Not recorded".
+ */
+export function namedGenders(
+  t: Translate,
+  rows: ReadonlyArray<{ gender: string | null; count: number }>,
+): { gender: string; count: number }[] {
+  const merged = new Map<string, number>();
+  for (const row of rows) {
+    const label = genderLabel(t, row.gender);
+    merged.set(label, (merged.get(label) ?? 0) + row.count);
+  }
+  return Array.from(merged, ([gender, count]) => ({ gender, count }));
+}

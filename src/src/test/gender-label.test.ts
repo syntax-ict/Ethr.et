@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genderLabel } from "@/lib/i18n/genderLabel";
+import { genderLabel, namedGenders } from "@/lib/i18n/genderLabel";
 import en from "@/lib/i18n/locales/en.json";
 import am from "@/lib/i18n/locales/am.json";
 import om from "@/lib/i18n/locales/om.json";
@@ -41,5 +41,22 @@ describe("genderLabel", () => {
     expect(genderLabel(t, "male")).toBe(am["common.male"]);
     expect(genderLabel(t, "female")).toBe(am["common.female"]);
     expect(genderLabel(t, "other")).toBe("other");
+  });
+});
+
+describe("namedGenders", () => {
+  it("adds NULL and empty-string groups together under one name", () => {
+    const rows = [
+      { gender: null, count: 2 },
+      { gender: "female", count: 5 },
+      { gender: "", count: 1 },
+      { gender: "male", count: 3 },
+    ];
+
+    expect(namedGenders(translator("en"), rows)).toEqual([
+      { gender: "Not recorded", count: 3 },
+      { gender: "Female", count: 5 },
+      { gender: "Male", count: 3 },
+    ]);
   });
 });

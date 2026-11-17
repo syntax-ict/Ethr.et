@@ -155,7 +155,8 @@ describe("<HeadcountCharts>", () => {
         HttpResponse.json({
           headcount_trend: [],
           by_gender: [
-            { gender: "", count: 3 },
+            { gender: null, count: 2 },
+            { gender: "", count: 1 },
             { gender: "female", count: 5 },
             { gender: "male", count: 3 },
           ],
