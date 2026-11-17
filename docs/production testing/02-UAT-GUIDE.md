@@ -483,6 +483,8 @@ Needs employee code sign-in on.
 
 (See 04 MASS-001 to MASS-005, SPW-001; 03 section 5c, STP-001 to STP-012.)
 
+Changed 2026-11-17: step 1 (a Sign in cell outranks the tick; a daily ceiling holds the rest, #776, #778; 03 INV-014 to INV-017; 04 MASS-002c to MASS-002f).
+
 **Done when:** every person on a list has a way to sign in that fits what you know about them, and
 codes and passwords stay with the people they were meant for.
 
@@ -641,7 +643,7 @@ Changed 2026-11-14: step 5 (see 07 LOAN-009).
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | **Payroll → Reconcile**. It opens on the **Gregorian month to date** (the 1st of this month to today, `monthToDate()` in `reconcile-panel.tsx`; the From and To boxes show those dates in the calendar the reader chose, so an Ethiopian-calendar reader sees "Tikimt 22" to "Hidar 8"). Set From and To to the pay period you will process, which is not the Ethiopian month unless you type it | Each employee's absences, late arrivals and missing punches, with Open, Waiting or Settled. An organisation recording no attendance at all in the period lists nothing (`PayrollEngine::unexplainedAbsencesFor`) |
+| 1 | **Payroll → Reconcile**. It opens on the **Gregorian month to date** (the 1st of this month to today, `monthToDate()` in `reconcile-panel.tsx`; the From and To boxes are `DualCalendarDateInput`s, which follow the calendar context; on 2026-11-17 they showed "Tikimt 22" to "Hidar 8" with the table in Gregorian dates, O-6, cause not found). Set From and To to the pay period you will process, which is not the Ethiopian month unless you type it | Each employee's absences, late arrivals and missing punches, with Open, Waiting or Settled. An organisation recording no attendance at all in the period lists nothing (`PayrollEngine::unexplainedAbsencesFor`) |
 | 2 | The administrator settles them: absences as Unpaid Leave, Excused Absence or Business Trip; lateness by deducting or waiving the minutes | They move to Waiting, then Settled once approved |
 | 3 | **Attendance → Corrections**: approve the lateness decisions | Approved |
 | 4 | Process the month | An unpaid day costs basic divided by the organisation's working days per month (22 unless the organisation set another number, UAT-A6). Lateness never takes more than a third of basic together with loans and cost sharing, and a payslip over that third is listed before approval |
@@ -734,6 +736,8 @@ Changed 2026-11-14: step 6 (see 03 ACC-029).
 | 1 | **Billing**: read the current plan and trial days remaining | Shown correctly |
 | 2 | Open an invoice and download the receipt | A PDF receipt with the invoice number, your organisation's name (in Amharic letters if that is how it is written) and the address your people sign in at, and PAID once the invoice is paid (#737; 08 PRN-003, PRN-004) |
 
+Changed 2026-11-17: step 2 (the receipt names the organisation and its address, #737; 08 PRN-003, PRN-004).
+
 **Done when:** you understand what you pay for and what you have paid.
 
 ### UAT-A6 Payroll rules your organisation follows
@@ -802,7 +806,7 @@ without being offered choices that make no sense for its kind.
 | 10 | Open **Features** | Grouped as Modules, Integrations and Public pages; each row shows its state and "Organisation exceptions". Attendance, leave, employee management and notifications read "Always on". Open **Change** on one row and cancel: the dialog states that the new state applies to every organisation on its next request and asks for a reason |
 | 11 | Open **Support → Requests passed to ETHR** after HR passes one on (UAT-H18 step 6) | The organisation, who asked, the note and the technical details, "Waiting for ETHR". Your reply reaches the employee and HR as "ETHR support", never your name |
 
-Changed 2026-11-14: steps 10 and 11 (see 08 FC-001, HELP-004). Changed 2026-11-17: steps 2 and 4 (see 03 IMP-009 to IMP-012; 08 CON-P-028 to CON-P-030).
+Changed 2026-11-14: steps 10 and 11 (see 08 FC-001, HELP-004). Changed 2026-11-17: steps 1, 2, 4 and 8 (#736, #739, #744, #746; see 03 IMP-009 to IMP-012; 08 CON-P-011, CON-P-028 to CON-P-030; 09 OPS-007).
 
 **Done when:** the platform can be operated from the console without database access.
 
