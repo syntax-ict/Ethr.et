@@ -29,7 +29,7 @@ Times are approximate, within about five minutes. Nothing was typed into a passw
 | #772, #776, #777, #779 | First setup order, the daily invitation ceiling, the sign-in form before hydration, who cannot sign in yet | Not covered. #772 and #779 were seen working in passing; the guide mentions #772 only in UAT-H15 step 1 |
 | #780, #781 | Quiet terminals, a tap on a button that cannot punch | Not live |
 
-Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 15 were run in whole or in part; the table at the end says what is left and why.
+Of the guide's 52 scenarios, one had been run before today (UAT-H1, steps 1, 4 and 5, on 2026-11-14). Today 20 were run in part (16 in the first session, 4 more in the second); the table at the end says what is left and why.
 
 ## Release smoke (10, section 3)
 
@@ -82,13 +82,32 @@ The header read "QA Audit" and "Organisation admin" before each step.
 | UAT-S1 | Pass (step 1, empty) | Claude Code | 15:48 | TA | en | Chrome, unguarded. Approvals: "No pending approvals". Nothing to decide, and no supervisor account |
 | CHT-001 | Pass, D-1 | Claude Code | 15:37 | TA | en | Chrome, unguarded. Employees: "Show as table" on Gender Distribution gives a table with headings and "Show as chart". Female 5, Male 3 are right; the third row has no name (D-1) |
 
+## Second session, same day (about 15:58 to 16:16)
+
+The owner signed Chrome in to QA Audit again, said to approve the payroll run and to carry on. The console showed its sign-in form at 15:58. Same browser, same persona, `Chrome, unguarded`.
+
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| UAT-F2 | Pass (steps 4 to 6 read) | Claude Code | 15:59 | TA | en | Chrome, unguarded. "Approve Payroll" asks first: "Every employee in the run is notified that their payslip is available. This cannot be undone from here; a wrong run has to be voided and reprocessed." **Approved**, on the owner's word. The processor could approve because QA Audit has no other approver, as step 4 allows. The run reads Approved, with "Confirm payment" and "Void Payroll". Export lists the register, the bank transfer file, journal entries, and the income tax and pension schedules as CSV and PDF; **none was downloaded**, so "totals agree" was not checked |
+| UAT-A6 | Pass (step 2) | Claude Code | 16:02 | TA | en | Chrome, unguarded. Reconciliation set to Advisory: "Settings saved", and Reconcile reads "Advisory: runs can be approved with items open." **Put back to Off** at 16:15 |
+| UAT-H5 | Pass (step 5) | Claude Code | 16:05 | TA | en | Chrome, unguarded. Manual Entry for QA-EMP, 16 November 2026, 08:30 to 17:30, with a reason: `POST /attendance/manual` 201, listed as Manual, Present |
+| UAT-F4 | Pass (steps 1, 2 in part) | Claude Code | 16:03 to 16:08 | TA | en | Chrome, unguarded. With no attendance at all in the period, Reconcile lists nothing: by design (`PayrollEngine::unexplainedAbsencesFor`, "an organisation recording no attendance flags nothing"). After the manual entry: 120 open for 1 to 17 November, each "Absent, nothing on record", Open, with Settle. Settle offers Unpaid Leave, Official Duty / Business Trip and Excused Absence and needs a reason; QA-PAY-1's 12 November filed as Excused Absence: 119 open, 1 waiting. Lateness, missing punches, Settled and step 4 not run. O-6 |
+| UAT-H8 | Pass (control), Blocked (step 1) | Claude Code | 16:09 | TA | en | Chrome, unguarded. Approvals shows the request, with 1 in the sidebar. Approve as the person who filed it: "Action failed. You filed this request, so someone else must approve it." Right, and it means the request waits for a second approver QA Audit does not have |
+| UAT-S1 | Pass (steps 1, 3 dialog) | Claude Code | 16:09 | TA | en | Chrome, unguarded. Reject opens "Reject request" with a required reason, "Visible to the employee.", and Reject disabled until one is typed. Closed without rejecting |
+| UAT-H3 | Pass (step 6) | Claude Code | 16:11 | TA | en | Chrome, unguarded. QA-PAY-4, History, Record action: a Promotion to Senior Engineer dated 17 December 2026 reads **Scheduled**, "Takes effect on 17 Dec 2026. The employee record is unchanged until then."; the position still reads Software Engineer. "Cancel change" asks first, then "Scheduled change cancelled" and the history is empty again. Steps 1 to 5 not run |
+| UAT-A2 | Pass (step 1) | Claude Code | 16:13 | TA | en | Chrome, unguarded. Create role: "QA Branch HR", reach "Their branch", three permissions (view employee details, view employees list, update employee records): "Role QA Branch HR created", 3 permissions, 0 users. Steps 2 and 3 need a test user |
+| UAT-A3 | Not run (read only) | Claude Code | 16:14 | TA | en | Chrome, unguarded. Approval chains: none; the page explains that without one a request is decided in one step and that nobody approves their own. No chain was made: it needs a supervisor and an HR account to prove |
+| UAT-E5, S1 step 2, H17 | Blocked | | | | | "Apply for Leave" is for the signed-in person, and the TA has no employee record. Annual leave needs an employee login to ask and a second account to approve |
+
 ## What was created or changed in QA Audit (01, section 12)
+
+Second session: **the payroll run was approved** (below); a **manual attendance record** for QA-EMP on 16 November 2026; a **leave request**, Excused Absence for QA-PAY-1 on 12 November 2026, **still waiting** for an approver other than the TA; the custom role **"QA Branch HR"**, held by nobody. Reconciliation went Off, Advisory, Off. A scheduled promotion for QA-PAY-4 was made and cancelled.
 
 - **The kind of organisation was confirmed** as Private organisation.
 - **The guided setup was applied** as Technology / Software Company, Flexible start, Ethiopian private sector: a branch "Headquarters" beside "QA Branch"; departments Engineering, Product, Design, QA, DevOps, Sales, Customer Success, Finance, HR; eight positions; Grades I to VIII; the shift "Flexible day 08:00–17:00"; leave types Annual, Sick, Maternity, Paternity, Marriage and Bereavement (Unpaid was there); three allowances, switched off with no amount. These names do not carry the `QA-` prefix: they are what the setup creates.
 - **Sign-in methods:** Employee number switched on beside Email.
 - **Eight employees**, batch `01M7MR2A2STAVA3GKEM6GJFQ3K`, confirmed, no email, no login, nobody invited: QA-PAY-1 Almaz Kebede (1,800), QA-PAY-2 Bekele Tadesse (3,500), QA-PAY-3 Chaltu Gemechu (6,000), QA-PAY-4 Dawit Haile (9,000), QA-PAY-5 Eleni Assefa (12,000), QA-PAY-6 Fikru Wolde (25,000), QA-SUP Genet Mekonnen (15,000), QA-EMP Hana Bekele (8,000, phone `0900000008`, a made-up number). They are the guide's E-PAY-1 to E-PAY-6 and two people for the supervisor and employee personas. None has a branch or a supervisor yet.
-- **Payroll run** `01M7MR8QNAZE2DNTR7B7XP31X0`, 11 October to 9 November 2026, 9 people, **Awaiting Approval**. Approve it to run UAT-E6, F2 steps 4 to 6 and F3, or void it with the reason "QA".
+- **Payroll run** `01M7MR8QNAZE2DNTR7B7XP31X0`, 11 October to 9 November 2026, 9 people, **Approved** at about 15:59 on the owner's word. Payment is not confirmed, so it can still be voided with the reason "QA". Leave dated inside that period is now refused (UAT-F6 step 4).
 - **Annual Leave** went 16, 17, 16 days.
 - Found and left alone: two lists in progress of 2,000 and 600 lines, started the day before.
 - The owner should sign that Chrome out of QA Audit when the pass is over (11, section 6.1).
@@ -99,7 +118,8 @@ The header read "QA Audit" and "Organisation admin" before each step.
 |---|---|
 | UAT-E3 to E15, S1 to S4 (beyond the empty Approvals) | No employee or supervisor login. QA-EMP and QA-SUP exist as employees from today; each needs a login made by the owner (an activation code or a password is not an agent's) and QA-EMP a supervisor. E3 steps 3 and 4, E9 and E12 need a phone; E14 the kiosk tablet |
 | UAT-H1 steps 2, 3; H13; H15 steps 2 to 6; A1 steps 1 to 4, 6; H9; E11 | An invitation email, an authenticator or activation code, a starting password, or a second administrator |
-| UAT-H3, H4, H5 steps 1 to 5, H7, H8, H10, H11, H12 steps 2 to 4, H17, H18 steps 4 to 7; A2, A3, A4, A7 | Not reached in this session. All can be run by an agent as TA in QA Audit except where a second account must act |
+| UAT-H3 steps 1 to 5, H4, H5 steps 1 to 4, H7, H10, H11, H12 steps 2 to 4, H18 steps 4 to 7; A4, A7 | Not reached. All can be run by an agent as TA in QA Audit except where a second account must act |
+| UAT-H8 step 1, H17, A2 steps 2 and 3, A3, F4 steps 3 and 4 | **A second approver.** QA Audit has one administrator, and nobody approves what they filed. An HR or second admin login unblocks these |
 | UAT-H16 | Needs a terminal |
 | UAT-F2 steps 4 to 6, F3, F4, F5, F6 | The run is not approved; F5 cannot be undone and is the owner's; F6 needs E-SICK people |
 | UAT-P1 | The platform console is never driven by an agent in Chrome |
@@ -140,6 +160,7 @@ The header read "QA Audit" and "Organisation admin" before each step.
 - **O-3.** HOL-001 expects Eid al-Fitr, Arafa and Mawlid "marked estimated". The Holidays list shows no such mark. The button was not pressed, so the mark may be in what it offers.
 - **O-4.** UAT-A8 step 3 says "How you pay" asks the pension registration number. On QA Audit (private, Technology) it asks the kind, the calendar and how often; the number is under Settings, Payroll rules, Statutory filing. Either the guide or the screen is out of date for this kind.
 - **O-5.** On the payroll run, QA Employee A's missed days are every day from 13 October to 9 November, Sundays included (28), while the timesheet gives that person 27 workdays in October and the new people 21 weekdays in the period. Which days that person is expected was not read.
+- **O-6.** Reconcile shows its From and To in the Ethiopian calendar ("Tikimt 22, 2019" to "Hidar 8, 2019") while the table under them, and the rest of the session, is Gregorian, the reader's own choice. The period it opens on is the Gregorian month to date, not the Ethiopian month the guide's step 1 speaks of.
 - **Pack corrections made with this log:** UAT-A6 step 4 said 19 working days is a valid choice; the product and PAY-032 refuse anything outside 20 to 31. UAT-H6 step 2 named a button "Auto-detect"; it reads "Add Ethiopian public holidays" (`holidays_page.auto_detect`).
 
 ## Summary
@@ -148,6 +169,6 @@ The header read "QA Audit" and "Organisation admin" before each step.
 |---|---|---|---|---|
 | Release smoke (15 rows) | 5 | 3 | 0 | 7 |
 | Detailed cases (ORG-009, 012, 015, 016, PAY-032, CHT-001) | 4 | 2 | 0 | |
-| UAT scenarios (52) | 0 in full | 15 | 0 | 37 |
+| UAT scenarios (52) | 0 in full | 20 | 0 | 32 |
 
-No S1 or S2 defect was seen. The four drafts are S3 or S4. The exit criteria of 01, section 7.2 are not met and were not expected to be: most of the guide still needs logins for the other personas, a phone and a terminal, and 30 live changes have no case.
+The second session added UAT-F4, H3, H5 step 5, H8, A2 and S1's reject dialog, and took F2 through approval. No S1 or S2 defect was seen. The four drafts are S3 or S4. The exit criteria of 01, section 7.2 are not met and were not expected to be: most of the guide still needs logins for the other personas, a phone and a terminal, and 30 live changes have no case.
