@@ -156,6 +156,11 @@ export default function MobilePunchPage() {
   const [flashKey, setFlashKey] = useState(0);
   const [manualType, setManualType] = useState<PunchType>("check_in");
   const [again, setAgain] = useState(false);
+  // Goes up on each tap of a button that cannot punch yet.
+  const [nudged, setNudged] = useState<{
+    key: number;
+    row: "location" | "selfie" | null;
+  }>({ key: 0, row: null });
   const [done, setDone] = useState<Done | null>(null);
   const [error, setError] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -380,6 +385,18 @@ export default function MobilePunchPage() {
               "Move inside your branch area to check in.",
             )
           : null;
+  // Which row of the readiness list fixes the reason: the location row when
+  // there is no fix or the fence holds the button, the selfie row when the
+  // photo is missing, none while the shift lookup is what is being waited on.
+  const fixRow: "location" | "selfie" | null = !position
+    ? "location"
+    : shiftLoading
+      ? null
+      : photoRequired && type === "check_in" && !photo
+        ? "selfie"
+        : blockedByFence
+          ? "location"
+          : null;
   const buttonState =
     phase !== "idle" || punch.isPending
       ? "busy"
@@ -414,6 +431,16 @@ export default function MobilePunchPage() {
     );
     return () => navigator.geolocation?.clearWatch?.(id);
   }, [watchingPosition]);
+
+  // A tap on the button while it is waiting or blocked: answer it, send nothing.
+  // A tap is a user gesture, so a refused location is asked for again here.
+  function explainBlocked() {
+    haptic("refused");
+    setNudged((prev) => ({ key: prev.key + 1, row: fixRow }));
+    if (!positionRef.current && locationProblem && !locatingRef.current) {
+      locate();
+    }
+  }
 
   async function submit(
     auto = false,
@@ -882,7 +909,11 @@ export default function MobilePunchPage() {
                 state={buttonState}
                 phase={phase}
                 reason={reason}
-                onPress={() => void submit(false)}
+                onPress={() => {
+                  if (buttonState === "ready") void submit(false);
+                }}
+                onBlockedPress={explainBlocked}
+                nudgeKey={nudged.key}
                 onSlow={() => {
                   if (inFlight.current) setSlowAttempt(inFlight.current);
                 }}
@@ -993,6 +1024,7 @@ export default function MobilePunchPage() {
           shift={shift}
           onLocate={locate}
           videoRef={videoRef}
+          attention={nudged.row ? { row: nudged.row, key: nudged.key } : null}
           selfie={{
             show: type === "check_in" && !finishedForToday,
             photo,

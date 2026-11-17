@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   Camera,
   CheckCircle2,
@@ -49,6 +55,7 @@ export function ReadinessList({
   onLocate,
   selfie,
   videoRef,
+  attention = null,
   children,
 }: {
   position: Fix | null;
@@ -71,10 +78,44 @@ export function ReadinessList({
     onTake: () => void;
     onSnap: () => void;
   };
+  /** The row that fixes what is blocking the punch; `key` goes up on each tap. */
+  attention?: { row: "location" | "selfie"; key: number } | null;
   /** Further rows, such as this phone once it is settled. */
   children?: ReactNode;
 }) {
   const { t, locale } = useT();
+
+  // A tap on a blocked punch button points at the row that fixes it.
+  const locationRowRef = useRef<HTMLButtonElement | null>(null);
+  const selfieRowRef = useRef<HTMLDivElement | null>(null);
+  const attentionKey = attention?.key ?? 0;
+  const attentionRow = attention?.row ?? null;
+  useEffect(() => {
+    if (attentionKey <= 0 || !attentionRow) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+    const el =
+      attentionRow === "location"
+        ? locationRowRef.current
+        : selfieRowRef.current;
+    el?.scrollIntoView?.({
+      block: "nearest",
+      behavior: reduced ? "auto" : "smooth",
+    });
+    // Only a new tap scrolls; the row it named was fixed at that tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attentionKey]);
+  const attends = (row: "location" | "selfie") =>
+    attentionKey > 0 && attentionRow === row;
+  const attentionOverlay = (row: "location" | "selfie") =>
+    attends(row) ? (
+      <span
+        key={attentionKey}
+        aria-hidden="true"
+        className="ethr-punch-attn pointer-events-none absolute inset-0 bg-warning-soft"
+      />
+    ) : null;
 
   // The shutter flash. Taking the photo stops the camera, which would hide the
   // frame at once, so the frame is kept in view for the length of the flash.
@@ -174,10 +215,12 @@ export function ReadinessList({
   return (
     <section className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
       <button
+        ref={locationRowRef}
         type="button"
         onClick={onLocate}
         aria-busy={locating}
-        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        data-attention={attends("location") ? "true" : undefined}
+        className="relative flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <span
           className={cn(
@@ -208,10 +251,16 @@ export function ReadinessList({
         <span className="sr-only">
           {t("attendance.mobile_page.refresh_location")}
         </span>
+        {attentionOverlay("location")}
       </button>
 
       {selfie.show && (
-        <div>
+        <div
+          ref={selfieRowRef}
+          data-attention={attends("selfie") ? "true" : undefined}
+          className="relative"
+        >
+          {attentionOverlay("selfie")}
           <div className="flex min-h-14 items-center gap-3 px-4 py-3">
             {selfie.photo ? (
               // eslint-disable-next-line @next/next/no-img-element
