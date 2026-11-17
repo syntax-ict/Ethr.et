@@ -2445,6 +2445,8 @@
   "devices_page.unmatched.assign_replay": "ይስጡና :count መዝገቦችን እንደገና ይመዝግቡ",
   "devices_page.unmatched.possibly": "ምናልባት :name",
   "devices_page.unmatched.this_is": "ይህ :name ነው",
+  "devices_page.unmatched.name_on_device": "ተርሚናሉ ይህን ሰው :name ብሎ ይጠራዋል",
+  "devices_page.unmatched.same_name": "በተርሚናሉ ላይ ያለው ስም ተመሳሳይ ነው",
   "devices_page.update_failed": "መሳሪያ ማዘመን አልተሳካም",
   "devices_page.updated": "መሳሪያ ተዘምኗል",
   "devices_page.username": "የተጠቃሚ ስም",
