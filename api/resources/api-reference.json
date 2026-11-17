@@ -55287,7 +55287,7 @@
                     },
                     "sync_interval_minutes": {
                         "type": "integer",
-                        "minimum": 1,
+                        "minimum": 5,
                         "maximum": 1440
                     },
                     "connection_config": {
@@ -57770,7 +57770,7 @@
                     },
                     "sync_interval_minutes": {
                         "type": "integer",
-                        "minimum": 1,
+                        "minimum": 5,
                         "maximum": 1440
                     },
                     "connection_config": {

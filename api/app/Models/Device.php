@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,10 +21,13 @@ use Illuminate\Support\Carbon;
  * @property bool $commands_enabled
  * @property int|null $clock_offset_seconds
  * @property Carbon|null $clock_checked_at
+ * @property int $sync_interval_minutes
  */
 class Device extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
+
+    public const MIN_SYNC_INTERVAL_MINUTES = 5;
 
     protected $fillable = [
         'public_id',
@@ -63,6 +67,20 @@ class Device extends Model
             'clock_checked_at' => 'datetime',
             'sync_interval_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * A pulled terminal is read when the scheduler ticks, every five minutes at
+     * best, so a stored interval under that reads as the floor (2026-11-17).
+     * No migration: the next save stores the clamped value.
+     *
+     * @return Attribute<int, int>
+     */
+    protected function syncIntervalMinutes(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value): int => max(self::MIN_SYNC_INTERVAL_MINUTES, (int) $value),
+        );
     }
 
     /**
