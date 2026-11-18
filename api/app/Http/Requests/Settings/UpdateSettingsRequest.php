@@ -63,6 +63,10 @@ class UpdateSettingsRequest extends FormRequest
             'settings.pension_registration_number' => ['sometimes', 'nullable', 'string', 'max:40'],
             'settings.payout_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYOUT_METHODS)],
             'settings.employer_bank_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'settings.letterhead_address' => ['sometimes', 'nullable', 'string', 'max:200'],
+            'settings.letterhead_phone' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'settings.letterhead_email' => ['sometimes', 'nullable', 'email', 'max:120'],
+            'settings.letterhead_po_box' => ['sometimes', 'nullable', 'string', 'max:40'],
         ];
     }
 

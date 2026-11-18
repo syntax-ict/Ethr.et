@@ -22,6 +22,10 @@ return [
         'tax_center' => 'giddugala gibiraa',
         'pension_scheme' => 'sagantaa sooramaa',
         'employee_number_format' => 'akkaataa lakkoofsa hojjetaa',
+        'letterhead_address' => 'teessoo sanada irratti',
+        'letterhead_phone' => 'bilbila sanada irratti',
+        'letterhead_email' => 'imeelii sanada irratti',
+        'letterhead_po_box' => 'lakk. poostaa sanada irratti',
         'invitation_reminders' => 'yaadachiisota affeerraa',
     ],
 ];

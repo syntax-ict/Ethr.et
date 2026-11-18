@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
-import { Settings2, Loader2, Save, Clock, ShieldCheck } from "lucide-react";
+import {
+  Settings2,
+  Loader2,
+  Save,
+  Clock,
+  ShieldCheck,
+  BellRing,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -1134,6 +1141,68 @@ export default function AttendanceSettingsPage() {
                     onCheckedChange={(v) => setField("adaptive_selfie", v)}
                   />
                 </SettingRow>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BellRing className="h-4 w-4" />
+                  {t("attendance.settings_page.presence", "Presence checks")}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "attendance.settings_page.presence_desc",
+                    "During a shift, people who are checked in at a workplace get a notification at an unpredictable time: confirm you are at work. They have 15 minutes to answer. It is never sent around the middle of the shift, and only to people who allowed notifications. One missed check is not a finding; a pattern of them, or an answer from outside the workplace, goes to Integrity for a person to decide.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="presence-checks" className="text-sm">
+                    {t(
+                      "attendance.settings_page.presence_per_shift",
+                      "Checks during a shift",
+                    )}
+                  </Label>
+                  <Select
+                    value={String(form.presence_checks_per_shift ?? 0)}
+                    onValueChange={(v) =>
+                      setField("presence_checks_per_shift", Number(v))
+                    }
+                  >
+                    <SelectTrigger
+                      id="presence-checks"
+                      className="mt-1 w-full sm:w-80"
+                      aria-describedby="presence-checks-desc"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">
+                        {t("attendance.presence_count.0", "Off")}
+                      </SelectItem>
+                      <SelectItem value="1">
+                        {t("attendance.presence_count.1", "Up to 1 a shift")}
+                      </SelectItem>
+                      <SelectItem value="2">
+                        {t("attendance.presence_count.2", "Up to 2 a shift")}
+                      </SelectItem>
+                      <SelectItem value="3">
+                        {t("attendance.presence_count.3", "Up to 3 a shift")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p
+                    id="presence-checks-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.presence_inform",
+                      "Tell your staff in writing before you switch this on.",
+                    )}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

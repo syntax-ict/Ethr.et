@@ -17,6 +17,7 @@ use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
 use App\Support\Csv;
+use App\Support\Letterhead;
 use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use App\Support\ScheduleSlot;
@@ -111,7 +112,7 @@ class ReportController extends Controller
         $columns = $rows === [] ? [] : array_keys($rows[0]);
         File::ensureDirectoryExists(storage_path('fonts'));
         $pdf = Pdf::loadView('reports.export', [
-            'organisation' => (app(CurrentTenant::class)->get() ?? throw new TenantRequired)->name,
+            'letterhead' => Letterhead::for(app(CurrentTenant::class)->get() ?? throw new TenantRequired, $reader->locale),
             'columns' => $columns,
             'rows' => $rows,
             'locale' => $reader->locale,

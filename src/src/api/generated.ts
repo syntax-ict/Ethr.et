@@ -958,6 +958,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/presence/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm presence */
+        post: operations["attendancePresence.confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/visits": {
         parameters: {
             query?: never;
@@ -9605,6 +9622,17 @@ export interface components {
             hold_reason: string | null;
             held_by: string | null;
         };
+        /** AttendancePresenceCheckResource */
+        AttendancePresenceCheckResource: {
+            public_id: string;
+            /** @enum {string} */
+            status: "confirmed" | "outside" | "unverified" | "missed" | "sent";
+            asked_at: string;
+            expires_at: string;
+            answered_at: string | null;
+            distance_meters: number | null;
+            late: boolean;
+        };
         /** AttendancePunchResource */
         AttendancePunchResource: {
             public_id: string;
@@ -9714,6 +9742,7 @@ export interface components {
             geofence_auto_checkin_enabled: boolean;
             photo_retention_days: number;
             risk_review_threshold: number;
+            presence_checks_per_shift: number;
             adaptive_selfie: boolean;
             liveness_check: boolean;
             /** @enum {string} */
@@ -9935,6 +9964,33 @@ export interface components {
         /** ConcernMessageRequest */
         ConcernMessageRequest: {
             body: string;
+        };
+        /** ConfirmPresenceRequest */
+        ConfirmPresenceRequest: {
+            idempotency_key: string;
+            latitude: number;
+            longitude: number;
+            accuracy?: number | null;
+            altitude?: number | null;
+            speed?: number | null;
+            heading?: number | null;
+            fix_age_ms?: number | null;
+            device_id?: string | null;
+            /** Format: date-time */
+            client_time?: string | null;
+            webdriver?: boolean | null;
+            device_proof?: {
+                id?: string;
+                rawId?: string | null;
+                /** @enum {string|null} */
+                type?: "public-key" | null;
+                response?: {
+                    clientDataJSON?: string;
+                    authenticatorData?: string;
+                    signature?: string;
+                    userHandle?: string | null;
+                };
+            };
         };
         /** ContactRequest */
         ContactRequest: {
@@ -13094,6 +13150,7 @@ export interface components {
             geofence_auto_checkin_enabled?: boolean;
             photo_retention_days?: number;
             risk_review_threshold?: number;
+            presence_checks_per_shift?: number;
             adaptive_selfie?: boolean;
             liveness_check?: boolean;
             /** @enum {string} */
@@ -13122,6 +13179,7 @@ export interface components {
                 auto_checkout_after_minutes?: number | null;
                 geofence_auto_checkin_enabled?: boolean | null;
                 risk_review_threshold?: number | null;
+                presence_checks_per_shift?: number | null;
                 /** @enum {string|null} */
                 device_binding?: "off" | "flag" | "enforce" | null;
                 office_networks?: string[] | null;
@@ -13689,6 +13747,11 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                letterhead_address?: string | null;
+                letterhead_phone?: string | null;
+                /** Format: email */
+                letterhead_email?: string | null;
+                letterhead_po_box?: string | null;
             };
         };
         /** UpdateShiftRequest */
@@ -16457,6 +16520,14 @@ export interface operations {
                             count: 1;
                             /** @constant */
                             fix_route: "/attendance/kiosks";
+                        } | {
+                            /** @constant */
+                            id: "presence_unreachable";
+                            /** @constant */
+                            severity: "warning";
+                            count: number;
+                            /** @constant */
+                            fix_route: "/settings/attendance";
                         })[];
                     };
                 };
@@ -16908,6 +16979,59 @@ export interface operations {
                          * @example This phone is not registered now.
                          */
                         message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendancePresence.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPresenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendancePresenceCheckResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePresenceCheckResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "There is no presence check to confirm.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
                     };
                 };
             };
@@ -27558,6 +27682,13 @@ export interface operations {
                             auto_checkout: boolean;
                             auto_checkout_after_minutes: number;
                         };
+                        presence: {
+                            enabled: boolean;
+                            pending: {
+                                asked_at: string;
+                                expires_at: string;
+                            } | null;
+                        };
                     };
                 };
             };
@@ -29264,6 +29395,7 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            presence_checks_per_shift: number | null;
                             device_binding: string | null;
                             office_networks: string[] | null;
                         };
@@ -29277,6 +29409,7 @@ export interface operations {
                             "auto_checkout_after_minutes",
                             "geofence_auto_checkin_enabled",
                             "risk_review_threshold",
+                            "presence_checks_per_shift",
                             "device_binding",
                             "office_networks"
                         ];
@@ -29295,6 +29428,7 @@ export interface operations {
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
                                 risk_review_threshold: number | null;
+                                presence_checks_per_shift: number | null;
                                 device_binding: string | null;
                                 office_networks: string[] | null;
                             };
@@ -29308,6 +29442,7 @@ export interface operations {
                                 auto_checkout_after_minutes: number | null;
                                 geofence_auto_checkin_enabled: boolean | null;
                                 risk_review_threshold: number | null;
+                                presence_checks_per_shift: number | null;
                                 device_binding: string | null;
                                 office_networks: string[] | null;
                             };
@@ -29355,6 +29490,7 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            presence_checks_per_shift: number | null;
                             device_binding: string | null;
                             office_networks: string[] | null;
                         };
@@ -29368,6 +29504,7 @@ export interface operations {
                             auto_checkout_after_minutes: number | null;
                             geofence_auto_checkin_enabled: boolean | null;
                             risk_review_threshold: number | null;
+                            presence_checks_per_shift: number | null;
                             device_binding: string | null;
                             office_networks: string[] | null;
                         };
@@ -35624,6 +35761,12 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                        };
+                        documents: {
+                            letterhead_address: string | null;
+                            letterhead_phone: string | null;
+                            letterhead_email: string | null;
+                            letterhead_po_box: string | null;
                         };
                         security: {
                             mfa_policy: string;

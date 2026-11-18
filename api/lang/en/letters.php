@@ -16,6 +16,10 @@ return [
     'purpose' => 'This letter is issued at their request, for: :purpose.',
     'signature' => 'Human Resources, :organisation',
     'issued_by' => 'Issued by :name',
+    'signature_line' => 'Signature',
+    'stamp' => 'Official stamp',
+    'issuer_position' => 'Position',
+    'footer' => 'Reference :reference, issued :date',
 
     // Notifications and refusals.
     'requested' => ':name asked for an employment letter.',

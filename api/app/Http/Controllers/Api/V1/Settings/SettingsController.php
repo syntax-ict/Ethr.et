@@ -119,6 +119,12 @@ class SettingsController extends Controller
                 'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
                 'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
             ],
+            'documents' => [
+                'letterhead_address' => StatutorySchedules::setting($tenant, 'letterhead_address'),
+                'letterhead_phone' => StatutorySchedules::setting($tenant, 'letterhead_phone'),
+                'letterhead_email' => StatutorySchedules::setting($tenant, 'letterhead_email'),
+                'letterhead_po_box' => StatutorySchedules::setting($tenant, 'letterhead_po_box'),
+            ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
                 'session_timeout_minutes' => $security->idleTimeoutMinutes(),

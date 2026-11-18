@@ -18,6 +18,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCurrentUser } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { formatDistance } from "@/lib/attendance/format-distance";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,15 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 type Severity = "all" | "high" | "medium" | "low";
+
+/**
+ * The flags about a punch itself. Rejecting one of these voids the day's
+ * record; every other flag (a presence check, a pattern over days) is a
+ * finding about conduct, and its decision is recorded without touching the
+ * record. Matches AttendanceIntegrityFlag::VOIDING_PUNCHES on the server.
+ */
+const VOIDING_PUNCHES: readonly string[] = ["check_in", "check_out", "day"];
+const voidsDay = (flag: IntegrityFlag) => VOIDING_PUNCHES.includes(flag.punch);
 
 const severityStyles: Record<string, string> = {
   high: "bg-destructive-soft text-destructive-on-soft",
@@ -252,7 +262,22 @@ function Segmented<T extends string>({
 
 /** A finding in words, with the numbers that raised it. */
 function useDescribeFlag() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate, formatTime } = useDateFormatters();
+
+  const nearestName = (nearest: unknown): string => {
+    const name =
+      nearest && typeof nearest === "object"
+        ? (nearest as { name?: unknown }).name
+        : null;
+    return typeof name === "string" && name !== ""
+      ? name
+      : t("integrity.detail.presence_workplace", "the workplace");
+  };
+  const clockOf = (iso: unknown): string =>
+    typeof iso === "string" && iso !== ""
+      ? `${formatDate(iso)} ${formatTime(iso)}`
+      : "?";
 
   return (flag: IntegrityFlag): { title: string; detail: string } => {
     const d = flag.details as Record<string, unknown>;
@@ -260,6 +285,27 @@ function useDescribeFlag() {
 
     switch (flag.type) {
       case "outside_geofence":
+        if (flag.punch === "presence") {
+          return {
+            title: t(
+              "integrity.type.presence_outside",
+              "Outside the workplace at a presence check",
+            ),
+            detail: t(
+              "integrity.detail.presence_outside",
+              "Answered a presence check from :distance away from :place, asked at :asked and answered at :answered.",
+              {
+                distance:
+                  typeof d.distance_meters === "number"
+                    ? formatDistance(d.distance_meters, locale)
+                    : "?",
+                place: nearestName(d.nearest),
+                asked: clockOf(d.asked_at),
+                answered: clockOf(d.answered_at),
+              },
+            ),
+          };
+        }
         return {
           title: t(
             "integrity.type.outside_geofence",
@@ -424,6 +470,34 @@ function useDescribeFlag() {
             "integrity.detail.grace_edge",
             ":count of the last 10 arrivals came in the last three minutes before counting as late.",
             { count: n("at_edge") },
+          ),
+        };
+      case "presence_pattern":
+        return {
+          title: t(
+            "integrity.type.presence_pattern",
+            "Presence checks missed or unverified",
+          ),
+          detail: t(
+            "integrity.detail.presence_pattern",
+            ":missed missed and :unverified unverified of :total presence checks in :days days.",
+            {
+              missed: n("missed"),
+              unverified: n("unverified"),
+              total: n("total"),
+              days: n("days"),
+            },
+          ),
+        };
+      case "kiosk_wrong_person":
+        return {
+          title: t(
+            "integrity.type.kiosk_wrong_person",
+            "Reported as the wrong person at a kiosk",
+          ),
+          detail: t(
+            "integrity.detail.kiosk_wrong_person",
+            "Someone at the kiosk pressed Not you? after this punch, because the screen showed another person. The punch was kept until you decide.",
           ),
         };
       case "low_confidence":
@@ -608,11 +682,27 @@ function FlagCard({
   const describe = useDescribeFlag();
   const { title, detail } = describe(flag);
   const record = flag.record;
+  const answeredAt = (flag.details as Record<string, unknown>).answered_at;
   const punchAt =
-    flag.punch === "check_out" ? record?.check_out : record?.check_in;
+    flag.punch === "presence" && typeof answeredAt === "string"
+      ? answeredAt
+      : flag.punch === "check_out"
+        ? record?.check_out
+        : record?.check_in;
+  const decides = voidsDay(flag);
+  const punchLabel =
+    flag.punch === "check_out"
+      ? t("integrity.check_out", "Check-out")
+      : flag.punch === "presence"
+        ? t("integrity.punch_presence", "Presence check")
+        : flag.punch === "pattern"
+          ? t("integrity.punch_pattern", "Pattern over several days")
+          : flag.punch === "day"
+            ? t("integrity.punch_day", "Whole day")
+            : t("integrity.check_in", "Check-in");
 
   return (
-    <Card>
+    <Card data-testid={`integrity-flag-${flag.public_id}`}>
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -632,9 +722,7 @@ function FlagCard({
             {flag.employee?.employee_code &&
               ` · ${flag.employee.employee_code}`}
             {" · "}
-            {flag.punch === "check_out"
-              ? t("integrity.check_out", "Check-out")
-              : t("integrity.check_in", "Check-in")}
+            {punchLabel}
             {punchAt && ` · ${formatDate(punchAt)} ${formatTime(punchAt)}`}
             {record?.source &&
               ` · ${t(`attendance.source_${record.source === "offline_mobile" ? "offline" : record.source}`, record.source)}`}
@@ -654,12 +742,20 @@ function FlagCard({
           {flag.status !== "open" && (
             <p className="text-xs text-muted-foreground">
               {flag.status === "accepted"
-                ? t("integrity.accepted_by", "Accepted by :name", {
-                    name: flag.reviewer_name ?? "?",
-                  })
-                : t("integrity.rejected_by", "Rejected by :name", {
-                    name: flag.reviewer_name ?? "?",
-                  })}
+                ? decides
+                  ? t("integrity.accepted_by", "Accepted by :name", {
+                      name: flag.reviewer_name ?? "?",
+                    })
+                  : t("integrity.excused_by", "Excused by :name", {
+                      name: flag.reviewer_name ?? "?",
+                    })
+                : decides
+                  ? t("integrity.rejected_by", "Rejected by :name", {
+                      name: flag.reviewer_name ?? "?",
+                    })
+                  : t("integrity.not_excused_by", "Not excused by :name", {
+                      name: flag.reviewer_name ?? "?",
+                    })}
               {flag.review_note && ` - "${flag.review_note}"`}
             </p>
           )}
@@ -672,7 +768,9 @@ function FlagCard({
               onClick={() => onReview("accept")}
             >
               <CheckCircle2 className="mr-1.5 h-4 w-4" />
-              {t("integrity.accept", "Accept")}
+              {decides
+                ? t("integrity.accept", "Accept")
+                : t("integrity.excused", "Excused")}
             </Button>
             <Button
               size="sm"
@@ -680,7 +778,9 @@ function FlagCard({
               onClick={() => onReview("reject")}
             >
               <XCircle className="mr-1.5 h-4 w-4 text-destructive" />
-              {t("integrity.reject", "Reject")}
+              {decides
+                ? t("integrity.reject", "Reject")
+                : t("integrity.not_excused", "Not excused")}
             </Button>
           </div>
         )}
@@ -702,6 +802,9 @@ function ReviewDialog({
   const review = useReviewIntegrityFlag();
   const [note, setNote] = useState("");
   const reject = decision === "reject";
+  // A finding about a punch voids the day when rejected; any other is only a
+  // decision, recorded and audited.
+  const decides = voidsDay(flag);
 
   function submit() {
     review.mutate(
@@ -709,12 +812,19 @@ function ReviewDialog({
       {
         onSuccess: () => {
           toast.success(
-            reject
-              ? t(
-                  "integrity.rejected_toast",
-                  "Punch rejected; the employee has been told",
-                )
-              : t("integrity.accepted_toast", "Punch accepted"),
+            !decides
+              ? reject
+                ? t(
+                    "integrity.not_excused_toast",
+                    "Decision recorded: not excused",
+                  )
+                : t("integrity.excused_toast", "Decision recorded: excused")
+              : reject
+                ? t(
+                    "integrity.rejected_toast",
+                    "Punch rejected; the employee has been told",
+                  )
+                : t("integrity.accepted_toast", "Punch accepted"),
           );
           onClose();
         },
@@ -732,27 +842,47 @@ function ReviewDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {reject
-              ? t("integrity.reject_title", "Reject this punch?")
-              : t("integrity.accept_title", "Accept this punch?")}
+            {!decides
+              ? reject
+                ? t("integrity.not_excused_title", "Mark this as not excused?")
+                : t("integrity.excused_title", "Mark this as excused?")
+              : reject
+                ? t("integrity.reject_title", "Reject this punch?")
+                : t("integrity.accept_title", "Accept this punch?")}
           </DialogTitle>
           <DialogDescription>
-            {reject
-              ? t(
-                  "integrity.reject_desc",
-                  "The punch is voided and will not count toward hours or pay. :name is told, with your reason, and can file a correction.",
-                  { name: flag.employee?.name ?? "" },
-                )
-              : t(
-                  "integrity.accept_desc",
-                  "The punch counts as recorded. Add a note so the decision can be understood later.",
-                )}
+            {!decides
+              ? reject
+                ? t(
+                    "integrity.not_excused_desc",
+                    "The day's record is kept and your decision is recorded against :name. They are not sent a notice that a punch was rejected.",
+                    { name: flag.employee?.name ?? "" },
+                  )
+                : t(
+                    "integrity.excused_desc",
+                    "The day's record is kept and your decision is recorded. Add a note so the decision can be understood later.",
+                  )
+              : reject
+                ? t(
+                    "integrity.reject_desc",
+                    "The punch is voided and will not count toward hours or pay. :name is told, with your reason, and can file a correction.",
+                    { name: flag.employee?.name ?? "" },
+                  )
+                : t(
+                    "integrity.accept_desc",
+                    "The punch counts as recorded. Add a note so the decision can be understood later.",
+                  )}
           </DialogDescription>
         </DialogHeader>
         <div>
           <Label htmlFor="integrity-note">
             {reject
-              ? t("integrity.reason", "Reason (sent to the employee)")
+              ? decides
+                ? t("integrity.reason", "Reason (sent to the employee)")
+                : t(
+                    "integrity.reason_recorded",
+                    "Reason (kept with the decision)",
+                  )
               : t("integrity.note", "Note (optional)")}
           </Label>
           <Textarea
@@ -776,9 +906,13 @@ function ReviewDialog({
             {review.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            {reject
-              ? t("integrity.reject_confirm", "Reject and void")
-              : t("integrity.accept_confirm", "Accept")}
+            {!decides
+              ? reject
+                ? t("integrity.not_excused", "Not excused")
+                : t("integrity.excused", "Excused")
+              : reject
+                ? t("integrity.reject_confirm", "Reject and void")
+                : t("integrity.accept_confirm", "Accept")}
           </Button>
         </DialogFooter>
       </DialogContent>

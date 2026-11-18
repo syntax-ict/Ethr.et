@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Models\Employee;
+use App\Models\EmployeeBankDetail;
 use App\Models\PayrollEntry;
 use App\Models\Tenant;
+use App\Support\Letterhead;
 use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Lang;
+use Throwable;
 
 final class PayslipPdfService
 {
@@ -43,7 +47,7 @@ final class PayslipPdfService
      */
     public function data(PayrollEntry $entry, ?ReaderDates $reader = null): array
     {
-        $entry->loadMissing(['employee', 'payrollRun']);
+        $entry->loadMissing(['employee.bankDetails', 'payrollRun']);
 
         $tenant = Tenant::find($entry->tenant_id);
         $reader ??= ReaderDates::forTenant($tenant);
@@ -51,6 +55,7 @@ final class PayslipPdfService
 
         return [
             'locale' => $locale,
+            'letterhead' => Letterhead::for($tenant, $locale),
             'tenant_name' => $tenant?->name ?? 'ETHR',
             'period' => $reader->periodOf($entry->payrollRun),
             // `name`: employees have no `full_name` column or accessor, so this
@@ -61,9 +66,13 @@ final class PayslipPdfService
             // `title`: positions have no `name` column, so `->name` printed a blank
             // position on every payslip. Every other reader already uses `title`.
             'position' => $entry->employee->position?->title ?? '',
+            'employee_tin' => self::masked(self::tinOf($entry->employee)),
+            'bank_name' => self::bankOf($entry->employee)?->bank_name,
+            'bank_account' => self::masked(self::accountOf(self::bankOf($entry->employee))),
+            'pay_date' => $entry->payrollRun->paid_at === null ? null : $reader->date($entry->payrollRun->paid_at),
             'basic_salary_cents' => $entry->basic_salary_cents,
             'overtime_cents' => self::overtimeCents($entry),
-            'allowances' => $entry->allowances ?? [],
+            'allowances' => self::allowanceLines($entry->allowances, $locale),
             'gross_cents' => $entry->gross_cents,
             'income_tax_cents' => $entry->income_tax_cents,
             'employee_pension_cents' => $entry->employee_pension_cents,
@@ -78,6 +87,79 @@ final class PayslipPdfService
             'generated_at' => $reader->dateTime(now()),
             'is_voided' => $entry->payrollRun->status === 'voided',
         ];
+    }
+
+    /**
+     * Each allowance with a `label`: its own name, else its type in the
+     * reader's language. An allowance without a name printed its raw type.
+     *
+     * @return list<array<array-key, mixed>>
+     */
+    private static function allowanceLines(mixed $allowances, string $locale): array
+    {
+        $lines = [];
+        foreach (is_array($allowances) ? $allowances : [] as $allowance) {
+            if (! is_array($allowance)) {
+                continue;
+            }
+            $name = is_string($allowance['name'] ?? null) ? trim($allowance['name']) : '';
+            $type = is_string($allowance['type'] ?? null) ? $allowance['type'] : '';
+            $key = 'payslip.allowance_types.'.$type;
+            $allowance['label'] = $name !== ''
+                ? $name
+                : ($type !== '' && Lang::has($key, $locale) ? (string) __($key, [], $locale) : (string) __('payslip.allowance', [], $locale));
+            $lines[] = $allowance;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Only the last four characters of an identifier are printed, as
+     * '******1234': a payslip is carried around and photographed.
+     */
+    public static function masked(?string $value): ?string
+    {
+        $value = $value === null ? '' : trim($value);
+        if ($value === '') {
+            return null;
+        }
+        $length = mb_strlen($value);
+
+        return $length <= 4 ? str_repeat('*', $length) : str_repeat('*', $length - 4).mb_substr($value, -4);
+    }
+
+    private static function tinOf(Employee $employee): ?string
+    {
+        try {
+            $tin = $employee->getAttribute('tin');
+        } catch (Throwable) {
+            return null;
+        }
+
+        return is_string($tin) ? $tin : null;
+    }
+
+    private static function accountOf(?EmployeeBankDetail $detail): ?string
+    {
+        if ($detail === null) {
+            return null;
+        }
+        try {
+            $account = $detail->getAttribute('account_number');
+        } catch (Throwable) {
+            return null;
+        }
+
+        return is_string($account) ? $account : null;
+    }
+
+    /** The designated salary account, else the first on record: as the bank export pays it. */
+    private static function bankOf(Employee $employee): ?EmployeeBankDetail
+    {
+        $details = $employee->bankDetails;
+
+        return $details->firstWhere('is_primary', true) ?? $details->first();
     }
 
     /**

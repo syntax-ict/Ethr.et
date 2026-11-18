@@ -11,7 +11,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\LetterDecidedNotification;
 use App\Notifications\LetterRequestedNotification;
+use App\Support\Letterhead;
 use App\Support\Locales;
+use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use App\Traits\SendsNotifications;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -107,7 +109,7 @@ final class EmploymentLetters
         $pdf->setPaper('a4', 'portrait');
         $pdf->setOption('isFontSubsettingEnabled', true);
 
-        return $pdf->output();
+        return PdfPages::render($pdf);
     }
 
     /**
@@ -121,7 +123,7 @@ final class EmploymentLetters
             ->with(['position:id,title', 'department:id,name'])
             ->findOrFail($letter->employee_id);
         $tenant = Tenant::query()->findOrFail($letter->tenant_id);
-        $letter->loadMissing('decider');
+        $letter->loadMissing('decider.employee.position');
         $locale = Locales::orDefault($letter->language);
         // Dates in the organisation's calendar. An Ethiopian date is followed
         // by the Gregorian one, since a bank or an embassy reads the letter.
@@ -133,6 +135,7 @@ final class EmploymentLetters
 
         return [
             'locale' => $locale,
+            'letterhead' => Letterhead::for($tenant, $locale),
             'organisation' => (string) $tenant->name,
             'reference' => (string) $letter->reference,
             'issued_on' => $date($letter->decided_at),
@@ -146,6 +149,7 @@ final class EmploymentLetters
             'salary' => $letter->include_salary && $employee->salary_cents > 0 ? number_format($employee->salary_cents / 100, 2) : null,
             'purpose' => $letter->purpose,
             'issuer' => (string) data_get($letter, 'decider.name', ''),
+            'issuer_position' => (string) data_get($letter, 'decider.employee.position.title', ''),
         ];
     }
 

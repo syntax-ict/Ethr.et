@@ -401,15 +401,36 @@ self.addEventListener('push', (event) => {
     payload = { title: 'ETHR', body: event.data.text() };
   }
 
+  const tag = payload.tag ?? 'ethr-notification';
+
+  // Open windows are told a push arrived, so a page that is already in view
+  // reads what it shows again (a presence check) instead of waiting for its
+  // next refresh. A failure to tell them never stops the notification.
+  const tellWindows = Promise.resolve()
+    .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then((windows) =>
+      windows.forEach((client) => {
+        try {
+          client.postMessage({ type: 'ethr-push', tag });
+        } catch {
+          // One window that cannot be told does not stop the others.
+        }
+      })
+    )
+    .catch(() => {});
+
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? 'ETHR', {
-      body: payload.body ?? '',
-      icon: '/app-icons/icon-192.png',
-      badge: '/app-icons/badge-72.png',
-      tag: payload.tag ?? 'ethr-notification',
-      data: payload.data ?? {},
-      requireInteraction: payload.requireInteraction ?? false,
-    })
+    Promise.all([
+      self.registration.showNotification(payload.title ?? 'ETHR', {
+        body: payload.body ?? '',
+        icon: '/app-icons/icon-192.png',
+        badge: '/app-icons/badge-72.png',
+        tag,
+        data: payload.data ?? {},
+        requireInteraction: payload.requireInteraction ?? false,
+      }),
+      tellWindows,
+    ])
   );
 });
 

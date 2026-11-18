@@ -65,14 +65,14 @@ it('numbers the pages of a long PDF', function () {
 
 it('names the organisation on the printed report', function () {
     $html = view('reports.export', [
-        'organisation' => 'Habru Textile',
+        'letterhead' => ['name' => 'Habru Textile', 'logo' => null, 'lines' => ['Tel: +251 11 000 0000']],
         'columns' => ['Name'],
         'rows' => [['Name' => 'Abebe']],
         'locale' => 'en',
         'generated_at' => '2026-11-15',
     ])->render();
 
-    expect($html)->toContain('<h1>Habru Textile</h1>');
+    expect($html)->toContain('Habru Textile')->toContain('Tel: +251 11 000 0000');
 });
 
 it('addresses a path-mode organisation at ethr.et/slug, with no scheme', function () {
