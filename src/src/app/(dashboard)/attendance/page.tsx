@@ -83,6 +83,7 @@ import {
 } from "@/features/attendance/components/day-note";
 import { punchOutcomeText } from "@/features/attendance/punch-outcome";
 import { PrintAction } from "@/components/shared/print-action";
+import { PrintScope, usePrintDateRange } from "@/components/shared/print-scope";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -109,6 +110,7 @@ export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
   const { t, locale } = useT();
   const { formatDate } = useCalendar();
+  const dateRangeText = usePrintDateRange();
   const [page, setPage] = useState(1);
   // In the address, so "who is absent today" can be opened from the
   // command palette or sent as a link, and survives a reload.
@@ -319,14 +321,16 @@ export default function AttendancePage() {
 
       <DayNote day={shift?.day} />
 
-      <MyExceptionsCard />
+      <div className="no-print">
+        <MyExceptionsCard />
+      </div>
 
       {/* Sub-nav — each link gated on the ability its page's API checks.
           Grouped by what the person is there to do: twelve links in one
           wrapping row read as a scatter of buttons, not as navigation. */}
       <nav
         aria-label={t("attendance.sub_nav", "Attendance pages")}
-        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 shadow-xs"
+        className="no-print grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 shadow-xs"
       >
         <SubNavGroup label={t("attendance.group_check_in", "Check in")}>
           <SubNav href="/attendance/scan" icon={QrCode}>
@@ -389,10 +393,41 @@ export default function AttendancePage() {
         )}
       </nav>
 
-      {can.manageAttendance && <SetupStatusPanel compact />}
+      {can.manageAttendance && (
+        <div className="no-print">
+          <SetupStatusPanel compact />
+        </div>
+      )}
+
+      <PrintScope
+        items={[
+          {
+            label: t("common.date", "Date"),
+            value: dateRangeText(dateFrom, dateTo),
+          },
+          ...(viewAll
+            ? [
+                {
+                  label: t("attendance.source", "Source"),
+                  value:
+                    sourceFilter === "all"
+                      ? ""
+                      : t(`attendance.source_${sourceFilter}`, sourceFilter),
+                },
+                {
+                  label: t("common.status", "Status"),
+                  value:
+                    statusFilter === "all"
+                      ? ""
+                      : t(`attendance.status_${statusFilter}`, statusFilter),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Filters */}
-      <div className="space-y-3">
+      <div className="no-print space-y-3">
         <div className="flex items-center gap-2">
           <Button
             variant={
