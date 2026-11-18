@@ -600,10 +600,12 @@ test('one missed check files nothing, and a pattern is filed once across two run
     pcScan();
     pcScan();
 
+    // toEqual, not toBe: MySQL 8 stores a JSON object with its keys reordered,
+    // so the same details come back in another order there.
     $flag = AttendanceIntegrityFlag::query()->where('type', 'presence_pattern')->sole();
     expect($flag->punch)->toBe('pattern')
         ->and($flag->severity)->toBe('medium')
-        ->and($flag->details)->toBe(['missed' => 2, 'unverified' => 1, 'total' => 3, 'days' => 14]);
+        ->and($flag->details)->toEqual(['missed' => 2, 'unverified' => 1, 'total' => 3, 'days' => 14]);
 });
 
 test('misses that are under half of the checks are not a pattern, and four are serious', function () {
