@@ -1224,6 +1224,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/conflicts/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join conflicts */
+        post: operations["attendanceConflict.join"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/conflicts/{conflict}/resolve": {
         parameters: {
             query?: never;
@@ -10797,6 +10814,12 @@ export interface components {
             possible_duplicates?: string;
             created_at: string | null;
         };
+        /** JoinConflictsRequest */
+        JoinConflictsRequest: {
+            conflict_ids?: string[];
+            employee_public_id?: string;
+            after?: string | null;
+        };
         /** KioskAttendanceDayResource */
         KioskAttendanceDayResource: {
             date: string | null;
@@ -17800,6 +17823,45 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceConflict.join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JoinConflictsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        joined: number;
+                        left: ({
+                            conflict_id: string;
+                            /** @enum {string|null} */
+                            reason: "payroll_locked" | "not_split_day" | "not_pending" | null;
+                        } | {
+                            conflict_id: string;
+                            /** @constant */
+                            reason: "not_found";
+                        })[];
+                        remaining: number;
+                        next_after: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceConflict.resolve": {
