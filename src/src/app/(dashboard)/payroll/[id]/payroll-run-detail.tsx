@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PrintAction } from "@/components/shared/print-action";
 import { Stepper, type Step } from "@/components/shared/stepper";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
@@ -604,6 +605,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
               {t("payroll_detail_page.reprocess_payroll")}
             </Button>
           )}
+          <PrintAction size="sm" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -724,7 +726,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="print-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           icon={Wallet}
           tone="primary"

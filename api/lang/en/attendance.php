@@ -49,6 +49,8 @@ return [
     'push_reminder_before_start' => 'Your shift starts at :time.',
     'push_reminder_not_checked_in' => 'You have not checked in yet. Your shift started at :time.',
     'push_reminder_shift_end' => 'Your shift ended at :time. Remember to check out.',
+    'push_presence_check' => 'Confirm you are at work. You have :minutes minutes.',
+    'presence_nothing_pending' => 'There is no presence check to confirm.',
     'device_not_registered' => 'This phone is not registered for your attendance. Register it from the attendance page while you are at work, or ask HR.',
     'device_pending_approval' => 'Your new phone is waiting for approval. Use your registered phone until it is approved.',
     'device_belongs_to_another' => 'This phone is registered to another employee. Punch from your own registered phone.',

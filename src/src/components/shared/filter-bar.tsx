@@ -36,7 +36,7 @@ export function FilterBar({
     <div
       role="group"
       aria-label={t("common.filters", "Filters")}
-      className={cn("flex flex-wrap items-center gap-3", className)}
+      className={cn("no-print flex flex-wrap items-center gap-3", className)}
     >
       {children}
       {activeCount > 0 && (

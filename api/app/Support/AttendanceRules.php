@@ -38,4 +38,7 @@ final class AttendanceRules
      * of a morning job and an evening one.
      */
     public const MAX_BREAK_MINUTES = 180;
+
+    /** How long a presence check waits for its answer, and how long the push may sit undelivered. */
+    public const PRESENCE_RESPONSE_MINUTES = 15;
 }

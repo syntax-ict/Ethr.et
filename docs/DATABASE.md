@@ -478,13 +478,27 @@ Formal conflict resolution tracking: record_a_id, record_b_id, conflict_type, re
 One row per tenant. `enabled_methods` JSON; geofence, selfie, kiosk PIN, QR and
 GPS-accuracy rules; offline sync; reminders and automatic check-out;
 `photo_retention_days`; `confidence_threshold`; overtime rules;
-`risk_review_threshold` (default 40), `adaptive_selfie` and `liveness_check`.
+`risk_review_threshold` (default 40), `adaptive_selfie` and `liveness_check`;
+`presence_checks_per_shift` (0 to 3, default 0, 0 is off, branch-overridable).
 `grace_period_minutes` is kept but no longer rates a punch: grace lives on the
 shift. A branch may override the keys in `AttendancePolicy::OVERRIDABLE`.
 
+### attendance_presence_checks
+One row per presence check actually pushed (`PresenceChecks`): `employee_id`,
+`attendance_record_id`, `slot` (unique with the record), `sent_at`,
+`expires_at` (15 minutes later), `answered_at`, `status` (sent, confirmed,
+outside, unverified or missed), the answer's `latitude`, `longitude`,
+`accuracy` and `distance_meters`, `device_verdict` and `idempotency_key`. The
+times of the checks are derived from the record and never stored; a record's
+`metadata` is rewritten whole by punches and would lose an answer that raced
+one, which is why this is a table. Rows older than 90 days are deleted daily.
+Indexes (tenant_id, status, expires_at) and (tenant_id, employee_id, sent_at).
+
 ### attendance_integrity_flags
 Findings on a record (rule-based checks, `high_risk` from the risk score, and
-the nightly pattern scan) with a review status. Index (tenant_id, employee_id, created_at).
+the nightly pattern scan, which includes `presence_pattern`) with a review status.
+`punch` is `check_in`, `check_out`, `day`, `presence` or `pattern`; rejecting a
+flag voids the record only for the first three. Index (tenant_id, employee_id, created_at).
 
 ### devices
 Biometric device management: type (hikvision/zkteco/suprema), connection details (IP, port, credentials 🔒), status (online/offline/error), last sync. Soft delete.

@@ -49,6 +49,8 @@ return [
     'push_reminder_before_start' => 'ፈረቃዎ በ:time ይጀምራል።',
     'push_reminder_not_checked_in' => 'እስካሁን አልገቡም። ፈረቃዎ በ:time ጀምሯል።',
     'push_reminder_shift_end' => 'ፈረቃዎ በ:time አብቅቷል። መውጣትዎን አይርሱ።',
+    'push_presence_check' => 'በስራ ቦታዎ መሆንዎን ያረጋግጡ። :minutes ደቂቃ አለዎት።',
+    'presence_nothing_pending' => 'የሚያረጋግጡት የመገኘት ማረጋገጫ የለም።',
     'device_not_registered' => 'ይህ ስልክ ለመገኘትዎ አልተመዘገበም። በሥራ ቦታ ሳሉ ከመገኘት ገጹ ያስመዝግቡት፣ ወይም የሰው ሀብትን ይጠይቁ።',
     'device_pending_approval' => 'አዲሱ ስልክዎ ማጽደቅ እየጠበቀ ነው። እስኪጸድቅ ድረስ የተመዘገበውን ስልክዎን ይጠቀሙ።',
     'device_belongs_to_another' => 'ይህ ስልክ ለሌላ ሠራተኛ ተመዝግቧል። ከራስዎ የተመዘገበ ስልክ ይመዝገቡ።',

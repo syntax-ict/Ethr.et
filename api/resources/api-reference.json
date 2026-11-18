@@ -6348,6 +6348,36 @@
                                                 "auto_checkout",
                                                 "auto_checkout_after_minutes"
                                             ]
+                                        },
+                                        "presence": {
+                                            "type": "object",
+                                            "properties": {
+                                                "enabled": {
+                                                    "type": "boolean"
+                                                },
+                                                "pending": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "asked_at": {
+                                                            "type": "string"
+                                                        },
+                                                        "expires_at": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "asked_at",
+                                                        "expires_at"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "enabled",
+                                                "pending"
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -6360,7 +6390,8 @@
                                         "shift",
                                         "attendance",
                                         "policy",
-                                        "assistant"
+                                        "assistant",
+                                        "presence"
                                     ]
                                 }
                             }
@@ -7775,6 +7806,115 @@
                 }
             }
         },
+        "/attendance/presence/confirm": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendancePresence.confirm",
+                "summary": "Confirm presence",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmPresenceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AttendancePresenceCheckResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttendancePresenceCheckResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/not-found"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Not Found"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 404
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "There is no presence check to confirm."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "const": "https://ethr.et/errors/not-found"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "const": "Not Found"
+                                                },
+                                                "status": {
+                                                    "type": "integer",
+                                                    "const": 404
+                                                },
+                                                "detail": {
+                                                    "type": "string",
+                                                    "const": "No employee profile linked to your account."
+                                                }
+                                            },
+                                            "required": [
+                                                "type",
+                                                "title",
+                                                "status",
+                                                "detail"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/attendance/qr": {
             "post": {
                 "x-abilities": [
@@ -8195,6 +8335,12 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "presence_checks_per_shift": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "device_binding": {
                                                     "type": [
                                                         "string",
@@ -8221,6 +8367,7 @@
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
                                                 "risk_review_threshold",
+                                                "presence_checks_per_shift",
                                                 "device_binding",
                                                 "office_networks"
                                             ]
@@ -8266,6 +8413,10 @@
                                                 },
                                                 {
                                                     "type": "string",
+                                                    "const": "presence_checks_per_shift"
+                                                },
+                                                {
+                                                    "type": "string",
                                                     "const": "device_binding"
                                                 },
                                                 {
@@ -8273,8 +8424,8 @@
                                                     "const": "office_networks"
                                                 }
                                             ],
-                                            "minItems": 11,
-                                            "maxItems": 11,
+                                            "minItems": 12,
+                                            "maxItems": 12,
                                             "additionalItems": false
                                         },
                                         "branches": {
@@ -8357,6 +8508,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "presence_checks_per_shift": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "device_binding": {
                                                                 "type": [
                                                                     "string",
@@ -8383,6 +8540,7 @@
                                                             "auto_checkout_after_minutes",
                                                             "geofence_auto_checkin_enabled",
                                                             "risk_review_threshold",
+                                                            "presence_checks_per_shift",
                                                             "device_binding",
                                                             "office_networks"
                                                         ]
@@ -8447,6 +8605,12 @@
                                                                     "null"
                                                                 ]
                                                             },
+                                                            "presence_checks_per_shift": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "device_binding": {
                                                                 "type": [
                                                                     "string",
@@ -8473,6 +8637,7 @@
                                                             "auto_checkout_after_minutes",
                                                             "geofence_auto_checkin_enabled",
                                                             "risk_review_threshold",
+                                                            "presence_checks_per_shift",
                                                             "device_binding",
                                                             "office_networks"
                                                         ]
@@ -8622,6 +8787,12 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "presence_checks_per_shift": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "device_binding": {
                                                     "type": [
                                                         "string",
@@ -8648,6 +8819,7 @@
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
                                                 "risk_review_threshold",
+                                                "presence_checks_per_shift",
                                                 "device_binding",
                                                 "office_networks"
                                             ]
@@ -8712,6 +8884,12 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "presence_checks_per_shift": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "device_binding": {
                                                     "type": [
                                                         "string",
@@ -8738,6 +8916,7 @@
                                                 "auto_checkout_after_minutes",
                                                 "geofence_auto_checkin_enabled",
                                                 "risk_review_threshold",
+                                                "presence_checks_per_shift",
                                                 "device_binding",
                                                 "office_networks"
                                             ]
@@ -9109,6 +9288,32 @@
                                                             "fix_route": {
                                                                 "type": "string",
                                                                 "const": "/attendance/kiosks"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "severity",
+                                                            "count",
+                                                            "fix_route"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "const": "presence_unreachable"
+                                                            },
+                                                            "severity": {
+                                                                "type": "string",
+                                                                "const": "warning"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            },
+                                                            "fix_route": {
+                                                                "type": "string",
+                                                                "const": "/settings/attendance"
                                                             }
                                                         },
                                                         "required": [
@@ -46179,6 +46384,55 @@
                 ],
                 "title": "AttendancePhotoResource"
             },
+            "AttendancePresenceCheckResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "confirmed",
+                            "outside",
+                            "unverified",
+                            "missed",
+                            "sent"
+                        ]
+                    },
+                    "asked_at": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "answered_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "distance_meters": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "late": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "status",
+                    "asked_at",
+                    "expires_at",
+                    "answered_at",
+                    "distance_meters",
+                    "late"
+                ],
+                "title": "AttendancePresenceCheckResource"
+            },
             "AttendancePunchResource": {
                 "type": "object",
                 "properties": {
@@ -46681,6 +46935,9 @@
                     "risk_review_threshold": {
                         "type": "integer"
                     },
+                    "presence_checks_per_shift": {
+                        "type": "integer"
+                    },
                     "adaptive_selfie": {
                         "type": "boolean"
                     },
@@ -46732,6 +46989,7 @@
                     "geofence_auto_checkin_enabled",
                     "photo_retention_days",
                     "risk_review_threshold",
+                    "presence_checks_per_shift",
                     "adaptive_selfie",
                     "liveness_check",
                     "device_binding",
@@ -47555,6 +47813,148 @@
                     "body"
                 ],
                 "title": "ConcernMessageRequest"
+            },
+            "ConfirmPresenceRequest": {
+                "type": "object",
+                "properties": {
+                    "idempotency_key": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "accuracy": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 100000
+                    },
+                    "altitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -500,
+                        "maximum": 9000
+                    },
+                    "speed": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                    },
+                    "heading": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 360
+                    },
+                    "fix_age_ms": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 86400000
+                    },
+                    "device_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^[A-Za-z0-9\\-]+$",
+                        "maxLength": 64
+                    },
+                    "client_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "webdriver": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "device_proof": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "rawId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "pattern": "^[A-Za-z0-9_\\-]*$",
+                                "maxLength": 1024
+                            },
+                            "type": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "public-key",
+                                    null
+                                ]
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "clientDataJSON": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "authenticatorData": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 4096
+                                    },
+                                    "signature": {
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 2048
+                                    },
+                                    "userHandle": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "pattern": "^[A-Za-z0-9_\\-]*$",
+                                        "maxLength": 1024
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "idempotency_key",
+                    "latitude",
+                    "longitude"
+                ],
+                "title": "ConfirmPresenceRequest"
             },
             "ContractStatus": {
                 "type": "string",
@@ -57329,6 +57729,11 @@
                         "minimum": 10,
                         "maximum": 100
                     },
+                    "presence_checks_per_shift": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                    },
                     "adaptive_selfie": {
                         "type": "boolean"
                     },
@@ -57435,6 +57840,14 @@
                                 ],
                                 "minimum": 10,
                                 "maximum": 100
+                            },
+                            "presence_checks_per_shift": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 0,
+                                "maximum": 3
                             },
                             "device_binding": {
                                 "type": [

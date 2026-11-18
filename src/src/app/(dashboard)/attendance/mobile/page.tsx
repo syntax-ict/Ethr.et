@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DayStrip } from "@/features/attendance/components/mobile/day-strip";
 import { PunchButton } from "@/features/attendance/components/mobile/punch-button";
+import { PresenceCard } from "@/features/attendance/components/mobile/presence-card";
 import { PunchConfirmation } from "@/features/attendance/components/mobile/punch-confirmation";
 import { SyncStatus } from "@/features/attendance/components/mobile/sync-status";
 import {
@@ -822,6 +823,19 @@ export default function MobilePunchPage() {
         }
       />
 
+      {/* A presence check waiting for an answer, above the punch button. */}
+      {shift?.presence?.enabled && (
+        <PresenceCard
+          pending={shift.presence.pending}
+          position={position}
+          locating={locating}
+          problem={locationProblem}
+          onLocate={locate}
+          sign={signPunch}
+          isOnline={isOnline}
+        />
+      )}
+
       {done && (
         <PunchConfirmation
           tone={outcome?.tone ?? "success"}
@@ -1053,7 +1067,8 @@ export default function MobilePunchPage() {
       {!done &&
         shift &&
         (shift.assistant.reminders_allowed ||
-          shift.assistant.auto_check_in_allowed) && (
+          shift.assistant.auto_check_in_allowed ||
+          shift.presence?.enabled) && (
           <AssistantCard
             shift={shift}
             punchReminders={user?.preferences?.punch_reminders ?? true}
@@ -1188,7 +1203,17 @@ function AssistantCard({
         </div>
       )}
 
-      {shift.assistant.reminders_allowed && <PushToggle />}
+      {(shift.assistant.reminders_allowed || shift.presence?.enabled) && (
+        <PushToggle />
+      )}
+      {shift.presence?.enabled && (
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "attendance.presence.uses_checks",
+            "Your organisation uses presence checks during the shift. Notifications are how they reach you, so keep them on.",
+          )}
+        </p>
+      )}
 
       {shift.assistant.auto_check_in_allowed && (
         <div className="flex items-start justify-between gap-3">

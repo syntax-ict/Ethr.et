@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageActions } from "@/components/shared/page-actions";
+import { PrintAction } from "@/components/shared/print-action";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useShiftSchedule, useShifts } from "@/features/shifts/api";
 import {
@@ -260,6 +261,7 @@ export default function RosterPage() {
         <PageActions
           actions={
             <div className="flex gap-2">
+              <PrintAction />
               <Link href="/shifts/assignments">
                 <Button variant="outline">
                   {t("shift_roster_page.manage_assignments")}

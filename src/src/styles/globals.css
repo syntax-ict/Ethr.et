@@ -829,20 +829,82 @@
     padding: 0 !important;
   }
 
-  /* The organisation, the page and the date, once at the top of the paper. */
+  /* The frame at the top of the paper: the organisation (with its logo) and
+     the page's title on the left; when it was printed and by whom on the
+     right. See PrintHeader. */
   .print-header {
     display: flex !important;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-end;
     gap: 1rem;
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
     padding: 0 0 0.5rem;
-    border-bottom: 1px solid #0f172a;
-    font-size: 11pt;
+    border-bottom: 1.5px solid #0f172a;
+    break-after: avoid;
   }
 
-  .print-header strong {
+  .print-header-id {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .print-header-logo {
+    height: 11mm;
+    width: auto;
+    max-width: 30mm;
+    object-fit: contain;
+  }
+
+  .print-header-org {
+    font-size: 9.5pt;
     font-weight: 600;
+    color: #475569;
+  }
+
+  .print-header-title {
+    font-size: 16pt;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #0a2540;
+  }
+
+  .print-header-meta {
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    color: #475569;
+  }
+
+  /* What the list is a list of: the filters and dates applied on screen. */
+  .print-scope {
+    display: block !important;
+    margin: 0 0 0.75rem;
+    font-size: 9pt;
+    color: #334155;
+  }
+
+  .print-scope-label {
+    font-weight: 600;
+  }
+
+  /* The pager's "Showing 1 to 25 of 313" is part of the record; its buttons
+     are hidden with every other button. */
+  nav.print-keep {
+    display: flex !important;
+    border: 0;
+  }
+
+  /* Page numbers, bottom right: "2 / 5". Numbers only, so no translation.
+     Chrome 131 and later draw page margin boxes; others print without. */
+  @page {
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #64748b;
+    }
   }
 
   /* Side-by-side columns are for a screen; paper reads top to bottom. */
@@ -852,6 +914,19 @@
 
   .grid > * + * {
     margin-top: 0.75rem;
+  }
+
+  /* A row of figures stays a row on paper. Opt-in, because most grids are
+     screen layout that reads better stacked. --print-cols says how many. */
+  .print-grid {
+    display: grid !important;
+    grid-template-columns: repeat(var(--print-cols, 4), minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .print-grid > * {
+    margin-top: 0 !important;
+    break-inside: avoid;
   }
 
   /* Tables carry across pages with their header on each, and a row is never
@@ -881,6 +956,13 @@
   h2,
   h3 {
     break-after: avoid;
+  }
+
+  /* A card that holds a table is as long as the table. Keeping it whole
+     pushed a long list to a page of its own and left the first one blank. */
+  .rounded-xl:has(table),
+  .rounded-lg:has(table) {
+    break-inside: auto;
   }
 
   th,
@@ -922,6 +1004,68 @@
   .print-expand [style*="max-height"] {
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /* Buttons are hidden, but a few of them carry words the paper needs. They
+     come after the blanket rule and are more specific, so they win. */
+
+  /* A sortable column header is a button around its name. */
+  th button {
+    display: contents !important;
+    font: inherit;
+    color: inherit;
+  }
+
+  th button svg {
+    display: none !important;
+  }
+
+  /* Of a page's tabs, only the one that was open is printed, as plain text:
+     the paper says which view it is. */
+  [role="tablist"] {
+    display: block !important;
+    margin: 0 0 0.5rem;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    mask-image: none !important;
+    overflow: visible !important;
+  }
+
+  [role="tablist"] [role="tab"]:not([data-state="active"]) {
+    display: none !important;
+  }
+
+  [role="tablist"] [role="tab"][data-state="active"] {
+    display: inline !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    font-size: 12pt;
+    font-weight: 600;
+    color: #0a2540;
+  }
+
+  [role="tablist"] [role="tab"][data-state="active"] svg {
+    display: none !important;
+  }
+
+  /* A status pill keeps its tint where the browser prints backgrounds and,
+     where it does not, still reads as a pill: an outline in the text's own
+     colour carries the boundary. */
+  .print-badge {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    border: 1px solid currentColor !important;
+  }
+
+  /* Hiding wins over layout. `.grid { display: block !important }` above
+     has the same weight as `.no-print` and comes later, so a navigation
+     bar or a card that is also a grid stayed on the paper. The pager is the
+     one navigation that prints (see .print-keep). */
+  .no-print,
+  nav:not(.print-keep) {
+    display: none !important;
   }
 }
 
@@ -1780,22 +1924,48 @@
   }
 }
 
-/* A vacancy or announcement opened on the portal prints as the page's only
-   content, so a position can be pinned on a notice board. The dialog is
-   portalled to the end of <body>, which is why this hides by visibility
-   rather than display: the dialog's ancestors must keep their boxes. */
+/* A vacancy, an announcement or a sheet of activation codes opened in a dialog
+   prints as the page's only content, so it can be pinned on a notice board or
+   handed out. The dialog is portalled into a wrapper that is a direct child of
+   <body>. Every other child is taken out of the flow with display: none: hiding
+   it by visibility alone leaves its full height behind, and the dialog then
+   starts several blank pages down. Inside the wrapper the overlay and any other
+   sibling stay hidden by visibility, which keeps the dialog's own ancestors
+   boxed. The dialog is .fixed and carries Tailwind's translate-x/y, which are
+   the CSS `translate` property, not `transform`; the general print block above
+   forces .fixed to static, so position, translate and scale are all reset here
+   with !important or the sheet sits half off the left edge of the paper. */
 @media print {
+  body:has(.print-surface) > :not(:has(.print-surface)) {
+    display: none !important;
+  }
   body:has(.print-surface) *:not(.print-surface, .print-surface *) {
     visibility: hidden;
   }
   body:has(.print-surface) .print-surface {
     visibility: visible;
-    position: absolute;
-    inset: 0;
-    max-height: none;
-    overflow: visible;
-    transform: none;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0;
     box-shadow: none;
+  }
+  /* The general print rule flattens every .grid into one column; the slips stay
+     two to a row on paper so a sheet of 30 uses three pages, not twelve. */
+  .print-surface .print-slips {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3mm;
+  }
+  .print-surface .print-slips > * {
+    margin-top: 0 !important;
   }
 }
