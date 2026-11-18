@@ -2240,6 +2240,116 @@
                 }
             }
         },
+        "/attendance/conflicts/join": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "attendance"
+                ],
+                "operationId": "attendanceConflict.join",
+                "summary": "Join conflicts",
+                "tags": [
+                    "Attendance"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/JoinConflictsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "joined": {
+                                            "type": "integer"
+                                        },
+                                        "left": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "conflict_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "reason": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ],
+                                                                "enum": [
+                                                                    "payroll_locked",
+                                                                    "not_split_day",
+                                                                    "not_pending",
+                                                                    null
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "conflict_id",
+                                                            "reason"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "conflict_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "reason": {
+                                                                "type": "string",
+                                                                "const": "not_found"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "conflict_id",
+                                                            "reason"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "remaining": {
+                                            "type": "integer"
+                                        },
+                                        "next_after": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "joined",
+                                        "left",
+                                        "remaining",
+                                        "next_after"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/attendance/conflicts/{conflict}/resolve": {
             "put": {
                 "x-abilities": [
@@ -50802,6 +50912,35 @@
                     "created_at"
                 ],
                 "title": "JobApplicationResource"
+            },
+            "JoinConflictsRequest": {
+                "type": "object",
+                "properties": {
+                    "conflict_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "minItems": 1,
+                        "maxItems": 200
+                    },
+                    "employee_public_id": {
+                        "type": "string",
+                        "minLength": 26,
+                        "maxLength": 26
+                    },
+                    "after": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 26,
+                        "maxLength": 26
+                    }
+                },
+                "title": "JoinConflictsRequest"
             },
             "KioskAttendanceRequest": {
                 "type": "object",

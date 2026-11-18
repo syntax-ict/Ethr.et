@@ -4909,3 +4909,17 @@ after the shift's end or after more than 180 minutes (a second session, flagged 
 which still subtract the shift's fixed `break_minutes` once per record (owner decision 2026-11-18): the measured
 gap is stored, not paid. Days already recorded as two records stay two until they are joined from the
 Conflicts page (a separate change). Pinned by `tests/Feature/Attendance/RejoinSplitDayTest.php`.
+
+**Addendum, the same day: joining the days already recorded as two.** Resolving a conflict as `merged` used to
+change no record. For a pair that is a split day it now joins them (`SplitDayJoiner`): same employee and same
+`date`, neither record void, the earlier one closed, the later one opened strictly after that check-out and not
+closed before it opened. The earlier record is kept whichever the conflict calls A. Its check-out becomes a
+`breaks` `out` entry and the later check-in an `in` entry, each carrying its key, place and selfie (the shape
+`rejoinDay` writes, so `findByRejoinKey`, `IntegrityInspector` and `PhotoRetention` need no change); the later
+record's check-out, key, place and selfie become the day's; the punch logs are combined in time order; the later
+record is voided `conflict_joined`; status is rated again by `AttendanceEngine::reclassify`. Any other `merged`
+pair still changes no record, and a day paid in an approved run is refused with the same 422 as `keep_a`.
+`POST /api/v1/attendance/conflicts/join` does it for a list of conflicts (up to 200) or for every pending one of a
+person, in slices of 12 seconds with a cursor (`after`, `next_after`), and names each one it left with a reason
+(`not_split_day`, `payroll_locked`, `not_pending`, `not_found`). Audited as `attendance.split_day_joined`. No
+migration. Pinned by `tests/Feature/Attendance/JoinSplitDayTest.php`.
