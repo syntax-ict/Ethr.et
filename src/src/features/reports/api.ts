@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { saveBlob } from "@/lib/utils/csv-export";
 import type { components, operations } from "@/api/generated";
 
 type Schemas = components["schemas"];
@@ -205,9 +206,24 @@ export function useDeleteScheduledReport() {
   });
 }
 
-// No hook for POST /reports/export, deliberately. It runs the same
-// ReportEngine::generate() call as /reports/generate — same 1000-row limits —
-// so the rows the Reports page already holds from its preview are exactly the
-// rows an export would return, and the page builds the CSV from them through
-// csvCell, which neutralises spreadsheet formulas. ReportEngine::toCsv() does
-// not. The server route stays for API clients and the PDF format.
+// No hook for the CSV side of POST /reports/export, deliberately. It runs the
+// same ReportEngine::generate() call as /reports/generate — same 1000-row
+// limits — so the rows the Reports page already holds from its preview are
+// exactly the rows an export would return, and the page builds the CSV from
+// them through csvCell, which neutralises spreadsheet formulas.
+// ReportEngine::toCsv() does not. The PDF is made only by the server, so it
+// has a download function: downloadReportPdf.
+
+/** The body of a PDF export: a report configuration with its source and format. */
+export type ReportPdfRequest = ReportConfig & { format: "pdf" };
+
+/** The server's PDF of a report (A4 landscape, organisation heading, page numbers), saved as a file. */
+export async function downloadReportPdf(
+  body: ReportPdfRequest,
+  filename: string,
+): Promise<void> {
+  const { data } = await apiClient.post("/reports/export", body, {
+    responseType: "blob",
+  });
+  saveBlob(filename, data);
+}

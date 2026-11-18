@@ -1361,6 +1361,9 @@
   "attendance.reason_placeholder": "ይህ የእጅ ግቤት ለምን ያስፈልጋል?",
   "attendance.reason_required": "ምክንያት *",
   "attendance.record_entry": "ግቤት መዝግብ",
+  "attendance.register_pdf": "ሙሉ መዝገብ እንደ PDF",
+  "attendance.register_pdf_failed": "የመዝገቡ PDF ሊዘጋጅ አልቻለም። እንደገና ይሞክሩ።",
+  "attendance.register_pdf_not_applied": "PDF የ:filter ማጣሪያን አይተገብርም።",
   "attendance.reminder.before_start_body": "በ:start ይጀምራል። ሲደርሱ ይግቡ።",
   "attendance.reminder.before_start_title": "ፈረቃዎ በቅርቡ ይጀምራል",
   "attendance.reminder.not_checked_in_body": "ፈረቃዎ በ:start ጀምሯል። አሁን ይግቡ፤ አለበለዚያ እንደዘገዩ ይመዘገባሉ።",
@@ -7729,5 +7732,6 @@
   "print.printed": "የታተመበት :when",
   "print.printed_by": "ያተመው :name",
   "print.range": ":from እስከ :to",
+  "print.this_page": "ይህን ገጽ አትም",
   "print.until": "እስከ :to"
 }
