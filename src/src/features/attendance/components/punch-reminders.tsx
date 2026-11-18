@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/features/auth/api";
@@ -61,6 +61,27 @@ function alreadyReminded(date: string, kind: ReminderKind): boolean {
   }
 }
 
+function presenceKey(askedAt: string): string {
+  return `ethr:presence-noticed:${askedAt}`;
+}
+
+/** One notice per check: a check is told once, wherever the person is. */
+function presenceNoticed(askedAt: string): boolean {
+  try {
+    return window.localStorage.getItem(presenceKey(askedAt)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markPresenceNoticed(askedAt: string): void {
+  try {
+    window.localStorage.setItem(presenceKey(askedAt), "1");
+  } catch {
+    // Private browsing: at worst the notice repeats after a reload.
+  }
+}
+
 function markReminded(date: string, kind: ReminderKind): void {
   try {
     window.localStorage.setItem(remindedKey(date, kind), "1");
@@ -89,6 +110,7 @@ export function PunchReminders() {
   const { data: shift } = useMyShift(hasEmployee);
   const queryClient = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
   const { t } = useT();
   const { formatTimeOfDay } = useDateFormatters();
 
@@ -135,6 +157,28 @@ export function PunchReminders() {
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [shift, queryClient, router, t, formatTimeOfDay]);
 
+  // A presence check waiting for an answer, told once from anywhere in the app
+  // except the punch screen, which shows it as a card above the button.
+  const pendingAskedAt = shift?.presence?.pending?.asked_at ?? null;
+  const pendingExpiresAt = shift?.presence?.pending?.expires_at ?? null;
+  const onPunchScreen = (pathname ?? "").startsWith("/attendance/mobile");
+  useEffect(() => {
+    if (!pendingAskedAt || !pendingExpiresAt || onPunchScreen) return;
+    if (new Date(pendingExpiresAt).getTime() <= Date.now()) return;
+    if (presenceNoticed(pendingAskedAt)) return;
+    markPresenceNoticed(pendingAskedAt);
+    void notify(
+      t("attendance.presence.notice_title", "Confirm you are at work"),
+      t(
+        "attendance.presence.notice_body",
+        "Open ETHR and tap I am here. You have a few minutes.",
+      ),
+      () => router.push("/attendance/mobile"),
+      t,
+      "presence-check",
+    );
+  }, [pendingAskedAt, pendingExpiresAt, onPunchScreen, router, t]);
+
   return null;
 }
 
@@ -143,6 +187,7 @@ async function notify(
   body: string,
   open: () => void,
   t: (key: string, fallback?: string) => string,
+  tag = "ethr-punch-reminder",
 ): Promise<void> {
   if (
     typeof Notification !== "undefined" &&
@@ -154,7 +199,7 @@ async function notify(
       if (registration) {
         await registration.showNotification(title, {
           body,
-          tag: "ethr-punch-reminder",
+          tag,
           icon: "/app-icons/icon-192.png",
           badge: "/app-icons/badge-72.png",
           data: { url: "/attendance/mobile" },

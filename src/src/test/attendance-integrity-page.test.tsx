@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -132,5 +138,130 @@ describe("Attendance integrity page", () => {
         note: "60 km from the branch.",
       }),
     );
+  });
+});
+
+describe("findings that are not about a punch", () => {
+  function serve(flags: IntegrityFlag[]) {
+    server.use(
+      http.get("*/attendance/integrity", () =>
+        HttpResponse.json({
+          data: flags,
+          meta: { current_page: 1, last_page: 1, total: flags.length },
+        }),
+      ),
+    );
+  }
+
+  it("words a presence answer from outside the workplace", async () => {
+    serve([
+      flag({
+        punch: "presence",
+        details: {
+          source: "presence",
+          asked_at: "2026-11-18T07:00:00Z",
+          answered_at: "2026-11-18T07:04:00Z",
+          distance_meters: 480,
+          nearest: { name: "Head office", radius_meters: 150 },
+        },
+      }),
+    ]);
+    renderPage();
+
+    expect(
+      await screen.findByText("Outside the workplace at a presence check"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/from 480 m away from Head office/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Presence check/)).toBeInTheDocument();
+  });
+
+  it("words a pattern of missed presence checks", async () => {
+    serve([
+      flag({
+        type: "presence_pattern",
+        punch: "pattern",
+        severity: "medium",
+        details: { missed: 3, unverified: 1, total: 5, days: 14 },
+      }),
+    ]);
+    renderPage();
+
+    expect(
+      await screen.findByText("Presence checks missed or unverified"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "3 missed and 1 unverified of 5 presence checks in 14 days.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("gives a kiosk report of the wrong person its own words", async () => {
+    serve([
+      flag({
+        type: "kiosk_wrong_person",
+        punch: "check_in",
+        details: { source: "kiosk", kiosk_session_id: 4 },
+      }),
+    ]);
+    renderPage();
+
+    expect(
+      await screen.findByText("Reported as the wrong person at a kiosk"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("kiosk_wrong_person")).toBeNull();
+  });
+
+  it("offers Excused and Not excused for a presence flag, and keeps the day", async () => {
+    let body: Record<string, unknown> | null = null;
+    serve([flag({ punch: "presence" })]);
+    server.use(
+      http.put("*/attendance/integrity/f1/review", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          flag({ punch: "presence", status: "rejected" }),
+        );
+      }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Excused" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reject$/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Not excused" }));
+
+    expect(
+      await screen.findByText(/The day.s record is kept/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/is voided/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/reason/i), {
+      target: { value: "No answer to the check." },
+    });
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Not excused" }),
+    );
+
+    await waitFor(() =>
+      expect(body).toEqual({
+        decision: "reject",
+        note: "No answer to the check.",
+      }),
+    );
+  });
+
+  it("keeps Accept and Reject, and the voiding warning, for a check-in flag", async () => {
+    serve([flag({ punch: "check_in" })]);
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: /^accept$/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excused" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^reject$/i }));
+    expect(await screen.findByText(/The punch is voided/)).toBeInTheDocument();
   });
 });
