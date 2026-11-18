@@ -161,7 +161,7 @@ describe("findings that are not about a punch", () => {
           source: "presence",
           asked_at: "2026-11-18T07:00:00Z",
           answered_at: "2026-11-18T07:04:00Z",
-          distance_meters: 480,
+          distance_meters: 20000,
           nearest: { name: "Head office", radius_meters: 150 },
         },
       }),
@@ -172,7 +172,7 @@ describe("findings that are not about a punch", () => {
       await screen.findByText("Outside the workplace at a presence check"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/from 480 m away from Head office/),
+      screen.getByText(/from 20 km away from Head office/),
     ).toBeInTheDocument();
     expect(screen.getByText(/Presence check/)).toBeInTheDocument();
   });

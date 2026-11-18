@@ -593,7 +593,7 @@
   "auth.org_type_required": "የድርጅቱን ዓይነት ይምረጡ።",
   "branch_rules.presence_checks": "የመገኘት ማረጋገጫ",
   "integrity.detail.kiosk_wrong_person": "ከዚህ ምዝገባ በኋላ ማያው ሌላ ሰው ስላሳየ በኪዮስክ ላይ ያለ ሰው «እርስዎ አይደሉም?» የሚለውን ተጭኗል። እርስዎ እስኪወስኑ ምዝገባው ተይዟል።",
-  "integrity.detail.presence_outside": "የመገኘት ማረጋገጫን ከ:place በ:distance ሜ ርቀት ላይ ሆነው መልሰዋል፤ የተጠየቀው በ:asked፣ የተመለሰው በ:answered ነው።",
+  "integrity.detail.presence_outside": "የመገኘት ማረጋገጫን ከ:place በ:distance ርቀት ላይ ሆነው መልሰዋል፤ የተጠየቀው በ:asked፣ የተመለሰው በ:answered ነው።",
   "integrity.detail.presence_pattern": "በ:days ቀናት ውስጥ ከ:total የመገኘት ማረጋገጫዎች :missed አምልጠዋል፣ :unverified አልተረጋገጡም።",
   "integrity.detail.presence_workplace": "ሥራ ቦታ",
   "integrity.excused": "ምክንያት አለው",

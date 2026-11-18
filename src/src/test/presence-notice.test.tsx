@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -115,5 +115,40 @@ describe("the presence notice", () => {
     mount(null);
     await new Promise((r) => setTimeout(r, 300));
     expect(toasts.toast).not.toHaveBeenCalled();
+  });
+
+  it("reads my shift again when the worker says a presence check arrived", async () => {
+    const listeners = new Set<(e: MessageEvent) => void>();
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        addEventListener: (_: string, l: (e: MessageEvent) => void) =>
+          listeners.add(l),
+        removeEventListener: (_: string, l: (e: MessageEvent) => void) =>
+          listeners.delete(l),
+        getRegistration: async () => undefined,
+      },
+    });
+    let reads = 0;
+    mount(null);
+    server.use(
+      http.get("*/api/v1/attendance/my-shift", () => {
+        reads += 1;
+        return HttpResponse.json(shift(null));
+      }),
+    );
+    await waitFor(() => expect(listeners.size).toBe(1));
+    await new Promise((r) => setTimeout(r, 500));
+    const base = reads;
+    const send = (data: unknown) =>
+      act(() => listeners.forEach((l) => l({ data } as MessageEvent)));
+
+    send({ type: "ethr-push", tag: "ethr-notification" });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(reads).toBe(base);
+
+    send({ type: "ethr-push", tag: "presence-check" });
+    await waitFor(() => expect(reads).toBe(base + 1));
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker;
   });
 });

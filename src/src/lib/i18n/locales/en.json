@@ -593,7 +593,7 @@
   "auth.org_type_required": "Choose the type of organisation.",
   "branch_rules.presence_checks": "Presence checks",
   "integrity.detail.kiosk_wrong_person": "Someone at the kiosk pressed Not you? after this punch, because the screen showed another person. The punch was kept until you decide.",
-  "integrity.detail.presence_outside": "Answered a presence check from :distance m away from :place, asked at :asked and answered at :answered.",
+  "integrity.detail.presence_outside": "Answered a presence check from :distance away from :place, asked at :asked and answered at :answered.",
   "integrity.detail.presence_pattern": ":missed missed and :unverified unverified of :total presence checks in :days days.",
   "integrity.detail.presence_workplace": "the workplace",
   "integrity.excused": "Excused",

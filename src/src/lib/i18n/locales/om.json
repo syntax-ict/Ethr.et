@@ -593,7 +593,7 @@
   "auth.org_type_required": "Gosa dhaabbataa filadhu.",
   "branch_rules.presence_checks": "Mirkaneessa argamaa",
   "integrity.detail.kiosk_wrong_person": "Galmee kana booda, ibsaan nama biraa agarsiisuu isaatiin, namni kiyoskii bira jiru «Isin miti?» jedhu cuuphe. Hanga isin murteessitanitti galmeen kuufameera.",
-  "integrity.detail.presence_outside": "Mirkaneessa argamaa :place irraa fageenya meetira :distance irraa deebiseera; kan gaafatame :asked, kan deebifame :answered dha.",
+  "integrity.detail.presence_outside": "Mirkaneessa argamaa :place irraa fageenya :distance irraa deebiseera; kan gaafatame :asked, kan deebifame :answered dha.",
   "integrity.detail.presence_pattern": "Guyyoota :days keessatti mirkaneessa argamaa :total keessaa :missed darbeera, :unverified hin mirkanoofne.",
   "integrity.detail.presence_workplace": "bakka hojii",
   "integrity.excused": "Dhiifama",

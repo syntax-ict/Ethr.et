@@ -179,6 +179,26 @@ export function PunchReminders() {
     );
   }, [pendingAskedAt, pendingExpiresAt, onPunchScreen, router, t]);
 
+  // The service worker tells open windows when a push arrives. A presence check
+  // is read again at once, so the card and the notice above do not wait for
+  // the next refresh; every other tag is ignored.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+    const container = navigator.serviceWorker;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: unknown; tag?: unknown } | null;
+      if (data?.type === "ethr-push" && data.tag === "presence-check") {
+        void queryClient.invalidateQueries({
+          queryKey: ["attendance", "my-shift"],
+        });
+      }
+    };
+    container.addEventListener("message", onMessage);
+    return () => container.removeEventListener("message", onMessage);
+  }, [queryClient]);
+
   return null;
 }
 

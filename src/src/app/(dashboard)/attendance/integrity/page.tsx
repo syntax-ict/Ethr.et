@@ -18,6 +18,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCurrentUser } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
+import { formatDistance } from "@/lib/attendance/format-distance";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -261,7 +262,7 @@ function Segmented<T extends string>({
 
 /** A finding in words, with the numbers that raised it. */
 function useDescribeFlag() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { formatDate, formatTime } = useDateFormatters();
 
   const nearestName = (nearest: unknown): string => {
@@ -292,9 +293,12 @@ function useDescribeFlag() {
             ),
             detail: t(
               "integrity.detail.presence_outside",
-              "Answered a presence check from :distance m away from :place, asked at :asked and answered at :answered.",
+              "Answered a presence check from :distance away from :place, asked at :asked and answered at :answered.",
               {
-                distance: n("distance_meters"),
+                distance:
+                  typeof d.distance_meters === "number"
+                    ? formatDistance(d.distance_meters, locale)
+                    : "?",
                 place: nearestName(d.nearest),
                 asked: clockOf(d.asked_at),
                 answered: clockOf(d.answered_at),
