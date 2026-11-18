@@ -73,6 +73,7 @@ function shift(
       auto_checkout: false,
       auto_checkout_after_minutes: 120,
     },
+    presence: { enabled: false, pending: null },
   };
 }
 

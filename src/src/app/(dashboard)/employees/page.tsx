@@ -22,6 +22,8 @@ import type {
   VisibilityState,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { PrintAction } from "@/components/shared/print-action";
+import { PrintScope } from "@/components/shared/print-scope";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PageActions } from "@/components/shared/page-actions";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -353,6 +355,7 @@ export default function EmployeesPage() {
           actions={
             <>
               <AddEmployeeMenu />
+              <PrintAction />
               <Button
                 variant="outline"
                 size="icon"
@@ -443,10 +446,36 @@ export default function EmployeesPage() {
           }
         />
 
+        <PrintScope
+          items={[
+            { label: t("common.search", "Search"), value: search },
+            {
+              label: t("common.status", "Status"),
+              value: status === "all" ? "" : t(`status.${status}`, status),
+            },
+            {
+              label: t("common.department", "Department"),
+              value:
+                department === "all"
+                  ? ""
+                  : (departments?.data?.find((d) => d.public_id === department)
+                      ?.name ?? ""),
+            },
+            {
+              label: t("org.field.branch", "Branch"),
+              value:
+                branch === "all"
+                  ? ""
+                  : (branches?.data?.find((b) => b.public_id === branch)
+                      ?.name ?? ""),
+            },
+          ]}
+        />
+
         <HeadcountCharts />
 
         {(reviewCount > 0 || reviewOnly) && (
-          <div className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="no-print flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft sm:flex-row sm:items-center sm:justify-between">
             <p>
               {t("employees.nationality_review_banner", undefined, {
                 count: reviewCount,
@@ -465,7 +494,7 @@ export default function EmployeesPage() {
         )}
 
         {missing !== "" && (
-          <div className="flex flex-col gap-2 rounded-lg border border-info-edge bg-info-soft p-3 text-sm text-info-on-soft sm:flex-row sm:items-center sm:justify-between">
+          <div className="no-print flex flex-col gap-2 rounded-lg border border-info-edge bg-info-soft p-3 text-sm text-info-on-soft sm:flex-row sm:items-center sm:justify-between">
             <p>
               {missing === "sign_in"
                 ? t("employees.missing_banner_sign_in")

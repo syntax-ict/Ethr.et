@@ -47,6 +47,7 @@ class AttendanceSettingResource extends JsonResource
             'geofence_auto_checkin_enabled' => $this->geofence_auto_checkin_enabled,
             'photo_retention_days' => $this->photo_retention_days,
             'risk_review_threshold' => $this->risk_review_threshold,
+            'presence_checks_per_shift' => $this->presence_checks_per_shift,
             'adaptive_selfie' => $this->adaptive_selfie,
             'liveness_check' => $this->liveness_check,
             'device_binding' => match ($this->device_binding) {

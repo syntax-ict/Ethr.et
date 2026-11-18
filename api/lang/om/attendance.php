@@ -49,6 +49,8 @@ return [
     'push_reminder_before_start' => 'Shiftiin keessan sa\'aatii :time jalqaba.',
     'push_reminder_not_checked_in' => 'Ammallee hin seenne. Shiftiin keessan sa\'aatii :time jalqabeera.',
     'push_reminder_shift_end' => 'Shiftiin keessan sa\'aatii :time xumurameera. Bahiinsa galmeessuu hin dagatinaa.',
+    'push_presence_check' => 'Iddoo hojii keessan akka jirtan mirkaneessaa. Daqiiqaa :minutes qabdu.',
+    'presence_nothing_pending' => 'Mirkaneessi argamaa isin eegu hin jiru.',
     'device_not_registered' => 'Bilbilli kun argama keessaniif hin galmoofne. Utuu hojii irra jirtanii fuula argamaa irraa galmeessaa, ykn Qabeenya Namaa (HR) gaafadhaa.',
     'device_pending_approval' => 'Bilbilli keessan haaraan raggaasisa eegaa jira. Hanga raggaasifamutti bilbila keessan galmaa\'e fayyadamaa.',
     'device_belongs_to_another' => 'Bilbilli kun hojjetaa biraaf galmaa\'eera. Bilbila keessan galmaa\'e irraa galmeessaa.',

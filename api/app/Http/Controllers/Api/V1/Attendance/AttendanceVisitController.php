@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Attendance;
 
-use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\StoreAttendanceVisitRequest;
 use App\Http\Resources\AttendanceVisitResource;
 use App\Models\AttendanceSite;
 use App\Models\AttendanceVisit;
 use App\Models\Employee;
-use App\Services\Attendance\AttendancePlaces;
 use App\Services\Attendance\AttendancePolicy;
-use App\Services\Attendance\Device\AttendanceDeviceGate;
+use App\Services\Attendance\PlaceProof;
 use App\Services\FileStorageService;
 use App\Support\PunchSignals;
 use Carbon\Carbon;
@@ -30,9 +28,8 @@ class AttendanceVisitController extends Controller
 {
     public function __construct(
         private readonly AttendancePolicy $policy,
-        private readonly AttendancePlaces $places,
+        private readonly PlaceProof $proof,
         private readonly FileStorageService $storage,
-        private readonly AttendanceDeviceGate $devices,
     ) {}
 
     public function store(StoreAttendanceVisitRequest $request): JsonResponse
@@ -54,13 +51,6 @@ class AttendanceVisitController extends Controller
             return $this->problem(422, 'Method Disabled', __('attendance.method_disabled'));
         }
 
-        // A live visit must come from the employee's registered phone under
-        // `enforce`. One logged offline cannot answer a fresh challenge, so it
-        // is kept with its verdict for review instead.
-        $verdict = $request->filled('occurred_at')
-            ? $this->devices->verdict($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE)
-            : $this->devices->enforce($employee, $request, $request->validated('device_proof'), AttendanceSource::MOBILE);
-
         // A visit logged offline arrives later, dated when it happened, inside
         // the same window offline punches are held to.
         $occurred = $request->filled('occurred_at')
@@ -77,7 +67,19 @@ class AttendanceVisitController extends Controller
         $lat = (float) $request->validated('latitude');
         $lng = (float) $request->validated('longitude');
         $accuracy = $request->validated('accuracy');
-        $check = $this->places->check($this->places->for($employee), $lat, $lng, is_numeric($accuracy) ? (float) $accuracy : null);
+
+        // A live visit must come from the employee's registered phone under
+        // `enforce`. One logged offline cannot answer a fresh challenge, so it
+        // is kept with its verdict for review instead.
+        ['verdict' => $verdict, 'check' => $check] = $this->proof->take(
+            $employee,
+            $request,
+            $request->validated('device_proof'),
+            live: ! $request->filled('occurred_at'),
+            lat: $lat,
+            lng: $lng,
+            accuracy: is_numeric($accuracy) ? (float) $accuracy : null,
+        );
         $site = $check['inside'] === true && ($check['nearest']['kind'] ?? null) === 'site'
             ? $check['nearest']['public_id']
             : null;

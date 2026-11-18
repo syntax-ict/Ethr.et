@@ -142,6 +142,17 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
         "Leave is counted on the working week, attendance on the shift's days.",
       ),
     },
+    presence_unreachable: {
+      title: counted(
+        "presence_unreachable",
+        "1 person cannot receive presence checks",
+        ":count people cannot receive presence checks",
+      ),
+      detail: t(
+        "setup_status.presence_unreachable_desc",
+        "No notifications on their phone, or no place set for their branch. Ask them to allow notifications, or put the branch on the map.",
+      ),
+    },
     kiosk_none: {
       title: t("setup_status.kiosk_none", "Kiosk check-in is on with no kiosk"),
       detail: t(

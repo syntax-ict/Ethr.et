@@ -44,6 +44,13 @@ it is live since `d993487e1f` (2026-11-17). The existing cases DEV-012, DEV-013 
 DEV-010 and DEV-033 gain a confirmation and a slice and are otherwise as written; DEV-029 already
 carries #780.
 
+**Since the seventh edition (2026-11-18).** Section 16 is new: presence checks (PRS-001 to PRS-012),
+a few unannounced "confirm you are at work" notifications during a shift, the card on the phone punch
+page, and the two findings they can file. Section 6 changed with them: INT-003 now says that
+rejecting a flag voids the record only for a flag about a punch, and its flag table gains the
+presence flag, `presence_pattern`, and the words `kiosk_wrong_person` now has. Rejecting a
+`buddy_pattern` or `grace_edge` item no longer voids a day (PRS-007).
+
 **Ground rules of the attendance engine** (what "correct" means in this document):
 
 - Times are stored in UTC and rated in the organisation's time zone, `Africa/Addis_Ababa` (UTC+3, no
@@ -326,13 +333,15 @@ Flags never block a punch. They queue it for review in Attendance → Integrity 
 | `high_risk` | medium below 70, high at 70 and above | Risk score at or above the review threshold (section 6a) |
 | `buddy_pattern` | high | Daily pattern scan (RISK-009) |
 | `grace_edge` | low | Daily pattern scan (RISK-009) |
-| `kiosk_wrong_person` | high | KIO-014 |
+| `kiosk_wrong_person` | high | KIO-014. Reads "Reported as the wrong person at a kiosk" (it showed the raw type before 2026-11-18) |
+| `outside_geofence` with punch `presence` | high | An answer to a presence check from outside the workplace (PRS-003). Reads "Outside the workplace at a presence check" |
+| `presence_pattern` | medium, high from four | Two or more presence checks missed or unverified in 14 days (PRS-005) |
 
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | INT-001 | P2 | W | Flags appear | Produce at least five of the flags above | Each listed once per record and type, open first, sorted by severity; the sidebar shows the count to review |
 | INT-002 | P2 | W | Accept | HR accepts a flag with a note | Closed; the record stands |
-| INT-003 | P1 | W | Reject | HR rejects a flag without a note; then with a note | Note required. Rejecting voids the record, closes its other open flags, notifies the employee ("punch rejected") and is audited |
+| INT-003 | P1 | W | Reject | HR rejects a flag without a note; then with a note | Note required. For a flag about a punch (check-in, check-out, day): rejecting voids the record, closes its other open flags, notifies the employee ("punch rejected") and is audited. For a presence or pattern flag (PRS-006, PRS-007) the buttons read "Excused" and "Not excused", the decision is recorded and audited, and nothing is voided or sent |
 | INT-004 | P1 | R | No self-review | HR reviews a flag on HR's own punch | 403 "You cannot review a flag on your own attendance." |
 | INT-005 | P2 | W | Closed flag | Review an already reviewed flag | 422 |
 | INT-006 | P3 | R | Summary | `GET /attendance/integrity/summary` | Counts agree with the list |
@@ -672,3 +681,35 @@ work on `www.ethr.et/{slug}` and `{slug}.ethr.et`, not on a custom domain (K-32)
 | PHN-019 | P2 | W | Automatic check-in | MOB-010 for EMP (registered): enforce, then "Check and review" | Enforce: no automatic check-in (refused silently); tapping Check In works. Check and review: recorded and scored `device_unverified` |
 | PHN-020 | P2 | R | Wrong address | Only if a QA organisation uses its own domain (otherwise Blocked): EMP opens `/attendance/mobile` there and checks in | "Open your organisation address": "Your registered phone works on your organisation's own ETHR address.", "Open". Punch: 422 `device-wrong-host`, "Open the ETHR address of your own organisation to punch with your registered phone.", with `canonical_url`. Check where "Open" leads; suspected the same custom domain (K-32) |
 | PHN-021 | P3 | W | Challenge single use and expiry | Laptop with Windows Hello or Touch ID registered as EMP's phone. DevTools: copy a successful `/attendance/check-in` carrying `device_proof`; resend unchanged; again with a new `idempotency_key`. `POST /attendance/device/challenge`, wait 4 minutes, sign with `navigator.credentials.get`, send | Unchanged: 200 replay (`was_duplicate: true`). New key: 422 `device-proof-invalid`, "We could not confirm this is your registered phone. Try again, and unlock the phone when it asks." (spent once). After 4 minutes: the same 422 (a challenge lives 180 s). Spent and expired challenges deleted daily |
+
+## 16. Presence checks
+
+Run this section on **real phones**, one Android and one iPhone with ETHR added to the Home Screen: a
+presence check arrives as a web push, which a desktop browser and an iPhone tab cannot stand in for.
+QA Audit only. No case here has yet been run. Presence checks are off by default; PRS-001 turns them
+on for QA Audit and PRS-012 turns them off again. Staff must be told in writing before it is switched
+on in a real organisation (the settings page says so).
+
+`POST /attendance/presence/confirm` needs `attendance.checkIn` (everyone) and answers the caller's own
+latest check, so no id travels. The setting is `presence_checks_per_shift` (0 to 3, a branch may
+override it). A check lives 15 minutes; its time is derived from the record and never stored, so a
+tester cannot name the minute. The scheduler tick that sends it can come up to about five minutes
+late, and the pass that sends it is the punch-reminder pass (`php artisan attendance:push-reminders`
+runs it at once where the tester may). Findings are in Attendance → Integrity: `outside_geofence`
+flags with punch `presence`, and `presence_pattern` flags (`php artisan attendance:pattern-scan` runs
+the scan at once).
+
+| ID | P | Mode | Scenario | Steps | Expected |
+|---|---|---|---|---|---|
+| PRS-001 | P1 | W | Switch it on | HR: Settings → Attendance Rules → **Presence checks**; read the card; choose "Up to 2 a shift" → Save. Then Rules by branch → B1 → "Presence checks" shows "Organisation (Up to 2 a shift)"; set "Off" → Save, then back to the organisation's. API: `PUT /attendance/settings` with `presence_checks_per_shift` 4 and -1 | The card explains: an unpredictable time, 15 minutes to answer, never around the middle of the shift, only to people who allowed notifications, one missed check is not a finding; and says to tell staff in writing first. Choices "Off", "Up to 1 a shift", "Up to 2 a shift", "Up to 3 a shift". Saved: "Settings saved". B1 "Off" stops checks at B1 only; the organisation's value follows. API: 4 and -1 refused (0 to 3) |
+| PRS-002 | P1 | W | Receive and confirm | Checks on (PRS-001). EMP at B1, which has a place on the map, checked in on an Android phone that allowed notifications. Wait for the push; tap it | A notification "Confirm you are at work" opens `/attendance/mobile`. The card sits above the punch button: "Confirm you are at work", the time left counting down from 15:00, one button "I am here". EMP inside the place taps it: "Confirmed. Thank you." `GET /attendance/my-shift` has `presence.pending: null`. Integrity lists nothing for EMP. No check arrives in the middle of the shift or in the first or last half hour |
+| PRS-003 | P1 | W | Answer from outside the workplace | A second check for EMP (2 a shift, or the next day). EMP stands 300 m or more past the edge of the place, with a fix accurate within 50 m, and taps "I am here" | "You are N m from your workplace. Your answer is recorded and a reviewer will see it." Integrity: a high item "Outside the workplace at a presence check" with the distance, the nearest place, and when it was asked and answered; its line reads "Presence check" where a punch would read Check-in. The day's record is untouched |
+| PRS-004 | P1 | W | A missed check files nothing | EMP's phone receives a check; EMP does not answer for 16 minutes. Then EMP opens the punch page and taps "I am here" | The check is `missed` and Integrity shows nothing for EMP. The late answer is still accepted: "Answered after the time was up. It is recorded, marked late." (`late: true`; the status stays `missed`) and files nothing |
+| PRS-005 | P1 | W | A pattern files one finding | EMP lets two checks go unanswered inside 14 days, with no more than four sent, then the scan runs | Integrity: a medium item "Presence checks missed or unverified", "2 missed and 0 unverified of N presence checks in 14 days." Run the scan again: still one item. One miss alone: no item. Four or more missed: high |
+| PRS-006 | P1 | W | "Not excused" keeps the day | HR opens PRS-003's item and reads its buttons; clicks "Not excused" with a reason. Then HR opens a check-in item (INT-001) and reads its buttons | Buttons "Excused" and "Not excused", never "Accept" and "Reject"; the dialog says the day's record is kept and the decision recorded, and that no notice of a rejected punch is sent. After saving the item reads "Not excused by <name>" and EMP's attendance record for the day is not voided; EMP is sent no "punch rejected". The check-in item keeps "Accept" and "Reject", and rejecting it still voids the day (INT-003) |
+| PRS-007 | P2 | W | Rejecting a pattern finding no longer voids a day | Where a `buddy_pattern` or `grace_edge` item is open (RISK-009), HR chooses "Not excused" | The decision is recorded and audited; no record becomes voided. Before 2026-11-18 this voided whichever day the item was attached to |
+| PRS-008 | P1 | W | Under "Only the registered phone" | Rule "Only the registered phone" (PHN-002). EMP answers a check from their registered phone, unlocking when asked; then from an unregistered phone; then dismisses the prompt on the registered one | Registered: confirmed. Unregistered: the refusal a punch gets (422 `device-not-registered`, "This phone is not registered for your attendance. Register it from the attendance page while you are at work, or ask HR."), shown on the card, which stays open for another try. Dismissed prompt: "Unlock your phone when it asks, to confirm it is you." and nothing is sent. Under "Check and review" the unregistered answer is stored as `unverified`: "Received, but not from your registered phone. Your answer is recorded for review." |
+| PRS-009 | P2 | W | Offline, no position, and the page the person is on | EMP with a check pending: airplane mode; then location off; then on a screen other than the punch page | Offline: the card says it cannot be confirmed now and that a late answer is still recorded, and the button is disabled. No position: "We need your location to confirm you are at work." with "Find my location", and the button disabled until a fix arrives. Elsewhere in the app: one notice "Confirm you are at work" with a way to the punch page, shown once for that check and never on the punch page itself |
+| PRS-010 | P1 | W | An iPhone without the installed app receives none | Checks on. EMP2 uses an iPhone with ETHR open only in Safari tabs (not added to the Home Screen) and has never allowed notifications. Check in and work a full shift | No check arrives and none is recorded for EMP2: a check nobody could receive is not kept, so it is never counted as missed. HR: the attendance setup list says "1 person cannot receive presence checks" ("No notifications on their phone, or no place set for their branch."); a person at a branch with no place on the map is in the same count. The punch page shows the notification switch and "Your organisation uses presence checks during the shift. Notifications are how they reach you, so keep them on.", even where shift reminders are off |
+| PRS-011 | P2 | W | Who is not asked | Checks on. Check in and work a shift as: a Remote worker; a person on approved leave; someone on a public holiday; someone out on a break at the time a check is due | None receives a check. The person on a break is not asked while out |
+| PRS-012 | P2 | W | Switch it off | HR sets Presence checks to "Off" | No further check is sent. A check already pending can still be answered. No card is shown to anyone with nothing pending, and the line about presence checks on the punch page is gone |

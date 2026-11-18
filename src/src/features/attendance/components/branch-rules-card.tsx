@@ -225,6 +225,15 @@ function BranchRulesDialog({
         ? t("device_binding.flag", "Check and review")
         : t("device_binding.off", "Off");
 
+  const presenceLabel = (value: number | null | undefined) =>
+    value === 3
+      ? t("attendance.presence_count.3", "Up to 3 a shift")
+      : value === 2
+        ? t("attendance.presence_count.2", "Up to 2 a shift")
+        : value === 1
+          ? t("attendance.presence_count.1", "Up to 1 a shift")
+          : t("attendance.presence_count.0", "Off");
+
   const accuracy = draft.mobile_accuracy_threshold_meters;
   const threshold = draft.risk_review_threshold;
 
@@ -379,6 +388,49 @@ function BranchRulesDialog({
                 <SelectItem value="enforce">
                   {bindingLabel("enforce")}
                 </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-sm">
+              {t("branch_rules.presence_checks", "Presence checks")}
+            </Label>
+            <Select
+              value={
+                draft.presence_checks_per_shift === null ||
+                draft.presence_checks_per_shift === undefined
+                  ? "inherit"
+                  : String(draft.presence_checks_per_shift)
+              }
+              onValueChange={(v) =>
+                setDraft({
+                  ...draft,
+                  presence_checks_per_shift: v === "inherit" ? null : Number(v),
+                })
+              }
+            >
+              <SelectTrigger
+                className="w-[210px]"
+                aria-label={t(
+                  "branch_rules.presence_checks",
+                  "Presence checks",
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherit">
+                  {t("branch_rules.inherit_value", "Organisation (:value)", {
+                    value: presenceLabel(
+                      organisation.presence_checks_per_shift,
+                    ),
+                  })}
+                </SelectItem>
+                <SelectItem value="0">{presenceLabel(0)}</SelectItem>
+                <SelectItem value="1">{presenceLabel(1)}</SelectItem>
+                <SelectItem value="2">{presenceLabel(2)}</SelectItem>
+                <SelectItem value="3">{presenceLabel(3)}</SelectItem>
               </SelectContent>
             </Select>
           </div>

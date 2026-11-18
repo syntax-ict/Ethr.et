@@ -48,7 +48,7 @@ export function PaginationControls({
   return (
     <nav
       aria-label={t("common.pagination", "Pagination")}
-      className="flex items-center justify-between gap-4 border-t border-border-default px-4 py-3"
+      className="print-keep flex items-center justify-between gap-4 border-t border-border-default px-4 py-3"
     >
       <p className="text-xs text-muted-foreground">
         {meta.from != null && meta.to != null && meta.total != null

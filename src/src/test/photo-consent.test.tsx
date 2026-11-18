@@ -72,6 +72,7 @@ const myShift = (consent: boolean) => ({
     auto_checkout: false,
     auto_checkout_after_minutes: 0,
   },
+  presence: { enabled: false, pending: null },
 });
 
 let getUserMedia: ReturnType<typeof vi.fn>;
