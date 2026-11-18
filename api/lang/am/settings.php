@@ -22,6 +22,10 @@ return [
         'tax_center' => 'የግብር ማዕከል',
         'pension_scheme' => 'የጡረታ ዕቅድ',
         'employee_number_format' => 'የሰራተኛ ቁጥር ቅርጸት',
+        'letterhead_address' => 'በሰነዶች ላይ የሚታተም አድራሻ',
+        'letterhead_phone' => 'በሰነዶች ላይ የሚታተም ስልክ',
+        'letterhead_email' => 'በሰነዶች ላይ የሚታተም ኢሜይል',
+        'letterhead_po_box' => 'በሰነዶች ላይ የሚታተም ፖ.ሣ.ቁ.',
         'invitation_reminders' => 'የግብዣ ማስታወሻዎች',
     ],
 ];

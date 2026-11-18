@@ -27,6 +27,7 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($header['employer_name'] ?? ''), 'logo' => null, 'lines' => []], 'compact' => true])
     <h1>{{ $header['title'] }}</h1>
     <p class="agency">{{ $header['agency'] }}</p>
 

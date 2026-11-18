@@ -24,6 +24,16 @@ return [
     'currency' => 'ብር',
     'generated' => ':date የተዘጋጀ። ይህ በኮምፒውተር የተዘጋጀ ሰነድ ነው።',
     'powered_by' => ':organisation፣ በETHR',
+    'employer_tin' => 'የአሠሪ TIN',
+    'employee_tin' => 'የሠራተኛ TIN',
+    'pension_number' => 'የጡረታ ቁጥር',
+    'bank' => 'ባንክ',
+    'account' => 'የሒሳብ ቁጥር',
+    'pay_date' => 'የክፍያ ቀን',
+    'allowance_types' => [
+        'fixed' => 'ቋሚ አበል',
+        'percentage' => 'መቶኛ አበል',
+    ],
     'deduction_types' => [
         'loan' => 'የብድር ክፍያ',
         'cost_sharing' => 'የወጪ መጋራት',

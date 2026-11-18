@@ -9,6 +9,7 @@ use App\Models\PayrollRun;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Support\Csv;
+use App\Support\Letterhead;
 use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -173,6 +174,8 @@ final class StatutorySchedules
             $data['rows'],
         );
         $data['total_cells'] = $this->totalsRow($data, false);
+
+        $data['letterhead'] = Letterhead::for(Tenant::query()->find($run->tenant_id), 'en', withTin: false);
 
         $pdf = Pdf::loadView('payroll.statutory-schedule', $data);
         $pdf->setPaper('a4', 'landscape');
