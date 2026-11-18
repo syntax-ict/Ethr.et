@@ -13689,6 +13689,11 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                letterhead_address?: string | null;
+                letterhead_phone?: string | null;
+                /** Format: email */
+                letterhead_email?: string | null;
+                letterhead_po_box?: string | null;
             };
         };
         /** UpdateShiftRequest */
@@ -23951,7 +23956,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        created_via: string | null;
+                        created_via: string;
                         identities: {
                             public_id: string;
                             /** @enum {string} */
@@ -28782,7 +28787,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The import mapping public id */
-                importMapping: string;
+                importMapping: number;
             };
             cookie?: never;
         };
@@ -28821,7 +28826,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The import mapping public id */
-                importMapping: string;
+                importMapping: number;
             };
             cookie?: never;
         };
@@ -32862,7 +32867,7 @@ export interface operations {
     "adminTenant.index": {
         parameters: {
             query?: {
-                "filter[organization_type]"?: "private" | "sole_proprietor" | "private_limited_company" | "share_company" | "partnership" | "cooperative" | "foreign_company_branch" | "public_enterprise" | "government" | "regional_government" | "ngo" | "foreign_cso" | "religious_organization" | "international_organization" | "diplomatic_mission" | "defence_police" | null;
+                "filter[organization_type]"?: "private" | "public_enterprise" | "government" | "ngo" | "international_organization" | "defence_police" | null;
                 "filter[organization_type_group]"?: "private" | "non_profit" | "public" | "international" | null;
                 search?: string;
                 /**
@@ -35624,6 +35629,12 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                        };
+                        documents: {
+                            letterhead_address: string | null;
+                            letterhead_phone: string | null;
+                            letterhead_email: string | null;
+                            letterhead_po_box: string | null;
                         };
                         security: {
                             mfa_policy: string;

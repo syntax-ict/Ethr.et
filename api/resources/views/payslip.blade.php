@@ -6,22 +6,20 @@
         @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: normal; src: url('{{ resource_path('fonts/NotoSansEthiopic-Regular.ttf') }}') format('truetype'); }
         @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: bold; src: url('{{ resource_path('fonts/NotoSansEthiopic-Bold.ttf') }}') format('truetype'); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; font-size: 10px; color: #0F172A; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #0F4C75; padding-bottom: 10px; margin-bottom: 15px; }
-        .header h1 { font-size: 14px; color: #0F4C75; }
-        .header p { font-size: 9px; color: #64748B; margin-top: 2px; }
+        body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; font-size: 10px; color: #0F172A; padding: 14px 20px; }
+        .doc-title { font-size: 12px; font-weight: bold; color: #0F172A; margin-bottom: 8px; }
         .info-grid { display: flex; justify-content: space-between; margin-bottom: 15px; }
         .info-block { width: 48%; }
         .info-row { display: flex; justify-content: space-between; padding: 3px 0; }
         .info-label { color: #64748B; font-size: 9px; }
         .info-value { font-weight: 600; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        th { background: #F1F5F9; text-align: left; padding: 6px 8px; font-size: 9px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 6px 8px; border-bottom: 1px solid #E2E8F0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        th { background: #F1F5F9; text-align: left; padding: 3px 8px; font-size: 9px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 3px 8px; border-bottom: 1px solid #E2E8F0; }
         .amount { text-align: right; font-family: 'DejaVu Sans Mono', 'Noto Sans Ethiopic', monospace; }
         .total-row td { font-weight: 700; border-top: 2px solid #0F4C75; border-bottom: none; }
         .net-row td { font-size: 12px; background: #F1F5F9; color: #0F4C75; }
-        .footer { text-align: center; margin-top: 20px; font-size: 8px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 8px; }
+        .footer { position: fixed; bottom: 8px; left: 20px; right: 20px; text-align: center; font-size: 8px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 8px; }
         .voided-watermark {
             position: fixed;
             top: 300px;
@@ -38,10 +36,8 @@
     @if($is_voided)
     <div class="voided-watermark">{{ __('payslip.voided', [], $locale) }}</div>
     @endif
-    <div class="header">
-        <h1>{{ $tenant_name }}</h1>
-        <p>{{ __('payslip.title', ['period' => $period], $locale) }}</p>
-    </div>
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead, 'compact' => true])
+    <div class="doc-title">{{ __('payslip.title', ['period' => $period], $locale) }}</div>
 
     <table>
         <tr>
@@ -56,6 +52,22 @@
             <td class="info-label">{{ __('payslip.position', [], $locale) }}</td>
             <td>{{ $position }}</td>
         </tr>
+        @if(! empty($employee_tin) || ! empty($pay_date))
+        <tr>
+            <td class="info-label">{{ __('payslip.employee_tin', [], $locale) }}</td>
+            <td>{{ $employee_tin ?? '' }}</td>
+            <td class="info-label">{{ __('payslip.pay_date', [], $locale) }}</td>
+            <td>{{ $pay_date ?? '' }}</td>
+        </tr>
+        @endif
+        @if(! empty($bank_name) || ! empty($bank_account))
+        <tr>
+            <td class="info-label">{{ __('payslip.bank', [], $locale) }}</td>
+            <td>{{ $bank_name ?? '' }}</td>
+            <td class="info-label">{{ __('payslip.account', [], $locale) }}</td>
+            <td>{{ $bank_account ?? '' }}</td>
+        </tr>
+        @endif
     </table>
 
     <table>
@@ -75,7 +87,7 @@
             @endif
             @foreach($allowances as $allowance)
             <tr>
-                <td>{{ $allowance['name'] ?? $allowance['type'] ?? __('payslip.allowance', [], $locale) }}</td>
+                <td>{{ $allowance['label'] ?? __('payslip.allowance', [], $locale) }}</td>
                 <td class="amount">{{ number_format(($allowance['amount_cents'] ?? 0) / 100, 2) }} {{ __('payslip.currency', [], $locale) }}</td>
             </tr>
             @endforeach

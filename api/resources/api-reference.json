@@ -19801,10 +19801,7 @@
                                     "type": "object",
                                     "properties": {
                                         "created_via": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
+                                            "type": "string"
                                         },
                                         "identities": {
                                             "type": "array",
@@ -27989,7 +27986,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "string"
+                            "type": "integer"
                         }
                     }
                 ],
@@ -28092,7 +28089,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "string"
+                            "type": "integer"
                         }
                     }
                 ],
@@ -38200,6 +38197,41 @@
                                                 "employer_bank_name"
                                             ]
                                         },
+                                        "documents": {
+                                            "type": "object",
+                                            "properties": {
+                                                "letterhead_address": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "letterhead_phone": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "letterhead_email": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "letterhead_po_box": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "letterhead_address",
+                                                "letterhead_phone",
+                                                "letterhead_email",
+                                                "letterhead_po_box"
+                                            ]
+                                        },
                                         "security": {
                                             "type": "object",
                                             "properties": {
@@ -38343,6 +38375,7 @@
                                         "landing",
                                         "leave",
                                         "payroll",
+                                        "documents",
                                         "security",
                                         "display",
                                         "employees",

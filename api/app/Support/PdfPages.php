@@ -20,7 +20,7 @@ final class PdfPages
         // A core font on purpose: digits and a slash need no Ethiopic face,
         // and the stamp stays plain text in the content stream.
         $font = $dompdf->getFontMetrics()->getFont('Helvetica');
-        $size = 7;
+        $size = 8;
         $text = '{PAGE_NUM} / {PAGE_COUNT}';
         $width = $dompdf->getFontMetrics()->getTextWidth('00 / 00', $font, $size);
 
@@ -30,7 +30,7 @@ final class PdfPages
             $text,
             $font,
             $size,
-            [0.392, 0.455, 0.545],
+            [0.278, 0.333, 0.412],
         );
 
         return $pdf->output();
