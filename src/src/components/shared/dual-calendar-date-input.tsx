@@ -175,7 +175,9 @@ export function DualCalendarDateInput({
           onChange={(e) => onChange(e.target.value)}
         />
         {secondary && (
-          <p className="mt-1 text-xs text-muted-foreground">{secondary}</p>
+          <p className="mt-1 text-xs text-muted-foreground print:hidden">
+            {secondary}
+          </p>
         )}
       </div>
     );
@@ -358,7 +360,7 @@ export function DualCalendarDateInput({
           </SelectContent>
         </Select>
       </div>
-      <p className={cn("mt-1 text-xs text-muted-foreground")}>
+      <p className={cn("mt-1 text-xs text-muted-foreground print:hidden")}>
         {secondary ??
           t(
             "calendar.ethiopian_entry_hint",

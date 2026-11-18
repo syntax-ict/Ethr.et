@@ -27,4 +27,7 @@ final class AttendanceRules
      * close is answered as a duplicate rather than a check-out.
      */
     public const MERGE_WINDOW_MINUTES = 5;
+
+    /** How long a presence check waits for its answer, and how long the push may sit undelivered. */
+    public const PRESENCE_RESPONSE_MINUTES = 15;
 }

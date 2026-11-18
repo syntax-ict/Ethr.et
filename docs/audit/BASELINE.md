@@ -4833,7 +4833,56 @@ names share no word is "probable", not "matched". Nothing is assigned automatica
 without names sends none, and the card is then as it was. The first look at the card after this change is
 live is what settles it.
 
-### 25q. The frontend against Vercel's Web Interface Guidelines — read 2026-11-18
+### 25q. Presence checks: the middle of the working day — built 2026-11-18
+
+Until now ETHR proved the two ends of a day (geofence, registered phone, selfie, liveness, risk score,
+the daily buddy and grace-edge scan) and observed nothing between them. An organisation may now switch
+on **presence checks** (`attendance_settings.presence_checks_per_shift`, 0 to 3, 0 the default, branch
+overridable): at an unpredictable moment, up to that many times a shift, a checked-in office employee
+with a place on the map and a push subscription is sent "Confirm you are at work" and has 15 minutes
+(`AttendanceRules::PRESENCE_RESPONSE_MINUTES`) to answer from the phone. The design and its limits are
+in `docs/ATTENDANCE-PIPELINE.md`, "Presence checks".
+
+What was built, in the two halves:
+
+- **Backend** (commits `9dd3ab7c65`, `932f6dea89`): `PresenceChecks` derives the times from the record
+  id under the app key and stores none; the five-minute `PushPunchRemindersCommand` pass sends them and
+  expires the unanswered; `POST /attendance/presence/confirm` answers the caller's own latest check;
+  the table `attendance_presence_checks`; an answer from outside files the existing `outside_geofence`
+  with punch `presence`; `AttendancePatternScan` files `presence_pattern`; `AttendanceHealth` reports
+  `presence_unreachable`. Pest: `tests/Feature/Attendance/PresenceChecksTest.php`, **50 passed (546
+  assertions)** in a run on 2026-11-18.
+- **Phone and admin** (this change): a `PresenceCard` above the punch button on `/attendance/mobile`
+  using the page's own fix, passkey signer and offline state; one notice per check elsewhere in the
+  app (`punch-reminders.tsx`); the notification switch shows when checks are on even where shift
+  reminders are not allowed; the settings select, the branch override, the setup line, and the
+  integrity page's wording for the presence flag, `presence_pattern` and `kiosk_wrong_person` (which
+  fell to its raw type string until now). en, am, om.
+- **A deliberate behaviour change.** Rejecting an integrity flag voids the day's record only when the
+  flag's `punch` is `check_in`, `check_out` or `day` (`AttendanceIntegrityFlag::VOIDING_PUNCHES`).
+  Before this, rejecting a `pattern` flag such as `buddy_pattern` or `grace_edge` voided whichever day
+  the pattern was attached to. For `presence` and `pattern` flags the screen says "Excused" and "Not
+  excused" and the decision is recorded and audited only.
+- **Browser journey** `src/e2e/attendance-payroll/presence-check.spec.ts`, with a local-and-testing-only
+  `php artisan e2e:plant-presence-check` (a check lives 15 minutes and is sent at a derived time, so a
+  journey plants the row the push would have made) and a new seeded person, ATT-0005 at an Annex branch
+  on the map, in `E2eAttendanceSeeder`. **Written and compiled, not run**: it needs the full stack and
+  `queue:work`. `tests/Feature/Attendance/E2ePlantPresenceCheckCommandTest.php`: 3 passed.
+
+Measured in the runs for this change (2026-11-18, local): `tsc --noEmit` on `src` clean; the e2e files
+type-check clean under an ad-hoc tsconfig that includes them (the project's tsconfig excludes `e2e`);
+ESLint clean on the touched frontend directories and the two e2e files; `scripts/i18n-check.js` OK at
+7,715 keys in en, am and om. New Vitest files: `presence-card.test.tsx` 13, `presence-notice.test.tsx`
+3, `attendance-presence-settings.test.tsx` 2, plus 5 added to `attendance-integrity-page.test.tsx` and 4
+to `mobile-punch-screen.test.tsx`, all passing. Pint passes on the new PHP; PHPStan on the seeder
+reports one error at `E2eAttendanceSeeder.php:126` (`$this->command?->info`, nullsafe on a non-nullable
+type) that is not from this change.
+
+**Not measured:** any of it on a real phone or real push service; the journey; the 360 px layout in a
+browser (the card uses the page's `max-w-md` column and full-width buttons, unchecked by eye);
+whether staff on Habru-style terminal-only sites are reached (they are not, by design).
+
+### 25r. The frontend against Vercel's Web Interface Guidelines — read 2026-11-18
 
 Every frontend source file (721 under `src/src`, tests and the generated client excluded) was read
 against the 17 sections of Vercel's Web Interface Guidelines (`command.md`, fetched 2026-11-18): a

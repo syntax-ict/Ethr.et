@@ -20,6 +20,7 @@ import { dateFromIso } from "@/lib/calendar/date-from-iso";
 import { useT } from "@/lib/i18n/useT";
 import { todayIn } from "@/lib/utils/date";
 import { PrintAction } from "@/components/shared/print-action";
+import { PrintScope } from "@/components/shared/print-scope";
 
 /** `Y-m-d`, `days` after another, in date arithmetic with no zone in it. */
 function shiftDate(dateStr: string, days: number) {
@@ -57,50 +58,61 @@ export default function TeamAttendancePage() {
         <PageActions
           actions={
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setDate(shiftDate(date, -1))}
-                aria-label={t(
-                  "attendance.team_page.previous_day",
-                  "Previous day",
-                )}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <DualCalendarDateInput
-                value={date}
-                onChange={(v) => setDate(v || todayStr())}
-                className="max-w-80 min-w-0 flex-1"
-                aria-label={t(
-                  "attendance.team_page.select_date",
-                  "Select date",
-                )}
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setDate(shiftDate(date, 1))}
-                disabled={isToday}
-                aria-label={t("attendance.team_page.next_day", "Next day")}
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              {!isToday && (
+              <div className="no-print flex items-center gap-1">
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-1 text-xs"
-                  onClick={() => setDate(todayStr())}
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setDate(shiftDate(date, -1))}
+                  aria-label={t(
+                    "attendance.team_page.previous_day",
+                    "Previous day",
+                  )}
                 >
-                  {t("attendance.team_page.today")}
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </Button>
-              )}
+                <DualCalendarDateInput
+                  value={date}
+                  onChange={(v) => setDate(v || todayStr())}
+                  className="max-w-80 min-w-0 flex-1"
+                  aria-label={t(
+                    "attendance.team_page.select_date",
+                    "Select date",
+                  )}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setDate(shiftDate(date, 1))}
+                  disabled={isToday}
+                  aria-label={t("attendance.team_page.next_day", "Next day")}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                {!isToday && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-1 text-xs"
+                    onClick={() => setDate(todayStr())}
+                  >
+                    {t("attendance.team_page.today")}
+                  </Button>
+                )}
+              </div>
               <PrintAction />
             </div>
           }
+        />
+
+        <PrintScope
+          items={[
+            {
+              label: t("common.date", "Date"),
+              value: formatDate(dateFromIso(date), locale),
+            },
+          ]}
         />
 
         <QueryBoundary

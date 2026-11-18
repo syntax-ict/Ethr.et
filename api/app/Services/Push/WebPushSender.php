@@ -29,7 +29,12 @@ class WebPushSender
     }
 
     /**
-     * @param  array{title: string, body: string, url?: string, tag?: string}  $payload
+     * `ttl` (seconds a push service holds an undelivered push), `urgency` and
+     * `requireInteraction` (the notification stays until dealt with) are for a
+     * message that is worthless late, such as a presence check. Left out, a
+     * push lives an hour at normal urgency and goes when the browser decides.
+     *
+     * @param  array{title: string, body: string, url?: string, tag?: string, ttl?: int, urgency?: string, requireInteraction?: bool}  $payload
      * @return int pushes the services accepted
      */
     public function toUser(int $userId, array $payload): int
@@ -48,12 +53,21 @@ class WebPushSender
         }
 
         $push = $this->client();
-        $body = (string) json_encode([
+        $message = [
             'title' => $payload['title'],
             'body' => $payload['body'],
             'tag' => $payload['tag'] ?? 'ethr-notification',
             'data' => ['url' => $payload['url'] ?? '/dashboard'],
-        ], JSON_UNESCAPED_UNICODE);
+        ];
+        if (($payload['requireInteraction'] ?? false) === true) {
+            $message['requireInteraction'] = true;
+        }
+        $body = (string) json_encode($message, JSON_UNESCAPED_UNICODE);
+
+        $options = array_filter([
+            'TTL' => isset($payload['ttl']) ? max(0, (int) $payload['ttl']) : null,
+            'urgency' => $payload['urgency'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null);
 
         foreach ($subscriptions as $subscription) {
             $push->queueNotification(Subscription::create([
@@ -61,7 +75,7 @@ class WebPushSender
                 'publicKey' => $subscription->public_key,
                 'authToken' => $subscription->auth_token,
                 'contentEncoding' => $subscription->content_encoding,
-            ]), $body);
+            ]), $body, $options);
         }
 
         $sent = 0;

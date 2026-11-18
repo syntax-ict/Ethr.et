@@ -55,7 +55,12 @@ class E2eAttendanceSeeder extends Seeder
 {
     public const PASSWORD = 'password';
 
-    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}> */
+    /** The Annex's position, which the presence-check journey stands at and 20 km from. */
+    public const ANNEX_LATITUDE = 9.0300;
+
+    public const ANNEX_LONGITUDE = 38.7400;
+
+    /** @var array<string, array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int, branch?: string}>, staff: array<string, UserRole>, annex?: true, settings?: array<string, mixed>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}> */
     private const ORGANISATIONS = [
         'e2e-att' => [
             'name' => 'E2E Attendance',
@@ -64,8 +69,12 @@ class E2eAttendanceSeeder extends Seeder
                 ['code' => 'ATT-0002', 'name' => 'Tigist Haile', 'badge' => '9002', 'login' => null, 'salary_cents' => 1500000],
                 ['code' => 'ATT-0003', 'name' => 'Dawit Tesfaye', 'badge' => '9003', 'login' => 'emp3', 'salary_cents' => 1500000],
                 ['code' => 'ATT-0004', 'name' => 'Mulu Girma', 'badge' => '9004', 'login' => 'emp4', 'salary_cents' => 1500000],
+                // The only person at the Annex, the one branch with a place on the map: the presence-check journey.
+                ['code' => 'ATT-0005', 'name' => 'Lemlem Tadesse', 'badge' => '9005', 'login' => 'emp5', 'salary_cents' => 1500000, 'branch' => 'annex'],
             ],
             'staff' => ['admin' => UserRole::TENANT_ADMIN],
+            'annex' => true,
+            'settings' => ['presence_checks_per_shift' => 1],
         ],
         'e2e-pay' => [
             'name' => 'E2E Payroll',
@@ -146,7 +155,7 @@ class E2eAttendanceSeeder extends Seeder
     }
 
     /**
-     * @param  array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int}>, staff: array<string, UserRole>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}  $organisation
+     * @param  array{name: string, people: list<array{code: string, name: string, badge: string|null, login: string|null, salary_cents: int, branch?: string}>, staff: array<string, UserRole>, annex?: true, settings?: array<string, mixed>, device?: array{serial: string, adapter: string, config: array<string, mixed>, token: string}}  $organisation
      */
     private function create(string $subdomain, array $organisation): void
     {
@@ -196,7 +205,22 @@ class E2eAttendanceSeeder extends Seeder
             'is_default' => true,
         ]);
 
-        AttendanceSetting::create([...AttendanceSetting::defaults(), 'tenant_id' => $tenant->id]);
+        AttendanceSetting::create([...AttendanceSetting::defaults(), ...($organisation['settings'] ?? []), 'tenant_id' => $tenant->id]);
+
+        // A branch on the map, for journeys that need a workplace to be inside
+        // or outside of. Head Office has no position, so nothing else is checked
+        // against a place.
+        $annex = isset($organisation['annex']) ? Branch::create([
+            'public_id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'code' => 'ANX',
+            'name' => 'Annex',
+            'address' => 'Megenagna, Addis Ababa',
+            'latitude' => self::ANNEX_LATITUDE,
+            'longitude' => self::ANNEX_LONGITUDE,
+            'geofence_radius_meters' => 150,
+            'is_active' => true,
+        ]) : null;
 
         // Unpaid, excused and business trip, as every organisation gets them.
         app(OrganizationProvisioner::class)->ensureSettlingLeaveTypes($tenant);
@@ -218,7 +242,7 @@ class E2eAttendanceSeeder extends Seeder
                 'hire_date' => now()->subYears(2)->startOfMonth()->format('Y-m-d'),
                 'salary_cents' => $person['salary_cents'],
                 'department_id' => $department->id,
-                'branch_id' => $branch->id,
+                'branch_id' => (($person['branch'] ?? null) === 'annex' ? $annex ?? $branch : $branch)->id,
             ]);
 
             if ($person['login'] !== null) {
