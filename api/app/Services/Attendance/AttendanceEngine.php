@@ -171,11 +171,17 @@ final class AttendanceEngine
             // undid, and its own, into the day's breaks (rejoinDay). A terminal
             // that resends the morning's check-out after the return must be
             // answered as before and must not close the reopened record.
-            if (in_array($input->type, ['check_in', 'check_out', 'auto'], true)) {
-                $replayed = $this->answerRejoinReplay($input);
-                if ($replayed !== null) {
-                    return $replayed;
-                }
+            $existing = in_array($input->type, ['check_in', 'check_out', 'auto'], true) ? $this->findByRejoinKey($input) : null;
+            if ($existing) {
+                $wasOut = collect((array) ($existing->metadata['breaks'] ?? []))
+                    ->contains(fn ($entry) => ($entry['key'] ?? null) === $input->idempotencyKey && ($entry['type'] ?? null) === 'out');
+
+                return new AttendanceResult(
+                    $existing,
+                    wasDuplicate: true,
+                    punch: $wasOut ? 'check_out' : 'check_in',
+                    outcome: $wasOut ? $this->outcomeFor($existing, 'check_out') : new PunchOutcome(PunchOutcome::RESUMED),
+                );
             }
         }
 
@@ -462,39 +468,25 @@ final class AttendanceEngine
     }
 
     /**
-     * The answer to a resent punch whose key a return from a break moved into
-     * the day's breaks: a resent check-out is a duplicate check-out, a resent
-     * check-in the return it already was. Looked at only for records with
-     * breaks, dated around the punch.
+     * The record of this person's whose breaks hold this punch's idempotency
+     * key: a return from a break moved the key of the check-out it undid, and
+     * its own, there (rejoinDay). Looked at only for records with breaks,
+     * dated around the punch.
      */
-    private function answerRejoinReplay(AttendanceInput $input): ?AttendanceResult
+    private function findByRejoinKey(AttendanceInput $input): ?AttendanceRecord
     {
         $moment = $this->resolveMoment($input);
 
-        $records = AttendanceRecord::withoutGlobalScope('tenant')
+        return AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
             ->where('employee_id', $input->employeeId)
             ->whereDate('date', '>=', $moment->copy()->subDays(2)->format('Y-m-d'))
             ->whereDate('date', '<=', $moment->copy()->addDay()->format('Y-m-d'))
             ->whereJsonLength('metadata->breaks', '>', 0)
-            ->get();
-
-        foreach ($records as $record) {
-            foreach ((array) ($record->metadata['breaks'] ?? []) as $entry) {
-                if (($entry['key'] ?? null) !== $input->idempotencyKey) {
-                    continue;
-                }
-
-                if (($entry['type'] ?? null) === 'out') {
-                    return new AttendanceResult($record, wasDuplicate: true, punch: 'check_out', outcome: $this->outcomeFor($record, 'check_out'));
-                }
-
-                return new AttendanceResult($record, wasDuplicate: true, punch: 'check_in', outcome: new PunchOutcome(PunchOutcome::RESUMED));
-            }
-        }
-
-        return null;
+            ->get()
+            ->first(fn (AttendanceRecord $r) => collect((array) ($r->metadata['breaks'] ?? []))->contains('key', $input->idempotencyKey));
     }
+
     /**
      * A check-in that comes back from a break: the person's latest closed
      * record of this work day is reopened instead of a second one being made
