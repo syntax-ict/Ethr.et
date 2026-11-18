@@ -67,8 +67,8 @@ way on push and pull:
 
 | vendor | field | in | out | neither |
 |---|---|---|---|---|
-| Hikvision | `attendanceStatus` (`HikvisionEvent`) | checkIn, breakIn, overtimeIn | checkOut, breakOut, overtimeOut | `undefined` / absent → `auto` |
-| ZKTeco | punch state (`ZktecoAdapter::directionFor`) | 0, 3, 4 | 1, 2, 5 | absent, 255 → `auto` |
+| Hikvision | `attendanceStatus` (`HikvisionEvent::direction`) | checkIn, overtimeIn | checkOut, overtimeOut | `breakIn` and `breakOut` are noted as breaks (below); `undefined` / absent → `auto` |
+| ZKTeco | punch state (`ZktecoAdapter::directionFor`) | 0, 4 | 1, 5 | 2 (break-out) and 3 (break-in) are noted as breaks (below); absent, 255 → `auto` |
 | Suprema | event code | — | 0x2000–0x2FFF | everything else → in |
 | Generic | `type` vs `check_in_values` | listed values | any other value | empty → `auto` |
 
@@ -77,6 +77,8 @@ would close) or, with none open, checks in; a second scan within 5 minutes of th
 check-in is a duplicate, not a departure. Until this date the Hikvision webhook
 recorded **every** event as a check-in and the pull read `eventType`, a field these
 events do not carry — an evening scan opened a second record and a conflict.
+
+**Breaks (2026-11-18).** A terminal's own break buttons (Hikvision `breakOut` / `breakIn`, ZKTeco states 2 and 3) are noted on the day's open record as `metadata.breaks`; they neither close nor open it. A terminal that sends an ordinary check-out and check-in around lunch (in 08:50, out 12:05, in 13:55, out 17:00) gets the same result: a check-in on the day of the check-out, within 180 minutes of it and before the shift's end, reopens the day's record and notes the lunch as a break, so the day is one record with no conflict. A return later than that stays a second session. See [ATTENDANCE-PIPELINE.md](ATTENDANCE-PIPELINE.md).
 
 Hikvision events count only when they name an enrolled person (`employeeNoString`):
 heartbeats answer `ignored`, and an unregistered card (`cardNo` alone) answers

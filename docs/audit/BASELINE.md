@@ -4832,3 +4832,31 @@ names share no word is "probable", not "matched". Nothing is assigned automatica
 **Not yet observed:** whether Habru's terminal sends names at all. A terminal whose users were enrolled
 without names sends none, and the card is then as it was. The first look at the card after this change is
 live is what settles it.
+
+### 25q. A two-session day made two records and a conflict — measured 2026-11-18, changed the same day
+
+Measured on production on 2026-11-18, by replaying the held punches of one Habru woreda badge (R004, one
+person) in order: **138 records over 92 days** where there are at most 92, **46 flagged conflicts**, and
+**36 records with no check-out**. The office works a morning and an afternoon session; its Hikvision terminal
+sends check-in 08:50, check-out 12:05, check-in 13:55, check-out 17:00. `findOpenRecord` never returns a closed
+record, so the 13:55 check-in made a second record for the date and `ConflictResolver::resolve` flagged it
+`MULTI_SOURCE_FAR`, even for one source. The morning record was `early_leave`, the afternoon one "late by
+hours", and every reader that assumes one record a day (timeline, dashboards, reports, reconciliation) was
+wrong with it. Five more matched badges were held back until this was fixed.
+
+The rule now in force, for every organisation with no setting (`AttendanceEngine::rejoinDay`,
+`AttendanceRules::MAX_BREAK_MINUTES`): a **live** check-in reopens the person's latest closed, non-voided
+record **of the same work day** when its check-out is earlier than the check-in, the gap is **at most 180
+minutes**, the check-in is **before the record's shift end** (no shift: the gap alone decides), and the day is
+not in an approved or paid payroll run. The old check-out becomes a `breaks` `out` entry and the return an `in`
+entry (the shape `processBreak` writes), each with its idempotency key, so a terminal's resend of the morning's
+check-out is still a duplicate and does not close the reopened day. An `early_leave` set by that check-out goes
+back to `present`; `late` stays `late`; the last check-out rates early leave as it always did. The return is
+logged `rejoined`, audited `attendance.day_rejoined`, announced as `attendance.checked_in`, and answered
+`resumed` ("Welcome back").
+
+Unchanged: `ConflictResolver` and its 5-minute window, `processBreak`, manual and imported entries, a return
+after the shift's end or after more than 180 minutes (a second session, flagged as before), and worked minutes,
+which still subtract the shift's fixed `break_minutes` once per record (owner decision 2026-11-18): the measured
+gap is stored, not paid. Days already recorded as two records stay two until they are joined from the
+Conflicts page (a separate change). Pinned by `tests/Feature/Attendance/RejoinSplitDayTest.php`.

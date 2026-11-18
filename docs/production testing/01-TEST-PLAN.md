@@ -134,6 +134,7 @@ the execution log.
 | A single-use, short-lived QR on the kiosk screen | #641 | KIO-026 to KIO-028; KIO-010, PHN-007 changed |
 | One record a day across every method; no duplicate departure | #644 | PUNCH-007, PUNCH-009, AIMP-004; ATT-006, AIMP-002 changed |
 | Every punch method names the day type and what the punch came to; a second check-in answers "Already checked in" instead of opening a conflict | #646 | MOB-013, PUNCH-008, PUNCH-010; ATT-001, ATT-002, ATT-004, ATT-005, ATT-007, KIO-003, CON-001, MOB-011 changed |
+| A return from a break inside the work day (within 180 minutes, before the shift's end) reopens the day's record instead of making a flagged second one | #TBD (open) | PUNCH-011, PUNCH-012; PUNCH-010, CON-001 changed |
 | ADMS terminals report who is enrolled, and belong to the organisation whose address they call | #461, #498 | DEV-014, DEV-015 |
 | The attendance page title says whose records it shows; times in the reader's clock | #511, #508, #512, #514 | ATT-014, ATT-015; MOB-012, SHF-012 changed |
 | A-Z review: a required geofence for QR and web too, a retry key answers only its own person, check-out photo consent and size, corrections, offline order, devices | #624 | QR-009, ATT-013, COR-010, OFF-010, DEV-016; ATT-011, MOB-003, MOB-007, MOB-008 changed |
