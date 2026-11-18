@@ -1360,6 +1360,9 @@
   "attendance.reason_placeholder": "Why is this manual entry needed?",
   "attendance.reason_required": "Reason *",
   "attendance.record_entry": "Record Entry",
+  "attendance.register_pdf": "Full register as PDF",
+  "attendance.register_pdf_failed": "The register PDF could not be made. Try again.",
+  "attendance.register_pdf_not_applied": "The PDF does not apply the :filter filter.",
   "attendance.reminder.before_start_body": "Starts at :start. Check in when you arrive.",
   "attendance.reminder.before_start_title": "Your shift starts soon",
   "attendance.reminder.not_checked_in_body": "Your shift started at :start. Check in now, or you will be marked late.",
@@ -7727,5 +7730,6 @@
   "print.printed": "Printed :when",
   "print.printed_by": "by :name",
   "print.range": ":from to :to",
+  "print.this_page": "Print this page",
   "print.until": "until :to"
 }

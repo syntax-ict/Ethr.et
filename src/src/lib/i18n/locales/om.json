@@ -1360,6 +1360,9 @@
   "attendance.reason_placeholder": "Galmeen harkaa kun maaliif barbaachise?",
   "attendance.reason_required": "Sababa *",
   "attendance.record_entry": "Galmee Galmeessi",
+  "attendance.register_pdf": "Galmee guutuu akka PDF",
+  "attendance.register_pdf_failed": "PDF galmee kanaa qopheessuun hin danda'amne. Irra deebi'ii yaali.",
+  "attendance.register_pdf_not_applied": "PDF'n calleessaa :filter hin hordofu.",
   "attendance.reminder.before_start_body": "Sa'aatii :start irratti jalqaba. Yeroo geessan seensa galmeessaa.",
   "attendance.reminder.before_start_title": "Shiftiin keessan dhiyootti jalqaba",
   "attendance.reminder.not_checked_in_body": "Shiftiin keessan sa'aatii :start irratti jalqabeera. Amma seensa galmeessaa, yoo kana hin taane akka barfattanitti ni galmeeffamtu.",
@@ -7727,5 +7730,6 @@
   "print.printed": "Maxxanfame :when",
   "print.printed_by": "Kan maxxanse :name",
   "print.range": ":from hanga :to",
+  "print.this_page": "Fuula kana maxxansi",
   "print.until": "hanga :to"
 }
