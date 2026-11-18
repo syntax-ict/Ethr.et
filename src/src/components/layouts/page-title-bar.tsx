@@ -89,7 +89,7 @@ export function PageTitleBar() {
           : "flex flex-col gap-3 border-b border-border bg-background px-4 py-4 sm:flex-row sm:items-end sm:justify-between md:px-6 md:py-5"
       }
     >
-      <div className="min-w-0">
+      <div className="min-w-0 print:hidden">
         {crumbs.length > 1 && (
           <nav
             aria-label={t("nav.breadcrumb", "Breadcrumb")}

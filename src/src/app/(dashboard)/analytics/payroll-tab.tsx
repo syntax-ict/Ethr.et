@@ -68,7 +68,7 @@ export function PayrollTab({
       {(data) => (
         <div className="space-y-6">
           {data.totals && (
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="print-grid grid gap-4 [--print-cols:3] sm:grid-cols-3">
               <StatCard
                 icon={Wallet}
                 label={t("analytics_page.total_gross")}

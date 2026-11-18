@@ -60,6 +60,7 @@ import { RelationPicker } from "@/features/employees/components/relation-picker"
 import { ErrorState } from "@/components/shared/error-state";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PrintAction } from "@/components/shared/print-action";
+import { usePrintTitle } from "@/components/layouts/print-title";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -103,6 +104,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   } = useEmployee(id);
   const nationalityLabel = useNationalityStatusLabel();
   useEntityTitle(employee?.name);
+  // The paper is named for the person, not for the page.
+  usePrintTitle(
+    employee
+      ? [employee.name, employee.employee_code].filter(Boolean).join(" · ")
+      : null,
+  );
   const canManageAttendance =
     usePermissions().hasPermission("attendance.manage");
   const [editing, setEditing] = useState(false);

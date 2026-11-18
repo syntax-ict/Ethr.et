@@ -7663,5 +7663,11 @@
   "migration_ready.marked_no": "Marked no in the list, so not invited: :count",
   "migration_ready.warn_title": "Some people can only be activated in person",
   "migration_ready.warn_desc": ":count people cannot be reached by an invitation, and your organisation does not let people sign in with their employee number, so a code handed over in person would not let them in. Turn on Employee number in the Sign-in step of the guided setup, or add an email for them.",
-  "migration_ready.warn_link": "Open the Sign-in step"
+  "migration_ready.warn_link": "Open the Sign-in step",
+  "print.all": "All",
+  "print.from": "from :from",
+  "print.printed": "Printed :when",
+  "print.printed_by": "by :name",
+  "print.range": ":from to :to",
+  "print.until": "until :to"
 }

@@ -7663,5 +7663,11 @@
   "migration_ready.marked_no": "Tarree keessatti «Lakki» jedhaman, kanaaf kan hin afeeramne: :count",
   "migration_ready.warn_title": "Namoonni tokko tokko qaamaan qofa hojiirra oolu",
   "migration_ready.warn_desc": "Namoonni :count affeerraan isaan quunnamuu hin danda'u, dhaabbatni keessan lakkoofsa hojjetaatiin seenuu hin eyyamne; kanaaf koodiin qaamaan kennamu isaan hin seensisu. Sadarkaa Seensaa qindaa'ina qajeelfamaa keessatti Lakkoofsa hojjetaa banaa, yookaan imeelii isaaniif dabalaa.",
-  "migration_ready.warn_link": "Sadarkaa Seensaa bani"
+  "migration_ready.warn_link": "Sadarkaa Seensaa bani",
+  "print.all": "Hunda",
+  "print.from": ":from irraa eegalee",
+  "print.printed": "Maxxanfame :when",
+  "print.printed_by": "kan :name",
+  "print.range": ":from hanga :to",
+  "print.until": ":to hanga"
 }
