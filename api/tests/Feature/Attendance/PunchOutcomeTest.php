@@ -167,15 +167,35 @@ it('says already in when two methods report the same arrival minutes apart', fun
     expect(AttendanceRecord::query()->where('employee_id', $employee->id)->where('status', '!=', 'voided')->count())->toBe(1);
 });
 
-it('keeps a check-in after the day was closed as a second session', function () {
+it('welcomes a person back from a break on the same record', function () {
     [$tenant, $employee] = outcomeSetup();
 
     Carbon::setTestNow('2026-10-12 05:25:00');
     phonePunch($tenant, 'check-in', 'out-s1-in')->assertCreated();
-    Carbon::setTestNow('2026-10-12 10:00:00');
+    Carbon::setTestNow('2026-10-12 10:00:00'); // 13:00
     phonePunch($tenant, 'check-out', 'out-s1-out')->assertOk();
 
-    Carbon::setTestNow('2026-10-12 12:00:00');
+    Carbon::setTestNow('2026-10-12 11:00:00'); // 14:00, an hour later and before the shift's end
+    phonePunch($tenant, 'check-in', 'out-s1-back')
+        ->assertCreated()
+        ->assertJsonPath('outcome.code', 'resumed');
+
+    expect(AttendanceRecord::query()->where('employee_id', $employee->id)->where('status', '!=', 'voided')->count())->toBe(1)
+        ->and(AttendanceConflict::query()->count())->toBe(0);
+});
+
+// Moved outside the rule on 2026-11-18: this return was at 15:00 on a shift
+// ending 17:30, two hours after leaving, and is now a break. A return after
+// the shift's end is still a second session.
+it('keeps a check-in after the shift ended as a second session', function () {
+    [$tenant, $employee] = outcomeSetup();
+
+    Carbon::setTestNow('2026-10-12 05:25:00');
+    phonePunch($tenant, 'check-in', 'out-s1-in')->assertCreated();
+    Carbon::setTestNow('2026-10-12 13:00:00'); // 16:00
+    phonePunch($tenant, 'check-out', 'out-s1-out')->assertOk();
+
+    Carbon::setTestNow('2026-10-12 14:40:00'); // 17:40, ten minutes after the shift
     phonePunch($tenant, 'check-in', 'out-s2-in')
         ->assertCreated()
         ->assertJsonPath('outcome.code', 'checked_in_again');

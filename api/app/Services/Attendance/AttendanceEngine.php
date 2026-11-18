@@ -19,6 +19,7 @@ use App\Models\Tenant;
 use App\Services\Attendance\Device\AttendanceDeviceGate;
 use App\Services\Attendance\Device\DeviceVerdict;
 use App\Services\FileStorageService;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\AttendanceRules;
 use App\Support\AttendanceWebhookPayload;
 use App\Support\TenantTime;
@@ -163,6 +164,17 @@ final class AttendanceEngine
 
                 if ($existing) {
                     return new AttendanceResult($existing, wasDuplicate: true, punch: 'check_out', outcome: $this->outcomeFor($existing, 'check_out'));
+                }
+            }
+
+            // A punch that reopened the day moved the key of the check-out it
+            // undid, and its own, into the day's breaks (rejoinDay). A terminal
+            // that resends the morning's check-out after the return must be
+            // answered as before and must not close the reopened record.
+            if (in_array($input->type, ['check_in', 'check_out', 'auto'], true)) {
+                $replayed = $this->answerRejoinReplay($input);
+                if ($replayed !== null) {
+                    return $replayed;
                 }
             }
         }
@@ -431,6 +443,160 @@ final class AttendanceEngine
     }
 
     /**
+     * One break entry as processBreak and rejoinDay both write it: the type
+     * (`out` or `in`), the moment, and the idempotency key of the punch behind
+     * it when it had one.
+     *
+     * @param  list<array<string, string>>  $breaks
+     * @return list<array<string, string>>
+     */
+    private function appendBreak(array $breaks, string $type, Carbon $at, ?string $key): array
+    {
+        $breaks[] = array_filter([
+            'type' => $type,
+            'at' => $at->copy()->utc()->toIso8601String(),
+            'key' => $key,
+        ], fn ($value) => $value !== null);
+
+        return $breaks;
+    }
+
+    /**
+     * The answer to a resent punch whose key a return from a break moved into
+     * the day's breaks: a resent check-out is a duplicate check-out, a resent
+     * check-in the return it already was. Looked at only for records with
+     * breaks, dated around the punch.
+     */
+    private function answerRejoinReplay(AttendanceInput $input): ?AttendanceResult
+    {
+        $moment = $this->resolveMoment($input);
+
+        $records = AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->where('employee_id', $input->employeeId)
+            ->whereDate('date', '>=', $moment->copy()->subDays(2)->format('Y-m-d'))
+            ->whereDate('date', '<=', $moment->copy()->addDay()->format('Y-m-d'))
+            ->whereJsonLength('metadata->breaks', '>', 0)
+            ->get();
+
+        foreach ($records as $record) {
+            foreach ((array) ($record->metadata['breaks'] ?? []) as $entry) {
+                if (($entry['key'] ?? null) !== $input->idempotencyKey) {
+                    continue;
+                }
+
+                if (($entry['type'] ?? null) === 'out') {
+                    return new AttendanceResult($record, wasDuplicate: true, punch: 'check_out', outcome: $this->outcomeFor($record, 'check_out'));
+                }
+
+                return new AttendanceResult($record, wasDuplicate: true, punch: 'check_in', outcome: new PunchOutcome(PunchOutcome::RESUMED));
+            }
+        }
+
+        return null;
+    }
+    /**
+     * A check-in that comes back from a break: the person's latest closed
+     * record of this work day is reopened instead of a second one being made
+     * beside it and flagged.
+     *
+     * A two-session working day (in 08:50, out 12:05, in 13:55, out 17:00)
+     * made a second record every day, flagged MULTI_SOURCE_FAR even for one
+     * source, with the morning an early leave and the afternoon late by hours;
+     * one person's replay made 46 conflicts in 92 days (BASELINE section 25).
+     *
+     * Only a live punch, and only when the return is on the record's work day,
+     * after its check-out and within MAX_BREAK_MINUTES of it, and before its
+     * shift's end. Anything else is a second session, kept and flagged as it
+     * always was: an evening return, a morning job and an evening one. A
+     * record with no shift has no end to be before, so the gap alone decides.
+     *
+     * The old check-out becomes the break's `out` and this punch its `in`
+     * (the entries processBreak writes), each carrying the key of the punch
+     * behind it so a terminal's resend is still a duplicate. The shift's fixed
+     * `break_minutes` still decide what is paid; the measured gap is stored,
+     * not paid.
+     */
+    private function rejoinTarget(AttendanceInput $input, string $zone, string $workDate, Carbon $now): ?AttendanceRecord
+    {
+        $record = AttendanceRecord::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->where('employee_id', $input->employeeId)
+            ->whereDate('date', $workDate)
+            ->whereNotNull('check_in')
+            ->whereNotNull('check_out')
+            ->where('check_out', '<', $now)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->with('shift')
+            ->latest('check_out')
+            ->first();
+
+        if ($record === null) {
+            return null;
+        }
+
+        if ((int) $record->check_out->diffInMinutes($now, absolute: true) > AttendanceRules::MAX_BREAK_MINUTES) {
+            return null;
+        }
+
+        if ($record->shift !== null) {
+            [, $shiftEnd] = $record->shift->windowOn($record->workDate($zone), $zone);
+            if (! $now->lt($shiftEnd)) {
+                return null;
+            }
+        }
+
+        // A day already paid in an approved run is not rewritten: the return
+        // is kept beside it and flagged, as a device punch after payment
+        // always was (PayrollPeriodLock).
+        if (app(PayrollPeriodLock::class)->isClosed($record->employee_id, $record->date)) {
+            return null;
+        }
+
+        return $record;
+    }
+
+    private function rejoinDay(AttendanceRecord $record, AttendanceInput $input, Employee $employee, Carbon $now, ?AttendanceSetting $settings): AttendanceResult
+    {
+        $gap = (int) $record->check_out->diffInMinutes($now, absolute: true);
+
+        $metadata = $record->metadata ?? [];
+        $breaks = $this->appendBreak((array) ($metadata['breaks'] ?? []), 'out', $record->check_out, $metadata['checkout_idempotency_key'] ?? null);
+        $breaks = $this->appendBreak($breaks, 'in', $now, $input->idempotencyKey);
+        $metadata['breaks'] = $breaks;
+        unset($metadata['checkout_idempotency_key']);
+
+        $record->update([
+            'check_out' => null,
+            'metadata' => $this->punchLog($metadata, $input, 'check_in', $now, 'rejoined'),
+        ]);
+
+        // The morning's check-out made it an early leave. It has no check-out
+        // now, so it is rated as at arrival; the last check-out decides again.
+        if ($record->status === AttendanceStatus::EARLY_LEAVE) {
+            $this->reclassify($record);
+        }
+        $record = $record->fresh() ?? $record;
+
+        AuditLog::record('attendance.day_rejoined', $record, [
+            'gap_minutes' => $gap,
+            'source' => $input->source->value,
+        ]);
+
+        $flags = $this->inspector->inspect($record, $input, $employee, $settings, 'check_in', $now);
+        if ($settings !== null) {
+            $this->risk->score($record, $input, $employee, $settings, 'check_in', $flags);
+            $record = $record->fresh() ?? $record;
+        }
+
+        AttendanceRecorded::dispatch($record);
+
+        $this->webhook($record->tenant_id, 'attendance.checked_in', AttendanceWebhookPayload::of($record, $employee));
+
+        return new AttendanceResult($record, punch: 'check_in', outcome: new PunchOutcome(PunchOutcome::RESUMED));
+    }
+
+    /**
      * The record a check-out at `$now` closes: today's open one, or
      * yesterday's when its shift crosses midnight or it began less than
      * MAX_OPEN_HOURS ago. Shared by check-out and `auto`, so both close the
@@ -577,6 +743,16 @@ final class AttendanceEngine
             if ($geofenceVerified === false) {
                 throw new AttendanceRefused(__('attendance.outside_geofence'));
             }
+        }
+
+        // Back from a break on the same day: the record is reopened, not
+        // duplicated. After the geofence checks above, so a refused punch
+        // reopens nothing.
+        $returning = $live && ($open === null || $open->date->format('Y-m-d') !== $workDate)
+            ? $this->rejoinTarget($input, $zone, $workDate, $now)
+            : null;
+        if ($returning !== null) {
+            return $this->rejoinDay($returning, $input, $employee, $now, $settings);
         }
 
         $confidence = $this->scorer->calculate($input, $geofenceVerified);

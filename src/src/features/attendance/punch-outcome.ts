@@ -108,6 +108,14 @@ export function punchOutcomeText(
         ),
         hint: null,
       };
+    case "resumed":
+      return {
+        code: outcome.code,
+        tone: "success",
+        already: false,
+        title: t("attendance.outcome.resumed", "Welcome back"),
+        hint: null,
+      };
     case "already_checked_in":
       return {
         code: outcome.code,

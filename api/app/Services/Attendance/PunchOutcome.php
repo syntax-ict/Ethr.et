@@ -26,6 +26,12 @@ final readonly class PunchOutcome
     /** A second session after the first was closed; kept beside it and flagged. */
     public const CHECKED_IN_AGAIN = 'checked_in_again';
 
+    /**
+     * Back from a break on the same day: the check-in reopened the day's one
+     * record instead of starting a second session (AttendanceEngine::rejoinDay).
+     */
+    public const RESUMED = 'resumed';
+
     public const ALREADY_CHECKED_IN = 'already_checked_in';
 
     public const CHECKED_OUT = 'checked_out';

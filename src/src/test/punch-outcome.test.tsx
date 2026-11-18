@@ -65,6 +65,16 @@ describe("punchOutcomeText", () => {
     ).toBe("Checked out, 90 min early");
   });
 
+  it("welcomes someone back from a break, not as a second session", () => {
+    expect(
+      punchOutcomeText(outcome({ code: "resumed" }), t, clock),
+    ).toMatchObject({
+      title: "Welcome back",
+      tone: "success",
+      already: false,
+    });
+  });
+
   it("tells the kiosk the person is already in from the phone", () => {
     const text = punchOutcomeText(
       outcome({

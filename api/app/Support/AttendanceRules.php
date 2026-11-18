@@ -27,4 +27,15 @@ final class AttendanceRules
      * close is answered as a duplicate rather than a check-out.
      */
     public const MERGE_WINDOW_MINUTES = 5;
+
+    /**
+     * The longest gap between a check-out and the next check-in on the same
+     * work day that is still a break and not a second session: a lunch, an
+     * errand, a prayer. A return within it, before the shift's end, reopens the
+     * day's record (AttendanceEngine::rejoinDay); a later one stays a second
+     * session beside it, flagged for review as before. Three hours covers a
+     * two-session working day (08:50 to 12:05, 13:55 to 17:00) and stops short
+     * of a morning job and an evening one.
+     */
+    public const MAX_BREAK_MINUTES = 180;
 }

@@ -236,10 +236,13 @@ it('flags a web punch outside the branch, a fed-in location and an impossible jo
         'date' => now()->subDay()->toDateString(), 'check_in' => now()->subDay(),
         'latitude' => 9.1, 'longitude' => 38.9,
     ]);
-    // An hour ago, in Bahir Dar.
+    // An hour ago, in Bahir Dar, on the record of another work day (a night
+    // shift's, say): a check-in on the day of a closed record within three
+    // hours is a return from a break and reopens it (AttendanceEngine::rejoinDay),
+    // which is not a journey between two records.
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
-        'date' => now()->toDateString(), 'check_in' => now()->subHour(), 'check_out' => now()->subMinutes(50),
+        'date' => now()->subDay()->toDateString(), 'check_in' => now()->subHour(), 'check_out' => now()->subMinutes(50),
         'latitude' => 11.5936, 'longitude' => 37.3908,
     ]);
 
