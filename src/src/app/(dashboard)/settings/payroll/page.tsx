@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AllowanceRulesCard } from "@/features/payroll/components/allowance-rules-card";
 import { OvertimeRatesCard } from "@/features/payroll/components/overtime-rates-card";
 import { PayrollScheduleCard } from "@/features/payroll/components/payroll-schedule-card";
+import { PrintedDocumentsCard } from "@/features/payroll/components/printed-documents-card";
 import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-details-card";
 import { StatutoryRulesCard } from "@/features/payroll/components/statutory-rules-card";
 import { TaxBracketsCard } from "@/features/payroll/components/tax-brackets-card";
@@ -34,6 +35,7 @@ export default function PayrollConfigPage() {
         <TabsContent value="setup" className="mt-6 space-y-6">
           <PayrollScheduleCard />
           <StatutoryDetailsCard />
+          <PrintedDocumentsCard />
           <AllowanceRulesCard />
           <TaxBracketsCard />
           <PensionRulesCard />

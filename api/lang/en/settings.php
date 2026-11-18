@@ -22,6 +22,10 @@ return [
         'tax_center' => 'tax centre',
         'pension_scheme' => 'pension scheme',
         'employee_number_format' => 'employee number format',
+        'letterhead_address' => 'address on documents',
+        'letterhead_phone' => 'phone on documents',
+        'letterhead_email' => 'email on documents',
+        'letterhead_po_box' => 'P.O. box on documents',
         'invitation_reminders' => 'invitation reminders',
     ],
 ];

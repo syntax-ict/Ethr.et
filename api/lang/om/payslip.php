@@ -24,6 +24,16 @@ return [
     'currency' => 'Birrii',
     'generated' => 'Guyyaa :date qophaa\'e. Kun sanada kompiitaraan qophaa\'eedha.',
     'powered_by' => ':organisation, ETHR irratti hundaa\'e',
+    'employer_tin' => 'TIN hojjechiisaa',
+    'employee_tin' => 'TIN hojjetaa',
+    'pension_number' => 'Lakk. soorama',
+    'bank' => 'Baankii',
+    'account' => 'Lakk. herregaa',
+    'pay_date' => 'Guyyaa kaffaltii',
+    'allowance_types' => [
+        'fixed' => 'Abbaltii kaffalamaa',
+        'percentage' => 'Abbaltii dhibbeentaa',
+    ],
     'deduction_types' => [
         'loan' => 'Deebii liqii',
         'cost_sharing' => 'Qooddachuu baasii',
