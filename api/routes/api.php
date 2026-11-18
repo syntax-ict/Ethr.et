@@ -540,6 +540,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::prefix('conflicts')->group(function () {
             Route::get('/', [AttendanceConflictController::class, 'index']);
+            Route::post('/join', [AttendanceConflictController::class, 'join']);
             Route::put('/{conflict}/resolve', [AttendanceConflictController::class, 'resolve']);
         });
 

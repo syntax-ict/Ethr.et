@@ -457,7 +457,7 @@ final class AttendanceEngine
      * @param  array<string, mixed>  $extra  where and with what evidence the punch was made (`lat`, `lon`, `photo`)
      * @return list<array<string, mixed>>
      */
-    private function appendBreak(array $breaks, string $type, Carbon $at, ?string $key, array $extra = []): array
+    public static function appendBreak(array $breaks, string $type, Carbon $at, ?string $key, array $extra = []): array
     {
         $breaks[] = array_filter([
             'type' => $type,
