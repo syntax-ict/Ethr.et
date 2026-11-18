@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\Attendance\AttendanceImportController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntegrityController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendancePhotoController;
+use App\Http\Controllers\Api\V1\Attendance\AttendancePresenceController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSiteController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceVisitController;
@@ -502,6 +503,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/devices/{device}/approve', [AttendanceDeviceController::class, 'approve']);
         Route::post('/devices/{device}/reject', [AttendanceDeviceController::class, 'reject']);
         Route::delete('/devices/{device}', [AttendanceDeviceController::class, 'revoke']);
+        Route::post('/presence/confirm', [AttendancePresenceController::class, 'confirm']);
         Route::post('/visits', [AttendanceVisitController::class, 'store']);
         Route::get('/visits/mine', [AttendanceVisitController::class, 'mine']);
         Route::get('/visits', [AttendanceVisitController::class, 'index']);

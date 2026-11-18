@@ -6,6 +6,7 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceIntegrityFlag;
+use App\Models\AttendancePresenceCheck;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Tenant;
@@ -25,6 +26,11 @@ use Illuminate\Support\Carbon;
  *    and flagged low: it is how a reviewer notices a clock that is being
  *    gamed.
  *
+ *  - presence_pattern: two or more of someone's presence checks in the window
+ *    went unanswered or came from a phone the organisation does not trust,
+ *    and they are at least half of the checks sent. One miss is a dead
+ *    battery or a tunnel, so a single one files nothing.
+ *
  * Idempotent: a finding is filed on the person's latest record in the window
  * and updated, not repeated, by the next run.
  */
@@ -36,7 +42,7 @@ final class AttendancePatternScan
 
     private const BUDDY_DAYS = 3;
 
-    /** @return array{buddy: int, grace_edge: int} findings filed */
+    /** @return array{buddy: int, grace_edge: int, presence_pattern: int} findings filed */
     public function run(Tenant $tenant): array
     {
         $since = Carbon::now()->subDays(self::WINDOW_DAYS);
@@ -44,6 +50,7 @@ final class AttendancePatternScan
         return [
             'buddy' => $this->buddies($since),
             'grace_edge' => $this->graceEdge($tenant),
+            'presence_pattern' => $this->presencePattern($since),
         ];
     }
 
@@ -128,6 +135,35 @@ final class AttendancePatternScan
             if ($edge >= 8) {
                 $filed += $this->file((int) $employeeId, 'grace_edge', 'low', ['of_last' => 10, 'at_edge' => $edge]);
             }
+        }
+
+        return $filed;
+    }
+
+    private function presencePattern(Carbon $since): int
+    {
+        $filed = 0;
+
+        $rows = AttendancePresenceCheck::query()
+            ->where('sent_at', '>=', $since)
+            ->get(['employee_id', 'status']);
+
+        foreach ($rows->groupBy('employee_id') as $employeeId => $checks) {
+            $missed = $checks->where('status', AttendancePresenceCheck::MISSED)->count();
+            $unverified = $checks->where('status', AttendancePresenceCheck::UNVERIFIED)->count();
+            $bad = $missed + $unverified;
+            $total = $checks->count();
+
+            if ($bad < 2 || $bad * 2 < $total) {
+                continue;
+            }
+
+            $filed += $this->file((int) $employeeId, 'presence_pattern', $bad >= 4 ? 'high' : 'medium', [
+                'missed' => $missed,
+                'unverified' => $unverified,
+                'total' => $total,
+                'days' => self::WINDOW_DAYS,
+            ]);
         }
 
         return $filed;
