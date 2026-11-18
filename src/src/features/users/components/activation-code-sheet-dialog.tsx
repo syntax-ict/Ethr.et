@@ -169,7 +169,7 @@ export function ActivationCodeSheetDialog({
               )}
 
               <ul
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                className="print-slips grid grid-cols-1 gap-3 sm:grid-cols-2"
                 aria-label={t("code_sheet.sheet_title", "Activation codes")}
               >
                 {sheet.codes.map((slip) => (
