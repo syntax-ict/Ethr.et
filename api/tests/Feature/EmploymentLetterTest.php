@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Notifications\LetterDecidedNotification;
 use App\Notifications\LetterRequestedNotification;
 use App\Services\Letters\EmploymentLetters;
+use App\Support\Letterhead;
 use Illuminate\Support\Facades\Notification;
 
 // An employee asks HR for an employment letter, HR issues or declines it, and
@@ -80,7 +81,7 @@ it('writes what the record says, with salary only when asked', function () {
     $without = $letters->issue($letters->request($employee, ['purpose' => 'Visa']), $hr);
 
     $html = fn (EmploymentLetterRequest $l) => view('letters.employment', [
-        'locale' => 'en', 'organisation' => 'Syntax Technology', 'reference' => $l->reference, 'issued_on' => '20 October 2026',
+        'locale' => 'en', 'letterhead' => Letterhead::for($tenant, 'en'), 'issuer_position' => '', 'organisation' => 'Syntax Technology', 'reference' => $l->reference, 'issued_on' => '20 October 2026',
         'addressed_to' => null, 'name' => 'Selam Tesfaye', 'code' => 'E-007', 'hired_on' => '1 March 2022', 'left_on' => null,
         'position' => 'Software Engineer', 'department' => 'Engineering',
         'salary' => $l->include_salary ? '45,000.00' : null, 'purpose' => $l->purpose, 'issuer' => '',
@@ -143,7 +144,7 @@ it('writes the letter in Amharic when asked', function () {
     $letter = $letters->issue($letters->request($employee, ['purpose' => 'ለባንክ ብድር', 'language' => 'am']), $hr);
 
     $html = view('letters.employment', [
-        'locale' => 'am', 'organisation' => 'Syntax Technology', 'reference' => $letter->reference, 'issued_on' => '',
+        'locale' => 'am', 'letterhead' => ['name' => 'Syntax Technology', 'logo' => null, 'lines' => []], 'issuer_position' => '', 'organisation' => 'Syntax Technology', 'reference' => $letter->reference, 'issued_on' => '',
         'addressed_to' => null, 'name' => 'Selam Tesfaye', 'code' => 'E-007', 'hired_on' => '', 'left_on' => null,
         'position' => '', 'department' => '', 'salary' => null, 'purpose' => $letter->purpose, 'issuer' => '',
     ])->render();

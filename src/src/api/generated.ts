@@ -13747,6 +13747,11 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                letterhead_address?: string | null;
+                letterhead_phone?: string | null;
+                /** Format: email */
+                letterhead_email?: string | null;
+                letterhead_po_box?: string | null;
             };
         };
         /** UpdateShiftRequest */
@@ -35756,6 +35761,12 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                        };
+                        documents: {
+                            letterhead_address: string | null;
+                            letterhead_phone: string | null;
+                            letterhead_email: string | null;
+                            letterhead_po_box: string | null;
                         };
                         security: {
                             mfa_policy: string;
