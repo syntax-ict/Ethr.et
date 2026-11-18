@@ -560,12 +560,12 @@ final class AttendanceEngine
         // made (the return is compared with it, IntegrityInspector) and its
         // selfie (kept and deleted by PhotoRetention, not orphaned by the
         // final check-out's own).
-        $breaks = $this->appendBreak((array) ($metadata['breaks'] ?? []), 'out', $record->check_out, $metadata['checkout_idempotency_key'] ?? null, [
+        $breaks = self::appendBreak((array) ($metadata['breaks'] ?? []), 'out', $record->check_out, $metadata['checkout_idempotency_key'] ?? null, [
             'lat' => $metadata['checkout_latitude'] ?? null,
             'lon' => $metadata['checkout_longitude'] ?? null,
             'photo' => $metadata['checkout_photo_path'] ?? null,
         ]);
-        $breaks = $this->appendBreak($breaks, 'in', $now, $input->idempotencyKey);
+        $breaks = self::appendBreak($breaks, 'in', $now, $input->idempotencyKey);
         $metadata['breaks'] = $breaks;
         $metadata['break_photos'] = collect($breaks)->whereNotNull('photo')->count();
         unset($metadata['checkout_idempotency_key'], $metadata['checkout_latitude'], $metadata['checkout_longitude'], $metadata['checkout_photo_path']);

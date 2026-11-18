@@ -229,8 +229,9 @@ final class SplitDayJoiner
         $this->engine->reclassify($kept);
 
         // The later record keeps its punch times as history; what moved to the
-        // day (the check-out's fields, the check-in selfie) is not kept twice.
-        $joinedRest = array_filter($joinedMeta, fn ($key) => ! str_starts_with((string) $key, 'checkout_'), ARRAY_FILTER_USE_KEY);
+        // day (the check-out's fields, the check-in selfie, its break notes) is
+        // not kept twice, so no file is named by two records.
+        $joinedRest = array_filter($joinedMeta, fn ($key) => ! str_starts_with((string) $key, 'checkout_') && ! in_array($key, ['breaks', 'break_photos'], true), ARRAY_FILTER_USE_KEY);
         $joined->update([
             'status' => AttendanceStatus::VOIDED,
             'photo_path' => null,

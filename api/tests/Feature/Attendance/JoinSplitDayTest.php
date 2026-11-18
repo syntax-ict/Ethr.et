@@ -23,8 +23,9 @@ use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\PhotoRetention;
 use App\Services\Attendance\SplitDayJoiner;
-use App\Services\CurrentTenant;
+use App\Services\Payroll\PayrollPeriodLock;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -267,6 +268,24 @@ it('keeps a late morning late however the day ended', function () {
     expect($a->fresh()->status)->toBe(AttendanceStatus::LATE);
 });
 
+it('moves the afternoon\'s own break notes to the day and keeps them on one record only', function () {
+    [$tenant, $employee, $shift] = joinSplitSetup();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $note = ['type' => 'out', 'at' => joinSplitAt('15:30')->toIso8601String(), 'key' => 'b-brk-out', 'photo' => 'b-brk.jpg'];
+    [$a, $b, $conflict] = joinSplitDay($tenant, $employee, $shift, b: ['metadata' => [
+        'conflict_action' => 'flagged',
+        'breaks' => [$note, ['type' => 'in', 'at' => joinSplitAt('15:40')->toIso8601String(), 'key' => 'b-brk-in']],
+        'break_photos' => 1,
+    ]]);
+
+    joinSplitResolve($tenant, $conflict)->assertOk();
+
+    $metadata = $a->fresh()->metadata;
+    expect(collect($metadata['breaks'])->pluck('key')->all())->toBe(['a-out-x', 'b-in-x', 'b-brk-out', 'b-brk-in'])
+        ->and($metadata['break_photos'])->toBe(3)
+        ->and($b->fresh()->metadata)->not->toHaveKey('breaks')
+        ->and($b->fresh()->metadata)->not->toHaveKey('break_photos');
+});
 it('leaves the day open when the afternoon was never closed', function () {
     [$tenant, $employee, $shift] = joinSplitSetup();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -291,9 +310,14 @@ it('keeps the earlier record when the conflict names them the other way round', 
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
     [$morning, $afternoon, $conflict] = joinSplitDay($tenant, $employee, $shift);
     $conflict->update(['record_a_id' => $afternoon->id, 'record_b_id' => $morning->id]);
+    // The flag is on the kept record here: it was the later one to arrive.
+    $morning->update(['metadata' => [...$morning->metadata, 'conflict_action' => 'flagged', 'conflict_with' => $afternoon->public_id, 'flagged_at' => '2026-10-12T11:00:00+00:00']]);
 
     joinSplitResolve($tenant, $conflict)->assertOk();
 
+    expect($morning->fresh()->metadata)->not->toHaveKey('conflict_action')
+        ->and($morning->fresh()->metadata)->not->toHaveKey('conflict_with')
+        ->and($morning->fresh()->metadata)->not->toHaveKey('flagged_at');
     expect($afternoon->fresh()->status)->toBe(AttendanceStatus::VOIDED)
         ->and($morning->fresh()->check_out->equalTo(joinSplitAt('17:40')))->toBeTrue()
         ->and($morning->fresh()->status)->toBe(AttendanceStatus::PRESENT);
@@ -419,7 +443,7 @@ it('still answers every key of the joined day as a duplicate and records nothing
 
 it('keeps the selfies of a joined day findable and deletes them with the day', function () {
     Storage::fake('local');
-    Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     [$tenant, $employee, $shift] = joinSplitSetup();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
@@ -550,7 +574,7 @@ it('works for a slice and carries on from the cursor on the next call', function
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
     [$one, $two, $clash] = joinSplitWeek($tenant, $employee, $shift);
     // A budget already spent: each call takes the first it is given and stops.
-    app()->bind(SplitDayJoiner::class, fn () => new SplitDayJoiner(app(AttendanceEngine::class), app(App\Services\Payroll\PayrollPeriodLock::class), sliceSeconds: 0.0));
+    app()->bind(SplitDayJoiner::class, fn () => new SplitDayJoiner(app(AttendanceEngine::class), app(PayrollPeriodLock::class), sliceSeconds: 0.0));
 
     $first = joinSplitBulk($tenant, ['employee_public_id' => $employee->public_id])->assertOk();
     expect($first->json('joined'))->toBe(1)
