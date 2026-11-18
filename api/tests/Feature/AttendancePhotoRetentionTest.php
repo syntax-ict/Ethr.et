@@ -356,9 +356,16 @@ it('deletes the selfie of a check-out that a return from a break undid, once the
 
     $after = $record->fresh();
     Storage::disk('local')->assertMissing($morning);
-    expect($after->metadata['breaks'])->toBe([
-        ['type' => 'out', 'at' => $out->copy()->subHours(4)->toIso8601String(), 'key' => 'k-out'],
-        ['type' => 'in', 'at' => $out->copy()->subHours(3)->toIso8601String(), 'key' => 'k-in'],
+    // MySQL 8 does not keep a stored JSON object's key order, so each entry
+    // is sorted before it is compared.
+    $breaks = array_map(function (array $entry): array {
+        ksort($entry);
+
+        return $entry;
+    }, $after->metadata['breaks']);
+    expect($breaks)->toBe([
+        ['at' => $out->copy()->subHours(4)->toIso8601String(), 'key' => 'k-out', 'type' => 'out'],
+        ['at' => $out->copy()->subHours(3)->toIso8601String(), 'key' => 'k-in', 'type' => 'in'],
     ])
         ->and($after->metadata)->not->toHaveKey('break_photos')
         ->and($after->photos_deleted_at)->not->toBeNull();
