@@ -47,11 +47,14 @@ class PresenceRecordingSender extends WebPushSender
     /** @var list<array{user: int, payload: array<string, mixed>}> */
     public array $sent = [];
 
+    /** How many pushes the services accept; 0 is a dead subscription. */
+    public int $accepts = 1;
+
     public function toUser(int $userId, array $payload): int
     {
         $this->sent[] = ['user' => $userId, 'payload' => $payload];
 
-        return 1;
+        return $this->accepts;
     }
 
     /** @return list<array{user: int, payload: array<string, mixed>}> */
@@ -202,6 +205,25 @@ test('a record without a shift or a check-in has no checks', function () {
 });
 
 // ── Send ────────────────────────────────────────────────────────────────────
+
+test('a check no push service accepted leaves no row, is not counted as sent, and cannot be missed', function () {
+    $w = pcWorld(3);
+    $w['sender']->accepts = 0;
+    $first = pcTimes($w['record'])[1];
+
+    $tenant = app(CurrentTenant::class)->get();
+    Carbon::setTestNow($first);
+    $this->artisan('attendance:push-reminders')->expectsOutputToContain('Push reminders sent: 0.')->assertSuccessful();
+    app(CurrentTenant::class)->set($tenant);
+
+    expect(AttendancePresenceCheck::query()->count())->toBe(0);
+
+    // Nothing to expire into a miss, so the pattern scan has nothing to count.
+    pcTick($first->copy()->addMinutes(40));
+    pcScan();
+    expect(AttendancePresenceCheck::query()->count())->toBe(0)
+        ->and(AttendanceIntegrityFlag::query()->where('type', 'presence_pattern')->count())->toBe(0);
+});
 
 test('a check is pushed once the derived time is reached, and only once across two passes', function () {
     $w = pcWorld(3);

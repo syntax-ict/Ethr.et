@@ -128,7 +128,7 @@ class PushPunchRemindersCommand extends Command
 
     /**
      * Send the presence check due now, if any: checked in on a working day, a
-     * derived time reached, nothing already waiting. True when one was sent.
+     * derived time reached, nothing already waiting. True when one really went out.
      *
      * @param  array<string, mixed>  $shift  MyShiftService::forEmployee()
      */
@@ -152,9 +152,7 @@ class PushPunchRemindersCommand extends Command
             return false;
         }
 
-        $presence->send($record, $employee, $user, $slot, $now, $sender, $user->preferredLocale() ?? 'en');
-
-        return true;
+        return $presence->send($record, $employee, $user, $slot, $now, $sender, $user->preferredLocale() ?? 'en') !== null;
     }
 
     /**

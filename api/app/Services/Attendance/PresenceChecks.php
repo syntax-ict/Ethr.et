@@ -109,10 +109,6 @@ final class PresenceChecks
             return null;
         }
 
-        if ($this->places->for($employee) === []) {
-            return null;
-        }
-
         // Someone on a break is not asked: a lunch out of the building is
         // what a break is.
         $breaks = $record->metadata['breaks'] ?? null;
@@ -123,19 +119,29 @@ final class PresenceChecks
             }
         }
 
-        $rows = AttendancePresenceCheck::query()->where('attendance_record_id', $record->id)->get(['slot', 'status', 'expires_at']);
-        if ($rows->contains(fn (AttendancePresenceCheck $row): bool => $row->status === AttendancePresenceCheck::SENT && $row->expires_at->gt($now))) {
-            return null;
-        }
-
         [, $end] = $record->shift->windowOn($record->workDate($zone), $zone);
         if ($now->gt($end->copy()->subMinutes(AttendanceRules::PRESENCE_RESPONSE_MINUTES))) {
             return null;
         }
 
+        // Most ticks have nothing due: find that out before any query.
+        $reached = array_filter($this->times($record, $perShift, $zone), fn (CarbonInterface $at): bool => $at->lte($now));
+        if ($reached === []) {
+            return null;
+        }
+
+        if ($this->places->for($employee) === []) {
+            return null;
+        }
+
+        $rows = AttendancePresenceCheck::query()->where('attendance_record_id', $record->id)->get(['slot', 'status', 'expires_at']);
+        if ($rows->contains(fn (AttendancePresenceCheck $row): bool => $row->status === AttendancePresenceCheck::SENT && $row->expires_at->gt($now))) {
+            return null;
+        }
+
         $taken = $rows->pluck('slot')->map(fn (mixed $slot): int => (int) $slot)->all();
-        foreach ($this->times($record, $perShift, $zone) as $slot => $at) {
-            if ($at->lte($now) && ! in_array($slot, $taken, true)) {
+        foreach ($reached as $slot => $at) {
+            if (! in_array($slot, $taken, true)) {
                 return $slot;
             }
         }
@@ -146,9 +152,11 @@ final class PresenceChecks
     /**
      * Record the check and push it. The deadline runs from the real send, so
      * a tick that is late still gives the full window. A second tick that
-     * got here first leaves a row behind: nothing is sent twice.
+     * got here first leaves a row behind: nothing is sent twice. Null when no
+     * push service accepted it: a check nobody could receive is not kept, so
+     * it is never counted as missed.
      */
-    public function send(AttendanceRecord $record, Employee $employee, User $user, int $slot, CarbonInterface $now, WebPushSender $sender, string $locale): AttendancePresenceCheck
+    public function send(AttendanceRecord $record, Employee $employee, User $user, int $slot, CarbonInterface $now, WebPushSender $sender, string $locale): ?AttendancePresenceCheck
     {
         try {
             $check = AttendancePresenceCheck::query()->create([
@@ -167,7 +175,7 @@ final class PresenceChecks
                 ->firstOrFail();
         }
 
-        $sender->toUser($user->id, [
+        $accepted = $sender->toUser($user->id, [
             'title' => 'ETHR',
             'body' => __('attendance.push_presence_check', ['minutes' => AttendanceRules::PRESENCE_RESPONSE_MINUTES], $locale),
             'url' => '/attendance/mobile',
@@ -176,6 +184,12 @@ final class PresenceChecks
             'urgency' => 'high',
             'requireInteraction' => true,
         ]);
+
+        if ($accepted < 1) {
+            $check->delete();
+
+            return null;
+        }
 
         return $check;
     }
