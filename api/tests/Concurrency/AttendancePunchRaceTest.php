@@ -297,3 +297,45 @@ it('records the punch when the lock cannot be had in time', function () {
         ->and($result->wasDuplicate)->toBeFalse()
         ->and(AttendanceRecord::query()->where('employee_id', $employee->id)->count())->toBe(1);
 });
+
+// A two-session day: the afternoon's check-in reaches the server twice at the
+// same instant, as two methods or a terminal and its resend do, with keys of
+// their own. The return reopens the day's record once; the other finds it
+// open. No second record, no lost break (AttendanceEngine::rejoinDay).
+it('reopens the day once when two check-ins race the return from a break', function () {
+    [$tenant, $employees] = raceFixture();
+    $engine = app(AttendanceEngine::class);
+
+    foreach ($employees as $employee) {
+        foreach ([['check_in', '2026-10-12T07:00:00+00:00'], ['check_out', '2026-10-12T09:00:00+00:00']] as [$type, $at]) {
+            $engine->record(new AttendanceInput(
+                employeeId: $employee->id,
+                tenantId: $tenant->id,
+                source: AttendanceSource::BIOMETRIC,
+                type: $type,
+                idempotencyKey: "race-morning-{$type}-{$employee->id}",
+                occurredAt: $at,
+            ));
+        }
+    }
+
+    $jobs = [];
+    foreach ($employees as $employee) {
+        $jobs[] = ['employee_id' => $employee->id, 'source' => AttendanceSource::BIOMETRIC, 'type' => 'check_in', 'key' => "race-back-a-{$employee->id}", 'occurred_at' => '2026-10-12T10:00:00+00:00'];
+        $jobs[] = ['employee_id' => $employee->id, 'source' => AttendanceSource::BIOMETRIC, 'type' => 'check_in', 'key' => "race-back-b-{$employee->id}", 'occurred_at' => '2026-10-12T10:00:01+00:00'];
+    }
+
+    $results = race($tenant, $jobs);
+    expect(raceFailures($results))->toBe([]);
+
+    foreach ($employees as $employee) {
+        $record = AttendanceRecord::query()->where('employee_id', $employee->id)->sole();
+        $returns = collect($record->metadata['punches'])->where('kind', 'check_in')->skip(1)->pluck('outcome')->sort()->values()->all();
+
+        expect($record->check_out)->toBeNull()
+            ->and($returns)->toBe(['duplicate', 'rejoined'])
+            ->and(collect($record->metadata['breaks'])->pluck('type')->all())->toBe(['out', 'in']);
+    }
+
+    expect(AttendanceConflict::query()->where('tenant_id', $tenant->id)->count())->toBe(0);
+});

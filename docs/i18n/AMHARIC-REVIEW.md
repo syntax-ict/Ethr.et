@@ -574,3 +574,24 @@ The Amharic drafts:
 
 What to check first: that "ቢበዛ" ("at most") reads as a ceiling on a card, and that "ፑል" is still the word the
 button uses.
+
+### Welcome back, and the audit line for a reopened day (2026-11-18)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A person who checks in again after a lunch break, the same day and before the shift ends, now continues
+the day's one record instead of starting a second session, and every punch screen (phone, web, QR, kiosk) says
+"Welcome back". The audit log names the action.
+
+| What | Where | Strings |
+|---|---|---|
+| Punch answer for a return from a break | `src/src/lib/i18n/locales/{am,om}.json`, `attendance.outcome.resumed` | 1 each |
+| Audit action: the day was reopened after a break | `audit.action.attendance.day_rejoined` | 1 each |
+
+The Amharic drafts:
+
+- `attendance.outcome.resumed`: እንኳን ደህና ተመለሱ
+- `audit.action.attendance.day_rejoined`: ከእረፍት በኋላ የቀኑ መዝገብ እንደገና ተከፈተ
+
+What to check first: that "እንኳን ደህና ተመለሱ" is what a person is told on coming back from lunch (it is the
+greeting for someone returning), and that "የቀኑ መዝገብ" ("the day's record") matches the word the audit log
+already uses for an attendance record.

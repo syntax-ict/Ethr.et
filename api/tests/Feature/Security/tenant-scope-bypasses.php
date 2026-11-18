@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-18, a return from a break reopens the day: two more in
+ * `AttendanceEngine`, 207/82. `rejoinTarget()` finds the person's latest
+ * closed record of the work day and `findByRejoinKey()` the record whose
+ * breaks hold a resent punch's key; both state `tenant_id` and `employee_id`
+ * from the punch, as the engine's other lookups do, because a queued device
+ * punch resolves no tenant.)
  * (2026-11-13, webhook refusals: two in `Services/Device/WebhookRejections`,
  * 205/82. A refused terminal call is traced to the device it was meant for by
  * a retired token's hash or a cut-off token's prefix; see the entry below.)
@@ -356,7 +362,7 @@ return [
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 4,
+    'Services/Attendance/AttendanceEngine.php' => 6,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,
