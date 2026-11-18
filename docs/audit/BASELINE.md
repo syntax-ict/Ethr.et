@@ -4832,3 +4832,30 @@ names share no word is "probable", not "matched". Nothing is assigned automatica
 **Not yet observed:** whether Habru's terminal sends names at all. A terminal whose users were enrolled
 without names sends none, and the card is then as it was. The first look at the card after this change is
 live is what settles it.
+
+### 25q. The frontend against Vercel's Web Interface Guidelines — read 2026-11-18
+
+Every frontend source file (721 under `src/src`, tests and the generated client excluded) was read
+against the 17 sections of Vercel's Web Interface Guidelines (`command.md`, fetched 2026-11-18): a
+regex sweep produced 1,881 candidate lines in 302 files, nine area readers confirmed or rejected each
+one and read for the rules a regex cannot see, the lead re-read every surviving line, and twelve
+claims were checked in a browser on the local stack. **46 deduplicated findings: 0 S1, 8 S2, 23 S3,
+15 S4**, in [`WEB-INTERFACE-GUIDELINES-2026-11-18.md`](WEB-INTERFACE-GUIDELINES-2026-11-18.md),
+with a twelve-PR fix plan. Nothing was changed.
+
+Three measurements worth keeping here because they correct what the code claims about itself:
+
+- The overlay animation classes in `components/ui/{dialog,sheet,select,dropdown-menu,popover,tooltip}.tsx`
+  (`animate-in`, `fade-in-0`, `zoom-in-95`, `slide-in-from-*`) come from `tw-animate-css`, which is
+  not installed; no loaded stylesheet rule matches them (0 of the 45 keyframes on the page). Every
+  dialog, sheet, select and menu has appeared with no transition since the primitives were added.
+- Tailwind v4's `dark:` variant is the OS media query unless `@custom-variant dark` is declared, and
+  `globals.css` declares none while the theme is the `.dark` class. With the app forced dark and the
+  OS emulated light, `fill-muted dark:fill-background` computed to `--muted`. Four sites are affected.
+- lucide-react 1.66 sets `aria-hidden="true"` on every icon (107 of 107 on the dashboard), so the
+  "icon without aria-hidden" class of finding, which three readers raised about 300 times, is not a
+  defect in this codebase.
+
+The two readings most likely to be re-found by accident: the shared form hook `useZodForm` has 23
+callers (an earlier exploration said none; the callers destructure with a generic, so a grep for
+`useZodForm(` misses them), and `useQueryTab` reads `?tab=` but never writes it (9 pages).
