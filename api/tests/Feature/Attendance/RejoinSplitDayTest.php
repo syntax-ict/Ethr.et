@@ -6,6 +6,7 @@ use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceConflict;
+use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
@@ -396,4 +397,82 @@ it('joins held punches replayed in the order they arrived', function () {
         ->and(rejoinLocal($record->check_out))->toBe('17:00')
         ->and(rejoinBreaks($record))->toHaveCount(2)
         ->and(AttendanceConflict::withoutGlobalScopes()->count())->toBe(0);
+});
+
+// ── Where the return is compared with, and the morning's selfie ─────────────
+
+function rejoinPunchAt(Tenant $tenant, Employee $employee, string $type, string $local, float $lat, float $lon, ?string $photo = null): AttendanceResult
+{
+    $at = Carbon::parse("2026-10-12 {$local}", 'Africa/Addis_Ababa')->utc();
+    Carbon::setTestNow($at);
+
+    return app(AttendanceEngine::class)->record(new AttendanceInput(
+        employeeId: $employee->id,
+        tenantId: $tenant->id,
+        source: AttendanceSource::MOBILE,
+        type: $type,
+        idempotencyKey: "rj-at-{$type}-{$local}",
+        latitude: $lat,
+        longitude: $lon,
+        photoPath: $photo,
+        occurredAt: $at->toIso8601String(),
+    ));
+}
+
+/** @return list<string> */
+function rejoinTravelFlags(Employee $employee): array
+{
+    return AttendanceIntegrityFlag::withoutGlobalScopes()
+        ->where('employee_id', $employee->id)
+        ->where('type', 'impossible_travel')
+        ->pluck('type')
+        ->all();
+}
+
+it('flags a return from lunch made from 500 km away, on the day\'s own record', function () {
+    [$tenant, $employee] = rejoinSetup();
+
+    rejoinPunchAt($tenant, $employee, 'check_in', '08:30', 9.0108, 38.7613);
+    rejoinPunchAt($tenant, $employee, 'check_out', '12:00', 9.0108, 38.7613);
+    $back = rejoinPunchAt($tenant, $employee, 'check_in', '13:00', 13.4967, 39.4753); // Mekelle
+
+    expect($back->outcome?->code)->toBe('resumed')
+        ->and(rejoinRecords($employee))->toHaveCount(1)
+        ->and(rejoinTravelFlags($employee))->toBe(['impossible_travel']);
+
+    $out = rejoinBreaks(rejoinRecords($employee)->sole())[0];
+    expect((float) $out['lat'])->toBe(9.0108)
+        ->and((float) $out['lon'])->toBe(38.7613)
+        ->and(rejoinRecords($employee)->sole()->metadata)->not->toHaveKeys(['checkout_latitude', 'checkout_longitude']);
+});
+
+it('raises no travel flag for a return from the same place', function () {
+    [$tenant, $employee] = rejoinSetup();
+
+    rejoinPunchAt($tenant, $employee, 'check_in', '08:30', 9.0108, 38.7613);
+    rejoinPunchAt($tenant, $employee, 'check_out', '12:00', 9.0108, 38.7613);
+    rejoinPunchAt($tenant, $employee, 'check_in', '13:00', 9.0112, 38.7615);
+
+    expect(rejoinRecords($employee))->toHaveCount(1)
+        ->and(rejoinTravelFlags($employee))->toBe([]);
+});
+
+it('keeps the morning check-out selfie in the break, and the last one as the check-out photo', function () {
+    [$tenant, $employee] = rejoinSetup();
+
+    rejoinPunchAt($tenant, $employee, 'check_in', '08:30', 9.0108, 38.7613);
+    rejoinPunchAt($tenant, $employee, 'check_out', '12:00', 9.0108, 38.7613, 'selfies/morning-out.jpg');
+    expect(rejoinRecords($employee)->sole()->metadata['checkout_photo_path'])->toBe('selfies/morning-out.jpg');
+
+    rejoinPunchAt($tenant, $employee, 'check_in', '13:00', 9.0108, 38.7613);
+    $reopened = rejoinRecords($employee)->sole();
+    expect($reopened->metadata)->not->toHaveKey('checkout_photo_path')
+        ->and(rejoinBreaks($reopened)[0]['photo'])->toBe('selfies/morning-out.jpg')
+        ->and($reopened->metadata['break_photos'])->toBe(1)
+        ->and($reopened->breakPhotoPaths())->toBe(['selfies/morning-out.jpg']);
+
+    rejoinPunchAt($tenant, $employee, 'check_out', '17:00', 9.0108, 38.7613, 'selfies/final-out.jpg');
+    $closed = rejoinRecords($employee)->sole();
+    expect($closed->metadata['checkout_photo_path'])->toBe('selfies/final-out.jpg')
+        ->and(rejoinBreaks($closed)[0]['photo'])->toBe('selfies/morning-out.jpg');
 });

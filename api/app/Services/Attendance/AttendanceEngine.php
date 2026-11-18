@@ -453,15 +453,17 @@ final class AttendanceEngine
      * (`out` or `in`), the moment, and the idempotency key of the punch behind
      * it when it had one.
      *
-     * @param  list<array<string, string>>  $breaks
-     * @return list<array<string, string>>
+     * @param  list<array<string, mixed>>  $breaks
+     * @param  array<string, mixed>  $extra  where and with what evidence the punch was made (`lat`, `lon`, `photo`)
+     * @return list<array<string, mixed>>
      */
-    private function appendBreak(array $breaks, string $type, Carbon $at, ?string $key): array
+    private function appendBreak(array $breaks, string $type, Carbon $at, ?string $key, array $extra = []): array
     {
         $breaks[] = array_filter([
             'type' => $type,
             'at' => $at->copy()->utc()->toIso8601String(),
             'key' => $key,
+            ...$extra,
         ], fn ($value) => $value !== null);
 
         return $breaks;
@@ -553,10 +555,20 @@ final class AttendanceEngine
         $gap = (int) $record->check_out->diffInMinutes($now, absolute: true);
 
         $metadata = $record->metadata ?? [];
-        $breaks = $this->appendBreak((array) ($metadata['breaks'] ?? []), 'out', $record->check_out, $metadata['checkout_idempotency_key'] ?? null);
+        // What the morning's check-out left on the record goes with it into
+        // the break: its key (a resend is still a duplicate), where it was
+        // made (the return is compared with it, IntegrityInspector) and its
+        // selfie (kept and deleted by PhotoRetention, not orphaned by the
+        // final check-out's own).
+        $breaks = $this->appendBreak((array) ($metadata['breaks'] ?? []), 'out', $record->check_out, $metadata['checkout_idempotency_key'] ?? null, [
+            'lat' => $metadata['checkout_latitude'] ?? null,
+            'lon' => $metadata['checkout_longitude'] ?? null,
+            'photo' => $metadata['checkout_photo_path'] ?? null,
+        ]);
         $breaks = $this->appendBreak($breaks, 'in', $now, $input->idempotencyKey);
         $metadata['breaks'] = $breaks;
-        unset($metadata['checkout_idempotency_key']);
+        $metadata['break_photos'] = collect($breaks)->whereNotNull('photo')->count();
+        unset($metadata['checkout_idempotency_key'], $metadata['checkout_latitude'], $metadata['checkout_longitude'], $metadata['checkout_photo_path']);
 
         $record->update([
             'check_out' => null,
