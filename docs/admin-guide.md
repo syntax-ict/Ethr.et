@@ -201,6 +201,42 @@ Reminders can arrive up to about five minutes late, because the host has no
 background worker. On iPhone the app must be installed to the home screen
 (iOS 16.4 or later).
 
+### Presence checks
+
+Punches show who arrived and who left. A presence check looks at the middle of
+the day: a few times a shift, at a moment nobody can predict, ETHR sends
+checked-in staff a notification asking them to confirm they are at work, and
+they answer from where they stand.
+
+Settings → Attendance Rules → **Presence checks**: choose **Off** (the
+default) or **Up to 1, 2 or 3 a shift**. A branch can set its own under Rules
+by branch. **Tell your staff in writing before you switch it on.**
+
+- Who is asked: people who are checked in at a workplace on a working day, who
+  have a place on the map to be measured against, and who allowed
+  notifications. Remote and field staff, people on leave and people on a break
+  are not asked. On iPhone, notifications need ETHR added to the Home Screen.
+- When: at an unpredictable time inside the shift, never around its middle
+  (where lunch usually falls), never in the first or last half hour. It can
+  arrive a few minutes late because the scheduler runs when it is called.
+- What staff see: the notification opens the attendance page, which shows
+  **Confirm you are at work** with the time left and one button, **I am here**.
+  They have 15 minutes. A phone registered for punching signs the answer like a
+  punch. Offline it cannot be confirmed; an answer after the 15 minutes is
+  still recorded, marked late.
+- What a reviewer sees: an answer from outside the workplace opens a high item
+  in Attendance → Integrity, "Outside the workplace at a presence check", with
+  the distance, the nearest place and the times. Two or more checks missed or
+  unverified in 14 days, and at least half of those sent, open "Presence checks
+  missed or unverified". **One missed check files nothing.**
+- The reviewer's choices are **Excused** and **Not excused**. Either way the
+  day's record is kept and the decision is recorded. Rejecting a flag about a
+  punch (check-in, check-out, day) still voids it.
+
+The attendance setup list on the settings page shows how many people the
+checks cannot reach: no notifications on their phone, or no place set for
+their branch.
+
 ### Registered phones
 
 Settings → Attendance Rules → Cheating protection → **Registered phone** stops

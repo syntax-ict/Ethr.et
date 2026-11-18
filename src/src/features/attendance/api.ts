@@ -258,6 +258,36 @@ export function useMobilePunch() {
   );
 }
 
+export type PresenceConfirmPayload =
+  components["schemas"]["ConfirmPresenceRequest"];
+/** What came of answering a presence check: its status, distance and lateness. */
+export type PresenceCheck =
+  operations["attendancePresence.confirm"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Answer the presence check the server sent: "I am here", with the phone's
+ * position and proof. The server answers the caller's own latest check, so
+ * no id travels. My shift is read again on an answer and on a 404 (the check
+ * ran out or was answered elsewhere), so the card does not outlive its check.
+ */
+export function useConfirmPresence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: PresenceConfirmPayload): Promise<PresenceCheck> =>
+      (await apiClient.post("/attendance/presence/confirm", vars)).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.myShift });
+    },
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 404) {
+        void queryClient.invalidateQueries({ queryKey: keys.myShift });
+      }
+    },
+  });
+}
+
 /** Check in or out by presenting a QR token generated for a branch. */
 export function useScanQr() {
   return useAttendanceMutation(

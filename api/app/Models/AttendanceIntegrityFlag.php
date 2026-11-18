@@ -42,6 +42,13 @@ class AttendanceIntegrityFlag extends Model
 
     public const STATUSES = ['open', 'accepted', 'rejected'];
 
+    /**
+     * The punches a flag can be about whose rejection voids the day's record.
+     * A flag filed against a `presence` check or a `pattern` is a finding about
+     * conduct: the reviewer decides it, but no punch is thrown away for it.
+     */
+    public const VOIDING_PUNCHES = ['check_in', 'check_out', 'day'];
+
     protected $fillable = [
         'tenant_id',
         'attendance_record_id',

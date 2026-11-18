@@ -51,6 +51,11 @@ vi.mock("@/features/attendance/api", async (importOriginal) => {
 vi.mock("@/lib/uploads/selfie", () => ({
   captureSelfie: () => "data:image/jpeg;base64,AAAA",
 }));
+vi.mock("@/lib/push/web-push", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/push/web-push")>()),
+  pushSupported: () => true,
+  currentSubscription: async () => null,
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -99,6 +104,7 @@ const myShift = {
     auto_checkout: false,
     auto_checkout_after_minutes: 0,
   },
+  presence: { enabled: false, pending: null },
 };
 
 function signedInAs(employee: string | null) {
@@ -748,6 +754,72 @@ describe("the phone punch screen", () => {
       expect(
         screen.queryByRole("button", { name: "Save on this phone" }),
       ).toBeNull();
+    });
+  });
+
+  describe("a presence check", () => {
+    const withPresence = (presence: Record<string, unknown>, assistant = {}) =>
+      server.use(
+        http.get("*/api/v1/attendance/my-shift", () =>
+          HttpResponse.json({
+            ...myShift,
+            assistant: { ...myShift.assistant, ...assistant },
+            presence,
+          }),
+        ),
+        http.get("*/api/v1/push/config", () =>
+          HttpResponse.json({ enabled: true, public_key: "k" }),
+        ),
+      );
+
+    it("shows the card above the punch button while a check is pending", async () => {
+      signedInAs("E1");
+      withPresence({
+        enabled: true,
+        pending: {
+          asked_at: new Date(Date.now() - 60_000).toISOString(),
+          expires_at: new Date(Date.now() + 14 * 60_000).toISOString(),
+        },
+      });
+      renderScreen();
+
+      const iAmHere = await screen.findByRole("button", { name: "I am here" });
+      const punch = await screen.findByRole("button", { name: /check in/i });
+      expect(
+        iAmHere.compareDocumentPosition(punch) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("shows no card when nothing is pending, or checks are off", async () => {
+      signedInAs("E1");
+      withPresence({ enabled: true, pending: null });
+      renderScreen();
+      await screen.findByRole("button", { name: /check in/i });
+      expect(screen.queryByRole("button", { name: "I am here" })).toBeNull();
+    });
+
+    it("offers the notification switch when checks are on but reminders are not allowed", async () => {
+      signedInAs("E1");
+      withPresence({ enabled: true, pending: null });
+      renderScreen();
+
+      expect(
+        await screen.findByRole("switch", { name: "Even when ETHR is closed" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/uses presence checks during the shift/),
+      ).toBeInTheDocument();
+    });
+
+    it("shows neither the switch nor the line when checks are off", async () => {
+      signedInAs("E1");
+      withPresence({ enabled: false, pending: null });
+      renderScreen();
+
+      await screen.findByRole("button", { name: /check in/i });
+      expect(screen.queryByRole("switch")).toBeNull();
+      expect(screen.queryByText(/uses presence checks/)).toBeNull();
     });
   });
 });

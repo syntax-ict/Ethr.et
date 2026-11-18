@@ -47,6 +47,7 @@ final class AttendancePolicy
         'auto_checkout_after_minutes',
         'geofence_auto_checkin_enabled',
         'risk_review_threshold',
+        'presence_checks_per_shift',
         'device_binding',
         'office_networks',
     ];
@@ -102,6 +103,7 @@ final class AttendancePolicy
         $mode = self::modeOf($employee);
         if ($mode !== AttendanceMode::OFFICE) {
             $policy->setAttribute('geofence_required', false);
+            $policy->setAttribute('presence_checks_per_shift', 0);
         }
         if ($mode === AttendanceMode::REMOTE) {
             $policy->setAttribute('geofence_auto_checkin_enabled', false);

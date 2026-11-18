@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests\Attendance;
+
+use App\Support\DeviceProof;
+use App\Support\PunchSignals;
+use Illuminate\Foundation\Http\FormRequest;
+
+class ConfirmPresenceRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'idempotency_key' => ['required', 'string', 'max:64'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            ...PunchSignals::rules(),
+            ...DeviceProof::rules(),
+        ];
+    }
+}

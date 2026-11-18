@@ -21,6 +21,7 @@ type SyncListener = (event: {
 
 function loadWorker(options: {
   clients?: { postMessage: (m: unknown) => void }[];
+  matchAllFails?: boolean;
   fetch: (url: string, init: RequestInit) => Promise<Response>;
   xsrf?: string | null;
 }) {
@@ -31,7 +32,12 @@ function loadWorker(options: {
     addEventListener: (type: string, listener: SyncListener) => {
       listeners[type] = listener;
     },
-    clients: { matchAll: async () => options.clients ?? [] },
+    clients: {
+      matchAll: async () => {
+        if (options.matchAllFails) throw new Error("no clients");
+        return options.clients ?? [];
+      },
+    },
     cookieStore:
       options.xsrf === null
         ? undefined
@@ -63,7 +69,18 @@ function loadWorker(options: {
     await done;
   }
 
-  return { fireSync, showNotification };
+  async function firePush(payload: Record<string, unknown>) {
+    let done: Promise<unknown> = Promise.resolve();
+    (listeners.push as unknown as (e: unknown) => void)({
+      data: { json: () => payload, text: () => "" },
+      waitUntil: (p: Promise<unknown>) => {
+        done = p;
+      },
+    });
+    await done;
+  }
+
+  return { fireSync, firePush, showNotification };
 }
 
 async function clearQueue() {
@@ -166,5 +183,43 @@ describe("service worker background sync", () => {
     await fireSync();
 
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("service worker push", () => {
+  it("tells every open window which tag arrived, and shows the notification", async () => {
+    const posted = vi.fn();
+    const { firePush, showNotification } = loadWorker({
+      fetch: vi.fn(),
+      clients: [{ postMessage: posted }, { postMessage: posted }],
+    });
+
+    await firePush({ title: "ETHR", tag: "presence-check" });
+
+    expect(posted).toHaveBeenCalledTimes(2);
+    expect(posted).toHaveBeenCalledWith({
+      type: "ethr-push",
+      tag: "presence-check",
+    });
+    expect(showNotification).toHaveBeenCalledOnce();
+  });
+
+  it("still shows the notification when a window cannot be told", async () => {
+    const { firePush, showNotification } = loadWorker({
+      fetch: vi.fn(),
+      clients: [
+        {
+          postMessage: () => {
+            throw new Error("gone");
+          },
+        },
+      ],
+    });
+    await firePush({ title: "ETHR", tag: "presence-check" });
+    expect(showNotification).toHaveBeenCalledOnce();
+
+    const failing = loadWorker({ fetch: vi.fn(), matchAllFails: true });
+    await failing.firePush({ title: "ETHR" });
+    expect(failing.showNotification).toHaveBeenCalledOnce();
   });
 });

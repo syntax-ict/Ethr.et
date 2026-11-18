@@ -34,6 +34,7 @@ final class MyShiftService
         private readonly AttendancePolicy $policy,
         private readonly AttendancePlaces $places,
         private readonly DayContext $days,
+        private readonly PresenceChecks $presence,
     ) {}
 
     /**
@@ -94,6 +95,11 @@ final class MyShiftService
         // sites, so the phone can show the nearest and check against all.
         $places = $mode === AttendanceMode::REMOTE ? [] : $this->places->for($employee);
 
+        // A presence check waiting for this person's answer, if their rules use them.
+        $pending = (int) $policy->presence_checks_per_shift > 0 && $places !== []
+            ? $this->presence->pendingFor($employee, Carbon::now('UTC'))
+            : null;
+
         return [
             'date' => $day->format('Y-m-d'),
             'timezone' => $zone,
@@ -134,6 +140,13 @@ final class MyShiftService
                 'auto_check_in_allowed' => (bool) ($policy->geofence_auto_checkin_enabled && $places !== []),
                 'auto_checkout' => (bool) $policy->auto_checkout_enabled,
                 'auto_checkout_after_minutes' => (int) $policy->auto_checkout_after_minutes,
+            ],
+            'presence' => [
+                'enabled' => (bool) ((int) $policy->presence_checks_per_shift > 0 && $places !== []),
+                'pending' => $pending === null ? null : [
+                    'asked_at' => $pending->sent_at->toIso8601String(),
+                    'expires_at' => $pending->expires_at->toIso8601String(),
+                ],
             ],
         ];
     }
