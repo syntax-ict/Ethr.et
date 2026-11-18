@@ -7665,9 +7665,9 @@
   "migration_ready.warn_desc": ":count ሰዎች በግብዣ ሊደረስባቸው አይችልም፣ ድርጅትዎም በሰራተኛ ቁጥር መግባትን አልፈቀደም፤ ስለዚህ በአካል የሚሰጥ ኮድ አያስገባቸውም። በመመሪያ ማዋቀሩ የመግቢያ ደረጃ ላይ የሰራተኛ ቁጥርን ያብሩ፣ ወይም ኢሜይል ይጨምሩላቸው።",
   "migration_ready.warn_link": "የመግቢያ ደረጃውን ክፈት",
   "print.all": "ሁሉም",
-  "print.from": "ከ:from",
-  "print.printed": "የታተመው :when",
-  "print.printed_by": "በ:name",
+  "print.from": "ከ:from ጀምሮ",
+  "print.printed": "የታተመበት :when",
+  "print.printed_by": "ያተመው :name",
   "print.range": ":from እስከ :to",
   "print.until": "እስከ :to"
 }

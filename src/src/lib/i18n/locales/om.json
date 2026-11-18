@@ -7667,7 +7667,7 @@
   "print.all": "Hunda",
   "print.from": ":from irraa eegalee",
   "print.printed": "Maxxanfame :when",
-  "print.printed_by": "kan :name",
+  "print.printed_by": "Kan maxxanse :name",
   "print.range": ":from hanga :to",
-  "print.until": ":to hanga"
+  "print.until": "hanga :to"
 }
