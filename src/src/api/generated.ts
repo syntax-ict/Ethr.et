@@ -23956,7 +23956,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        created_via: string;
+                        created_via: string | null;
                         identities: {
                             public_id: string;
                             /** @enum {string} */
@@ -28787,7 +28787,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The import mapping public id */
-                importMapping: number;
+                importMapping: string;
             };
             cookie?: never;
         };
@@ -28826,7 +28826,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The import mapping public id */
-                importMapping: number;
+                importMapping: string;
             };
             cookie?: never;
         };
@@ -32867,7 +32867,7 @@ export interface operations {
     "adminTenant.index": {
         parameters: {
             query?: {
-                "filter[organization_type]"?: "private" | "public_enterprise" | "government" | "ngo" | "international_organization" | "defence_police" | null;
+                "filter[organization_type]"?: "private" | "sole_proprietor" | "private_limited_company" | "share_company" | "partnership" | "cooperative" | "foreign_company_branch" | "public_enterprise" | "government" | "regional_government" | "ngo" | "foreign_cso" | "religious_organization" | "international_organization" | "diplomatic_mission" | "defence_police" | null;
                 "filter[organization_type_group]"?: "private" | "non_profit" | "public" | "international" | null;
                 search?: string;
                 /**

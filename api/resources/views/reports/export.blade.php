@@ -17,7 +17,7 @@
     </style>
 </head>
 <body>
-    @include('pdf.partials.letterhead', ['letterhead' => $letterhead, 'compact' => true])
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($organisation ?? ''), 'logo' => null, 'lines' => []], 'compact' => true])
     <div class="header">
         <h1>{{ __('report.pdf_title', [], $locale) }}@if(! empty($source_name)): {{ $source_name }}@endif</h1>
         @if(! empty($period_text))

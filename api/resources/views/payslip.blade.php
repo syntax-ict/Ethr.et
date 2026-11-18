@@ -36,7 +36,7 @@
     @if($is_voided)
     <div class="voided-watermark">{{ __('payslip.voided', [], $locale) }}</div>
     @endif
-    @include('pdf.partials.letterhead', ['letterhead' => $letterhead, 'compact' => true])
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($tenant_name ?? ''), 'logo' => null, 'lines' => []], 'compact' => true])
     <div class="doc-title">{{ __('payslip.title', ['period' => $period], $locale) }}</div>
 
     <table>

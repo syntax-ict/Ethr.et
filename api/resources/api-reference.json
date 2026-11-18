@@ -19801,7 +19801,10 @@
                                     "type": "object",
                                     "properties": {
                                         "created_via": {
-                                            "type": "string"
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
                                         },
                                         "identities": {
                                             "type": "array",
@@ -27986,7 +27989,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -28089,7 +28092,7 @@
                         "required": true,
                         "description": "The import mapping public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],

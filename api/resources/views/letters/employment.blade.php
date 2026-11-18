@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    @include('pdf.partials.letterhead', ['letterhead' => $letterhead])
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($organisation ?? ''), 'logo' => null, 'lines' => []]])
     <div class="meta">
         {{ __('letters.reference', [], $locale) }}: {{ $reference }}<br>
         {{ __('letters.date', [], $locale) }}: {{ $issued_on }}
