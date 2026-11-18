@@ -91,11 +91,14 @@ class AttendanceConflictController extends Controller
         if ($pair !== null) {
             app(PayrollPeriodLock::class)->assertOpen($pair[0]->employee_id, $pair[0]->date);
 
-            if ($joiner->join($conflict, $user, $request->validated('resolution_notes')) !== null) {
-                abort(409, __('attendance.conflict_already_resolved'));
+            // Read again under a lock: a second request that got here first has
+            // already resolved it, and the day as it stands is the answer. Any
+            // other refusal means the records changed since they were read, so
+            // the pair is no longer a split day and resolves as it always did.
+            $refused = $joiner->join($conflict, $user, $request->validated('resolution_notes'));
+            if ($refused === null || $refused === SplitDayJoiner::NOT_PENDING) {
+                return $this->resolved($conflict->fresh() ?? $conflict);
             }
-
-            return $this->resolved($conflict->fresh() ?? $conflict);
         }
 
         // Voiding either record of a paid day would change what a reprocess pays.
@@ -169,7 +172,7 @@ class AttendanceConflictController extends Controller
         return response()->json([
             'joined' => $result['joined'],
             'left' => $left,
-            'remaining' => $result['remaining'],
+            'remaining' => (int) $result['remaining'],
             'next_after' => $result['remaining'] > 0 ? $result['last']?->public_id : null,
         ]);
     }
