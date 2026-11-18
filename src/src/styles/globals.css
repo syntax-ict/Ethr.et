@@ -1780,22 +1780,48 @@
   }
 }
 
-/* A vacancy or announcement opened on the portal prints as the page's only
-   content, so a position can be pinned on a notice board. The dialog is
-   portalled to the end of <body>, which is why this hides by visibility
-   rather than display: the dialog's ancestors must keep their boxes. */
+/* A vacancy, an announcement or a sheet of activation codes opened in a dialog
+   prints as the page's only content, so it can be pinned on a notice board or
+   handed out. The dialog is portalled into a wrapper that is a direct child of
+   <body>. Every other child is taken out of the flow with display: none: hiding
+   it by visibility alone leaves its full height behind, and the dialog then
+   starts several blank pages down. Inside the wrapper the overlay and any other
+   sibling stay hidden by visibility, which keeps the dialog's own ancestors
+   boxed. The dialog is .fixed and carries Tailwind's translate-x/y, which are
+   the CSS `translate` property, not `transform`; the general print block above
+   forces .fixed to static, so position, translate and scale are all reset here
+   with !important or the sheet sits half off the left edge of the paper. */
 @media print {
+  body:has(.print-surface) > :not(:has(.print-surface)) {
+    display: none !important;
+  }
   body:has(.print-surface) *:not(.print-surface, .print-surface *) {
     visibility: hidden;
   }
   body:has(.print-surface) .print-surface {
     visibility: visible;
-    position: absolute;
-    inset: 0;
-    max-height: none;
-    overflow: visible;
-    transform: none;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0;
     box-shadow: none;
+  }
+  /* The general print rule flattens every .grid into one column; the slips stay
+     two to a row on paper so a sheet of 30 uses three pages, not twelve. */
+  .print-surface .print-slips {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3mm;
+  }
+  .print-surface .print-slips > * {
+    margin-top: 0 !important;
   }
 }
