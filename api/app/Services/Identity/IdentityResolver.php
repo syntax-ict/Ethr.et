@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Support\PersonName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -210,6 +211,56 @@ final class IdentityResolver
         }
 
         return $existing;
+    }
+
+    /**
+     * This organisation's employees by full name, for a list being staged
+     * (SameNameRoster). Read once, as three columns: a list is matched a
+     * chunk at a time and a query per row would read the same names again.
+     *
+     * Not part of resolve(). A name here only holds a row for review.
+     */
+    public function sameNameRoster(int $tenantId): SameNameRoster
+    {
+        $byName = [];
+
+        foreach ($this->employees($tenantId)->toBase()->get(['id', 'name', 'department_id']) as $row) {
+            $key = PersonName::normalised(is_string($row->name ?? null) ? $row->name : null);
+            if ($key !== '') {
+                $byName[$key][] = [
+                    'id' => (int) $row->id,
+                    'department_id' => $row->department_id === null ? null : (int) $row->department_id,
+                ];
+            }
+        }
+
+        return new SameNameRoster($byName);
+    }
+
+    /**
+     * The employees a SameNameRoster named, each as a shortlist entry whose
+     * reason is `same_full_name`, by employee number.
+     *
+     * @param  list<int>  $ids
+     * @return list<array{employee: Employee, candidate: array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}}>
+     */
+    public function sameNameCandidates(int $tenantId, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->employees($tenantId)
+            ->whereIn('id', $ids)
+            ->orderBy('employee_code')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Employee $employee): array => [
+                'employee' => $employee,
+                'candidate' => $this->candidate($employee, self::WEIGHT_NAME_MAX, ['same_full_name']),
+            ])
+            ->values()
+            ->all();
     }
 
     private function findMapping(int $tenantId, IdentitySignals $signals): ?EmployeeExternalIdentity
@@ -588,13 +639,7 @@ final class IdentityResolver
 
     private function normalizeName(?string $name): string
     {
-        if ($name === null) {
-            return '';
-        }
-
-        $collapsed = preg_replace('/\s+/', ' ', trim($name)) ?? '';
-
-        return mb_strtolower($collapsed);
+        return PersonName::normalised($name);
     }
 
     private function ciEquals(?string $a, ?string $b): bool

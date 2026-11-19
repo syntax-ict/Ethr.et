@@ -39,6 +39,14 @@ export function PossibleDuplicatesList() {
       "duplicates.reason_name_birth",
       "Same name and date of birth",
     ),
+    same_full_name: t(
+      "duplicates.reason_same_full_name",
+      "Same full name, same department",
+    ),
+    same_full_name_other_department: t(
+      "duplicates.reason_same_full_name_other_department",
+      "Same full name, different departments",
+    ),
   };
 
   const via: Record<CreatedVia, string> = {
@@ -61,7 +69,7 @@ export function PossibleDuplicatesList() {
           title={t("duplicates.none_title", "No possible duplicates")}
           description={t(
             "duplicates.none_desc",
-            "No two current employees share a national ID, an email, a phone number, a badge number, or a name with a date of birth.",
+            "No two current employees share a national ID, an email, a phone number, a badge number, a name with a date of birth, or a full name.",
           )}
         />
       }
