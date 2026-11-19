@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\AuditLog;
+use App\Models\Tenant;
 use App\Services\Observability\CronRunner;
 use App\Support\BackgroundWork;
 use Illuminate\Bus\Queueable;
@@ -24,7 +25,7 @@ final class WritesAnAuditEntryJob implements ShouldQueue
 
     public function handle(): void
     {
-        AuditLog::record('test.background_entry', \App\Models\Tenant::findOrFail($this->tenantId));
+        AuditLog::record('test.background_entry', Tenant::findOrFail($this->tenantId));
     }
 }
 

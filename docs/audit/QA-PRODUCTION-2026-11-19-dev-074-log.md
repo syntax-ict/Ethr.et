@@ -5,8 +5,10 @@ Case: DEV-074 in [`docs/production testing/05-E2E-ATTENDANCE-SHIFTS-DEVICES.md`]
 | | |
 |---|---|
 | Release under test | `v2026.11.19.6`, commit `979221c23c` |
-| Organisation | QA Audit, the organisation's receives-only Hikvision test device |
-| When | 2026-11-19, 17:00 to 17:17 UTC |
+| Organisation | QA Audit, its receives-only Hikvision test device |
+| Persona | The signed-in TA, who sent the punches from the page and read the results |
+| Language | English |
+| When | 2026-11-19, 17:00 to 17:17 UTC (20:00 to 20:17 EAT) |
 | Tester | Claude Code |
 
 ## How the punches were sent
@@ -15,18 +17,18 @@ Six punches for three invented badges (DEV74A, DEV74B, DEV74C; check-in about 08
 
 ## Results
 
-| Badge | Setup | Result | Notes |
-|---|---|---|---|
-| A | DEV74A typed into one test employee's Badge / device ID at 17:03:45Z | Pass | The card read "This is :name" and "Matched by its number. The held punches are being recorded." Recorded at 17:05:52Z: one record for 2026-11-18, 08:30 to 17:05 Addis, source biometric. Audit `device.held_punches_auto_recorded`, reasons `badge_number`, 2 replayed, 0 refused |
-| B | Two holders: the badge number on one test employee, the employee number on another | Pass | Verdict `ambiguous`, `recording_itself` false, still held after the 17:10Z and 17:15Z sweeps, no attendance for either. Both values were put back afterwards |
-| C | Only a name from the terminal that fits one person | Pass | Verdict `new`, "Possibly :name", still held after both sweeps |
+| Case ID | Result | Tester | Time (EAT) | Persona | Language | Notes / defect link |
+|---|---|---|---|---|---|---|
+| DEV-074 A | Pass | Claude Code | 20:03 to 20:06 | TA | en | DEV74A typed into one test employee's Badge / device ID at 17:03:45Z (20:03 EAT). The card read "This is :name" and "Matched by its number. The held punches are being recorded." Recorded at 17:05:52Z: one record for 2026-11-18, 08:30 to 17:05 Addis, source biometric. Audit `device.held_punches_auto_recorded`, reasons `badge_number`, 2 replayed, 0 refused. The entry carried the signed-in person's user, IP address and browser: finding 2 |
+| DEV-074 B | Pass | Claude Code | 20:05 to 20:15 | TA | en | Two holders: the badge number on one test employee, the employee number on another. Verdict `ambiguous`, `recording_itself` false, still held after the 17:10Z and 17:15Z sweeps, no attendance for either. Both values were put back afterwards. The case text could not be followed as written: finding 1 |
+| DEV-074 C | Pass | Claude Code | 20:05 to 20:15 | TA | en | Only a name from the terminal that fits one person. Verdict `new`, "Possibly :name", still held after both sweeps |
 
 Health after the run: healthy, 0 failed jobs.
 
 ## Findings
 
 1. **Case text error.** DEV-074 said to type B into two people's Badge number. That cannot be done: the API refuses a badge number a second person already holds (422, "The badge number has already been taken."). The case now gives B two holders as a badge number on one person and an employee number on another.
-2. **Defect, fixed in the pull request that carries this log.** The audit entry `device.held_punches_auto_recorded` carried the user, IP address and browser of the signed-in person whose page request drained the queue, who had done nothing. The cause and the fix are in BASELINE 25u. Existing rows were not rewritten.
+2. **Defect (A), fixed in the pull request that carries this log.** The audit entry `device.held_punches_auto_recorded` carried the user, IP address and browser of the signed-in person whose page request drained the queue, who had done nothing. The cause and the fix are in BASELINE 25u. Existing rows were not rewritten.
 3. **Not a defect, recorded so nobody reports it again.** A refused badge number is shown as a short toast at the top right of the employee page, and nothing stays under the field.
 
 ## Left in QA Audit
