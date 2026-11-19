@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Models\UnmatchedDevicePunch;
 use App\Models\User;
+use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,7 @@ final class UnmatchedPunches
 
     public function __construct(
         private readonly IdentityResolver $resolver,
+        private readonly TerminalNames $terminalNames,
         private readonly float $sliceSeconds = self::SLICE_SECONDS,
     ) {}
 
@@ -122,6 +124,122 @@ final class UnmatchedPunches
         }
     }
 
+    /**
+     * Whose a held badge is, as the resolver sees it today, with what the
+     * terminal calls it. The one lookup the Unrecognised badges card and the
+     * automatic recording both use, so what the card says is what happens.
+     */
+    public function verdict(Device $device, string $badge, ?string $nameOnDevice): IdentityMatch
+    {
+        return $this->resolver->resolve($device->tenant_id, IdentitySignals::forDeviceUser($device, $badge, null, $nameOnDevice));
+    }
+
+    /**
+     * Whether a verdict is one to record held punches on without a click: an
+     * exact number or an existing mapping (matched), no name that differs, not
+     * ambiguous, and a person who is still here. A name alone never is.
+     */
+    public static function recordsItself(IdentityMatch $match): bool
+    {
+        return $match->isActionable()
+            && ! $match->isFormerEmployee()
+            && $match->employee !== null
+            && ! $match->employee->trashed();
+    }
+
+    /**
+     * Record the held punches of a badge whose number now names one current
+     * employee, with no one's click: the same replay as `assign()`, earliest
+     * first, in one slice. The link carries the match's own confidence, not
+     * verified, and never moves a number a person confirmed for someone else.
+     *
+     * Returns null when there was nothing to do: the verdict is not one to act
+     * on, or a manual assign (or another run) holds the badge's lock, which is
+     * not an error, the next run carries on. Otherwise the slice's counts.
+     * Each call that replays or refuses a punch writes
+     * `device.held_punches_auto_recorded`.
+     *
+     * @return array{replayed: int, refused: int, remaining: int}|null
+     */
+    public function recordMatched(Device $device, string $badge, DevicePunchRecorder $recorder): ?array
+    {
+        $lock = Cache::lock(self::lockKey($device, $badge), self::LOCK_SECONDS);
+
+        if (! $lock->get()) {
+            return null;
+        }
+
+        try {
+            $name = $this->terminalNames->forBadges($device->tenant_id, [[$device->id, $badge]])[$device->id][mb_strtolower($badge)] ?? null;
+            $match = $this->verdict($device, $badge, $name === null ? null : (string) $name);
+
+            if (! self::recordsItself($match) || $match->employee === null) {
+                return null;
+            }
+
+            $employee = $match->employee;
+            $this->resolver->link($employee, IdentitySignals::forDeviceUser($device, $badge), $match->confidence);
+
+            [$replayed, $refused] = $this->replay($device, $badge, $employee, null, $recorder);
+
+            if ($replayed + $refused > 0) {
+                AuditLog::record('device.held_punches_auto_recorded', $device, [
+                    'badge' => $badge,
+                    'employee_id' => $employee->public_id,
+                    'reasons' => $match->candidates[0]['reasons'] ?? [],
+                    'replayed' => $replayed,
+                    'refused' => $refused,
+                ]);
+            }
+
+            return ['replayed' => $replayed, 'refused' => $refused, 'remaining' => $this->pending($device, $badge)->count()];
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Held badges that carry the evidence for automatic recording: a current
+     * employee holds the number as badge number or employee code, or a mapping
+     * for it exists. A cheap filter so a platform sweep spends its bound on
+     * badges that may match; the verdict itself is `recordMatched()`'s. It
+     * reads across organisations, each row carrying its own `tenant_id`. The
+     * bound is filled in random order, so badges that never act (a name that
+     * differs) cannot crowd out the rest for good.
+     *
+     * @return list<array{tenant_id: int, device_id: int, badge: string}>
+     */
+    public static function sweepCandidates(int $limit = 200): array
+    {
+        $concat = DB::connection()->getDriverName() === 'sqlite' ? "'device:' || p.device_id" : "CONCAT('device:', p.device_id)";
+
+        return DB::table('unmatched_device_punches as p')
+            ->where('p.status', UnmatchedDevicePunch::PENDING)
+            ->where(function ($q) use ($concat): void {
+                $q->whereExists(fn ($e) => $e->selectRaw('1')->from('employees as e')
+                    ->whereColumn('e.tenant_id', 'p.tenant_id')
+                    ->whereNull('e.deleted_at')
+                    ->where(fn ($n) => $n->whereRaw('LOWER(e.badge_number) = LOWER(p.badge)')
+                        ->orWhereRaw('LOWER(e.employee_code) = LOWER(p.badge)')))
+                    ->orWhereExists(fn ($m) => $m->selectRaw('1')->from('employee_external_identities as i')
+                        ->whereColumn('i.tenant_id', 'p.tenant_id')
+                        ->where('i.identifier_type', 'device_user_id')
+                        ->whereColumn('i.identifier_value', 'p.badge')
+                        ->whereRaw('i.source_ref = '.$concat));
+            })
+            ->groupBy('p.tenant_id', 'p.device_id', 'p.badge')
+            ->inRandomOrder()
+            ->limit($limit)
+            ->get(['p.tenant_id', 'p.device_id', 'p.badge'])
+            ->map(fn ($row) => [
+                'tenant_id' => (int) $row->tenant_id,
+                'device_id' => (int) $row->device_id,
+                'badge' => (string) $row->badge,
+            ])
+            ->values()
+            ->all();
+    }
+
     /** What keeps two requests off the same badge of the same device. */
     public static function lockKey(Device $device, string $badge): string
     {
@@ -152,7 +270,7 @@ final class UnmatchedPunches
      *
      * @return array{0: int, 1: int} replayed and refused
      */
-    private function replay(Device $device, string $badge, Employee $employee, User $by, DevicePunchRecorder $recorder): array
+    private function replay(Device $device, string $badge, Employee $employee, ?User $by, DevicePunchRecorder $recorder): array
     {
         $deadline = microtime(true) + $this->sliceSeconds;
         $replayed = 0;
@@ -186,7 +304,7 @@ final class UnmatchedPunches
                     'status' => $status,
                     'refusal' => $refusal,
                     'employee_id' => $employee->id,
-                    'resolved_by' => $by->id,
+                    'resolved_by' => $by?->id,
                     'resolved_at' => now(),
                 ]);
             }

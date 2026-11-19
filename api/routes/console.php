@@ -8,6 +8,7 @@ use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\NotifyExpiringTrialsJob;
 use App\Jobs\ProcessDeviceInboundPunchesJob;
+use App\Jobs\RecordHeldPunchesJob;
 use App\Jobs\RollForwardHolidaysJob;
 use App\Jobs\RunDashboardDigestsJob;
 use App\Jobs\RunScheduledReportsJob;
@@ -76,6 +77,10 @@ Schedule::command('tenancy:recheck-custom-domains')
 // all its tries leaves them pending and a heartbeat adds no row to queue
 // another, so the evening's last punches would wait for the next new one.
 Schedule::call(fn () => ProcessDeviceInboundPunchesJob::sweepStranded())->everyFiveMinutes()->name('device-inbox-sweep')->withoutOverlapping();
+
+// Held punches of a badge whose number has since been written on one current
+// employee are recorded without a click (BASELINE §25r). A name alone never.
+Schedule::call(fn () => RecordHeldPunchesJob::sweep())->everyFiveMinutes()->name('held-punches-auto-record')->withoutOverlapping();
 
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
 Schedule::call(function () {
