@@ -7,6 +7,7 @@ namespace App\Services\Identity;
 use App\Enums\EmployeeStatus;
 use App\Models\Employee;
 use App\Support\EthiopianPhone;
+use App\Support\PersonName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -24,7 +25,14 @@ use Illuminate\Support\Collection;
  * Two records are put together when they share something a person has only
  * one of: a national id, an email address, a phone number, a badge number,
  * or a name together with a date of birth. An employee number cannot be
- * shared (it is unique), and a name alone is shared by many people.
+ * shared (it is unique).
+ *
+ * A name alone is shared by many people, and is listed below all of those:
+ * the same full name in the same department (`same_full_name`), then the same
+ * full name across departments (`same_full_name_other_department`). A list
+ * brought in twice without national IDs, phones or emails made 167 such pairs
+ * on 2026-11-18 and nothing else here would have shown one of them. The name
+ * is compared whole (PersonName), never by likeness.
  *
  * Only people who are employed now are compared. A leaver hired again is a
  * second record on purpose (RecruitmentService), and a deleted record is
@@ -41,6 +49,15 @@ final class PossibleDuplicates
     public const BADGE = 'badge_number';
 
     public const NAME_AND_BIRTH_DATE = 'name_and_birth_date';
+
+    /** The same full name, in the same department (or both in none). */
+    public const SAME_FULL_NAME = 'same_full_name';
+
+    /** The same full name, held in more than one department. */
+    public const SAME_FULL_NAME_OTHER_DEPARTMENT = 'same_full_name_other_department';
+
+    /** How a name reason ranks: below every reason above, the same department first. */
+    private const NAME_RANK = [self::SAME_FULL_NAME => 2, self::SAME_FULL_NAME_OTHER_DEPARTMENT => 1];
 
     /** The most groups one answer carries. More than this is not a list to work through by hand. */
     public const MAX_GROUPS = 100;
@@ -63,10 +80,18 @@ final class PossibleDuplicates
             }
         }
 
-        // The pairs most likely to be one person first: those that share the
-        // most, then the larger groups.
-        uksort($reasonsOf, fn (string $a, string $b): int => [count($reasonsOf[$b]), substr_count($b, ',')] <=> [count($reasonsOf[$a]), substr_count($a, ',')]
-            ?: strcmp($a, $b));
+        // The groups most likely to be one person first: those that share the
+        // most things a person has only one of, then a name in one
+        // department before a name across several, then the larger groups.
+        $rank = function (string $key) use (&$reasonsOf): array {
+            $name = 0;
+            foreach ($reasonsOf[$key] as $reason) {
+                $name = max($name, self::NAME_RANK[$reason] ?? 0);
+            }
+
+            return [count(array_diff($reasonsOf[$key], array_keys(self::NAME_RANK))), $name, substr_count($key, ',')];
+        };
+        uksort($reasonsOf, fn (string $a, string $b): int => $rank($b) <=> $rank($a) ?: strcmp($a, $b));
 
         $truncated = count($reasonsOf) > self::MAX_GROUPS;
         $reasonsOf = array_slice($reasonsOf, 0, self::MAX_GROUPS, true);
@@ -124,6 +149,47 @@ final class PossibleDuplicates
 
                 return $name === null || $born === null ? null : $name.'|'.substr((string) $born, 0, 10);
             }),
+            ...$this->sameFullName($base),
+        ];
+    }
+
+    /**
+     * Employees under the same full name: those in one department together,
+     * and, for a name held in more than one department, everyone under it.
+     * The second is left out when every holder shares one department, where
+     * it would be the first group again.
+     *
+     * @param  Builder<Employee>  $base
+     * @return array<string, list<list<int>>>
+     */
+    private function sameFullName(Builder $base): array
+    {
+        $byName = [];
+        foreach ((clone $base)->whereNotNull('name')->get(['id', 'name', 'department_id']) as $employee) {
+            $name = PersonName::normalised($employee->name);
+            if ($name !== '') {
+                $department = $employee->department_id === null ? '-' : (string) $employee->department_id;
+                $byName[$name][$department][] = (int) $employee->id;
+            }
+        }
+
+        $sameDepartment = [];
+        $otherDepartment = [];
+        foreach ($byName as $departments) {
+            foreach ($departments as $ids) {
+                if (count($ids) > 1) {
+                    $sameDepartment[] = $ids;
+                }
+            }
+
+            if (count($departments) > 1) {
+                $otherDepartment[] = array_merge(...array_values($departments));
+            }
+        }
+
+        return [
+            self::SAME_FULL_NAME => $sameDepartment,
+            self::SAME_FULL_NAME_OTHER_DEPARTMENT => $otherDepartment,
         ];
     }
 

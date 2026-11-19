@@ -83,6 +83,8 @@ import {
 } from "@/features/attendance/components/day-note";
 import { punchOutcomeText } from "@/features/attendance/punch-outcome";
 import { PrintAction } from "@/components/shared/print-action";
+import { downloadReportPdf } from "@/features/reports/api";
+import { registerPdfRequest } from "@/features/attendance/register-pdf";
 import { PrintScope, usePrintDateRange } from "@/components/shared/print-scope";
 
 // The values the address may carry; anything else falls back to "all".
@@ -180,6 +182,31 @@ export default function AttendancePage() {
     (viewAll && (sourceFilter !== "all" || statusFilter !== "all")) ||
     dateFrom ||
     dateTo;
+
+  // The whole register, as the server's report PDF, for a manager who may run
+  // reports. The page holds 25 rows of many; the PDF carries up to 1,000.
+  const registerPdf = registerPdfRequest({
+    status: statusFilter,
+    source: sourceFilter,
+    from: dateFrom,
+    to: dateTo,
+  });
+
+  async function downloadRegister() {
+    try {
+      await downloadReportPdf(
+        registerPdf.body,
+        `attendance-register-${new Date().toISOString().slice(0, 10)}.pdf`,
+      );
+    } catch {
+      toast.error(
+        t(
+          "attendance.register_pdf_failed",
+          "The register PDF could not be made. Try again.",
+        ),
+      );
+    }
+  }
 
   function clearFilters() {
     filters.clear();
@@ -314,7 +341,26 @@ export default function AttendancePage() {
                 {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
-            <PrintAction />
+            <PrintAction
+              pdf={
+                viewAll && can.viewReports
+                  ? {
+                      label: t(
+                        "attendance.register_pdf",
+                        "Full register as PDF",
+                      ),
+                      onDownload: downloadRegister,
+                      note: registerPdf.unapplied.length
+                        ? t(
+                            "attendance.register_pdf_not_applied",
+                            "The PDF does not apply the :filter filter.",
+                            { filter: t("attendance.source", "Source") },
+                          )
+                        : undefined,
+                    }
+                  : undefined
+              }
+            />
           </div>
         }
       />

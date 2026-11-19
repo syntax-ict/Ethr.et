@@ -43,6 +43,7 @@ import {
   useMigrationBatch,
   useReadPeople,
   useSetRowAction,
+  useConfirmSameName,
   useStageFromDevice,
   useStageFromRows,
 } from "../api";
@@ -100,6 +101,7 @@ function outcomeTone(outcome: MatchOutcome | null): string {
       return "var(--color-status-success, #047857)";
     case "probable":
     case "archived":
+    case "same_name":
       return "var(--color-status-warning, #92400E)";
     case "ambiguous":
       return "var(--color-status-error, #B91C1C)";
@@ -193,6 +195,7 @@ export function MigrationStep({
   const stageRows = useStageFromRows(setStaging);
   const carryOn = useCarryOnStaging(setStaging);
   const setAction = useSetRowAction();
+  const confirmSameName = useConfirmSameName();
   // Rows a long list still has to add, while it is being added.
   const [remaining, setRemaining] = useState<number | null>(null);
   const commit = useCommitMigration((result) => setRemaining(result.remaining));
@@ -234,6 +237,17 @@ export function MigrationStep({
   // matching stopped is, and not shown as a table of people nobody matched.
   const stagingBatchId = batchQuery.data?.status === "staging" ? batchId : null;
   const batch = stagingBatchId === null ? batchQuery.data : undefined;
+  // Rows held because someone is already here under the same name.
+  const sameNameCount = batch?.summary?.same_name ?? 0;
+  // Of those, the ones naming one person and not yet decided.
+  const sameNameOpen =
+    batch?.rows.filter(
+      (row) =>
+        row.match_outcome === "same_name" &&
+        row.action === "defer" &&
+        !row.processed_at &&
+        row.resolved_employee_public_id !== null,
+    ).length ?? 0;
   const openingList = batchId !== null && batchQuery.isPending && !gone;
   const pending: { batchId: string; message: string } | null =
     interrupted ??
@@ -749,6 +763,30 @@ export function MigrationStep({
   ) {
     try {
       await setAction.mutateAsync({ rowId, action, employeePublicId, accept });
+      batchQuery.refetch();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
+    }
+  }
+
+  /** Every row naming one person already here by name is them. */
+  async function runConfirmSameName() {
+    if (!batchId) return;
+    const confirmed = await requestConfirm({
+      title: t(
+        "setup2.same_name_all_title",
+        "Link all :count to the people already here?",
+        { count: sameNameOpen },
+      ),
+      description: t(
+        "setup2.same_name_all_desc",
+        "Each row held because someone here has the same name, and that names only one person, is set to This is them. Rows that name more than one person, and rows you have already decided, are left as they are. You can still change any row before adding the list.",
+      ),
+      confirmLabel: t("setup2.same_name_all_confirm", "Link them"),
+    });
+    if (!confirmed) return;
+    try {
+      await confirmSameName.mutateAsync(batchId);
       batchQuery.refetch();
     } catch (err) {
       toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
@@ -1484,6 +1522,51 @@ export function MigrationStep({
               </Badge>
             ))}
           </div>
+          {batch.mode !== "complete" &&
+            sameNameCount * 2 > batch.rows.length && (
+              <div
+                role="status"
+                className="space-y-1 rounded-md border border-warning-edge bg-warning-soft px-4 py-3 text-sm text-warning-on-soft"
+              >
+                <p className="font-medium">
+                  {t(
+                    "setup2.same_name_most",
+                    ":count of these :total people are already here by name.",
+                    { count: sameNameCount, total: batch.rows.length },
+                  )}
+                </p>
+                <p className="text-xs">
+                  {t(
+                    "setup2.same_name_most_hint",
+                    "This list may have been brought in before. Each of them is held until you say whether it is the person already here. Adding the list as it stands adds none of them again.",
+                  )}
+                </p>
+              </div>
+            )}
+
+          {sameNameOpen > 0 && batch.status === "reviewing" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={confirmSameName.isPending}
+                onClick={runConfirmSameName}
+              >
+                {t(
+                  "setup2.same_name_all",
+                  "All :count are the people already here",
+                  { count: sameNameOpen },
+                )}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.same_name_all_hint",
+                  "Only for rows that name one person. Check a few first.",
+                )}
+              </span>
+            </div>
+          )}
 
           <div className="rounded-lg border">
             <SimpleTable
@@ -1493,66 +1576,86 @@ export function MigrationStep({
                 t("setup2.match", "Match"),
                 t("setup2.action", "Action"),
               ]}
-              rows={batch.rows.map((row) => ({
-                key: row.public_id,
-                cells: [
-                  row.display_name ?? row.external_identifier ?? "—",
-                  <div key="m" className="space-y-1">
-                    <span
-                      className="text-xs font-medium"
-                      style={{ color: outcomeTone(row.match_outcome) }}
-                    >
-                      {t(
-                        `setup2.outcome_${row.match_outcome}`,
-                        row.match_outcome ?? "new",
-                      )}
-                      {row.match_confidence
-                        ? ` · ${Math.round(row.match_confidence * 100)}%`
-                        : ""}
-                    </span>
-                    {batch.mode === "complete" &&
-                      row.match_outcome === "new" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {t(
-                            "setup2.not_found_left_out",
-                            "Not found in ETHR, left out",
-                          )}
-                        </p>
-                      )}
-                    {(row.candidates?.length ?? 0) > 0 && (
-                      <ul className="space-y-0.5">
-                        {row.candidates!.map((c) => {
-                          const chosen =
-                            row.resolved_employee_public_id ===
-                            c.employee_public_id;
-                          return (
-                            <li
-                              key={c.employee_public_id}
-                              className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground"
-                            >
-                              <span
-                                className={
-                                  chosen
-                                    ? "font-semibold text-foreground"
-                                    : undefined
-                                }
+              rows={batch.rows.map((row) => {
+                const sameName = row.match_outcome === "same_name";
+                const reviewable =
+                  !row.processed_at && batch.status === "reviewing";
+                return {
+                  key: row.public_id,
+                  cells: [
+                    row.display_name ?? row.external_identifier ?? "—",
+                    <div key="m" className="space-y-1">
+                      <span
+                        className="text-xs font-medium"
+                        style={{ color: outcomeTone(row.match_outcome) }}
+                      >
+                        {t(
+                          `setup2.outcome_${row.match_outcome}`,
+                          row.match_outcome ?? "new",
+                        )}
+                        {row.match_confidence &&
+                        row.match_outcome !== "same_name"
+                          ? ` · ${Math.round(row.match_confidence * 100)}%`
+                          : ""}
+                      </span>
+                      {batch.mode === "complete" &&
+                        row.match_outcome === "new" && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {t(
+                              "setup2.not_found_left_out",
+                              "Not found in ETHR, left out",
+                            )}
+                          </p>
+                        )}
+                      {(row.candidates?.length ?? 0) > 0 && (
+                        <ul className="space-y-0.5">
+                          {row.candidates!.map((c) => {
+                            const chosen =
+                              row.resolved_employee_public_id ===
+                              c.employee_public_id;
+                            return (
+                              <li
+                                key={c.employee_public_id}
+                                className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground"
                               >
-                                {c.employee_name}
-                              </span>
-                              <span>· {Math.round(c.score * 100)}%</span>
-                              <span className="italic">
-                                (
-                                {c.reasons
-                                  .map((r) => reasonLabel(r, t))
-                                  .join(", ")}
-                                )
-                              </span>
-                              {!row.processed_at &&
-                                row.candidates!.length > 1 &&
-                                !chosen && (
-                                  <button
+                                <span
+                                  className={
+                                    chosen
+                                      ? "font-semibold text-foreground"
+                                      : undefined
+                                  }
+                                >
+                                  {c.employee_name}
+                                </span>
+                                {sameName ? (
+                                  c.employee_code && (
+                                    <span className="font-mono">
+                                      · {c.employee_code}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span>· {Math.round(c.score * 100)}%</span>
+                                )}
+                                <span className="italic">
+                                  (
+                                  {c.reasons
+                                    .map((r) => reasonLabel(r, t))
+                                    .join(", ")}
+                                  )
+                                </span>
+                                {sameName && reviewable && (
+                                  <Button
                                     type="button"
-                                    className="text-primary underline underline-offset-2 hover:no-underline"
+                                    size="sm"
+                                    variant={
+                                      chosen && row.action === "merge"
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    className="h-6 px-2 text-[11px]"
+                                    aria-pressed={
+                                      chosen && row.action === "merge"
+                                    }
                                     onClick={() =>
                                       changeAction(
                                         row.public_id,
@@ -1561,75 +1664,114 @@ export function MigrationStep({
                                       )
                                     }
                                   >
-                                    {t("setup2.use_candidate", "Use")}
-                                  </button>
+                                    {t(
+                                      "setup2.same_name_is_them",
+                                      "This is them",
+                                    )}
+                                  </Button>
                                 )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {(row.warnings ?? []).length > 0 && (
-                      <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
-                        {row.warnings!.map((warning) => (
-                          <li key={warning.code}>{warning.message}</li>
-                        ))}
-                      </ul>
-                    )}
-                    <StagedChanges
-                      row={row}
-                      locked={
-                        Boolean(row.processed_at) ||
-                        batch.status !== "reviewing"
-                      }
-                      onAccept={(fields) =>
-                        changeAction(
-                          row.public_id,
-                          row.action,
-                          undefined,
-                          fields,
-                        )
-                      }
-                    />
-                  </div>,
-                  row.processed_at ? (
-                    <span
-                      key="a"
-                      className="flex items-center gap-1 text-xs text-muted-foreground"
-                    >
-                      <Check className="h-3 w-3" /> {t("setup2.done", "Done")}
-                    </span>
-                  ) : batch.mode === "complete" &&
-                    row.match_outcome === "new" ? (
-                    <span key="a" className="text-xs text-muted-foreground">
-                      {t("setup2.left_out", "Left out")}
-                    </span>
-                  ) : (
-                    <Select
-                      key="a"
-                      value={row.action}
-                      disabled={batch.status !== "reviewing"}
-                      onValueChange={(v) =>
-                        changeAction(row.public_id, v as StagingAction)
-                      }
-                    >
-                      <SelectTrigger className="h-8 w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(batch.mode === "complete"
-                          ? ACTIONS.filter((a) => a !== "create")
-                          : ACTIONS
-                        ).map((a) => (
-                          <SelectItem key={a} value={a}>
-                            {t(`setup2.action_${a}`, a)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ),
-                ],
-              }))}
+                                {!sameName &&
+                                  !row.processed_at &&
+                                  row.candidates!.length > 1 &&
+                                  !chosen && (
+                                    <button
+                                      type="button"
+                                      className="text-primary underline underline-offset-2 hover:no-underline"
+                                      onClick={() =>
+                                        changeAction(
+                                          row.public_id,
+                                          "merge",
+                                          c.employee_public_id,
+                                        )
+                                      }
+                                    >
+                                      {t("setup2.use_candidate", "Use")}
+                                    </button>
+                                  )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {sameName && reviewable && batch.mode !== "complete" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={
+                            row.action === "create" ? "default" : "outline"
+                          }
+                          className="h-6 px-2 text-[11px]"
+                          aria-pressed={row.action === "create"}
+                          onClick={() => changeAction(row.public_id, "create")}
+                        >
+                          {t(
+                            "setup2.same_name_different",
+                            "A different person",
+                          )}
+                        </Button>
+                      )}
+                      {(row.warnings ?? []).length > 0 && (
+                        <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
+                          {row.warnings!.map((warning) => (
+                            <li key={warning.code}>{warning.message}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <StagedChanges
+                        row={row}
+                        locked={
+                          Boolean(row.processed_at) ||
+                          batch.status !== "reviewing"
+                        }
+                        onAccept={(fields) =>
+                          changeAction(
+                            row.public_id,
+                            row.action,
+                            undefined,
+                            fields,
+                          )
+                        }
+                      />
+                    </div>,
+                    row.processed_at ? (
+                      <span
+                        key="a"
+                        className="flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        <Check className="h-3 w-3" /> {t("setup2.done", "Done")}
+                      </span>
+                    ) : batch.mode === "complete" &&
+                      row.match_outcome === "new" ? (
+                      <span key="a" className="text-xs text-muted-foreground">
+                        {t("setup2.left_out", "Left out")}
+                      </span>
+                    ) : (
+                      <Select
+                        key="a"
+                        value={row.action}
+                        disabled={batch.status !== "reviewing"}
+                        onValueChange={(v) =>
+                          changeAction(row.public_id, v as StagingAction)
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(batch.mode === "complete"
+                            ? ACTIONS.filter((a) => a !== "create")
+                            : ACTIONS
+                          ).map((a) => (
+                            <SelectItem key={a} value={a}>
+                              {t(`setup2.action_${a}`, a)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ),
+                  ],
+                };
+              })}
             />
           </div>
 

@@ -434,6 +434,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::delete('/migration/batches/{batch}', [MigrationController::class, 'destroy']);
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/stage', [MigrationController::class, 'stage'])->middleware('throttle:migration-commit');
+        Route::post('/migration/batches/{batch}/confirm-same-name', [MigrationController::class, 'confirmSameName']);
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
         Route::get('/migration/batches/{batch}/terminals', [MigrationController::class, 'terminals']);
@@ -540,6 +541,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
 
         Route::prefix('conflicts')->group(function () {
             Route::get('/', [AttendanceConflictController::class, 'index']);
+            Route::post('/join', [AttendanceConflictController::class, 'join']);
             Route::put('/{conflict}/resolve', [AttendanceConflictController::class, 'resolve']);
         });
 

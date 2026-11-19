@@ -1224,6 +1224,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/conflicts/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join conflicts */
+        post: operations["attendanceConflict.join"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/conflicts/{conflict}/resolve": {
         parameters: {
             query?: never;
@@ -5430,6 +5447,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/batches/{batch}/confirm-same-name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Say of every row held as `same_name` that names exactly one person
+         *     that it is them: each is set to `merge`, as "This is them" on the row
+         *     would. A row naming several people, and a row already decided, is left
+         *     as it is. `confirmed` is how many rows changed. Nothing is written to
+         *     any employee until the list is added
+         */
+        post: operations["migration.confirmSameName"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/batches/{batch}/commit": {
         parameters: {
             query?: never;
@@ -7462,10 +7502,13 @@ export interface paths {
          * @description Read-only. Two or more records are put in a group when they share
          *     something a person has only one of: a national id, an email address,
          *     a phone number, a badge number, or a name together with a date of
-         *     birth. `reasons` says which; the values themselves are not returned.
-         *     Only people employed now are compared, among the employees the reader
-         *     may see. At most 100 groups are returned, the likeliest first, and
-         *     `truncated` says when there were more.
+         *     birth. Below those, two or more with the same full name in one
+         *     department (`same_full_name`), then a full name held in more than one
+         *     department (`same_full_name_other_department`). `reasons` says which;
+         *     the values themselves are not returned. Only people employed now are
+         *     compared, among the employees the reader may see. At most 100 groups
+         *     are returned, the likeliest first, and `truncated` says when there were
+         *     more.
          */
         get: operations["employee.possibleDuplicates"];
         put?: never;
@@ -10797,6 +10840,12 @@ export interface components {
             possible_duplicates?: string;
             created_at: string | null;
         };
+        /** JoinConflictsRequest */
+        JoinConflictsRequest: {
+            conflict_ids?: string[];
+            employee_public_id?: string;
+            after?: string | null;
+        };
         /** KioskAttendanceDayResource */
         KioskAttendanceDayResource: {
             date: string | null;
@@ -13747,6 +13796,11 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                letterhead_address?: string | null;
+                letterhead_phone?: string | null;
+                /** Format: email */
+                letterhead_email?: string | null;
+                letterhead_po_box?: string | null;
             };
         };
         /** UpdateShiftRequest */
@@ -17795,6 +17849,45 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceConflict.join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JoinConflictsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        joined: number;
+                        left: ({
+                            conflict_id: string;
+                            /** @enum {string|null} */
+                            reason: "payroll_locked" | "not_split_day" | "not_pending" | null;
+                        } | {
+                            conflict_id: string;
+                            /** @constant */
+                            reason: "not_found";
+                        })[];
+                        remaining: number;
+                        next_after: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceConflict.resolve": {
@@ -28672,7 +28765,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -28804,7 +28903,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -29047,7 +29152,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -29124,7 +29235,13 @@ export interface operations {
                         external_identifier: string | null;
                         match_outcome: string | null;
                         match_confidence: number | null;
-                        candidates: unknown[] | null;
+                        candidates: {
+                            employee_public_id: string;
+                            employee_name: string;
+                            score: number;
+                            reasons: string[];
+                            employee_code?: string | null;
+                        }[] | null;
                         resolved_employee_public_id: string | null;
                         resolved_employee_code: string | null;
                         action: string;
@@ -29203,6 +29320,58 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.confirmSameName": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        confirmed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /**
+             * @description An error
+             *
+             *     An error
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example This list is already being added. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "migration.commit": {
@@ -35756,6 +35925,12 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                        };
+                        documents: {
+                            letterhead_address: string | null;
+                            letterhead_phone: string | null;
+                            letterhead_email: string | null;
+                            letterhead_po_box: string | null;
                         };
                         security: {
                             mfa_policy: string;

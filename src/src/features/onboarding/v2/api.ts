@@ -489,6 +489,22 @@ export function useSetRowAction() {
   });
 }
 
+/**
+ * "These are all them": every row held as `same_name` that names one person
+ * is set to merge into them. Rows naming several people, and rows already
+ * decided, are left as they are.
+ */
+export function useConfirmSameName() {
+  return useMutation<{ confirmed: number }, unknown, string>({
+    mutationFn: async (batchId) =>
+      (
+        await apiClient.post(
+          `/onboarding/migration/batches/${batchId}/confirm-same-name`,
+        )
+      ).data,
+  });
+}
+
 /** A commit that kept answering without the list getting shorter. */
 export class CommitStalled extends Error {
   constructor() {

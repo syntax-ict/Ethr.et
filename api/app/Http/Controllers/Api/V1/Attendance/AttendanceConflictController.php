@@ -8,10 +8,12 @@ use App\Enums\AttendanceStatus;
 use App\Enums\ConflictResolutionStatus;
 use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Attendance\JoinConflictsRequest;
 use App\Http\Requests\Attendance\ResolveConflictRequest;
 use App\Http\Resources\AttendanceConflictResource;
 use App\Models\AttendanceConflict;
 use App\Models\AuditLog;
+use App\Services\Attendance\SplitDayJoiner;
 use App\Services\Payroll\PayrollPeriodLock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -82,6 +84,23 @@ class AttendanceConflictController extends Controller
         $resolution = ConflictResolutionStatus::from($request->validated('resolution'));
         $user = $request->user();
 
+        // A pair that is one working day split by a break is joined into one
+        // record; any other merged pair changes no record, as it always did.
+        $joiner = app(SplitDayJoiner::class);
+        $pair = $resolution === ConflictResolutionStatus::MERGED ? $joiner->pair($conflict) : null;
+        if ($pair !== null) {
+            app(PayrollPeriodLock::class)->assertOpen($pair[0]->employee_id, $pair[0]->date);
+
+            // Read again under a lock: a second request that got here first has
+            // already resolved it, and the day as it stands is the answer. Any
+            // other refusal means the records changed since they were read, so
+            // the pair is no longer a split day and resolves as it always did.
+            $refused = $joiner->join($conflict, $user, $request->validated('resolution_notes'));
+            if ($refused === null || $refused === SplitDayJoiner::NOT_PENDING) {
+                return $this->resolved($conflict->fresh() ?? $conflict);
+            }
+        }
+
         // Voiding either record of a paid day would change what a reprocess pays.
         $subject = $conflict->recordA ?? $conflict->recordB;
         if ($subject !== null && in_array($resolution, [ConflictResolutionStatus::KEEP_A, ConflictResolutionStatus::KEEP_B], true)) {
@@ -112,6 +131,54 @@ class AttendanceConflictController extends Controller
             'resolved_by' => $user->id,
         ]);
 
+        return $this->resolved($conflict);
+    }
+
+    public function join(JoinConflictsRequest $request, SplitDayJoiner $joiner): JsonResponse
+    {
+        Gate::authorize('attendance.resolveConflicts');
+
+        $user = $request->user();
+        $ids = $request->input('conflict_ids');
+
+        $query = AttendanceConflict::query()->with(['employee', 'recordA', 'recordB']);
+
+        // The reach index() lists. resolve() is asked again for every
+        // conflict, which also refuses the caller's own.
+        if ($user->orgScope() !== OrgScope::ALL) {
+            $query->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q));
+        }
+
+        if (is_array($ids)) {
+            $query->whereIn('public_id', $ids);
+        } else {
+            $query->where('resolution', ConflictResolutionStatus::PENDING)
+                ->whereHas('employee', fn ($q) => $q->where('public_id', $request->input('employee_public_id')));
+        }
+
+        $after = $request->input('after');
+        $afterId = is_string($after) ? (int) AttendanceConflict::query()->where('public_id', $after)->value('id') : 0;
+
+        $result = $joiner->joinMany($query, $user, $afterId);
+
+        $left = $result['left'];
+        if (is_array($ids) && $afterId === 0) {
+            $found = (clone $query)->whereIn('public_id', $ids)->pluck('public_id')->all();
+            foreach (array_diff($ids, $found) as $missing) {
+                $left[] = ['conflict_id' => $missing, 'reason' => SplitDayJoiner::NOT_FOUND];
+            }
+        }
+
+        return response()->json([
+            'joined' => $result['joined'],
+            'left' => $left,
+            'remaining' => (int) $result['remaining'],
+            'next_after' => $result['remaining'] > 0 ? $result['last']?->public_id : null,
+        ]);
+    }
+
+    private function resolved(AttendanceConflict $conflict): JsonResponse
+    {
         $conflict->load([
             'employee',
             'recordA.employee', 'recordA.shift',

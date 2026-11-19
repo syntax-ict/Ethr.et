@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
-import { AlertTriangle, GitMerge, Loader2, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  GitMerge,
+  Link2,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   useAttendanceConflicts,
@@ -14,9 +20,13 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useCurrentUser } from "@/features/auth/api";
+import { JoinProgress } from "@/features/attendance/components/join-progress";
+import { useJoinSplitDays } from "@/features/attendance/join-split-days";
+import { isSplitDayPair } from "@/features/attendance/split-day";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +85,9 @@ export default function AttendanceConflictsPage() {
   const [resolving, setResolving] = useState<Conflict | null>(null);
   const [resolution, setResolution] = useState<ResolutionValue | "">("");
   const [notes, setNotes] = useState("");
+  // Conflicts ticked for "Join split days". Only those on the page being read.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toldDone = useRef(false);
 
   const { data, isLoading, isError, refetch } = useAttendanceConflicts({
     pendingOnly: status === "pending",
@@ -82,6 +95,36 @@ export default function AttendanceConflictsPage() {
   });
 
   const resolve = useResolveConflict();
+  const joinDays = useJoinSplitDays();
+  const joining = joinDays.state.phase === "running";
+
+  // Said once, with the totals over every call, when the last one is in.
+  useEffect(() => {
+    if (joinDays.state.phase !== "done" || toldDone.current) return;
+    toldDone.current = true;
+    setSelected(new Set());
+    toast.success(
+      t(
+        "attendance.conflicts.join_result",
+        "Joined :joined days. :left left as they were.",
+        { joined: joinDays.state.joined, left: joinDays.state.left },
+      ),
+    );
+  }, [joinDays.state.phase, joinDays.state.joined, joinDays.state.left, t]);
+
+  function startJoin(target: Parameters<typeof joinDays.start>[0]) {
+    toldDone.current = false;
+    joinDays.start(target);
+  }
+
+  function toggle(publicId: string, on: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (on) next.add(publicId);
+      else next.delete(publicId);
+      return next;
+    });
+  }
 
   function submitResolution() {
     if (!resolving || resolution === "") return;
@@ -121,6 +164,16 @@ export default function AttendanceConflictsPage() {
   }
 
   const conflicts: Conflict[] = data?.data ?? [];
+  const ownId = me?.employee_public_id;
+  const selectable = conflicts.filter(
+    (c) =>
+      c.resolution === "pending" && !(ownId && c.employee_public_id === ownId),
+  );
+  const canJoin = can.resolveAttendanceConflicts && selectable.length > 0;
+  const allSelected =
+    selectable.length > 0 && selectable.every((c) => selected.has(c.public_id));
+  // Wording only: the server decides whether a pair is a split day.
+  const resolvingSplit = resolving ? isSplitDayPair(resolving) : false;
 
   return (
     <div className="space-y-6">
@@ -147,6 +200,46 @@ export default function AttendanceConflictsPage() {
           </Select>
         }
       />
+
+      {canJoin && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={allSelected}
+              disabled={joining}
+              onCheckedChange={(on) =>
+                setSelected(
+                  on === true
+                    ? new Set(selectable.map((c) => c.public_id))
+                    : new Set(),
+                )
+              }
+            />
+            {t(
+              "attendance.conflicts.select_all",
+              "Select every conflict on this page",
+            )}
+          </label>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={selected.size === 0 || joining}
+            onClick={() => startJoin({ conflictIds: [...selected] })}
+          >
+            <Link2 className="mr-1 h-3 w-3" />
+            {t(
+              "attendance.conflicts.join_selected",
+              "Join split days (:count)",
+              { count: selected.size },
+            )}
+          </Button>
+          <JoinProgress
+            state={joinDays.state}
+            onStop={joinDays.stop}
+            onCarryOn={joinDays.carryOn}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -190,6 +283,12 @@ export default function AttendanceConflictsPage() {
               key={conflict.public_id}
               conflict={conflict}
               canResolve={can.resolveAttendanceConflicts}
+              busy={joining}
+              checked={selected.has(conflict.public_id)}
+              onCheckedChange={(on) => toggle(conflict.public_id, on)}
+              onJoinPerson={() =>
+                startJoin({ employeePublicId: conflict.employee_public_id })
+              }
               // The API refuses a conflict on the caller's own attendance
               // (AttendanceConflictPolicy::resolve), so the button only led
               // to a 403 (audit N84).
@@ -252,7 +351,12 @@ export default function AttendanceConflictsPage() {
                     {t("attendance.conflicts.keep_b", "Keep record B (void A)")}
                   </SelectItem>
                   <SelectItem value="merged">
-                    {t("attendance.conflicts.merged", "Merged manually")}
+                    {resolvingSplit
+                      ? t(
+                          "attendance.conflicts.join_into_one",
+                          "Join into one day",
+                        )
+                      : t("attendance.conflicts.merged", "Merged manually")}
                   </SelectItem>
                   <SelectItem value="dismissed">
                     {t(
@@ -262,6 +366,14 @@ export default function AttendanceConflictsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {resolvingSplit && resolution === "merged" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t(
+                    "attendance.conflicts.join_into_one_desc",
+                    "The two records become one day, with the gap kept as a break.",
+                  )}
+                </p>
+              )}
             </div>
 
             <div>
@@ -306,11 +418,19 @@ export default function AttendanceConflictsPage() {
 function ConflictCard({
   conflict,
   canResolve,
+  busy,
+  checked,
+  onCheckedChange,
+  onJoinPerson,
   isOwn,
   onResolve,
 }: {
   conflict: Conflict;
   canResolve: boolean;
+  busy: boolean;
+  checked: boolean;
+  onCheckedChange: (on: boolean) => void;
+  onJoinPerson: () => void;
   isOwn: boolean;
   onResolve: () => void;
 }) {
@@ -325,6 +445,19 @@ function ConflictCard({
     <Card>
       <CardContent className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          {isPending && canResolve && !isOwn && (
+            <Checkbox
+              className="mt-1"
+              checked={checked}
+              disabled={busy}
+              onCheckedChange={(on) => onCheckedChange(on === true)}
+              aria-label={t(
+                "attendance.conflicts.select_row",
+                "Select the conflict of :name",
+                { name: conflict.employee?.name ?? "" },
+              )}
+            />
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-semibold text-foreground">
@@ -383,6 +516,18 @@ function ConflictCard({
               <Button size="sm" variant="outline" onClick={onResolve}>
                 <GitMerge className="mr-1 h-3 w-3" />
                 {t("attendance.conflicts.review", "Review")}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={onJoinPerson}
+              >
+                <Link2 className="mr-1 h-3 w-3" />
+                {t(
+                  "attendance.conflicts.join_person",
+                  "Join all of this person's split days",
+                )}
               </Button>
             </div>
           )}

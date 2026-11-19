@@ -128,7 +128,7 @@ final class IntegrityInspector
                 $findings[] = ['suspect_location', 'high', ['reason' => 'identical_coordinates']];
             }
 
-            $travel = $this->impossibleTravel($record, $lat, $lon, $moment);
+            $travel = $this->impossibleTravel($record, $lat, $lon, $moment, $punch === 'check_in');
             if ($travel !== null) {
                 $findings[] = ['impossible_travel', 'high', $travel];
             }
@@ -203,7 +203,7 @@ final class IntegrityInspector
     /**
      * @return array{distance_km: float, minutes: int, speed_kmh: int}|null
      */
-    private function impossibleTravel(AttendanceRecord $record, float $lat, float $lon, Carbon $moment): ?array
+    private function impossibleTravel(AttendanceRecord $record, float $lat, float $lon, Carbon $moment, bool $ownPoints = false): ?array
     {
         $previous = AttendanceRecord::query()
             ->where('employee_id', $record->employee_id)
@@ -216,20 +216,68 @@ final class IntegrityInspector
             ->orderByDesc('check_in')
             ->first();
 
-        if ($previous === null) {
+        // Where this person was last known to be: the latest of that record's
+        // point and, for a check-in, the day's own record. A return from a
+        // break reopens the morning's record (AttendanceEngine::rejoinDay), so
+        // the record itself holds the nearest earlier point: its last break's
+        // check-out, else its own check-in.
+        $point = $previous !== null
+            ? ['lat' => (float) $previous->latitude, 'lon' => (float) $previous->longitude, 'at' => $previous->check_in]
+            : null;
+
+        if ($ownPoints) {
+            $own = $this->ownPoint($record, $moment);
+            if ($own !== null && ($point === null || $own['at']->gt($point['at']))) {
+                $point = $own;
+            }
+        }
+
+        if ($point === null) {
             return null;
         }
 
-        $meters = $this->scorer->distanceMeters($lat, $lon, (float) $previous->latitude, (float) $previous->longitude);
+        $meters = $this->scorer->distanceMeters($lat, $lon, $point['lat'], $point['lon']);
         if ($meters < self::MIN_TRAVEL_METERS) {
             return null;
         }
 
-        $minutes = max(1, $previous->check_in->diffInMinutes($moment, absolute: true));
+        $minutes = max(1, $point['at']->diffInMinutes($moment, absolute: true));
         $kmh = ($meters / 1000) / ($minutes / 60);
 
         return $kmh > self::MAX_TRAVEL_KMH
             ? ['distance_km' => round($meters / 1000, 1), 'minutes' => (int) $minutes, 'speed_kmh' => (int) round($kmh)]
             : null;
+    }
+
+    /**
+     * The record's own latest known point before `$moment`: its last break's
+     * check-out when that carried a location, else its check-in.
+     *
+     * @return array{lat: float, lon: float, at: Carbon}|null
+     */
+    private function ownPoint(AttendanceRecord $record, Carbon $moment): ?array
+    {
+        // A record with no breaks is the one this very punch just made: its
+        // check-in is the punch, not an earlier place.
+        if ((array) ($record->metadata['breaks'] ?? []) === []) {
+            return null;
+        }
+
+        $breaks = collect((array) ($record->metadata['breaks'] ?? []))
+            ->filter(fn ($entry) => ($entry['type'] ?? null) === 'out' && isset($entry['lat'], $entry['lon'], $entry['at']))
+            ->map(fn ($entry) => ['lat' => (float) $entry['lat'], 'lon' => (float) $entry['lon'], 'at' => Carbon::parse($entry['at'])])
+            ->filter(fn (array $entry) => $entry['at']->lt($moment))
+            ->sortBy(fn (array $entry) => $entry['at']->getTimestamp())
+            ->last();
+
+        if ($breaks !== null) {
+            return $breaks;
+        }
+
+        if ($record->latitude === null || $record->longitude === null || $record->check_in === null || ! $record->check_in->lt($moment)) {
+            return null;
+        }
+
+        return ['lat' => (float) $record->latitude, 'lon' => (float) $record->longitude, 'at' => $record->check_in];
     }
 }

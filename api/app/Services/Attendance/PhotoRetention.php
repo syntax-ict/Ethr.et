@@ -54,7 +54,11 @@ class PhotoRetention
     public static function withPhotos(): Builder
     {
         return AttendanceRecord::query()->where(function (Builder $q): void {
-            $q->whereNotNull('photo_path')->orWhereNotNull('metadata->checkout_photo_path');
+            $q->whereNotNull('photo_path')
+                ->orWhereNotNull('metadata->checkout_photo_path')
+                // The selfie of a check-out a return from a break undid
+                // (AttendanceEngine::rejoinDay) is kept in the day's breaks.
+                ->orWhere('metadata->break_photos', '>', 0);
         });
     }
 
@@ -156,13 +160,17 @@ class PhotoRetention
     public function deletePhotos(AttendanceRecord $record): void
     {
         $paths = $record->photoPaths();
+        $breaks = $record->breakPhotoPaths();
 
-        foreach ($paths as $path) {
+        foreach ([...$paths, ...$breaks] as $path) {
             $this->storage->delete($path);
         }
 
         $metadata = $record->metadata ?? [];
-        unset($metadata['checkout_photo_path']);
+        unset($metadata['checkout_photo_path'], $metadata['break_photos']);
+        if (isset($metadata['breaks'])) {
+            $metadata['breaks'] = array_map(fn ($entry) => array_diff_key((array) $entry, ['photo' => true]), (array) $metadata['breaks']);
+        }
         // The photos' fingerprints go with them (AttendanceRiskScorer).
         unset($metadata['photo_hash'], $metadata['checkout_photo_hash']);
 
@@ -174,7 +182,7 @@ class PhotoRetention
         ]);
 
         AuditLog::record('attendance.photos_deleted', $record, [
-            'photos' => array_keys($paths),
+            'photos' => [...array_keys($paths), ...array_fill(0, count($breaks), 'break')],
             'retention_days' => $this->retentionDays(),
         ]);
     }

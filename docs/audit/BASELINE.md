@@ -4882,7 +4882,48 @@ type) that is not from this change.
 browser (the card uses the page's `max-w-md` column and full-width buttons, unchecked by eye);
 whether staff on Habru-style terminal-only sites are reached (they are not, by design).
 
-### 25r. The frontend against Vercel's Web Interface Guidelines — read 2026-11-18
+### 25r. A two-session day made two records and a conflict — measured 2026-11-18, changed the same day
+
+Measured on production on 2026-11-18, by replaying the held punches of one Habru woreda badge (R004, one
+person) in order: **138 records over 92 days** where there are at most 92, **46 flagged conflicts**, and
+**36 records with no check-out**. The office works a morning and an afternoon session; its Hikvision terminal
+sends check-in 08:50, check-out 12:05, check-in 13:55, check-out 17:00. `findOpenRecord` never returns a closed
+record, so the 13:55 check-in made a second record for the date and `ConflictResolver::resolve` flagged it
+`MULTI_SOURCE_FAR`, even for one source. The morning record was `early_leave`, the afternoon one "late by
+hours", and every reader that assumes one record a day (timeline, dashboards, reports, reconciliation) was
+wrong with it. Five more matched badges were held back until this was fixed.
+
+The rule now in force, for every organisation with no setting (`AttendanceEngine::rejoinDay`,
+`AttendanceRules::MAX_BREAK_MINUTES`): a **live** check-in reopens the person's latest closed, non-voided
+record **of the same work day** when its check-out is earlier than the check-in, the gap is **at most 180
+minutes**, the check-in is **before the record's shift end** (no shift: the gap alone decides), and the day is
+not in an approved or paid payroll run. The old check-out becomes a `breaks` `out` entry and the return an `in`
+entry (the shape `processBreak` writes), each with its idempotency key, so a terminal's resend of the morning's
+check-out is still a duplicate and does not close the reopened day. An `early_leave` set by that check-out goes
+back to `present`; `late` stays `late`; the last check-out rates early leave as it always did. The return is
+logged `rejoined`, audited `attendance.day_rejoined`, announced as `attendance.checked_in`, and answered
+`resumed` ("Welcome back").
+
+Unchanged: `ConflictResolver` and its 5-minute window, `processBreak`, manual and imported entries, a return
+after the shift's end or after more than 180 minutes (a second session, flagged as before), and worked minutes,
+which still subtract the shift's fixed `break_minutes` once per record (owner decision 2026-11-18): the measured
+gap is stored, not paid. Days already recorded as two records stay two until they are joined from the
+Conflicts page (a separate change). Pinned by `tests/Feature/Attendance/RejoinSplitDayTest.php`.
+
+**Addendum, the same day: joining the days already recorded as two.** Resolving a conflict as `merged` used to
+change no record. For a pair that is a split day it now joins them (`SplitDayJoiner`): same employee and same
+`date`, neither record void, the earlier one closed, the later one opened strictly after that check-out and not
+closed before it opened. The earlier record is kept whichever the conflict calls A. Its check-out becomes a
+`breaks` `out` entry and the later check-in an `in` entry, each carrying its key, place and selfie (the shape
+`rejoinDay` writes, so `findByRejoinKey`, `IntegrityInspector` and `PhotoRetention` need no change); the later
+record's check-out, key, place and selfie become the day's; the punch logs are combined in time order; the later
+record is voided `conflict_joined`; status is rated again by `AttendanceEngine::reclassify`. Any other `merged`
+pair still changes no record, and a day paid in an approved run is refused with the same 422 as `keep_a`.
+`POST /api/v1/attendance/conflicts/join` does it for a list of conflicts (up to 200) or for every pending one of a
+person, in slices of 12 seconds with a cursor (`after`, `next_after`), and names each one it left with a reason
+(`not_split_day`, `payroll_locked`, `not_pending`, `not_found`). Audited as `attendance.split_day_joined`. No
+migration. Pinned by `tests/Feature/Attendance/JoinSplitDayTest.php`.
+### 25s. The frontend against Vercel's Web Interface Guidelines — read 2026-11-18
 
 Every frontend source file (721 under `src/src`, tests and the generated client excluded) was read
 against the 17 sections of Vercel's Web Interface Guidelines (`command.md`, fetched 2026-11-18): a
@@ -4908,3 +4949,4 @@ Three measurements worth keeping here because they correct what the code claims 
 The two readings most likely to be re-found by accident: the shared form hook `useZodForm` has 23
 callers (an earlier exploration said none; the callers destructure with a generic, so a grep for
 `useZodForm(` misses them), and `useQueryTab` reads `?tab=` but never writes it (9 pages).
+

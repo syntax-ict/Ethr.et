@@ -16,6 +16,10 @@ return [
     'purpose' => 'ይህ ደብዳቤ በጠያቂው ጥያቄ መሠረት ለ:purpose የተሰጠ ነው።',
     'signature' => 'የሰው ሀብት፣ :organisation',
     'issued_by' => 'የሰጡት :name',
+    'signature_line' => 'ፊርማ',
+    'stamp' => 'ማኅተም',
+    'issuer_position' => 'የሥራ መደብ',
+    'footer' => 'ቁጥር :reference፣ የተሰጠበት ቀን :date',
 
     // Notifications and refusals.
     'requested' => ':name የሥራ ማረጋገጫ ደብዳቤ ጠይቀዋል።',

@@ -323,3 +323,50 @@ it('deletes the selfies of an organisation that is no longer in use', function (
     Storage::disk('local')->assertMissing($old->photo_path);
     Notification::assertNothingSent();
 })->with(['suspended', 'trial over', 'closed']);
+
+it('deletes the selfie of a check-out that a return from a break undid, once the day\'s retention has passed', function () {
+    // A record that only keeps a break's selfie: no check-in photo, no
+    // check-out photo of its own (AttendanceEngine::rejoinDay moved it).
+    $morning = "{$this->tenant->public_id}/selfies/".Illuminate\Support\Str::ulid().'.jpg';
+    Storage::disk('local')->put($morning, 'jpeg-morning-out');
+    $out = now()->subDays(8);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'employee_id' => $this->worker->id,
+        'date' => $out->toDateString(),
+        'check_in' => $out->copy()->subHours(8),
+        'check_out' => $out,
+        'status' => AttendanceStatus::PRESENT,
+        'photo_path' => null,
+        'metadata' => [
+            'breaks' => [
+                ['type' => 'out', 'at' => $out->copy()->subHours(4)->toIso8601String(), 'key' => 'k-out', 'photo' => $morning],
+                ['type' => 'in', 'at' => $out->copy()->subHours(3)->toIso8601String(), 'key' => 'k-in'],
+            ],
+            'break_photos' => 1,
+        ],
+    ]);
+
+    runRetention($this->tenant);
+    expect($record->fresh()->photo_review_started_at)->not->toBeNull();
+    Storage::disk('local')->assertExists($morning);
+
+    $this->travel(49)->hours();
+    runRetention($this->tenant);
+
+    $after = $record->fresh();
+    Storage::disk('local')->assertMissing($morning);
+    // MySQL 8 does not keep a stored JSON object's key order, so each entry
+    // is sorted before it is compared.
+    $breaks = array_map(function (array $entry): array {
+        ksort($entry);
+
+        return $entry;
+    }, $after->metadata['breaks']);
+    expect($breaks)->toBe([
+        ['at' => $out->copy()->subHours(4)->toIso8601String(), 'key' => 'k-out', 'type' => 'out'],
+        ['at' => $out->copy()->subHours(3)->toIso8601String(), 'key' => 'k-in', 'type' => 'in'],
+    ])
+        ->and($after->metadata)->not->toHaveKey('break_photos')
+        ->and($after->photos_deleted_at)->not->toBeNull();
+});

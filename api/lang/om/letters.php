@@ -16,6 +16,10 @@ return [
     'purpose' => 'Xalayaan kun gaaffii isaaniitiin, kaayyoo kanaaf kenname: :purpose.',
     'signature' => 'Qabeenya Namaa, :organisation',
     'issued_by' => 'Kan kenne: :name',
+    'signature_line' => 'Mallattoo',
+    'stamp' => 'Chaappaa mirkaneessaa',
+    'issuer_position' => 'Gita hojii',
+    'footer' => 'Lakkoofsa wabii :reference, guyyaa kenname :date',
 
     // Notifications and refusals.
     'requested' => ':name xalayaa ragaa hojii gaafateera.',

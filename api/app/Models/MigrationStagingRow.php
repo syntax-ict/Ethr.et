@@ -35,6 +35,13 @@ class MigrationStagingRow extends Model
 
     public const ACTION_PENDING = 'pending';
 
+    /**
+     * Beside IdentityMatch's outcomes: nobody matched on anything a person
+     * has only one of, and someone is already here under exactly this name,
+     * in the department the row names (SameNameRoster). Held for review.
+     */
+    public const OUTCOME_SAME_NAME = 'same_name';
+
     protected $fillable = [
         'public_id',
         'tenant_id',
