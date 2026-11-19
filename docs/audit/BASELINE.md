@@ -4950,3 +4950,6 @@ The two readings most likely to be re-found by accident: the shared form hook `u
 callers (an earlier exploration said none; the callers destructure with a generic, so a grep for
 `useZodForm(` misses them), and `useQueryTab` reads `?tab=` but never writes it (9 pages).
 
+### 25t. Held punches waited for a click on every badge — measured 2026-11-19, changed the same day
+
+A badge's next punch recorded itself once HR wrote its number on an employee (`DevicePunchRecorder::employee`), but the punches already held stayed held until someone pressed Assign on that badge: an organisation with 80 held badges meant 80 clicks. `UnmatchedPunches::recordMatched`, queued by `RecordHeldPunchesJob` from the `held-punches-auto-record` schedule entry (every five minutes, 200 badges a run, drawn at random so a badge that never acts cannot crowd out the rest), now replays them when the badge's verdict is `matched` with the terminal's own name, the same verdict the card shows (`UnmatchedPunches::verdict`), and the person has not left. A name alone, two holders, a differing name, a leaver and a number a person confirmed for someone else are left held. No new tenant bypass: the sweep reads with `DB::table`, every raw fragment ties rows on `tenant_id`, and the job states its tenant as a required `readonly int`. Tests: `tests/Feature/Device/HeldBadgeAutoRecordTest.php`.

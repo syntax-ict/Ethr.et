@@ -79,7 +79,7 @@ Schedule::command('tenancy:recheck-custom-domains')
 Schedule::call(fn () => ProcessDeviceInboundPunchesJob::sweepStranded())->everyFiveMinutes()->name('device-inbox-sweep')->withoutOverlapping();
 
 // Held punches of a badge whose number has since been written on one current
-// employee are recorded without a click (BASELINE §25r). A name alone never.
+// employee are recorded without a click (BASELINE §25t). A name alone never.
 Schedule::call(fn () => RecordHeldPunchesJob::sweep())->everyFiveMinutes()->name('held-punches-auto-record')->withoutOverlapping();
 
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
