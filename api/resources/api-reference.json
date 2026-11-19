@@ -17215,7 +17215,7 @@
                     "employees"
                 ],
                 "operationId": "employee.possibleDuplicates",
-                "description": "Read-only. Two or more records are put in a group when they share\nsomething a person has only one of: a national id, an email address,\na phone number, a badge number, or a name together with a date of\nbirth. `reasons` says which; the values themselves are not returned.\nOnly people employed now are compared, among the employees the reader\nmay see. At most 100 groups are returned, the likeliest first, and\n`truncated` says when there were more.",
+                "description": "Read-only. Two or more records are put in a group when they share\nsomething a person has only one of: a national id, an email address,\na phone number, a badge number, or a name together with a date of\nbirth. Below those, two or more with the same full name in one\ndepartment (`same_full_name`), then a full name held in more than one\ndepartment (`same_full_name_other_department`). `reasons` says which;\nthe values themselves are not returned. Only people employed now are\ncompared, among the employees the reader may see. At most 100 groups\nare returned, the likeliest first, and `truncated` says when there were\nmore.",
                 "summary": "Current employees who may be one person recorded twice",
                 "tags": [
                     "Possible Duplicates"
@@ -26385,7 +26385,38 @@
                                                             "array",
                                                             "null"
                                                         ],
-                                                        "items": []
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "score": {
+                                                                    "type": "number"
+                                                                },
+                                                                "reasons": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "employee_code": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "employee_name",
+                                                                "score",
+                                                                "reasons"
+                                                            ]
+                                                        }
                                                     },
                                                     "resolved_employee_public_id": {
                                                         "type": [
@@ -27243,7 +27274,38 @@
                                                             "array",
                                                             "null"
                                                         ],
-                                                        "items": []
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "score": {
+                                                                    "type": "number"
+                                                                },
+                                                                "reasons": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "employee_code": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "employee_name",
+                                                                "score",
+                                                                "reasons"
+                                                            ]
+                                                        }
                                                     },
                                                     "resolved_employee_public_id": {
                                                         "type": [
@@ -27732,7 +27794,38 @@
                                                                     "array",
                                                                     "null"
                                                                 ],
-                                                                "items": []
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "employee_public_id": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "employee_name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "score": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "reasons": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "employee_code": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "employee_public_id",
+                                                                        "employee_name",
+                                                                        "score",
+                                                                        "reasons"
+                                                                    ]
+                                                                }
                                                             },
                                                             "resolved_employee_public_id": {
                                                                 "type": [
@@ -27953,7 +28046,38 @@
                                                 "array",
                                                 "null"
                                             ],
-                                            "items": []
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "score": {
+                                                        "type": "number"
+                                                    },
+                                                    "reasons": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "employee_name",
+                                                    "score",
+                                                    "reasons"
+                                                ]
+                                            }
                                         },
                                         "resolved_employee_public_id": {
                                             "type": [

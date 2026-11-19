@@ -381,7 +381,7 @@ class MigrationController extends Controller
 
         $row = $row->refresh()->load('resolvedEmployee');
 
-        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row])));
+        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row]), $this->candidateCodes([$row])));
     }
 
     /**
@@ -507,6 +507,7 @@ class MigrationController extends Controller
     {
         $rows = $batch->rows()->with('resolvedEmployee')->get();
         $scheduled = $this->scheduledAmong($rows->all());
+        $codes = $this->candidateCodes($rows->all());
 
         return [
             'public_id' => $batch->public_id,
@@ -518,14 +519,15 @@ class MigrationController extends Controller
             'totals' => $batch->totals,
             'summary' => $this->summarize($batch),
             'sign_in_plan' => $this->signIn->plan($batch, $rows),
-            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled))->all(),
+            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled, $codes))->all(),
         ];
     }
 
     /**
      * @param  list<int>  $scheduled  employees with a change waiting for its date
+     * @param  array<string, string|null>  $codes  candidates' employee numbers (candidateCodes)
      */
-    private function rowPayload(MigrationStagingRow $row, array $scheduled = []): array
+    private function rowPayload(MigrationStagingRow $row, array $scheduled = [], array $codes = []): array
     {
         $processedAt = $row->getAttribute('processed_at');
         $employee = $row->resolvedEmployee;
@@ -537,7 +539,7 @@ class MigrationController extends Controller
             'external_identifier' => $row->external_identifier,
             'match_outcome' => $row->match_outcome,
             'match_confidence' => $row->match_confidence,
-            'candidates' => $row->candidates,
+            'candidates' => $this->candidatesPayload($row, $codes),
             'resolved_employee_public_id' => $employee?->public_id,
             'resolved_employee_code' => $mayView ? $this->codeOf($employee) : null,
             'action' => $row->action,
@@ -564,6 +566,82 @@ class MigrationController extends Controller
             fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
             array_filter($warnings, 'is_array'),
         ));
+    }
+
+    /**
+     * The row's shortlist. A row held because someone is already here under
+     * the same name (`same_name`) also gives each person's employee number,
+     * which is how a reviewer tells two of them apart; it is null for anyone
+     * the viewer may not open, as `resolved_employee_code` is.
+     *
+     * @param  array<string, string|null>  $codes
+     * @return list<array{employee_public_id: string, employee_name: string, score: float, reasons: list<string>, employee_code?: string|null}>|null
+     */
+    private function candidatesPayload(MigrationStagingRow $row, array $codes): ?array
+    {
+        $candidates = $row->getAttribute('candidates');
+        if (! is_array($candidates)) {
+            return null;
+        }
+
+        $sameName = $row->match_outcome === MigrationStagingRow::OUTCOME_SAME_NAME;
+        $payload = [];
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            $id = (string) ($candidate['employee_public_id'] ?? '');
+            $one = [
+                'employee_public_id' => $id,
+                'employee_name' => (string) ($candidate['employee_name'] ?? ''),
+                'score' => (float) ($candidate['score'] ?? 0),
+                'reasons' => array_values(array_map(strval(...), is_array($candidate['reasons'] ?? null) ? $candidate['reasons'] : [])),
+            ];
+
+            if ($sameName) {
+                $one['employee_code'] = $codes[$id] ?? null;
+            }
+
+            $payload[] = $one;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * The employee numbers of the people `same_name` rows name, for those the
+     * viewer may open. One query for the list.
+     *
+     * @param  array<int, MigrationStagingRow>  $rows
+     * @return array<string, string|null>
+     */
+    private function candidateCodes(array $rows): array
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            $candidates = $row->getAttribute('candidates');
+            if ($row->match_outcome !== MigrationStagingRow::OUTCOME_SAME_NAME || ! is_array($candidates)) {
+                continue;
+            }
+            foreach ($candidates as $candidate) {
+                if (is_array($candidate) && is_string($candidate['employee_public_id'] ?? null)) {
+                    $ids[] = $candidate['employee_public_id'];
+                }
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $codes = [];
+        foreach (Employee::query()->whereIn('public_id', array_values(array_unique($ids)))->get() as $employee) {
+            $codes[(string) $employee->public_id] = Gate::allows('view', $employee) ? $this->codeOf($employee) : null;
+        }
+
+        return $codes;
     }
 
     /** The matched employee's number, to be shown only to a viewer who may open that person's record. */

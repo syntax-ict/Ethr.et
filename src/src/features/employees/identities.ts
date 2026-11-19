@@ -77,9 +77,18 @@ export function useUnlinkIdentity(employeeId: string) {
   });
 }
 
-/** Why two records are put together: something a person has only one of. */
+/**
+ * Why two records are put together: something a person has only one of, or,
+ * ranked below those, the same full name in one department or across several.
+ */
 export type DuplicateReason =
-  "national_id" | "email" | "phone" | "badge_number" | "name_and_birth_date";
+  | "national_id"
+  | "email"
+  | "phone"
+  | "badge_number"
+  | "name_and_birth_date"
+  | "same_full_name"
+  | "same_full_name_other_department";
 
 export interface DuplicatePerson {
   public_id: string;

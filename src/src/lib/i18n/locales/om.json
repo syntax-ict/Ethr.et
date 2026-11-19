@@ -3201,7 +3201,7 @@
   "duplicates.reason_badge": "Lakkoofsa baajii tokko",
   "duplicates.reason_name_birth": "Maqaa fi guyyaa dhalootaa tokko",
   "duplicates.none_title": "Irra deddeebiin ta'uu danda'u hin jiru",
-  "duplicates.none_desc": "Hojjettoonni ammaa lama waraqaa eenyummaa biyyaalessaa, imeelii, lakkoofsa bilbilaa, lakkoofsa baajii yookaan maqaa guyyaa dhalootaa wajjin waliin qooddatan hin jiran.",
+  "duplicates.none_desc": "Hojjettoonni ammaa lama waraqaa eenyummaa biyyaalessaa, imeelii, lakkoofsa bilbilaa, lakkoofsa baajii, maqaa guyyaa dhalootaa wajjin yookaan maqaa guutuu waliin qooddatan hin jiran.",
   "duplicates.truncated": "Kunneen caalaa jiru. Kan caalaatti ta'uu danda'an dura mul'atu; kan hafan yeroo kunneen sirreeffaman ni mul'atu.",
   "duplicates.added_on": ":date dabalame",
   "identities.title": "Bakka biraatti kan ittiin beekamu",
@@ -7746,5 +7746,13 @@
   "print.printed_by": "Kan maxxanse :name",
   "print.range": ":from hanga :to",
   "print.this_page": "Fuula kana maxxansi",
-  "print.until": "hanga :to"
+  "print.until": "hanga :to",
+  "setup2.outcome_same_name": "duraan as jiraachuu danda'a",
+  "setup2.reason_same_full_name": "maqaa guutuu tokko",
+  "setup2.same_name_most": "Namoota :total kana keessaa :count maqaan duraan as jiru.",
+  "setup2.same_name_most_hint": "Tarreen kun duraan galfamee ta'uu danda'a. Tokkoon tokkoon isaanii hanga nama as jiru ta'uu isaa himtanitti eegama. Tarree akkuma jirutti galchuun isaan keessaa tokkollee irra deebi'ee hin dabalu.",
+  "setup2.same_name_is_them": "Isa/ishee kana",
+  "setup2.same_name_different": "Nama biraa",
+  "duplicates.reason_same_full_name": "Maqaa guutuu tokko, kutaa tokko",
+  "duplicates.reason_same_full_name_other_department": "Maqaa guutuu tokko, kutaalee adda addaa"
 }

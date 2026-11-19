@@ -193,6 +193,82 @@ describe("<MigrationStep>", () => {
     });
   });
 
+  // A list brought in a second time (2026-11-18): its people are held as
+  // "may already be here", named with their number, and the reviewer says
+  // whether each is the person already here.
+  it("says most of a list is already here by name and asks whether each is them", async () => {
+    const sameName = (n: number) => ({
+      ...AMBIGUOUS_BATCH.rows[0],
+      public_id: `01HZROWSAME00000000000000${n}`,
+      display_name: `Person ${n}`,
+      match_outcome: "same_name" as const,
+      match_confidence: 0.2,
+      candidates: [
+        {
+          employee_public_id: `01HZEMPSAME0000000000000${n}`,
+          employee_name: `Person ${n}`,
+          score: 0.2,
+          reasons: ["same_full_name"],
+          employee_code: `WOR-000${n}`,
+        },
+      ],
+      resolved_employee_public_id: `01HZEMPSAME0000000000000${n}`,
+      action: "defer" as const,
+    });
+    const batch: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      summary: { same_name: 2, new: 1 },
+      rows: [
+        sameName(1),
+        sameName(2),
+        { ...AMBIGUOUS_BATCH.rows[0], match_outcome: "new", candidates: [] },
+      ],
+    };
+
+    const patched: Record<string, unknown>[] = [];
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+      http.patch("*/onboarding/migration/rows/:rowId", async ({ request }) => {
+        patched.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(batch.rows[0]);
+      }),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Person 1" } });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    expect(
+      await screen.findByText("2 of these 3 people are already here by name."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/WOR-0001/)).toBeInTheDocument();
+    expect(screen.getAllByText("may already be here").length).toBeGreaterThan(
+      0,
+    );
+    // A name is not a score: no percentage beside it.
+    expect(screen.queryByText(/20%/)).toBeNull();
+
+    fireEvent.click(screen.getAllByText("This is them")[0]);
+    await waitFor(() => expect(patched).toHaveLength(1));
+    expect(patched[0]).toMatchObject({
+      action: "merge",
+      employee_public_id: "01HZEMPSAME00000000000001",
+    });
+
+    fireEvent.click(screen.getAllByText("A different person")[1]);
+    await waitFor(() => expect(patched).toHaveLength(2));
+    expect(patched[1]).toMatchObject({ action: "create" });
+  });
+
   it("points to adding a device when there is none, and picks the only one", async () => {
     server.use(
       http.get("*/devices", () =>

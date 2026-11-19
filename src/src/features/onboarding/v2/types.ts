@@ -131,8 +131,13 @@ export interface GoLiveResult {
 
 // ── Migration ────────────────────────────────────────────────────
 
+/**
+ * `same_name`: nobody matched on anything a person has only one of, and
+ * someone is already here under exactly this name, in the department the
+ * row names. Held for the reviewer to say whether it is them.
+ */
 export type MatchOutcome =
-  "matched" | "probable" | "ambiguous" | "archived" | "new";
+  "matched" | "probable" | "ambiguous" | "archived" | "new" | "same_name";
 export type StagingAction = "merge" | "create" | "skip" | "defer" | "pending";
 
 export interface StagingCandidate {
@@ -140,6 +145,8 @@ export interface StagingCandidate {
   employee_name: string;
   score: number;
   reasons: string[];
+  /** On a `same_name` row: their employee number, null for someone the viewer may not open. */
+  employee_code?: string | null;
 }
 
 /** What a list is for: adding people, or completing those already here. */

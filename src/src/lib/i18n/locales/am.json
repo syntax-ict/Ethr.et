@@ -3201,7 +3201,7 @@
   "duplicates.reason_badge": "ተመሳሳይ የባጅ ቁጥር",
   "duplicates.reason_name_birth": "ተመሳሳይ ስም እና የትውልድ ቀን",
   "duplicates.none_title": "ሊሆኑ የሚችሉ ድግግሞሾች የሉም",
-  "duplicates.none_desc": "ብሔራዊ መታወቂያ፣ ኢሜይል፣ ስልክ ቁጥር፣ የባጅ ቁጥር ወይም ስም ከትውልድ ቀን ጋር የሚጋሩ ሁለት የአሁን ሰራተኞች የሉም።",
+  "duplicates.none_desc": "ብሔራዊ መታወቂያ፣ ኢሜይል፣ ስልክ ቁጥር፣ የባጅ ቁጥር፣ ስም ከትውልድ ቀን ጋር ወይም ሙሉ ስም የሚጋሩ ሁለት የአሁን ሰራተኞች የሉም።",
   "duplicates.truncated": "ከእነዚህ በላይ አሉ። በጣም ሊሆኑ የሚችሉት በመጀመሪያ ይታያሉ፤ ቀሪዎቹ እነዚህ ሲስተካከሉ ይታያሉ።",
   "duplicates.added_on": ":date ተጨምሯል",
   "identities.title": "በሌላ ቦታ የሚታወቅበት",
@@ -7746,5 +7746,13 @@
   "print.printed_by": "ያተመው :name",
   "print.range": ":from እስከ :to",
   "print.this_page": "ይህን ገጽ አትም",
-  "print.until": "እስከ :to"
+  "print.until": "እስከ :to",
+  "setup2.outcome_same_name": "ቀድሞ እዚህ ሊኖር ይችላል",
+  "setup2.reason_same_full_name": "ተመሳሳይ ሙሉ ስም",
+  "setup2.same_name_most": "ከእነዚህ :total ሰዎች :count በስም ቀድሞ እዚህ አሉ።",
+  "setup2.same_name_most_hint": "ይህ ዝርዝር ከዚህ በፊት ገብቶ ሊሆን ይችላል። እያንዳንዳቸው እዚህ ያለው ሰው መሆኑን እስኪናገሩ ድረስ ይቆያሉ። ዝርዝሩን እንዳለ ማስገባት አንዳቸውንም በድጋሚ አይጨምርም።",
+  "setup2.same_name_is_them": "ይህ እሱ/እሷ ነው",
+  "setup2.same_name_different": "ሌላ ሰው ነው",
+  "duplicates.reason_same_full_name": "ተመሳሳይ ሙሉ ስም፣ ተመሳሳይ የሥራ ክፍል",
+  "duplicates.reason_same_full_name_other_department": "ተመሳሳይ ሙሉ ስም፣ የተለያዩ የሥራ ክፍሎች"
 }

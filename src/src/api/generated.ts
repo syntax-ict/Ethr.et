@@ -7479,10 +7479,13 @@ export interface paths {
          * @description Read-only. Two or more records are put in a group when they share
          *     something a person has only one of: a national id, an email address,
          *     a phone number, a badge number, or a name together with a date of
-         *     birth. `reasons` says which; the values themselves are not returned.
-         *     Only people employed now are compared, among the employees the reader
-         *     may see. At most 100 groups are returned, the likeliest first, and
-         *     `truncated` says when there were more.
+         *     birth. Below those, two or more with the same full name in one
+         *     department (`same_full_name`), then a full name held in more than one
+         *     department (`same_full_name_other_department`). `reasons` says which;
+         *     the values themselves are not returned. Only people employed now are
+         *     compared, among the employees the reader may see. At most 100 groups
+         *     are returned, the likeliest first, and `truncated` says when there were
+         *     more.
          */
         get: operations["employee.possibleDuplicates"];
         put?: never;
@@ -28739,7 +28742,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -28871,7 +28880,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -29114,7 +29129,13 @@ export interface operations {
                             external_identifier: string | null;
                             match_outcome: string | null;
                             match_confidence: number | null;
-                            candidates: unknown[] | null;
+                            candidates: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                score: number;
+                                reasons: string[];
+                                employee_code?: string | null;
+                            }[] | null;
                             resolved_employee_public_id: string | null;
                             resolved_employee_code: string | null;
                             action: string;
@@ -29191,7 +29212,13 @@ export interface operations {
                         external_identifier: string | null;
                         match_outcome: string | null;
                         match_confidence: number | null;
-                        candidates: unknown[] | null;
+                        candidates: {
+                            employee_public_id: string;
+                            employee_name: string;
+                            score: number;
+                            reasons: string[];
+                            employee_code?: string | null;
+                        }[] | null;
                         resolved_employee_public_id: string | null;
                         resolved_employee_code: string | null;
                         action: string;

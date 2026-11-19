@@ -25,6 +25,7 @@ use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Services\Identity\IntakeResult;
+use App\Services\Identity\SameNameRoster;
 use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
 use App\Support\EmployeeImportRow;
@@ -111,6 +112,7 @@ final class WorkforceMigrationService
         $enrollments = $this->devices->adapter($device)->pullEnrollments($device);
         $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
         $departments = DepartmentMatch::forTenant($device->tenant_id);
+        $names = $this->resolver->sameNameRoster($device->tenant_id);
 
         foreach ($enrollments as $enrollment) {
             $userId = $enrollment['device_user_id'];
@@ -133,7 +135,7 @@ final class WorkforceMigrationService
                 'code_is_guess' => true,
             ];
 
-            $this->stageRow($batch, $this->flagUnfitDeviceId($raw, $userId), $enrollment['name'] ?? null, $userId, $departments);
+            $this->stageRow($batch, $this->flagUnfitDeviceId($raw, $userId), $enrollment['name'] ?? null, $userId, $departments, $names);
         }
 
         return $batch->refresh();
@@ -287,6 +289,7 @@ final class WorkforceMigrationService
     {
         $departments = DepartmentMatch::forTenant($batch->tenant_id);
         $completing = $batch->isCompleting();
+        $names = $this->resolver->sameNameRoster($batch->tenant_id);
 
         do {
             $rows = $batch->rows()->whereNull('match_outcome')->orderBy('id')->limit($this->chunk)->get();
@@ -295,7 +298,7 @@ final class WorkforceMigrationService
                 // Written only while the row is still unmatched: a request
                 // that was slow behind another must not overwrite a decision
                 // made on a row the other had already finished.
-                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments, $completing));
+                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments, $names, $completing));
                 MigrationStagingRow::query()
                     ->whereKey($row->getKey())
                     ->whereNull('match_outcome')
@@ -738,7 +741,7 @@ final class WorkforceMigrationService
     /**
      * @param  array<string, mixed>  $raw
      */
-    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments): void
+    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments, SameNameRoster $names): void
     {
         MigrationStagingRow::create([
             'tenant_id' => $batch->tenant_id,
@@ -746,7 +749,7 @@ final class WorkforceMigrationService
             'raw' => $raw,
             'display_name' => $displayName,
             'external_identifier' => $externalIdentifier,
-            ...$this->resolvedAttributes($batch->tenant_id, $raw, $displayName, $departments),
+            ...$this->resolvedAttributes($batch->tenant_id, $raw, $displayName, $departments, $names),
         ]);
     }
 
@@ -755,12 +758,23 @@ final class WorkforceMigrationService
      * the one place a row is matched, whether as it is stored (a device) or
      * afterwards (a list).
      *
+     * A row the resolver calls new is then looked for by its full name
+     * (sameName()). One that is found is held, not added.
+     *
      * @param  array<string, mixed>  $raw
      * @return array<string, mixed>
      */
-    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments, bool $completing = false): array
+    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments, SameNameRoster $names, bool $completing = false): array
     {
         $match = $this->resolver->resolve($tenantId, $this->signalsFromRaw($raw));
+
+        if ($match->outcome === IdentityMatch::NEW) {
+            $held = $this->sameName($tenantId, $raw, $departments, $names, $match->confidence, $completing);
+            if ($held !== null) {
+                return $held;
+            }
+        }
+
         $employee = $match->employee;
 
         return [
@@ -800,6 +814,55 @@ final class WorkforceMigrationService
                 : MigrationStagingRow::ACTION_CREATE,
             default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous, archived
         };
+    }
+
+    /**
+     * A row nobody matched on anything a person has only one of, looked for by
+     * its full name. On 2026-11-18 a list of 167 people was brought in a
+     * second time and every one of them was added again: it carried no
+     * national ID, phone or email, and a name alone is worth too little to the
+     * resolver to say "may be this person".
+     *
+     * Someone already here under exactly this name, in the department the row
+     * would put them in, holds the row as `same_name`, for review:
+     *
+     *  - one such person: the row is drawn up against them as a likely match
+     *    is, with what it would fill in. "This is them" merges into them;
+     *  - several: each is listed and the reviewer says which, if any.
+     *
+     * Either way it waits (`defer`), so committing the list as it stands adds
+     * nobody twice. "A different person" is `create`, which commit honours:
+     * the resolver still calls them new. Null when nobody has the name.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>|null
+     */
+    private function sameName(int $tenantId, array $raw, DepartmentMatch $departments, SameNameRoster $names, float $confidence, bool $completing): ?array
+    {
+        $department = isset($raw['department']) && is_scalar($raw['department']) ? trim((string) $raw['department']) : '';
+        $ids = $names->holders(
+            isset($raw['name']) && is_scalar($raw['name']) ? (string) $raw['name'] : null,
+            $department !== '',
+            $departments->id($department),
+        );
+
+        $found = $this->resolver->sameNameCandidates($tenantId, $ids);
+        if ($found === []) {
+            return null;
+        }
+
+        $employee = count($found) === 1 ? $found[0]['employee'] : null;
+
+        return [
+            'match_outcome' => MigrationStagingRow::OUTCOME_SAME_NAME,
+            'match_confidence' => $confidence,
+            'candidates' => array_map(fn (array $one): array => $one['candidate'], $found),
+            'resolved_employee_id' => $employee?->id,
+            'action' => MigrationStagingRow::ACTION_DEFER,
+            'changes' => $employee !== null
+                ? $this->changes->between($employee, $raw, $departments, [], $completing)
+                : null,
+        ];
     }
 
     /**

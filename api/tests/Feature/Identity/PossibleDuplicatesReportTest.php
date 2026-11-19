@@ -74,18 +74,76 @@ it('puts two records together for each thing a person has only one of', function
     'badge number' => [PossibleDuplicates::BADGE, ['badge_number' => 'B-77'], ['badge_number' => 'b-77']],
 ]);
 
-it('takes a name as a reason only together with a date of birth', function () {
+it('lists a name with a date of birth above the same name alone', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
     rosterPerson($tenant, 'Abebe Kebede', ['date_of_birth' => '1990-05-01']);
     rosterPerson($tenant, 'abebe kebede', ['date_of_birth' => '1990-05-01']);
-    // The same name, born another day, or with no date: two people.
+    // The same name, born another day, or with no date: shared by all four,
+    // and worth less than a name and a birthday together.
     rosterPerson($tenant, 'Abebe Kebede', ['date_of_birth' => '1985-01-01']);
     rosterPerson($tenant, 'Abebe Kebede');
 
     expect(duplicateGroups($tenant))->toBe([
         ['reasons' => [PossibleDuplicates::NAME_AND_BIRTH_DATE], 'names' => ['Abebe Kebede', 'abebe kebede']],
+        ['reasons' => [PossibleDuplicates::SAME_FULL_NAME], 'names' => ['Abebe Kebede', 'abebe kebede', 'Abebe Kebede', 'Abebe Kebede']],
     ]);
+});
+
+it('lists the same full name in one department, then across departments, below everything a person has only one of', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $revenue = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Revenue Office']);
+    $health = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Health Office']);
+
+    // A list brought in twice: the same person, in the same department.
+    rosterPerson($tenant, 'Semira Aragaw Sisay', ['employee_code' => 'WOR-0144', 'department_id' => $revenue->id]);
+    rosterPerson($tenant, 'Semira  Aragaw sisay', ['employee_code' => 'WOR-3932', 'department_id' => $revenue->id]);
+    // The same name in two departments: more often two people.
+    rosterPerson($tenant, 'Abebe Kebede Tesfaye', ['department_id' => $revenue->id]);
+    rosterPerson($tenant, 'Abebe Kebede Tesfaye', ['department_id' => $health->id]);
+    // A name that is only like another is not the same name.
+    rosterPerson($tenant, 'Hanna Girma', ['department_id' => $health->id]);
+    rosterPerson($tenant, 'Hanna Girma Alemu', ['department_id' => $health->id]);
+    // Something a person has only one of still comes first.
+    rosterPerson($tenant, 'Sara Tesfaye', ['badge_number' => 'B-1']);
+    rosterPerson($tenant, 'S. Tesfaye', ['badge_number' => 'B-1']);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/possible-duplicates")->assertOk();
+
+    expect(duplicateGroups($tenant))->toBe([
+        ['reasons' => [PossibleDuplicates::BADGE], 'names' => ['Sara Tesfaye', 'S. Tesfaye']],
+        ['reasons' => [PossibleDuplicates::SAME_FULL_NAME], 'names' => ['Semira Aragaw Sisay', 'Semira  Aragaw sisay']],
+        ['reasons' => [PossibleDuplicates::SAME_FULL_NAME_OTHER_DEPARTMENT], 'names' => ['Abebe Kebede Tesfaye', 'Abebe Kebede Tesfaye']],
+    ])->and(array_column($response->json('groups.1.employees'), 'employee_code'))->toBe(['WOR-0144', 'WOR-3932'])
+        ->and(array_column($response->json('groups.1.employees'), 'department'))->toBe(['Revenue Office', 'Revenue Office']);
+});
+
+it('lists the people of a name in one department together and again with those of it elsewhere', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $revenue = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Revenue Office']);
+    $health = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Health Office']);
+    rosterPerson($tenant, 'Semira Aragaw Sisay', ['department_id' => $revenue->id, 'created_at' => now()->subDays(3)]);
+    rosterPerson($tenant, 'Semira Aragaw Sisay', ['department_id' => $revenue->id, 'created_at' => now()->subDays(2)]);
+    rosterPerson($tenant, 'Semira Aragaw Sisay', ['department_id' => $health->id, 'created_at' => now()->subDay()]);
+
+    expect(array_column(duplicateGroups($tenant), 'reasons'))->toBe([
+        [PossibleDuplicates::SAME_FULL_NAME],
+        [PossibleDuplicates::SAME_FULL_NAME_OTHER_DEPARTMENT],
+    ]);
+});
+
+it('never counts the same name held in another organisation', function () {
+    $other = createTenant();
+    rosterPerson($other, 'Semira Aragaw Sisay', ['department_id' => null]);
+    app()->forgetScopedInstances();
+
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    rosterPerson($tenant, 'Semira Aragaw Sisay', ['department_id' => null]);
+
+    expect(duplicateGroups($tenant))->toBe([]);
 });
 
 it('lists the pair that shares the most first, with every reason, and three records as one group', function () {

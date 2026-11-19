@@ -267,6 +267,61 @@ describe("<PossibleDuplicatesList>", () => {
     expect(screen.queryByText(/There are more than these/)).toBeNull();
   });
 
+  it("names a pair that shares only a full name, in one department or across several", async () => {
+    server.use(
+      http.get("*/employees/possible-duplicates", () =>
+        HttpResponse.json({
+          groups: [
+            {
+              reasons: ["same_full_name"],
+              employees: [
+                person(
+                  "01JBQ8Z6ZK3M9V2X7Y4W5T6RF1",
+                  "Semira Aragaw Sisay",
+                  "WOR-0144",
+                  "migration",
+                ),
+                person(
+                  "01JBQ8Z6ZK3M9V2X7Y4W5T6RF2",
+                  "Semira Aragaw Sisay",
+                  "WOR-3932",
+                  "migration",
+                ),
+              ],
+            },
+            {
+              reasons: ["same_full_name_other_department"],
+              employees: [
+                person(
+                  "01JBQ8Z6ZK3M9V2X7Y4W5T6RF3",
+                  "Abebe Kebede",
+                  "E-5",
+                  null,
+                ),
+                person(
+                  "01JBQ8Z6ZK3M9V2X7Y4W5T6RF4",
+                  "Abebe Kebede",
+                  "E-6",
+                  null,
+                ),
+              ],
+            },
+          ],
+          truncated: false,
+        }),
+      ),
+    );
+    withClient(<PossibleDuplicatesList />);
+
+    expect(
+      await screen.findByText("Same full name, same department"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Same full name, different departments"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("WOR-3932")).toBeInTheDocument();
+  });
+
   it("says there are none, and says when there are more than it shows", async () => {
     server.use(
       http.get("*/employees/possible-duplicates", () =>
