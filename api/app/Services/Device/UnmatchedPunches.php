@@ -154,7 +154,21 @@ final class UnmatchedPunches
      *    be an actionable match to the same person. A mapping a person
      *    confirmed also passes when the scored result names no other current
      *    employee (new, or only an archived holder): that is how terminal
-     *    users are mapped when nobody holds the number.
+     *    users are mapped when nobody holds the number. Either way the number
+     *    is held by exactly one current employee, whatever the name adds to
+     *    the score.
+     *
+     * d. The terminal's own name points to the same person and nobody else:
+     *    it sent a name for this badge, and `TerminalNames::lookalikes()`
+     *    returns exactly one employee, the verdict's. Two independent things,
+     *    the number and the name, must name the same single person, because a
+     *    mistyped number on one employee would otherwise record on the wrong
+     *    person within minutes, with no undo. A terminal that sends no name, a
+     *    one-word name, a name two people fit (duplicate records included) or
+     *    a name that fits someone else leaves the punches for a person's
+     *    click. It applies to every automatic path, a mapping a person
+     *    confirmed included, and is evaluated last so ordinary rows cost
+     *    nothing more.
      *
      * The second resolve runs only when the verdict came from a mapping;
      * otherwise the verdict is the scored result.
@@ -177,7 +191,7 @@ final class UnmatchedPunches
         }
 
         if (! in_array('existing_mapping', $verdict->candidates[0]['reasons'] ?? [], true)) {
-            return true;
+            return $this->soleHolder($verdict) && $this->nameAgrees($device, $nameOnDevice, $employee);
         }
 
         $scored = $this->resolver->resolve($device->tenant_id, new IdentitySignals(
@@ -187,12 +201,42 @@ final class UnmatchedPunches
             codeIsGuess: true,
         ));
 
-        if ($scored->isActionable() && $scored->employee?->id === $employee->id) {
-            return true;
+        $numberAgrees = ($scored->isActionable() && $scored->employee?->id === $employee->id && $this->soleHolder($scored))
+            || (in_array($scored->outcome, [IdentityMatch::NEW, IdentityMatch::ARCHIVED], true)
+                && $this->confirmedFor($device, IdentitySignals::forDeviceUser($device, $badge), $employee));
+
+        return $numberAgrees && $this->nameAgrees($device, $nameOnDevice, $employee);
+    }
+
+    /**
+     * Exactly one scored candidate holds the number, as employee code or badge
+     * number. A leaver who holds it counts, the conservative side.
+     */
+    private function soleHolder(IdentityMatch $match): bool
+    {
+        $holders = 0;
+
+        foreach ($match->candidates as $candidate) {
+            $reasons = $candidate['reasons'];
+
+            if (in_array('employee_code', $reasons, true) || in_array('badge_number', $reasons, true)) {
+                $holders++;
+            }
         }
 
-        return in_array($scored->outcome, [IdentityMatch::NEW, IdentityMatch::ARCHIVED], true)
-            && $this->confirmedFor($device, IdentitySignals::forDeviceUser($device, $badge), $employee);
+        return $holders === 1;
+    }
+
+    /** Condition d: the terminal's name fits this employee and nobody else. */
+    private function nameAgrees(Device $device, ?string $nameOnDevice, Employee $employee): bool
+    {
+        if ($nameOnDevice === null || trim($nameOnDevice) === '') {
+            return false;
+        }
+
+        $fits = $this->terminalNames->lookalikes($device->tenant_id, $nameOnDevice);
+
+        return count($fits) === 1 && $fits[0]->id === $employee->id;
     }
 
     /** Whether a person replayed any punch of this badge on this device, whatever is left. */
@@ -261,7 +305,8 @@ final class UnmatchedPunches
     /**
      * Held badges that carry the evidence for automatic recording: a current
      * employee holds the number as badge number or employee code, or a mapping
-     * for it exists. A cheap filter so a platform sweep spends its bound on
+     * for it exists, and the terminal has stored a name for the badge (a badge
+     * with none can never record itself). A cheap filter so a platform sweep spends its bound on
      * badges that may match; the verdict itself is `recordMatched()`'s. It
      * reads across organisations, each row carrying its own `tenant_id`. The
      * bound is filled in random order, so badges that never act (a name that
@@ -295,6 +340,11 @@ final class UnmatchedPunches
                         ->whereColumn('i.identifier_value', 'g.badge')
                         ->whereRaw('i.source_ref = '.$concat));
             })
+            ->whereExists(fn ($t) => $t->selectRaw('1')->from('device_enrollment_snapshots as s')
+                ->whereColumn('s.tenant_id', 'g.tenant_id')
+                ->whereColumn('s.device_id', 'g.device_id')
+                ->whereRaw('LOWER(s.device_user_id) = LOWER(g.badge)')
+                ->whereNotNull('s.name'))
             ->whereNotExists(fn ($r) => $r->selectRaw('1')->from('unmatched_device_punches as r')
                 ->whereColumn('r.tenant_id', 'g.tenant_id')
                 ->whereColumn('r.device_id', 'g.device_id')

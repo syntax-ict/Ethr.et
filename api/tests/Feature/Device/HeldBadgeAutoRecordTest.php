@@ -98,6 +98,7 @@ function autoSweep(): int
 it('records every held punch of a badge once its number is written on the employee, earliest first', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoHold($tenant, $device, 3);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     expect(autoSweep())->toBe(0);
 
     $employee->update(['badge_number' => '7777']);
@@ -118,6 +119,7 @@ it('records through the employee code as well', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoHold($tenant, $device, 2, 'EC-9');
     $employee->update(['employee_code' => 'EC-9']);
+    autoName($tenant, $device, 'EC-9', 'Selam Tesfaye');
 
     expect(autoSweep())->toBe(1)
         ->and(autoPending())->toBe(0)
@@ -127,8 +129,40 @@ it('records through the employee code as well', function () {
 it('records nothing when two current employees carry the number', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     $employee->update(['badge_number' => '7777']);
     Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    autoSweep();
+
+    $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
+        ->assertOk()->json('data'))->keyBy('badge');
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0)
+        ->and($rows['7777']['recording_itself'])->toBeFalse();
+});
+
+it('records nothing when two current employees hold the number in different fields, though the name agrees with one', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+    $employee->update(['employee_code' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('records nothing when two current employees carry the number and the name fits both', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+    $employee->update(['badge_number' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Selam Tesfaye Alemu', 'status' => EmployeeStatus::CONFIRMED]);
 
     autoSweep();
 
@@ -172,6 +206,7 @@ it('records nothing for a leaver', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoHold($tenant, $device, 2);
     $employee->update(['badge_number' => '7777', 'status' => EmployeeStatus::RESIGNED]);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
 
     autoSweep();
 
@@ -189,6 +224,7 @@ it('does not move a number a person confirmed for someone else', function () {
     ]);
     autoHold($tenant, $device, 2);
     $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
 
     autoSweep();
 
@@ -203,6 +239,7 @@ it('does not record for an employee of another organisation with the same number
     [, , $foreign] = autoSetup('AUTO-SN-2');
     $foreign->update(['badge_number' => '7777']);
     autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     app()->forgetScopedInstances();
 
     expect(autoSweep())->toBe(0)
@@ -214,6 +251,7 @@ it('leaves quietly while a manual assign holds the badge, and records nothing tw
     [$tenant, $device, $employee] = autoSetup();
     autoHold($tenant, $device, 2);
     $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
 
     $held = Cache::lock(UnmatchedPunches::lockKey($device, '7777'), 60);
     expect($held->get())->toBeTrue();
@@ -234,6 +272,7 @@ it('does nothing for a device of another tenant in the payload', function () {
     $other = Tenant::factory()->create();
     autoHold($tenant, $device, 2);
     $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     app(CurrentTenant::class)->forget();
 
     app()->call([new RecordHeldPunchesJob($device->id, $other->id, '7777'), 'handle']);
@@ -246,6 +285,7 @@ it('leaves a badge a person part-replayed to that person', function () {
     $employee->update(['badge_number' => '7777']);
     autoMap($tenant, $device, $employee, '7777', true);
     $person = User::factory()->create(['tenant_id' => $tenant->id]);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     autoHold($tenant, $device, 4);
     UnmatchedDevicePunch::withoutGlobalScopes()->orderBy('id')->limit(2)->update([
         'status' => UnmatchedDevicePunch::REPLAYED, 'employee_id' => $employee->id, 'resolved_by' => $person->id, 'resolved_at' => now(),
@@ -269,6 +309,7 @@ it('does not count dismissed rows as a person having started', function () {
     [$tenant, $device, $employee] = autoSetup();
     $employee->update(['badge_number' => '7777']);
     $person = User::factory()->create(['tenant_id' => $tenant->id]);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     autoHold($tenant, $device, 3);
     UnmatchedDevicePunch::withoutGlobalScopes()->orderBy('id')->limit(1)->update([
         'status' => UnmatchedDevicePunch::DISMISSED, 'resolved_by' => $person->id, 'resolved_at' => now(),
@@ -281,6 +322,7 @@ it('does not count dismissed rows as a person having started', function () {
 it('holds an unconfirmed mapping whose employee no longer holds the number', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoMap($tenant, $device, $employee, '7777', false);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     autoHold($tenant, $device, 2);
 
     autoSweep();
@@ -304,6 +346,7 @@ it('holds an unconfirmed mapping when the terminal name shares no word with the 
 it('records for a confirmed mapping nobody holds the number for, as terminal users are mapped', function () {
     [$tenant, $device, $employee] = autoSetup();
     autoMap($tenant, $device, $employee, '7777', true);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     autoHold($tenant, $device, 2);
 
     expect(autoSweep())->toBe(1)
@@ -316,6 +359,7 @@ it('says on the list that a badge confirmed for one person and written on anothe
     $other = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
     autoMap($tenant, $device, $other, '7777', true);
     $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     autoHold($tenant, $device, 2);
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
@@ -330,6 +374,7 @@ it('says on the list which badges are being recorded', function () {
     autoHold($tenant, $device, 2);
     autoHold($tenant, $device, 1, '8888');
     $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
@@ -337,4 +382,81 @@ it('says on the list which badges are being recorded', function () {
 
     expect($rows['7777']['recording_itself'])->toBeTrue()
         ->and($rows['8888']['recording_itself'])->toBeFalse();
+});
+
+it('holds a badge the terminal sent no name for, though the number is on one person', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    $employee->update(['badge_number' => '7777']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    expect(autoListed())->toBe([]);
+    autoSweep();
+
+    $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
+        ->assertOk()->json('data'))->keyBy('badge');
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0)
+        ->and($rows['7777']['recording_itself'])->toBeFalse()
+        ->and($rows['7777']['match']['outcome'])->toBe('matched');
+});
+
+it('lists a badge for the sweep once the terminal has sent a name for it', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 1);
+    $employee->update(['badge_number' => '7777']);
+    expect(autoListed())->toBe([]);
+
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+
+    expect(autoListed())->toBe([['tenant_id' => $tenant->id, 'device_id' => $device->id, 'badge' => '7777']]);
+});
+
+it('holds a badge when the terminal sent one word only', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    $employee->update(['badge_number' => '7777']);
+    autoName($tenant, $device, '7777', 'Selam');
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('holds a badge when the terminal name fits a second current employee as well', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    $employee->update(['badge_number' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Selam Tesfaye Alemu', 'status' => EmployeeStatus::CONFIRMED]);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('holds a badge when the terminal name fits a different single person than the holder', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    $employee->update(['name' => 'Selam Girma', 'badge_number' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Selam Tesfaye Alemu', 'status' => EmployeeStatus::CONFIRMED]);
+    autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('holds a confirmed mapping nobody holds the number for when the terminal sent no name', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoMap($tenant, $device, $employee, '7777', true);
+    autoHold($tenant, $device, 2);
+
+    expect(autoSweep())->toBe(0)
+        ->and(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
 });

@@ -683,7 +683,7 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
 
     expect(
       await screen.findByText(
-        "Matched by its number. The held punches are being recorded.",
+        "Matched by its number and the name on the terminal. The held punches are being recorded.",
       ),
     ).toBeInTheDocument();
     expect(
