@@ -17215,7 +17215,7 @@
                     "employees"
                 ],
                 "operationId": "employee.possibleDuplicates",
-                "description": "Read-only. Two or more records are put in a group when they share\nsomething a person has only one of: a national id, an email address,\na phone number, a badge number, or a name together with a date of\nbirth. `reasons` says which; the values themselves are not returned.\nOnly people employed now are compared, among the employees the reader\nmay see. At most 100 groups are returned, the likeliest first, and\n`truncated` says when there were more.",
+                "description": "Read-only. Two or more records are put in a group when they share\nsomething a person has only one of: a national id, an email address,\na phone number, a badge number, or a name together with a date of\nbirth. Below those, two or more with the same full name in one\ndepartment (`same_full_name`), then a full name held in more than one\ndepartment (`same_full_name_other_department`). `reasons` says which;\nthe values themselves are not returned. Only people employed now are\ncompared, among the employees the reader may see. At most 100 groups\nare returned, the likeliest first, and `truncated` says when there were\nmore.",
                 "summary": "Current employees who may be one person recorded twice",
                 "tags": [
                     "Possible Duplicates"
@@ -26385,7 +26385,38 @@
                                                             "array",
                                                             "null"
                                                         ],
-                                                        "items": []
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "score": {
+                                                                    "type": "number"
+                                                                },
+                                                                "reasons": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "employee_code": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "employee_name",
+                                                                "score",
+                                                                "reasons"
+                                                            ]
+                                                        }
                                                     },
                                                     "resolved_employee_public_id": {
                                                         "type": [
@@ -26722,6 +26753,100 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/onboarding/migration/batches/{batch}/confirm-same-name": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.confirmSameName",
+                "summary": "Say of every row held as `same_name` that names exactly one person\nthat it is them: each is set to `merge`, as \"This is them\" on the row\nwould. A row naming several people, and a row already decided, is left\nas it is. `confirmed` is how many rows changed. Nothing is written to\nany employee until the list is added",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "confirmed": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        }
+                                    },
+                                    "required": [
+                                        "confirmed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error\n\nAn error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is still being matched. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is already being added. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -27243,7 +27368,38 @@
                                                             "array",
                                                             "null"
                                                         ],
-                                                        "items": []
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "employee_public_id": {
+                                                                    "type": "string"
+                                                                },
+                                                                "employee_name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "score": {
+                                                                    "type": "number"
+                                                                },
+                                                                "reasons": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "employee_code": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "employee_public_id",
+                                                                "employee_name",
+                                                                "score",
+                                                                "reasons"
+                                                            ]
+                                                        }
                                                     },
                                                     "resolved_employee_public_id": {
                                                         "type": [
@@ -27732,7 +27888,38 @@
                                                                     "array",
                                                                     "null"
                                                                 ],
-                                                                "items": []
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "employee_public_id": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "employee_name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "score": {
+                                                                            "type": "number"
+                                                                        },
+                                                                        "reasons": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "employee_code": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "employee_public_id",
+                                                                        "employee_name",
+                                                                        "score",
+                                                                        "reasons"
+                                                                    ]
+                                                                }
                                                             },
                                                             "resolved_employee_public_id": {
                                                                 "type": [
@@ -27953,7 +28140,38 @@
                                                 "array",
                                                 "null"
                                             ],
-                                            "items": []
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "score": {
+                                                        "type": "number"
+                                                    },
+                                                    "reasons": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "employee_name",
+                                                    "score",
+                                                    "reasons"
+                                                ]
+                                            }
                                         },
                                         "resolved_employee_public_id": {
                                             "type": [
