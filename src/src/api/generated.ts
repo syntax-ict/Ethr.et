@@ -38888,6 +38888,7 @@ export interface operations {
                             first_seen: string;
                             last_seen: string;
                             match: unknown;
+                            recording_itself: boolean;
                             name_on_device: string | null;
                             name_matches: {
                                 employee_public_id: string;
