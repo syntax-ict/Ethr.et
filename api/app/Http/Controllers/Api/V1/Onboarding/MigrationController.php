@@ -385,6 +385,27 @@ class MigrationController extends Controller
     }
 
     /**
+     * Say of every row held as `same_name` that names exactly one person
+     * that it is them: each is set to `merge`, as "This is them" on the row
+     * would. A row naming several people, and a row already decided, is left
+     * as it is. `confirmed` is how many rows changed. Nothing is written to
+     * any employee until the list is added.
+     */
+    public function confirmSameName(MigrationBatch $batch): JsonResponse
+    {
+        Gate::authorize('employee.create');
+
+        abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
+        abort_unless($batch->isReviewing(), 409, __('onboarding.migration.already_committing'));
+
+        $confirmed = $this->migration->confirmSameName($batch);
+
+        AuditLog::record('migration.same_name_confirmed', $batch, ['rows' => $confirmed]);
+
+        return response()->json(['confirmed' => $confirmed]);
+    }
+
+    /**
      * Add the list's people, as much as fits in one request.
      *
      * A long list is added a slice at a time. While `status` is `committing`,

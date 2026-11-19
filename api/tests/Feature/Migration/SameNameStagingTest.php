@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\MigrationStagingRow;
@@ -214,4 +215,71 @@ it('holds a row whose badge nobody holds when its name is someone else\'s', func
 
     expect(Staging::firstRow($batch)->match_outcome)->toBe(MigrationStagingRow::OUTCOME_SAME_NAME)
         ->and(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_DEFER);
+});
+
+// ── "These are all them" ────────────────────────────────────────────────────
+
+it('links every row that names one person in one go, and leaves the rest as they are', function () {
+    [$tenant] = Staging::organisation();
+    sameNameDepartments($tenant);
+    sameNameCommit($tenant, sameNameStage($tenant, SAME_NAME_LIST)['public_id']);
+    // A second Hanna elsewhere: a row naming no department now names two people.
+    $revenue = Department::query()->where('tenant_id', $tenant->id)->where('code', 'REV')->sole();
+    Staging::employee($tenant, ['name' => 'Hanna Girma Alemu', 'employee_code' => 'X-9', 'department_id' => $revenue->id]);
+
+    $second = sameNameStage($tenant, [
+        ['Name', 'Department'],
+        ['Semira Aragaw Sisay', 'Revenue Office'],
+        ['Abebe Kebede Tesfaye', 'Revenue Office'],
+        ['Hanna Girma Alemu', ''],
+        ['Dawit Alemu Bekele', ''],
+    ]);
+    [$semira, $abebe, $hanna, $dawit] = $second['rows'];
+    // The reviewer has already said Abebe is someone else.
+    test()->patchJson(Staging::url($tenant, "rows/{$abebe['public_id']}"), ['action' => 'create'])->assertOk();
+
+    test()->postJson(Staging::url($tenant, "batches/{$second['public_id']}/confirm-same-name"))
+        ->assertOk()
+        ->assertExactJson(['confirmed' => 1]);
+
+    $actions = MigrationStagingRow::query()->whereIn('public_id', array_column($second['rows'], 'public_id'))->pluck('action', 'public_id');
+    expect($actions[$semira['public_id']])->toBe('merge')
+        ->and($actions[$abebe['public_id']])->toBe('create')
+        ->and($actions[$hanna['public_id']])->toBe('defer')
+        ->and($actions[$dawit['public_id']])->toBe('create');
+
+    $totals = sameNameCommit($tenant, $second['public_id']);
+    expect($totals['merged'])->toBe(1)
+        ->and($totals['created'])->toBe(2)
+        ->and($totals['deferred'])->toBe(1);
+});
+
+it('confirms nothing on a list still being matched or already being added', function () {
+    [$tenant] = Staging::organisation();
+    Staging::employee($tenant, ['name' => 'Semira Aragaw Sisay']);
+    $batch = Staging::stage($tenant, [['name' => 'Semira Aragaw Sisay']]);
+
+    $batch->update(['status' => 'committing']);
+    test()->postJson(Staging::url($tenant, "batches/{$batch->public_id}/confirm-same-name"))->assertStatus(409);
+
+    $batch->update(['status' => 'staging']);
+    test()->postJson(Staging::url($tenant, "batches/{$batch->public_id}/confirm-same-name"))->assertStatus(409);
+
+    expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_DEFER);
+});
+
+it('is for people who add employees, and never reaches another organisation\'s list', function () {
+    [$tenant] = Staging::organisation();
+    Staging::employee($tenant, ['name' => 'Semira Aragaw Sisay']);
+    $batch = Staging::stage($tenant, [['name' => 'Semira Aragaw Sisay']]);
+
+    app()->forgetScopedInstances();
+    [$other] = Staging::organisation();
+    test()->postJson(Staging::url($other, "batches/{$batch->public_id}/confirm-same-name"))->assertNotFound();
+
+    app()->forgetScopedInstances();
+    actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+    test()->postJson(Staging::url($tenant, "batches/{$batch->public_id}/confirm-same-name"))->assertForbidden();
+
+    expect(MigrationStagingRow::withoutGlobalScopes()->where('batch_id', $batch->id)->value('action'))->toBe(MigrationStagingRow::ACTION_DEFER);
 });

@@ -43,6 +43,7 @@ import {
   useMigrationBatch,
   useReadPeople,
   useSetRowAction,
+  useConfirmSameName,
   useStageFromDevice,
   useStageFromRows,
 } from "../api";
@@ -194,6 +195,7 @@ export function MigrationStep({
   const stageRows = useStageFromRows(setStaging);
   const carryOn = useCarryOnStaging(setStaging);
   const setAction = useSetRowAction();
+  const confirmSameName = useConfirmSameName();
   // Rows a long list still has to add, while it is being added.
   const [remaining, setRemaining] = useState<number | null>(null);
   const commit = useCommitMigration((result) => setRemaining(result.remaining));
@@ -237,6 +239,15 @@ export function MigrationStep({
   const batch = stagingBatchId === null ? batchQuery.data : undefined;
   // Rows held because someone is already here under the same name.
   const sameNameCount = batch?.summary?.same_name ?? 0;
+  // Of those, the ones naming one person and not yet decided.
+  const sameNameOpen =
+    batch?.rows.filter(
+      (row) =>
+        row.match_outcome === "same_name" &&
+        row.action === "defer" &&
+        !row.processed_at &&
+        row.resolved_employee_public_id !== null,
+    ).length ?? 0;
   const openingList = batchId !== null && batchQuery.isPending && !gone;
   const pending: { batchId: string; message: string } | null =
     interrupted ??
@@ -752,6 +763,30 @@ export function MigrationStep({
   ) {
     try {
       await setAction.mutateAsync({ rowId, action, employeePublicId, accept });
+      batchQuery.refetch();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
+    }
+  }
+
+  /** Every row naming one person already here by name is them. */
+  async function runConfirmSameName() {
+    if (!batchId) return;
+    const confirmed = await requestConfirm({
+      title: t(
+        "setup2.same_name_all_title",
+        "Link all :count to the people already here?",
+        { count: sameNameOpen },
+      ),
+      description: t(
+        "setup2.same_name_all_desc",
+        "Each row held because someone here has the same name, and that names only one person, is set to This is them. Rows that name more than one person, and rows you have already decided, are left as they are. You can still change any row before adding the list.",
+      ),
+      confirmLabel: t("setup2.same_name_all_confirm", "Link them"),
+    });
+    if (!confirmed) return;
+    try {
+      await confirmSameName.mutateAsync(batchId);
       batchQuery.refetch();
     } catch (err) {
       toast.error(apiErrorMessage(err, t("setup2.save_failed", "Save failed")));
@@ -1508,6 +1543,30 @@ export function MigrationStep({
                 </p>
               </div>
             )}
+
+          {sameNameOpen > 0 && batch.status === "reviewing" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={confirmSameName.isPending}
+                onClick={runConfirmSameName}
+              >
+                {t(
+                  "setup2.same_name_all",
+                  "All :count are the people already here",
+                  { count: sameNameOpen },
+                )}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {t(
+                  "setup2.same_name_all_hint",
+                  "Only for rows that name one person. Check a few first.",
+                )}
+              </span>
+            </div>
+          )}
 
           <div className="rounded-lg border">
             <SimpleTable

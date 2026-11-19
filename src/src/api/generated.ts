@@ -5447,6 +5447,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/batches/{batch}/confirm-same-name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Say of every row held as `same_name` that names exactly one person
+         *     that it is them: each is set to `merge`, as "This is them" on the row
+         *     would. A row naming several people, and a row already decided, is left
+         *     as it is. `confirmed` is how many rows changed. Nothing is written to
+         *     any employee until the list is added
+         */
+        post: operations["migration.confirmSameName"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/batches/{batch}/commit": {
         parameters: {
             query?: never;
@@ -29297,6 +29320,58 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.confirmSameName": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        confirmed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /**
+             * @description An error
+             *
+             *     An error
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example This list is already being added. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
         };
     };
     "migration.commit": {

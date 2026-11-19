@@ -7754,5 +7754,11 @@
   "setup2.same_name_is_them": "Isa/ishee kana",
   "setup2.same_name_different": "Nama biraa",
   "duplicates.reason_same_full_name": "Maqaa guutuu tokko, kutaa tokko",
-  "duplicates.reason_same_full_name_other_department": "Maqaa guutuu tokko, kutaalee adda addaa"
+  "duplicates.reason_same_full_name_other_department": "Maqaa guutuu tokko, kutaalee adda addaa",
+  "setup2.same_name_all": "Hundi :count namoota duraan as jiranii dha",
+  "setup2.same_name_all_hint": "Tooraalee nama tokko qofa maqaa dhahaniif qofa. Dura muraasa mirkaneessi.",
+  "setup2.same_name_all_title": "Hunda :count namoota duraan as jiran waliin walqabsiisuu?",
+  "setup2.same_name_all_desc": "Tokkoon tokkoon toora sababa namni as jiru maqaa tokko qabuuf eegame, kan nama tokko qofa maqaa dhahu, gara \"Isa/ishee kana\" jijjiirama. Tooraaleen nama tokkoo ol maqaa dhahan, fi tooraaleen ati duraan murteessite akkuma jiranitti hafu. Tarree osoo hin galchin dura toora kamiyyuu ammallee jijjiiruu dandeessa.",
+  "setup2.same_name_all_confirm": "Walqabsiisi",
+  "audit.action.migration.same_name_confirmed": "Tooraaleen dabarsa daataa namoota duraan maqaan as jiran waliin walqabatan"
 }

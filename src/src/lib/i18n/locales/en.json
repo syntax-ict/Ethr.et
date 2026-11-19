@@ -7754,5 +7754,11 @@
   "setup2.same_name_is_them": "This is them",
   "setup2.same_name_different": "A different person",
   "duplicates.reason_same_full_name": "Same full name, same department",
-  "duplicates.reason_same_full_name_other_department": "Same full name, different departments"
+  "duplicates.reason_same_full_name_other_department": "Same full name, different departments",
+  "setup2.same_name_all": "All :count are the people already here",
+  "setup2.same_name_all_hint": "Only for rows that name one person. Check a few first.",
+  "setup2.same_name_all_title": "Link all :count to the people already here?",
+  "setup2.same_name_all_desc": "Each row held because someone here has the same name, and that names only one person, is set to This is them. Rows that name more than one person, and rows you have already decided, are left as they are. You can still change any row before adding the list.",
+  "setup2.same_name_all_confirm": "Link them",
+  "audit.action.migration.same_name_confirmed": "Data migration rows linked to people already here by name"
 }

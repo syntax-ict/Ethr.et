@@ -370,6 +370,28 @@ final class WorkforceMigrationService
     }
 
     /**
+     * "These are all them": every row still waiting because someone is
+     * already here under the same name, and naming exactly one person, is
+     * set to merge into that person. A row naming several people waits for
+     * the reviewer to say which, and a row the reviewer has already decided
+     * (merge, create, skip) is left as they decided it. Returns how many rows
+     * changed.
+     *
+     * The rows were drawn up against that person when they were staged
+     * (sameName()), so nothing is drawn up again: the commit fills their
+     * blanks as a merge chosen one row at a time would.
+     */
+    public function confirmSameName(MigrationBatch $batch): int
+    {
+        return $batch->rows()
+            ->where('match_outcome', MigrationStagingRow::OUTCOME_SAME_NAME)
+            ->where('action', MigrationStagingRow::ACTION_DEFER)
+            ->whereNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
+            ->update(['action' => MigrationStagingRow::ACTION_MERGE, 'updated_at' => now()]);
+    }
+
+    /**
      * Apply every row's action, to the end of the list. Create-only for new
      * people; a merge links the source's identity and writes the row's fills
      * and accepted differences; skip/defer/pending do nothing. Idempotent: an

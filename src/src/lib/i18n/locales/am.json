@@ -7754,5 +7754,11 @@
   "setup2.same_name_is_them": "ይህ እሱ/እሷ ነው",
   "setup2.same_name_different": "ሌላ ሰው ነው",
   "duplicates.reason_same_full_name": "ተመሳሳይ ሙሉ ስም፣ ተመሳሳይ የሥራ ክፍል",
-  "duplicates.reason_same_full_name_other_department": "ተመሳሳይ ሙሉ ስም፣ የተለያዩ የሥራ ክፍሎች"
+  "duplicates.reason_same_full_name_other_department": "ተመሳሳይ ሙሉ ስም፣ የተለያዩ የሥራ ክፍሎች",
+  "setup2.same_name_all": "ሁሉም :count ቀድሞ እዚህ ያሉት ሰዎች ናቸው",
+  "setup2.same_name_all_hint": "አንድ ሰው ብቻ ለሚጠቅሱ ረድፎች ብቻ። መጀመሪያ ጥቂቶቹን ያረጋግጡ።",
+  "setup2.same_name_all_title": "ሁሉንም :count ቀድሞ እዚህ ካሉት ሰዎች ጋር ይገናኙ?",
+  "setup2.same_name_all_desc": "እዚህ ያለ ሰው ተመሳሳይ ስም ስላለው የተያዘ እና አንድ ሰው ብቻ የሚጠቅስ እያንዳንዱ ረድፍ ወደ \"ይህ እሱ/እሷ ነው\" ይቀየራል። ከአንድ በላይ ሰው የሚጠቅሱ ረድፎች እና አስቀድመው የወሰኑባቸው ረድፎች እንዳሉ ይቆያሉ። ዝርዝሩን ከማስገባትዎ በፊት ማንኛውንም ረድፍ አሁንም መቀየር ይችላሉ።",
+  "setup2.same_name_all_confirm": "አገናኛቸው",
+  "audit.action.migration.same_name_confirmed": "የውሂብ ዝውውር ረድፎች በስም ቀድሞ ካሉ ሰዎች ጋር ተገናኙ"
 }

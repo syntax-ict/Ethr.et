@@ -269,6 +269,69 @@ describe("<MigrationStep>", () => {
     expect(patched[1]).toMatchObject({ action: "create" });
   });
 
+  it("links every row naming one person in one go, after asking", async () => {
+    const held = (n: number, resolved: boolean) => ({
+      ...AMBIGUOUS_BATCH.rows[0],
+      public_id: `01HZROWBULK00000000000000${n}`,
+      display_name: `Person ${n}`,
+      match_outcome: "same_name" as const,
+      candidates: [
+        {
+          employee_public_id: `01HZEMPBULK0000000000000${n}`,
+          employee_name: `Person ${n}`,
+          score: 0.2,
+          reasons: ["same_full_name"],
+          employee_code: `WOR-000${n}`,
+        },
+      ],
+      resolved_employee_public_id: resolved
+        ? `01HZEMPBULK0000000000000${n}`
+        : null,
+      action: "defer" as const,
+    });
+    const batch: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      summary: { same_name: 3 },
+      // The third names more than one person, so it is not counted.
+      rows: [held(1, true), held(2, true), held(3, false)],
+    };
+    let posted = 0;
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+      http.post(
+        "*/onboarding/migration/batches/:batchId/confirm-same-name",
+        () => {
+          posted++;
+          return HttpResponse.json({ confirmed: 2 });
+        },
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Person 1" } });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    fireEvent.click(
+      await screen.findByText("All 2 are the people already here"),
+    );
+    expect(
+      await screen.findByText("Link all 2 to the people already here?"),
+    ).toBeInTheDocument();
+    expect(posted).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Link them" }));
+    await waitFor(() => expect(posted).toBe(1));
+  });
+
   // In a list that completes people, finding them by name is the point.
   it("does not warn that a list completing people was brought in before", async () => {
     const batch: MigrationBatch = {
