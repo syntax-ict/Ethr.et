@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
+use App\Support\BackgroundWork;
 use App\Traits\BelongsToTenant;
 use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Model;
@@ -64,7 +65,12 @@ class AuditLog extends Model
     public static function record(string $action, ?Model $auditable = null, array $payload = []): self
     {
         $tenant = app(CurrentTenant::class);
-        $user = auth()->user();
+        // Inside the queue drain or the scheduler there is no actor: the signed-in
+        // person, their address and their browser belong to the request that
+        // happened to start the drain, and the job may be another
+        // organisation's. See App\Support\BackgroundWork.
+        $background = BackgroundWork::active();
+        $user = $background ? null : auth()->user();
 
         // The `?? null` is load-bearing: under session-cookie auth
         // currentAccessToken() is a TransientToken, which has no `name` at all,
@@ -111,8 +117,8 @@ class AuditLog extends Model
             'auditable_type' => $auditable ? get_class($auditable) : null,
             'auditable_id' => $auditable?->id,
             'payload' => $payload ?: null,
-            'ip_address' => Request::ip(),
-            'user_agent' => Request::userAgent(),
+            'ip_address' => $background ? null : Request::ip(),
+            'user_agent' => $background ? null : Request::userAgent(),
             'created_at' => now(),
         ]);
     }
