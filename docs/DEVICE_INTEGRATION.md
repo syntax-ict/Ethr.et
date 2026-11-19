@@ -117,6 +117,10 @@ Devices → **Unrecognised badges** lists the held badges by device:
   is marked `refused`, with the reason.
 - **Dismiss** drops the held punches of a badge that is no one's.
 
+### Recorded without a click, by number only (2026-11-19)
+
+When HR writes a terminal's number in a person's **Badge number** (or it equals their employee code) after punches were held, the held punches of that badge are recorded by themselves. A sweep every five minutes (`held-punches-auto-record`, `RecordHeldPunchesJob`, queue `attendance`) queues one job per organisation, device and badge; each replays one slice, earliest first, and queues itself again while punches remain. It records only when all three hold (`UnmatchedPunches::recordsItself`, used by the job and by the card): (a) the card's verdict is a match to a current person who has not left; (b) no person has replayed any punch of this badge on this device (no `replayed` or `refused` row with `resolved_by`), because a person who started a replay and stopped may have stopped for a reason, so what is left is theirs; dismissed rows do not count; (c) the number says so today with any mapping set aside: the number and the terminal's name are scored again and must match the same person (an existing mapping alone proves only that someone once linked it), or the mapping is one a person confirmed and the scoring names no other current employee, which is how terminal users are mapped when nobody holds the number. Two holders of the number, a name that differs, a leaver, a name with no number, an unconfirmed mapping the person no longer holds the number for, and a number confirmed for someone else leave everything held. A number a person confirmed for someone else is never moved. The link is not marked verified and the rows carry no `resolved_by`. Each slice that replays or refuses a punch is audited as `device.held_punches_auto_recorded` (badge, employee, reasons, replayed, refused). A manual Assign holding the badge's lock makes the job leave quietly. The card marks such a badge (`recording_itself` on `GET devices/unmatched-punches`) and Assign stays available. Applies to every organisation; no setting.
+
 Listing needs `device.viewAny`; assigning and dismissing need
 `attendance.manage`. Both are audited (`device.badge_assigned`,
 `device.badge_dismissed`). Before this, every device path logged the badge
@@ -152,8 +156,9 @@ After a list is added, the terminals read of that batch
 `attendance.manage`, the held badges that now resolve to exactly one of the
 list's people (`held`, at most 100, the rest counted in `held_more`; ambiguous
 or probable matches are never listed). One button there assigns them one
-badge after another through the same endpoint. It is never automatic: it gives
-each number to that person and cannot be undone from that screen.
+badge after another through the same endpoint. The button is a person's click: it gives
+each number to that person and cannot be undone from that screen. A number that equals
+the person's badge number or code is recorded by the five-minute sweep above without it.
 
 ## Attendance-history import (backfill)
 

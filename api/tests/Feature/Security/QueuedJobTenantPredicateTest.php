@@ -9,6 +9,7 @@ use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Jobs\ProcessPayrollJob;
 use App\Jobs\PullDeviceEventsJob;
+use App\Jobs\RecordHeldPunchesJob;
 use App\Jobs\SendInvitationJob;
 use App\Models\Announcement;
 use App\Models\Branch;
@@ -228,6 +229,7 @@ test('the tenant id is required on every job that scopes by it', function (strin
     PullDeviceEventsJob::class,
     DeliverDeviceCommandsJob::class,
     ProcessDeviceInboundPunchesJob::class,
+    RecordHeldPunchesJob::class,
 ]);
 
 // ── Device jobs: the tenant comes from the payload, never the device row ──

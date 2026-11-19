@@ -672,6 +672,35 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
     );
   });
 
+  it("says a badge matched by number is being recorded by itself, and keeps Assign", async () => {
+    const matched = {
+      outcome: "matched",
+      employee_public_id: SELAM.employee_public_id,
+      confidence: 1,
+      candidates: [SELAM],
+    };
+    renderCard([{ ...ROW, match: matched, recording_itself: true }], () => {});
+
+    expect(
+      await screen.findByText(
+        "Matched by its number. The held punches are being recorded.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Write this number in a person's Badge number/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Assign and replay 2 punches" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing of recording itself for a badge matched by name or not at all", async () => {
+    renderCard([{ ...ROW, match: NEW, recording_itself: false }], () => {});
+
+    expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
+    expect(screen.queryByText(/are being recorded/)).not.toBeInTheDocument();
+  });
+
   it("shows nothing about a name when the server sent none", async () => {
     renderCard(
       [{ ...ROW, match: NEW, name_on_device: null, name_matches: [] }],

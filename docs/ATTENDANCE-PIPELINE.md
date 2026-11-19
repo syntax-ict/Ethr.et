@@ -49,6 +49,10 @@ A pair is a **split day** when both records are the conflict's employee's, on th
 
 A `merged` resolution on any other pair (two sources a few minutes apart, overlapping times, different dates) resolves the conflict and changes no record. A day in an approved or paid payroll run is refused (422 `payroll-period-closed`) by the single resolve, and counted as left (`payroll_locked`) by the bulk call. The bulk call also names, with a reason, each conflict it leaves as it was: a pair that is not a split day, one already resolved, and one the caller may not reach (another organisation's, outside their scope, or their own).
 
+## Held punches and a badge number (2026-11-19)
+
+A live punch whose number equals exactly one current employee's `badge_number` or `employee_code` is recorded at once. A punch that matched nobody is held (`unmatched_device_punches`). Writing the number on an employee later does not touch the punches already held, so `held-punches-auto-record` (every five minutes, `RecordHeldPunchesJob`) replays them through `DevicePunchRecorder::record`, the same path as a live punch, earliest first, when `UnmatchedPunches::recordsItself` allows it: the verdict is a match to a person who has not left, no person has replayed any punch of the badge before (a replay a person stopped stays theirs), and the number and terminal name, scored without any mapping, name the same person (a mapping a person confirmed also passes when nobody else holds the number). A name alone, two holders, a differing name, a leaver, a part-replayed badge and a mapping the number no longer backs stay held for a person to assign (`UnmatchedPunches::assign`). Audit: `device.held_punches_auto_recorded`.
+
 ## Duplicates
 
 | Case | Result |

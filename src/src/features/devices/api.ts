@@ -499,6 +499,8 @@ export interface UnmatchedBadge {
   match?: UnmatchedBadgeMatch | null;
   /** What the terminal calls this number; for attendance managers, when the terminal sent a name. */
   name_on_device?: string | null;
+  /** True when the badge matches one person by number and its held punches are being recorded by themselves. */
+  recording_itself?: boolean;
   /** Employees that name could be, never when the badge is already matched. */
   name_matches?: {
     employee_public_id: string;

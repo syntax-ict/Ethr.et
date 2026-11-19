@@ -138,6 +138,9 @@ export function UnmatchedBadgesCard() {
         <p className="text-sm text-muted-foreground">
           {t("devices_page.unmatched.description")}
         </p>
+        <p className="text-sm text-muted-foreground">
+          {t("devices_page.unmatched.number_help")}
+        </p>
         {canCreate && addable.length > 0 && (
           <div>
             <Button
@@ -273,6 +276,11 @@ function UnmatchedRow({
             {t("devices_page.unmatched.this_is", "This is :name", {
               name: holder.employee_name,
             })}
+          </p>
+        )}
+        {canManage && holder && row.recording_itself && (
+          <p className="text-xs text-muted-foreground">
+            {t("devices_page.unmatched.recording_itself")}
           </p>
         )}
         {canManage && possible.length > 0 && (
