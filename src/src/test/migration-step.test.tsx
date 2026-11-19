@@ -269,6 +269,51 @@ describe("<MigrationStep>", () => {
     expect(patched[1]).toMatchObject({ action: "create" });
   });
 
+  // In a list that completes people, finding them by name is the point.
+  it("does not warn that a list completing people was brought in before", async () => {
+    const batch: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { same_name: 1 },
+      rows: [
+        {
+          ...AMBIGUOUS_BATCH.rows[0],
+          match_outcome: "same_name",
+          candidates: [
+            {
+              employee_public_id: "01HZEMPSAME00000000000001",
+              employee_name: "Person 1",
+              score: 0.2,
+              reasons: ["same_full_name"],
+              employee_code: "WOR-0001",
+            },
+          ],
+        },
+      ],
+    };
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Person 1" } });
+    fireEvent.click(screen.getByText("Stage for review"));
+
+    expect(await screen.findByText("This is them")).toBeInTheDocument();
+    expect(screen.queryByText(/already here by name/)).toBeNull();
+    // A list that completes people adds nobody.
+    expect(screen.queryByText("A different person")).toBeNull();
+  });
+
   it("points to adding a device when there is none, and picks the only one", async () => {
     server.use(
       http.get("*/devices", () =>

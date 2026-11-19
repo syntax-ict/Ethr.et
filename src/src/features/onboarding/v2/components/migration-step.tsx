@@ -1487,26 +1487,27 @@ export function MigrationStep({
               </Badge>
             ))}
           </div>
-          {sameNameCount * 2 > batch.rows.length && (
-            <div
-              role="status"
-              className="space-y-1 rounded-md border border-warning-edge bg-warning-soft px-4 py-3 text-sm text-warning-on-soft"
-            >
-              <p className="font-medium">
-                {t(
-                  "setup2.same_name_most",
-                  ":count of these :total people are already here by name.",
-                  { count: sameNameCount, total: batch.rows.length },
-                )}
-              </p>
-              <p className="text-xs">
-                {t(
-                  "setup2.same_name_most_hint",
-                  "This list may have been brought in before. Each of them is held until you say whether it is the person already here. Adding the list as it stands adds none of them again.",
-                )}
-              </p>
-            </div>
-          )}
+          {batch.mode !== "complete" &&
+            sameNameCount * 2 > batch.rows.length && (
+              <div
+                role="status"
+                className="space-y-1 rounded-md border border-warning-edge bg-warning-soft px-4 py-3 text-sm text-warning-on-soft"
+              >
+                <p className="font-medium">
+                  {t(
+                    "setup2.same_name_most",
+                    ":count of these :total people are already here by name.",
+                    { count: sameNameCount, total: batch.rows.length },
+                  )}
+                </p>
+                <p className="text-xs">
+                  {t(
+                    "setup2.same_name_most_hint",
+                    "This list may have been brought in before. Each of them is held until you say whether it is the person already here. Adding the list as it stands adds none of them again.",
+                  )}
+                </p>
+              </div>
+            )}
 
           <div className="rounded-lg border">
             <SimpleTable
