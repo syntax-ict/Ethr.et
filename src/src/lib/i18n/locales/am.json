@@ -1399,6 +1399,7 @@
   "attendance.scan_page.welcome": "እንኳን ደህና መጡ",
   "attendance.scan_qr": "QR ቃኝ",
   "attendance.select_employee": "ሰራተኛ ይምረጡ",
+  "employee_search.more": "የመጀመሪያዎቹ :count ብቻ ይታያሉ። ሌላ ሰው ለማግኘት ስም ወይም ቁጥር ይጻፉ።",
   "attendance.settings_page.adaptive_selfie": "ተለዋዋጭ ፎቶ",
   "attendance.settings_page.adaptive_selfie_desc": "ፎቶ ለሁሉም ሳይጠየቅ ሲቀር፦ 90 ንጹህ ቀናት ያላቸውን ከአምስት ቀን አንዱን ገደማ፣ ሌሎችን ደግሞ ሁልጊዜ ይጠይቁ። የእያንዳንዱ ሠራተኛ የፎቶ ፈቃድ ያስፈልጋል።",
   "attendance.settings_page.assistant": "የምዝገባ ረዳት",
