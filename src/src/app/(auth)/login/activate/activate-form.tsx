@@ -49,12 +49,22 @@ function Activate() {
   const { t } = useT();
   const hydrated = useHydrated();
 
-  const tenant = params.get("tenant") ?? "";
   const carryOrganisation = queryOrganisation(params.toString());
 
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
-  const { context, tenantName, tenantBrand } = useAuthHostContext();
+  const {
+    context,
+    tenantSlug,
+    tenantName,
+    tenantBrand,
+    tenantContextLoading,
+    hostLookupPending,
+  } = useAuthHostContext();
+  // The link names the organisation, or, on the organisation's own address,
+  // the host already does. Only the apex with no `?tenant=` has no answer.
+  const tenant =
+    params.get("tenant") || (context === "tenant" ? (tenantSlug ?? "") : "");
   const organisationName = context === "tenant" ? tenantName : null;
 
   const {
@@ -92,6 +102,14 @@ function Activate() {
   }, [setValue]);
 
   const password = watch("password");
+
+  if (!tenant && (tenantContextLoading || hostLookupPending)) {
+    return (
+      <div className="flex w-full max-w-sm justify-center" aria-busy="true">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!tenant) {
     return (

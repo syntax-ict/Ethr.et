@@ -53,6 +53,7 @@ const organisation: HostCtx = {
   carryOrganisation: null,
   tenantRequest: null,
   tenantContextLoading: false,
+  hostLookupPending: false,
   tenantLookupError: null,
   tenantFieldVisible: false,
 };

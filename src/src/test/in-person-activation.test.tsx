@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { HostProvider } from "@/lib/auth/host-provider";
 import { ActivateForm } from "@/app/(auth)/login/activate/activate-form";
 import { IssueActivationCodeButton } from "@/features/employees/components/issue-activation-code-button";
 
@@ -20,12 +21,14 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({ hasPermission }),
 }));
 
-function renderWithQuery(ui: React.ReactElement) {
+function renderWithQuery(ui: React.ReactElement, host: string | null = null) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <QueryClientProvider client={client}>
+      <HostProvider host={host}>{ui}</HostProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -136,12 +139,53 @@ describe("activation page (the employee's side)", () => {
     expect(await screen.findByText(/not valid or has expired/i)).toBeVisible();
   });
 
-  it("refuses a link that does not name the organisation", () => {
+  it("refuses a link that does not name the organisation, on an address that does not either", async () => {
     search = new URLSearchParams();
-    renderWithQuery(<ActivateForm />);
+    server.use(
+      http.get("*/auth/tenant-context", () =>
+        HttpResponse.json({ tenant: null }),
+      ),
+    );
+    renderWithQuery(<ActivateForm />, "ethr.et");
 
-    expect(screen.getByText(/invalid activation link/i)).toBeVisible();
+    expect(await screen.findByText(/invalid activation link/i)).toBeVisible();
     expect(screen.queryByLabelText(/activation code/i)).toBeNull();
+  });
+
+  it("takes the organisation from its own address when the link carries none", async () => {
+    search = new URLSearchParams();
+    let tenantHeader: string | null = null;
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.get("*/auth/tenant-context", () =>
+        HttpResponse.json({
+          tenant: { name: "Acme Ltd", subdomain: "acme", logo_path: null },
+        }),
+      ),
+      http.post("*/api/v1/auth/activation/redeem", async ({ request }) => {
+        tenantHeader = request.headers.get("x-tenant");
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "ok" });
+      }),
+    );
+    renderWithQuery(<ActivateForm />, "hr.acme.localhost:8081");
+
+    expect(screen.queryByText(/invalid activation link/i)).toBeNull();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(/employee code/i), "EMP-0042");
+    await user.type(screen.getByLabelText(/activation code/i), "ABCDEFGHJKMN");
+    await user.type(
+      screen.getByLabelText(/^new password/i),
+      "a-fresh-secret-9",
+    );
+    await user.type(
+      screen.getByLabelText(/confirm password/i),
+      "a-fresh-secret-9",
+    );
+    await user.click(screen.getByRole("button", { name: /activate account/i }));
+
+    await waitFor(() => expect(tenantHeader).toBe("acme"));
+    expect(body).toMatchObject({ tenant: "acme" });
   });
 });
 

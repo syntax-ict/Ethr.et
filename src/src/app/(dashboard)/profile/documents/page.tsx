@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import {
   fetchMyDocumentLink,
   useMyDocuments,
+  useMyProfile,
   type MyDocument,
 } from "@/features/profile/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -23,6 +24,33 @@ import { MyLettersCard } from "@/features/letters/components/my-letters-card";
  * to see their own contract here.
  */
 export default function ProfileDocumentsPage() {
+  const { t } = useT();
+  const { data: profile, isError } = useMyProfile();
+
+  // An account with no employee record (an organisation admin, say) has no
+  // letters or documents: both endpoints answer 404 for it. Decide from the
+  // profile, and do not ask.
+  if (profile && !profile.employee) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          {t(
+            "profile.no_employee_record",
+            "Your account is not linked to an employee record yet. Ask your HR administrator to link it.",
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Wait for the profile before asking for the rest, so the 404 is never sent.
+  // A failed profile read falls through: the cards below show their own error.
+  if (!profile && !isError) return null;
+
+  return <DocumentsContent />;
+}
+
+function DocumentsContent() {
   const { t } = useT();
   const query = useMyDocuments();
 
