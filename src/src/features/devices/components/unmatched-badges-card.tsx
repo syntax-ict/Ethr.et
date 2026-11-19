@@ -6,7 +6,10 @@ import { BadgeHelp, Download, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { EmployeeSelect } from "@/components/shared/employee-select";
+import {
+  EmployeeSearchSelect,
+  type PickedEmployee,
+} from "@/components/shared/employee-search-select";
 import {
   useDismissUnmatchedBadge,
   useUnmatchedBadges,
@@ -184,7 +187,9 @@ function UnmatchedRow({
   const { t } = useT();
   const { formatDate } = useDateFormatters();
   const timeZone = useTenantTimezone();
-  const [employee, setEmployee] = useState("");
+  // Who the row will be assigned to, and the name its picker shows. A
+  // suggestion fills it without asking the server for anyone.
+  const [employee, setEmployee] = useState<PickedEmployee | null>(null);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const bringIn = useBringInPunches();
   const dismiss = useDismissUnmatchedBadge();
@@ -277,7 +282,12 @@ function UnmatchedRow({
                 <button
                   type="button"
                   className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() => setEmployee(c.employee_public_id)}
+                  onClick={() =>
+                    setEmployee({
+                      public_id: c.employee_public_id,
+                      name: c.employee_name,
+                    })
+                  }
                 >
                   {t("devices_page.unmatched.possibly", "Possibly :name", {
                     name: c.employee_name,
@@ -301,7 +311,12 @@ function UnmatchedRow({
                 <button
                   type="button"
                   className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() => setEmployee(p.employee_public_id)}
+                  onClick={() =>
+                    setEmployee({
+                      public_id: p.employee_public_id,
+                      name: p.employee_name,
+                    })
+                  }
                 >
                   {t("devices_page.unmatched.possibly", "Possibly :name", {
                     name: p.employee_name,
@@ -364,7 +379,7 @@ function UnmatchedRow({
                 </Button>
               )}
               <div className="w-full sm:w-64">
-                <EmployeeSelect
+                <EmployeeSearchSelect
                   id={`unmatched-${row.device_public_id}-${row.badge}`}
                   value={employee}
                   onChange={setEmployee}
@@ -372,8 +387,8 @@ function UnmatchedRow({
               </div>
               <Button
                 size="sm"
-                onClick={() => onAssign(employee)}
-                disabled={employee === "" || assigning || carrying}
+                onClick={() => employee && onAssign(employee.public_id)}
+                disabled={employee === null || assigning || carrying}
               >
                 {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 {t("devices_page.unmatched.assign")}

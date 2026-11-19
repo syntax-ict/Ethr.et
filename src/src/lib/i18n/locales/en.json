@@ -1399,6 +1399,7 @@
   "attendance.scan_page.welcome": "Welcome",
   "attendance.scan_qr": "Scan QR",
   "attendance.select_employee": "Select employee",
+  "employee_search.more": "Showing the first :count. Type a name or number to find anyone else.",
   "attendance.settings_page.adaptive_selfie": "Adaptive selfies",
   "attendance.settings_page.adaptive_selfie_desc": "When selfies are not required for everyone: ask staff with 90 clean days on about one day in five, and everyone else every time. Needs the photo consent of each employee.",
   "attendance.settings_page.assistant": "Punch assistant",
