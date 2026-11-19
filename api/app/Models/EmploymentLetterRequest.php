@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $decided_by
  * @property Carbon|null $decided_at
  * @property string|null $rejection_reason
+ * @property array<string, mixed>|null $snapshot
+ * @property Carbon|null $snapshot_at
  * @property Carbon|null $created_at
  * @property-read Employee|null $employee
  * @property-read User|null $decider
@@ -54,6 +56,8 @@ class EmploymentLetterRequest extends Model
         'decided_by',
         'decided_at',
         'rejection_reason',
+        'snapshot',
+        'snapshot_at',
     ];
 
     protected $hidden = [
@@ -61,6 +65,7 @@ class EmploymentLetterRequest extends Model
         'tenant_id',
         'employee_id',
         'decided_by',
+        'snapshot',
     ];
 
     protected function casts(): array
@@ -68,6 +73,8 @@ class EmploymentLetterRequest extends Model
         return [
             'include_salary' => 'boolean',
             'decided_at' => 'datetime',
+            'snapshot' => 'encrypted:array',
+            'snapshot_at' => 'datetime',
         ];
     }
 
