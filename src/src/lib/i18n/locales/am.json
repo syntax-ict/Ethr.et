@@ -4342,6 +4342,7 @@
   "notification_prefs_page.type_payroll_processed": "ደመወዝ ተሰርቷል",
   "notification_prefs_page.type_payslip_available": "ደመወዝ ደረሰኝ ዝግጁ ነው",
   "notifications.all_read": "ሁሉም ማሳወቂያዎች እንደተነበቡ ተምረዋል",
+  "notifications.bell_label_count": ":count ያልተነበቡ ማሳወቂያዎች",
   "notifications.caught_up": "አዲስ ማሳወቂያ የለም",
   "notifications_page.preferences": "የማሳወቂያ ምርጫዎች",
   "offline.offline": "ከመስመር ውጭ ነዎት",

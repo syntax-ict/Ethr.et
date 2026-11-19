@@ -4342,6 +4342,7 @@
   "notification_prefs_page.type_payroll_processed": "Payroll Processed",
   "notification_prefs_page.type_payslip_available": "Payslip Available",
   "notifications.all_read": "All notifications marked as read",
+  "notifications.bell_label_count": ":count unread notifications",
   "notifications.caught_up": "No new notifications",
   "notifications_page.preferences": "Notification preferences",
   "offline.offline": "You're offline",

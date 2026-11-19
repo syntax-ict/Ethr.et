@@ -28,7 +28,7 @@ export default function KioskLayout({
   return (
     <RootShell lang={DEFAULT_LOCALE}>
       <AmharicDictionary>
-        <div className="min-h-screen bg-background">{children}</div>
+        <div className="min-h-dvh bg-background">{children}</div>
       </AmharicDictionary>
     </RootShell>
   );

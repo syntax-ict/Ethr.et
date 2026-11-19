@@ -473,7 +473,7 @@ export default function KioskPage() {
   // Setup screen
   if (screen === "setup") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background to-muted">
+      <div className="min-h-dvh flex items-center justify-center p-6 bg-gradient-to-br from-background to-muted">
         <Card className="max-w-md w-full">
           <CardContent className="p-8 space-y-4">
             <div className="text-center">
@@ -519,7 +519,7 @@ export default function KioskPage() {
   // Lock screen (admin PIN to exit)
   if (screen === "lock") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-dvh flex items-center justify-center p-6">
         <Card className="max-w-sm w-full">
           <CardContent className="p-8 space-y-4">
             <div className="text-center">
@@ -581,9 +581,9 @@ export default function KioskPage() {
 
   // Main kiosk screen
   return (
-    <div className="min-h-screen flex flex-col select-none">
+    <div className="min-h-dvh flex flex-col select-none">
       {/* Header */}
-      <header className="border-b bg-card px-6 py-4 flex items-center justify-between">
+      <header className="border-b bg-card px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* The way out of kiosk mode: hold the name for three seconds. A
               visible Exit button was one tap from the admin PIN screen for
@@ -891,7 +891,7 @@ export default function KioskPage() {
         </button>
       )}
 
-      <footer className="border-t bg-muted/30 px-6 py-2 text-center text-xs text-muted-foreground">
+      <footer className="border-t bg-muted/30 px-6 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] text-center text-xs text-muted-foreground">
         {config?.pinRequired
           ? t("kiosk_page.footer_with_pin")
           : t("kiosk_page.footer")}

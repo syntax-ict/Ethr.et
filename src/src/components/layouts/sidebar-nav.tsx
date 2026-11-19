@@ -407,6 +407,7 @@ export function SidebarNav({
             </span>
           </button>
           <div
+            inert={!recentExpanded}
             className={cn(
               "grid transition-[grid-template-rows] duration-200 ease-in-out",
               recentExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
@@ -577,7 +578,7 @@ function NavLink({
             e.stopPropagation();
             onTogglePin();
           }}
-          className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/60 group-hover/pin:opacity-100"
+          className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/60 focus-visible:opacity-100 group-hover/pin:opacity-100 [@media(pointer:coarse)]:opacity-100"
           title={t("nav.unpin", "Unpin")}
           aria-label={`${t("nav.unpin", "Unpin")}: ${fullLabel}`}
         >
@@ -592,10 +593,10 @@ function NavLink({
             onTogglePin();
           }}
           className={cn(
-            "absolute right-1 flex h-6 w-6 items-center justify-center rounded-md transition-all duration-150",
+            "absolute right-1 flex h-6 w-6 items-center justify-center rounded-md transition-[opacity,background-color,color] duration-150",
             pinned
               ? "text-brand-accent opacity-100"
-              : "opacity-0 hover:bg-sidebar-accent/50 group-hover/pin:opacity-100",
+              : "opacity-0 hover:bg-sidebar-accent/50 focus-visible:opacity-100 group-hover/pin:opacity-100 [@media(pointer:coarse)]:opacity-100",
           )}
           title={
             pinned
@@ -629,7 +630,7 @@ function NavLink({
               e.stopPropagation();
               onTogglePin();
             }}
-            className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-brand-accent group-hover/pin:opacity-100"
+            className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-[opacity,color] duration-150 hover:text-brand-accent focus-visible:opacity-100 group-hover/pin:opacity-100 [@media(pointer:coarse)]:opacity-100"
             title={t("nav.pin_favorites", "Pin to favorites")}
             aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${fullLabel}`}
           >
@@ -714,7 +715,7 @@ function NavGroup({
           type="button"
           aria-haspopup="menu"
           className={cn(
-            "relative flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "relative flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             hasActiveChild
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -798,6 +799,7 @@ function NavGroup({
         />
       </button>
       <div
+        inert={!isExpanded}
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-in-out",
           isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
@@ -884,7 +886,7 @@ function SetupBanner({
           total: totalSteps,
         })}
         className={cn(
-          "relative flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-150",
+          "relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-150",
           isOnSetup
             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
             : "text-brand-accent hover:bg-sidebar-accent/50",
@@ -942,6 +944,7 @@ function SetupBanner({
       </div>
 
       <div
+        inert={!detailOpen}
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-in-out",
           detailOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",

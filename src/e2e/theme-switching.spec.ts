@@ -91,4 +91,33 @@ test.describe('Theme switching', () => {
 
     expect(luminance, `body background ${bg} is not dark`).toBeLessThan(0.3);
   });
+
+  // `dark:` utilities used to follow the OS setting while the picker wrote the
+  // `.dark` class, so a reader on a light phone who chose Dark got a mix. The
+  // hero scene carries `dark:fill-background`; its computed fill must be the
+  // same whichever scheme the OS reports once the app theme is dark.
+  test('dark: utilities follow the picked theme, not the OS scheme', async ({ browser }) => {
+    const fillUnder = async (colorScheme: 'light' | 'dark') => {
+      const context = await browser.newContext({ colorScheme, storageState: { cookies: [], origins: [] } });
+      const page = await context.newPage();
+      await page.addInitScript(() => {
+        localStorage.setItem('theme', 'dark');
+        localStorage.setItem('locale', 'en');
+      });
+      await page.goto('/en');
+      await page.waitForLoadState('networkidle');
+      await page.reload();
+      const fill = await page.evaluate(() => {
+        const el = document.querySelector('[class*="dark:fill-background"]');
+        return el ? getComputedStyle(el).fill : null;
+      });
+      await context.close();
+      return fill;
+    };
+
+    const onLightOs = await fillUnder('light');
+    const onDarkOs = await fillUnder('dark');
+    expect(onLightOs, 'the hero scene was not found').not.toBeNull();
+    expect(onLightOs).toBe(onDarkOs);
+  });
 });

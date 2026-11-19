@@ -4342,6 +4342,7 @@
   "notification_prefs_page.type_payroll_processed": "Kaffaltiin Mindaa Raawwatame",
   "notification_prefs_page.type_payslip_available": "Waraqaan Mindaa Qophaa'eera",
   "notifications.all_read": "Beeksisonni hundi akka dubbifamanitti mallattoo godhamaniiru",
+  "notifications.bell_label_count": "Beeksisni hin dubbifamne :count",
   "notifications.caught_up": "Beeksisni haaraan hin jiru",
   "notifications_page.preferences": "Filannoo beeksisaa",
   "offline.offline": "Toora ala jirtu",

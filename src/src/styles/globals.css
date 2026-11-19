@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* `dark:` follows the next-themes `.dark` class, not the OS setting, so the
+   picker and the utilities agree. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================================
    ETHR — Global Theme
@@ -618,6 +623,8 @@
   }
 
   html {
+    /* The marketing header is h-16; anchored sections stop below it. */
+    scroll-padding-top: 4rem;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
@@ -723,6 +730,7 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

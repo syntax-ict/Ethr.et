@@ -55,7 +55,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <ImpersonationBanner />
           <OfflineBanner />
           <PausedFeaturesBanner />
-          <div className="print-shell flex h-screen overflow-hidden bg-background">
+          <div className="print-shell flex h-dvh overflow-hidden bg-background">
             <AppSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
@@ -67,7 +67,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               <main
                 id="main-content"
                 tabIndex={-1}
-                className="flex-1 overflow-y-auto focus:outline-none"
+                className="flex-1 scroll-pb-[calc(4rem+env(safe-area-inset-bottom))] overflow-y-auto focus:outline-none lg:scroll-pb-0"
                 role="main"
               >
                 <PageActionsSlotProvider>
