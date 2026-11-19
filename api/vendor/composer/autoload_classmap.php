@@ -1148,6 +1148,7 @@ return array(
     'App\\Support\\AttendanceRules' => $baseDir . '/app/Support/AttendanceRules.php',
     'App\\Support\\AttendanceWebhookPayload' => $baseDir . '/app/Support/AttendanceWebhookPayload.php',
     'App\\Support\\AuditSubjects' => $baseDir . '/app/Support/AuditSubjects.php',
+    'App\\Support\\BackgroundWork' => $baseDir . '/app/Support/BackgroundWork.php',
     'App\\Support\\BackupHealth' => $baseDir . '/app/Support/BackupHealth.php',
     'App\\Support\\CalendarPreference' => $baseDir . '/app/Support/CalendarPreference.php',
     'App\\Support\\Cents' => $baseDir . '/app/Support/Cents.php',

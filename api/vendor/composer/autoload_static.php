@@ -1882,6 +1882,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\AttendanceRules' => __DIR__ . '/../..' . '/app/Support/AttendanceRules.php',
         'App\\Support\\AttendanceWebhookPayload' => __DIR__ . '/../..' . '/app/Support/AttendanceWebhookPayload.php',
         'App\\Support\\AuditSubjects' => __DIR__ . '/../..' . '/app/Support/AuditSubjects.php',
+        'App\\Support\\BackgroundWork' => __DIR__ . '/../..' . '/app/Support/BackgroundWork.php',
         'App\\Support\\BackupHealth' => __DIR__ . '/../..' . '/app/Support/BackupHealth.php',
         'App\\Support\\CalendarPreference' => __DIR__ . '/../..' . '/app/Support/CalendarPreference.php',
         'App\\Support\\Cents' => __DIR__ . '/../..' . '/app/Support/Cents.php',
