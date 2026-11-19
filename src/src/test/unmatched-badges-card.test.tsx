@@ -43,11 +43,17 @@ vi.mock("@/features/onboarding/v2/xlsx-grid", async (original) => ({
   },
 }));
 
-vi.mock("@/components/shared/employee-select", () => ({
-  EmployeeSelect: ({ onChange }: { onChange: (id: string) => void }) => (
+vi.mock("@/components/shared/employee-search-select", () => ({
+  EmployeeSearchSelect: ({
+    onChange,
+  }: {
+    onChange: (picked: { public_id: string; name: string }) => void;
+  }) => (
     <button
       type="button"
-      onClick={() => onChange("01HZEMP0000000000000000001")}
+      onClick={() =>
+        onChange({ public_id: "01HZEMP0000000000000000001", name: "Selam" })
+      }
     >
       Pick Selam
     </button>
