@@ -14,8 +14,6 @@ use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\TerminalNames;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityMatch;
-use App\Services\Identity\IdentityResolver;
-use App\Services\Identity\IdentitySignals;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +34,6 @@ class UnmatchedPunchController extends Controller
 
     public function __construct(
         private readonly UnmatchedPunches $unmatched,
-        private readonly IdentityResolver $resolver,
         private readonly TerminalNames $terminalNames,
     ) {}
 
@@ -56,7 +53,7 @@ class UnmatchedPunchController extends Controller
         // Only a manager is told what the terminal calls a badge: the name is
         // evidence for assigning it, and assigning needs `attendance.manage`.
         $names = $manages ? $this->namesFor($groups, $devices) : [];
-        $matches = $manages ? $this->suggestions($groups, $devices, $viewer, $names) : [];
+        [$matches, $auto] = $manages ? $this->suggestions($groups, $devices, $viewer, $names) : [[], []];
 
         $data = [];
         foreach ($groups as $index => $group) {
@@ -74,6 +71,7 @@ class UnmatchedPunchController extends Controller
                 'first_seen' => $group['first_seen'],
                 'last_seen' => $group['last_seen'],
                 'match' => $match,
+                'recording_itself' => ($auto[$index] ?? false) === true,
                 'name_on_device' => $nameOnDevice,
                 'name_matches' => $this->nameMatches($device, $nameOnDevice, $match, $index < self::RESOLVE_LIMIT, $viewer),
             ];
@@ -95,22 +93,21 @@ class UnmatchedPunchController extends Controller
      * @param  list<array{device_id: int, badge: string, punches: int, first_seen: string, last_seen: string}>  $groups
      * @param  Collection<int, Device>  $devices
      * @param  array<int, array<string, string>>  $names
-     * @return array<int, array{outcome: string, employee_public_id: string|null, confidence: float, candidates: list<array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}>}>
+     * @return array{0: array<int, array{outcome: string, employee_public_id: string|null, confidence: float, candidates: list<array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}>}>, 1: array<int, bool>} the visible matches, and whether each badge records itself
      */
     private function suggestions(array $groups, Collection $devices, User $viewer, array $names): array
     {
         $matches = [];
+        $auto = [];
         foreach (array_slice($groups, 0, self::RESOLVE_LIMIT, true) as $index => $group) {
             $device = $devices->get($group['device_id']);
             if ($device instanceof Device) {
-                $matches[$index] = $this->resolver->resolve(
-                    $device->tenant_id,
-                    IdentitySignals::forDeviceUser($device, $group['badge'], null, $this->nameOnDevice($names, $group)),
-                );
+                $matches[$index] = $this->unmatched->verdict($device, $group['badge'], $this->nameOnDevice($names, $group));
+                $auto[$index] = UnmatchedPunches::recordsItself($matches[$index]);
             }
         }
 
-        return IdentityMatch::visibleTo($matches, $viewer);
+        return [IdentityMatch::visibleTo($matches, $viewer), $auto];
     }
 
     /**
