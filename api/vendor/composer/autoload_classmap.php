@@ -703,6 +703,7 @@ return array(
     'App\\Jobs\\ProcessDeviceInboundPunchesJob' => $baseDir . '/app/Jobs/ProcessDeviceInboundPunchesJob.php',
     'App\\Jobs\\ProcessPayrollJob' => $baseDir . '/app/Jobs/ProcessPayrollJob.php',
     'App\\Jobs\\PullDeviceEventsJob' => $baseDir . '/app/Jobs/PullDeviceEventsJob.php',
+    'App\\Jobs\\RecordHeldPunchesJob' => $baseDir . '/app/Jobs/RecordHeldPunchesJob.php',
     'App\\Jobs\\RetryCriticalMail' => $baseDir . '/app/Jobs/RetryCriticalMail.php',
     'App\\Jobs\\RollForwardHolidaysJob' => $baseDir . '/app/Jobs/RollForwardHolidaysJob.php',
     'App\\Jobs\\RunDashboardDigestsJob' => $baseDir . '/app/Jobs/RunDashboardDigestsJob.php',

@@ -13542,6 +13542,9 @@
                                                         "type": "string"
                                                     },
                                                     "match": [],
+                                                    "recording_itself": {
+                                                        "type": "boolean"
+                                                    },
                                                     "name_on_device": {
                                                         "type": [
                                                             "string",
@@ -13582,6 +13585,7 @@
                                                     "first_seen",
                                                     "last_seen",
                                                     "match",
+                                                    "recording_itself",
                                                     "name_on_device",
                                                     "name_matches"
                                                 ]

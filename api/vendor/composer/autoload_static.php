@@ -1437,6 +1437,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Jobs\\ProcessDeviceInboundPunchesJob' => __DIR__ . '/../..' . '/app/Jobs/ProcessDeviceInboundPunchesJob.php',
         'App\\Jobs\\ProcessPayrollJob' => __DIR__ . '/../..' . '/app/Jobs/ProcessPayrollJob.php',
         'App\\Jobs\\PullDeviceEventsJob' => __DIR__ . '/../..' . '/app/Jobs/PullDeviceEventsJob.php',
+        'App\\Jobs\\RecordHeldPunchesJob' => __DIR__ . '/../..' . '/app/Jobs/RecordHeldPunchesJob.php',
         'App\\Jobs\\RetryCriticalMail' => __DIR__ . '/../..' . '/app/Jobs/RetryCriticalMail.php',
         'App\\Jobs\\RollForwardHolidaysJob' => __DIR__ . '/../..' . '/app/Jobs/RollForwardHolidaysJob.php',
         'App\\Jobs\\RunDashboardDigestsJob' => __DIR__ . '/../..' . '/app/Jobs/RunDashboardDigestsJob.php',
