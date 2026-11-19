@@ -154,7 +154,9 @@ final class UnmatchedPunches
      *    be an actionable match to the same person. A mapping a person
      *    confirmed also passes when the scored result names no other current
      *    employee (new, or only an archived holder): that is how terminal
-     *    users are mapped when nobody holds the number.
+     *    users are mapped when nobody holds the number. Either way the number
+     *    is held by exactly one current employee, whatever the name adds to
+     *    the score.
      *
      * d. The terminal's own name points to the same person and nobody else:
      *    it sent a name for this badge, and `TerminalNames::lookalikes()`
@@ -189,7 +191,7 @@ final class UnmatchedPunches
         }
 
         if (! in_array('existing_mapping', $verdict->candidates[0]['reasons'] ?? [], true)) {
-            return $this->nameAgrees($device, $nameOnDevice, $employee);
+            return $this->soleHolder($verdict) && $this->nameAgrees($device, $nameOnDevice, $employee);
         }
 
         $scored = $this->resolver->resolve($device->tenant_id, new IdentitySignals(
@@ -199,11 +201,30 @@ final class UnmatchedPunches
             codeIsGuess: true,
         ));
 
-        $numberAgrees = ($scored->isActionable() && $scored->employee?->id === $employee->id)
+        $numberAgrees = ($scored->isActionable() && $scored->employee?->id === $employee->id && $this->soleHolder($scored))
             || (in_array($scored->outcome, [IdentityMatch::NEW, IdentityMatch::ARCHIVED], true)
                 && $this->confirmedFor($device, IdentitySignals::forDeviceUser($device, $badge), $employee));
 
         return $numberAgrees && $this->nameAgrees($device, $nameOnDevice, $employee);
+    }
+
+    /**
+     * Exactly one scored candidate holds the number, as employee code or badge
+     * number. A leaver who holds it counts, the conservative side.
+     */
+    private function soleHolder(IdentityMatch $match): bool
+    {
+        $holders = 0;
+
+        foreach ($match->candidates as $candidate) {
+            $reasons = $candidate['reasons'] ?? [];
+
+            if (in_array('employee_code', $reasons, true) || in_array('badge_number', $reasons, true)) {
+                $holders++;
+            }
+        }
+
+        return $holders === 1;
     }
 
     /** Condition d: the terminal's name fits this employee and nobody else. */

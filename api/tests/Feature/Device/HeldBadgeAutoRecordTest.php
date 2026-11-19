@@ -131,6 +131,37 @@ it('records nothing when two current employees carry the number', function () {
     autoHold($tenant, $device, 2);
     autoName($tenant, $device, '7777', 'Selam Tesfaye');
     $employee->update(['badge_number' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    autoSweep();
+
+    $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
+        ->assertOk()->json('data'))->keyBy('badge');
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0)
+        ->and($rows['7777']['recording_itself'])->toBeFalse();
+});
+
+it('records nothing when two current employees hold the number in different fields, though the name agrees with one', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+    $employee->update(['employee_code' => '7777']);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('records nothing when two current employees carry the number and the name fits both', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoHold($tenant, $device, 2);
+    autoName($tenant, $device, '7777', 'Selam Tesfaye');
+    $employee->update(['badge_number' => '7777']);
     Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'badge_number' => '7777', 'name' => 'Selam Tesfaye Alemu', 'status' => EmployeeStatus::CONFIRMED]);
 
     autoSweep();
