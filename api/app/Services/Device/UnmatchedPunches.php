@@ -217,7 +217,7 @@ final class UnmatchedPunches
         $holders = 0;
 
         foreach ($match->candidates as $candidate) {
-            $reasons = $candidate['reasons'] ?? [];
+            $reasons = $candidate['reasons'];
 
             if (in_array('employee_code', $reasons, true) || in_array('badge_number', $reasons, true)) {
                 $holders++;
