@@ -9,6 +9,8 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  name?: string;
+  "aria-label"?: string;
   debounceMs?: number;
 }
 
@@ -16,6 +18,8 @@ export function SearchInput({
   value,
   onChange,
   placeholder,
+  name = "q",
+  "aria-label": ariaLabel,
   debounceMs = 300,
 }: SearchInputProps) {
   const { t } = useT();
@@ -47,13 +51,21 @@ export function SearchInput({
     setLocal(value);
   }
 
+  const resolvedPlaceholder =
+    placeholder ?? t("search_input.placeholder", "Search…");
+
   return (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
       <Input
+        type="search"
+        name={name}
+        autoComplete="off"
+        spellCheck={false}
+        aria-label={ariaLabel ?? resolvedPlaceholder}
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        placeholder={placeholder ?? t("search_input.placeholder")}
+        placeholder={resolvedPlaceholder}
         className="pl-9 pr-8"
       />
       {local && (

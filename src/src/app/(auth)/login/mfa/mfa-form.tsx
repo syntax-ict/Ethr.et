@@ -114,10 +114,11 @@ export function MfaForm() {
 
       <form method="post" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label className="sr-only">
+          <Label htmlFor="mfa-code" className="sr-only">
             {t("auth.mfa_code_label", "Verification code")}
           </Label>
           <OtpCodeInput
+            id="mfa-code"
             key={resetKey}
             digits={digits}
             onChange={setDigits}

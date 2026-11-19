@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 interface PhoneInputProps {
   /** Full value, e.g. "+251912345678", or "" when empty. */
@@ -10,6 +11,7 @@ interface PhoneInputProps {
   /** Fired when the control loses focus, so `onTouched` validation can run. */
   onBlur?: () => void;
   id?: string;
+  name?: string;
   disabled?: boolean;
   required?: boolean;
   className?: string;
@@ -24,12 +26,26 @@ interface PhoneInputProps {
   "aria-describedby"?: string;
 }
 
+/**
+ * Reduce typed or pasted text to the nine national digits. A pasted number
+ * arrives as 0912345678, +251912345678 or 251912345678; cutting the first nine
+ * digits of those kept the prefix and lost the end of the number.
+ */
+function nationalDigits(text: string): string {
+  let d = text.replace(/\D/g, "");
+  if (d.startsWith("251") && d.length === 12) d = d.slice(3);
+  else if (d.startsWith("0") && d.length === 10) d = d.slice(1);
+  const raw = d.slice(0, 9);
+  return raw ? `+251${raw}` : "";
+}
+
 /** Ethiopian phone number input with a fixed +251 prefix. */
 export function PhoneInput({
   value,
   onChange,
   onBlur,
   id,
+  name,
   disabled,
   required,
   className,
@@ -37,11 +53,11 @@ export function PhoneInput({
   "aria-required": ariaRequired,
   "aria-describedby": ariaDescribedBy,
 }: PhoneInputProps) {
+  const { t } = useT();
   const digits = value.startsWith("+251") ? value.slice(4) : value;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 9);
-    onChange(raw ? `+251${raw}` : "");
+    onChange(nationalDigits(e.target.value));
   }
 
   return (
@@ -51,12 +67,15 @@ export function PhoneInput({
       </span>
       <Input
         id={id}
+        name={name}
         type="tel"
         inputMode="numeric"
+        autoComplete="tel-national"
+        spellCheck={false}
         value={digits}
         onChange={handleChange}
         onBlur={onBlur}
-        placeholder="9XXXXXXXX / 7XXXXXXXX"
+        placeholder={t("phone_input.placeholder", "911234567…")}
         disabled={disabled}
         required={required}
         aria-invalid={ariaInvalid}

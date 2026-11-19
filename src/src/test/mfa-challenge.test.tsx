@@ -56,9 +56,9 @@ describe("MFA challenge page", () => {
     );
 
     const { container } = renderPage();
-    const boxes = container.querySelectorAll('input[inputmode="numeric"]');
+    const field = container.querySelector("#mfa-code") as HTMLInputElement;
 
-    fireEvent.paste(boxes[0], {
+    fireEvent.paste(field, {
       clipboardData: { getData: () => "123456" },
     });
 
@@ -73,15 +73,13 @@ describe("MFA challenge page", () => {
     );
 
     const { container } = renderPage();
-    const boxes = () =>
-      container.querySelectorAll('input[inputmode="numeric"]');
+    const field = () =>
+      container.querySelector("#mfa-code") as HTMLInputElement;
 
-    "111111".split("").forEach((d, i) => {
-      fireEvent.change(boxes()[i], { target: { value: d } });
-    });
+    fireEvent.change(field(), { target: { value: "111111" } });
     fireEvent.click(screen.getByRole("button", { name: /verify/i }));
 
     expect(await screen.findByText("Invalid code.")).toBeInTheDocument();
-    boxes().forEach((box) => expect(box).toHaveValue(""));
+    expect(field()).toHaveValue("");
   });
 });

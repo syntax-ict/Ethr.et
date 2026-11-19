@@ -107,7 +107,8 @@ describe("Loans page — new loan", () => {
 
     await user.click(await screen.findByRole("button", { name: /new loan/i }));
     await pickEmployee(user);
-    const [amount, monthly] = screen.getAllByRole("spinbutton");
+    const amount = screen.getByLabelText(/loan amount/i);
+    const monthly = screen.getByLabelText(/monthly deduction/i);
     await user.type(amount, "5000");
     await user.type(monthly, "500");
     await user.type(
@@ -144,13 +145,43 @@ describe("Loans page — new loan", () => {
 
     await user.click(await screen.findByRole("button", { name: /new loan/i }));
     await pickEmployee(user);
-    const [amount, monthly] = screen.getAllByRole("spinbutton");
+    const amount = screen.getByLabelText(/loan amount/i);
+    const monthly = screen.getByLabelText(/monthly deduction/i);
     await user.type(amount, "5000");
     await user.type(monthly, "500");
     await user.click(screen.getByRole("button", { name: /create loan/i }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ reason: null });
+  });
+});
+
+describe("Loans page — cents", () => {
+  it("keeps the cents typed into the amount", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.get("*/api/v1/payroll/loans", () => HttpResponse.json(EMPTY_PAGE)),
+      EMPLOYEES,
+      http.post("*/api/v1/payroll/loans", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(CREATED_LOAN, { status: 201 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: /new loan/i }));
+    await pickEmployee(user);
+    await user.type(screen.getByLabelText(/loan amount/i), "1500.50");
+    await user.type(screen.getByLabelText(/monthly deduction/i), "250.25");
+    await user.click(screen.getByRole("button", { name: /create loan/i }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({
+      amount_cents: 150050,
+      monthly_deduction_cents: 25025,
+    });
   });
 });
 
