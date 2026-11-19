@@ -135,16 +135,76 @@ final class UnmatchedPunches
     }
 
     /**
-     * Whether a verdict is one to record held punches on without a click: an
-     * exact number or an existing mapping (matched), no name that differs, not
-     * ambiguous, and a person who is still here. A name alone never is.
+     * Whether a badge's held punches record themselves, with no one's click.
+     * All of these must hold, and a failure at any leaves them held:
+     *
+     * a. The verdict is an actionable match to a person who is still here
+     *    (not a leaver, not archived). A name alone never is.
+     * b. No person has replayed any punch of this badge on this device: no row
+     *    for this organisation, device and badge that is `replayed` or
+     *    `refused` with a `resolved_by`. A person who started a replay and
+     *    stopped may have stopped because the result looked wrong, so what is
+     *    left is theirs to finish. Dismissed rows do not count, and the
+     *    automatic path leaves `resolved_by` empty, so its own slices never
+     *    block its next one.
+     * c. The number says so today, with any mapping set aside. The resolver
+     *    returns a match for an existing mapping with no scoring at all, so a
+     *    mapping alone proves only that someone once linked it. The number
+     *    and the terminal's name are scored again without it: the result must
+     *    be an actionable match to the same person. A mapping a person
+     *    confirmed also passes when the scored result names no other current
+     *    employee (new, or only an archived holder): that is how terminal
+     *    users are mapped when nobody holds the number.
+     *
+     * The second resolve runs only when the verdict came from a mapping;
+     * otherwise the verdict is the scored result.
      */
-    public static function recordsItself(IdentityMatch $match): bool
+    public function recordsItself(Device $device, string $badge, ?string $nameOnDevice, IdentityMatch $verdict): bool
     {
-        return $match->isActionable()
-            && ! $match->isFormerEmployee()
-            && $match->employee !== null
-            && ! $match->employee->trashed();
+        if (
+            ! $verdict->isActionable()
+            || $verdict->isFormerEmployee()
+            || $verdict->employee === null
+            || $verdict->employee->trashed()
+        ) {
+            return false;
+        }
+
+        $employee = $verdict->employee;
+
+        if ($this->aPersonStartedReplaying($device, $badge)) {
+            return false;
+        }
+
+        if (! in_array('existing_mapping', $verdict->candidates[0]['reasons'] ?? [], true)) {
+            return true;
+        }
+
+        $scored = $this->resolver->resolve($device->tenant_id, new IdentitySignals(
+            employeeCode: $badge,
+            badgeNumber: $badge,
+            name: $nameOnDevice,
+            codeIsGuess: true,
+        ));
+
+        if ($scored->isActionable() && $scored->employee?->id === $employee->id) {
+            return true;
+        }
+
+        return in_array($scored->outcome, [IdentityMatch::NEW, IdentityMatch::ARCHIVED], true)
+            && $this->confirmedFor($device, IdentitySignals::forDeviceUser($device, $badge), $employee);
+    }
+
+    /** Whether a person replayed any punch of this badge on this device, whatever is left. */
+    private function aPersonStartedReplaying(Device $device, string $badge): bool
+    {
+        return UnmatchedDevicePunch::query()
+            ->where('tenant_id', $device->tenant_id)
+            ->where('device_id', $device->id)
+            ->where('badge', $badge)
+            ->whereIn('status', [UnmatchedDevicePunch::REPLAYED, UnmatchedDevicePunch::REFUSED])
+            ->whereNotNull('resolved_by')
+            ->exists();
     }
 
     /**
@@ -173,7 +233,7 @@ final class UnmatchedPunches
             $name = $this->terminalNames->forBadges($device->tenant_id, [[$device->id, $badge]])[$device->id][mb_strtolower($badge)] ?? null;
             $match = $this->verdict($device, $badge, $name === null ? null : (string) $name);
 
-            if (! self::recordsItself($match) || $match->employee === null) {
+            if (! $this->recordsItself($device, $badge, $name === null ? null : (string) $name, $match) || $match->employee === null) {
                 return null;
             }
 
@@ -211,26 +271,39 @@ final class UnmatchedPunches
      */
     public static function sweepCandidates(int $limit = 200): array
     {
-        $concat = DB::connection()->getDriverName() === 'sqlite' ? "'device:' || p.device_id" : "CONCAT('device:', p.device_id)";
+        $concat = DB::connection()->getDriverName() === 'sqlite' ? "'device:' || g.device_id" : "CONCAT('device:', g.device_id)";
 
-        return DB::table('unmatched_device_punches as p')
-            ->where('p.status', UnmatchedDevicePunch::PENDING)
+        // One row per held badge first (the `unmatched_punch_lookup` index
+        // covers it), then the evidence, so each test runs per badge and not
+        // per held punch. A badge a person has started replaying is left out:
+        // `recordsItself()` would refuse it anyway.
+        $groups = DB::table('unmatched_device_punches')
+            ->where('status', UnmatchedDevicePunch::PENDING)
+            ->groupBy('tenant_id', 'device_id', 'badge')
+            ->select(['tenant_id', 'device_id', 'badge']);
+
+        return DB::query()->fromSub($groups, 'g')
             ->where(function ($q) use ($concat): void {
                 $q->whereExists(fn ($e) => $e->selectRaw('1')->from('employees as e')
-                    ->whereColumn('e.tenant_id', 'p.tenant_id')
+                    ->whereColumn('e.tenant_id', 'g.tenant_id')
                     ->whereNull('e.deleted_at')
-                    ->where(fn ($n) => $n->whereRaw('LOWER(e.badge_number) = LOWER(p.badge)')
-                        ->orWhereRaw('LOWER(e.employee_code) = LOWER(p.badge)')))
+                    ->where(fn ($n) => $n->whereRaw('e.employee_code_normalized = LOWER(g.badge)')
+                        ->orWhereRaw('LOWER(e.badge_number) = LOWER(g.badge)')))
                     ->orWhereExists(fn ($m) => $m->selectRaw('1')->from('employee_external_identities as i')
-                        ->whereColumn('i.tenant_id', 'p.tenant_id')
+                        ->whereColumn('i.tenant_id', 'g.tenant_id')
                         ->where('i.identifier_type', 'device_user_id')
-                        ->whereColumn('i.identifier_value', 'p.badge')
+                        ->whereColumn('i.identifier_value', 'g.badge')
                         ->whereRaw('i.source_ref = '.$concat));
             })
-            ->groupBy('p.tenant_id', 'p.device_id', 'p.badge')
+            ->whereNotExists(fn ($r) => $r->selectRaw('1')->from('unmatched_device_punches as r')
+                ->whereColumn('r.tenant_id', 'g.tenant_id')
+                ->whereColumn('r.device_id', 'g.device_id')
+                ->whereColumn('r.badge', 'g.badge')
+                ->whereIn('r.status', [UnmatchedDevicePunch::REPLAYED, UnmatchedDevicePunch::REFUSED])
+                ->whereNotNull('r.resolved_by'))
             ->inRandomOrder()
             ->limit($limit)
-            ->get(['p.tenant_id', 'p.device_id', 'p.badge'])
+            ->get(['g.tenant_id', 'g.device_id', 'g.badge'])
             ->map(fn ($row) => [
                 'tenant_id' => (int) $row->tenant_id,
                 'device_id' => (int) $row->device_id,

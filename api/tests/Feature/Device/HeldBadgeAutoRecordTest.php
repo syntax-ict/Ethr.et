@@ -13,7 +13,9 @@ use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
 use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
+use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\UnmatchedPunches;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -66,6 +68,22 @@ function autoName(Tenant $tenant, Device $device, string $badge, string $name): 
         'tenant_id' => $tenant->id, 'device_id' => $device->id, 'device_user_id' => $badge, 'name' => $name,
         'seen_at' => now(), 'created_at' => now(), 'updated_at' => now(),
     ]);
+}
+
+/** A mapping for the badge, confirmed by a person or not. */
+function autoMap(Tenant $tenant, Device $device, Employee $employee, string $badge, bool $confirmed): void
+{
+    EmployeeExternalIdentity::create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'source_type' => $device->adapter_type,
+        'source_ref' => 'device:'.$device->id, 'identifier_type' => 'device_user_id', 'identifier_value' => $badge,
+        'confidence' => 1.0, 'verified_at' => $confirmed ? now() : null,
+    ]);
+}
+
+/** @return list<array{tenant_id: int, device_id: int, badge: string}> */
+function autoListed(): array
+{
+    return UnmatchedPunches::sweepCandidates();
 }
 
 function autoSweep(): int
@@ -176,7 +194,8 @@ it('does not move a number a person confirmed for someone else', function () {
 
     $mapping = EmployeeExternalIdentity::withoutGlobalScopes()->where('identifier_value', '7777')->sole();
     expect($mapping->employee_id)->toBe($other->id)
-        ->and(AttendanceRecord::withoutGlobalScopes()->where('employee_id', $employee->id)->count())->toBe(0);
+        ->and(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
 });
 
 it('does not record for an employee of another organisation with the same number', function () {
@@ -220,6 +239,90 @@ it('does nothing for a device of another tenant in the payload', function () {
     app()->call([new RecordHeldPunchesJob($device->id, $other->id, '7777'), 'handle']);
 
     expect(autoPending())->toBe(2);
+});
+
+it('leaves a badge a person part-replayed to that person', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    $employee->update(['badge_number' => '7777']);
+    autoMap($tenant, $device, $employee, '7777', true);
+    $person = User::factory()->create(['tenant_id' => $tenant->id]);
+    autoHold($tenant, $device, 4);
+    UnmatchedDevicePunch::withoutGlobalScopes()->orderBy('id')->limit(2)->update([
+        'status' => UnmatchedDevicePunch::REPLAYED, 'employee_id' => $employee->id, 'resolved_by' => $person->id, 'resolved_at' => now(),
+    ]);
+
+    expect(autoListed())->toBe([]);
+    autoSweep();
+    $recorder = app(DevicePunchRecorder::class);
+    app(CurrentTenant::class)->set($tenant);
+    expect(app(UnmatchedPunches::class)->recordMatched($device, '7777', $recorder))->toBeNull()
+        ->and(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
+        ->assertOk()->json('data'))->keyBy('badge');
+    expect($rows['7777']['recording_itself'])->toBeFalse();
+});
+
+it('does not count dismissed rows as a person having started', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    $employee->update(['badge_number' => '7777']);
+    $person = User::factory()->create(['tenant_id' => $tenant->id]);
+    autoHold($tenant, $device, 3);
+    UnmatchedDevicePunch::withoutGlobalScopes()->orderBy('id')->limit(1)->update([
+        'status' => UnmatchedDevicePunch::DISMISSED, 'resolved_by' => $person->id, 'resolved_at' => now(),
+    ]);
+
+    expect(autoSweep())->toBe(1)
+        ->and(autoPending())->toBe(0);
+});
+
+it('holds an unconfirmed mapping whose employee no longer holds the number', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoMap($tenant, $device, $employee, '7777', false);
+    autoHold($tenant, $device, 2);
+
+    autoSweep();
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('holds an unconfirmed mapping when the terminal name shares no word with the holder', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    $employee->update(['badge_number' => '7777']);
+    autoMap($tenant, $device, $employee, '7777', false);
+    autoName($tenant, $device, '7777', 'Hanna Girma');
+    autoHold($tenant, $device, 2);
+
+    autoSweep();
+
+    expect(autoPending())->toBe(2)
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('records for a confirmed mapping nobody holds the number for, as terminal users are mapped', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    autoMap($tenant, $device, $employee, '7777', true);
+    autoHold($tenant, $device, 2);
+
+    expect(autoSweep())->toBe(1)
+        ->and(autoPending())->toBe(0)
+        ->and(AttendanceRecord::withoutGlobalScopes()->where('employee_id', $employee->id)->count())->toBe(2);
+});
+
+it('says on the list that a badge confirmed for one person and written on another is not recording', function () {
+    [$tenant, $device, $employee] = autoSetup();
+    $other = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Dawit Bekele', 'status' => EmployeeStatus::CONFIRMED]);
+    autoMap($tenant, $device, $other, '7777', true);
+    $employee->update(['badge_number' => '7777']);
+    autoHold($tenant, $device, 2);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $rows = collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/unmatched-punches")
+        ->assertOk()->json('data'))->keyBy('badge');
+
+    expect($rows['7777']['recording_itself'])->toBeFalse();
 });
 
 it('says on the list which badges are being recorded', function () {

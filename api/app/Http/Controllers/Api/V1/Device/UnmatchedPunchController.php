@@ -104,8 +104,9 @@ class UnmatchedPunchController extends Controller
         foreach (array_slice($groups, 0, self::RESOLVE_LIMIT, true) as $index => $group) {
             $device = $devices->get($group['device_id']);
             if ($device instanceof Device) {
-                $matches[$index] = $this->unmatched->verdict($device, $group['badge'], $this->nameOnDevice($names, $group));
-                $this->recording[$index] = UnmatchedPunches::recordsItself($matches[$index]);
+                $verdict = $this->unmatched->verdict($device, $group['badge'], $this->nameOnDevice($names, $group));
+                $matches[$index] = $verdict;
+                $this->recording[$index] = $this->unmatched->recordsItself($device, $group['badge'], $this->nameOnDevice($names, $group), $verdict);
             }
         }
 
