@@ -324,18 +324,28 @@ export function useApprovePayroll() {
   return useMutation({
     // A run that exempts anyone from pension is approved only with that
     // count acknowledged; the server refuses any other number.
+    // Open pay differences are acknowledged the same way, once the server
+    // has said how many there are.
     mutationFn: async (vars: {
       publicId: string;
       acknowledgedPensionExemptions?: number;
+      acknowledgedPayDifferences?: number;
     }) => {
       const { data } = await apiClient.put(
         `/payroll/runs/${vars.publicId}/approve`,
-        vars.acknowledgedPensionExemptions
-          ? {
-              acknowledged_pension_exemptions:
-                vars.acknowledgedPensionExemptions,
-            }
-          : {},
+        {
+          ...(vars.acknowledgedPensionExemptions
+            ? {
+                acknowledged_pension_exemptions:
+                  vars.acknowledgedPensionExemptions,
+              }
+            : {}),
+          ...(vars.acknowledgedPayDifferences
+            ? {
+                acknowledged_pay_differences: vars.acknowledgedPayDifferences,
+              }
+            : {}),
+        },
       );
       return data;
     },
@@ -352,12 +362,20 @@ export function useVoidPayroll() {
     mutationFn: async ({
       publicId,
       reason,
+      acknowledgedSettledPayDifferences,
     }: {
       publicId: string;
       reason: string;
+      acknowledgedSettledPayDifferences?: number;
     }) => {
       const { data } = await apiClient.post(`/payroll/runs/${publicId}/void`, {
         reason,
+        ...(acknowledgedSettledPayDifferences
+          ? {
+              acknowledged_settled_pay_differences:
+                acknowledgedSettledPayDifferences,
+            }
+          : {}),
       });
       return data;
     },
@@ -800,4 +818,71 @@ export function useResetStatutoryRule() {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
   });
+}
+
+// ── Pay differences ──────────────────────────────────────────────────────────
+
+export type PayDifference = Schemas["PayrollPayDifferenceResource"];
+export type PayDifferenceStatus =
+  "pending" | "open" | "settled" | "dismissed" | "superseded";
+export type PayDifferences =
+  operations["payDifference.index"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The pay differences a change back-dated into a paid month left. With no
+ * status the server returns the live ones, pending and open.
+ */
+export function usePayDifferences(
+  filters: { status?: PayDifferenceStatus; page?: number } = {},
+  enabled = true,
+) {
+  return useQuery<PayDifferences>({
+    queryKey: ["payroll", "pay-differences", filters],
+    enabled,
+    queryFn: async () =>
+      (
+        await apiClient.get("/payroll/pay-differences", {
+          params: {
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.page ? { page: filters.page } : {}),
+            per_page: 100,
+          },
+        })
+      ).data,
+  });
+}
+
+/** Settle or dismiss an open difference. Both need a note. */
+export function useClosePayDifference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      publicId: string;
+      action: "settle" | "dismiss";
+      note: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/payroll/pay-differences/${vars.publicId}/${vars.action}`,
+        { note: vars.note },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+/**
+ * The problem type of a refused request, and one of its counts. The approval
+ * and void refusals are 422 problems whose `type` says which acknowledgement
+ * is missing and whose body carries the count to send back.
+ */
+export function problemOf(
+  err: unknown,
+): { type?: string; [key: string]: unknown } | undefined {
+  return (
+    err as { response?: { data?: { type?: string; [key: string]: unknown } } }
+  )?.response?.data;
 }
