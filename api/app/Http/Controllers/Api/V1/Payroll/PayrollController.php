@@ -43,6 +43,9 @@ use Illuminate\Support\Facades\Gate;
 
 class PayrollController extends Controller
 {
+    /** Pending pay differences worked out inside an approval request, at most. */
+    private const INLINE_PAY_DIFFERENCES = 20;
+
     use DispatchesWebhooks;
 
     /**
@@ -160,17 +163,13 @@ class PayrollController extends Controller
         }
 
         // A change dated inside a month already paid leaves a difference for
-        // finance. Rows still waiting for their amount are worked out here
-        // (a few, never a queue's worth) so approval never counts a row whose
-        // amount is unknown; then the open ones of this run's people must be
-        // acknowledged by count, as the pension exemptions are.
-        $runEmployeeIds = PayrollEntry::query()
-            ->where('tenant_id', $payrollRun->tenant_id)
-            ->where('payroll_run_id', $payrollRun->id)
-            ->pluck('employee_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-        if ($differences->computePending($payrollRun->tenant_id, $runEmployeeIds, 50) > 0) {
+        // finance, and a leaver's has no entry in this run, so every open
+        // difference of the organisation counts. Rows still waiting for their
+        // amount are worked out here (a few, never a queue's worth) so
+        // approval never counts a row whose amount is unknown; the open ones
+        // are acknowledged by count, as the pension exemptions are. The engine
+        // counts again under its lock, and that count is the authority.
+        if ($differences->computePending($payrollRun->tenant_id, null, self::INLINE_PAY_DIFFERENCES) > 0) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/pay-differences-pending',
                 'title' => 'Pay differences still being worked out',
@@ -181,12 +180,9 @@ class PayrollController extends Controller
         $openDifferences = PayrollPayDifference::query()
             ->where('tenant_id', $payrollRun->tenant_id)
             ->where('status', PayrollPayDifference::OPEN)
-            ->whereIn('employee_id', PayrollEntry::query()
-                ->where('tenant_id', $payrollRun->tenant_id)
-                ->where('payroll_run_id', $payrollRun->id)
-                ->select('employee_id'))
             ->count();
-        if ($openDifferences > 0 && (int) $request->validated('acknowledged_pay_differences') !== $openDifferences) {
+        $acknowledgedDifferences = (int) $request->validated('acknowledged_pay_differences');
+        if ($openDifferences > 0 && $acknowledgedDifferences !== $openDifferences) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/pay-differences-unacknowledged',
                 'title' => 'Pay differences not acknowledged',
@@ -195,7 +191,6 @@ class PayrollController extends Controller
                 'pay_differences' => $openDifferences,
             ], 422)->header('Content-Type', 'application/problem+json');
         }
-
         // Attendance reconciliation, when the organisation requires it: no
         // exception in the period may still be open or pending, and nothing
         // may have been decided since the run was calculated, or the run pays
@@ -219,7 +214,7 @@ class PayrollController extends Controller
         // Approval is where loan and cost-sharing balances move. The engine
         // re-checks the status under a lock and refuses, as a 422, a run whose
         // balances changed after it was calculated (PayrollRunRefused).
-        $payrollRun = $engine->approve($payrollRun, $approver->id);
+        $payrollRun = $engine->approve($payrollRun, $approver->id, $acknowledgedDifferences);
 
         $approvedPayload = $selfApproved ? ['self_approved' => true] : [];
         if ($openDifferences > 0) {
@@ -252,12 +247,17 @@ class PayrollController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $payrollRun = $engine->void($payrollRun, $request->user()->id, $request->validated('reason'));
+        $acknowledgedSettled = (int) $request->validated('acknowledged_settled_pay_differences');
+        $payrollRun = $engine->void($payrollRun, $request->user()->id, $request->validated('reason'), $acknowledgedSettled);
 
-        AuditLog::record('payroll.voided', $payrollRun, [
+        $voidedPayload = [
             'period' => $payrollRun->period_label,
             'reason' => $payrollRun->void_reason,
-        ]);
+        ];
+        if ($acknowledgedSettled > 0) {
+            $voidedPayload['acknowledged_settled_pay_differences'] = $acknowledgedSettled;
+        }
+        AuditLog::record('payroll.voided', $payrollRun, $voidedPayload);
         $this->webhook($payrollRun->tenant_id, 'payroll.voided', [
             'public_id' => $payrollRun->public_id,
             'period' => $payrollRun->period_label,

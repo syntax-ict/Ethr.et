@@ -53266,6 +53266,9 @@
                     "trail_rebuilt_at_release": {
                         "type": "boolean"
                     },
+                    "net_is_estimate": {
+                        "type": "boolean"
+                    },
                     "note": {
                         "type": [
                             "string",
@@ -53305,6 +53308,7 @@
                     "status",
                     "changed_from",
                     "trail_rebuilt_at_release",
+                    "net_is_estimate",
                     "note",
                     "settled_at",
                     "created_at"
@@ -60167,6 +60171,13 @@
                     "reason": {
                         "type": "string",
                         "maxLength": 500
+                    },
+                    "acknowledged_settled_pay_differences": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
                     }
                 },
                 "required": [

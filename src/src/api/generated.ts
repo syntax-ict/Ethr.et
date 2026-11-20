@@ -11448,6 +11448,7 @@ export interface components {
             status: string;
             changed_from: string;
             trail_rebuilt_at_release: boolean;
+            net_is_estimate: boolean;
             note: string | null;
             /** Format: date-time */
             settled_at: string | null;
@@ -14245,6 +14246,7 @@ export interface components {
         /** VoidPayrollRunRequest */
         VoidPayrollRunRequest: {
             reason: string;
+            acknowledged_settled_pay_differences?: number | null;
         };
     };
     responses: {

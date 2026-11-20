@@ -389,9 +389,9 @@ final class PayrollEngine
      * controller's status check apply the balances once, not twice. The
      * balance movements and the status change commit together or not at all.
      */
-    public function approve(PayrollRun $run, int $approvedBy): PayrollRun
+    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0): PayrollRun
     {
-        return DB::transaction(function () use ($run, $approvedBy): PayrollRun {
+        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'completed') {
@@ -402,6 +402,21 @@ final class PayrollEngine
             // refused here and not only in a request that raced past the check.
             if ($this->inputsChangedSince($locked)) {
                 throw PayrollRunRefused::inputsChangedSinceProcessed();
+            }
+
+            // Pay differences are counted here too, under the lock: a change
+            // that committed after the controller counted them is not missed.
+            // Rows the organisation has not handled nag every approval.
+            $differences = fn (string $status): int => DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('status', $status)
+                ->count();
+            if ($differences('pending') > 0) {
+                throw PayrollRunRefused::payDifferencesPending();
+            }
+            $open = $differences('open');
+            if ($open > 0 && $acknowledgedPayDifferences !== $open) {
+                throw PayrollRunRefused::payDifferencesUnacknowledged($open);
             }
 
             $movements = $this->balances->apply($locked);
@@ -459,9 +474,9 @@ final class PayrollEngine
      * 2026-10-17 a void restored nothing and the reprocess that follows
      * deducted again.
      */
-    public function void(PayrollRun $run, int $voidedBy, string $reason): PayrollRun
+    public function void(PayrollRun $run, int $voidedBy, string $reason, int $acknowledgedSettledPayDifferences = 0): PayrollRun
     {
-        return DB::transaction(function () use ($run, $voidedBy, $reason): PayrollRun {
+        return DB::transaction(function () use ($run, $voidedBy, $reason, $acknowledgedSettledPayDifferences): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status === 'paid') {
@@ -470,6 +485,17 @@ final class PayrollEngine
 
             if (! in_array($locked->status, ['completed', 'approved'], true)) {
                 throw PayrollRunRefused::cannotVoid();
+            }
+
+            // Finance paid these differences by hand; a reprocess pays the new
+            // salary in full, so the void says it knows. Settled rows stay settled.
+            $settled = DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('payroll_run_id', $locked->id)
+                ->where('status', 'settled')
+                ->count();
+            if ($settled > 0 && $acknowledgedSettledPayDifferences !== $settled) {
+                throw PayrollRunRefused::settledPayDifferencesUnacknowledged($settled);
             }
 
             $movements = $locked->status === 'approved' ? $this->balances->reverse($locked) : [];
@@ -770,21 +796,58 @@ final class PayrollEngine
     }
 
     /**
+     * Cost sharing under a logged rate: a percentage of the given gross, never
+     * above what was outstanding when the month was calculated. The same
+     * arithmetic as CostSharingService::calculateDeduction().
+     *
+     * @param  array{loan_cents: int, cost_sharing_rate: float|null, cost_sharing_outstanding_cents: int|null}  $override
+     */
+    private function overriddenCostSharing(array $override, int $grossCents): int
+    {
+        $rate = $override['cost_sharing_rate'];
+        $outstanding = $override['cost_sharing_outstanding_cents'];
+
+        if ($rate === null || $outstanding === null || $grossCents <= 0 || $outstanding <= 0) {
+            return 0;
+        }
+
+        return min(intdiv($grossCents * (int) round($rate * 100), 10_000), $outstanding);
+    }
+
+    /**
+     * What counterfactual() needs about a run that does not depend on the
+     * entry: the rules, pension rule, tax basis and pagume as a run resolves
+     * them. A caller working through many entries of one run keeps it.
+     *
+     * @return array<string, mixed>
+     */
+    public function prepareForEntry(PayrollEntry $entry): array
+    {
+        $run = PayrollRun::query()->where('tenant_id', $entry->tenant_id)->findOrFail($entry->payroll_run_id);
+
+        return $this->prepare($entry->tenant_id, Carbon::parse($run->period_start), Carbon::parse($run->period_end));
+    }
+
+    /**
      * What a released entry paid and what the same entry would pay now, both
      * worked out today with today's rules and data, differing only in salary
-     * and leaving date, so a loan paid off since, an allowance rule changed or
-     * a late punch cancels out. Writes nothing: no entry, balance, audit row,
-     * event or history row. The rules, pension rule and tax basis come from
-     * prepare(), as in a run.
+     * and leaving date, so an allowance rule changed or a late punch cancels
+     * out. Loans and the cost-sharing rate are taken from the entry's log for
+     * both sides, so both deduct as that month did; an entry whose log lacks
+     * them falls back to today's rows and says so (`net_is_estimate`).
+     * Writes nothing: no entry, balance, audit row, event or history row. The
+     * rules, pension rule and tax basis come from prepare(), as in a run.
      *
-     * `paid` uses the salary and leaving date the entry logged (an entry that
-     * logged no salary is taken as stored). `due` is the employee as now; when
-     * they are no longer payable for the period, or have no salary in force,
-     * the whole entry is due nothing.
+     * The due side is the employee as now. A person is due for a past period
+     * when hired by its end and not left before its start, whatever their
+     * status is today; otherwise, or with no salary in force, nothing is due
+     * and the paid side is what the entry stored (the whole stored amount is
+     * overpaid, not a recalculation that today's loans could inflate).
      *
-     * @return array{paid: array<string, mixed>, due: array<string, mixed>}
+     * @param  array<string, mixed>|null  $prepared  prepareForEntry(), when the caller has it
+     * @return array{paid: array<string, mixed>, due: array<string, mixed>, net_is_estimate: bool}
      */
-    public function counterfactual(PayrollEntry $entry): array
+    public function counterfactual(PayrollEntry $entry, ?array $prepared = null): array
     {
         $run = PayrollRun::query()->where('tenant_id', $entry->tenant_id)->findOrFail($entry->payroll_run_id);
         $start = Carbon::parse($run->period_start);
@@ -801,12 +864,28 @@ final class PayrollEngine
             'pension_rule' => $pensionRule,
             'tax_basis' => $taxBasis,
             'pagume' => $pagume,
-        ] = $this->prepare($entry->tenant_id, $start, $end);
+        ] = $prepared ?? $this->prepare($entry->tenant_id, $start, $end);
+
+        $log = $entry->getAttribute('calculation_log');
+        $log = is_array($log) ? $log : [];
+        $steps = [];
+        foreach ($log['steps'] ?? [] as $step) {
+            if (is_array($step) && isset($step['step'])) {
+                $steps[$step['step']] = $step;
+            }
+        }
+        $deductions = isset($steps['loan_deductions'], $steps['cost_sharing'])
+            ? [
+                'loan_cents' => (int) ($steps['loan_deductions']['loan_deduction_cents'] ?? 0),
+                'cost_sharing_rate' => isset($steps['cost_sharing']['rate_percent']) ? (float) $steps['cost_sharing']['rate_percent'] : null,
+                'cost_sharing_outstanding_cents' => isset($steps['cost_sharing']['outstanding_before_cents']) ? (int) $steps['cost_sharing']['outstanding_before_cents'] : null,
+            ]
+            : null;
 
         $compute = fn (Employee $who, ?int $salary): ?array => $this->computeEntry(
-            $who, $start, $end, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules, $salary,
+            $who, $start, $end, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules, $salary, $deductions,
         );
-        $summary = fn (?array $a, ?string $leaving, int $salary): array => [
+        $summary = fn (?array $a, ?string $leaving, ?int $salary): array => [
             'gross_cents' => (int) ($a['gross_cents'] ?? 0),
             'net_cents' => (int) ($a['net_cents'] ?? 0),
             'basic_cents' => (int) ($a['basic_salary_cents'] ?? 0),
@@ -815,39 +894,43 @@ final class PayrollEngine
             'salary_cents' => $salary,
             'termination_date' => $leaving,
         ];
+        $stored = fn (?string $leaving): array => [
+            'gross_cents' => (int) $entry->gross_cents,
+            'net_cents' => (int) $entry->net_cents,
+            'basic_cents' => (int) $entry->basic_salary_cents,
+            'income_tax_cents' => (int) $entry->income_tax_cents,
+            'employee_pension_cents' => (int) $entry->employee_pension_cents,
+            'salary_cents' => null,
+            'termination_date' => $leaving,
+            'as_stored' => true,
+        ];
 
-        $log = $entry->getAttribute('calculation_log');
-        $log = is_array($log) ? $log : [];
         $loggedSalary = $log['inputs']['basic_salary_cents'] ?? null;
         $loggedLeaving = $log['inputs']['termination_date'] ?? null;
         $loggedLeaving = is_string($loggedLeaving) ? $loggedLeaving : null;
 
-        if ($loggedSalary === null) {
-            $paid = [
-                'gross_cents' => (int) $entry->gross_cents,
-                'net_cents' => (int) $entry->net_cents,
-                'basic_cents' => (int) $entry->basic_salary_cents,
-                'income_tax_cents' => (int) $entry->income_tax_cents,
-                'employee_pension_cents' => (int) $entry->employee_pension_cents,
-                'salary_cents' => null,
-                'termination_date' => $loggedLeaving,
-                'as_stored' => true,
-            ];
-        } else {
-            $then = clone $employee;
-            $then->termination_date = $loggedLeaving !== null ? IlluminateCarbon::parse($loggedLeaving) : null;
-            $paid = $summary($compute($then, (int) $loggedSalary), $loggedLeaving, (int) $loggedSalary);
-        }
-
         $nowSalary = $this->salaryFor($employee, $start, $end)['cents'];
-        $payable = $this->payableEmployees($entry->tenant_id, $start, $end)->whereKey($employee->id)->exists();
         $leavingNow = $employee->termination_date?->toDateString();
-        $due = $payable && $nowSalary > 0
-            ? $summary($compute($employee, null), $leavingNow, $nowSalary)
-            : $summary(null, $leavingNow, $nowSalary);
+        $payable = $employee->hire_date !== null
+            && ! $employee->hire_date->gt($end)
+            && ($employee->termination_date === null || ! $employee->termination_date->lt($start));
+
+        if ($payable && $nowSalary > 0) {
+            $due = $summary($compute($employee, null), $leavingNow, $nowSalary);
+            if ($loggedSalary === null) {
+                $paid = $stored($loggedLeaving);
+            } else {
+                $then = clone $employee;
+                $then->termination_date = $loggedLeaving !== null ? IlluminateCarbon::parse($loggedLeaving) : null;
+                $paid = $summary($compute($then, (int) $loggedSalary), $loggedLeaving, (int) $loggedSalary);
+            }
+        } else {
+            $due = $summary(null, $leavingNow, $nowSalary);
+            $paid = $stored($loggedLeaving);
+        }
         $due['payable'] = $payable;
 
-        return ['paid' => $paid, 'due' => $due];
+        return ['paid' => $paid, 'due' => $due, 'net_is_estimate' => $deductions === null];
     }
 
     /**
@@ -912,6 +995,9 @@ final class PayrollEngine
      * shows it. It reads and writes nothing else: no balance moves until a
      * run is approved (PayrollBalanceService). `$salaryOverride` is for
      * counterfactual() alone: a figure to pay instead of the one in force.
+     * `$deductionOverride` (loan_cents, cost_sharing_rate, cost_sharing_outstanding_cents)
+     * likewise replaces today's loans and cost-sharing obligation with what
+     * an entry's log says the month deducted.
      *
      * @param  array<string, mixed>  $taxBasis
      * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
@@ -928,6 +1014,7 @@ final class PayrollEngine
         array $taxBasis,
         StatutoryRuleSet $rules,
         ?int $salaryOverride = null,
+        ?array $deductionOverride = null,
     ): ?array {
         $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
         $hoursPerDay = $rules->int('payroll.hours_per_day');
@@ -1104,11 +1191,13 @@ final class PayrollEngine
             // The share is `payroll.deduction_cap_ratio`, one third in law.
             $capRatio = $rules->list('payroll.deduction_cap_ratio');
             $third = intdiv($proratedBasic * (int) $capRatio['numerator'], (int) $capRatio['denominator']);
-            $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
-                + $this->costSharingService->calculateDeduction(
-                    $this->costSharingService->getActiveObligation($employee),
-                    $proratedBasic,
-                );
+            $otherDeductions = $deductionOverride !== null
+                ? $deductionOverride['loan_cents'] + $this->overriddenCostSharing($deductionOverride, $proratedBasic)
+                : $this->loanService->calculateMonthlyDeduction($employee)
+                    + $this->costSharingService->calculateDeduction(
+                        $this->costSharingService->getActiveObligation($employee),
+                        $proratedBasic,
+                    );
             $cap = max(0, $third - $otherDeductions);
             $latenessDeduction = min($uncapped, $cap);
             $proratedBasic -= $latenessDeduction;
@@ -1237,7 +1326,7 @@ final class PayrollEngine
         // exactly what this payslip withheld.
         $loanDeduction = 0;
         $loanLines = [];
-        foreach ($this->loanService->getActiveLoans($employee) as $loan) {
+        foreach ($deductionOverride !== null ? [] : $this->loanService->getActiveLoans($employee) as $loan) {
             $deduction = $this->loanService->deductionFor($loan);
             if ($deduction <= 0) {
                 continue;
@@ -1253,6 +1342,10 @@ final class PayrollEngine
             ];
         }
 
+        if ($deductionOverride !== null) {
+            $loanDeduction = $deductionOverride['loan_cents'];
+        }
+
         $log['steps'][] = [
             'step' => 'loan_deductions',
             'loan_deduction_cents' => $loanDeduction,
@@ -1264,9 +1357,13 @@ final class PayrollEngine
         // rate and both balances, not just the amount: convention #11 requires the
         // trace to explain *why* a figure is what it is, and a bare deduction
         // cannot be re-derived once the row's balance has moved on.
-        $costSharing = $this->costSharingService->getActiveObligation($employee);
-        $costSharingDeduction = $this->costSharingService->calculateDeduction($costSharing, $grossSalary);
-        $costSharingOutstandingBefore = $costSharing?->outstanding_cents;
+        $costSharing = $deductionOverride !== null ? null : $this->costSharingService->getActiveObligation($employee);
+        $costSharingDeduction = $deductionOverride !== null
+            ? $this->overriddenCostSharing($deductionOverride, $grossSalary)
+            : $this->costSharingService->calculateDeduction($costSharing, $grossSalary);
+        $costSharingOutstandingBefore = $deductionOverride !== null
+            ? $deductionOverride['cost_sharing_outstanding_cents']
+            : $costSharing?->outstanding_cents;
 
         $log['steps'][] = [
             'step' => 'cost_sharing',
