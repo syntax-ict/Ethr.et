@@ -27,10 +27,12 @@ function resumableRun(int $people, int $withoutSalary = 0): PayrollRun
     $tenant = createTenant();
     app(CurrentTenant::class)->set($tenant);
     $admin = createUser([], $tenant);
-    Employee::factory()->count($people)->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
+    // Created without a salary rather than zeroed afterwards: a salary a run
+    // pays is the one in the history, which a query-builder update bypasses.
     if ($withoutSalary > 0) {
-        Employee::query()->where('tenant_id', $tenant->id)->orderBy('id')->limit($withoutSalary)->update(['salary_cents' => 0]);
+        Employee::factory()->count($withoutSalary)->create(['tenant_id' => $tenant->id, 'salary_cents' => 0, 'hire_date' => '2024-01-01']);
     }
+    Employee::factory()->count($people - $withoutSalary)->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
 
     return app(PayrollEngine::class)->begin($tenant->id, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'), $admin->id)->run;
 }

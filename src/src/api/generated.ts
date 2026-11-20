@@ -13359,6 +13359,8 @@ export interface components {
             /** Format: date-time */
             probation_end_date?: string | null;
             salary_cents?: number | null;
+            /** Format: date-time */
+            salary_effective_date?: string | null;
             tin?: string | null;
             department_id?: string | null;
             branch_id?: string | null;

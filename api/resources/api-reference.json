@@ -58723,6 +58723,13 @@
                         ],
                         "minimum": 0
                     },
+                    "salary_effective_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
                     "tin": {
                         "type": [
                             "string",

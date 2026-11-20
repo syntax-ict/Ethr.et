@@ -207,7 +207,7 @@ final class PayrollEngine
             // and until 2026-10-15 that employee silently vanished from the run
             // (production QA, F1). Loaded here so the fallback costs no query
             // per employee.
-            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
             ->chunkById(100, function ($employees) use (
                 $run, $periodStart, $periodEnd,
                 $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
@@ -310,7 +310,7 @@ final class PayrollEngine
 
         $employees = $this->payableEmployees($tenantId, $periodStart, $periodEnd)
             ->when($afterEmployeeId !== null, fn ($query) => $query->where('employees.id', '>', $afterEmployeeId))
-            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
             ->orderBy('employees.id')
             ->limit($limit + 1)
             ->get();
@@ -395,6 +395,12 @@ final class PayrollEngine
 
             if ($locked->status !== 'completed') {
                 throw PayrollRunRefused::notCompleted();
+            }
+
+            // Under the lock, so a salary moved after the run was calculated is
+            // refused here and not only in a request that raced past the check.
+            if ($this->salaryChangedSince($locked)) {
+                throw PayrollRunRefused::inputsChangedSinceProcessed();
             }
 
             $movements = $this->balances->apply($locked);
@@ -612,6 +618,139 @@ final class PayrollEngine
     }
 
     /**
+     * The salary a run for this period pays an employee, and where it came
+     * from. The one place that decides: computeEntry() calls it, and so does
+     * the approve check that compares a run's figures with today's.
+     *
+     * An employee with history rows is paid the row in force on the period's
+     * last day, or nothing when none is (an earlier month is not paid today's
+     * figure); only an employee with no rows at all reads the salary on the
+     * record. When that comes to nothing, the contract in force during the
+     * period states it (production QA 2026-10-15, F1).
+     *
+     * @return array{cents: int, source: array<string, string>}
+     */
+    public function salaryFor(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $cents = (int) $employee->salary_cents;
+        $source = ['salary_source' => 'employee'];
+
+        if (SalaryInForce::hasRows($employee)) {
+            $inForce = SalaryInForce::on($employee, $periodEnd);
+            $cents = $inForce !== null ? max(0, $inForce->salary_cents) : 0;
+            $source = $inForce === null ? [] : [
+                'salary_source' => 'history',
+                'salary_history_source' => $inForce->source,
+                'salary_effective_date' => $inForce->effective_date->toDateString(),
+            ];
+        }
+
+        if ($cents <= 0) {
+            $cents = $this->contractSalaryFor($employee, $periodStart, $periodEnd) ?? 0;
+            $source = ['salary_source' => 'contract'];
+        }
+
+        return ['cents' => $cents, 'source' => $source];
+    }
+
+    /**
+     * Whether any entry of the run would be paid a different basic salary if
+     * the run were calculated now. Compares figures, so it sees a salary that
+     * was added, changed or removed (a cancelled scheduled raise, a contract
+     * ended before it started) after the run was calculated. Entries whose
+     * log carries no basic salary input are skipped. Bounded: entries and
+     * their employees are read in chunks of 200, with history and contracts
+     * eager-loaded.
+     *
+     * It also says true when someone the run should have paid has no entry in
+     * it: a person hired or back-dated into the period after the run was
+     * calculated. That is judged against exactly the people a run pays
+     * (payableEmployees(), the whole organisation, no subset) and the one skip
+     * a run makes (a salary of nothing, through salaryFor()), and only for a
+     * run with at least one entry calculated at 1.9 or later, as an older run
+     * cannot be judged.
+     */
+    public function salaryChangedSince(PayrollRun $run): bool
+    {
+        $start = Carbon::parse($run->period_start);
+        $end = Carbon::parse($run->period_end);
+        $changed = false;
+        $judgeable = false;
+
+        PayrollEntry::query()
+            ->where('tenant_id', $run->tenant_id)
+            ->where('payroll_run_id', $run->id)
+            ->select(['id', 'employee_id', 'calculation_log'])
+            ->chunkById(200, function ($entries) use ($run, $start, $end, &$changed, &$judgeable): bool {
+                $employees = Employee::withTrashed()
+                    ->where('tenant_id', $run->tenant_id)
+                    ->whereIn('id', $entries->pluck('employee_id')->all())
+                    ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($entries as $entry) {
+                    $log = $entry->getAttribute('calculation_log');
+                    $log = is_array($log) ? $log : [];
+                    $logged = $log['inputs']['basic_salary_cents'] ?? null;
+
+                    // A run calculated before 1.9 cannot be compared: the
+                    // backfill could not see a direct edit made before it.
+                    if (version_compare((string) ($log['version'] ?? '0'), '1.9', '<')) {
+                        continue;
+                    }
+                    $judgeable = true;
+                    $employee = $employees->get($entry->employee_id);
+
+                    if ($logged === null || $employee === null) {
+                        continue;
+                    }
+
+                    if ($this->salaryFor($employee, $start, $end)['cents'] !== (int) $logged) {
+                        $changed = true;
+
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+        return $changed || ($judgeable && $this->payableEmployeeMissing($run, $start, $end));
+    }
+
+    /**
+     * Whether a person the run pays has no entry in it and would be paid a
+     * salary now. Reads the run's employee ids once and the payable people in
+     * chunks of 200, with history and contracts eager-loaded.
+     */
+    private function payableEmployeeMissing(PayrollRun $run, Carbon $start, Carbon $end): bool
+    {
+        $paid = array_flip(PayrollEntry::query()
+            ->where('tenant_id', $run->tenant_id)
+            ->where('payroll_run_id', $run->id)
+            ->pluck('employee_id')
+            ->all());
+        $missing = false;
+
+        $this->payableEmployees($run->tenant_id, $start, $end)
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+            ->chunkById(200, function ($employees) use ($paid, $start, $end, &$missing): bool {
+                foreach ($employees as $employee) {
+                    if (! isset($paid[$employee->id]) && $this->salaryFor($employee, $start, $end)['cents'] > 0) {
+                        $missing = true;
+
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+        return $missing;
+    }
+
+    /**
      * Writes one employee's entry for a run: exactly what computeEntry()
      * works out, with the run it belongs to.
      *
@@ -659,23 +798,21 @@ final class PayrollEngine
     ): ?array {
         $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
         $hoursPerDay = $rules->int('payroll.hours_per_day');
-        $basicSalary = $employee->salary_cents;
 
-        // An employee whose own salary is unset is paid what the contract in
-        // force during this period states. Writes to employees.salary_cents are
-        // kept in sync by EmployeeContractService for contracts effective at
-        // creation time; this covers the ones that became effective later, and
-        // rows from before the sync existed (production QA 2026-10-15, F1).
-        if ($basicSalary <= 0) {
-            $basicSalary = $this->contractSalaryFor($employee, $periodStart, $periodEnd) ?? 0;
-        }
+        // Since 1.9: the salary in force on the period's last day pays the
+        // whole period, whenever the run is calculated, so a month reprocessed
+        // later pays what it paid then and a raise dated inside it is paid.
+        // `salary_source` says where the figure came from and
+        // `salary_changed_in_period` that a change landed inside the period,
+        // which one salary per run does not split by days.
+        ['cents' => $basicSalary, 'source' => $salarySource] = $this->salaryFor($employee, $periodStart, $periodEnd);
 
         if ($basicSalary <= 0) {
             return null;
         }
 
         $log = [
-            'version' => '1.8',
+            'version' => '1.9',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -691,6 +828,8 @@ final class PayrollEngine
             'inputs' => [
                 'employee_id' => $employee->public_id,
                 'basic_salary_cents' => $basicSalary,
+                ...$salarySource,
+                'salary_changed_in_period' => SalaryInForce::changedWithin($employee, $periodStart, $periodEnd),
                 'period_start' => $periodStart->toDateString(),
                 'period_end' => $periodEnd->toDateString(),
                 'hire_date' => Carbon::parse($employee->hire_date)->toDateString(),
