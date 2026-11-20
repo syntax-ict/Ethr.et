@@ -9668,14 +9668,17 @@
                                                                 "const": "error"
                                                             },
                                                             "detail": {
-                                                                "type": "string",
-                                                                "const": "You can only sync your own attendance."
+                                                                "type": "string"
+                                                            },
+                                                            "final": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "idempotency_key",
                                                             "status",
-                                                            "detail"
+                                                            "detail",
+                                                            "final"
                                                         ]
                                                     },
                                                     {
@@ -9689,13 +9692,18 @@
                                                                 "const": "error"
                                                             },
                                                             "detail": {
-                                                                "type": "string"
+                                                                "type": "string",
+                                                                "const": "You can only sync your own attendance."
+                                                            },
+                                                            "final": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "idempotency_key",
                                                             "status",
-                                                            "detail"
+                                                            "detail",
+                                                            "final"
                                                         ]
                                                     },
                                                     {
@@ -9711,12 +9719,16 @@
                                                             "detail": {
                                                                 "type": "string",
                                                                 "const": "Employee not found"
+                                                            },
+                                                            "final": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "idempotency_key",
                                                             "status",
-                                                            "detail"
+                                                            "detail",
+                                                            "final"
                                                         ]
                                                     },
                                                     {

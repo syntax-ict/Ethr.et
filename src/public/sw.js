@@ -297,6 +297,131 @@ async function xsrfToken() {
   }
 }
 
+// The two limits below must equal SYNC_BATCH_RECORDS and SYNC_BATCH_CHARS in
+// src/src/lib/offline-batch.ts, which the app uses for the same queue. A worker
+// cannot import it; src/src/test/offline-batch.test.ts reads this file and
+// fails if they differ. The request allows 100 records and the host refuses a
+// body over 8 MB, and a selfie is about 2 MB as text.
+const SYNC_BATCH_RECORDS = 20;
+const SYNC_BATCH_CHARS = 4000000;
+
+// One punch as the sync endpoint takes it (mirrors toSyncPayload).
+function syncPayload(r, clientTime) {
+  return {
+    employee_public_id: r.employee_public_id,
+    type: r.type,
+    timestamp: r.captured_at,
+    idempotency_key: r.idempotency_key,
+    offline_token: r.offline_token,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    accuracy: r.accuracy ?? null,
+    photo: r.photo ?? null,
+    altitude: r.altitude,
+    speed: r.speed,
+    heading: r.heading,
+    fix_age_ms: r.fix_age_ms,
+    device_id: r.device_id,
+    webdriver: r.webdriver,
+    liveness: r.liveness ?? null,
+    device_proof: r.device_proof ?? null,
+    // When the batch is sent, so the server can see the phone's clock.
+    client_time: clientTime,
+  };
+}
+
+// In order: a check-in must reach the server before its check-out. A record
+// larger than the budget goes alone (mirrors splitIntoBatches).
+function splitBatches(records) {
+  const clock = new Date().toISOString();
+  const batches = [];
+  let current = [];
+  let chars = 0;
+  for (const r of records) {
+    const size = JSON.stringify(syncPayload(r, clock)).length;
+    if (current.length > 0 && (current.length >= SYNC_BATCH_RECORDS || chars + size > SYNC_BATCH_CHARS)) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(r);
+    chars += size;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+// Sends one batch. Returns how many punches the server took, or throws to end
+// the run (the browser then retries the whole sync later).
+async function sendBatch(db, headers, batch) {
+  const clock = new Date().toISOString();
+  let response;
+  try {
+    response = await fetch('/api/v1/attendance/sync', {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({ records: batch.map((r) => syncPayload(r, clock)) }),
+    });
+  } catch (e) {
+    // No answer at all: keep them, and let the browser retry.
+    await markBatchError(db, batch, 'Network error');
+    throw e;
+  }
+
+  if (response.status === 413 || response.status === 422) {
+    // Too large or not valid as a group: one at a time finds the one at fault.
+    if (batch.length > 1) {
+      let sent = 0;
+      for (const r of batch) sent += await sendBatch(db, headers, [r]);
+      return sent;
+    }
+    // Alone and still refused: it can never be sent.
+    if (batch[0].id) {
+      await updatePunch(db, batch[0].id, { synced: 2, sync_error: null, refused_locally: true });
+    }
+    return 0;
+  }
+
+  // Signed out, expired token, rate limited, server down: leave the queue for
+  // the app. A server fault throws so the browser retries this sync later.
+  if (!response.ok) {
+    await markBatchError(db, batch, 'sync failed: ' + response.status);
+    if (response.status >= 500) throw new Error('sync failed: ' + response.status);
+    throw new StopSync();
+  }
+
+  const data = await response.json();
+  let sent = 0;
+  for (const result of data.results || []) {
+    const record = batch.find((r) => r.idempotency_key === result.idempotency_key);
+    if (!record || !record.id) continue;
+    if (result.status === 'created' || result.status === 'duplicate') {
+      await updatePunch(db, record.id, { synced: 1, sync_error: null });
+      sent++;
+    } else if (result.final === true) {
+      // Will never be accepted: out of the waiting list, shown to the person.
+      await updatePunch(db, record.id, {
+        synced: 2,
+        sync_error: result.detail || null,
+        refused_locally: !result.detail,
+      });
+    } else {
+      await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
+    }
+  }
+  return sent;
+}
+
+async function markBatchError(db, batch, message) {
+  for (const r of batch) {
+    if (r.id) await updatePunch(db, r.id, { sync_error: message });
+  }
+}
+
+// Ends a run quietly, without making the browser retry.
+class StopSync extends Error {}
+
 async function flushQueue() {
   const db = await openQueue();
   const pending = await pendingPunches(db);
@@ -305,7 +430,10 @@ async function flushQueue() {
   const token = await xsrfToken();
   if (!token) return; // the app sends them when next opened
 
-  // One request per tenant header, as the app would have sent each.
+  // One request group per tenant header, as the app would have sent each. The
+  // worker cannot know who is signed in, so it sends every person's punches;
+  // the server answers a punch that is not the caller's own as not final, and
+  // it stays for its owner.
   const groups = new Map();
   for (const r of pending) {
     const key = r.tenant || '';
@@ -313,66 +441,28 @@ async function flushQueue() {
     groups.get(key).push(r);
   }
 
-  for (const [tenant, records] of groups) {
-    const headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-XSRF-TOKEN': token,
-    };
-    if (tenant) headers['X-Tenant'] = tenant;
+  let sentCount = 0;
+  try {
+    for (const [tenant, records] of groups) {
+      const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-XSRF-TOKEN': token,
+      };
+      if (tenant) headers['X-Tenant'] = tenant;
 
-    const response = await fetch('/api/v1/attendance/sync', {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body: JSON.stringify({
-        records: records.map((r) => ({
-          employee_public_id: r.employee_public_id,
-          type: r.type,
-          timestamp: r.captured_at,
-          idempotency_key: r.idempotency_key,
-          offline_token: r.offline_token,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          accuracy: r.accuracy ?? null,
-          photo: r.photo ?? null,
-          altitude: r.altitude,
-          speed: r.speed,
-          heading: r.heading,
-          fix_age_ms: r.fix_age_ms,
-          device_id: r.device_id,
-          webdriver: r.webdriver,
-          liveness: r.liveness ?? null,
-          device_proof: r.device_proof ?? null,
-          // When the batch is sent, so the server can see the phone's clock.
-          client_time: new Date().toISOString(),
-        })),
-      }),
-    });
-
-    // Signed out, expired token, server down: leave the queue for the app.
-    // Throwing tells the browser to retry this sync later.
-    if (!response.ok) {
-      if (response.status >= 500) throw new Error('sync failed: ' + response.status);
-      return;
-    }
-
-    const data = await response.json();
-    for (const result of data.results || []) {
-      const record = records.find((r) => r.idempotency_key === result.idempotency_key);
-      if (!record || !record.id) continue;
-      if (result.status === 'created' || result.status === 'duplicate') {
-        await updatePunch(db, record.id, { synced: 1, sync_error: null });
-      } else {
-        await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
+      for (const batch of splitBatches(records)) {
+        sentCount += await sendBatch(db, headers, batch);
       }
     }
+  } catch (e) {
+    if (!(e instanceof StopSync)) throw e;
   }
 
   // Only with permission already given: showNotification rejects without it,
   // and a rejection here would make the browser retry a sync that worked.
-  if (self.Notification && self.Notification.permission === 'granted') {
+  if (sentCount > 0 && self.Notification && self.Notification.permission === 'granted') {
     const amharic = pending.some((r) => r.locale === 'am');
     try {
       await self.registration.showNotification('ETHR', {
