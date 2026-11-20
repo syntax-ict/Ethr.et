@@ -58,3 +58,15 @@ describe('Phone::ethiopianMobile', function () {
         'letters' => '0911 call me',
     ]);
 });
+
+describe('Phone::unlessUnchanged', function () {
+    it('accepts the value a record already holds, however old its shape', function () {
+        expect(phoneFails(Phone::any()->unlessUnchanged('551234'), '551234'))->toBeFalse();
+        expect(phoneFails(Phone::any()->unlessUnchanged('551234'), ' 551234 '))->toBeFalse();
+    });
+
+    it('checks anything that differs from what is held', function () {
+        expect(phoneFails(Phone::any()->unlessUnchanged('551234'), '55123'))->toBeTrue();
+        expect(phoneFails(Phone::any()->unlessUnchanged(null), '551234'))->toBeTrue();
+    });
+});

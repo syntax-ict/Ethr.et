@@ -57,7 +57,7 @@ import {
   publicCalendar,
   publicDate,
 } from "@/lib/calendar/public-calendar";
-import { telHref } from "@/lib/phone";
+import { formatPhone, telHref } from "@/lib/phone";
 
 export interface PortalViewProps {
   name: string | null;
@@ -822,7 +822,7 @@ function ContactSection({
           <li className={row}>
             <Phone className={icon} aria-hidden="true" />
             <a href={telHref(phone)} className={link}>
-              {phone}
+              {formatPhone(phone)}
             </a>
           </li>
         )}
@@ -875,7 +875,7 @@ function ContactSection({
                         href={telHref(b.phone)}
                         className={cn(link, "text-foreground")}
                       >
-                        {b.phone}
+                        {formatPhone(b.phone)}
                       </a>
                     )}
                     {place && (

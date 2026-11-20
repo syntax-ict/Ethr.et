@@ -32,7 +32,7 @@ class UpdateEmployeeRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged($employee?->phone)],
             'employee_code' => [
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),

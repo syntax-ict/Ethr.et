@@ -34,7 +34,7 @@ import {
 } from "@/lib/auth/landing-text";
 import { signInHref, withOrganisation } from "@/lib/auth/entry-organisation";
 import type { LandingFeed } from "@/features/auth/landing-feed";
-import { telHref } from "@/lib/phone";
+import { formatPhone, telHref } from "@/lib/phone";
 
 /**
  * Where the organisation's public pages lead: its portal (the sign-in page),
@@ -501,7 +501,7 @@ export function PortalFooter({
                     aria-hidden="true"
                   />
                   <a href={telHref(phone)} className={link}>
-                    {phone}
+                    {formatPhone(phone)}
                   </a>
                 </li>
               )}

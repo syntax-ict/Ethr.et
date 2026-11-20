@@ -54,7 +54,13 @@ function nationalDigitsOf(value: string): string {
 
   let digits = value.replace(/\D+/g, "");
 
-  if (digits.startsWith("251") && digits.length > NATIONAL_DIGITS) {
+  // A value this component emitted mid-typing is `+251` plus the digits so far,
+  // never a full number yet, so the plus is what says the 251 is the country
+  // code. Without a plus, only a number long enough to carry both is trusted.
+  if (
+    value.trim().startsWith("+251") ||
+    (digits.startsWith("251") && digits.length > NATIONAL_DIGITS)
+  ) {
     digits = digits.slice(3);
   }
 
@@ -71,7 +77,17 @@ function nationalDigitsFromTyping(raw: string): string {
   const plus = raw.trim().startsWith("+");
   let digits = raw.replace(/\D+/g, "");
 
-  if (digits.startsWith("251") && (plus || digits.length > NATIONAL_DIGITS)) {
+  // A bare `251…` is ambiguous: Dire Dawa landlines are `025…`, so their nine
+  // digits after +251 begin with 251 too. Take it as the country code only when
+  // the plus says so, or when the digits are a full country code plus a full
+  // number (12 or more), as a paste is. Editing inside a Dire Dawa number
+  // makes 10 digits and must keep them.
+  const countryCodeAndNumber = NATIONAL_DIGITS + 3;
+
+  if (
+    digits.startsWith("251") &&
+    (plus || digits.length >= countryCodeAndNumber)
+  ) {
     digits = digits.slice(3);
   }
 

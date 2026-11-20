@@ -13,7 +13,7 @@ import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useDirectory } from "@/features/directory/api";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
-import { telHref } from "@/lib/phone";
+import { formatPhone, telHref } from "@/lib/phone";
 
 export default function DirectoryPage() {
   const { t } = useT();
@@ -128,7 +128,9 @@ export default function DirectoryPage() {
                                 className="h-3 w-3 shrink-0"
                                 aria-hidden="true"
                               />
-                              <span className="truncate">{e.phone}</span>
+                              <span className="truncate">
+                                {formatPhone(e.phone)}
+                              </span>
                             </a>
                           )}
                         </div>

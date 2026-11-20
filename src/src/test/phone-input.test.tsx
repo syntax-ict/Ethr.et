@@ -177,4 +177,18 @@ describe("PhoneInput", () => {
     expect(screen.getByTestId("value")).toHaveTextContent("+4420");
     expect(screen.queryByText("+251")).not.toBeInTheDocument();
   });
+
+  it("keeps the leading 251 of a Dire Dawa landline when a digit is inserted", async () => {
+    const user = userEvent.setup();
+    render(<ControlledPhoneInput initialValue="+251251112233" />);
+
+    const input = screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX");
+    await user.click(input);
+    await user.type(input, "7", {
+      initialSelectionStart: 3,
+      initialSelectionEnd: 3,
+    });
+
+    expect(screen.getByTestId("value")).toHaveTextContent("+251251711223");
+  });
 });

@@ -77,7 +77,7 @@ import { DeleteTenantDialog } from "./delete-tenant-dialog";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { TenantFeaturesCard } from "./tenant-features-card";
 import { TenantJourneyCard } from "./tenant-journey-card";
-import { telHref } from "@/lib/phone";
+import { formatPhone, telHref } from "@/lib/phone";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -645,7 +645,7 @@ function TenantDetail({ id }: { id: string }) {
                       href={telHref(tenant.owner.phone)}
                       className="font-medium underline underline-offset-2"
                     >
-                      {tenant.owner.phone}
+                      {formatPhone(tenant.owner.phone)}
                     </a>
                     {!tenant.owner.phone_verified && (
                       <Badge variant="outline">

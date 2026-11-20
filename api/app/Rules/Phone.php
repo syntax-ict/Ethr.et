@@ -28,7 +28,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final class Phone implements ValidationRule
 {
-    private function __construct(private readonly bool $mobileOnly) {}
+    private function __construct(
+        private readonly bool $mobileOnly,
+        private readonly ?string $stored = null,
+    ) {}
 
     public static function any(): self
     {
@@ -40,8 +43,26 @@ final class Phone implements ValidationRule
         return new self(true);
     }
 
+    /**
+     * Accept the value the record already holds, exactly as it is stored.
+     *
+     * Older rows were written through looser rules, imports and SCIM, so a
+     * stored number may be one this rule would refuse: a partial `551234`, or a
+     * foreign number that lost its plus. An edit form sends the phone back
+     * unchanged, and refusing it would make every other field of that record
+     * uneditable. Anything the user actually changes is checked in full.
+     */
+    public function unlessUnchanged(?string $stored): self
+    {
+        return new self($this->mobileOnly, $stored);
+    }
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
+        if (is_string($value) && $this->stored !== null && trim($value) === trim($this->stored)) {
+            return;
+        }
+
         if (! is_string($value)) {
             $fail(__($this->mobileOnly ? 'auth.phone_invalid' : 'auth.phone_any_invalid'));
 

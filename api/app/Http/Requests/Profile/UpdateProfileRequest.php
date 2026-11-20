@@ -17,9 +17,12 @@ class UpdateProfileRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $user = $this->user();
+        $stored = $user === null ? null : ($user->employee()->value('phone') ?? $user->phone);
+
         return [
             // Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS.
-            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged(is_string($stored) ? $stored : null)],
             'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
             'nationality' => ['nullable', 'string', 'max:100'],
 
