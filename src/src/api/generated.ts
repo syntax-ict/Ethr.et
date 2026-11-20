@@ -15110,40 +15110,48 @@ export interface operations {
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be recorded. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 detail: string;
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Invalid employee PIN.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Employee not found with the given code.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This number matches more than one person. Type your full code with the ABC key.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Kiosk check-in is switched off, and this offline punch cannot be shown to have been made before it was. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be read. Punch again.";
+                                final: boolean;
                             };
                         }[];
                     };
@@ -16277,19 +16285,22 @@ export interface operations {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            /** @constant */
-                            detail: "You can only sync your own attendance.";
+                            detail: string;
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            detail: string;
+                            /** @constant */
+                            detail: "You can only sync your own attendance.";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
                             /** @constant */
                             detail: "Employee not found";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */

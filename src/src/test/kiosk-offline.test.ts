@@ -95,4 +95,41 @@ describe("kiosk offline punches", () => {
       records: [{ idempotency_key: "k-wait", grant: "g" }],
     });
   });
+
+  it("drops a punch only when it was recorded or refused for good", async () => {
+    const { publicKey } = await keyPair();
+    const offline = { public_key: publicKey, grant: "g", issued_at: "" };
+    for (const k of ["k-new", "k-dup", "k-final", "k-passing", "k-unmarked"]) {
+      await savePunchOffline(offline, { c: "E-1", p: null, t: "check_in", k });
+    }
+
+    server.use(
+      http.post("*/kiosk/sync", () =>
+        HttpResponse.json({
+          results: [
+            { idempotency_key: "k-new", status: "created" },
+            { idempotency_key: "k-dup", status: "duplicate" },
+            {
+              idempotency_key: "k-final",
+              status: "error",
+              detail: "Wrong PIN",
+              final: true,
+            },
+            {
+              idempotency_key: "k-passing",
+              status: "error",
+              detail: "Try again",
+              final: false,
+            },
+            { idempotency_key: "k-unmarked", status: "error" },
+          ],
+        }),
+      ),
+    );
+
+    // Only the two recorded punches count as sent.
+    expect(await syncQueuedPunches("token")).toBe(2);
+    const left = (await queuedPunches()).map((p) => p.idempotency_key).sort();
+    expect(left).toEqual(["k-passing", "k-unmarked"]);
+  });
 });
