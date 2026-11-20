@@ -27,6 +27,11 @@ use LogicException;
  *    theirs on every run, which is the pattern this avoids);
  *  - a row that leaves the files is deactivated, never deleted, so a record
  *    that stored its code still resolves to a name.
+ *
+ * Maintenance: the migration `create_reference_items_table` calls the live
+ * `sync()`, so this class must only ever write columns that migration creates.
+ * A later migration that adds a column must not make `sync()` write it before
+ * that migration has run. Tests migrate from scratch, so a break fails loudly.
  */
 final class ReferenceCatalogue
 {

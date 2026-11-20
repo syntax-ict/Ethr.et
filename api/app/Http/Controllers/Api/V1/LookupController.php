@@ -44,7 +44,7 @@ class LookupController extends Controller
                         'name' => $item->name,
                         'name_am' => $item->name_am,
                         'name_om' => $item->name_om,
-                        'meta' => (object) ($item->meta ?? []),
+                        'meta' => $item->meta ?? [],
                     ])
                     ->values()
                     ->all();
@@ -55,6 +55,16 @@ class LookupController extends Controller
                 'items' => $items,
             ];
         });
+
+        // Only plain arrays are cached, which any cache store can serialise; an
+        // entry's `meta` becomes a JSON object here, so an empty one is `{}`.
+        $payload['items'] = array_map(
+            static fn (array $list): array => array_map(
+                static fn (array $row): array => [...$row, 'meta' => (object) $row['meta']],
+                $list,
+            ),
+            $payload['items'],
+        );
 
         return response()->json($payload);
     }
