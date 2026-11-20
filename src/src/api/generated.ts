@@ -11503,6 +11503,7 @@ export interface components {
             changed_from: string;
             trail_rebuilt_at_release: boolean;
             net_is_estimate: boolean;
+            error: string | null;
             note: string | null;
             /** Format: date-time */
             settled_at: string | null;
@@ -31775,7 +31776,7 @@ export interface operations {
     "payDifference.index": {
         parameters: {
             query?: {
-                status?: "pending" | "open" | "settled" | "dismissed" | "superseded" | null;
+                status?: "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded" | null;
                 employee?: string | null;
                 for_run?: string | null;
                 per_page?: number | null;

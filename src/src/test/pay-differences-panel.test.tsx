@@ -33,6 +33,7 @@ function difference(over: Record<string, unknown>) {
     trail_rebuilt_at_release: true,
     net_is_estimate: false,
     note: null,
+    error: null,
     settled_at: null,
     created_at: "2026-11-20T08:00:00Z",
     ...over,
@@ -129,6 +130,29 @@ describe("<PayDifferencesPanel>", () => {
       await screen.findByRole("button", { name: "Settle" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeDisabled();
+  });
+
+  it("shows why a failed difference failed, lets it be dismissed but not settled", async () => {
+    server.use(
+      me(["payroll.viewAll", "payroll.approve"]),
+      list([
+        difference({
+          status: "failed",
+          kind: null,
+          gross_cents: null,
+          net_cents: null,
+          error: "No payroll run covers this month",
+        }),
+      ]),
+    );
+    renderPanel();
+
+    expect(
+      await screen.findByText(/No payroll run covers this month/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Settle" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeEnabled();
   });
 
   it("offers no actions without payroll.approve", async () => {

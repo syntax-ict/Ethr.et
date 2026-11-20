@@ -21,7 +21,7 @@ import {
 } from "./pay-difference-parts";
 
 /**
- * What the server asked before it would approve: acknowledge the open pay
+ * What the server asked before it would approve: acknowledge the open and failed pay
  * differences by count, or wait while some are still being worked out.
  *
  * `unacknowledged` lists the open differences and sends the count back;
@@ -30,19 +30,21 @@ import {
 export function PayDifferencesApprovalDialog({
   mode,
   count,
+  failedCount = 0,
   loading,
   onConfirm,
   onClose,
 }: {
   mode: "unacknowledged" | "pending" | null;
   count: number;
+  failedCount?: number;
   loading: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }) {
   const { t } = useT();
   const month = usePayDifferenceMonth();
-  const list = usePayDifferences({ status: "open" }, mode === "unacknowledged");
+  const list = usePayDifferences({}, mode === "unacknowledged");
   const rows = list.data?.data ?? [];
 
   return (
@@ -72,6 +74,13 @@ export function PayDifferencesApprovalDialog({
                 {t("pay_differences.approve_hint")}
               </DialogDescription>
             </DialogHeader>
+            {failedCount > 0 && (
+              <p className="text-sm text-destructive" role="alert">
+                {t("pay_differences.approve_failed_note", undefined, {
+                  count: failedCount,
+                })}
+              </p>
+            )}
             <div className="max-h-80 overflow-y-auto rounded-md border border-border">
               {list.isLoading ? (
                 <div className="space-y-2 p-3">
@@ -98,6 +107,12 @@ export function PayDifferencesApprovalDialog({
                           <SignedMoney cents={d.net_cents} />
                         </span>
                       </div>
+                      {d.status === "failed" && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {t("pay_differences.failed_hint")}
+                          {d.error ? ` ${d.error}` : ""}
+                        </p>
+                      )}
                       <PayDifferenceFlags difference={d} />
                     </li>
                   ))}
