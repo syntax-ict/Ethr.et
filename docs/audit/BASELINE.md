@@ -4961,3 +4961,20 @@ On production (release v2026.11.19.6, QA Audit organisation) the entry `device.h
 ### 25v. A mistyped badge number recorded on the wrong person — closed 2026-11-19, the day #803 went live
 
 The first automatic-recording rule (§25t) needed the number to name one current person and only demoted the badge when the terminal's name shared no word with that person. A terminal that sent no name therefore recorded a mistyped number, written on one employee, onto that employee within five minutes, with no undo. The rule now has a fourth condition: the terminal has stored a name for the badge, and `TerminalNames::lookalikes()` returns exactly that one employee, so the number and the name, two independent things, must name the same single person. Two holders of the number stay held even when the terminal's name agrees with one of them (the resolver's name bonus can break that tie, so `recordsItself()` counts the holders itself). A missing name, a one-word name, a name two people fit and a name that fits someone else leave the punches for a click; this applies to a mapping a person confirmed as well. `lookalikes()` is reused as it is (two words or more, matched from the first word in order, nobody when more than five fit); there is no second name comparison. `sweepCandidates()` lists only badges with a stored name, so a badge with none is not queued every five minutes for nothing.
+
+### 25w. A punch the engine would not take was purged unseen — found 2026-11-20, fixed the same day (PR 1 of the biometric upgrade)
+
+Six findings from one read of the device path at `ce7ce36788`, closed together:
+
+- **F1, a failed inbox row was processed and purged.** `ProcessDeviceInboundPunchesJob` marked a refused or throwing row processed and `CleanupExpiredDataJob` deleted it after seven days: a leaver's punch, a check-out after an automatic check-out, any unexpected exception, vanished. Now the row keeps `raw`, gets `failed_at` and `failure`, is never purged, and is listed on the device page with Replay and Dismiss.
+- **F2, a terminal clock ahead lost every punch.** More than ten minutes ahead is refused (`DevicePunchRecorder::record`) and, through F1, purged. The refusal is now the failure `clock_ahead`, replayable once the clock is right.
+- **F3, a long key was a hard error.** `attendance_records.idempotency_key` is varchar(64), device keys went to 191, and production's `DB_CONNECTION=mysql` is strict. `DevicePunchKey::fit()` is the one choke point; a key of 64 or less is unchanged, so everything already recorded still dedupes.
+- **F4, an event with no time was dated now.** A resend got a new key and recorded twice. It is now stored as `failure = no_time` with a key from the hash of the event, so a resend is the same row.
+- **F5, `default` drained before `attendance`.** `QueueHealth::QUEUES` is now `attendance, default, notifications, exports` (pinned in `DevicePunchKeyTest`).
+- **F6, three push paths ran the engine inside the request.** ZKTeco, Suprema and ADMS now go through the inbox like Hikvision.
+
+Migration `2026_11_20_000001_add_quarantine_to_device_inbound_punches`: `public_id`, `raw`, `failed_at`, `failure`, `dismissed_at`, index `(tenant_id, failed_at)`; it ran on a scratch MariaDB 10.4.32 (`ethr_device_inbox`) on an empty table, and runs on SQLite in the suite. The backfill of existing rows was not run against MariaDB with rows in it. Deploy and `migrate` are one step.
+
+**Measured drain.** 2,000 rows of one device (100 people, 20 punches each, all `auto`) drained by the job's own continuation in 18 runs and 70.8 s on SQLite, on a machine shared with other sessions: 100 records, 0 quarantined. A run is capped at 200 rows or four seconds, so the ceiling is set by the second cap, about 35 ms a row here. On production each run is one queue drain, so a 2,000-row backlog takes minutes, not seconds. The MySQL 8 figure is read from the CI log of `HikvisionInboxTest` (line `[inbox drain]`), and is not claimed here.
+
+Tenant-bypass inventory unchanged at 207 call sites across 82 files: every new query states `tenant_id`.
