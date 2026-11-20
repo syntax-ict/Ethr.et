@@ -90,6 +90,16 @@ class PayrollRunRefused extends RuntimeException
         );
     }
 
+    /** A salary dated inside the period was recorded after the run was calculated. */
+    public static function inputsChangedSinceProcessed(): self
+    {
+        return new self(
+            'https://ethr.et/errors/inputs-changed-since-processed',
+            'Salary changed since processing',
+            __('payroll.inputs_changed_since_processed'),
+        );
+    }
+
     /** No statutory row is in force for a code the run needs; the code names which. */
     public static function noRuleInForce(string $code): self
     {
