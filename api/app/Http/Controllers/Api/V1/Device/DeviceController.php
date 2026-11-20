@@ -52,7 +52,6 @@ class DeviceController extends Controller
 {
     public function __construct(
         private readonly DeviceManager $deviceManager,
-        private readonly DevicePunchRecorder $punches,
         private readonly TerminalNames $terminalNames,
     ) {}
 
@@ -627,17 +626,22 @@ class DeviceController extends Controller
         $payload = $request->all();
         $records = $payload['records'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($records as $record) {
-            $badge = (string) ($record['pin'] ?? $record['user_id'] ?? '');
-            $timestamp = $record['timestamp'] ?? $record['datetime'] ?? now()->toIso8601String();
-            $punchType = ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null);
-
-            if ($this->punches->recordBatched($device, 'zk', $badge, $timestamp, $punchType)) {
-                $processed++;
+        foreach (is_array($records) ? $records : [] as $record) {
+            if (! is_array($record)) {
+                continue;
             }
+
+            $rows[] = [
+                'badge' => (string) ($record['pin'] ?? $record['user_id'] ?? ''),
+                'time' => $record['timestamp'] ?? $record['datetime'] ?? null,
+                'type' => ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null),
+                'raw' => $record,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'zk', $rows);
 
         $this->markWebhookReceived($device);
 
@@ -659,22 +663,71 @@ class DeviceController extends Controller
         $payload = $request->all();
         $events = $payload['EventCollection'] ?? $payload['events'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($events as $event) {
-            $badge = (string) ($event['user_id'] ?? $event['user']['user_id'] ?? '');
-            $timestamp = $event['datetime'] ?? $event['timestamp'] ?? now()->toIso8601String();
-            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
-            $type = ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in';
-
-            if ($this->punches->recordBatched($device, 'sup', $badge, $timestamp, $type)) {
-                $processed++;
+        foreach (is_array($events) ? $events : [] as $event) {
+            if (! is_array($event)) {
+                continue;
             }
+
+            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
+
+            $rows[] = [
+                'badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
+                'time' => $event['datetime'] ?? $event['timestamp'] ?? null,
+                'type' => ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in',
+                'raw' => $event,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'sup', $rows);
 
         $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
+    }
+
+    /**
+     * Put the punches of a JSON push in the inbox and queue the work: one
+     * insert per 500, no engine call in the request. The key is the one
+     * `webhook:<vendor>:<device id>:<badge>:<time>` always was, so a punch
+     * recorded before this change still dedupes a resend. A database failure
+     * is thrown, so the terminal is answered an error and sends it again.
+     *
+     * @param  list<array{badge: string, time: mixed, type: string, raw: mixed}>  $punches
+     * @return int how many punches were accepted (those that name a badge)
+     */
+    private function stashPushed(Device $device, string $vendor, array $punches): int
+    {
+        $rows = [];
+
+        foreach ($punches as $punch) {
+            $badge = $punch['badge'];
+            if ($badge === '') {
+                continue;
+            }
+
+            $time = is_scalar($punch['time']) ? trim((string) $punch['time']) : '';
+            if ($time === '') {
+                $time = now()->toIso8601String();
+            }
+
+            $rows[] = [
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr($punch['type'], 0, 20),
+                'occurred_raw' => mb_substr($time, 0, 64),
+                'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:{$time}"),
+                'raw' => DeviceInboundPunch::capRaw($punch['raw']),
+            ];
+        }
+
+        if (DeviceInboundPunch::stash($rows) > 0) {
+            ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
+        }
+
+        return count($rows);
     }
 
     /**

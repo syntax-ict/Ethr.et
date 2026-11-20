@@ -11,6 +11,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceCommand;
+use App\Models\DeviceInboundPunch;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
@@ -19,6 +20,7 @@ use App\Services\Device\DeviceManager;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -313,17 +315,18 @@ describe('on the organisation\'s own address', function () {
 // already stored dedupe on their key); a refusal is still acknowledged, and
 // any other error is reported and skipped so one bad punch cannot block the
 // terminal's queue for good.
-it('asks the terminal to resend punches the database failed to store', function () {
+it('stores a punch before the engine runs, so a database failure there never loses it', function () {
+    Queue::fake();
     [, , $employee] = admsSetup();
-    AttendanceRecord::creating(function () {
-        throw new QueryException('mysql', 'insert into attendance_records', [], new PDOException('Lost connection'));
-    });
 
-    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
-        ->assertStatus(503)
-        ->assertHeader('Retry-After');
+    // The engine's work is the queue's now (ProcessDeviceInboundPunchesJob);
+    // a failure there leaves the row pending and is retried (HikvisionInboxTest).
+    adms('POST', 'cdata', "1042	2026-10-14 08:01:22	0	1	0	0	0
+", ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
 
-    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+    expect(DeviceInboundPunch::withoutGlobalScopes()->whereNull('processed_at')->count())->toBe(1)
+        ->and(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
 });
 
 it('acknowledges a punch it refuses, and reports and skips one that fails otherwise', function () {
