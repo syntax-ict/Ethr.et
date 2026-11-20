@@ -51,6 +51,7 @@ const DIFFERENCE = {
   trail_rebuilt_at_release: false,
   net_is_estimate: true,
   note: null,
+  error: null,
   settled_at: null,
   created_at: "2026-11-20T08:00:00Z",
 };
@@ -143,6 +144,50 @@ describe("<PayrollRunDetail> pay differences at approval", () => {
     await waitFor(() => expect(bodies).toHaveLength(2));
     expect(bodies[0]).toEqual({});
     expect(bodies[1]).toEqual({ acknowledged_pay_differences: 1 });
+  });
+
+  it("says how many pay differences could not be worked out", async () => {
+    server.use(
+      me("finance_admin", ["payroll.viewAll", "payroll.approve"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () => HttpResponse.json(RUN)),
+      http.get("*/api/v1/payroll/pay-differences", () =>
+        HttpResponse.json({
+          data: [
+            DIFFERENCE,
+            {
+              ...DIFFERENCE,
+              public_id: "PD2",
+              employee_name: "Sara Haile",
+              status: "failed",
+              kind: null,
+              gross_cents: null,
+              net_cents: null,
+              error: "No payroll run covers this month",
+            },
+          ],
+          meta: {},
+          links: {},
+        }),
+      ),
+      http.put("*/api/v1/payroll/runs/RUN1/approve", () =>
+        refused(APPROVE, { pay_differences: 2, pay_differences_failed: 1 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderDetail();
+
+    await approveThroughFirstDialog(user);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /open pay difference/,
+    });
+    expect(
+      await within(dialog).findByText(/1 of these could not be worked out/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("Sara Haile")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/No payroll run covers this month/),
+    ).toBeInTheDocument();
   });
 
   it("sends the pension count and the pay difference count together", async () => {

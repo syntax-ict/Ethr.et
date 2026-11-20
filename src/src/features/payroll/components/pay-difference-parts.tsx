@@ -68,6 +68,7 @@ export function PayDifferenceStatusBadge({ status }: { status: string }) {
   const labels: Record<string, string> = {
     pending: t("pay_differences.status_pending"),
     open: t("pay_differences.status_open"),
+    failed: t("pay_differences.status_failed"),
     settled: t("pay_differences.status_settled"),
     dismissed: t("pay_differences.status_dismissed"),
     superseded: t("pay_differences.status_superseded"),

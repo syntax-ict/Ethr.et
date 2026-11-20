@@ -255,6 +255,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const [payDifferenceAsk, setPayDifferenceAsk] = useState<{
     mode: "unacknowledged" | "pending";
     count: number;
+    failed: number;
   } | null>(null);
   const [settledAsk, setSettledAsk] = useState<number | null>(null);
 
@@ -279,13 +280,14 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             setPayDifferenceAsk({
               mode: "unacknowledged",
               count: Number(problem.pay_differences) || 0,
+              failed: Number(problem.pay_differences_failed) || 0,
             });
             return;
           }
           if (
             problem?.type === "https://ethr.et/errors/pay-differences-pending"
           ) {
-            setPayDifferenceAsk({ mode: "pending", count: 0 });
+            setPayDifferenceAsk({ mode: "pending", count: 0, failed: 0 });
             return;
           }
           setPayDifferenceAsk(null);
@@ -930,6 +932,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
       <PayDifferencesApprovalDialog
         mode={payDifferenceAsk?.mode ?? null}
         count={payDifferenceAsk?.count ?? 0}
+        failedCount={payDifferenceAsk?.failed ?? 0}
         loading={approvePayroll.isPending}
         onConfirm={() => approve(payDifferenceAsk?.count)}
         onClose={() => setPayDifferenceAsk(null)}

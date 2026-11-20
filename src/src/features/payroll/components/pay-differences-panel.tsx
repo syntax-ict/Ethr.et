@@ -46,6 +46,7 @@ const FILTERS: Filter[] = [
   "live",
   "open",
   "pending",
+  "failed",
   "settled",
   "dismissed",
   "superseded",
@@ -55,7 +56,7 @@ const FILTERS: Filter[] = [
  * The pay differences payroll staff work through: a change back-dated into a
  * month already paid left money owed or owing. Nothing here moves money; Settle
  * records that finance paid or recovered it by hand, Dismiss that it needs
- * neither. Only an open row can be closed.
+ * neither. Only an open row can be settled; an open or failed row can be dismissed.
  */
 export function PayDifferencesPanel() {
   const { t } = useT();
@@ -81,6 +82,7 @@ export function PayDifferencesPanel() {
     live: t("pay_differences.filter_live"),
     open: t("pay_differences.status_open"),
     pending: t("pay_differences.status_pending"),
+    failed: t("pay_differences.status_failed"),
     settled: t("pay_differences.status_settled"),
     dismissed: t("pay_differences.status_dismissed"),
     superseded: t("pay_differences.status_superseded"),
@@ -220,6 +222,12 @@ export function PayDifferencesPanel() {
                       {d.employee_name}
                     </span>
                     <PayDifferenceFlags difference={d} />
+                    {d.status === "failed" && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {t("pay_differences.failed_hint")}
+                        {d.error ? ` ${d.error}` : ""}
+                      </p>
+                    )}
                     {d.note && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {d.note}
@@ -244,20 +252,28 @@ export function PayDifferencesPanel() {
                   </td>
                   {canClose && (
                     <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={d.status !== "open"}
-                        onClick={() =>
-                          setClosing({ difference: d, action: "settle" })
+                      <span
+                        title={
+                          d.status === "failed"
+                            ? t("pay_differences.settle_failed_reason")
+                            : undefined
                         }
                       >
-                        {t("pay_differences.settle")}
-                      </Button>{" "}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={d.status !== "open"}
+                          onClick={() =>
+                            setClosing({ difference: d, action: "settle" })
+                          }
+                        >
+                          {t("pay_differences.settle")}
+                        </Button>
+                      </span>{" "}
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={d.status !== "open"}
+                        disabled={d.status !== "open" && d.status !== "failed"}
                         onClick={() =>
                           setClosing({ difference: d, action: "dismiss" })
                         }

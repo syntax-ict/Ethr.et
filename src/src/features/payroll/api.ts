@@ -824,13 +824,13 @@ export function useResetStatutoryRule() {
 
 export type PayDifference = Schemas["PayrollPayDifferenceResource"];
 export type PayDifferenceStatus =
-  "pending" | "open" | "settled" | "dismissed" | "superseded";
+  "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded";
 export type PayDifferences =
   operations["payDifference.index"]["responses"][200]["content"]["application/json"];
 
 /**
  * The pay differences a change back-dated into a paid month left. With no
- * status the server returns the live ones, pending and open.
+ * status the server returns the live ones: pending, open and failed.
  */
 export function usePayDifferences(
   filters: { status?: PayDifferenceStatus; page?: number } = {},
