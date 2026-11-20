@@ -9,10 +9,13 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeSalaryHistory;
 use App\Models\Grade;
 use App\Models\GradeSalaryStep;
 use App\Models\PersonnelAction;
 use App\Models\Position;
+use App\Services\Payroll\SalaryHistoryWriter;
+use App\Support\SalaryChangeContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -102,7 +105,25 @@ class PersonnelActionService
 
             // A temporary posting must not overwrite the person's real job.
             if (! $type->isTemporary() && ! $scheduled) {
-                $employee->forceFill($apply)->save();
+                SalaryChangeContext::during(
+                    $data['effective_date'],
+                    'personnel_action',
+                    $action->id,
+                    fn () => $employee->forceFill($apply)->save(),
+                );
+            }
+
+            // A scheduled change is dated now, so a run for its period reads it
+            // before the hourly job has applied it. applyDue() writes no second.
+            if ($scheduled && array_key_exists('salary_cents', $apply)) {
+                app(SalaryHistoryWriter::class)->record(
+                    $employee,
+                    (int) $apply['salary_cents'],
+                    Carbon::parse($data['effective_date'])->toDateString(),
+                    'personnel_action',
+                    $action->id,
+                    $recordedBy,
+                );
             }
 
             AuditLog::record('employee.personnel_action', $employee, [
@@ -147,7 +168,21 @@ class PersonnelActionService
                 $employee = Employee::withTrashed()->find($action->employee_id);
 
                 if ($employee !== null && ! $employee->trashed()) {
-                    $employee->forceFill($action->pending_values ?? [])->save();
+                    $values = $action->pending_values ?? [];
+                    $recorded = array_key_exists('salary_cents', $values)
+                        && EmployeeSalaryHistory::query()
+                            ->where('tenant_id', $action->tenant_id)
+                            ->where('source', 'personnel_action')
+                            ->where('source_id', $action->id)
+                            ->exists();
+
+                    // The row was written when the action was recorded; a second
+                    // one here would date the same change twice.
+                    if ($recorded) {
+                        SalaryChangeContext::suppressed(fn () => $employee->forceFill($values)->save());
+                    } else {
+                        SalaryChangeContext::during($action->effective_date, 'personnel_action', $action->id, fn () => $employee->forceFill($values)->save());
+                    }
                 }
 
                 $action->forceFill(['applied_at' => now(), 'pending_values' => null])->save();
@@ -164,6 +199,60 @@ class PersonnelActionService
 
                 return 1;
             });
+        }
+
+        return $applied;
+    }
+
+    /**
+     * Bring the salary on each employee's record up to the one in force today.
+     *
+     * A future-dated contract writes a history row and leaves the column alone,
+     * so on its start date payroll pays the contract while the record, the
+     * employment letter and the next edit's comparison still hold the old
+     * figure. One query finds the employees whose row in force today (the
+     * organisation's own day) is above zero and differs from the column; each
+     * is written under a suppressed context, so no second row is made, and
+     * audited.
+     *
+     * @return int how many records were brought up to date
+     */
+    public function syncSalaryInForce(): int
+    {
+        $tenantId = app(CurrentTenant::class)->requireId();
+        $today = EmployeeTransitionService::today();
+
+        $candidates = DB::table('employee_salary_history as h')
+            ->join('employees as e', 'e.id', '=', 'h.employee_id')
+            ->where('h.tenant_id', $tenantId)
+            ->where('e.tenant_id', $tenantId)
+            ->whereNull('e.deleted_at')
+            ->where('h.salary_cents', '>', 0)
+            ->whereNull('h.superseded_by')
+            ->whereColumn('h.salary_cents', '!=', 'e.salary_cents')
+            ->whereRaw('h.id = (select h2.id from employee_salary_history h2 where h2.tenant_id = h.tenant_id and h2.employee_id = h.employee_id and h2.superseded_by is null and date(h2.effective_date) <= ? order by date(h2.effective_date) desc, h2.id desc limit 1)', [$today])
+            ->get(['h.employee_id', 'h.salary_cents', 'h.source', 'h.effective_date']);
+
+        $applied = 0;
+
+        foreach ($candidates as $row) {
+            $employee = Employee::query()->whereKey($row->employee_id)->first();
+
+            if ($employee === null || (int) $employee->salary_cents === (int) $row->salary_cents) {
+                continue;
+            }
+
+            $previous = (int) $employee->salary_cents;
+            SalaryChangeContext::suppressed(fn () => $employee->forceFill(['salary_cents' => (int) $row->salary_cents])->save());
+
+            AuditLog::record('employee.salary_in_force_applied', $employee, [
+                'salary_cents_from' => $previous,
+                'salary_cents_to' => (int) $row->salary_cents,
+                'source' => $row->source,
+                'effective_date' => substr((string) $row->effective_date, 0, 10),
+            ]);
+
+            $applied++;
         }
 
         return $applied;
@@ -192,6 +281,12 @@ class PersonnelActionService
                 'effective_date' => $locked->effective_date->toDateString(),
                 'changes' => $locked->changes,
             ]);
+
+            EmployeeSalaryHistory::query()
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('source', 'personnel_action')
+                ->where('source_id', $locked->id)
+                ->delete();
 
             $locked->delete();
         });

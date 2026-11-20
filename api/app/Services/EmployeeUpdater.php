@@ -10,8 +10,11 @@ use App\Models\User;
 use App\Support\EmployeeAuditMask;
 use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
+use App\Support\SalaryChangeContext;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -59,6 +62,10 @@ final class EmployeeUpdater
     {
         $data = $attributes;
 
+        // When a changed salary takes effect: not an employee column.
+        $effectiveFrom = $data['salary_effective_date'] ?? null;
+        unset($data['salary_effective_date']);
+
         // Salary and TIN are pay data: changing either needs
         // employee.updateFinancial, which employee.update alone never implied
         // (blueprint D4). A form that resends the unchanged value is not a
@@ -83,14 +90,36 @@ final class EmployeeUpdater
             $data['nationality_needs_review'] = false;
         }
 
-        $before = $employee->only(array_keys($data));
-        $employee->update($data);
+        // The salary a run pays comes from the dated history. A salary that
+        // changes is dated by the form's effective date when it gave one, never
+        // earlier than the hire date; a date sent with an unchanged salary is
+        // ignored.
+        $salaryChanges = array_key_exists('salary_cents', $data) && (int) $data['salary_cents'] !== (int) $employee->salary_cents;
+        $effectiveDate = null;
+        if ($salaryChanges && is_string($effectiveFrom) && $effectiveFrom !== '') {
+            $effectiveDate = Carbon::parse($effectiveFrom)->toDateString();
+            $hired = $data['hire_date'] ?? $employee->hire_date;
+            if ($hired !== null && $effectiveDate < Carbon::parse($hired)->toDateString()) {
+                $effectiveDate = Carbon::parse($hired)->toDateString();
+            }
+        }
 
-        AuditLog::record(
-            'employee.updated',
-            $employee,
-            EmployeeAuditMask::apply($before, $employee->only(array_keys($data))),
-        );
+        // The write, its salary history row and its audit record commit
+        // together: a row that cannot be written must not leave the new
+        // salary saved. The webhook goes out after the commit.
+        DB::transaction(function () use ($employee, $data, $effectiveDate): void {
+            $before = $employee->only(array_keys($data));
+            $save = fn () => $employee->update($data);
+            $effectiveDate !== null
+                ? SalaryChangeContext::during($effectiveDate, 'edit', null, $save)
+                : $save();
+
+            AuditLog::record(
+                'employee.updated',
+                $employee,
+                EmployeeAuditMask::apply($before, $employee->only(array_keys($data))),
+            );
+        });
         $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
         return $employee;

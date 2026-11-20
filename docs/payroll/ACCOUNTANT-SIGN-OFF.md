@@ -101,8 +101,9 @@ For a processed run, the run page offers:
 | 11 | Organisation-type coverage (2026-11-09, research P9): whether 1268/2022 Art. 3(4) excludes a **sole proprietor**'s own staff or only the owner; the scheme for **international organisations and diplomatic missions**, which today fall back to the private scheme; and the schemes for **cooperatives** and **religious organisations**. Each new type is paid as its parent until this row decides otherwise | | | |
 | 12 | Leave and deduction rows added 2026-11-09, all `confirmed = no`: annual 16 days and +1 per two years (Art. 77(1)), maternity 120 calendar days (Art. 88), paternity 3 days (article to cite), Art. 85 sick-pay tiers, window and half-pay ratio, the Art. 59 one-third cap; civil-service leave under 1353/2024 (`PolicyProfileCatalog` still cites the repealed 1064/2017); regional civil-service law and fiscal year | | | |
 | 13 | Pension coverage by contract type (`pension.applies_to`, research P11): casual and consultancy contracts are covered today, as before the row existed; confirm or correct | | | |
+| 14 | One salary per run (2026-11-20): the salary in force on the period's last day pays the whole period, and a change that lands mid-period is flagged on the payslip (`salary_changed_in_period`), not split by days. Confirm, or rule that a mid-period change is paid by days. Arrears and recoveries for a change back-dated into a month already paid are not calculated yet; the rule for taxing arrears is needed first | | | |
 
-Rows 1–13 are the whole review. A corrected platform value is entered as a new dated row, never an
+Rows 1–14 are the whole review. A corrected platform value is entered as a new dated row, never an
 edit (`STATUTORY-PARAMETERS.md` → *Changing a value*), carrying the same overridable flag so
 organisations keep their own choice; the golden payslips in §2 that use it are recomputed.
 
