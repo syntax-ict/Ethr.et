@@ -66,6 +66,15 @@ class OfflineSyncController extends Controller
         // own unless they may manage attendance, and its time must fall in
         // the window config/attendance.php allows. Checked per record, so one
         // bad record does not lose the rest of a batch that waited for signal.
+        //
+        // Every error result says whether the refusal is final. A final one
+        // can never be accepted, so the phone drops it; a non-final one is a
+        // passing fault, or a punch that must wait for its owner, and is kept.
+        // The window is checked first: it reads only the submitted time, so
+        // answering it reveals nothing about any employee, and a stale punch
+        // another person left on a shared phone ends as a final refusal
+        // instead of being re-sent as "not own" for ever. The own check still
+        // comes before any employee lookup.
         $user = $request->user();
         $ownEmployeePublicId = $user->employee?->public_id;
         $mayRecordForOthers = $user->hasPermission('attendance.manage');
@@ -75,18 +84,6 @@ class OfflineSyncController extends Controller
         $results = [];
 
         foreach ($request->validated('records') as $record) {
-            // Compared before any lookup, so a colleague's public_id is refused
-            // the same way whether or not it exists.
-            if (! $mayRecordForOthers && $record['employee_public_id'] !== $ownEmployeePublicId) {
-                $results[] = [
-                    'idempotency_key' => $record['idempotency_key'],
-                    'status' => 'error',
-                    'detail' => __('attendance.offline_not_own'),
-                ];
-
-                continue;
-            }
-
             $capturedAt = Carbon::parse($record['timestamp']);
             if ($capturedAt->lt($oldest) || $capturedAt->gt($latest)) {
                 $results[] = [
@@ -95,6 +92,20 @@ class OfflineSyncController extends Controller
                     'detail' => __('attendance.offline_outside_window', [
                         'days' => (int) config('attendance.offline_max_age_days'),
                     ]),
+                    'final' => true,
+                ];
+
+                continue;
+            }
+
+            // Compared before any lookup, so a colleague's public_id is refused
+            // the same way whether or not it exists.
+            if (! $mayRecordForOthers && $record['employee_public_id'] !== $ownEmployeePublicId) {
+                $results[] = [
+                    'idempotency_key' => $record['idempotency_key'],
+                    'status' => 'error',
+                    'detail' => __('attendance.offline_not_own'),
+                    'final' => false,
                 ];
 
                 continue;
@@ -107,6 +118,7 @@ class OfflineSyncController extends Controller
                     'idempotency_key' => $record['idempotency_key'],
                     'status' => 'error',
                     'detail' => 'Employee not found',
+                    'final' => false,
                 ];
 
                 continue;
@@ -172,6 +184,7 @@ class OfflineSyncController extends Controller
                     'status' => 'error',
                     'detail' => $e instanceof AttendanceRefused ? $e->getMessage() : __('attendance.punch_failed'),
                     'code' => $e instanceof DeviceBindingRefused ? $e->type : null,
+                    'final' => $e instanceof AttendanceRefused && $e->permanent,
                 ], fn ($v) => $v !== null);
             }
         }
