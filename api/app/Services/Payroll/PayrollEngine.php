@@ -399,7 +399,7 @@ final class PayrollEngine
 
             // Under the lock, so a salary moved after the run was calculated is
             // refused here and not only in a request that raced past the check.
-            if ($this->salaryChangedSince($locked)) {
+            if ($this->inputsChangedSince($locked)) {
                 throw PayrollRunRefused::inputsChangedSinceProcessed();
             }
 
@@ -662,6 +662,13 @@ final class PayrollEngine
      * their employees are read in chunks of 200, with history and contracts
      * eager-loaded.
      *
+     * It also says true when an entry's leaving date has moved so that the
+     * last day the person is paid for differs from the one logged (a date
+     * back-dated into the period, or before it so the person is no longer in
+     * the run at all), or the person is no longer among payableEmployees().
+     * A leaving date that moves from one day after the period to another
+     * changes nothing and is not a change. One extra query per chunk.
+     *
      * It also says true when someone the run should have paid has no entry in
      * it: a person hired or back-dated into the period after the run was
      * calculated. That is judged against exactly the people a run pays
@@ -670,7 +677,7 @@ final class PayrollEngine
      * run with at least one entry calculated at 1.9 or later, as an older run
      * cannot be judged.
      */
-    public function salaryChangedSince(PayrollRun $run): bool
+    public function inputsChangedSince(PayrollRun $run): bool
     {
         $start = Carbon::parse($run->period_start);
         $end = Carbon::parse($run->period_end);
@@ -688,6 +695,8 @@ final class PayrollEngine
                     ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
                     ->get()
                     ->keyBy('id');
+
+                $stillPayable = null;
 
                 foreach ($entries as $entry) {
                     $log = $entry->getAttribute('calculation_log');
@@ -711,12 +720,44 @@ final class PayrollEngine
 
                         return false;
                     }
+
+                    $stillPayable ??= array_flip($this->payableEmployees($run->tenant_id, $start, $end)
+                        ->whereIn('id', $entries->pluck('employee_id')->all())
+                        ->pluck('id')
+                        ->all());
+                    $loggedLeaving = $log['inputs']['termination_date'] ?? null;
+                    $loggedLast = $this->lastPaidDay(
+                        is_string($loggedLeaving) ? Carbon::parse($loggedLeaving) : null,
+                        $start,
+                        $end,
+                    );
+
+                    if (! isset($stillPayable[$employee->id])
+                        || ! $loggedLast->equalTo($this->lastPaidDay($employee->termination_date, $start, $end))) {
+                        $changed = true;
+
+                        return false;
+                    }
                 }
 
                 return true;
             });
 
         return $changed || ($judgeable && $this->payableEmployeeMissing($run, $start, $end));
+    }
+
+    /**
+     * The last day of the period a person is paid for: a leaving date counts
+     * only when it falls inside the period, otherwise the period's end. Shared
+     * by computeEntry() and inputsChangedSince() so both read the same rule.
+     */
+    private function lastPaidDay(?Carbon $terminationDate, Carbon $periodStart, Carbon $periodEnd): Carbon
+    {
+        $day = $terminationDate !== null && $terminationDate->between($periodStart, $periodEnd)
+            ? $terminationDate
+            : $periodEnd;
+
+        return $day->copy()->startOfDay();
     }
 
     /**
@@ -849,9 +890,7 @@ final class PayrollEngine
         $hireDate = $employee->hire_date;
         $terminationDate = $employee->termination_date;
         $firstDay = $hireDate && $hireDate->gt($periodStart) ? $hireDate->copy()->startOfDay() : $periodStart->copy()->startOfDay();
-        $lastDay = $terminationDate && $terminationDate->between($periodStart, $periodEnd)
-            ? $terminationDate->copy()->startOfDay()
-            : $periodEnd->copy()->startOfDay();
+        $lastDay = $this->lastPaidDay($terminationDate, $periodStart, $periodEnd);
         $hireProrationFactor = 1.0;
         $workedDays = $totalPeriodDays;
         if ($firstDay->gt($periodStart) || $lastDay->lt($periodEnd->copy()->startOfDay())) {

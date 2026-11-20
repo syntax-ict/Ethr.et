@@ -369,3 +369,59 @@ it('pays a corrected hire date its months, and a first salary set after creation
     $november = runFor($tenant->id, $user->id, '2026-11-01', '2026-11-30');
     expect(entryOf($november, $moved)->basic_salary_cents)->toBe(1_100_000);
 });
+
+function leaveOn(Employee $employee, string $date): void
+{
+    Employee::query()->withoutGlobalScopes()->whereKey($employee->id)->where('tenant_id', $employee->tenant_id)->update([
+        'status' => 'terminated',
+        'termination_date' => $date,
+    ]);
+}
+
+it('refuses to approve a run when a leaving date inside its period was recorded after it was calculated', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    [$tenant, $user, $employee] = salaryTenant();
+    $run = runFor($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+
+    leaveOn($employee, '2026-10-15');
+
+    test()->putJson("/api/v1/payroll/runs/{$run->public_id}/approve")
+        ->assertStatus(422)
+        ->assertJsonPath('type', 'https://ethr.et/errors/inputs-changed-since-processed');
+
+    expect($run->fresh()->status)->toBe('completed');
+});
+
+it('refuses to approve a run when a leaving date before its period was recorded after it was calculated', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    [$tenant, $user, $employee] = salaryTenant();
+    $run = runFor($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+
+    leaveOn($employee, '2026-09-15');
+
+    test()->putJson("/api/v1/payroll/runs/{$run->public_id}/approve")
+        ->assertStatus(422)
+        ->assertJsonPath('type', 'https://ethr.et/errors/inputs-changed-since-processed');
+});
+
+it('approves a run when a leaving date after its period was recorded after it was calculated', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    [$tenant, $user, $employee] = salaryTenant();
+    $run = runFor($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+
+    leaveOn($employee, '2026-11-20');
+
+    test()->putJson("/api/v1/payroll/runs/{$run->public_id}/approve")->assertOk();
+});
+
+it('approves a run when a leaving date after its period only moved to another day after it', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    [$tenant, $user, $employee] = salaryTenant();
+    leaveOn($employee, '2026-11-10');
+    $run = runFor($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+    expect(entryOf($run, $employee)->calculation_log['inputs']['termination_date'])->toBe('2026-11-10');
+
+    leaveOn($employee, '2026-12-05');
+
+    test()->putJson("/api/v1/payroll/runs/{$run->public_id}/approve")->assertOk();
+});
