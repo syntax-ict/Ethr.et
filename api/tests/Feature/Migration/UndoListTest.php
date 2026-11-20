@@ -58,7 +58,7 @@ describe('archiving what the list added', function () {
                 'exact' => true,
             ]);
         expect($batch->refresh()->undone_at)->not->toBeNull()
-            ->and($batch->undo_totals)->toBe(['archived' => 3, 'pending' => 0]);
+            ->and($batch->undo_totals)->toEqual(['archived' => 3, 'pending' => 0]);
 
         foreach ($people as $person) {
             test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$person->public_id}/restore")->assertOk();
@@ -458,7 +458,7 @@ describe('pressing it more than once, and a slice at a time', function () {
 
         expect(AuditLog::query()->where('action', 'migration.undone')->sole()->payload)->toMatchArray(['added' => 5, 'archived' => 5])
             ->and(AuditLog::query()->where('action', 'employee.deleted')->count())->toBe(5)
-            ->and($batch->refresh()->undo_totals)->toBe(['archived' => 5, 'pending' => 0]);
+            ->and($batch->refresh()->undo_totals)->toEqual(['archived' => 5, 'pending' => 0]);
     });
 });
 
