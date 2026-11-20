@@ -7034,6 +7034,7 @@
   "audit.action.admin.tenant.impersonation_handoff_claimed": "የውክልና መግቢያ ማገናኛ ጥቅም ላይ ዋለ",
   "audit.action.admin.tenant.impersonation_handoff_issued": "የውክልና መግቢያ ማገናኛ ተሰጠ",
   "audit.action.admin.tenant.impersonation_mfa_failed": "ወክሎ መግባት ተከለከለ፦ የተሳሳተ የማረጋገጫ ኮድ",
+  "audit.action.admin.tenant.impersonation_refused": "ወክሎ በመግባት ወቅት እርምጃ ተከለከለ",
   "audit.action.admin.tenant.restored": "ድርጅቱ ተመለሰ",
   "audit.action.admin.tenant.showcase_hidden": "ድርጅቱ ከETHR ድረ-ገጽ ተደበቀ",
   "audit.action.admin.tenant.showcase_unhidden": "ድርጅቱ በETHR ድረ-ገጽ ላይ እንደገና ታየ",

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
@@ -33,6 +34,8 @@ class EmployeeRelatedRecords
      */
     public function addBankDetail(Employee $employee, array $data): EmployeeBankDetail
     {
+        ImpersonationRestricted::unlessOrganisation('EmployeeRelatedRecords::addBankDetail');
+
         if (! empty($data['is_primary'])) {
             $employee->bankDetails()->update(['is_primary' => false]);
         }

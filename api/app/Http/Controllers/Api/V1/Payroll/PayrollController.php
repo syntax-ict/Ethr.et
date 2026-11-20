@@ -541,6 +541,7 @@ class PayrollController extends Controller
     {
         $this->authorize('view', $payrollRun);
         $this->ensureApprovedForPayment($payrollRun);
+        $bankExportService->assertAvailable();
 
         $entries = PayrollEntry::query()
             ->where('payroll_run_id', $payrollRun->id)
