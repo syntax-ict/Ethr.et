@@ -17,4 +17,19 @@ use RuntimeException;
  * endpoints answered 500. A RuntimeException still, so those catches (and the
  * device webhooks' per-event catch) keep working.
  */
-class AttendanceRefused extends RuntimeException {}
+class AttendanceRefused extends RuntimeException
+{
+    /**
+     * `$reason` is a short stable code (`employee_has_left`, `clock_ahead`),
+     * which a quarantined device punch keeps as its `failure`.
+     */
+    public function __construct(string $message = '', public readonly ?string $reason = null)
+    {
+        parent::__construct($message);
+    }
+
+    public function reasonCode(): string
+    {
+        return $this->reason ?? 'other';
+    }
+}

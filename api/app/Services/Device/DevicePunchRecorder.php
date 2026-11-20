@@ -76,8 +76,12 @@ final class DevicePunchRecorder
         $moment = DeviceTime::normalize((string) $occurredAt, $device);
         $offset = $moment === null ? null : DeviceClock::observe($device, $moment);
 
-        if ($moment === null || DeviceTime::isInFuture($moment)) {
-            throw new AttendanceRefused(__('attendance.device_clock_invalid'));
+        if ($moment === null) {
+            throw new AttendanceRefused(__('attendance.device_clock_invalid'), 'no_time');
+        }
+
+        if (DeviceTime::isInFuture($moment)) {
+            throw new AttendanceRefused(__('attendance.device_clock_invalid'), 'clock_ahead');
         }
 
         $this->engine->record(new AttendanceInput(

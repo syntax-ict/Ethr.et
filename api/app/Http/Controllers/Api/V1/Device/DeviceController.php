@@ -44,7 +44,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -557,7 +556,8 @@ class DeviceController extends Controller
         }
 
         $badge = HikvisionEvent::badge($event);
-        $timestamp = $event['time'] ?? now()->toIso8601String();
+        $timestamp = $event['time'] ?? null;
+        $timestamp = is_scalar($timestamp) ? trim((string) $timestamp) : '';
 
         if ($badge === null) {
             return response()->json(['status' => 'no_badge'], 200);
@@ -572,16 +572,38 @@ class DeviceController extends Controller
         // work is done by ProcessDeviceInboundPunchesJob, in arrival order.
         // The key is the one the punch is recorded under, so a re-sent event
         // is one row, and the job is queued only for a row that is new.
-        $queued = DB::table('device_inbound_punches')->insertOrIgnore([
+        $raw = DeviceInboundPunch::capRaw($event);
+
+        // An event with no time is never dated now(): a resend would get a
+        // new key and record twice. It goes to quarantine at once, keyed by
+        // what it said, so a resend is the same row.
+        if ($timestamp === '') {
+            DeviceInboundPunch::stash([[
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
+                'occurred_raw' => '',
+                'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                'raw' => $raw,
+                'processed_at' => now(),
+                'failed_at' => now(),
+                'failure' => 'no_time',
+                'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+            ]]);
+
+            return response()->json(['status' => 'accepted'], 200);
+        }
+
+        $queued = DeviceInboundPunch::stash([[
             'tenant_id' => $device->tenant_id,
             'device_id' => $device->id,
             'badge' => mb_substr($badge, 0, 64),
             'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
-            'occurred_raw' => mb_substr((string) $timestamp, 0, 64),
+            'occurred_raw' => mb_substr($timestamp, 0, 64),
             'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:{$timestamp}"),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            'raw' => $raw,
+        ]]);
 
         if ($queued === 1) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);

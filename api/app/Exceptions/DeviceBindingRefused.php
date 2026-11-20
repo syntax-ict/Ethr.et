@@ -22,6 +22,11 @@ final class DeviceBindingRefused extends AttendanceRefused
         parent::__construct(__('attendance.'.str_replace('-', '_', $type)));
     }
 
+    public function reasonCode(): string
+    {
+        return 'device_binding';
+    }
+
     public static function from(DeviceVerdict $verdict): self
     {
         return new self($verdict->refusal() ?? 'device-proof-invalid', $verdict->canonicalUrl);
