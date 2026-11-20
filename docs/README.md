@@ -196,7 +196,7 @@ at all while being cited from sixteen and six places in the code.)*
 | [`operations/ORGANISATION-NEWS.md`](operations/ORGANISATION-NEWS.md) | **Organisation news pages**: where `/news` lives on each kind of address, what makes a story public, the publishing actions and their audit entries, search-engine rules, and what deploying it needs |
 | [`operations/ORGANISATION-FAQ.md`](operations/ORGANISATION-FAQ.md) | **Organisation questions (FAQ)**: where an organisation writes its questions and answers, what the public sees, and the rules the server applies on save and serve |
 | [`operations/ORGANISATION-SERVICES.md`](operations/ORGANISATION-SERVICES.md) | **Organisation services**: what an organisation offers on its public page, the rules on save and serve, and where a section added later lands in a saved order |
-| [`operations/marketing-deck/README.md`](operations/marketing-deck/README.md) | **Sales deck for HR buyers**: the 13 slides and their source, the claims it may make, where the prices come from, and what its live panels do |
+| [`operations/marketing-deck/README.md`](operations/marketing-deck/README.md) | **Sales deck: retired** on 20 November 2026. What the old deck said that is no longer true, and where the claims any sales material may make are governed |
 | [`operations/social-kit/README.md`](operations/social-kit/README.md) | **Social media kit**: profile images and bios, 62 posts, carousel slides, stories and link cards in English and Amharic, captions per platform, a launch calendar, video scripts, and the check that keeps every sentence inside the claims the site may make |
 
 ## Archive

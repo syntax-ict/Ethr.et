@@ -1,6 +1,6 @@
 # Social media kit
 
-Everything needed to run ETHR's social channels: profile images and bios, 72 ready-to-post images in English and Amharic (ten of them built on real ETHR screens), captions for each platform, a four-week launch calendar and short video scripts. It sits beside the [sales deck](../marketing-deck/README.md) and makes the same claims, from the same sources.
+Everything needed to run ETHR's social channels: profile images and bios, 72 ready-to-post images in English and Amharic (ten of them built on real ETHR screens), captions for each platform, a four-week launch calendar and short video scripts. The sales deck that sat beside it is [retired](../marketing-deck/README.md); the kit takes its claims from the same sources as the public site.
 
 | File | What it is |
 |---|---|
