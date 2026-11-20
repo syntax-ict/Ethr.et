@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { OFFLINE_GRANT_PREFIX } from "@/lib/offline-signout";
 
 /**
  * The server's permission to punch offline (see OfflineGrant on the API).
@@ -19,7 +20,7 @@ interface StoredGrant {
   rp_id?: string | null;
 }
 
-const PREFIX = "ethr.offline_grant.";
+const PREFIX = OFFLINE_GRANT_PREFIX;
 
 /**
  * Renew a grant once it is this old (by `issued_at`). The grant is valid for

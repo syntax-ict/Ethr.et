@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
+import {
+  resetOfflineSyncForTests,
+  useOfflineSync,
+} from "@/lib/hooks/useOfflineSync";
 import { apiClient } from "@/api/client";
 import * as offlineQueue from "@/lib/offline-queue";
 import type { OfflineAttendanceRecord } from "@/lib/offline-queue";
@@ -58,6 +61,7 @@ describe("useOfflineSync", () => {
   });
 
   afterEach(() => {
+    resetOfflineSyncForTests();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -492,6 +496,258 @@ describe("useOfflineSync", () => {
         await result.current.removeRefused(9);
       });
       expect(offlineQueue.removeRecord).toHaveBeenCalledWith(9);
+    });
+  });
+});
+
+describe("useOfflineSync, from any page and again by itself", () => {
+  const NETWORK = Object.assign(new Error("Network Error"), {});
+  const created = {
+    data: { results: [{ idempotency_key: "key-1", status: "created" }] },
+  } as never;
+
+  beforeEach(() => {
+    setNavigatorOnline(true);
+    vi.spyOn(offlineQueue, "getPendingCount").mockResolvedValue(1);
+    vi.spyOn(offlineQueue, "getPendingRecords").mockResolvedValue([record()]);
+    vi.spyOn(offlineQueue, "markSynced").mockResolvedValue(undefined);
+    vi.spyOn(offlineQueue, "markSyncError").mockResolvedValue(undefined);
+    vi.spyOn(offlineQueue, "markRefused").mockResolvedValue(undefined);
+    vi.spyOn(offlineQueue, "getRefusedRecords").mockResolvedValue([]);
+    vi.spyOn(offlineQueue, "clearSyncedRecords").mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    resetOfflineSyncForTests();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("sends once when two instances are mounted, the shell's agent and the punch screen", async () => {
+    let release!: (v: unknown) => void;
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockImplementation(() => new Promise((r) => (release = r)) as never);
+
+    const a = renderHook(() => useOfflineSync(EMP));
+    const b = renderHook(() => useOfflineSync(EMP));
+    await act(async () => {
+      void a.result.current.syncNow();
+      void b.result.current.syncNow();
+    });
+
+    expect(post).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      release(created);
+    });
+  });
+
+  it("tells the other instance the queue changed", async () => {
+    vi.spyOn(apiClient, "post").mockResolvedValue(created);
+    const count = vi.spyOn(offlineQueue, "getPendingCount");
+
+    const a = renderHook(() => useOfflineSync(EMP));
+    renderHook(() => useOfflineSync(EMP));
+    await waitFor(() => expect(count).toHaveBeenCalled());
+    count.mockClear();
+
+    await act(async () => {
+      await a.result.current.syncNow();
+    });
+
+    // a reads once itself and once for the event; b reads once for the event.
+    expect(count.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("clears what is already on the server after a run that sent something", async () => {
+    vi.spyOn(apiClient, "post").mockResolvedValue(created);
+
+    const { result } = renderHook(() => useOfflineSync(EMP));
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(offlineQueue.clearSyncedRecords).toHaveBeenCalled();
+  });
+
+  it("does not clear anything after a run that sent nothing", async () => {
+    vi.spyOn(apiClient, "post").mockRejectedValue(NETWORK);
+
+    const { result } = renderHook(() => useOfflineSync(EMP));
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(offlineQueue.clearSyncedRecords).not.toHaveBeenCalled();
+  });
+
+  describe("retrying after a failed send", () => {
+    beforeEach(() => {
+      // Nothing counted, so the mount does not start a run of its own and the
+      // test alone decides when one happens.
+      vi.spyOn(offlineQueue, "getPendingCount").mockResolvedValue(0);
+    });
+
+    async function tick(ms: number) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+
+    it("tries again after 30 s, 60 s, 2 min, 5 min, then every 5 min", async () => {
+      vi.useFakeTimers();
+      const post = vi.spyOn(apiClient, "post").mockRejectedValue(NETWORK);
+
+      const { result } = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      const base = post.mock.calls.length;
+
+      for (const [wait, expected] of [
+        [30_000, 1],
+        [60_000, 2],
+        [120_000, 3],
+        [300_000, 4],
+        [300_000, 5],
+      ] as const) {
+        await tick(wait - 1);
+        expect(post.mock.calls.length).toBe(base + expected - 1);
+        await tick(1);
+        expect(post.mock.calls.length).toBe(base + expected);
+      }
+    });
+
+    it("starts the schedule over after a run that sent something", async () => {
+      vi.useFakeTimers();
+      const post = vi
+        .spyOn(apiClient, "post")
+        .mockRejectedValueOnce(NETWORK)
+        .mockRejectedValueOnce(NETWORK)
+        .mockResolvedValueOnce(created)
+        .mockRejectedValue(NETWORK);
+
+      const { result } = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      await tick(30_000);
+      await tick(60_000);
+      expect(post.mock.calls.length).toBeGreaterThanOrEqual(3);
+
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      const before = post.mock.calls.length;
+      await tick(29_999);
+      expect(post.mock.calls.length).toBe(before);
+      await tick(1);
+      expect(post.mock.calls.length).toBe(before + 1);
+    });
+
+    it("does not retry a punch the server refused for good", async () => {
+      vi.useFakeTimers();
+      const post = vi.spyOn(apiClient, "post").mockResolvedValue({
+        data: {
+          results: [
+            {
+              idempotency_key: "key-1",
+              status: "error",
+              final: true,
+              detail: "This day is closed.",
+            },
+          ],
+        },
+      } as never);
+
+      const { result } = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      const base = post.mock.calls.length;
+      await tick(600_000);
+
+      expect(post.mock.calls.length).toBe(base);
+    });
+
+    it("does not retry while the browser is offline", async () => {
+      vi.useFakeTimers();
+      const post = vi.spyOn(apiClient, "post").mockRejectedValue(NETWORK);
+
+      const { result } = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      const base = post.mock.calls.length;
+
+      setNavigatorOnline(false);
+      await act(async () => {
+        window.dispatchEvent(new Event("offline"));
+      });
+      await tick(600_000);
+
+      expect(post.mock.calls.length).toBe(base);
+    });
+
+    it("stops retrying when the page unmounts", async () => {
+      vi.useFakeTimers();
+      const post = vi.spyOn(apiClient, "post").mockRejectedValue(NETWORK);
+
+      const { result, unmount } = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await result.current.syncNow();
+      });
+      const base = post.mock.calls.length;
+      unmount();
+      await tick(600_000);
+
+      expect(post.mock.calls.length).toBe(base);
+    });
+
+    it("leaves no timer behind when the page unmounts during a send", async () => {
+      vi.useFakeTimers();
+      let fail!: (e: unknown) => void;
+      const post = vi
+        .spyOn(apiClient, "post")
+        .mockImplementationOnce(
+          () => new Promise((_, reject) => (fail = reject)) as never,
+        )
+        .mockRejectedValue(NETWORK);
+
+      const { result, unmount } = renderHook(() => useOfflineSync(EMP));
+      let run!: Promise<unknown>;
+      await act(async () => {
+        run = result.current.syncNow();
+      });
+      unmount();
+      await act(async () => {
+        fail(NETWORK);
+        await run;
+      });
+      await tick(600_000);
+
+      expect(post).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the backoff when another instance mounts with punches waiting", async () => {
+      vi.useFakeTimers();
+      const post = vi.spyOn(apiClient, "post").mockRejectedValue(NETWORK);
+
+      const a = renderHook(() => useOfflineSync(EMP));
+      await act(async () => {
+        await a.result.current.syncNow();
+      });
+      const base = post.mock.calls.length;
+
+      // The punch screen opens and finds a punch waiting.
+      vi.spyOn(offlineQueue, "getPendingCount").mockResolvedValue(1);
+      renderHook(() => useOfflineSync(EMP));
+      await tick(29_999);
+      expect(post.mock.calls.length).toBe(base);
+
+      await tick(1);
+      expect(post.mock.calls.length).toBe(base + 1);
     });
   });
 });
