@@ -16,7 +16,6 @@ use App\Services\Device\AdmsProtocol;
 use App\Services\Device\AdmsRoster;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DevicePunchKey;
-use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureGate;
 use App\Support\FeatureUnavailable;

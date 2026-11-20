@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
+use App\Http\Middleware\RunBackgroundWorkAfterResponse;
 use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
@@ -11,6 +12,7 @@ use App\Models\DeviceInboundPunch;
 use App\Models\Employee;
 use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
@@ -136,7 +138,7 @@ it('keeps an unreadable ADMS line as a quarantined row with the line', function 
 });
 
 it('answers /iclock through the background-work middleware', function () {
-    $route = app('router')->getRoutes()->match(Illuminate\Http\Request::create('/iclock/cdata', 'POST'));
+    $route = app('router')->getRoutes()->match(Request::create('/iclock/cdata', 'POST'));
 
-    expect($route->gatherMiddleware())->toContain(App\Http\Middleware\RunBackgroundWorkAfterResponse::class);
+    expect($route->gatherMiddleware())->toContain(RunBackgroundWorkAfterResponse::class);
 });

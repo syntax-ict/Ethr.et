@@ -18,7 +18,6 @@ use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\DeviceManager;
 use Carbon\Carbon;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
@@ -321,8 +320,8 @@ it('stores a punch before the engine runs, so a database failure there never los
 
     // The engine's work is the queue's now (ProcessDeviceInboundPunchesJob);
     // a failure there leaves the row pending and is retried (HikvisionInboxTest).
-    adms('POST', 'cdata', "1042	2026-10-14 08:01:22	0	1	0	0	0
-", ['table' => 'ATTLOG'])
+    adms('POST', 'cdata', '1042	2026-10-14 08:01:22	0	1	0	0	0
+', ['table' => 'ATTLOG'])
         ->assertOk()->assertSeeText('OK: 1');
 
     expect(DeviceInboundPunch::withoutGlobalScopes()->whereNull('processed_at')->count())->toBe(1)
