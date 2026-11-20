@@ -133,7 +133,7 @@ it('keeps an unreadable ADMS line as a quarantined row with the line', function 
     pushAdms("garbage without tabs\n1042\t2026-10-14 08:00:00\t0\n")->assertOk()->assertSee('OK: 2');
 
     $bad = DeviceInboundPunch::withoutGlobalScopes()->whereNotNull('failed_at')->sole();
-    expect($bad->failure)->toBe('error')
+    expect($bad->failure)->toBe('unreadable')
         ->and($bad->raw)->toBe('garbage without tabs');
 });
 
@@ -142,3 +142,31 @@ it('answers /iclock through the background-work middleware', function () {
 
     expect($route->gatherMiddleware())->toContain(RunBackgroundWorkAfterResponse::class);
 });
+
+it('keeps the terminal\'s own ADMS line as the raw copy', function () {
+    Queue::fake();
+    pushSetup('zkteco_adms');
+    $line = "1042\t2026-10-14 08:00:00\t0\t1\t0\t0";
+
+    pushAdms($line."\n")->assertOk();
+
+    expect(DeviceInboundPunch::withoutGlobalScopes()->sole()->raw)->toBe($line);
+});
+
+it('keeps a ZKTeco or Suprema punch with no time as one quarantined row, however often it is sent', function (string $adapter, string $vendor, array $body) {
+    Queue::fake();
+    [$tenant] = pushSetup($adapter);
+
+    pushJson($tenant, $vendor, $body)->assertOk()->assertJsonPath('count', 1);
+    pushJson($tenant, $vendor, $body)->assertOk();
+
+    $row = DeviceInboundPunch::withoutGlobalScopes()->sole();
+    expect($row->failure)->toBe('no_time')
+        ->and($row->failed_at)->not->toBeNull()
+        ->and($row->raw)->toContain('1042')
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+    Queue::assertNothingPushed();
+})->with([
+    'zkteco' => ['zkteco', 'zkteco', ['sn' => PUSH_SN, 'records' => [['pin' => '1042', 'punch' => 0]]]],
+    'suprema' => ['suprema', 'suprema', ['events' => [['user_id' => '1042', 'event_type_id' => 0x1000]]]],
+]);

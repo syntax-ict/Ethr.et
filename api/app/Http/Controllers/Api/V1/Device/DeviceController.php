@@ -716,6 +716,7 @@ class DeviceController extends Controller
     private function stashPushed(Device $device, string $vendor, array $punches): int
     {
         $rows = [];
+        $undated = [];
 
         foreach ($punches as $punch) {
             $badge = $punch['badge'];
@@ -724,8 +725,27 @@ class DeviceController extends Controller
             }
 
             $time = is_scalar($punch['time']) ? trim((string) $punch['time']) : '';
+
+            // A punch with no time is never dated now(): a resend would get a
+            // new key and record twice. It is kept in quarantine at once,
+            // keyed by what it said, so a resend is the same row.
             if ($time === '') {
-                $time = now()->toIso8601String();
+                $raw = DeviceInboundPunch::capRaw($punch['raw']);
+                $undated[] = [
+                    'tenant_id' => $device->tenant_id,
+                    'device_id' => $device->id,
+                    'badge' => mb_substr($badge, 0, 64),
+                    'punch_type' => mb_substr($punch['type'], 0, 20),
+                    'occurred_raw' => '',
+                    'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                    'raw' => $raw,
+                    'processed_at' => now(),
+                    'failed_at' => now(),
+                    'failure' => 'no_time',
+                    'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+                ];
+
+                continue;
             }
 
             $rows[] = [
@@ -739,11 +759,13 @@ class DeviceController extends Controller
             ];
         }
 
+        DeviceInboundPunch::stash($undated);
+
         if (DeviceInboundPunch::stash($rows) > 0) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
         }
 
-        return count($rows);
+        return count($rows) + count($undated);
     }
 
     /**

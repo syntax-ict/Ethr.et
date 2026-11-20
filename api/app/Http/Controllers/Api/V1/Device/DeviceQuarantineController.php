@@ -30,7 +30,7 @@ class DeviceQuarantineController extends Controller
 
         $withRaw = Gate::allows('device.update');
 
-        $page = $this->quarantine->inQuarantine($device->tenant_id)
+        $page = $this->quarantine->inQuarantine($this->tenantId())
             ->where('device_id', $device->id)
             ->orderByDesc('id')
             ->paginate($request->integer('per_page', 25));
@@ -41,7 +41,7 @@ class DeviceQuarantineController extends Controller
             'punch_type' => $row->punch_type,
             'occurred_raw' => $row->occurred_raw,
             'failure' => $row->failure,
-            'error' => $row->error,
+            'error' => $withRaw ? $row->error : null,
             'failed_at' => $row->failed_at?->toIso8601String(),
             'received_at' => $row->created_at?->toIso8601String(),
             'raw' => $withRaw ? $row->raw : null,
@@ -61,9 +61,11 @@ class DeviceQuarantineController extends Controller
             'requested' => count($ids),
             'replayed' => $result['replayed'],
             'skipped' => $result['skipped'],
+            'devices' => $result['devices'],
+            'rows' => $result['ids'],
         ]);
 
-        return response()->json($result);
+        return response()->json(['replayed' => $result['replayed'], 'skipped' => $result['skipped']]);
     }
 
     public function dismiss(QuarantineRowsRequest $request): JsonResponse
@@ -71,14 +73,16 @@ class DeviceQuarantineController extends Controller
         Gate::authorize('device.update');
 
         $ids = array_values($request->validated('ids'));
-        $dismissed = $this->quarantine->dismiss($this->tenantId(), $ids);
+        $result = $this->quarantine->dismiss($this->tenantId(), $ids);
 
         AuditLog::record('device.quarantine_dismissed', null, [
             'requested' => count($ids),
-            'dismissed' => $dismissed,
+            'dismissed' => $result['dismissed'],
+            'devices' => $result['devices'],
+            'rows' => $result['ids'],
         ]);
 
-        return response()->json(['dismissed' => $dismissed]);
+        return response()->json(['dismissed' => $result['dismissed']]);
     }
 
     private function tenantId(): int

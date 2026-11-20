@@ -63,7 +63,9 @@ final class AdmsProtocol
     }
 
     /**
-     * @return list<array{pin: string, time: string, status: string|null}>
+     * `line` is the terminal's own line, as it sent it, kept as the raw copy.
+     *
+     * @return list<array{pin: string, time: string, status: string|null, line: string}>
      */
     public static function attendanceLines(string $body): array
     {
@@ -74,7 +76,7 @@ final class AdmsProtocol
                 continue;
             }
 
-            $punches[] = ['pin' => $fields[0], 'time' => $fields[1], 'status' => $fields[2] ?? null];
+            $punches[] = ['pin' => $fields[0], 'time' => $fields[1], 'status' => $fields[2] ?? null, 'line' => mb_substr(trim($line), 0, 500)];
         }
 
         return $punches;

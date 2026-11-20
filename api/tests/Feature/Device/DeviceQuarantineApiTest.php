@@ -12,6 +12,8 @@ use App\Models\DeviceInboundPunch;
 use App\Models\Employee;
 use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
 /*
@@ -65,6 +67,7 @@ it('lists a quarantined punch with its raw event for someone who may change the 
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.public_id', $row->public_id)
+        ->assertJsonPath('data.0.error', $row->error)
         ->assertJsonPath('data.0.badge', '1001')
         ->assertJsonPath('data.0.failure', 'refused:employee_has_left')
         ->assertJsonMissingPath('data.0.id')
@@ -79,7 +82,8 @@ it('lists for a view-only user but does not show raw, and refuses replay and dis
     quarantineApi($tenant, 'GET', "{$device->public_id}/quarantine")
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.raw', null);
+        ->assertJsonPath('data.0.raw', null)
+        ->assertJsonPath('data.0.error', null);
 
     quarantineApi($tenant, 'POST', 'quarantine/replay', ['ids' => [$row->public_id]])->assertForbidden();
     quarantineApi($tenant, 'POST', 'quarantine/dismiss', ['ids' => [$row->public_id]])->assertForbidden();
@@ -159,6 +163,56 @@ it('shows another organisation nothing, and lets it change nothing', function ()
     quarantineApi($tenantB, 'POST', 'quarantine/dismiss', ['ids' => [$row->public_id]])->assertOk()->assertJsonPath('dismissed', 0);
 
     expect($row->refresh()->failed_at)->not->toBeNull()->and($row->dismissed_at)->toBeNull();
+});
+
+it('replays a failure that was kept before this change, which has no raw copy', function () {
+    [$tenant, $device, $employee] = quarantineApiPlain();
+
+    // What the migration makes of an old processed row with an error.
+    DB::table('device_inbound_punches')->insert([
+        'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'device_id' => $device->id,
+        'badge' => '1001', 'punch_type' => 'check_in', 'occurred_raw' => '2026-10-14T08:00:00+03:00',
+        'idempotency_key' => 'webhook:hik:legacy:1001', 'processed_at' => now(), 'failed_at' => now(),
+        'failure' => 'error', 'error' => 'Something old.', 'raw' => null, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $row = DeviceInboundPunch::withoutGlobalScopes()->sole();
+
+    quarantineApi($tenant, 'POST', 'quarantine/replay', ['ids' => [$row->public_id]])
+        ->assertOk()->assertJsonPath('replayed', 1);
+
+    expect(AttendanceRecord::withoutGlobalScopes()->where('employee_id', $employee->id)->count())->toBe(1)
+        ->and($row->refresh()->failed_at)->toBeNull();
+});
+
+it('does not replay a line it cannot read, and keeps what the terminal sent', function () {
+    [$tenant, $device] = quarantineApiPlain();
+
+    DB::table('device_inbound_punches')->insert([
+        'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'device_id' => $device->id,
+        'badge' => '', 'punch_type' => 'auto', 'occurred_raw' => '', 'idempotency_key' => 'webhook:adms:bad:1',
+        'processed_at' => now(), 'failed_at' => now(), 'failure' => 'unreadable', 'error' => 'The line could not be read.',
+        'raw' => 'garbage without tabs', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $row = DeviceInboundPunch::withoutGlobalScopes()->sole();
+
+    quarantineApi($tenant, 'POST', 'quarantine/replay', ['ids' => [$row->public_id]])
+        ->assertOk()->assertJsonPath('replayed', 0)->assertJsonPath('skipped', 1);
+
+    $row->refresh();
+    expect($row->failed_at)->not->toBeNull()
+        ->and($row->raw)->toBe('garbage without tabs')
+        ->and(AttendanceRecord::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('names the devices and rows in the audit entries', function () {
+    [$tenant, $device] = quarantineFixtureLeaver();
+    $row = DeviceInboundPunch::withoutGlobalScopes()->sole();
+
+    quarantineApi($tenant, 'POST', 'quarantine/dismiss', ['ids' => [$row->public_id]])->assertOk();
+
+    $entry = AuditLog::withoutGlobalScopes()->where('action', 'device.quarantine_dismissed')->sole();
+    expect($entry->payload['devices'] ?? null)->toBe([$device->public_id])
+        ->and($entry->payload['rows'] ?? null)->toBe([$row->public_id]);
 });
 
 /** @return array{0: Tenant, 1: Device, 2: Employee} a leaver whose punch is already in quarantine */

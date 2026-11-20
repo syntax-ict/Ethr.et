@@ -118,7 +118,7 @@ class AdmsController extends Controller
                     'punch_type' => mb_substr(ZktecoAdapter::directionFor($punch['status']), 0, 20),
                     'occurred_raw' => $punch['time'],
                     'idempotency_key' => DevicePunchKey::fit("webhook:adms:{$device->id}:{$punch['pin']}:{$punch['time']}"),
-                    'raw' => DeviceInboundPunch::capRaw(implode("\t", array_filter([$punch['pin'], $punch['time'], $punch['status']], fn ($f) => $f !== null))),
+                    'raw' => DeviceInboundPunch::capRaw($punch['line']),
                 ];
             }
 
@@ -138,7 +138,7 @@ class AdmsController extends Controller
                     'raw' => DeviceInboundPunch::capRaw($line),
                     'processed_at' => now(),
                     'failed_at' => now(),
-                    'failure' => 'error',
+                    'failure' => 'unreadable',
                     'error' => 'The line could not be read.',
                 ];
             }

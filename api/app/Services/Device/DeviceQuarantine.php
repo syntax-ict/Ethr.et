@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Device;
 
 use App\Jobs\ProcessDeviceInboundPunchesJob;
+use App\Models\Device;
 use App\Models\DeviceInboundPunch;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -23,8 +24,15 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class DeviceQuarantine
 {
-    /** The reasons a replay cannot help: the terminal sent no time, so the same row fails again. */
-    private const NOT_REPLAYABLE = ['no_time'];
+    /**
+     * The reasons a replay cannot help: the terminal sent no time, or a line
+     * ETHR cannot read, so the same row fails again (and, for a line, would
+     * be handled as a badge nobody holds and its raw text cleared).
+     */
+    private const NOT_REPLAYABLE = ['no_time', 'unreadable'];
+
+    /** The most row ids an audit entry carries; the count says how many there were. */
+    public const AUDIT_IDS = 200;
 
     /** @return Builder<DeviceInboundPunch> */
     public function inQuarantine(int $tenantId): Builder
@@ -37,11 +45,11 @@ final class DeviceQuarantine
 
     /**
      * @param  list<string>  $publicIds
-     * @return array{replayed: int, skipped: int}
+     * @return array{replayed: int, skipped: int, ids: list<string>, devices: list<string>}
      */
     public function replay(int $tenantId, array $publicIds): array
     {
-        $rows = $this->inQuarantine($tenantId)->whereIn('public_id', $publicIds)->get(['id', 'device_id', 'failure']);
+        $rows = $this->inQuarantine($tenantId)->whereIn('public_id', $publicIds)->get(['id', 'public_id', 'device_id', 'failure']);
 
         $replayable = $rows->reject(fn (DeviceInboundPunch $row) => in_array($row->failure, self::NOT_REPLAYABLE, true));
 
@@ -62,17 +70,44 @@ final class DeviceQuarantine
             }
         }
 
-        return ['replayed' => $replayable->count(), 'skipped' => $rows->count() - $replayable->count()];
+        return [
+            'replayed' => $replayable->count(),
+            'skipped' => $rows->count() - $replayable->count(),
+            'ids' => $replayable->pluck('public_id')->take(self::AUDIT_IDS)->values()->all(),
+            'devices' => $this->devicePublicIds($tenantId, $replayable->pluck('device_id')->unique()->all()),
+        ];
     }
 
     /**
      * @param  list<string>  $publicIds
-     * @return int how many were dismissed
+     * @return array{dismissed: int, ids: list<string>, devices: list<string>}
      */
-    public function dismiss(int $tenantId, array $publicIds): int
+    public function dismiss(int $tenantId, array $publicIds): array
     {
-        return $this->inQuarantine($tenantId)
-            ->whereIn('public_id', $publicIds)
+        $rows = $this->inQuarantine($tenantId)->whereIn('public_id', $publicIds)->get(['id', 'public_id', 'device_id']);
+
+        $dismissed = $rows->isEmpty() ? 0 : DeviceInboundPunch::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $rows->pluck('id')->all())
             ->update(['dismissed_at' => now(), 'updated_at' => now()]);
+
+        return [
+            'dismissed' => $dismissed,
+            'ids' => $rows->pluck('public_id')->take(self::AUDIT_IDS)->values()->all(),
+            'devices' => $this->devicePublicIds($tenantId, $rows->pluck('device_id')->unique()->all()),
+        ];
+    }
+
+    /**
+     * @param  list<int>  $deviceIds
+     * @return list<string>
+     */
+    private function devicePublicIds(int $tenantId, array $deviceIds): array
+    {
+        if ($deviceIds === []) {
+            return [];
+        }
+
+        return Device::query()->where('tenant_id', $tenantId)->whereIn('id', $deviceIds)->pluck('public_id')->map(fn ($id) => (string) $id)->values()->all();
     }
 }
