@@ -38,4 +38,5 @@ return [
     'pay_differences_unacknowledged' => 'በዚህ ድርጅት ውስጥ :count የደመወዝ ልዩነት(ዎች) ክፍት ናቸው፤ በዚህ ሂደት ውስጥ የሌሉ ሠራተኞችንም ያካትታል። ይገምግሟቸው፤ ከዚያ ያንን ቁጥር አረጋግጠው ያጽድቁ።',
     'pay_difference_not_open' => 'ክፍት የሆነ የደመወዝ ልዩነት ብቻ ሊፈታ ወይም ውድቅ ሊደረግ ይችላል።',
     'settled_pay_differences_unacknowledged' => 'በዚህ ሂደት ውስጥ :count የደመወዝ ልዩነት(ዎች) በእጅ ተከፍለዋል። ሂደቱን ሰርዘው እንደገና ማስኬድ እነዚያን ወራት ሙሉ በሙሉ ይከፍላል። ለመሰረዝ ያንን ቁጥር ያረጋግጡ።',
+    'pay_differences_failed_note' => 'ከእነዚህ ውስጥ :failed መሰላት አልቻሉም፤ በእጅ መታየት አለባቸው።',
 ];

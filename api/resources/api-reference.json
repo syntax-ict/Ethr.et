@@ -33018,6 +33018,7 @@
                             "enum": [
                                 "pending",
                                 "open",
+                                "failed",
                                 "settled",
                                 "dismissed",
                                 "superseded",
@@ -53629,6 +53630,12 @@
                     "net_is_estimate": {
                         "type": "boolean"
                     },
+                    "error": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "note": {
                         "type": [
                             "string",
@@ -53669,6 +53676,7 @@
                     "changed_from",
                     "trail_rebuilt_at_release",
                     "net_is_estimate",
+                    "error",
                     "note",
                     "settled_at",
                     "created_at"

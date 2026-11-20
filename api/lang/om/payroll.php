@@ -38,4 +38,5 @@ return [
     'pay_differences_unacknowledged' => 'Garaagarummaan mindaa :count dhaabbata kana keessatti banaa dha, namoota raawwii kana keessa hin jirres dabalatee. Isaan ilaalaatii lakkoofsa sana waliin raggaasisaa.',
     'pay_difference_not_open' => 'Garaagarummaan mindaa banaa ta\'e qofatu furamuu ykn didamuu danda\'a.',
     'settled_pay_differences_unacknowledged' => 'Garaagarummaan mindaa :count raawwii kana keessa harkaan kaffalameera. Raawwii kana haqanii irra deebi\'anii hojjechuun ji\x27oota sana guutummaatti kaffala. Haquuf lakkoofsa sana mirkaneessaa.',
+    'pay_differences_failed_note' => 'Isaan keessaa :failed herregamuu hin dandeenye; harkaan ilaalamuu qabu.',
 ];

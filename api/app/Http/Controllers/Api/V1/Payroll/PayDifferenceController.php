@@ -57,22 +57,31 @@ class PayDifferenceController extends Controller
     {
         $this->authorize('settle', $payDifference);
 
-        return $this->close($payDifference, PayrollPayDifference::SETTLED, 'payroll.pay_difference_settled', (string) $request->validated('note'), $request->user()->id);
+        return $this->close($payDifference, PayrollPayDifference::SETTLED, 'payroll.pay_difference_settled', (string) $request->validated('note'), $request->user()->id, [PayrollPayDifference::OPEN]);
     }
 
     public function dismiss(DismissPayDifferenceRequest $request, PayrollPayDifference $payDifference): JsonResponse
     {
         $this->authorize('dismiss', $payDifference);
 
-        return $this->close($payDifference, PayrollPayDifference::DISMISSED, 'payroll.pay_difference_dismissed', (string) $request->validated('note'), $request->user()->id);
+        return $this->close($payDifference, PayrollPayDifference::DISMISSED, 'payroll.pay_difference_dismissed', (string) $request->validated('note'), $request->user()->id, [PayrollPayDifference::OPEN, PayrollPayDifference::FAILED]);
     }
 
-    private function close(PayrollPayDifference $difference, string $status, string $action, string $note, int $userId): JsonResponse
+    /** @param  list<string>  $from  the statuses a difference may be closed from */
+    private function close(PayrollPayDifference $difference, string $status, string $action, string $note, int $userId, array $from): JsonResponse
     {
-        $refused = DB::transaction(function () use ($difference, $status, $action, $note, $userId): bool {
+        $refused = DB::transaction(function () use ($difference, $status, $action, $note, $userId, $from): bool {
+            // The run's row first, then the difference's: the order flag() and
+            // void take, so they cannot deadlock and a count made under the
+            // run lock cannot miss this change.
+            DB::table('payroll_runs')
+                ->where('tenant_id', $difference->tenant_id)
+                ->where('id', $difference->payroll_run_id)
+                ->lockForUpdate()
+                ->value('id');
             $locked = PayrollPayDifference::query()->whereKey($difference->getKey())->lockForUpdate()->first();
 
-            if ($locked === null || $locked->status !== PayrollPayDifference::OPEN) {
+            if ($locked === null || ! in_array($locked->status, $from, true)) {
                 return true;
             }
 

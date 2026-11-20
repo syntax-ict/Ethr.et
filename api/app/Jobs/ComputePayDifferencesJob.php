@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RuntimeException;
 
 /**
  * Works out the pay differences a change flagged for one employee. Safe to run
@@ -41,6 +42,18 @@ class ComputePayDifferencesJob implements ShouldQueue
 
         $currentTenant->set($tenant);
 
-        $recorder->computePending($this->tenantId, [$this->employeeId]);
+        $recorder->computePending($this->tenantId, [$this->employeeId], includeFailed: true);
+
+        // Rows it could not work out are marked failed, and the job fails so
+        // the queue tries again; on the last try they stay failed for finance.
+        if ($recorder->failedInLastCall() > 0) {
+            throw new RuntimeException($recorder->failedInLastCall().' pay difference(s) could not be worked out.');
+        }
+    }
+
+    /** @return list<int> seconds before each retry */
+    public function backoff(): array
+    {
+        return [60];
     }
 }
