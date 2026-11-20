@@ -150,7 +150,7 @@ class DeviceController extends Controller
         }
 
         $device->load('branch');
-        $device->loadCount(['attendanceRecords', 'syncLogs']);
+        $device->loadCount(['attendanceRecords', 'syncLogs', 'quarantinedPunches']);
 
         return new DeviceResource($device);
     }
@@ -483,6 +483,14 @@ class DeviceController extends Controller
         $unmatchedPunches = (int) (clone $pendingHeld)->count();
         $unmatchedBadges = count($pendingHeld->select('device_id', 'badge')->distinct()->get());
 
+        $quarantined = DeviceInboundPunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->whereNotNull('failed_at')
+            ->whereNull('dismissed_at')
+            ->selectRaw('device_id, COUNT(*) as punches')
+            ->groupBy('device_id')
+            ->pluck('punches', 'device_id');
+
         return response()->json([
             'total' => $devices->count(),
             'online' => $devices->where('status', 'online')->count(),
@@ -496,6 +504,14 @@ class DeviceController extends Controller
                 'recorded' => $totalEvents,
                 'held' => $heldToday,
                 'waiting' => $waiting,
+            ],
+            'quarantined' => [
+                'punches' => (int) $quarantined->sum(),
+                'devices' => $devices
+                    ->filter(fn (Device $d) => (int) $quarantined->get($d->id, 0) > 0)
+                    ->map(fn (Device $d) => ['device_public_id' => (string) $d->public_id, 'name' => (string) $d->name, 'punches' => (int) $quarantined->get($d->id)])
+                    ->values()
+                    ->all(),
             ],
             'unmatched' => [
                 'badges' => $unmatchedBadges,

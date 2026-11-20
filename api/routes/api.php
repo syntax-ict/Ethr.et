@@ -74,6 +74,7 @@ use App\Http\Controllers\Api\V1\Dashboard\DashboardDigestController;
 use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
+use App\Http\Controllers\Api\V1\Device\DeviceQuarantineController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
 use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
@@ -699,6 +700,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
         Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
         Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
+        Route::post('/quarantine/replay', [DeviceQuarantineController::class, 'replay']);
+        Route::post('/quarantine/dismiss', [DeviceQuarantineController::class, 'dismiss']);
         Route::post('/sync-all', [DeviceController::class, 'syncAll']);
         Route::get('/{device}/status', [DeviceController::class, 'status']);
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);
@@ -706,6 +709,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/{device}/regenerate-token', [DeviceController::class, 'regenerateToken']);
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
+        Route::get('/{device}/quarantine', [DeviceQuarantineController::class, 'index']);
         Route::get('/{device}/enrollments', [DeviceEnrollmentController::class, 'index']);
         Route::post('/{device}/enrollments/request', [DeviceEnrollmentController::class, 'request']);
         Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
