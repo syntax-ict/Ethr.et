@@ -19,12 +19,14 @@ use App\Jobs\ProcessPayrollJob;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
+use App\Models\PayrollPayDifference;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\AttendanceReconciliation;
 use App\Services\Payroll\BankExportService;
+use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PayslipPdfService;
 use App\Services\Payroll\RunRegisterService;
@@ -130,7 +132,7 @@ class PayrollController extends Controller
         return new PayrollRunResource($payrollRun);
     }
 
-    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService, PayrollEngine $engine, AttendanceReconciliation $reconciliation): JsonResponse
+    public function approve(ApprovePayrollRunRequest $request, PayrollRun $payrollRun, RunRegisterService $registerService, PayrollEngine $engine, AttendanceReconciliation $reconciliation, PayDifferenceRecorder $differences): JsonResponse
     {
         $this->authorize('approve', $payrollRun);
 
@@ -154,6 +156,43 @@ class PayrollController extends Controller
                 'status' => 422,
                 'detail' => __('payroll.pension_exemptions_unacknowledged', ['count' => $exempt]),
                 'pension_exemptions' => $exempt,
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        // A change dated inside a month already paid leaves a difference for
+        // finance. Rows still waiting for their amount are worked out here
+        // (a few, never a queue's worth) so approval never counts a row whose
+        // amount is unknown; then the open ones of this run's people must be
+        // acknowledged by count, as the pension exemptions are.
+        $runEmployeeIds = PayrollEntry::query()
+            ->where('tenant_id', $payrollRun->tenant_id)
+            ->where('payroll_run_id', $payrollRun->id)
+            ->pluck('employee_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        if ($differences->computePending($payrollRun->tenant_id, $runEmployeeIds, 50) > 0) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/pay-differences-pending',
+                'title' => 'Pay differences still being worked out',
+                'status' => 422,
+                'detail' => __('payroll.pay_differences_pending'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+        $openDifferences = PayrollPayDifference::query()
+            ->where('tenant_id', $payrollRun->tenant_id)
+            ->where('status', PayrollPayDifference::OPEN)
+            ->whereIn('employee_id', PayrollEntry::query()
+                ->where('tenant_id', $payrollRun->tenant_id)
+                ->where('payroll_run_id', $payrollRun->id)
+                ->select('employee_id'))
+            ->count();
+        if ($openDifferences > 0 && (int) $request->validated('acknowledged_pay_differences') !== $openDifferences) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/pay-differences-unacknowledged',
+                'title' => 'Pay differences not acknowledged',
+                'status' => 422,
+                'detail' => __('payroll.pay_differences_unacknowledged', ['count' => $openDifferences]),
+                'pay_differences' => $openDifferences,
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
@@ -182,7 +221,11 @@ class PayrollController extends Controller
         // balances changed after it was calculated (PayrollRunRefused).
         $payrollRun = $engine->approve($payrollRun, $approver->id);
 
-        AuditLog::record('payroll.approved', $payrollRun, $selfApproved ? ['self_approved' => true] : []);
+        $approvedPayload = $selfApproved ? ['self_approved' => true] : [];
+        if ($openDifferences > 0) {
+            $approvedPayload['acknowledged_pay_differences'] = $openDifferences;
+        }
+        AuditLog::record('payroll.approved', $payrollRun, $approvedPayload);
         PayrollApproved::dispatch($payrollRun);
         $this->webhook($payrollRun->tenant_id, 'payroll.approved', [
             'public_id' => $payrollRun->public_id,

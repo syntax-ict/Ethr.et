@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\BackgroundWork;
 use App\Support\SalaryChangeContext;
@@ -150,6 +151,19 @@ class Employee extends Model
         static::updated(function (Employee $employee): void {
             if ($employee->wasChanged('salary_cents')) {
                 $employee->recordSalaryHistory(created: false);
+            }
+
+            // A leaving date moved: every released month from the earlier of
+            // the two may have been paid for days the person was not there.
+            if ($employee->wasChanged('termination_date')) {
+                $old = $employee->getOriginal('termination_date');
+                $dates = array_filter([
+                    $old !== null ? Carbon::parse($old)->toDateString() : null,
+                    $employee->termination_date?->toDateString(),
+                ]);
+                if ($dates !== []) {
+                    app(PayDifferenceRecorder::class)->flag($employee, min($dates));
+                }
             }
         });
     }

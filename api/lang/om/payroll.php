@@ -34,4 +34,7 @@ return [
     'tax_ladder_locked' => 'Gibirri galii :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Sadarkaaleen gibiraa seeraa shallaggii mindaa hunda irratti hojiirra oolu.',
     'pension_rule_locked' => 'Gumaachi sooramaa :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Gatiiwwan gumaachaa seeraa shallaggii mindaa hunda irratti hojiirra oolu.',
     'statutory_rule_not_resettable' => 'Seerri kun kan seeraati, ykn kan dhaabbatni asitti hin kaa\'inee dha; kanaaf gara durtiitti kan deebi\'u hin jiru.',
+    'pay_differences_pending' => 'Garaagarummaan mindaa tokko tokko ammallee herregamaa jira. Yeroo xiqqoo booda irra deebi\'aa yaalaa.',
+    'pay_differences_unacknowledged' => 'Garaagarummaan mindaa :count hojjettoota raawwii kana keessa jiraniif banaa dha. Isaan ilaalaatii lakkoofsa sana waliin raggaasisaa.',
+    'pay_difference_not_open' => 'Garaagarummaan mindaa banaa ta\'e qofatu furamuu ykn didamuu danda\'a.',
 ];

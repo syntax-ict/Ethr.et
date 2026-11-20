@@ -32,6 +32,7 @@ use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon as IlluminateCarbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -480,6 +481,14 @@ final class PayrollEngine
                 'void_reason' => $reason,
             ]);
 
+            // Differences recorded against this run's payslips go with it:
+            // the reprocess that follows pays from today's figures.
+            DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('payroll_run_id', $locked->id)
+                ->whereIn('status', ['pending', 'open'])
+                ->update(['status' => 'superseded', 'updated_at' => now()]);
+
             if ($movements !== []) {
                 AuditLog::record('payroll.balances_reversed', $locked, ['movements' => $movements]);
             }
@@ -761,6 +770,87 @@ final class PayrollEngine
     }
 
     /**
+     * What a released entry paid and what the same entry would pay now, both
+     * worked out today with today's rules and data, differing only in salary
+     * and leaving date, so a loan paid off since, an allowance rule changed or
+     * a late punch cancels out. Writes nothing: no entry, balance, audit row,
+     * event or history row. The rules, pension rule and tax basis come from
+     * prepare(), as in a run.
+     *
+     * `paid` uses the salary and leaving date the entry logged (an entry that
+     * logged no salary is taken as stored). `due` is the employee as now; when
+     * they are no longer payable for the period, or have no salary in force,
+     * the whole entry is due nothing.
+     *
+     * @return array{paid: array<string, mixed>, due: array<string, mixed>}
+     */
+    public function counterfactual(PayrollEntry $entry): array
+    {
+        $run = PayrollRun::query()->where('tenant_id', $entry->tenant_id)->findOrFail($entry->payroll_run_id);
+        $start = Carbon::parse($run->period_start);
+        $end = Carbon::parse($run->period_end);
+        $employee = Employee::withTrashed()
+            ->where('tenant_id', $entry->tenant_id)
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+            ->findOrFail($entry->employee_id);
+
+        [
+            'rules' => $rules,
+            'pagumen_strategy' => $pagumenStrategy,
+            'fiscal_year_start_month' => $fiscalYearStartMonth,
+            'pension_rule' => $pensionRule,
+            'tax_basis' => $taxBasis,
+            'pagume' => $pagume,
+        ] = $this->prepare($entry->tenant_id, $start, $end);
+
+        $compute = fn (Employee $who, ?int $salary): ?array => $this->computeEntry(
+            $who, $start, $end, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules, $salary,
+        );
+        $summary = fn (?array $a, ?string $leaving, int $salary): array => [
+            'gross_cents' => (int) ($a['gross_cents'] ?? 0),
+            'net_cents' => (int) ($a['net_cents'] ?? 0),
+            'basic_cents' => (int) ($a['basic_salary_cents'] ?? 0),
+            'income_tax_cents' => (int) ($a['income_tax_cents'] ?? 0),
+            'employee_pension_cents' => (int) ($a['employee_pension_cents'] ?? 0),
+            'salary_cents' => $salary,
+            'termination_date' => $leaving,
+        ];
+
+        $log = $entry->getAttribute('calculation_log');
+        $log = is_array($log) ? $log : [];
+        $loggedSalary = $log['inputs']['basic_salary_cents'] ?? null;
+        $loggedLeaving = $log['inputs']['termination_date'] ?? null;
+        $loggedLeaving = is_string($loggedLeaving) ? $loggedLeaving : null;
+
+        if ($loggedSalary === null) {
+            $paid = [
+                'gross_cents' => (int) $entry->gross_cents,
+                'net_cents' => (int) $entry->net_cents,
+                'basic_cents' => (int) $entry->basic_salary_cents,
+                'income_tax_cents' => (int) $entry->income_tax_cents,
+                'employee_pension_cents' => (int) $entry->employee_pension_cents,
+                'salary_cents' => null,
+                'termination_date' => $loggedLeaving,
+                'as_stored' => true,
+            ];
+        } else {
+            $then = clone $employee;
+            $then->termination_date = $loggedLeaving !== null ? IlluminateCarbon::parse($loggedLeaving) : null;
+            $paid = $summary($compute($then, (int) $loggedSalary), $loggedLeaving, (int) $loggedSalary);
+        }
+
+        $nowSalary = $this->salaryFor($employee, $start, $end)['cents'];
+        $payable = $this->payableEmployees($entry->tenant_id, $start, $end)->whereKey($employee->id)->exists();
+        $leavingNow = $employee->termination_date?->toDateString();
+        $due = $payable && $nowSalary > 0
+            ? $summary($compute($employee, null), $leavingNow, $nowSalary)
+            : $summary(null, $leavingNow, $nowSalary);
+        $due['payable'] = $payable;
+
+        return ['paid' => $paid, 'due' => $due];
+    }
+
+    /**
      * Whether a person the run pays has no entry in it and would be paid a
      * salary now. Reads the run's employee ids once and the payable people in
      * chunks of 200, with history and contracts eager-loaded.
@@ -820,7 +910,8 @@ final class PayrollEngine
      * attributes of the entry a run would create, `calculation_log` included.
      * Null for someone with no salary to pay. A run writes it; a preview
      * shows it. It reads and writes nothing else: no balance moves until a
-     * run is approved (PayrollBalanceService).
+     * run is approved (PayrollBalanceService). `$salaryOverride` is for
+     * counterfactual() alone: a figure to pay instead of the one in force.
      *
      * @param  array<string, mixed>  $taxBasis
      * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
@@ -836,6 +927,7 @@ final class PayrollEngine
         PensionRuleSnapshot $pensionRule,
         array $taxBasis,
         StatutoryRuleSet $rules,
+        ?int $salaryOverride = null,
     ): ?array {
         $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
         $hoursPerDay = $rules->int('payroll.hours_per_day');
@@ -846,7 +938,9 @@ final class PayrollEngine
         // `salary_source` says where the figure came from and
         // `salary_changed_in_period` that a change landed inside the period,
         // which one salary per run does not split by days.
-        ['cents' => $basicSalary, 'source' => $salarySource] = $this->salaryFor($employee, $periodStart, $periodEnd);
+        ['cents' => $basicSalary, 'source' => $salarySource] = $salaryOverride !== null
+            ? ['cents' => $salaryOverride, 'source' => ['salary_source' => 'override']]
+            : $this->salaryFor($employee, $periodStart, $periodEnd);
 
         if ($basicSalary <= 0) {
             return null;
