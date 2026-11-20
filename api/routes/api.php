@@ -127,6 +127,7 @@ use App\Http\Controllers\Api\V1\OrganizationTypeController;
 use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
+use App\Http\Controllers\Api\V1\Payroll\PayDifferenceController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollPreviewController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
@@ -746,6 +747,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/preview', PayrollPreviewController::class)
             ->middleware([RequiresFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
+        Route::get('/pay-differences', [PayDifferenceController::class, 'index']);
+        Route::post('/pay-differences/{payDifference}/settle', [PayDifferenceController::class, 'settle']);
+        Route::post('/pay-differences/{payDifference}/dismiss', [PayDifferenceController::class, 'dismiss']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])
             ->middleware(RequiresFeature::class.':payroll');
