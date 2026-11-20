@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/lib/i18n/useT";
 import { usePayDifferences } from "../api";
@@ -87,6 +88,8 @@ export function PayDifferencesApprovalDialog({
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-3/4" />
                 </div>
+              ) : list.isError ? (
+                <ErrorState compact onRetry={() => list.refetch()} />
               ) : (
                 <ul className="divide-y divide-border">
                   {rows.map((d) => (
@@ -123,7 +126,11 @@ export function PayDifferencesApprovalDialog({
               <Button type="button" variant="outline" onClick={onClose}>
                 {t("common.cancel")}
               </Button>
-              <Button type="button" onClick={onConfirm} disabled={loading}>
+              <Button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading || list.isLoading || list.isError}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("pay_differences.approve_confirm", undefined, { count })}
               </Button>

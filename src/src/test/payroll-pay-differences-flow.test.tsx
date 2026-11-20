@@ -146,6 +146,42 @@ describe("<PayrollRunDetail> pay differences at approval", () => {
     expect(bodies[1]).toEqual({ acknowledged_pay_differences: 1 });
   });
 
+  it("says so, with a retry, and will not confirm when the list fails to load", async () => {
+    let fail = true;
+    server.use(
+      me("finance_admin", ["payroll.viewAll", "payroll.approve"]),
+      http.get("*/api/v1/payroll/runs/RUN1", () => HttpResponse.json(RUN)),
+      http.get("*/api/v1/payroll/pay-differences", () =>
+        fail
+          ? HttpResponse.json({ message: "boom" }, { status: 500 })
+          : HttpResponse.json({ data: [DIFFERENCE], meta: {}, links: {} }),
+      ),
+      http.put("*/api/v1/payroll/runs/RUN1/approve", () =>
+        refused(APPROVE, { pay_differences: 1 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderDetail();
+
+    await approveThroughFirstDialog(user);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /open pay difference/,
+    });
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", {
+      name: "I have seen 1 pay difference(s), approve",
+    });
+    expect(confirm).toBeDisabled();
+
+    fail = false;
+    await user.click(
+      within(dialog).getByRole("button", { name: /try again/i }),
+    );
+    expect(await within(dialog).findByText("Liam Otieno")).toBeInTheDocument();
+    expect(confirm).toBeEnabled();
+  });
+
   it("says how many pay differences could not be worked out", async () => {
     server.use(
       me("finance_admin", ["payroll.viewAll", "payroll.approve"]),
