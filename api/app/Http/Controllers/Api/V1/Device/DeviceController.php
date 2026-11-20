@@ -26,6 +26,7 @@ use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\DevicePunchKey;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
@@ -577,7 +578,7 @@ class DeviceController extends Controller
             'badge' => mb_substr($badge, 0, 64),
             'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
             'occurred_raw' => mb_substr((string) $timestamp, 0, 64),
-            'idempotency_key' => mb_substr("webhook:hik:{$device->id}:{$badge}:{$timestamp}", 0, 191),
+            'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:{$timestamp}"),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

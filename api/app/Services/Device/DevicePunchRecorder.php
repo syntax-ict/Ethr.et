@@ -72,6 +72,7 @@ final class DevicePunchRecorder
         // DeviceTime), and refused when the device clock runs ahead: a punch
         // cannot be dated after it reached us. The clock is noted first, so a
         // refused punch still records how far ahead the device is.
+        $idempotencyKey = DevicePunchKey::fit($idempotencyKey);
         $moment = DeviceTime::normalize((string) $occurredAt, $device);
         $offset = $moment === null ? null : DeviceClock::observe($device, $moment);
 
@@ -114,7 +115,7 @@ final class DevicePunchRecorder
         }
 
         $employee = $this->employee($device, $badge);
-        $key = "webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}";
+        $key = DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:{$timestamp}");
 
         if (! $employee) {
             // Held, not dropped: replayed once someone says whose badge it is.
