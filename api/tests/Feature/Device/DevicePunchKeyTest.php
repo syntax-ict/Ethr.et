@@ -34,7 +34,7 @@ it('drains the attendance queue before default', function () {
     expect(QueueHealth::QUEUES)->toBe(['attendance', 'default', 'notifications', 'exports']);
 });
 
-it('records the in and the out of a 70 character badge, and a resend changes nothing', function () {
+it('records the in and the out of the longest badge an employee holds, and a resend changes nothing', function () {
     Carbon::setTestNow(Carbon::parse('2026-10-14 17:30:00', 'Africa/Addis_Ababa'));
     $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -43,8 +43,10 @@ it('records the in and the out of a 70 character badge, and a resend changes not
         'tenant_id' => $tenant->id, 'branch_id' => $branch->id,
         'connection_config' => ['mode' => 'push'], 'webhook_token' => 'key-token',
     ]);
-    $badge = str_repeat('7', 70);
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'badge_number' => substr($badge, 0, 64)]);
+    // employees.badge_number holds 50 characters (MySQL refuses more), and
+    // with it the device key is over the 64 attendance_records allows.
+    $badge = str_repeat('7', 50);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'badge_number' => $badge]);
 
     $post = fn (string $time) => test()->withHeader('X-Webhook-Token', 'key-token')
         ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision", [
