@@ -29,6 +29,7 @@ const REASONS: Record<string, string> = {
   "refused:outside_geofence": "geofence",
   clock_ahead: "clock_ahead",
   no_time: "no_time",
+  unreadable: "unreadable",
   error: "error",
 };
 
@@ -58,6 +59,7 @@ export function QuarantineCard({
   const dismiss = useDismissQuarantine();
   const [selected, setSelected] = useState<string[]>([]);
   const [confirming, setConfirming] = useState<string[] | null>(null);
+  const [confirmingClock, setConfirmingClock] = useState<string[] | null>(null);
 
   const busy = replay.isPending || dismiss.isPending;
 
@@ -67,24 +69,53 @@ export function QuarantineCard({
     );
   }
 
+  /**
+   * A punch kept for a clock that ran ahead is recorded at the time the
+   * terminal stamped: setting the clock right does not change it. So the
+   * person is asked first, once, whenever one of the chosen rows is such.
+   */
+  function askToReplay(ids: string[], rows: QuarantinedPunch[]) {
+    const aheadOfClock = rows.some(
+      (row) => ids.includes(row.public_id) && row.failure === "clock_ahead",
+    );
+
+    if (aheadOfClock) setConfirmingClock(ids);
+    else replayRows(ids);
+  }
+
   function replayRows(ids: string[]) {
+    setConfirmingClock(null);
     replay.mutate(ids, {
       onSuccess: (result) => {
         setSelected([]);
+        const replayed = result.replayed ?? 0;
         toast.success(
-          t(
-            "devices_page.quarantine.replayed",
-            ":count punches were sent through again.",
-            { count: result.replayed ?? 0 },
-          ),
+          replayed === 1
+            ? t(
+                "devices_page.quarantine.replayed_one",
+                ":count punch was sent through again.",
+                { count: replayed },
+              )
+            : t(
+                "devices_page.quarantine.replayed_many",
+                ":count punches were sent through again.",
+                { count: replayed },
+              ),
         );
-        if ((result.skipped ?? 0) > 0) {
+        const skipped = result.skipped ?? 0;
+        if (skipped > 0) {
           toast.info(
-            t(
-              "devices_page.quarantine.skipped",
-              ":count could not be sent again: the terminal gave no time.",
-              { count: result.skipped ?? 0 },
-            ),
+            skipped === 1
+              ? t(
+                  "devices_page.quarantine.skipped_one",
+                  ":count could not be sent again: it has no time or cannot be read.",
+                  { count: skipped },
+                )
+              : t(
+                  "devices_page.quarantine.skipped_many",
+                  ":count could not be sent again: they have no time or cannot be read.",
+                  { count: skipped },
+                ),
           );
         }
       },
@@ -154,7 +185,7 @@ export function QuarantineCard({
                   <Button
                     size="sm"
                     disabled={busy || selected.length === 0}
-                    onClick={() => replayRows(selected)}
+                    onClick={() => askToReplay(selected, page.data)}
                   >
                     {replay.isPending && (
                       <Loader2 className="mr-2 h-3 w-3 animate-spin" />
@@ -243,11 +274,17 @@ export function QuarantineCard({
               </ul>
               {page.total > page.data.length && (
                 <p className="text-xs text-muted-foreground">
-                  {t(
-                    "devices_page.quarantine.more",
-                    ":count more are waiting. Handle these and they will show.",
-                    { count: page.total - page.data.length },
-                  )}
+                  {page.total - page.data.length === 1
+                    ? t(
+                        "devices_page.quarantine.more_one",
+                        ":count more is waiting. Handle these and it will show.",
+                        { count: 1 },
+                      )
+                    : t(
+                        "devices_page.quarantine.more_many",
+                        ":count more are waiting. Handle these and they will show.",
+                        { count: page.total - page.data.length },
+                      )}
                 </p>
               )}
             </div>
@@ -259,11 +296,19 @@ export function QuarantineCard({
         onOpenChange={(open) => {
           if (!open) setConfirming(null);
         }}
-        title={t(
-          "devices_page.quarantine.dismiss_title",
-          "Dismiss :count punches?",
-          { count: confirming?.length ?? 0 },
-        )}
+        title={
+          confirming?.length === 1
+            ? t(
+                "devices_page.quarantine.dismiss_title_one",
+                "Dismiss :count punch?",
+                { count: 1 },
+              )
+            : t(
+                "devices_page.quarantine.dismiss_title_many",
+                "Dismiss :count punches?",
+                { count: confirming?.length ?? 0 },
+              )
+        }
         description={t(
           "devices_page.quarantine.dismiss_description",
           "They will not be recorded. They are kept for a week, then removed.",
@@ -272,6 +317,23 @@ export function QuarantineCard({
         variant="destructive"
         loading={dismiss.isPending}
         onConfirm={() => confirming && dismissRows(confirming)}
+      />
+      <ConfirmDialog
+        open={confirmingClock !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmingClock(null);
+        }}
+        title={t(
+          "devices_page.quarantine.clock_confirm_title",
+          "Send it at the time the terminal stamped?",
+        )}
+        description={t(
+          "devices_page.quarantine.clock_confirm_description",
+          "The punch is recorded at the time the terminal stamped on it. That is right only if the time zone set for this terminal in ETHR was wrong. If the terminal's own clock was wrong, dismiss the punch and enter the right time by hand.",
+        )}
+        confirmLabel={t("devices_page.quarantine.clock_confirm", "Send again")}
+        loading={replay.isPending}
+        onConfirm={() => confirmingClock && replayRows(confirmingClock)}
       />
     </Card>
   );

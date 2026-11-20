@@ -573,7 +573,7 @@ by its token. A terminal may now be registered with **no address**.
   (`AttendanceRefused`: a leaver, a check-out with no check-in, a disabled method), a time
   the terminal's clock puts more than ten minutes ahead, an event with no time, or an
   unexpected exception is not purged and not retried: the row gets `failed_at`, `failure`
-  (`refused:{reason}`, `clock_ahead`, `no_time`, `error`) and a scrubbed `error`, and the
+  (`refused:{reason}`, `clock_ahead`, `no_time`, `unreadable`, `error`) and a scrubbed `error`, and the
   device's later rows carry on. A database or deadlock error still retries; a row that fails
   five times becomes `failure = error` instead of being given up. An unknown badge is not a
   failure: it stays the held-punch path. `GET /devices/{device}/quarantine` lists them
@@ -582,8 +582,12 @@ by its token. A terminal may now be registered with **no address**.
   replay of a punch already recorded is a duplicate, never a second record) and
   `POST /devices/quarantine/dismiss` lets them go (kept a week, then purged). Both take
   `ids` (public ids, at most 500) and write `device.quarantine_replayed` /
-  `device.quarantine_dismissed`. A `no_time` row cannot be replayed, since the same row fails
-  again: the terminal sent no time, so the punch is entered by hand. The device page shows the
+  `device.quarantine_dismissed`. A `no_time` row and an `unreadable` ADMS line (stored with the terminal's own line as `raw`) cannot
+  be replayed, since the same row fails again: the punch is entered by hand. A `clock_ahead`
+  row is recorded at the time the terminal stamped, which fixing the terminal's clock does not
+  change, so the card asks first: replay is right only when the time zone set for the terminal in
+  ETHR was wrong, and a punch from a terminal whose own clock was wrong is dismissed and entered
+  by hand. `error` (exception text) and `raw` are shown only to those who may change the device. The device page shows the
   list in "Punches that need attention", and `/devices/dashboard` the count.
 - **Key guard.** `attendance_records.idempotency_key` is varchar(64) and device keys used to be
   built up to 191 characters, which production's strict MySQL refuses. `DevicePunchKey::fit()`

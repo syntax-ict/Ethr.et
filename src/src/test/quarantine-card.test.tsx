@@ -143,6 +143,62 @@ describe("<QuarantineCard>", () => {
     await vi.waitFor(() => expect(dismissed).toBe(true));
   });
 
+  it("asks before it sends a clock-ahead punch again, and says what time it is recorded at", async () => {
+    serveList([{ ...ROW, failure: "clock_ahead" }]);
+    let sent = false;
+    server.use(
+      http.post("*/api/v1/devices/quarantine/replay", () => {
+        sent = true;
+        return HttpResponse.json({ replayed: 1, skipped: 0 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.click(await screen.findByRole("checkbox"));
+    await user.click(
+      screen.getByRole("button", { name: /send selected again/i }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(sent).toBe(false);
+    expect(dialog).toHaveTextContent("time the terminal stamped");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Send again" }),
+    );
+
+    await vi.waitFor(() => expect(sent).toBe(true));
+  });
+
+  it("says a line the terminal sent cannot be read", async () => {
+    serveList([{ ...ROW, failure: "unreadable", badge: "" }]);
+    renderCard();
+
+    expect(await screen.findByText(/cannot read/)).toBeInTheDocument();
+  });
+
+  it("says one punch, not 1 punches", async () => {
+    serveList([ROW]);
+    server.use(
+      http.post("*/api/v1/devices/quarantine/replay", () =>
+        HttpResponse.json({ replayed: 1, skipped: 0 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.click(await screen.findByRole("checkbox"));
+    await user.click(
+      screen.getByRole("button", { name: /send selected again/i }),
+    );
+
+    await vi.waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith(
+        "1 punch was sent through again.",
+      ),
+    );
+  });
+
   it("shows no buttons or checkboxes to someone who may not change the device", async () => {
     serveList([ROW]);
     renderCard(false);

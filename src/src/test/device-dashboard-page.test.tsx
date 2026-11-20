@@ -167,6 +167,25 @@ describe("<DeviceDashboardPage> punches that need attention", () => {
   });
 });
 
+describe("<DeviceDashboardPage> one punch that needs attention", () => {
+  it("says 1 punch, not 1 punches", async () => {
+    serveStats({
+      quarantined: {
+        punches: 1,
+        devices: [{ device_public_id: "DEV9", name: "Main gate", punches: 1 }],
+      },
+    });
+    server.use(emptyList());
+    renderPage();
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("1 punch could not be recorded");
+    expect(
+      within(banner).getByRole("link", { name: "Main gate, 1 punch" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("<DeviceDashboardPage> unrecognised badges", () => {
   it("says how many badges and punches wait, and links to them", async () => {
     serveStats({ unmatched: { badges: 80, punches: 12345 } });
