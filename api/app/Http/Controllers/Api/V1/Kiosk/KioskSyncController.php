@@ -10,6 +10,7 @@ use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\KioskSyncRequest;
+use App\Models\AuditLog;
 use App\Models\KioskSession;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
@@ -100,49 +101,60 @@ class KioskSyncController extends Controller
     }
 
     /**
+     * Every error result says whether it is final. A final refusal can never
+     * be accepted, so the terminal may drop the punch; it leaves one audit
+     * entry first, because the person punched and nothing else would show it.
+     * One that is not final is a passing fault and the terminal keeps the
+     * punch.
+     *
      * @param  array{idempotency_key: string, sealed: string, grant?: string|null}  $record
-     * @return array{status: string, detail?: string, public_id?: string}
+     * @return array{status: string, detail?: string, public_id?: string, final?: bool}
      */
     private function syncOne(KioskSession $session, array $record, bool $pinRequired, bool $featureOn, Carbon $oldest, Carbon $latest): array
     {
         $punch = $this->seal->open($session, $record['sealed']);
         if ($punch === null) {
-            return ['status' => 'error', 'detail' => __('kiosk.offline_unreadable')];
+            return $this->refused($session, $record, 'unreadable', __('kiosk.offline_unreadable'));
         }
 
         try {
             $capturedAt = Carbon::parse($punch['at'])->utc();
         } catch (Throwable) {
-            return ['status' => 'error', 'detail' => __('kiosk.offline_unreadable')];
+            return $this->refused($session, $record, 'unreadable', __('kiosk.offline_unreadable'), $punch);
         }
 
         if ($capturedAt->lt($oldest) || $capturedAt->gt($latest)) {
-            return ['status' => 'error', 'detail' => __('attendance.offline_outside_window', [
+            return $this->refused($session, $record, 'outside_window', __('attendance.offline_outside_window', [
                 'days' => (int) config('attendance.offline_max_age_days'),
-            ])];
+            ]), $punch, $capturedAt);
         }
 
         $grant = $this->seal->checkGrant($record['grant'] ?? null, $session, $capturedAt);
         if (! $featureOn && ($grant === 'missing' || $grant === 'invalid')) {
-            return ['status' => 'error', 'detail' => __('kiosk.offline_switched_off')];
+            return $this->refused($session, $record, 'switched_off', __('kiosk.offline_switched_off'), $punch, $capturedAt);
         }
 
         $match = $this->codes->find(app(CurrentTenant::class)->get(), (string) $punch['c']);
         if ($match->ambiguous) {
-            return ['status' => 'error', 'detail' => __('kiosk.code_ambiguous')];
+            return $this->refused($session, $record, 'code_ambiguous', __('kiosk.code_ambiguous'), $punch, $capturedAt);
         }
         $employee = $match->employee;
         if (! $employee) {
-            return ['status' => 'error', 'detail' => __('attendance.employee_not_found')];
+            return $this->refused($session, $record, 'employee_not_found', __('attendance.employee_not_found'), $punch, $capturedAt);
         }
 
         if ($pinRequired) {
             $check = $this->pins->check($session, $employee, $punch['p'], ['offline' => true]);
+            // A check made while locked is neither an attempt nor an extension
+            // of the lock (KioskPinGuard), so this refusal is not final: the
+            // punch is sent again once the lock has passed.
             if ($check === KioskPinGuard::LOCKED) {
-                return ['status' => 'error', 'detail' => __('kiosk.pin_locked')];
+                return ['status' => 'error', 'detail' => __('kiosk.pin_locked'), 'final' => false];
             }
             if ($check !== KioskPinGuard::OK) {
-                return ['status' => 'error', 'detail' => __('kiosk.invalid_pin')];
+                $reason = $check === KioskPinGuard::MISSING ? 'pin_not_set' : 'invalid_pin';
+
+                return $this->refused($session, $record, $reason, __('kiosk.invalid_pin'), $punch, $capturedAt);
             }
         }
 
@@ -162,17 +174,44 @@ class KioskSyncController extends Controller
                 occurredAt: $capturedAt->toIso8601String(),
             ));
         } catch (AttendanceRefused|NoOpenCheckIn $e) {
-            // The engine's refusals are written for the person punching.
-            return ['status' => 'error', 'detail' => $e->getMessage()];
+            // The engine's refusals are written for the person punching. Only a
+            // permanent one ends the punch: a check-out whose check-in has not
+            // landed yet, or a setting changed for an hour, passes on a later try.
+            if (! $e->permanent) {
+                return ['status' => 'error', 'detail' => $e->getMessage(), 'final' => false];
+            }
+
+            return $this->refused($session, $record, 'refused', $e->getMessage(), $punch, $capturedAt);
         } catch (Throwable $e) {
             report($e);
 
-            return ['status' => 'error', 'detail' => __('kiosk.offline_failed')];
+            return ['status' => 'error', 'detail' => __('kiosk.offline_failed'), 'final' => false];
         }
 
         return [
             'status' => $result->wasDuplicate ? 'duplicate' : 'created',
             'public_id' => $result->record->public_id,
         ];
+    }
+
+    /**
+     * A final refusal and its audit entry. $punch is null while the punch
+     * could not be opened. Only the code is read from it: the PIN never
+     * reaches the entry.
+     *
+     * @param  array{idempotency_key: string, sealed: string, grant?: string|null}  $record
+     * @param  array<string, mixed>|null  $punch
+     * @return array{status: string, detail: string, final: bool}
+     */
+    private function refused(KioskSession $session, array $record, string $reason, string $detail, ?array $punch = null, ?Carbon $capturedAt = null): array
+    {
+        AuditLog::record('kiosk.offline_punch_refused', $session, array_filter([
+            'reason' => $reason,
+            'employee_code' => isset($punch['c']) ? (string) $punch['c'] : null,
+            'captured_at' => $capturedAt?->toIso8601String(),
+            'idempotency_key' => $record['idempotency_key'],
+        ], fn ($v) => $v !== null));
+
+        return ['status' => 'error', 'detail' => $detail, 'final' => true];
     }
 }

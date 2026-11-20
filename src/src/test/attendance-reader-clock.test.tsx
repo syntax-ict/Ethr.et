@@ -14,6 +14,7 @@ vi.mock("@/lib/hooks/useOfflineSync", () => ({
   }),
 }));
 vi.mock("@/lib/attendance/offline-grant", () => ({
+  currentOfflineDevice: () => null,
   currentOfflineGrant: () => null,
   refreshOfflineGrant: vi.fn(),
 }));
