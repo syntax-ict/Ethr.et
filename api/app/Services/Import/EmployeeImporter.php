@@ -22,6 +22,7 @@ use App\Services\Invitations\InvitationDispatcher;
 use App\Support\Csv;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
+use App\Support\SalaryChangeContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 
@@ -312,7 +313,13 @@ class EmployeeImporter
             }
 
             try {
-                $employee = $this->intake->create($tenant, $attributes, EmployeeIntake::VIA_IMPORT, $asked, seatChecked: true, pool: $pool)->record();
+                $employee = SalaryChangeContext::during(
+                    // No date: the hook dates a created employee at their own hire date.
+                    '',
+                    'import',
+                    null,
+                    fn () => $this->intake->create($tenant, $attributes, EmployeeIntake::VIA_IMPORT, $asked, seatChecked: true, pool: $pool)->record(),
+                );
             } catch (UniqueConstraintViolationException) {
                 // A code or badge another employee already holds: the resolver
                 // above did not call it the same person, so the row is refused
