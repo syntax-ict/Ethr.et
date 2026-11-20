@@ -331,6 +331,7 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The UAT guide brought up to date with what shipped since 2026-11-14 | this edition | [02](02-UAT-GUIDE.md): UAT-A5, UAT-A8, UAT-E3, UAT-F4, UAT-H2, UAT-H6, UAT-H13, UAT-H15, UAT-H16, UAT-H18, UAT-P1 changed 2026-11-17 |
 | A held badge says what the Hikvision terminal calls it, offers the employees that name could be (never assigns), carries the name into "Add as a new employee" and the downloaded list | #785 | DEV-070 to DEV-072 |
 | A pulled terminal's sync interval has a floor of 5 minutes (the scheduler ticks every five), the select and the API refuse less, a device stored lower reads as 5, and the screen says "At most every :count min" with a hint that a late pull loses nothing | #788 | DEV-073 |
+| A committed list's additions can be undone: the button "Undo this list's additions" on the committed screen for someone who may delete employees, a preview that names who is archived and who is kept and why, archive in slices that spare anyone used since and close an unused login, one audit entry, the second group "Lists added recently" on the card; the people a list made are recorded on each row, and for older lists worked out | #UNDO_PR | STG-051 to STG-054; MASS-006, MASS-010 changed |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone

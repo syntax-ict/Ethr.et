@@ -104,7 +104,7 @@ describe('the index', function () {
     it('is empty for an organisation with nothing in progress', function () {
         [$tenant] = Staging::organisation();
 
-        test()->getJson(Staging::url($tenant, 'batches'))->assertOk()->assertExactJson(['data' => []]);
+        test()->getJson(Staging::url($tenant, 'batches'))->assertOk()->assertExactJson(['data' => [], 'added' => []]);
     });
 
     it('needs the permission to view employees', function () {

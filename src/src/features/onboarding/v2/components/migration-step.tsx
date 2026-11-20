@@ -52,7 +52,6 @@ import type {
   ColumnMatch,
   ListMode,
   MatchOutcome,
-  MigrationListInProgress,
   StagingAction,
 } from "../types";
 import {
@@ -88,6 +87,7 @@ import { MigrationListsInProgress } from "./migration-lists-in-progress";
 import { MigrationLogins } from "./migration-logins";
 import { MigrationReadiness } from "./migration-readiness";
 import { MigrationTerminals } from "./migration-terminals";
+import { MigrationUndoButton, MigrationUndoNote } from "./migration-undo";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
 
@@ -742,7 +742,7 @@ export function MigrationStep({
    * is set and the screen for its state takes over. One still being read is
    * carried on first, by the same request a stopped staging uses.
    */
-  function openList(list: MigrationListInProgress) {
+  function openList(list: { public_id: string; status: string }) {
     if (list.status === "staging") {
       void carryOnStagingList(list.public_id);
       return;
@@ -1875,7 +1875,11 @@ export function MigrationStep({
           </div>
 
           {batch.status === "committed" && (
-            <div className="flex justify-end border-t pt-4">
+            <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+              <MigrationUndoNote batch={batch} />
+              {batchId && (
+                <MigrationUndoButton batchId={batchId} batch={batch} />
+              )}
               <Button
                 variant="outline"
                 size="sm"
