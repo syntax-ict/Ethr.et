@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuarantineCard } from "@/features/devices/components/quarantine-card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -490,6 +491,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </CardContent>
             </Card>
           )}
+
+        <QuarantineCard deviceId={device.public_id} canUpdate={canUpdate} />
 
         {/* Tabs: Sync History + Events */}
         <Tabs defaultValue="syncs">

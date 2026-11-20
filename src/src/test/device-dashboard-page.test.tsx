@@ -91,6 +91,7 @@ const stats = {
   events_today: 0,
   punches_today: { recorded: 0, held: 0, waiting: 0 },
   unmatched: { badges: 0, punches: 0 },
+  quarantined: { punches: 0, devices: [] },
   last_sync_at: null,
   sync_stats_24h: { success: 0, partial: 0, failed: 0, offline: 0 },
 };
@@ -144,6 +145,25 @@ describe("<DeviceDashboardPage> cards", () => {
     expect(within(card).getByText("Waiting to be worked")).toBeVisible();
     expect(within(card).getByText("7")).toBeVisible();
     expect(card).toHaveTextContent(/Last heard from a device:/);
+  });
+});
+
+describe("<DeviceDashboardPage> punches that need attention", () => {
+  it("says how many wait and links to the device that holds them", async () => {
+    serveStats({
+      quarantined: {
+        punches: 3,
+        devices: [{ device_public_id: "DEV9", name: "Main gate", punches: 3 }],
+      },
+    });
+    server.use(emptyList());
+    renderPage();
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("Punches that need attention");
+    expect(
+      within(banner).getByRole("link", { name: "Main gate, 3 punches" }),
+    ).toHaveAttribute("href", "/devices/DEV9#quarantine");
   });
 });
 
