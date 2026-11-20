@@ -176,6 +176,143 @@ describe("service worker background sync", () => {
     expect(showNotification).not.toHaveBeenCalled();
   });
 
+  describe("in batches", () => {
+    type Body = { records: { idempotency_key: string }[] };
+    const keysOf = (init: RequestInit) =>
+      (JSON.parse(String(init.body)) as Body).records.map(
+        (r) => r.idempotency_key,
+      );
+    const callKeys = (fetch: { mock: { calls: unknown[][] } }) =>
+      fetch.mock.calls.map((c) => keysOf(c[1] as RequestInit));
+
+    async function queue(n: number, from = 2) {
+      for (let i = 0; i < n; i++) {
+        await enqueueOfflineRecord({
+          employee_public_id: "01HQZX3NDJKMNP4RSTVWXY5Z6A",
+          type: "check_in",
+          idempotency_key: `offline-${from + i}`,
+          offline_token: "t",
+          captured_at: "2026-10-13T05:20:00.000Z",
+          tenant: "acme",
+          locale: "en",
+        });
+      }
+    }
+
+    it("sends twenty at a time, in order", async () => {
+      await queue(24); // 25 with the one queued before each test
+      const fetch = vi.fn(async (_url: string, init: RequestInit) =>
+        Response.json({
+          results: keysOf(init).map((k) => ({
+            idempotency_key: k,
+            status: "created",
+          })),
+        }),
+      );
+      const { fireSync } = loadWorker({ fetch });
+
+      await fireSync();
+
+      const sent = callKeys(fetch);
+      expect(sent.map((k) => k.length)).toEqual([20, 5]);
+      expect(sent.flat()).toEqual([
+        "offline-1",
+        ...Array.from({ length: 24 }, (_, i) => `offline-${i + 2}`),
+      ]);
+      expect((await getAllRecords()).every((r) => r.synced === 1)).toBe(true);
+    });
+
+    it("sends a refused batch one at a time and refuses a punch that is still refused alone", async () => {
+      await queue(2);
+      const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+        const keys = keysOf(init);
+        if (keys.length > 1) return new Response("{}", { status: 413 });
+        if (keys[0] === "offline-2") return new Response("{}", { status: 422 });
+        return Response.json({
+          results: [{ idempotency_key: keys[0], status: "created" }],
+        });
+      });
+      const { fireSync } = loadWorker({ fetch });
+
+      await fireSync();
+
+      expect(callKeys(fetch).map((k) => k.length)).toEqual([3, 1, 1, 1]);
+      const byKey = Object.fromEntries(
+        (await getAllRecords()).map((r) => [r.idempotency_key, r]),
+      );
+      expect(byKey["offline-1"].synced).toBe(1);
+      expect(byKey["offline-3"].synced).toBe(1);
+      expect(byKey["offline-2"]).toMatchObject({
+        synced: 2,
+        refused_locally: true,
+      });
+    });
+
+    it("refuses a punch the server calls final and keeps one it does not", async () => {
+      await queue(1);
+      const fetch = vi.fn(async () =>
+        Response.json({
+          results: [
+            {
+              idempotency_key: "offline-1",
+              status: "error",
+              detail: "This day is closed.",
+              final: true,
+            },
+            {
+              idempotency_key: "offline-2",
+              status: "error",
+              detail: "Try again",
+              final: false,
+            },
+          ],
+        }),
+      );
+      const { fireSync, showNotification } = loadWorker({ fetch });
+
+      await fireSync();
+
+      const byKey = Object.fromEntries(
+        (await getAllRecords()).map((r) => [r.idempotency_key, r]),
+      );
+      expect(byKey["offline-1"]).toMatchObject({
+        synced: 2,
+        sync_error: "This day is closed.",
+      });
+      expect(byKey["offline-2"]).toMatchObject({
+        synced: 0,
+        sync_error: "Try again",
+      });
+      // Nothing was sent, so nothing is announced as sent.
+      expect(showNotification).not.toHaveBeenCalled();
+    });
+
+    it("throws on a server fault so the browser retries, and stops after the first batch", async () => {
+      await queue(24);
+      const fetch = vi.fn(async () => new Response("{}", { status: 503 }));
+      const { fireSync } = loadWorker({ fetch });
+
+      await expect(fireSync()).rejects.toThrow();
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect((await getAllRecords()).every((r) => r.synced === 0)).toBe(true);
+    });
+
+    it.each([419, 429])(
+      "ends quietly on a %i, leaving the queue",
+      async (status) => {
+        await queue(24);
+        const fetch = vi.fn(async () => new Response("{}", { status }));
+        const { fireSync } = loadWorker({ fetch });
+
+        await fireSync();
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect((await getAllRecords()).every((r) => r.synced === 0)).toBe(true);
+      },
+    );
+  });
+
   it("does not try without a CSRF token to send", async () => {
     const fetch = vi.fn();
     const { fireSync } = loadWorker({ fetch, xsrf: null });

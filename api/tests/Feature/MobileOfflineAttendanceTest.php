@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -13,6 +14,7 @@ use App\Services\Attendance\ConflictResolver;
 use App\Services\Attendance\QrCodeService;
 use App\Support\PhotoConsent;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 
@@ -414,6 +416,143 @@ test('a punch outside the offline window is refused without losing the rest of t
         ->assertJsonPath('summary.error', 2)
         ->assertJsonPath('summary.created', 1)
         ->assertJsonPath('results.2.status', 'created');
+});
+
+// ── Every error result says whether the refusal is final ──
+
+function syncOfflineOne(object $tenant, array $record): TestResponse
+{
+    return test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/sync", ['records' => [$record]]);
+}
+
+test('a punch outside the window is a final refusal', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-old', 'employee_public_id' => $employee->public_id, 'type' => 'check_in',
+        'timestamp' => now()->subDays(30)->toIso8601String(), 'offline_token' => 'tok-final-old',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.final', true);
+});
+
+test('a colleague punch left on this phone is not final, until it is too old to ever be accepted', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    $record = fn (string $key, string $at): array => [
+        'idempotency_key' => $key, 'employee_public_id' => $colleague->public_id, 'type' => 'check_in',
+        'timestamp' => $at, 'offline_token' => "tok-{$key}",
+    ];
+
+    // It waits for its owner...
+    syncOfflineOne($tenant, $record('not-own-fresh', now()->subHour()->toIso8601String()))->assertOk()
+        ->assertJsonPath('results.0.detail', __('attendance.offline_not_own'))
+        ->assertJsonPath('results.0.final', false);
+
+    // ...but a stale one answers the window first, so it ends instead of being re-sent for ever.
+    syncOfflineOne($tenant, $record('not-own-stale', now()->subDays(30)->toIso8601String()))->assertOk()
+        ->assertJsonPath('results.0.detail', __('attendance.offline_outside_window', ['days' => (int) config('attendance.offline_max_age_days')]))
+        ->assertJsonPath('results.0.final', true);
+});
+
+test('an employee who cannot be found is not final', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-missing', 'employee_public_id' => 'nobody-by-that-id', 'type' => 'check_in',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-missing',
+    ])->assertOk()
+        ->assertJsonPath('results.0.detail', 'Employee not found')
+        ->assertJsonPath('results.0.final', false);
+});
+
+test('a check-out with no check-in yet is not final: its check-in may still be on its way', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-no-open', 'employee_public_id' => $employee->public_id, 'type' => 'check_out',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-no-open',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.detail', __('attendance.no_open_check_in'))
+        ->assertJsonPath('results.0.final', false);
+});
+
+test('a refusal that depends on settings read at sync time is not final', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+    AttendanceSetting::where('tenant_id', $tenant->id)->delete();
+    AttendanceSetting::create([...AttendanceSetting::defaults(), 'tenant_id' => $tenant->id, 'device_binding' => 'enforce']);
+
+    // Phone binding is enforced and this punch carries no signature. HR can
+    // exempt the person or approve a phone before the window ends.
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-binding', 'employee_public_id' => $employee->public_id, 'type' => 'check_in',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-binding',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.code', fn ($code) => is_string($code) && $code !== '')
+        ->assertJsonPath('results.0.final', false);
+});
+
+test('a punch by an employee who has left is final', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => EmployeeStatus::RESIGNED,
+        'termination_date' => now()->subMonths(2)->toDateString(),
+    ]);
+    // A departed employee's own session is refused before it reaches sync, so
+    // this is the path that remains: someone who may record for others sends
+    // a punch the phone kept for them.
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-left', 'employee_public_id' => $employee->public_id, 'type' => 'check_in',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-left',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.detail', __('attendance.employee_has_left'))
+        ->assertJsonPath('results.0.final', true);
+});
+
+test('an unexpected failure is not final, and does not carry its own text', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+    // The engine is final, so the failure comes from underneath it: a write that throws.
+    Event::listen('eloquent.creating: '.AttendanceRecord::class, fn () => throw new RuntimeException('database went away'));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-boom', 'employee_public_id' => $employee->public_id, 'type' => 'check_in',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-boom',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.detail', __('attendance.punch_failed'))
+        ->assertJsonPath('results.0.final', false);
+});
+
+test('a punch that is recorded carries no final key', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    syncOfflineOne($tenant, [
+        'idempotency_key' => 'final-ok', 'employee_public_id' => $employee->public_id, 'type' => 'check_in',
+        'timestamp' => now()->subHour()->toIso8601String(), 'offline_token' => 'tok-final-ok',
+    ])->assertOk()
+        ->assertJsonPath('results.0.status', 'created')
+        ->assertJsonMissingPath('results.0.final');
 });
 
 test('offline sync has confidence score 88', function () {

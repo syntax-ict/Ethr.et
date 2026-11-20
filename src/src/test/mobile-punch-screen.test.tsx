@@ -13,12 +13,16 @@ import { server } from "./msw/server";
 const sync = vi.hoisted(() => ({
   isOnline: true,
   pendingCount: 0,
+  refused: [] as unknown[],
+  removeRefused: vi.fn(),
 }));
 
 vi.mock("@/lib/hooks/useOfflineSync", () => ({
   useOfflineSync: () => ({
     isOnline: sync.isOnline,
     pendingCount: sync.pendingCount,
+    refused: sync.refused,
+    removeRefused: sync.removeRefused,
     syncing: false,
     syncNow: vi.fn(),
   }),
@@ -184,6 +188,8 @@ function renderScreen() {
 beforeEach(() => {
   sync.isOnline = true;
   sync.pendingCount = 0;
+  sync.refused = [];
+  sync.removeRefused.mockReset();
   localStorage.setItem("locale", "en");
   geolocation("fix");
   queue.enqueue.mockReset();
@@ -820,6 +826,135 @@ describe("the phone punch screen", () => {
       await screen.findByRole("button", { name: /check in/i });
       expect(screen.queryByRole("switch")).toBeNull();
       expect(screen.queryByText(/uses presence checks/)).toBeNull();
+    });
+  });
+
+  describe("a punch made with no connection", () => {
+    function deviceRule(over: Record<string, unknown>) {
+      server.use(
+        http.get("*/api/v1/attendance/device", () =>
+          HttpResponse.json({
+            binding: "enforce",
+            host_allowed: true,
+            device: null,
+            pending: null,
+            canonical_url: null,
+            exempt_until: null,
+            ...over,
+          }),
+        ),
+        http.get("*/api/v1/attendance/my-shift", () =>
+          HttpResponse.json(myShift),
+        ),
+      );
+    }
+
+    async function pressOffline() {
+      sync.isOnline = false;
+      renderScreen();
+      const button = await screen.findByRole("button", { name: /^check in/i });
+      await untilReady(button);
+      // The rule is read from the server while the page is still reachable;
+      // give the query a moment to land before the tap.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      fireEvent.click(button);
+    }
+
+    it("does not save it, and says so, when the rule is enforced and no grant names this phone", async () => {
+      signedInAs("E1");
+      deviceRule({});
+
+      await pressOffline();
+
+      expect(
+        await screen.findByText(
+          /This phone cannot confirm a punch without a connection right now/,
+        ),
+      ).toBeInTheDocument();
+      expect(queue.enqueue).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Saved offline/)).toBeNull();
+    });
+
+    it("still saves it for a person HR has exempted", async () => {
+      signedInAs("E1");
+      deviceRule({ exempt_until: "2999-01-01" });
+
+      await pressOffline();
+
+      expect(await screen.findByText(/Saved offline/)).toBeInTheDocument();
+      expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    });
+
+    it("still saves it when the rule only flags", async () => {
+      signedInAs("E1");
+      deviceRule({ binding: "flag" });
+
+      await pressOffline();
+
+      expect(await screen.findByText(/Saved offline/)).toBeInTheDocument();
+      expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("punches the server refused for good", () => {
+    const refusedPunch = (over: Record<string, unknown> = {}) => ({
+      id: 5,
+      employee_public_id: "E1",
+      type: "check_in",
+      idempotency_key: "k-refused",
+      offline_token: "t",
+      captured_at: "2026-10-17T05:30:00.000Z",
+      synced: 2,
+      sync_error: "This day is closed for changes.",
+      ...over,
+    });
+
+    it("shows nothing when there are none", async () => {
+      signedInAs("E1");
+      renderScreen();
+      await screen.findByRole("button", { name: /^check in/i });
+      expect(screen.queryByText("Punches that were not recorded")).toBeNull();
+    });
+
+    it("lists each with its type, time and the server's reason, and tells the person to ask HR", async () => {
+      signedInAs("E1");
+      sync.refused = [
+        refusedPunch(),
+        refusedPunch({
+          id: 6,
+          type: "check_out",
+          idempotency_key: "k-2",
+          sync_error: null,
+          refused_locally: true,
+        }),
+      ];
+      renderScreen();
+
+      expect(
+        await screen.findByText("Punches that were not recorded"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Ask HR to enter them for you/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("This day is closed for changes."),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /This punch could not be sent, and the server will not accept it/,
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+    });
+
+    it("removes one when asked", async () => {
+      signedInAs("E1");
+      sync.refused = [refusedPunch()];
+      renderScreen();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+
+      expect(sync.removeRefused).toHaveBeenCalledWith(5);
     });
   });
 });
