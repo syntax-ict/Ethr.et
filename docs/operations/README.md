@@ -69,7 +69,7 @@ the reference for what each kind changes.
 | I am new to maintaining this | [`../ENGINEERING-ONBOARDING.md`](../ENGINEERING-ONBOARDING.md), then [`ON-CALL.md`](ON-CALL.md) and [`CUSTODY.md`](CUSTODY.md) |
 | Getting ETHR found in search | [`SEARCH-LISTINGS.md`](SEARCH-LISTINGS.md) |
 | Editing the public site | [`MARKETING-SITE.md`](MARKETING-SITE.md), [`MARKETING-VISUALS.md`](MARKETING-VISUALS.md) |
-| Selling it | [`marketing-deck/README.md`](marketing-deck/README.md), [`social-kit/README.md`](social-kit/README.md) |
+| Selling it | [`social-kit/README.md`](social-kit/README.md). The old sales deck is retired: [`marketing-deck/README.md`](marketing-deck/README.md) |
 
 ## The routine calendar
 
