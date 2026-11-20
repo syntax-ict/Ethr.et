@@ -215,6 +215,11 @@ fi
 # must NOT have. Without them, sign-in answered 200 and the next /auth/me answered 401
 # (measured 2026-10-06): the session cookie was Secure on HTTP, and Sanctum did not
 # treat localhost as a first-party origin.
+#
+# MAIL_MAILER=log: the template says smtp with MAIL_HOST blank, and there is no SMTP
+# server locally, so every queued notification failed with "Connection could not be
+# established with host ':587'" (measured 2026-11-20). With `log` the message is
+# written to storage/logs, where it can be read. The template and production keep smtp.
 python - "$ENV_FILE" "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASS" "$PORT" "$FRESH_ENV" <<'PY'
 import io, re, sys, secrets
 path, dbhost, dbport, dbname, dbuser, dbpass, port, fresh = sys.argv[1:9]
@@ -248,6 +253,7 @@ pairs = [
     ('DB_DATABASE', dbname),
     ('DB_USERNAME', dbuser),
     ('DB_PASSWORD', dbpass),
+    ('MAIL_MAILER', 'log'),
     ('SESSION_SECURE_COOKIE', 'false'),
     ('SANCTUM_STATEFUL_DOMAINS', 'localhost:%s,*.localhost:%s' % (port, port)),
 ]
