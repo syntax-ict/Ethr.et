@@ -12,6 +12,7 @@ use App\Models\PayrollRun;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Records what a change to someone's pay, reaching back into a month already
@@ -30,7 +31,7 @@ use Illuminate\Support\Str;
  * the `due` side of the latest settled or dismissed row, else the `paid` side
  * of the recalculation, so a settled difference is never counted twice.
  */
-final class PayDifferenceRecorder
+class PayDifferenceRecorder
 {
     public function __construct(private readonly PayrollEngine $engine) {}
 
@@ -51,6 +52,7 @@ final class PayDifferenceRecorder
             ->where('e.employee_id', $employee->id)
             ->whereIn('r.status', PayrollRun::RELEASED_STATUSES)
             ->whereDate('r.period_end', '>=', $from)
+            ->orderBy('r.id')
             ->select(['e.id as entry_id', 'r.id as run_id'])
             ->get();
 
@@ -69,6 +71,7 @@ final class PayDifferenceRecorder
                     ->where('payroll_run_id', $row->run_id)
                     ->where('employee_id', $employee->id)
                     ->whereIn('status', PayrollPayDifference::LIVE)
+                    ->orderBy('id')
                     ->lockForUpdate()
                     ->first();
 
@@ -117,6 +120,7 @@ final class PayDifferenceRecorder
     {
         $chunks = $employeeIds === null ? [null] : array_chunk(array_values(array_unique($employeeIds)), 500);
         $left = $limit;
+        $prepared = [];
 
         foreach ($chunks as $chunk) {
             if ($left <= 0) {
@@ -126,8 +130,15 @@ final class PayDifferenceRecorder
             $ids = $this->pendingQuery($tenantId, $chunk)->orderBy('id')->limit($left)->pluck('id');
 
             foreach ($ids as $id) {
-                $this->compute($tenantId, (int) $id);
                 $left--;
+
+                // One row that cannot be worked out stays pending and is
+                // reported; it must not stop the rest, or an approval.
+                try {
+                    $this->compute($tenantId, (int) $id, $prepared);
+                } catch (Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -137,6 +148,19 @@ final class PayDifferenceRecorder
         }
 
         return $remaining;
+    }
+
+    /**
+     * The one place the engine is asked, so a test can make a single row fail.
+     *
+     * @param  array<int, array<string, mixed>>  $prepared
+     * @return array{paid: array<string, mixed>, due: array<string, mixed>, net_is_estimate: bool}
+     */
+    protected function counterfactualFor(PayrollEntry $entry, array &$prepared): array
+    {
+        $prepared[$entry->payroll_run_id] ??= $this->engine->prepareForEntry($entry);
+
+        return $this->engine->counterfactual($entry, $prepared[$entry->payroll_run_id]);
     }
 
     /**
@@ -151,9 +175,12 @@ final class PayDifferenceRecorder
             ->when($employeeIds !== null, fn ($q) => $q->whereIn('employee_id', $employeeIds));
     }
 
-    private function compute(int $tenantId, int $id): void
+    /**
+     * @param  array<int, array<string, mixed>>  $prepared  run id => the engine's prepare() for it, filled as rows are worked out
+     */
+    private function compute(int $tenantId, int $id, array &$prepared): void
     {
-        DB::transaction(function () use ($tenantId, $id): void {
+        DB::transaction(function () use ($tenantId, $id, &$prepared): void {
             $row = PayrollPayDifference::query()
                 ->where('tenant_id', $tenantId)
                 ->whereKey($id)
@@ -170,23 +197,26 @@ final class PayDifferenceRecorder
                 return;
             }
 
-            $result = $this->engine->counterfactual($entry);
+            $result = $this->counterfactualFor($entry, $prepared);
             $paid = $result['paid'];
             $due = $result['due'];
 
-            $baseline = PayrollPayDifference::query()
+            // What finance has already settled or dismissed for this month is
+            // taken off the difference as it stands today, as a sum of what
+            // those rows said then, so anything that has drifted since (a loan
+            // finished, punches that came late) is not counted a second time.
+            $handled = PayrollPayDifference::query()
                 ->where('tenant_id', $tenantId)
                 ->where('payroll_run_id', $row->payroll_run_id)
                 ->where('employee_id', $row->employee_id)
                 ->whereIn('status', [PayrollPayDifference::SETTLED, PayrollPayDifference::DISMISSED])
-                ->whereNotNull('due_gross_cents')
-                ->orderByDesc('id')
+                ->selectRaw('count(*) as rows_count, coalesce(sum(gross_cents), 0) as gross, coalesce(sum(net_cents), 0) as net')
                 ->first();
+            $handledGross = (int) ($handled->gross ?? 0);
+            $handledNet = (int) ($handled->net ?? 0);
 
-            $baseGross = $baseline !== null ? (int) $baseline->due_gross_cents : (int) $paid['gross_cents'];
-            $baseNet = $baseline !== null ? (int) $baseline->due_net_cents : (int) $paid['net_cents'];
-            $gross = (int) $due['gross_cents'] - $baseGross;
-            $net = (int) $due['net_cents'] - $baseNet;
+            $gross = (int) $due['gross_cents'] - (int) $paid['gross_cents'] - $handledGross;
+            $net = (int) $due['net_cents'] - (int) $paid['net_cents'] - $handledNet;
 
             if ($gross === 0 && $net === 0) {
                 $row->delete();
@@ -202,14 +232,17 @@ final class PayDifferenceRecorder
                 'kind' => ($net !== 0 ? $net : $gross) > 0 ? 'underpaid' : 'overpaid',
                 'gross_cents' => $gross,
                 'net_cents' => $net,
-                'paid_gross_cents' => $baseGross,
-                'paid_net_cents' => $baseNet,
+                'paid_gross_cents' => (int) $paid['gross_cents'],
+                'paid_net_cents' => (int) $paid['net_cents'],
                 'due_gross_cents' => (int) $due['gross_cents'],
                 'due_net_cents' => (int) $due['net_cents'],
                 'detail' => [
                     'paid_side' => $paid,
                     'due_side' => $due,
-                    'baseline' => $baseline !== null ? $baseline->status : 'recalculation',
+                    'handled_gross_cents' => $handledGross,
+                    'handled_net_cents' => $handledNet,
+                    'handled_rows' => (int) ($handled->rows_count ?? 0),
+                    'net_is_estimate' => $result['net_is_estimate'],
                     'entry_log_version' => $version,
                     'trail_rebuilt_at_release' => version_compare($version, '1.9', '<'),
                 ],

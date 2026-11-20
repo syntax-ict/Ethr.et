@@ -35,6 +35,7 @@ return [
     'pension_rule_locked' => 'Pension contributions follow :reference, and an organisation cannot change them. The law\'s rates are applied to every payroll.',
     'statutory_rule_not_resettable' => 'This rule is the law\'s, or one the organisation does not set here, so there is nothing to reset.',
     'pay_differences_pending' => 'Some pay differences are still being worked out. Try again in a moment.',
-    'pay_differences_unacknowledged' => ':count pay difference(s) are open for people in this run. Review them, then approve with that count.',
+    'pay_differences_unacknowledged' => ':count pay difference(s) are open in this organisation, including people not in this run. Review them, then approve with that count.',
     'pay_difference_not_open' => 'Only an open pay difference can be settled or dismissed.',
+    'settled_pay_differences_unacknowledged' => ':count pay difference(s) in this run were settled by hand. Voiding it and processing again pays those months in full. Confirm that count to void.',
 ];

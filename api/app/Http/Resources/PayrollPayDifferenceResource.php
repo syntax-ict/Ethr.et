@@ -31,6 +31,7 @@ class PayrollPayDifferenceResource extends JsonResource
             'status' => $this->status,
             'changed_from' => $this->changed_from->format('Y-m-d'),
             'trail_rebuilt_at_release' => (bool) ($this->detail['trail_rebuilt_at_release'] ?? false),
+            'net_is_estimate' => (bool) ($this->detail['net_is_estimate'] ?? false),
             'note' => $this->note,
             'settled_at' => $this->settled_at,
             'created_at' => $this->created_at,
