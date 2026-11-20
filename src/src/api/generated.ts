@@ -4828,6 +4828,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lookups */
+        get: operations["lookup.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/marketing-content": {
         parameters: {
             query?: never;
@@ -27619,6 +27636,69 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "lookup.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        version: string;
+                        items: {
+                            region: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            sub_city: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            town: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            bank: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
         };
     };
     "marketingContent.index": {
