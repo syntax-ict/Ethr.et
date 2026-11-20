@@ -204,6 +204,7 @@ return [
 
     'attributes' => [
         'branch_public_id' => 'branch',
+        'salary_effective_date' => 'salary effective date',
     ],
 
     /*

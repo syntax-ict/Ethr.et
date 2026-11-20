@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\CustomRole;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeSalaryHistory;
 use App\Models\JobApplication;
 use App\Models\Permission;
 use App\Models\Tenant;
@@ -232,6 +233,11 @@ it('hires into one employee however many times the hire is sent', function () {
         ->stage->toBe(ApplicationStage::HIRED)
         ->employee_id->toBe($employee->id);
     $this->assertDatabaseHas('audit_log', ['action' => 'recruitment.hired']);
+    $history = EmployeeSalaryHistory::query()->where('employee_id', $employee->id)->get();
+    expect($history)->toHaveCount(1)
+        ->and($history[0]->source)->toBe('hire')
+        ->and($history[0]->salary_cents)->toBe(1_500_000)
+        ->and($history[0]->effective_date->toDateString())->toBe($employee->hire_date->toDateString());
 });
 
 it('refuses a probation that ends before it starts', function () {
