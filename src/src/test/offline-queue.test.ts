@@ -8,6 +8,9 @@ import {
   markSyncError,
   clearSyncedRecords,
   getPendingCount,
+  getRefusedRecords,
+  markRefused,
+  removeRecord,
 } from "@/lib/offline-queue";
 
 /**
@@ -181,5 +184,75 @@ describe("offline queue", () => {
 
     const errored = pending.find((r) => r.idempotency_key === "b");
     expect(errored?.sync_error).toBe("Unknown employee");
+  });
+
+  describe("a punch refused for good", () => {
+    it("leaves the pending list and the count, and is read back as refused", async () => {
+      const id = await enqueueOfflineRecord(punch({ idempotency_key: "bad" }));
+      await enqueueOfflineRecord(punch({ idempotency_key: "good" }));
+
+      await markRefused(id, "This day is closed.");
+
+      expect((await getPendingRecords()).map((r) => r.idempotency_key)).toEqual(
+        ["good"],
+      );
+      expect(await getPendingCount()).toBe(1);
+      const refused = await getRefusedRecords();
+      expect(refused).toHaveLength(1);
+      expect(refused[0]).toMatchObject({
+        idempotency_key: "bad",
+        synced: 2,
+        sync_error: "This day is closed.",
+        refused_locally: false,
+      });
+    });
+
+    it("marks a punch refused with no server reason as refused here", async () => {
+      const id = await enqueueOfflineRecord(punch());
+
+      await markRefused(id);
+
+      const [refused] = await getRefusedRecords();
+      expect(refused.sync_error).toBeNull();
+      expect(refused.refused_locally).toBe(true);
+    });
+
+    it("is not deleted by housekeeping, only by removing it", async () => {
+      const id = await enqueueOfflineRecord(punch());
+      await markRefused(id, "No.");
+
+      await clearSyncedRecords();
+      expect(await getRefusedRecords()).toHaveLength(1);
+
+      await removeRecord(id);
+      expect(await getRefusedRecords()).toEqual([]);
+      expect(await getAllRecords()).toEqual([]);
+    });
+
+    it("removing an id that is not there does not throw", async () => {
+      await expect(removeRecord(9999)).resolves.toBeUndefined();
+    });
+  });
+
+  describe("on a phone shared by two people", () => {
+    it("reads, counts and lists only the asked person's records", async () => {
+      await enqueueOfflineRecord(punch({ idempotency_key: "mine" }));
+      await enqueueOfflineRecord(
+        punch({ idempotency_key: "theirs", employee_public_id: "OTHER" }),
+      );
+      const theirRefused = await enqueueOfflineRecord(
+        punch({ idempotency_key: "theirs-bad", employee_public_id: "OTHER" }),
+      );
+      await markRefused(theirRefused, "No.");
+
+      const me = "01HEMP0000000000000000001";
+      expect(
+        (await getPendingRecords(me)).map((r) => r.idempotency_key),
+      ).toEqual(["mine"]);
+      expect(await getPendingCount(me)).toBe(1);
+      expect(await getRefusedRecords(me)).toEqual([]);
+      expect(await getPendingCount()).toBe(2);
+      expect(await getRefusedRecords("OTHER")).toHaveLength(1);
+    });
   });
 });

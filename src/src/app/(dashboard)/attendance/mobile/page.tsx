@@ -51,7 +51,12 @@ import {
 } from "@/features/profile/api";
 import { PhotoConsentDialog } from "@/features/attendance/components/photo-consent-notice";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
-import { enqueueOfflineRecord } from "@/lib/offline-queue";
+import {
+  enqueueOfflineRecord,
+  type OfflineAttendanceRecord,
+} from "@/lib/offline-queue";
+import { offlinePunchWouldBeRefused } from "@/features/attendance/offline-binding";
+import { RefusedPunches } from "@/features/attendance/components/mobile/refused-punches";
 import {
   fixFrom,
   punchSignals,
@@ -83,6 +88,8 @@ import { cn } from "@/lib/utils";
 // quiet-on-error: the punch screen is offline-first and must work with no signal; today's shift line is advisory, so a failed lookup leaves it blank rather than putting an error between a person and the punch button.
 
 type PunchType = "check_in" | "check_out";
+
+const NO_REFUSED: OfflineAttendanceRecord[] = [];
 
 /** A punch that has been asked for and not yet answered or saved. */
 interface Attempt {
@@ -124,7 +131,15 @@ export default function MobilePunchPage() {
   const hasEmployee = Boolean(user?.employee_public_id);
   const shiftQuery = useMyShift(hasEmployee);
   const shift = shiftQuery.data;
-  const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
+  // Only this person's saved punches: a shared phone may hold others'.
+  const {
+    isOnline,
+    pendingCount,
+    refused = NO_REFUSED,
+    syncing,
+    syncNow,
+    removeRefused,
+  } = useOfflineSync(user?.employee_public_id ?? null);
   const punch = useMobilePunch();
   const deviceQuery = useAttendanceDevice(hasEmployee);
   const deviceState = deviceQuery.data;
@@ -496,6 +511,19 @@ export default function MobilePunchPage() {
         const latitude = fixedCoordinate(position.latitude);
         const longitude = fixedCoordinate(position.longitude);
         const offlineDevice = currentOfflineDevice(user.employee_public_id);
+        // The server accepts an offline punch under an enforced rule only
+        // with the registered phone's signature, which needs a grant naming
+        // the phone. Without one it would refuse the punch at sync, so do not
+        // save it and promise it.
+        if (offlinePunchWouldBeRefused(deviceState, Boolean(offlineDevice))) {
+          refuse(
+            t(
+              "attendance.punch.cannot_confirm_offline",
+              "This phone cannot confirm a punch without a connection right now. Connect to the internet and try again, or ask HR to enter this punch.",
+            ),
+          );
+          return;
+        }
         let offlineProof: unknown = null;
         if (offlineDevice) {
           try {
@@ -684,7 +712,14 @@ export default function MobilePunchPage() {
   // organisation to allow punches made without a connection.
   const canSaveHere =
     shift?.policy.offline_sync_enabled !== false &&
-    Boolean(user?.employee_public_id);
+    Boolean(user?.employee_public_id) &&
+    !offlinePunchWouldBeRefused(
+      deviceState,
+      Boolean(
+        user?.employee_public_id &&
+        currentOfflineDevice(user.employee_public_id),
+      ),
+    );
 
   // From a tap on the slow-send offer: give up on the request in flight (its
   // answer, if one comes, is ignored; the copy saved here carries the same
@@ -804,6 +839,13 @@ export default function MobilePunchPage() {
         pendingCount={pendingCount}
         syncing={syncing}
         onSync={() => void syncNow()}
+      />
+      <RefusedPunches
+        records={refused}
+        whenOf={(iso) =>
+          `${formatCalendarDayMonth(iso, zone, calendar, locale)} ${timeOf(iso)}`
+        }
+        onRemove={(id) => void removeRefused?.(id)}
       />
 
       {/* A holiday, the weekend, a day off or leave: said before the clock. */}

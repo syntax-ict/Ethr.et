@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\EmployeeStatus;
 use App\Enums\Feature;
 use App\Models\AttendanceIntegrityFlag;
 use App\Models\AttendanceRecord;
@@ -13,6 +14,8 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Kiosk\KioskOfflineSeal;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Testing\TestResponse;
 
@@ -37,7 +40,7 @@ function sealPunch(string $publicKeyB64, array $punch): string
 }
 
 /** @return array{Tenant, KioskSession, array<string, mixed>} */
-function offlineKiosk(bool $pinRequired = true): array
+function offlineKiosk(bool $pinRequired = true, array $employee = []): array
 {
     $tenant = createTenant();
     AttendanceSetting::create([...AttendanceSetting::defaults(), 'tenant_id' => $tenant->id, 'kiosk_pin_required' => $pinRequired]);
@@ -45,6 +48,7 @@ function offlineKiosk(bool $pinRequired = true): array
     Employee::factory()->create([
         'tenant_id' => $tenant->id, 'branch_id' => $branch->id,
         'employee_code' => 'K-OFF', 'kiosk_pin' => Hash::make('4821'),
+        ...$employee,
     ]);
     $session = KioskSession::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'status' => 'active']);
     app(CurrentTenant::class)->forget();
@@ -252,4 +256,145 @@ it('lets the server decide an offline punch the kiosk sent as auto', function ()
 
     $record = AttendanceRecord::withoutGlobalScopes()->where('idempotency_key', 'kiosk-auto-in')->sole();
     expect($record->check_out?->utc()->format('H:i'))->toBe('14:00');
+});
+
+/** @return list<array<string, mixed>> */
+function refusedPunchAudits(): array
+{
+    return DB::table('audit_log')->where('action', 'kiosk.offline_punch_refused')->orderBy('id')->get()
+        ->map(fn ($row) => [...(array) $row, 'payload' => json_decode((string) $row->payload, true)])
+        ->all();
+}
+
+it('says a refusal that can never be accepted is final, and leaves one audit entry for it', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'unknown-code',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'NOBODY', 'p' => '4821', 't' => 'check_in', 'at' => now()->toIso8601String(), 'k' => 'unknown-code']),
+    ]])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.final', true);
+
+    $audits = refusedPunchAudits();
+    expect($audits)->toHaveCount(1)
+        ->and($audits[0]['payload']['reason'])->toBe('employee_not_found')
+        ->and($audits[0]['payload']['employee_code'])->toBe('NOBODY')
+        ->and($audits[0]['payload']['idempotency_key'])->toBe('unknown-code')
+        ->and($audits[0]['payload'])->toHaveKey('captured_at')
+        ->and($audits[0]['tenant_id'])->toBe($tenant->id)
+        ->and(json_encode($audits[0]))->not->toContain('4821');
+});
+
+it('treats a wrong PIN as final, audits it, and never writes the PIN', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'wrong-pin',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '0000', 't' => 'check_in', 'at' => now()->toIso8601String(), 'k' => 'wrong-pin']),
+    ]])->assertOk()->assertJsonPath('results.0.final', true);
+
+    $audits = refusedPunchAudits();
+    expect($audits)->toHaveCount(1)
+        ->and($audits[0]['payload']['reason'])->toBe('invalid_pin')
+        ->and($audits[0]['payload']['employee_code'])->toBe('K-OFF')
+        ->and(json_encode($audits[0]))->not->toContain('0000');
+});
+
+it('treats a punch outside the window and one it cannot read as final', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+
+    syncKiosk($tenant, $session, [
+        ['idempotency_key' => 'stale', 'grant' => $config['grant'], 'sealed' => sealPunch($config['public_key'], [
+            'c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->subDays(30)->toIso8601String(), 'k' => 'stale',
+        ])],
+        ['idempotency_key' => 'junk', 'sealed' => base64_encode('{"c":"K-OFF"}')],
+    ])->assertOk()
+        ->assertJsonPath('results.0.final', true)
+        ->assertJsonPath('results.1.final', true);
+
+    expect(array_column(array_column(refusedPunchAudits(), 'payload'), 'reason'))->toBe(['outside_window', 'unreadable']);
+});
+
+it('keeps a check-out whose check-in has not landed yet, and writes no refusal entry', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'no-open',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'check_out', 'at' => now()->subMinute()->toIso8601String(), 'k' => 'no-open']),
+    ]])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.final', false);
+
+    expect(refusedPunchAudits())->toBeEmpty();
+});
+
+it('treats a punch by an employee who has left as final and audits it', function () {
+    [$tenant, $session, $config] = offlineKiosk(employee: [
+        'status' => EmployeeStatus::RESIGNED,
+        'termination_date' => now()->subMonths(2)->toDateString(),
+    ]);
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'left',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->subMinute()->toIso8601String(), 'k' => 'left']),
+    ]])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.final', true);
+
+    expect(refusedPunchAudits())->toHaveCount(1)
+        ->and(refusedPunchAudits()[0]['payload']['reason'])->toBe('refused');
+});
+
+it('keeps a punch the engine failed on for a passing reason, and writes no refusal entry', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+    // The engine is final, so the failure comes from underneath it: a write that throws.
+    Event::listen('eloquent.creating: '.AttendanceRecord::class, fn () => throw new RuntimeException('database went away'));
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'boom',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->subMinute()->toIso8601String(), 'k' => 'boom']),
+    ]])->assertOk()
+        ->assertJsonPath('results.0.status', 'error')
+        ->assertJsonPath('results.0.detail', __('kiosk.offline_failed'))
+        ->assertJsonPath('results.0.final', false);
+
+    expect(refusedPunchAudits())->toBeEmpty();
+});
+
+it('says a PIN lock is not final, and a check made while locked adds no refusal entry', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+    $punch = fn (string $pin, string $key): array => [
+        'idempotency_key' => $key,
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => $pin, 't' => 'check_in', 'at' => now()->subMinute()->toIso8601String(), 'k' => $key]),
+    ];
+
+    syncKiosk($tenant, $session, array_map(fn (int $i) => $punch('0000', "lock-{$i}"), range(1, 5)))->assertOk();
+    $auditsBefore = count(refusedPunchAudits());
+
+    syncKiosk($tenant, $session, [$punch('4821', 'while-locked')])->assertOk()
+        ->assertJsonPath('results.0.detail', __('kiosk.pin_locked'))
+        ->assertJsonPath('results.0.final', false);
+
+    expect(count(refusedPunchAudits()))->toBe($auditsBefore);
+});
+
+it('writes no refusal entry for a punch that is recorded', function () {
+    [$tenant, $session, $config] = offlineKiosk();
+
+    syncKiosk($tenant, $session, [[
+        'idempotency_key' => 'fine',
+        'grant' => $config['grant'],
+        'sealed' => sealPunch($config['public_key'], ['c' => 'K-OFF', 'p' => '4821', 't' => 'check_in', 'at' => now()->subMinute()->toIso8601String(), 'k' => 'fine']),
+    ]])->assertOk()
+        ->assertJsonPath('results.0.status', 'created')
+        ->assertJsonMissingPath('results.0.final');
+
+    expect(refusedPunchAudits())->toBeEmpty();
 });

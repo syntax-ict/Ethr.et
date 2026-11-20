@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { WifiOff } from "lucide-react";
 import { getPendingCount } from "@/lib/offline-queue";
+import { readOfflineIdentity } from "@/features/auth/offline-identity";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { useT } from "@/lib/i18n/useT";
 
@@ -12,6 +13,10 @@ import { useT } from "@/lib/i18n/useT";
  * check-in page) — mounting a second live sync loop here would race with
  * that page's own auto-sync-on-reconnect effect. This just reads state:
  * navigator.onLine plus the IndexedDB pending-record count.
+ *
+ * On a shared phone the count is the signed-in person's own, as the punch
+ * screen shows it: the identity kept for offline start names them. With no
+ * identity kept, every waiting punch is counted.
  */
 export function OfflineBanner() {
   const { t } = useT();
@@ -25,7 +30,9 @@ export function OfflineBanner() {
     let cancelled = false;
     async function refresh() {
       try {
-        const count = await getPendingCount();
+        const count = await getPendingCount(
+          readOfflineIdentity()?.user.employee_public_id ?? null,
+        );
         if (!cancelled) setPendingCount(count);
       } catch {
         // IndexedDB may not be available in some contexts
