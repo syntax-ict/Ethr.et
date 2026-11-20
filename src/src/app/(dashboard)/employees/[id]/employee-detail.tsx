@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -344,11 +345,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       />
                     </div>
                     <div>
-                      <Label>{t("common.phone", "Phone")}</Label>
-                      <Input
+                      <Label htmlFor="edit-phone">
+                        {t("common.phone", "Phone")}
+                      </Label>
+                      <PhoneInput
+                        id="edit-phone"
+                        international
                         value={editForm.phone}
-                        onChange={(e) =>
-                          setEditForm((p) => ({ ...p, phone: e.target.value }))
+                        onChange={(v) =>
+                          setEditForm((p) => ({ ...p, phone: v }))
                         }
                         className="mt-1"
                       />

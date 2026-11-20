@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Organization\Concerns;
 
+use App\Rules\Phone;
+
 /**
  * The branch fields, shared by `StoreBranchRequest` and `UpdateBranchRequest`.
  *
@@ -28,7 +30,7 @@ trait BranchRules
             'code' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'geofence_radius_meters' => ['nullable', 'integer', 'min:10', 'max:10000'],

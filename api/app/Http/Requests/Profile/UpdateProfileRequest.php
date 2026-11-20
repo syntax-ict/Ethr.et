@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Profile;
 
+use App\Rules\Phone;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProfileRequest extends FormRequest
@@ -18,14 +19,14 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             // Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS.
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
             'nationality' => ['nullable', 'string', 'max:100'],
 
             // Shorthand for the primary emergency contact. The full list is managed
             // through /profile/emergency-contacts.
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
 
             // Gated fields — staged into profile_update_requests for HR review

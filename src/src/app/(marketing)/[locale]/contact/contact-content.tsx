@@ -11,6 +11,7 @@ import { sendContactMessage } from "@/features/marketing/api";
 import { fieldErrors, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
+import { telHref } from "@/lib/phone";
 
 // The console has one Contact phone field. Several numbers go in it separated
 // by a comma, a semicolon or a slash, and each becomes its own call link: a
@@ -176,7 +177,7 @@ export function ContactContent() {
                                 (number) => (
                                   <a
                                     key={number}
-                                    href={`tel:${number.replace(/\s+/g, "")}`}
+                                    href={telHref(number)}
                                     className="block hover:text-foreground hover:underline"
                                   >
                                     {number}

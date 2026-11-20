@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Recruitment;
 
 use App\Models\JobApplication;
+use App\Rules\Phone;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -24,7 +25,7 @@ class StoreJobApplicationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150'],
             'email' => ['nullable', 'email', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'source' => ['required', 'string', 'in:'.implode(',', JobApplication::SOURCES)],
             'cover_note' => ['nullable', 'string', 'max:5000'],
         ];

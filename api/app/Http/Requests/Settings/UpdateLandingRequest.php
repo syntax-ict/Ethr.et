@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Rules\Phone;
 use App\Services\CurrentTenant;
 use App\Support\TenantLanding;
 use Illuminate\Foundation\Http\FormRequest;
@@ -42,7 +43,7 @@ class UpdateLandingRequest extends FormRequest
             'message_am' => ['nullable', 'string', 'max:280'],
             'message_om' => ['nullable', 'string', 'max:280'],
             'support_email' => ['nullable', 'email', 'max:120'],
-            'support_phone' => ['nullable', 'string', 'regex:/^\+?[0-9 ()-]{6,24}$/'],
+            'support_phone' => ['nullable', 'string', 'max:24', Phone::any()],
             'background' => ['required', 'string', 'in:brand,gradient,pattern,image'],
             'about' => ['nullable', 'string', 'max:600'],
             'about_am' => ['nullable', 'string', 'max:600'],

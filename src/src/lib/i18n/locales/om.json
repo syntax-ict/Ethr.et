@@ -6744,6 +6744,7 @@
   "validation.name_min": "Yoo xiqqaate qubee 2 galchaa",
   "validation.password_min": "Yoo xiqqaate qubee 8 fayyadamaa",
   "validation.phone": "Lakkoofsa bilbilaa Itoophiyaa sirrii galchaa, fkn. 0911223344",
+  "validation.phone_any": "Lakkoofsa bilbilaa galchaa, fkn. 0911223344, ykn lakkoofsa biyya biraa koodii biyyaa isaa waliin, fkn. +44 20 7946 0958",
   "validation.required": "Bakki kun dirqama",
   "validation.select_required": "Filannoo tokko filadhaa",
   "validation.subdomain_format": "Qubeewwan xixiqqaa, lakkoofsota fi sarara qofa fayyadamaa",

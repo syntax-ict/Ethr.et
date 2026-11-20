@@ -37,6 +37,7 @@ import { isFrontDoor } from "@/lib/auth/entry-organisation";
 import { OrganisationPortal } from "@/features/auth/components/organisation-portal";
 import { scrubLeakedFields } from "@/lib/auth/scrub-leaked-fields";
 import { FormSlot } from "./form-slot";
+import { telHref } from "@/lib/phone";
 
 const taglineKeys = [
   "layout_multi_tenant",
@@ -370,7 +371,7 @@ export function SupportContacts({
           </a>
         )}
         {phone && (
-          <a href={`tel:${phone.replace(/[^0-9+]/g, "")}`} className={link}>
+          <a href={telHref(phone)} className={link}>
             <Phone className="h-3.5 w-3.5" aria-hidden="true" />
             {phone}
           </a>

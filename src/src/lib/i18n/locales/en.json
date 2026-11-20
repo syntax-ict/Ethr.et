@@ -6744,6 +6744,7 @@
   "validation.name_min": "Enter at least 2 characters",
   "validation.password_min": "Use at least 8 characters",
   "validation.phone": "Enter a valid Ethiopian phone number, e.g. 0911223344",
+  "validation.phone_any": "Enter a phone number, e.g. 0911223344, or a foreign number with its country code, e.g. +44 20 7946 0958",
   "validation.required": "This field is required",
   "validation.select_required": "Choose an option",
   "validation.subdomain_format": "Use only lowercase letters, numbers, and hyphens",

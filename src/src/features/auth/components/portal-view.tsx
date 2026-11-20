@@ -57,6 +57,7 @@ import {
   publicCalendar,
   publicDate,
 } from "@/lib/calendar/public-calendar";
+import { telHref } from "@/lib/phone";
 
 export interface PortalViewProps {
   name: string | null;
@@ -820,7 +821,7 @@ function ContactSection({
         {phone && (
           <li className={row}>
             <Phone className={icon} aria-hidden="true" />
-            <a href={`tel:${phone.replace(/[^0-9+]/g, "")}`} className={link}>
+            <a href={telHref(phone)} className={link}>
               {phone}
             </a>
           </li>
@@ -871,7 +872,7 @@ function ContactSection({
                   <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     {b.phone && (
                       <a
-                        href={`tel:${b.phone.replace(/[^0-9+]/g, "")}`}
+                        href={telHref(b.phone)}
                         className={cn(link, "text-foreground")}
                       >
                         {b.phone}

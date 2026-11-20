@@ -6744,6 +6744,7 @@
   "validation.name_min": "ቢያንስ 2 ፊደላት ያስገቡ",
   "validation.password_min": "ቢያንስ 8 ቁምፊዎችን ይጠቀሙ",
   "validation.phone": "ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ፣ ለምሳሌ 0911223344",
+  "validation.phone_any": "የስልክ ቁጥር ያስገቡ፣ ለምሳሌ 0911223344፣ ወይም የሌላ አገር ቁጥር ከአገር ኮዱ ጋር፣ ለምሳሌ +44 20 7946 0958",
   "validation.required": "ይህ መስክ ያስፈልጋል",
   "validation.select_required": "አማራጭ ይምረጡ",
   "validation.subdomain_format": "ትንንሽ ፊደላት፣ ቁጥሮች እና ሰረዞችን ብቻ ይጠቀሙ",
