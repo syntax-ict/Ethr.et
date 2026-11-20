@@ -33,6 +33,7 @@ use App\Services\Payroll\RunRegisterService;
 use App\Services\Payroll\StatutorySchedules;
 use App\Support\Csv;
 use App\Support\ReaderDates;
+use App\Support\RequestBudget;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -169,7 +170,7 @@ class PayrollController extends Controller
         // approval never counts a row whose amount is unknown; the open ones
         // are acknowledged by count, as the pension exemptions are. The engine
         // counts again under its lock, and that count is the authority.
-        if ($differences->computePending($payrollRun->tenant_id, null, self::INLINE_PAY_DIFFERENCES) > 0) {
+        if ($differences->computePending($payrollRun->tenant_id, null, self::INLINE_PAY_DIFFERENCES, RequestBudget::deadline()) > 0) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/pay-differences-pending',
                 'title' => 'Pay differences still being worked out',
@@ -177,7 +178,11 @@ class PayrollController extends Controller
                 'detail' => __('payroll.pay_differences_pending'),
             ], 422)->header('Content-Type', 'application/problem+json');
         }
-        $openDifferences = PayrollPayDifference::query()
+        $failedDifferences = PayrollPayDifference::query()
+            ->where('tenant_id', $payrollRun->tenant_id)
+            ->where('status', PayrollPayDifference::FAILED)
+            ->count();
+        $openDifferences = $failedDifferences + PayrollPayDifference::query()
             ->where('tenant_id', $payrollRun->tenant_id)
             ->where('status', PayrollPayDifference::OPEN)
             ->count();
@@ -187,8 +192,10 @@ class PayrollController extends Controller
                 'type' => 'https://ethr.et/errors/pay-differences-unacknowledged',
                 'title' => 'Pay differences not acknowledged',
                 'status' => 422,
-                'detail' => __('payroll.pay_differences_unacknowledged', ['count' => $openDifferences]),
+                'detail' => __('payroll.pay_differences_unacknowledged', ['count' => $openDifferences])
+                    .($failedDifferences > 0 ? ' '.__('payroll.pay_differences_failed_note', ['failed' => $failedDifferences]) : ''),
                 'pay_differences' => $openDifferences,
+                'pay_differences_failed' => $failedDifferences,
             ], 422)->header('Content-Type', 'application/problem+json');
         }
         // Attendance reconciliation, when the organisation requires it: no

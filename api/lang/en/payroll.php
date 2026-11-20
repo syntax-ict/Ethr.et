@@ -38,4 +38,5 @@ return [
     'pay_differences_unacknowledged' => ':count pay difference(s) are open in this organisation, including people not in this run. Review them, then approve with that count.',
     'pay_difference_not_open' => 'Only an open pay difference can be settled or dismissed.',
     'settled_pay_differences_unacknowledged' => ':count pay difference(s) in this run were settled by hand. Voiding it and processing again pays those months in full. Confirm that count to void.',
+    'pay_differences_failed_note' => ':failed of them could not be worked out and need a manual check.',
 ];

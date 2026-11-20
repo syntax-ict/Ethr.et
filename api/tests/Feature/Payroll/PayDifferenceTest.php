@@ -21,6 +21,7 @@ use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Services\PersonnelActionService;
+use App\Support\SalaryChangeContext;
 use Carbon\Carbon;
 use Illuminate\Support\Carbon as IlluminateCarbon;
 use Illuminate\Support\Facades\DB;
@@ -77,7 +78,7 @@ function pdCompute(int $tenantId): int
 
 function pdLive(int $employeeId): ?PayrollPayDifference
 {
-    return PayrollPayDifference::query()->where('employee_id', $employeeId)->whereIn('status', ['pending', 'open'])->first();
+    return PayrollPayDifference::query()->where('employee_id', $employeeId)->whereIn('status', ['pending', 'open', 'failed'])->first();
 }
 
 it('records an underpaid difference for a raise back-dated into an approved month, and the next approval must acknowledge it', function () {
@@ -377,29 +378,6 @@ it('does nothing for an employee with no released entries', function () {
     Queue::assertNothingPushed();
 });
 
-it('takes the whole stored net as overpaid when a loan finished at approval and the leaving date moves before the month', function () {
-    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
-    $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
-    EmployeeLoan::factory()->create([
-        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'amount_cents' => 50_000,
-        'remaining_cents' => 50_000, 'monthly_deduction_cents' => 50_000, 'start_date' => '2026-01-01',
-    ]);
-    Queue::fake();
-    $run = pdRun($tenant->id, $user->id, '2026-10-01', '2026-10-31');
-    app(PayrollEngine::class)->approve($run, $user->id);
-    $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
-    expect($entry->other_deductions_cents)->toBe(50_000);
-
-    $employee->update(['status' => EmployeeStatus::TERMINATED, 'termination_date' => '2026-09-15']);
-    pdCompute($tenant->id);
-
-    $row = pdLive($employee->id);
-    expect($row->net_cents)->toBe(-$entry->net_cents)
-        ->and($row->gross_cents)->toBe(-$entry->gross_cents);
-});
-
 it('records only the real delta after a settlement even when something else has drifted since', function () {
     [$tenant, $user, $employee] = pdApprovedOctober();
     pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
@@ -465,14 +443,62 @@ it('makes the next approval acknowledge a leaver who has no entry in it', functi
     test()->putJson("/api/v1/payroll/runs/{$november->public_id}/approve", ['acknowledged_pay_differences' => 1])->assertOk();
 });
 
-it('counts the open differences again under the approval lock', function () {
+/** A recorder whose engine fails for the given entries, to show what a row that cannot be worked out does. */
+function pdFailingRecorder(array $entryIds): PayDifferenceRecorder
+{
+    return new class(app(PayrollEngine::class), $entryIds) extends PayDifferenceRecorder
+    {
+        /** @param  list<int>  $failing */
+        public function __construct(PayrollEngine $engine, private readonly array $failing)
+        {
+            parent::__construct($engine);
+        }
+
+        protected function counterfactualFor(PayrollEntry $entry, array &$prepared): array
+        {
+            if (in_array($entry->id, $this->failing, true)) {
+                throw new RuntimeException('cannot be worked out');
+            }
+
+            return parent::counterfactualFor($entry, $prepared);
+        }
+    };
+}
+
+it('takes the stored gross, tax and pension as the net to recover when nothing was owed, and names the loan drawn from it', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
+    EmployeeLoan::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'amount_cents' => 50_000,
+        'remaining_cents' => 50_000, 'monthly_deduction_cents' => 50_000, 'start_date' => '2026-01-01',
+    ]);
+    Queue::fake();
+    $run = pdRun($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+    app(PayrollEngine::class)->approve($run, $user->id);
+    $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+    expect($entry->other_deductions_cents)->toBe(50_000);
+
+    PayrollRule::factory()->fixed(100_000)->create(['tenant_id' => $tenant->id, 'name' => 'Transport']);
+    $employee->update(['status' => EmployeeStatus::TERMINATED, 'termination_date' => '2026-09-15']);
+    pdCompute($tenant->id);
+
+    $row = pdLive($employee->id);
+    expect($row->gross_cents)->toBe(-$entry->gross_cents)
+        ->and($row->net_cents)->toBe(-($entry->gross_cents - $entry->income_tax_cents - $entry->employee_pension_cents))
+        ->and($row->detail['loan_deductions_cents'])->toBe(50_000)
+        ->and($row->detail['net_is_estimate'])->toBeFalse();
+});
+
+it('counts the open differences again under the approval lock, and says which refusal', function () {
     [$tenant, $user, $employee] = pdApprovedOctober();
     pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
     pdCompute($tenant->id);
     $november = pdRun($tenant->id, $user->id, '2026-11-01', '2026-11-30');
 
     expect(fn () => app(PayrollEngine::class)->approve($november, $user->id, 0))
-        ->toThrow(PayrollRunRefused::class);
+        ->toThrow(PayrollRunRefused::class, __('payroll.pay_differences_unacknowledged', ['count' => 1]));
     expect($november->fresh()->status)->toBe('completed');
 
     app(SalaryHistoryWriter::class)->record($employee->fresh(), 1_500_000, '2026-10-11', 'edit', null, $user->id);
@@ -480,13 +506,24 @@ it('counts the open differences again under the approval lock', function () {
         ->toThrow(PayrollRunRefused::class, __('payroll.pay_differences_pending'));
 });
 
-it('measures the net difference with the loans and cost sharing the month deducted, not today\'s', function () {
-    [$tenant, $user, $employee] = pdApprovedOctober();
+it('measures the net difference with the loan and cost sharing the month deducted, not today\'s', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
+    EmployeeLoan::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'amount_cents' => 900_000,
+        'remaining_cents' => 900_000, 'monthly_deduction_cents' => 50_000, 'start_date' => '2026-01-01',
+    ]);
+    Queue::fake();
+    $run = pdRun($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+    app(PayrollEngine::class)->approve($run, $user->id);
+    expect(PayrollEntry::query()->where('payroll_run_id', $run->id)->sole()->other_deductions_cents)->toBe(50_000);
+
     EmployeeCostSharing::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'deduction_rate_percent' => 10,
         'total_obligation_cents' => 5_000_000, 'outstanding_cents' => 5_000_000, 'started_on' => '2026-11-01',
     ]);
-
     pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
     pdCompute($tenant->id);
 
@@ -499,7 +536,26 @@ it('measures the net difference with the loans and cost sharing the month deduct
         );
 });
 
-it('leaves a row pending when it cannot be worked out, and answers the approval with a 422, not a 500', function () {
+it('says the net is an estimate when the entry\'s log has no loan or cost-sharing step', function () {
+    $this->travelTo(IlluminateCarbon::parse('2026-11-05 09:00:00', 'UTC'));
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_000_000, 'hire_date' => '2024-01-01']);
+    Queue::fake();
+    $run = pdRun($tenant->id, $user->id, '2026-10-01', '2026-10-31');
+    $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
+    $log = $entry->calculation_log;
+    $log['steps'] = array_values(array_filter($log['steps'], fn ($step) => ! in_array($step['step'], ['loan_deductions', 'cost_sharing'], true)));
+    DB::table('payroll_entries')->where('id', $entry->id)->update(['calculation_log' => json_encode($log)]);
+    app(PayrollEngine::class)->approve($run, $user->id);
+
+    pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
+    pdCompute($tenant->id);
+
+    expect(pdLive($employee->id)->detail['net_is_estimate'])->toBeTrue();
+});
+
+it('marks a row that cannot be worked out failed, does not block approval on it, and lets it be dismissed but not settled', function () {
     [$tenant, $user, $employee, $october] = pdApprovedOctober();
     $other = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 900_000, 'hire_date' => '2024-01-01']);
     $second = pdRun($tenant->id, $user->id, '2026-09-01', '2026-09-30');
@@ -508,29 +564,132 @@ it('leaves a row pending when it cannot be worked out, and answers the approval 
     pdRaise($other, $user->id, '2026-09-20', 1_100_000);
 
     $broken = PayrollEntry::query()->where('payroll_run_id', $october->id)->where('employee_id', $employee->id)->sole();
-    $recorder = new class(app(PayrollEngine::class), $broken->id) extends PayDifferenceRecorder
-    {
-        public function __construct(PayrollEngine $engine, private readonly int $failingEntry)
-        {
-            parent::__construct($engine);
-        }
+    app()->instance(PayDifferenceRecorder::class, pdFailingRecorder([$broken->id]));
 
-        protected function counterfactualFor(PayrollEntry $entry, array &$prepared): array
-        {
-            if ($entry->id === $this->failingEntry) {
-                throw new RuntimeException('cannot be worked out');
-            }
+    $november = pdRun($tenant->id, $user->id, '2026-11-01', '2026-11-30');
+    $response = test()->putJson("/api/v1/payroll/runs/{$november->public_id}/approve");
+    $response->assertStatus(422)->assertJsonPath('type', 'https://ethr.et/errors/pay-differences-unacknowledged');
+    $total = $response->json('pay_differences');
+    expect($response->json('pay_differences_failed'))->toBe(1);
 
-            return parent::counterfactualFor($entry, $prepared);
-        }
-    };
-    app()->instance(PayDifferenceRecorder::class, $recorder);
+    $failed = PayrollPayDifference::query()->where('payroll_entry_id', $broken->id)->sole();
+    expect($failed->status)->toBe('failed')
+        ->and($failed->detail['error']['class'])->toBe('RuntimeException')
+        ->and($failed->detail['attempts'])->toBe(1)
+        ->and($failed->detail)->not->toHaveKey('trace');
+
+    test()->postJson("/api/v1/payroll/pay-differences/{$failed->public_id}/settle", ['note' => 'x'])->assertStatus(422);
+    test()->putJson("/api/v1/payroll/runs/{$november->public_id}/approve", ['acknowledged_pay_differences' => $total])->assertOk();
+    test()->postJson("/api/v1/payroll/pay-differences/{$failed->public_id}/dismiss", ['note' => 'checked by hand'])
+        ->assertOk()
+        ->assertJsonPath('status', 'dismissed');
+    expect(test()->getJson('/api/v1/payroll/pay-differences')->json('meta.total'))->toBeGreaterThan(0);
+});
+
+it('resets a failed row to pending when the pair is flagged again', function () {
+    [$tenant, $user, $employee, $october] = pdApprovedOctober();
+    pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
+    $entry = PayrollEntry::query()->where('payroll_run_id', $october->id)->sole();
+    pdFailingRecorder([$entry->id])->computePending($tenant->id);
+    expect(pdLive($employee->id)->status)->toBe('failed');
+
+    app(SalaryHistoryWriter::class)->record($employee->fresh(), 1_500_000, '2026-10-11', 'edit', null, $user->id);
+
+    expect(pdLive($employee->id)->status)->toBe('pending');
+    pdCompute($tenant->id);
+    expect(pdLive($employee->id)->status)->toBe('open');
+});
+
+it('fails the job so the queue retries, and the retry works the failed rows again', function () {
+    [$tenant, $user, $employee, $october] = pdApprovedOctober();
+    pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
+    $entry = PayrollEntry::query()->where('payroll_run_id', $october->id)->sole();
+    $job = new ComputePayDifferencesJob($tenant->id, $employee->id);
+
+    expect(fn () => $job->handle(pdFailingRecorder([$entry->id]), app(CurrentTenant::class)))->toThrow(RuntimeException::class);
+    expect(pdLive($employee->id)->status)->toBe('failed');
+
+    $job->handle(app(PayDifferenceRecorder::class), app(CurrentTenant::class));
+    expect(pdLive($employee->id)->status)->toBe('open')
+        ->and($job->backoff())->not->toBeEmpty();
+});
+
+it('stops the inline compute at its deadline and leaves the rest pending', function () {
+    [$tenant, $user, $employee] = pdApprovedOctober();
+    $people = Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'salary_cents' => 900_000, 'hire_date' => '2024-01-01']);
+    $second = pdRun($tenant->id, $user->id, '2026-09-01', '2026-09-30');
+    app(PayrollEngine::class)->approve($second, $user->id);
+    foreach ([$employee, ...$people] as $person) {
+        pdRaise($person, $user->id, '2026-09-20', 1_500_000);
+    }
+    $pending = PayrollPayDifference::query()->where('status', 'pending')->count();
+    expect($pending)->toBeGreaterThan(2);
+
+    $left = app(PayDifferenceRecorder::class)->computePending($tenant->id, null, PHP_INT_MAX, microtime(true) - 1);
+
+    expect($left)->toBe($pending - 1);
+});
+
+it('flags once for a save that changes both the salary and the leaving date', function () {
+    [$tenant, $user, $employee] = pdApprovedOctober();
+
+    SalaryChangeContext::during('2026-10-10', 'edit', null, function () use ($employee) {
+        $employee->update(['salary_cents' => 1_500_000, 'status' => EmployeeStatus::RESIGNED, 'termination_date' => '2026-10-20']);
+    });
+
+    Queue::assertPushed(ComputePayDifferencesJob::class, 1);
+    expect(pdLive($employee->id)->changed_from->toDateString())->toBe('2026-10-10');
+});
+
+it('keeps a settled difference from being paid again when the run is voided and reprocessed', function () {
+    [$tenant, $user, $employee, $october] = pdApprovedOctober();
+    pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
+    pdCompute($tenant->id);
+    $settled = pdLive($employee->id);
+    test()->postJson("/api/v1/payroll/pay-differences/{$settled->public_id}/settle", ['note' => 'paid by hand'])->assertOk();
+
+    test()->postJson("/api/v1/payroll/runs/{$october->public_id}/void", ['reason' => 'redo', 'acknowledged_settled_pay_differences' => 1])->assertOk();
+    $again = app(PayrollEngine::class)->reprocess($october->fresh(), $user->id)->run;
+    app(PayrollEngine::class)->runEntries($again);
+    app(PayrollEngine::class)->approve($again->fresh(), $user->id);
+    pdCompute($tenant->id);
+
+    $row = pdLive($employee->id);
+    expect($row->payroll_run_id)->toBe($again->id)
+        ->and($row->kind)->toBe('overpaid')
+        ->and($row->gross_cents)->toBe(-500_000)
+        ->and($row->detail['handled_rows'])->toBe(1);
 
     $november = pdRun($tenant->id, $user->id, '2026-11-01', '2026-11-30');
     test()->putJson("/api/v1/payroll/runs/{$november->public_id}/approve")
         ->assertStatus(422)
-        ->assertJsonPath('type', 'https://ethr.et/errors/pay-differences-pending');
+        ->assertJsonPath('pay_differences', 1);
+});
 
-    expect(PayrollPayDifference::query()->where('payroll_entry_id', $broken->id)->sole()->status)->toBe('pending')
-        ->and(PayrollPayDifference::query()->where('status', 'open')->count())->toBeGreaterThan(0);
+it('does not subtract a dismissed underpayment from a change that was put back', function () {
+    [$tenant, $user, $employee] = pdApprovedOctober();
+    pdRaise($employee, $user->id, '2026-10-10', 1_500_000);
+    pdCompute($tenant->id);
+    test()->postJson('/api/v1/payroll/pay-differences/'.pdLive($employee->id)->public_id.'/dismiss', ['note' => 'not paying it'])->assertOk();
+
+    pdRaise($employee->fresh(), $user->id, '2026-10-10', 1_000_000);
+    pdCompute($tenant->id);
+
+    expect(pdLive($employee->id))->toBeNull();
+});
+
+it('does not subtract a dismissed overpayment from a later raise for the same month', function () {
+    [$tenant, $user, $employee] = pdApprovedOctober();
+    $employee->update(['status' => EmployeeStatus::RESIGNED, 'termination_date' => '2026-10-16']);
+    pdCompute($tenant->id);
+    $waived = pdLive($employee->id);
+    expect($waived->kind)->toBe('overpaid');
+    test()->postJson("/api/v1/payroll/pay-differences/{$waived->public_id}/dismiss", ['note' => 'recovery waived'])->assertOk();
+
+    $employee->fresh()->update(['status' => EmployeeStatus::CONFIRMED, 'termination_date' => null]);
+    pdRaise($employee->fresh(), $user->id, '2026-10-10', 1_500_000);
+    pdCompute($tenant->id);
+
+    expect(pdLive($employee->id)->kind)->toBe('underpaid')
+        ->and(pdLive($employee->id)->gross_cents)->toBe(500_000);
 });

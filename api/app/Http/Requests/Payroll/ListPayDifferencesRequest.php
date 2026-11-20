@@ -17,7 +17,7 @@ class ListPayDifferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['nullable', 'string', 'in:pending,open,settled,dismissed,superseded'],
+            'status' => ['nullable', 'string', 'in:pending,open,failed,settled,dismissed,superseded'],
             'employee' => ['nullable', 'string', 'max:26'],
             'for_run' => ['nullable', 'string', 'max:26'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],

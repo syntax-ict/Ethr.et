@@ -177,7 +177,25 @@ class Employee extends Model
      */
     public function save(array $options = []): bool
     {
-        return DB::transaction(fn (): bool => parent::save($options));
+        // A save that moves both salary and leaving date flags released months
+        // once, from the earliest date, before it commits.
+        $outer = PayDifferenceRecorder::beginBuffer();
+
+        try {
+            return DB::transaction(function () use ($options, $outer): bool {
+                $saved = parent::save($options);
+
+                if ($outer) {
+                    app(PayDifferenceRecorder::class)->flushBuffer();
+                }
+
+                return $saved;
+            });
+        } finally {
+            if ($outer) {
+                PayDifferenceRecorder::endBuffer();
+            }
+        }
     }
 
     /**

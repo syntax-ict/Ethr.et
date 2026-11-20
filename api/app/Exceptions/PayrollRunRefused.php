@@ -113,14 +113,15 @@ class PayrollRunRefused extends RuntimeException
     }
 
     /** The organisation has open pay differences the approver has not acknowledged by count. */
-    public static function payDifferencesUnacknowledged(int $count): self
+    public static function payDifferencesUnacknowledged(int $count, int $failed = 0): self
     {
         return new self(
             'https://ethr.et/errors/pay-differences-unacknowledged',
             'Pay differences not acknowledged',
-            __('payroll.pay_differences_unacknowledged', ['count' => $count]),
+            __('payroll.pay_differences_unacknowledged', ['count' => $count])
+                .($failed > 0 ? ' '.__('payroll.pay_differences_failed_note', ['failed' => $failed]) : ''),
             [],
-            ['pay_differences' => $count],
+            ['pay_differences' => $count, 'pay_differences_failed' => $failed],
         );
     }
 

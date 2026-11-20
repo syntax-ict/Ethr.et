@@ -14,7 +14,8 @@ use Illuminate\Support\Carbon;
  * The pay difference a change to someone's salary or leaving date left in a
  * month already released. See App\Services\Payroll\PayDifferenceRecorder.
  *
- * `pending` has no amounts yet; `open` is waiting for finance; `settled` and
+ * `pending` has no amounts yet; `open` is waiting for finance; `failed` could
+ * not be worked out (`detail.error`) and can only be dismissed; `settled` and
  * `dismissed` are handled and stay as the history the next difference is
  * measured from; `superseded` belonged to a run that was voided.
  *
@@ -32,7 +33,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $due_gross_cents
  * @property int|null $due_net_cents
  * @property array<string, mixed>|null $detail
- * @property string $status pending|open|settled|dismissed|superseded
+ * @property string $status pending|open|failed|settled|dismissed|superseded
  * @property Carbon $changed_from
  * @property int|null $settled_by
  * @property Carbon|null $settled_at
@@ -55,8 +56,10 @@ class PayrollPayDifference extends Model
 
     public const SUPERSEDED = 'superseded';
 
+    public const FAILED = 'failed';
+
     /** @var list<string> */
-    public const LIVE = [self::PENDING, self::OPEN];
+    public const LIVE = [self::PENDING, self::OPEN, self::FAILED];
 
     protected $fillable = [
         'public_id',

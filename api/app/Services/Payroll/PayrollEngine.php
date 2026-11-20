@@ -414,9 +414,10 @@ final class PayrollEngine
             if ($differences('pending') > 0) {
                 throw PayrollRunRefused::payDifferencesPending();
             }
-            $open = $differences('open');
+            $failed = $differences('failed');
+            $open = $differences('open') + $failed;
             if ($open > 0 && $acknowledgedPayDifferences !== $open) {
-                throw PayrollRunRefused::payDifferencesUnacknowledged($open);
+                throw PayrollRunRefused::payDifferencesUnacknowledged($open, $failed);
             }
 
             $movements = $this->balances->apply($locked);
@@ -426,6 +427,25 @@ final class PayrollEngine
                 'approved_by' => $approvedBy,
                 'approved_at' => now(),
             ]);
+
+            // A reprocess pays a month finance may already have settled by
+            // hand. Its people with a handled difference anywhere in the chain
+            // it replaced are flagged, so the double payment shows as an open
+            // overpayment instead of staying invisible.
+            if ($locked->reprocessed_from_id !== null) {
+                $recorder = app(PayDifferenceRecorder::class);
+                $chain = $recorder->chain($locked->tenant_id, $locked->id);
+                $handled = DB::table('payroll_pay_differences')
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->whereIn('payroll_run_id', $chain)
+                    ->whereIn('status', ['settled', 'dismissed'])
+                    ->distinct()
+                    ->orderBy('employee_id')
+                    ->pluck('employee_id');
+                foreach (Employee::withTrashed()->where('tenant_id', $locked->tenant_id)->whereIn('id', $handled)->orderBy('id')->get() as $person) {
+                    $recorder->flag($person, Carbon::parse($locked->period_start)->toDateString());
+                }
+            }
 
             if ($movements !== []) {
                 AuditLog::record('payroll.balances_applied', $locked, ['movements' => $movements]);
@@ -489,11 +509,13 @@ final class PayrollEngine
 
             // Finance paid these differences by hand; a reprocess pays the new
             // salary in full, so the void says it knows. Settled rows stay settled.
-            $settled = DB::table('payroll_pay_differences')
+            $settled = count(DB::table('payroll_pay_differences')
                 ->where('tenant_id', $locked->tenant_id)
                 ->where('payroll_run_id', $locked->id)
                 ->where('status', 'settled')
-                ->count();
+                ->lockForUpdate()
+                ->pluck('id')
+                ->all());
             if ($settled > 0 && $acknowledgedSettledPayDifferences !== $settled) {
                 throw PayrollRunRefused::settledPayDifferencesUnacknowledged($settled);
             }
@@ -512,7 +534,7 @@ final class PayrollEngine
             DB::table('payroll_pay_differences')
                 ->where('tenant_id', $locked->tenant_id)
                 ->where('payroll_run_id', $locked->id)
-                ->whereIn('status', ['pending', 'open'])
+                ->whereIn('status', ['pending', 'open', 'failed'])
                 ->update(['status' => 'superseded', 'updated_at' => now()]);
 
             if ($movements !== []) {
@@ -915,6 +937,7 @@ final class PayrollEngine
             && ! $employee->hire_date->gt($end)
             && ($employee->termination_date === null || ! $employee->termination_date->lt($start));
 
+        $nothingDue = false;
         if ($payable && $nowSalary > 0) {
             $due = $summary($compute($employee, null), $leavingNow, $nowSalary);
             if ($loggedSalary === null) {
@@ -925,12 +948,22 @@ final class PayrollEngine
                 $paid = $summary($compute($then, (int) $loggedSalary), $loggedLeaving, (int) $loggedSalary);
             }
         } else {
+            // Nothing was owed, so everything taken from the pay is to be
+            // recovered or reinstated: the net to recover leaves out the
+            // loan instalment and cost sharing that were drawn from pay the
+            // person was not owed, which are stated apart so finance can put
+            // those balances back.
             $due = $summary(null, $leavingNow, $nowSalary);
             $paid = $stored($loggedLeaving);
+            $paid['stored_net_cents'] = $paid['net_cents'];
+            $paid['net_cents'] = $paid['gross_cents'] - $paid['income_tax_cents'] - $paid['employee_pension_cents'];
+            $paid['loan_deductions_cents'] = isset($steps['loan_deductions']['loan_deduction_cents']) ? (int) $steps['loan_deductions']['loan_deduction_cents'] : null;
+            $paid['cost_sharing_cents'] = isset($steps['cost_sharing']['cost_sharing_cents']) ? (int) $steps['cost_sharing']['cost_sharing_cents'] : null;
+            $nothingDue = true;
         }
         $due['payable'] = $payable;
 
-        return ['paid' => $paid, 'due' => $due, 'net_is_estimate' => $deductions === null];
+        return ['paid' => $paid, 'due' => $due, 'net_is_estimate' => ! $nothingDue && $deductions === null];
     }
 
     /**
