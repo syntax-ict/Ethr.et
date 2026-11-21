@@ -67,6 +67,11 @@ parameters:
         - message: '#^Method App\\Models\\EmployeeSalaryHistory\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
 
+        # The same for payroll_pay_differences. Covered by PayDifferenceTest.
+        # Model-named exact.
+        - message: '#^Method App\\Models\\PayrollPayDifference\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+          path: app/Traits/BelongsToTenant.php
+
         # Same larastan limitation again for profile_update_requests. The model is
         # correct and covered by ProfileUpdateRequestTest; only the trait generics
         # resolve to false positives "in context of" it. Scoped to the trait files,

@@ -89,6 +89,9 @@ final class SalaryHistoryWriter
                 ->update(['superseded_by' => $row->id]);
         }
 
+        // A month already released may have been paid a different figure.
+        app(PayDifferenceRecorder::class)->flag($employee, $date);
+
         return $row;
     }
 }
