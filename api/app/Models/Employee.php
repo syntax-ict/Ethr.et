@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\BackgroundWork;
 use App\Support\SalaryChangeContext;
@@ -151,6 +152,19 @@ class Employee extends Model
             if ($employee->wasChanged('salary_cents')) {
                 $employee->recordSalaryHistory(created: false);
             }
+
+            // A leaving date moved: every released month from the earlier of
+            // the two may have been paid for days the person was not there.
+            if ($employee->wasChanged('termination_date')) {
+                $old = $employee->getOriginal('termination_date');
+                $dates = array_filter([
+                    $old !== null ? Carbon::parse($old)->toDateString() : null,
+                    $employee->termination_date?->toDateString(),
+                ]);
+                if ($dates !== []) {
+                    app(PayDifferenceRecorder::class)->flag($employee, min($dates));
+                }
+            }
         });
     }
 
@@ -163,7 +177,25 @@ class Employee extends Model
      */
     public function save(array $options = []): bool
     {
-        return DB::transaction(fn (): bool => parent::save($options));
+        // A save that moves both salary and leaving date flags released months
+        // once, from the earliest date, before it commits.
+        $outer = PayDifferenceRecorder::beginBuffer();
+
+        try {
+            return DB::transaction(function () use ($options, $outer): bool {
+                $saved = parent::save($options);
+
+                if ($outer) {
+                    app(PayDifferenceRecorder::class)->flushBuffer();
+                }
+
+                return $saved;
+            });
+        } finally {
+            if ($outer) {
+                PayDifferenceRecorder::endBuffer();
+            }
+        }
     }
 
     /**
