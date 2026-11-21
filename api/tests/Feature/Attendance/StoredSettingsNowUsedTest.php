@@ -62,7 +62,7 @@ it('lets an admin set the webhook allowlist, and a token-less device is then acc
         'webhook_ip_allowlist' => ['not-an-ip'],
     ])->assertUnprocessable()->assertJsonValidationErrors('webhook_ip_allowlist.0');
 
-    Device::withoutGlobalScopes()->where('public_id', $id)->update(['webhook_token' => null]);
+    Device::withoutGlobalScopes()->where('public_id', $id)->firstOrFail()->update(['webhook_token' => null]);
     app(CurrentTenant::class)->forget();
     auth()->forgetGuards();
 

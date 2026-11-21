@@ -42,6 +42,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import { IssuedAddressDialog } from "@/features/devices/components/issued-address-dialog";
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
@@ -116,6 +117,8 @@ export default function DevicesPage() {
   const { data: branches } = branchesApi.useList();
 
   const createMutation = useCreateDevice();
+  // The new terminal's address, shown once: the server keeps only a hash.
+  const [issuedUrl, setIssuedUrl] = useState<string | null>(null);
   const updateMutation = useUpdateDevice();
   const deleteMutation = useDeleteDevice();
   const pullMutation = usePullDeviceEvents();
@@ -124,8 +127,9 @@ export default function DevicesPage() {
 
   function submitCreate() {
     createMutation.mutate(buildDevicePayload(form, "create"), {
-      onSuccess: () => {
+      onSuccess: (created) => {
         toast.success(t("devices_page.registered"));
+        if (created.webhook_url) setIssuedUrl(created.webhook_url);
         setCreateOpen(false);
         setForm({ ...EMPTY_DEVICE_FORM });
       },
@@ -399,6 +403,11 @@ export default function DevicesPage() {
           }}
           isPending={createMutation.isPending}
           submitLabel={t("devices_page.register")}
+        />
+
+        <IssuedAddressDialog
+          url={issuedUrl}
+          onClose={() => setIssuedUrl(null)}
         />
 
         {/* Edit Dialog */}

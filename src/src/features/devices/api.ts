@@ -314,10 +314,28 @@ export function useAllowDeviceAddress() {
   );
 }
 
+/** Why an address is being replaced: a lost one stops now, a moving one lasts a day. */
+export type TokenReason = "lost" | "moving";
+
+export interface RegeneratedToken {
+  webhook_token: string;
+  webhook_url: string | null;
+  reason: TokenReason;
+  previous_token_expires_at: string | null;
+  message: string;
+}
+
 export function useRegenerateDeviceToken() {
   return useDeviceMutation(
-    async (publicId: string) =>
-      (await apiClient.post(`/devices/${publicId}/regenerate-token`)).data,
+    async (vars: {
+      publicId: string;
+      reason: TokenReason;
+    }): Promise<RegeneratedToken> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/regenerate-token`, {
+          reason: vars.reason,
+        })
+      ).data,
   );
 }
 
