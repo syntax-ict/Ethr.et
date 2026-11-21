@@ -39,7 +39,7 @@ class DeviceEnrollmentController extends Controller
     {
         Gate::authorize('device.view');
 
-        if (DeviceManager::receivesOnly($device)) {
+        if (DeviceManager::hasNoRoster($device)) {
             throw DeviceRosterUnavailable::receivesOnly($device);
         }
 

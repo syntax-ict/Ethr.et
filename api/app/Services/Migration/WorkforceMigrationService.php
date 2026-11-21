@@ -107,7 +107,7 @@ final class WorkforceMigrationService
         // DeviceRequestFailed, and a batch created first would be left behind
         // empty — which is what a down device used to produce, as a batch
         // indistinguishable from a device with nobody enrolled.
-        if (DeviceManager::receivesOnly($device)) {
+        if (DeviceManager::hasNoRoster($device)) {
             throw DeviceRosterUnavailable::receivesOnly($device);
         }
 

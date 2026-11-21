@@ -15,6 +15,7 @@ use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\AdmsRoster;
 use App\Services\Device\DeviceCommandQueue;
+use App\Services\Device\DeviceDayCounts;
 use App\Services\Device\DevicePunchKey;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureGate;
@@ -142,7 +143,9 @@ class AdmsController extends Controller
                     'error' => 'The line could not be read.',
                 ];
             }
-            DeviceInboundPunch::stash($bad);
+            $newBad = DeviceInboundPunch::stash($bad);
+
+            DeviceDayCounts::notePush($device, count($rows) + count($bad), $new + $newBad);
         } catch (QueryException|PDOException $e) {
             report($e);
 
