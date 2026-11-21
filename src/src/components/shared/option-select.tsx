@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -53,42 +51,14 @@ export function OptionSelect({
   const current = value ?? "";
   const known = options.includes(current);
   const typed = current !== "" && !known ? current : "";
-  const [custom, setCustom] = useState(typed !== "");
-  const [other, setOther] = useState(typed);
-
-  // A record that loads after the control first appears changes `value`; the
-  // text box and the typed text follow it rather than keeping what the first
-  // render saw.
-  useEffect(() => {
-    if (typed !== "") {
-      setCustom(true);
-      setOther(typed);
-    } else if (current === "") {
-      setCustom(false);
-      setOther("");
-    }
-  }, [typed, current]);
-
   const offersOther = otherValue !== undefined;
-  const showBox = offersOther && (custom || current === otherValue);
+  const showBox = offersOther && (typed !== "" || current === otherValue);
   const selected = offersOther && typed !== "" ? otherValue : current;
   const extra = !offersOther && typed !== "" ? typed : null;
 
   return (
     <div className="space-y-2">
-      <Select
-        value={selected}
-        onValueChange={(next) => {
-          if (offersOther && next === otherValue) {
-            setCustom(true);
-            onChange(other.trim() === "" ? next : other);
-            return;
-          }
-          setCustom(false);
-          onChange(next);
-        }}
-        disabled={disabled}
-      >
+      <Select value={selected} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger id={id} className={className}>
           <SelectValue
             placeholder={placeholder ?? t("common.select", "Select")}
@@ -108,10 +78,9 @@ export function OptionSelect({
           aria-label={otherLabel}
           placeholder={otherLabel}
           maxLength={100}
-          value={other}
+          value={typed}
           disabled={disabled}
           onChange={(event) => {
-            setOther(event.target.value);
             onChange(
               event.target.value.trim() === ""
                 ? (otherValue as string)

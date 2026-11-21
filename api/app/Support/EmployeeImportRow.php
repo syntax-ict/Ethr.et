@@ -693,7 +693,7 @@ final class EmployeeImportRow
         }
 
         if (is_string($row['gender'] ?? null)) {
-            $row['gender'] = Gender::fromInput($row['gender'])?->value ?? mb_strtolower($row['gender']);
+            $row['gender'] = Gender::fromInput($row['gender'])->value ?? mb_strtolower($row['gender']);
         }
 
         if (is_string($row['marital_status'] ?? null)) {
