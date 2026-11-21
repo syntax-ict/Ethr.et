@@ -13398,6 +13398,40 @@
                                                 "waiting"
                                             ]
                                         },
+                                        "quarantined": {
+                                            "type": "object",
+                                            "properties": {
+                                                "punches": {
+                                                    "type": "integer"
+                                                },
+                                                "devices": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "device_public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "punches": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "device_public_id",
+                                                            "name",
+                                                            "punches"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "punches",
+                                                "devices"
+                                            ]
+                                        },
                                         "unmatched": {
                                             "type": "object",
                                             "properties": {
@@ -13453,6 +13487,7 @@
                                         "auto_sync_enabled",
                                         "events_today",
                                         "punches_today",
+                                        "quarantined",
                                         "unmatched",
                                         "last_sync_at",
                                         "sync_stats_24h"
@@ -13466,6 +13501,113 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/quarantine/dismiss": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "deviceQuarantine.dismiss",
+                "summary": "Create dismiss",
+                "tags": [
+                    "Devices"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QuarantineRowsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "dismissed": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "dismissed"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/devices/quarantine/replay": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "deviceQuarantine.replay",
+                "summary": "Replay quarantine",
+                "tags": [
+                    "Devices"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QuarantineRowsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "replayed": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        },
+                                        "skipped": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "replayed",
+                                        "skipped"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -14874,6 +15016,70 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/devices/{device}/quarantine": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "deviceQuarantine.index",
+                "summary": "Quarantine devices",
+                "tags": [
+                    "Devices"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LengthAwarePaginator"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -49508,6 +49714,9 @@
                     "sync_logs_count": {
                         "type": "integer"
                     },
+                    "quarantined_count": {
+                        "type": "integer"
+                    },
                     "latest_sync_log": {
                         "$ref": "#/components/schemas/DeviceSyncLogResource"
                     },
@@ -54542,6 +54751,26 @@
                     "type"
                 ],
                 "title": "QrAttendanceRequest"
+            },
+            "QuarantineRowsRequest": {
+                "type": "object",
+                "description": "The punches in quarantine a person is replaying or dismissing, by public id.",
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        },
+                        "minItems": 1,
+                        "maxItems": 500
+                    }
+                },
+                "required": [
+                    "ids"
+                ],
+                "title": "QuarantineRowsRequest"
             },
             "ReadPeopleRequest": {
                 "type": "object",

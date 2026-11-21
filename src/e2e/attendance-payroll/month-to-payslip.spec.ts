@@ -9,6 +9,7 @@ import {
   live,
   processedRun,
   recordsOf,
+  recordsWhen,
   step,
   type PayrollEntry,
 } from "./support";
@@ -64,6 +65,14 @@ test("a month of punches is paid once, and stays paid", async ({ browser, reques
     const selam = await employeeId(admin.page, "PAY-0001");
     const yonas = await employeeId(admin.page, "PAY-0002");
     const hana = await employeeId(admin.page, "PAY-0003");
+
+    // The terminal is answered once its punches are in the inbox. Yonas's
+    // were sent last, from the same terminal, and the queue works one
+    // terminal's punches in the order they arrived, so once his day is closed
+    // every punch above has been worked.
+    await recordsWhen(admin.page, yonas, period.start, period.end, (found) =>
+      live(found).some((row) => row.check_out !== null),
+    );
 
     // The attendance payroll is about to read.
     const worked = live(await recordsOf(admin.page, selam, period.start, period.end));
@@ -129,7 +138,7 @@ test("a month of punches is paid once, and stays paid", async ({ browser, reques
     // After the release: the terminal delivers a punch it had been holding
     // for a paid day. It is a fact about what happened, so it is recorded...
     expect(await punch("9101", "check_in", ordinary, "19:00")).toBe(1);
-    expect(await recordsOf(admin.page, selam, ordinary, ordinary)).toHaveLength(2);
+    expect(await recordsWhen(admin.page, selam, ordinary, ordinary, (found) => found.length >= 2)).toHaveLength(2);
 
     // ...and nothing that was paid moves.
     const reread = await api(admin.page, "GET", `/payroll/runs/${runId}?include_log=1`);

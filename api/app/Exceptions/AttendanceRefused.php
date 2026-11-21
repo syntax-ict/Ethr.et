@@ -20,6 +20,9 @@ use RuntimeException;
 class AttendanceRefused extends RuntimeException
 {
     /**
+     * `$reason` is a short stable code (`employee_has_left`, `clock_ahead`),
+     * which a quarantined device punch keeps as its `failure`.
+     *
      * `$permanent` says the refusal belongs to the punch itself and nothing
      * HR changes later can turn it into a yes (the employee has left, the retry
      * key is another person's). A punch queued offline is dropped for good only
@@ -28,8 +31,16 @@ class AttendanceRefused extends RuntimeException
      * off for an hour, a phone approved the next day, a check-in that has not
      * landed yet. The offline window ends those after its own limit.
      */
-    public function __construct(string $message = '', public readonly bool $permanent = false)
-    {
+    public function __construct(
+        string $message = '',
+        public readonly ?string $reason = null,
+        public readonly bool $permanent = false,
+    ) {
         parent::__construct($message);
+    }
+
+    public function reasonCode(): string
+    {
+        return $this->reason ?? 'other';
     }
 }

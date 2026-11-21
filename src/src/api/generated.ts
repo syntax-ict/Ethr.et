@@ -2868,6 +2868,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/quarantine/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay quarantine */
+        post: operations["deviceQuarantine.replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/quarantine/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["deviceQuarantine.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/sync-all": {
         parameters: {
             query?: never;
@@ -2979,6 +3013,23 @@ export interface paths {
         };
         /** List events */
         get: operations["device.deviceEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quarantine devices */
+        get: operations["deviceQuarantine.index"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10292,6 +10343,7 @@ export interface components {
             branch_public_id: string | null;
             attendance_records_count?: number;
             sync_logs_count?: number;
+            quarantined_count?: number;
             latest_sync_log?: components["schemas"]["DeviceSyncLogResource"];
             /** Format: date-time */
             created_at: string | null;
@@ -11835,6 +11887,13 @@ export interface components {
                     userHandle?: string | null;
                 };
             };
+        };
+        /**
+         * QuarantineRowsRequest
+         * @description The punches in quarantine a person is replaying or dismissing, by public id.
+         */
+        QuarantineRowsRequest: {
+            ids: string[];
         };
         /** ReadPeopleRequest */
         ReadPeopleRequest: {
@@ -22517,6 +22576,14 @@ export interface operations {
                             held: number;
                             waiting: number;
                         };
+                        quarantined: {
+                            punches: number;
+                            devices: {
+                                device_public_id: string;
+                                name: string;
+                                punches: number;
+                            }[];
+                        };
                         unmatched: {
                             badges: number;
                             punches: number;
@@ -22533,6 +22600,63 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "deviceQuarantine.replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        replayed: number;
+                        skipped: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deviceQuarantine.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dismissed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.syncAll": {
@@ -22767,6 +22891,35 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceQuarantine.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LengthAwarePaginator"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deviceEnrollment.index": {

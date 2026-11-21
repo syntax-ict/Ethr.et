@@ -159,6 +159,17 @@ class Device extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    /**
+     * Punches this terminal sent that could not be recorded and nobody has
+     * dismissed (DeviceQuarantine).
+     *
+     * @return HasMany<DeviceInboundPunch, $this>
+     */
+    public function quarantinedPunches(): HasMany
+    {
+        return $this->hasMany(DeviceInboundPunch::class)->whereNotNull('failed_at')->whereNull('dismissed_at');
+    }
+
     public function syncLogs(): HasMany
     {
         return $this->hasMany(DeviceSyncLog::class);
