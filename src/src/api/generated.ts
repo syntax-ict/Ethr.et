@@ -11598,8 +11598,7 @@ export interface components {
             note: string | null;
             /** Format: date-time */
             settled_at: string | null;
-            /** Format: date-time */
-            created_at: string | null;
+            created_at: string;
         };
         /** PayrollRuleResource */
         PayrollRuleResource: {
