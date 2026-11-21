@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +42,18 @@ class EmployeeBankDetail extends Model
             'account_number' => 'encrypted',
             'is_primary' => 'boolean',
         ];
+    }
+
+    /**
+     * Where people are paid is written by the organisation, never by an
+     * operator in a support session. Refused here whatever route got this
+     * far; the raw `is_primary` flip that precedes a create is guarded where
+     * it is (EmployeeRelatedRecords, BankDetailController).
+     */
+    protected static function booted(): void
+    {
+        static::saving(static fn () => ImpersonationRestricted::unlessOrganisation('EmployeeBankDetail::saving'));
+        static::deleting(static fn () => ImpersonationRestricted::unlessOrganisation('EmployeeBankDetail::deleting'));
     }
 
     public function employee(): BelongsTo

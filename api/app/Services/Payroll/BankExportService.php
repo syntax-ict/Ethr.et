@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
 use App\Models\PayrollRun;
@@ -19,8 +20,19 @@ use App\Support\Csv;
  */
 final class BankExportService
 {
+    /**
+     * The bank file is an instruction to pay: the organisation builds it, an
+     * operator in a support session does not.
+     */
+    public function assertAvailable(): void
+    {
+        ImpersonationRestricted::unlessOrganisation('BankExportService');
+    }
+
     public function generateCsv(PayrollRun $run): string
     {
+        $this->assertAvailable();
+
         $entries = $run->entries()->with(['employee.bankDetails'])->get();
 
         $lines = [];
@@ -66,6 +78,8 @@ final class BankExportService
      */
     public function primaryBankDetail(Employee $employee): ?EmployeeBankDetail
     {
+        $this->assertAvailable();
+
         $details = $employee->bankDetails;
 
         foreach ($details as $detail) {
