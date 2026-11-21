@@ -14054,6 +14054,85 @@
                 }
             }
         },
+        "/devices/{device}/allowlist": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "device.allowAddress",
+                "summary": "Add one address to the device's webhook allowlist",
+                "tags": [
+                    "Devices"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "description": "The device public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AllowDeviceAddressRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`DeviceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/DeviceResource"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "branch": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/BranchResource"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "branch"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/devices/{device}/commands": {
             "get": {
                 "x-abilities": [
@@ -15143,12 +15222,26 @@
                                             ]
                                         },
                                         "details": {
-                                            "type": "array",
-                                            "items": []
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": []
+                                                }
+                                            ]
                                         },
                                         "device_info": {
-                                            "type": "array",
-                                            "items": []
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": []
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -45980,6 +46073,20 @@
                 ],
                 "title": "AddRetirementNoteRequest"
             },
+            "AllowDeviceAddressRequest": {
+                "type": "object",
+                "description": "One address to add to a device's webhook allowlist: the one its refused\ncall came from. A single address, not a range; a range is set on the\ndevice's own form, where its width can be thought about.",
+                "properties": {
+                    "ip": {
+                        "type": "string",
+                        "maxLength": 45
+                    }
+                },
+                "required": [
+                    "ip"
+                ],
+                "title": "AllowDeviceAddressRequest"
+            },
             "AnnouncementResource": {
                 "type": "object",
                 "properties": {
@@ -49287,6 +49394,62 @@
                             "null"
                         ]
                     },
+                    "clock_source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "heartbeat",
+                            "punch",
+                            "heartbeat_no_time",
+                            null
+                        ]
+                    },
+                    "clock_measurable": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "today": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "day": {
+                                "type": "string"
+                            },
+                            "received": {
+                                "type": "integer"
+                            },
+                            "recorded": {
+                                "type": "integer"
+                            },
+                            "held": {
+                                "type": "integer"
+                            },
+                            "duplicate": {
+                                "type": "integer"
+                            },
+                            "quarantined": {
+                                "type": "integer"
+                            },
+                            "waiting": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "day",
+                            "received",
+                            "recorded",
+                            "held",
+                            "duplicate",
+                            "quarantined",
+                            "waiting"
+                        ]
+                    },
                     "adms": {
                         "type": "object",
                         "properties": {
@@ -49410,6 +49573,9 @@
                     "last_sync_at",
                     "clock_offset_seconds",
                     "clock_checked_at",
+                    "clock_source",
+                    "clock_measurable",
+                    "today",
                     "branch_public_id",
                     "created_at",
                     "updated_at"

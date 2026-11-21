@@ -18,9 +18,6 @@ use App\Models\Device;
  */
 final class ZktecoAdmsAdapter implements CollectsDeviceCommands, DeviceAdapter
 {
-    /** A device that has not checked in for this long is offline. ADMS polls every few seconds. */
-    public const OFFLINE_AFTER_MINUTES = 10;
-
     public function connect(Device $device): bool
     {
         return $this->recentlySeen($device);
@@ -65,9 +62,9 @@ final class ZktecoAdmsAdapter implements CollectsDeviceCommands, DeviceAdapter
         return false;
     }
 
+    /** Heard from inside the push window (PushDeviceStatus): ADMS polls every few seconds. */
     private function recentlySeen(Device $device): bool
     {
-        return $device->last_sync_at !== null
-            && $device->last_sync_at->greaterThan(now()->subMinutes(self::OFFLINE_AFTER_MINUTES));
+        return PushDeviceStatus::statusFor($device) === 'online';
     }
 }

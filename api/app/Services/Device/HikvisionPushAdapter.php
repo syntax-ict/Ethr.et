@@ -31,14 +31,14 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
      * evidence, which is all "online" can honestly mean for a terminal it
      * cannot call.
      */
-    public const ONLINE_WITHIN_MINUTES = 15;
+    public const ONLINE_WITHIN_MINUTES = PushDeviceStatus::ONLINE_WITHIN_MINUTES;
 
     /**
      * A terminal that has sent nothing for this long is shown as offline. It
      * is a label, not a gate: a punch from an "offline" terminal is still
      * recorded. Long enough to cover a night; a weekend will show offline.
      */
-    public const OFFLINE_AFTER_HOURS = 24;
+    public const OFFLINE_AFTER_HOURS = PushDeviceStatus::OFFLINE_AFTER_HOURS;
 
     public function connect(Device $device): bool
     {
@@ -58,8 +58,8 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
     {
         return [
             'serial_number' => $device->serial_number,
-            'manufacturer' => 'Hikvision',
-            'protocol' => 'ISAPI event notification (push)',
+            'manufacturer' => ucfirst($device->adapter_type),
+            'protocol' => $device->adapter_type === 'hikvision' ? 'ISAPI event notification (push)' : 'Webhook (push)',
         ];
     }
 
@@ -86,48 +86,14 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
         return self::statusFor($device) === 'online';
     }
 
-    /**
-     * What the stored `status` of a terminal that only sends must read. One
-     * rule, so the badge, the list filter and the health counts cannot
-     * disagree: `pending` is never heard from (configured, not yet
-     * contacted), `online` heard from in the last 15 minutes, `quiet` heard
-     * from in the last 24 hours but not the last 15, `offline` older than
-     * that. `quiet` is its own state because ETHR cannot call this terminal:
-     * once the evidence is stale it cannot tell a switched-off terminal from
-     * one nobody is using, and "Online" would claim more than it knows. The
-     * pull job never touches such a device, so without this a first punch
-     * left it Online for good, whatever happened to the terminal afterwards.
-     *
-     * @return 'pending'|'online'|'quiet'|'offline'
-     */
+    /** The rule is shared by every terminal that only sends: PushDeviceStatus. */
     public static function statusFor(Device $device): string
     {
-        if ($device->last_sync_at === null) {
-            return 'pending';
-        }
-
-        if ($device->last_sync_at->greaterThan(now()->subMinutes(self::ONLINE_WITHIN_MINUTES))) {
-            return 'online';
-        }
-
-        return $device->last_sync_at->greaterThan(now()->subHours(self::OFFLINE_AFTER_HOURS))
-            ? 'quiet'
-            : 'offline';
+        return PushDeviceStatus::statusFor($device);
     }
 
-    /**
-     * Write the rule's answer onto the row, and only when it differs, so a
-     * run every five minutes does not touch `updated_at` on every terminal.
-     * Returns the status the device now has.
-     */
     public static function settleStatus(Device $device): string
     {
-        $status = self::statusFor($device);
-
-        if ($device->status !== $status) {
-            $device->update(['status' => $status]);
-        }
-
-        return $status;
+        return PushDeviceStatus::settle($device);
     }
 }

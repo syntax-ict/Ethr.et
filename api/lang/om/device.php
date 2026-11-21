@@ -12,6 +12,7 @@ return [
     'path_invalid' => ':key daandii mallattoo / tokkoon jalqabu ta\'uu qaba.',
     'read_failed' => 'Meeshaan dubbifamuu hin dandeenye. Banamuu isaa fi sarvara kana irraa argamuu isaa mirkaneessaa, achiis irra deebi\'aa yaalaa.',
     'simulator_unavailable' => 'Fakkeessaan meeshaa sarvarota misoomaa irratti qofa argama. Gosa (birandii) meeshaa dhugaa filadhaa.',
+    'allowlist_full' => 'Tarreen hayyamamoota teessoo 20 caalaa hin qabu. Dura foormii meeshaa irratti tokko haqaa.',
     'held_busy' => 'Galmeewwan kunneen amma galmaa\'aa jiru. Yeroo muraasa booda irra deebi\'aa yaalaa.',
     'roster' => [
         'receives_only' => 'Meeshaan kun galmeewwan isaa gara ETHR ergee, eenyu akka itti galmaa\'e gaafachuun hin danda\'amu. Baajiin hin beekamne kan inni ergee fuula Meeshaalee jala tarreeffameera; tokkoon tokkoon isaa hojjetaadhaaf kennuu dandeessa.',

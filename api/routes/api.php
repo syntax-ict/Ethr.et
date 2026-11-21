@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Feature;
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminDeviceCaptureController;
 use App\Http\Controllers\Api\V1\Admin\AdminFeatureController;
 use App\Http\Controllers\Api\V1\Admin\AdminMarketingController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
@@ -709,6 +710,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);
         Route::post('/{device}/import-history', [DeviceController::class, 'importHistory']);
         Route::post('/{device}/regenerate-token', [DeviceController::class, 'regenerateToken']);
+        Route::post('/{device}/allowlist', [DeviceController::class, 'allowAddress']);
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
         Route::get('/{device}/quarantine', [DeviceQuarantineController::class, 'index']);
@@ -1067,6 +1069,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
                 ->whereIn('key', $featureKeys);
             Route::delete('/tenants/{publicId}/features/{key}', [AdminTenantController::class, 'removeFeature'])
                 ->whereIn('key', $featureKeys);
+
+            // What one terminal really sent, redacted, to write a fixture from.
+            Route::get('/devices/{devicePublicId}/capture', [AdminDeviceCaptureController::class, 'show']);
 
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);

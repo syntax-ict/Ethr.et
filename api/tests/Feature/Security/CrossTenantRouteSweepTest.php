@@ -46,6 +46,9 @@ function crossTenantExemptParams(): array
         'owner', 'variant', 'story', 'size', 'slot', 'kind', 'version',
         // The public lookup of an organisation by its own identifier.
         'publicId', 'subdomain',
+        // Platform console only (EnsurePlatformContext answers 404 on any
+        // organisation's host): one terminal's redacted capture.
+        'devicePublicId',
         // Global reference data. `code` is a statutory parameter's code (a
         // law, the same for everyone); resetting it acts on the caller's own
         // organisation only.
