@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Jobs\ApplyDuePersonnelActionsJob;
+use App\Jobs\ComputePayDifferencesJob;
 use App\Jobs\DeliverDeviceCommandsJob;
 use App\Jobs\DispatchWebhookJob;
 use App\Jobs\NotifyAnnouncementAudienceJob;
@@ -226,6 +227,7 @@ test('the tenant id is required on every job that scopes by it', function (strin
     NotifyAnnouncementAudienceJob::class,
     SendInvitationJob::class,
     ApplyDuePersonnelActionsJob::class,
+    ComputePayDifferencesJob::class,
     PullDeviceEventsJob::class,
     DeliverDeviceCommandsJob::class,
     ProcessDeviceInboundPunchesJob::class,

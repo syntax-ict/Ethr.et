@@ -1,9 +1,11 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach } from "vitest";
+import axios, { AxiosError } from "axios";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import {
   dropPunch,
+  isUnreachable,
   queuedPunches,
   savePunchOffline,
   sealPunch,
@@ -131,5 +133,39 @@ describe("kiosk offline punches", () => {
     expect(await syncQueuedPunches("token")).toBe(2);
     const left = (await queuedPunches()).map((p) => p.idempotency_key).sort();
     expect(left).toEqual(["k-passing", "k-unmarked"]);
+  });
+});
+
+describe("a kiosk on a connected but dead line", () => {
+  it.each([AxiosError.ECONNABORTED, AxiosError.ETIMEDOUT])(
+    "counts a request that timed out (%s) as unreachable, so the punch is kept offline",
+    (code) => {
+      // Built the way axios's own adapters build it: no response, a timeout
+      // code. (jsdom's XHR does not honour a timeout under msw, so a real one
+      // cannot be provoked here.) The page then saves the punch under the
+      // same key, so one that did reach the server is a duplicate there, not
+      // a second record.
+      const error = new AxiosError(
+        "timeout of 8000ms exceeded",
+        code,
+        undefined,
+        {},
+      );
+
+      expect(axios.isAxiosError(error)).toBe(true);
+      expect(error.response).toBeUndefined();
+      expect(isUnreachable(error)).toBe(true);
+    },
+  );
+
+  it("does not count an answer, even an error, as unreachable", async () => {
+    server.use(
+      http.post("http://dead.test/no", () =>
+        HttpResponse.json({}, { status: 500 }),
+      ),
+    );
+    const error = await axios.post("http://dead.test/no").catch((e) => e);
+
+    expect(isUnreachable(error)).toBe(false);
   });
 });
