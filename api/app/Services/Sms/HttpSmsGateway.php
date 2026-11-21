@@ -93,6 +93,33 @@ final class HttpSmsGateway
         };
     }
 
+    /**
+     * The text with the recipient's number taken out, in every form a gateway
+     * echoes it, so a refusal can be stored, logged and mailed without holding
+     * personal data. Known forms of this recipient go first; then any Ethiopian
+     * mobile, anchored so a longer run of letters or digits (a message id, a
+     * UUID) is left alone.
+     */
+    public function withoutRecipient(string $text, string $to): string
+    {
+        $forms = [trim($to)];
+        $canonical = EthiopianPhone::canonical($to);
+
+        if ($canonical !== null) {
+            $national = substr($canonical, 4);
+            array_push($forms, $canonical, substr($canonical, 1), '0'.$national, $national);
+        }
+
+        $forms = array_filter(array_unique($forms), fn (string $form): bool => strlen($form) >= 9);
+        usort($forms, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        foreach ($forms as $form) {
+            $text = (string) preg_replace('/(?<![0-9A-Za-z])'.preg_quote($form, '/').'(?![0-9A-Za-z])/', '[number]', $text);
+        }
+
+        return (string) preg_replace('/(?<![0-9A-Za-z])(?:\+?251|0)?[79]\d{8}(?![0-9A-Za-z])/', '[number]', $text);
+    }
+
     private function request(): PendingRequest
     {
         $request = Http::timeout(max(1, $this->gateway->timeout_seconds))
