@@ -109,6 +109,30 @@ describe('employee CRUD', function () {
         $response->assertOk()->assertJsonPath('phone', '+251922334455');
     });
 
+    it('lets a record keep an older number it already holds while another field is edited', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        // A partial number from before the phone rule existed.
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'phone' => '551234']);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'phone' => '551234',
+            'name' => 'Renamed Person',
+        ])->assertOk();
+
+        expect($employee->fresh()->name)->toBe('Renamed Person');
+    });
+
+    it('checks a changed phone in full, even when the record holds an older number', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'phone' => '551234']);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'phone' => '55123',
+        ])->assertStatus(422)->assertJsonValidationErrors(['phone']);
+    });
+
     it('sets supervisor, team and cost centre, and answers with all three', function () {
         // The API accepted these and no screen set them, so the reporting
         // chart was flat and teams and cost centres were never assigned

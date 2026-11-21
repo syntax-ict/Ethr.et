@@ -51229,7 +51229,6 @@
                                         "string",
                                         "null"
                                     ],
-                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
                                     "maxLength": 20
                                 },
                                 "employee_code": {
@@ -55985,7 +55984,6 @@
                                         "string",
                                         "null"
                                     ],
-                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
                                     "maxLength": 20
                                 },
                                 "department": {
@@ -56876,7 +56874,6 @@
                     },
                     "phone": {
                         "type": "string",
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "email": {
@@ -56975,7 +56972,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "employee_code": {
@@ -57263,7 +57259,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "source": {
@@ -59253,7 +59248,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "employee_code": {
