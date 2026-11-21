@@ -912,6 +912,7 @@ return array(
     'App\\Notifications\\ScheduledReportFailedNotification' => $baseDir . '/app/Notifications/ScheduledReportFailedNotification.php',
     'App\\Notifications\\ScheduledReportNotification' => $baseDir . '/app/Notifications/ScheduledReportNotification.php',
     'App\\Notifications\\SignInCodeNotification' => $baseDir . '/app/Notifications/SignInCodeNotification.php',
+    'App\\Notifications\\SmsGatewayPausedNotification' => $baseDir . '/app/Notifications/SmsGatewayPausedNotification.php',
     'App\\Notifications\\SupportRequestNotification' => $baseDir . '/app/Notifications/SupportRequestNotification.php',
     'App\\Notifications\\SystemAlertNotification' => $baseDir . '/app/Notifications/SystemAlertNotification.php',
     'App\\Notifications\\TenantExportFinishedNotification' => $baseDir . '/app/Notifications/TenantExportFinishedNotification.php',

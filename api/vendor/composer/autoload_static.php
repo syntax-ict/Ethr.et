@@ -1646,6 +1646,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Notifications\\ScheduledReportFailedNotification' => __DIR__ . '/../..' . '/app/Notifications/ScheduledReportFailedNotification.php',
         'App\\Notifications\\ScheduledReportNotification' => __DIR__ . '/../..' . '/app/Notifications/ScheduledReportNotification.php',
         'App\\Notifications\\SignInCodeNotification' => __DIR__ . '/../..' . '/app/Notifications/SignInCodeNotification.php',
+        'App\\Notifications\\SmsGatewayPausedNotification' => __DIR__ . '/../..' . '/app/Notifications/SmsGatewayPausedNotification.php',
         'App\\Notifications\\SupportRequestNotification' => __DIR__ . '/../..' . '/app/Notifications/SupportRequestNotification.php',
         'App\\Notifications\\SystemAlertNotification' => __DIR__ . '/../..' . '/app/Notifications/SystemAlertNotification.php',
         'App\\Notifications\\TenantExportFinishedNotification' => __DIR__ . '/../..' . '/app/Notifications/TenantExportFinishedNotification.php',
