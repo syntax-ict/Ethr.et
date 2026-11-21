@@ -10,8 +10,18 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
-import { useDiscardMigrationList, useMigrationListsInProgress } from "../api";
-import type { MigrationListInProgress } from "../types";
+import {
+  useDiscardMigrationList,
+  useMigrationListsAdded,
+  useMigrationListsInProgress,
+} from "../api";
+import type { MigrationListAdded, MigrationListInProgress } from "../types";
+
+/** What the step needs to open a list: which one, and where it stands. */
+export interface OpenableList {
+  public_id: string;
+  status: MigrationListInProgress["status"] | "committed";
+}
 
 /**
  * The lists this organisation started and has not finished, above the box a
@@ -31,7 +41,7 @@ export function MigrationListsInProgress({
   openingText = null,
   disabled = false,
 }: {
-  onOpen: (list: MigrationListInProgress) => void;
+  onOpen: (list: OpenableList) => void;
   /** The list being opened, while it is; its button says how far matching got. */
   openingId?: string | null;
   openingText?: string | null;
@@ -43,10 +53,12 @@ export function MigrationListsInProgress({
   const { timeAgo, formatDateTime } = useDateFormatters();
   const { requestConfirm, confirmDialog } = useConfirm();
   const query = useMigrationListsInProgress();
+  const addedQuery = useMigrationListsAdded();
   const discard = useDiscardMigrationList();
   const lists = query.data ?? [];
+  const added = addedQuery.data ?? [];
 
-  if (lists.length === 0) return null;
+  if (lists.length === 0 && added.length === 0) return null;
 
   const modeLabel = (mode: MigrationListInProgress["mode"]) =>
     mode === "complete"
@@ -85,6 +97,26 @@ export function MigrationListsInProgress({
           when,
         });
   }
+
+  function addedLabel(list: MigrationListAdded): string {
+    const when = list.committed_at ? timeAgo(list.committed_at) : "";
+    if (list.mine) {
+      return t("migration_lists.added_you", "Added :when by you", { when });
+    }
+    return list.created_by_name
+      ? t("migration_lists.added_by", "Added :when by :name", {
+          when,
+          name: list.created_by_name,
+        })
+      : t("migration_lists.added_other", "Added :when by someone else", {
+          when,
+        });
+  }
+
+  const peopleAddedLabel = (n: number) =>
+    n === 1
+      ? t("migration_lists.people_added_one", "1 person added")
+      : t("migration_lists.people_added", ":count people added", { count: n });
 
   async function discardList(list: MigrationListInProgress) {
     const confirmed = await requestConfirm({
@@ -125,74 +157,142 @@ export function MigrationListsInProgress({
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            {t("migration_lists.title", "Lists in progress")}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t(
-              "migration_lists.hint",
-              "These were started and not finished. Open one to carry on, or discard one nobody will finish.",
-            )}
-          </p>
-        </div>
-        <ul className="divide-y rounded-md border">
-          {lists.map((list) => {
-            const opening = openingId === list.public_id;
-            return (
-              <li
-                key={list.public_id}
-                data-testid="list-in-progress"
-                className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
-              >
-                <div className="min-w-0 space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                    <span className="font-medium">{modeLabel(list.mode)}</span>
-                    <Badge variant="outline">{statusLabel(list.status)}</Badge>
+        {lists.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("migration_lists.title", "Lists in progress")}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "migration_lists.hint",
+                "These were started and not finished. Open one to carry on, or discard one nobody will finish.",
+              )}
+            </p>
+          </div>
+        )}
+        {lists.length > 0 && (
+          <ul className="divide-y rounded-md border">
+            {lists.map((list) => {
+              const opening = openingId === list.public_id;
+              return (
+                <li
+                  key={list.public_id}
+                  data-testid="list-in-progress"
+                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                      <span className="font-medium">
+                        {modeLabel(list.mode)}
+                      </span>
+                      <Badge variant="outline">
+                        {statusLabel(list.status)}
+                      </Badge>
+                    </div>
+                    <p
+                      className="text-xs text-muted-foreground"
+                      title={
+                        list.created_at
+                          ? formatDateTime(list.created_at)
+                          : undefined
+                      }
+                    >
+                      {startedLabel(list)} · {linesLabel(list.rows)}
+                    </p>
                   </div>
-                  <p
-                    className="text-xs text-muted-foreground"
-                    title={
-                      list.created_at
-                        ? formatDateTime(list.created_at)
-                        : undefined
-                    }
-                  >
-                    {startedLabel(list)} · {linesLabel(list.rows)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => onOpen(list)}
-                    disabled={
-                      disabled || openingId !== null || discard.isPending
-                    }
-                  >
-                    {opening ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {opening && openingText
-                      ? openingText
-                      : t("migration_lists.open", "Open")}
-                  </Button>
-                  {can.manageEmployees && list.status !== "committing" && (
+                  <div className="flex shrink-0 gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => void discardList(list)}
+                      onClick={() => onOpen(list)}
                       disabled={
                         disabled || openingId !== null || discard.isPending
                       }
                     >
-                      {t("migration_lists.discard", "Discard")}
+                      {opening ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      {opening && openingText
+                        ? openingText
+                        : t("migration_lists.open", "Open")}
                     </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {can.manageEmployees && list.status !== "committing" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void discardList(list)}
+                        disabled={
+                          disabled || openingId !== null || discard.isPending
+                        }
+                      >
+                        {t("migration_lists.discard", "Discard")}
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {added.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("migration_lists.added_title", "Lists added recently")}
+            </h3>
+            <ul className="divide-y rounded-md border">
+              {added.map((list) => (
+                <li
+                  key={list.public_id}
+                  data-testid="list-added"
+                  className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                      <span className="font-medium">
+                        {modeLabel(list.mode)}
+                      </span>
+                      <Badge variant="outline">
+                        {list.undone_at
+                          ? t(
+                              "migration_lists.badge_undone",
+                              "Additions undone",
+                            )
+                          : t("migration_lists.badge_added", "Added")}
+                      </Badge>
+                    </div>
+                    <p
+                      className="text-xs text-muted-foreground"
+                      title={
+                        list.committed_at
+                          ? formatDateTime(list.committed_at)
+                          : undefined
+                      }
+                    >
+                      {addedLabel(list)} · {linesLabel(list.rows)} ·{" "}
+                      {peopleAddedLabel(list.created)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        onOpen({
+                          public_id: list.public_id,
+                          status: "committed",
+                        })
+                      }
+                      disabled={
+                        disabled || openingId !== null || discard.isPending
+                      }
+                    >
+                      {t("migration_lists.open", "Open")}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
       {confirmDialog}
     </Card>

@@ -7,6 +7,10 @@ namespace App\Models;
 use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Services\Payroll\PayDifferenceRecorder;
+use App\Services\Payroll\SalaryHistoryWriter;
+use App\Support\BackgroundWork;
+use App\Support\SalaryChangeContext;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Larastan types columns from the schema, which cannot see the date casts below —
@@ -131,6 +136,91 @@ class Employee extends Model
                 $employee->national_id_hash = self::hashNationalId($employee->national_id);
             }
         });
+
+        // The one writer of salary history. `created` and `updated` rather than
+        // a single `saved` hook, because `wasRecentlyCreated` stays true on the
+        // instance for good and a later save of it would write a second row.
+        // Nothing is caught: history that drifts silently is worse than a
+        // failed save.
+        static::created(function (Employee $employee): void {
+            if ((int) $employee->salary_cents > 0) {
+                $employee->recordSalaryHistory(created: true);
+            }
+        });
+
+        static::updated(function (Employee $employee): void {
+            if ($employee->wasChanged('salary_cents')) {
+                $employee->recordSalaryHistory(created: false);
+            }
+
+            // A leaving date moved: every released month from the earlier of
+            // the two may have been paid for days the person was not there.
+            if ($employee->wasChanged('termination_date')) {
+                $old = $employee->getOriginal('termination_date');
+                $dates = array_filter([
+                    $old !== null ? Carbon::parse($old)->toDateString() : null,
+                    $employee->termination_date?->toDateString(),
+                ]);
+                if ($dates !== []) {
+                    app(PayDifferenceRecorder::class)->flag($employee, min($dates));
+                }
+            }
+        });
+    }
+
+    /**
+     * Every save is atomic with the history row its `created` and `updated`
+     * hooks write, whoever saves: a failed row leaves the employee as it was.
+     * Nested inside a caller's transaction this is a savepoint.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function save(array $options = []): bool
+    {
+        // A save that moves both salary and leaving date flags released months
+        // once, from the earliest date, before it commits.
+        $outer = PayDifferenceRecorder::beginBuffer();
+
+        try {
+            return DB::transaction(function () use ($options, $outer): bool {
+                $saved = parent::save($options);
+
+                if ($outer) {
+                    app(PayDifferenceRecorder::class)->flushBuffer();
+                }
+
+                return $saved;
+            });
+        } finally {
+            if ($outer) {
+                PayDifferenceRecorder::endBuffer();
+            }
+        }
+    }
+
+    /**
+     * One history row for the salary this save wrote, dated by the innermost
+     * SalaryChangeContext, else by SalaryHistoryWriter's rule (the hire date for
+     * a first row, else the later of today and the hire date). The tenant is the employee's own: an import or
+     * a queued job has no resolved tenant, and BelongsToTenant keeps an
+     * explicit tenant_id.
+     */
+    private function recordSalaryHistory(bool $created): void
+    {
+        $context = SalaryChangeContext::current();
+
+        if ($context !== null && $context['suppressed']) {
+            return;
+        }
+
+        app(SalaryHistoryWriter::class)->record(
+            $this,
+            (int) $this->salary_cents,
+            $context['date'] ?? null,
+            $context['source'] ?? ($created ? 'hire' : 'edit'),
+            $context['source_id'] ?? null,
+            BackgroundWork::active() ? null : auth()->id(),
+        );
     }
 
     /** Deterministic HMAC of a normalized national ID, for equality lookups. */
@@ -340,6 +430,12 @@ class Employee extends Model
     public function contracts(): HasMany
     {
         return $this->hasMany(EmployeeContract::class);
+    }
+
+    /** @return HasMany<EmployeeSalaryHistory, $this> */
+    public function salaryHistory(): HasMany
+    {
+        return $this->hasMany(EmployeeSalaryHistory::class);
     }
 
     /** @return HasMany<RetirementCase, $this> */

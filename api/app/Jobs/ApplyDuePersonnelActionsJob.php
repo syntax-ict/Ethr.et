@@ -45,6 +45,14 @@ class ApplyDuePersonnelActionsJob implements ShouldQueue
         $currentTenant->set($tenant);
 
         $applied = $actions->applyDue();
+        $synced = $actions->syncSalaryInForce();
+
+        if ($synced > 0) {
+            Log::info('ApplyDuePersonnelActions: brought salaries up to the one in force', [
+                'tenant_id' => $this->tenantId,
+                'synced' => $synced,
+            ]);
+        }
 
         if ($applied > 0) {
             Log::info('ApplyDuePersonnelActions: applied scheduled actions', [

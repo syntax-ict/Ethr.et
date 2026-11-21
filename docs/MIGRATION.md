@@ -553,11 +553,13 @@ The lines to fix are written under the line the names were on.
 | POST | `/sources` | save a source: `name` and `mapping`, one column of which is the name |
 | PUT | `/sources/{importMapping}` | rename a source or match its columns again. The slug its ids are kept against does not change |
 | DELETE | `/sources/{importMapping}` | forget a source's column names. The people it brought and their ids stay |
-| GET | `/batches` | the organisation's lists in progress (below): `staging`, `reviewing` or `committing`, newest first, at most 20. Needs `employee.viewAny` |
-| GET | `/batches/{batch}` | review queue with verdicts and summary |
+| GET | `/batches` | the organisation's lists in progress (below): `staging`, `reviewing` or `committing`, newest first, at most 20, under `data`; and, under `added`, its `committed` lists, newest first, at most 20. Needs `employee.viewAny` |
+| GET | `/batches/{batch}` | review queue with verdicts and summary; also `undone_at` and `undo_archived` (below) |
 | DELETE | `/batches/{batch}` | discard a list that has not begun to be added (below). 204; 409 once it is `committing` or `committed`. Needs `employee.create` |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
+| GET | `/batches/{batch}/undo` | preview of undoing what a committed list added: who would be archived, who kept and why. Writes nothing. 409 unless the list is `committed`. Needs `employee.delete` (below) |
+| POST | `/batches/{batch}/undo` | undo it, with `confirm: true`, a slice at a time; the same request is sent again while `done` is false. 409 unless `committed`; 422 without `confirm`. Needs `employee.delete`; has the `migration-commit` rate limit (below) |
 | GET | `/batches/{batch}/logins` | `without_login` and `hire_dates_defaulted`, read again |
 | GET | `/batches/{batch}/terminals` | what the attendance terminals hold for the people the list brought in (below) |
 
@@ -567,7 +569,7 @@ A staged list is kept for 30 days from its last activity, but the page held its 
 alone: a reload, a closed tab, or a staging request that died left a list on the server that no
 screen named. Two routes and a card close that.
 
-`GET /batches` answers `{data: [...]}`, one item for each list that is `staging`,
+`GET /batches` answers `{data: [...], added: [...]}` (`added` is described under "Undoing what a list added", below). `data` holds one item for each list that is `staging`,
 `reviewing` or `committing`, newest first, at most 20. An item is `public_id`, `status`,
 `mode` (`add` or `complete`), `source_type`, `rows` (how many lines it holds),
 `created_at`, `updated_at`, `created_by_name` and `mine`. It carries nothing about the people on
@@ -597,6 +599,128 @@ request a stopped staging uses, because a table of people nobody has matched can
 employees. The Employees import page keeps the open list in the address (`?batch=<public_id>`)
 so a reload returns to it; a list that is gone or not this organisation's clears the parameter
 without a message. The setup wizard and the device read keep their own state, as before.
+
+## Undoing what a list added (2026-11-20)
+
+**Why.** On 2026-11-18 a list of 167 people was brought into a customer organisation a second
+time, and every one of them who already existed was added again. #798 holds a row whose name
+matches someone already here for review, so the same mistake can no longer be committed without
+a decision. A list that had been committed could still not be taken back: `DELETE /batches/{batch}`
+answers 409 once a list is `committing` or `committed`, and nothing else removed what a list
+had added. Undo is the other half of that fix.
+
+**What it does.** `GET /batches/{batch}/undo` is the preview and writes nothing. `POST` to the
+same path with `confirm: true` does it. Both answer 409 ("Only a list that has been added can be
+undone.") unless the list is `committed`, and both need `employee.delete`, which the tenant
+admin role holds and the HR admin role does not. The POST has the `migration-commit` rate limit.
+It archives people with the ordinary soft delete, `Employee::delete()`, restorable with
+`POST /employees/{employee}/restore`. It archives a person only when all four hold: the list
+itself created them; they are not archived already; nobody has used them since (below); and
+they are within the reach of the person asking (`EmployeePolicy::delete`). People the list only
+matched or merged into are never touched, and no field a merge changed is put back. People out
+of reach are counted in `out_of_reach` and are never named.
+
+**A slice at a time.** The archive is done in chunks of 50 (`WorkforceMigrationService::CHUNK`),
+each in its own transaction under the list's row lock, as a commit is added. A request works for
+about 12 seconds (`SLICE_SECONDS`) and always finishes at least one chunk. It answers `done`,
+`archived`, `remaining`, `kept` and `out_of_reach`; while `done` is false the browser sends the
+same request again. Each chunk asks again whether every person in it is still unused and still
+within reach, because the preview was a moment ago and a slice is a request later. The count so
+far is kept on the list in `migration_batches.undo_totals` (`archived`, and `pending`: archived
+since the last audit entry), and `undone_at` is set when an undo finishes. The preview names at
+most 200 people in each of `archive` and `keep`; `archive_count` and `keep_count` are the whole.
+
+**Which people a list created.** A row chosen as "create" either made the person or, because
+they appeared between the review and the commit, only linked to someone already here, and both
+wrote the same two columns. A commit now records which on the row,
+`migration_staging_rows.created_employee`: true when the row made the person, false when it only
+linked, null on every other row. That is `origin: recorded`. For a list committed before the
+column existed, the people are worked out (`origin: derived`, `ListAdditions`): a person counts
+when they were created not before the list was staged and not after their row was processed, by
+the list's own route (`created_via` equal to `device` or `migration`, as the list's source is) or
+by one that did not say (`created_via` null). The set this derives always contains the people
+the list really made, and may contain more: someone only linked, who happened to be created some
+other way inside the same minutes. The list's own `totals.created` settles it. When the people
+established as made are no more than that number, the answer is exact and every one is a
+candidate. When they are more, some were only linked and cannot be told apart, so none of the
+derived people is archived: each is listed as kept with the reason `unsure_origin`, and `exact`
+is false. Someone a commit recorded as made stays made either way. Nothing is backfilled by the
+migration.
+
+**What counts as use.** `AdditionUse` reads these tables a table at a time, each query stating
+`tenant_id`, and a person found in any of them is kept, with the reason beside their name.
+Reasons are `attendance`, `signed_in`, `payroll`, `leave`, `overtime`, `documents`, `hr_records`,
+`in_charge` and `assigned`:
+
+- `attendance`: attendance records, corrections, conflicts, integrity flags, visits and presence
+  checks; a held punch assigned to them (`unmatched_device_punches`); a registered phone
+  (`attendance_devices`).
+- `signed_in`: their login has a recorded sign-in, holds a token, has a successful entry in the
+  login history, redeemed an activation code, or has a trusted browser or a push subscription.
+  The login is found from either side of its link to the employee, and a deleted login counts.
+- `payroll`: a payroll entry, a loan, or cost sharing.
+- `leave`: a leave request (a deleted one counts), or a leave balance with days used, pending or
+  carried.
+- `overtime`: an overtime request.
+- `documents`: an employee document or an education record.
+- `hr_records`: a personnel action, a disciplinary case, a retirement case, an exit clearance, a
+  letter request, a status transition, a profile update request, a job application, or a
+  recognition given or received.
+- `in_charge`: a current employee reports to them, or a current department has them as head.
+- `assigned`: an assignment to a shift or to an attendance site.
+
+What the list itself wrote is not use: the person's contract, bank account, emergency contact,
+external identity and terminal commands. A leave balance of zeros, which the system writes by
+itself, is not use either. The reasons of a person are listed in the order above, and
+`unsure_origin` comes before them.
+
+**The login.** A person who was only issued an activation code or an invitation, and never used
+it, is archived. In the same chunk their account (found from either side of the link) is set
+`inactive`, its tokens are deleted, its live activation code is revoked (audit
+`user.activation_code_revoked`) and `user.deactivated` is audited with `reason: migration.undo`
+and the list's `batch`. Only accounts that are `active` or `invited` are touched. Restoring the
+employee does not reopen the account: someone who may manage logins gives them a way in again.
+
+**Audit.** Each person archived gets the usual `employee.deleted`, with `via: migration.undo` and
+`batch` in its payload. One `migration.undone` entry is written by the request that finishes the
+undo, with `batch`, `added`, `archived`, `kept`, `out_of_reach`, `origin` and `exact`, and only
+when something was archived since the last one. A second press, or a second tab finishing later,
+archives nobody and writes nothing: it answers `done: true` and `archived: 0`. Someone restored
+and archived again by a later undo gets a second `migration.undone`.
+
+**Lists committed, found again.** `GET /batches` answers a second key, `added`: the organisation's
+`committed` lists, newest first by `committed_at`, at most 20 (`MigrationBatch::IN_PROGRESS_SHOWN`).
+An item is `public_id`, `mode`, `source_type`, `rows`, `created` (the list's own `totals.created`),
+`committed_at`, `created_by_name`, `mine` and `undone_at`. `GET /batches/{batch}` gains `undone_at`
+and `undo_archived` (how many people every undo of the list has archived). Before this a committed
+list could be reopened only by its address, `/employees/import?batch=<id>`.
+
+**On the screen.** On a committed list, on Employees, Import and on the setup wizard's People
+step, a button "Undo this list's additions" sits beside "Download what happened". It is shown to
+someone who may delete employees, and not for a list that completes people already here, which
+adds nobody. It opens a dialog that reads the preview when it opens: the counts (added by this
+list, will be archived, will be kept, and already archived when there are any), the two tables of
+names with the reasons in words, and a destructive button "Archive N people", which is the second
+confirmation. The dialog cannot be closed while it runs. When the list is not exact the button is
+disabled and the dialog says nobody is archived. After an undo the committed screen says "This
+list's additions were undone on :date." with the count, the hire-date warning counts only people
+who are still employees, and the sign-in card says "This list's additions were undone. Nobody from
+it is waiting for a way to sign in." instead of "Everyone brought in can already sign in." The
+confirmation before the list is added tells someone who may delete employees that the people it
+adds can be archived again with "Undo this list's additions"; for anyone else it still says nothing
+can be undone from there. The card above the list box has a second
+group, "Lists added recently", each list with "Open", the badge "Added" or "Additions undone",
+and "N people added".
+
+**Limits.** A list is deleted 30 days after its last activity
+(`MigrationBatch::RETENTION_DAYS`), and with it the record of who it created, so an undo exists
+only inside that window. No screen lists archived employees: one is restored through the API
+route above, or by adding the person again, where the likeness dialog offers "Restore their
+record". Archiving removes a person from the attendance terminals of their branch and revokes
+their registered phones, as any archive does, and a restore does not put those back. The Amharic
+and Afaan Oromoo wording has not been read by a native speaker. The derivation for a list
+committed before 2026-11-20 has been exercised only by tests, not against production data.
+Tests: `tests/Feature/Migration/UndoListTest.php`.
 
 ## What the whole list is brought in with (2026-11-12)
 

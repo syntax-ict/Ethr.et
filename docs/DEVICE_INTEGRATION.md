@@ -548,15 +548,54 @@ by its token. A terminal may now be registered with **no address**.
   badge is resolved, and the punch is recorded or held in `unmatched_device_punches`. The
   engine's `auto` direction reads the open record, so order is what makes an evening scan
   close the morning one. A database error leaves the row pending and the rows behind it wait
-  for the retry; a refused punch is marked processed with its reason in `error`; a row that
-  has failed five times is marked processed rather than retried for ever. Processed rows are
-  deleted after seven days by `CleanupExpiredDataJob`, waiting rows never. The route's own
+  for the retry. Processed rows are deleted after seven days by `CleanupExpiredDataJob`,
+  waiting rows never, and quarantined rows (below) not until a person has dismissed them. The route's own
   `device-webhook` limiter allows 600 posts a minute per address (a ceiling against a broken
   sender, not a delivery pace), and the global API limiter does not count these posts a second
   time. Because the work is queued, a punch is recorded only once something drains the queue
   (production: `RunBackgroundWorkAfterResponse` after any API response, the terminal's own
   posts included, at most once a minute, and the cron caller), and a heartbeat or punch stamps the device row at most once a
   minute.
+- **Every push path goes through the inbox (2026-11-20).** The ZKTeco and Suprema JSON
+  webhooks and ADMS `ATTLOG` uploads used to run the attendance engine inside the request, so
+  an unexpected error was acknowledged and lost, and a backlog after a power cut ran the
+  engine per line under the host's 30-second limit. They now `insertOrIgnore` into
+  `device_inbound_punches` in chunks of 500 (`DeviceInboundPunch::stash()`), keep their key
+  prefixes (`webhook:zk|sup|adms:{device}:{badge}:{time}`, so punches recorded before still
+  dedupe a resend), queue `ProcessDeviceInboundPunchesJob` when a row was new, and answer
+  exactly as before (`processed` with a `count`, or `OK: n` for ADMS). An unreadable ADMS line
+  is stored in quarantine with its text and counted in the `OK: n`, so the terminal does not
+  send it for ever. `/iclock` carries `RunBackgroundWorkAfterResponse` like the API group.
+- **Raw is kept, a failure is quarantined (2026-11-20).** Every inbox row stores the event as
+  received in `raw` (Hikvision: the parsed event only, never the multipart face picture; ADMS:
+  the line; ZKTeco and Suprema: the record), capped at 16 KB with a `...[truncated]` marker,
+  and clears it once the punch is recorded or held. A punch the engine refuses
+  (`AttendanceRefused`: a leaver, a check-out with no check-in, a disabled method), a time
+  the terminal's clock puts more than ten minutes ahead, an event with no time, or an
+  unexpected exception is not purged and not retried: the row gets `failed_at`, `failure`
+  (`refused:{reason}`, `clock_ahead`, `no_time`, `unreadable`, `error`) and a scrubbed `error`, and the
+  device's later rows carry on. A database or deadlock error still retries; a row that fails
+  five times becomes `failure = error` instead of being given up. An unknown badge is not a
+  failure: it stays the held-punch path. `GET /devices/{device}/quarantine` lists them
+  (`device.view`; `raw` only for `device.update`); `POST /devices/quarantine/replay` puts rows
+  back in the inbox (so a fixed leaving date or terminal clock lets them record, once: a
+  replay of a punch already recorded is a duplicate, never a second record) and
+  `POST /devices/quarantine/dismiss` lets them go (kept a week, then purged). Both take
+  `ids` (public ids, at most 500) and write `device.quarantine_replayed` /
+  `device.quarantine_dismissed`. A `no_time` row and an `unreadable` ADMS line (stored with the terminal's own line as `raw`) cannot
+  be replayed, since the same row fails again: the punch is entered by hand. A `clock_ahead`
+  row is recorded at the time the terminal stamped, which fixing the terminal's clock does not
+  change, so the card asks first: replay is right only when the time zone set for the terminal in
+  ETHR was wrong, and a punch from a terminal whose own clock was wrong is dismissed and entered
+  by hand. `error` (exception text) and `raw` are shown only to those who may change the device. The device page shows the
+  list in "Punches that need attention", and `/devices/dashboard` the count.
+- **Key guard.** `attendance_records.idempotency_key` is varchar(64) and device keys used to be
+  built up to 191 characters, which production's strict MySQL refuses. `DevicePunchKey::fit()`
+  returns a key of 64 characters or less unchanged and a longer one as `dk:` plus 60 hex
+  characters of its sha256, and is applied at every construction site and inside
+  `DevicePunchRecorder::record()`, so live push, pull and held-punch replay give the same key.
+- **Queue order.** `QueueHealth::QUEUES` is `attendance, default, notifications, exports`:
+  the first queue named is drained first, so punches no longer wait behind pulls and reports.
 - **Who writes it.** The rule is written by `devices:sync` on every run for every such
   device (nothing else moves a terminal off `online` when it goes quiet, because it is
   never pulled), by `PUT /devices/{id}` when the mode changes, and by
@@ -687,21 +726,46 @@ received from this terminal yet"; re-enter the address from the device page.
 A terminal retrying every few seconds is written once a minute, and a cache that cannot be
 reached never turns the 401 into a 500.
 
-## Device clocks (2026-10-14)
+## Device clocks (2026-10-14, reworked 2026-11-21)
 
-`devices.clock_offset_seconds` is how far a device's clock is from the server's, read off
-each pushed punch (`DeviceClock`): the punch time minus the time it arrived. Pushes
-arrive seconds after the punch, so the gap is the clock error plus delivery delay.
+`devices.clock_offset_seconds` is how far a device's clock is from the server's, positive
+when the device runs ahead (`DeviceClock`). Two sources, which do not say the same thing:
 
-- A gap over an hour is ignored. That is a backlog uploaded after an outage, or a time
-  that is simply wrong.
-- **Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the
-  punch. Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
-  `DeviceTime::isInFuture` refuses it, but the clock reading is still taken first.
-- **Behind is shown, not flagged.** It cannot be told apart from a punch that arrived
-  late.
+- **A heartbeat** (Hikvision push: a notification that is not an access event, read before it
+  is answered `ignored`) is stamped with the terminal's clock when it is sent, so its time
+  against now is the clock error, whatever its size. Any offset is stored. A heartbeat with
+  no time leaves nothing stored and the page says *clock not measurable on this terminal*;
+  it is never shown as zero. A door event carries its own event time and may be buffered, so
+  only `eventType` `heartBeat` (or none) counts.
+- **A punch** can only prove a clock is **ahead**: one kept through an outage arrives late
+  and looks like a clock that is behind. A behind reading is never stored, and a punch never
+  overwrites a heartbeat reading taken in the last hour. The offset still goes on the punch
+  for the integrity check.
 
-The device page shows the reading as *in step*, *N min ahead* or *N min behind*. The fix
-is the `set_time` command, sent daily to every device that takes commands, or **Set clock
-now** on its Commands tab.
+**Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the punch.
+Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
+`DeviceTime::isInFuture` refuses it (`clock_ahead`, kept in quarantine), but the clock reading
+is still taken first.
 
+The device page shows the reading as *in step*, *N ahead* or *N behind*, with a warning
+beyond two minutes. Within 30 minutes of six hours it says the terminal is probably set to
+Ethiopian time of day (use the 24-hour clock, or NTP); a year or more out, that the date is
+probably set to the Ethiopian calendar. The fix is the `set_time` command, sent daily to every
+device that takes commands, or **Set clock now** on its Commands tab. The source of the
+reading is kept in the signals store (`device-clock:source:{id}`), not a column.
+
+## Terminals that only send (2026-11-21)
+
+`DeviceManager::receivesOnly()` is true for a Hikvision terminal with no address, every
+`zkteco_adms` device, and a ZKTeco or Suprema device with no address. Such a device is never
+pulled whatever its `auto_sync` says; `devices:sync` and every page that reads it only settle
+its status by `PushDeviceStatus`: `pending` (never heard), `online` (under 15 minutes),
+`quiet` (under 24 hours), `offline`. An ADMS terminal keeps its own adapter, its commands and
+the roster it last reported; `DeviceManager::hasNoRoster()` asks whether ETHR can read a
+roster by asking the terminal.
+
+Each device reports `today` (received, recorded, held, duplicate, quarantined, waiting) for
+the organisation's day (`DeviceDayCounts`). `POST /devices/{device}/allowlist` adds the
+address a refusal names (`device.update`, audited, idempotent, at most 20 entries).
+`GET /admin/devices/{devicePublicId}/capture` is the platform operator's redacted export of one
+terminal's last seven days and its last 20 heartbeat bodies (body only, never the token).

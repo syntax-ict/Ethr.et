@@ -23,12 +23,14 @@ import {
   deviceStatusLabelKey,
 } from "@/features/devices/status";
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import { DeviceTodayLine } from "@/features/devices/components/device-today";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useDeviceDashboard,
   useDevices,
   type Device,
+  isPulled,
 } from "@/features/devices/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
@@ -62,7 +64,7 @@ export default function DeviceDashboardPage() {
 
   // Sync logs are written only when ETHR pulls from a device, so for a
   // terminal that only sends the card would be four zeros that mean nothing.
-  const anyPulled = allDevices.some((d) => d.receives_only !== true);
+  const anyPulled = allDevices.some((d) => isPulled(d));
 
   return (
     <RoleGate anyPermission={["viewDevices"]}>
@@ -82,6 +84,51 @@ export default function DeviceDashboardPage() {
             </Button>
           )}
         </div>
+
+        {stats && stats.quarantined.punches > 0 && (
+          <div
+            role="status"
+            className="space-y-1 rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            <p className="font-medium">
+              {t("devices_dashboard_page.quarantine_title")}
+            </p>
+            <p>
+              {stats.quarantined.punches === 1
+                ? t("devices_dashboard_page.quarantine_body_one")
+                : t("devices_dashboard_page.quarantine_body_many", undefined, {
+                    punches: stats.quarantined.punches.toLocaleString(),
+                  })}
+            </p>
+            <ul className="space-y-0.5">
+              {stats.quarantined.devices.map((entry) => (
+                <li key={entry.device_public_id}>
+                  <Link
+                    href={`/devices/${entry.device_public_id}#quarantine`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {entry.punches === 1
+                      ? t(
+                          "devices_dashboard_page.quarantine_device_one",
+                          undefined,
+                          {
+                            device: entry.name,
+                          },
+                        )
+                      : t(
+                          "devices_dashboard_page.quarantine_device_many",
+                          undefined,
+                          {
+                            device: entry.name,
+                            punches: entry.punches.toLocaleString(),
+                          },
+                        )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {stats && stats.unmatched.badges > 0 && (
           <div
@@ -279,6 +326,7 @@ export default function DeviceDashboardPage() {
                   t("common.status"),
                   t("devices_page.records"),
                   t("devices_dashboard_page.last_contact"),
+                  t("device_today.title"),
                 ]}
                 align={[
                   "left",
@@ -287,6 +335,7 @@ export default function DeviceDashboardPage() {
                   "left",
                   "left",
                   "right",
+                  "left",
                   "left",
                 ]}
                 colClassName={[
@@ -297,6 +346,7 @@ export default function DeviceDashboardPage() {
                   "",
                   "hidden lg:table-cell",
                   "hidden lg:table-cell",
+                  "hidden xl:table-cell",
                 ]}
                 rows={allDevices.map((d) => ({
                   key: d.public_id,
@@ -344,6 +394,9 @@ export default function DeviceDashboardPage() {
                       ) : (
                         t("devices_page.never")
                       )}
+                    </span>,
+                    <span key="td" className="text-xs text-muted-foreground">
+                      <DeviceTodayLine today={d.today} />
                     </span>,
                   ],
                   actions: (

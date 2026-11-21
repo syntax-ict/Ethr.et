@@ -2868,6 +2868,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/quarantine/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay quarantine */
+        post: operations["deviceQuarantine.replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/quarantine/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["deviceQuarantine.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/sync-all": {
         parameters: {
             query?: never;
@@ -2953,6 +2987,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/allowlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add one address to the device's webhook allowlist */
+        post: operations["device.allowAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device}/sync-logs": {
         parameters: {
             query?: never;
@@ -2979,6 +3030,23 @@ export interface paths {
         };
         /** List events */
         get: operations["device.deviceEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quarantine devices */
+        get: operations["deviceQuarantine.index"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5371,6 +5439,12 @@ export interface paths {
          *     null when whoever started it has gone, and `mine` says the viewer
          *     started it. Any member of the organisation who may view employees can
          *     open any of these, as `/migration/batches/{batch}` already allows.
+         *
+         *     `added` is the lists that have been added, newest first, at most
+         *     twenty, for the screen that undoes a list's additions: `rows` is how many
+         *     lines it held, `created` how many people it made, `committed_at` when it
+         *     was added and `undone_at` when an undo of it last finished (null when
+         *     none has). They are not in `data`.
          */
         get: operations["migration.index"];
         put?: never;
@@ -5493,6 +5567,54 @@ export interface paths {
          *     list begins to be added; a later request cannot change it.
          */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What undoing a list's additions would do, without doing it
+         * @description Only a list that has been added can be undone, and only by someone who
+         *     may delete employees. The people the list itself made are archived (the
+         *     ordinary delete: each can be restored with `POST /employees/{employee}/restore`) unless
+         *     they have been used since, and nobody else is touched: not someone the
+         *     list only matched, and not a change a match made to their record.
+         *
+         *     `archive` is who would be archived and `keep` who would be left alone,
+         *     each with why (`reasons`: `attendance`, `signed_in`, `payroll`, `leave`,
+         *     `overtime`, `documents`, `hr_records`, `in_charge`, `assigned`, or
+         *     `unsure_origin`), the first two hundred by name; `archive_count` and
+         *     `keep_count` are the whole. People the viewer has no reach over are
+         *     counted in `out_of_reach` and never named. `already_archived` is how many
+         *     the list made who are archived now.
+         *
+         *     `origin` is `recorded` when the list noted what each of its lines did and
+         *     `derived` when it was added before it did. `exact` is false when some
+         *     people cannot be told from ones the list only matched: they are all kept.
+         *     `added` is how many people the list made.
+         */
+        get: operations["migration.undoPreview"];
+        put?: never;
+        /**
+         * Undo a list's additions, as much as fits in one request
+         * @description Send `confirm` as true: this is the second, explicit call after the
+         *     preview. A long list is archived a slice at a time; while `done` is
+         *     false, `remaining` people are still to be dealt with and the same request
+         *     is sent again. `archived` is how many have been archived so far in this
+         *     undo, and once it is done, how many the one audit entry for it records.
+         *     Pressing it again archives nobody and records nothing: `done` is true and
+         *     `archived` is 0. `kept` is how many are left alone for being used, and
+         *     `out_of_reach` how many the person asking has no reach over.
+         */
+        post: operations["migration.undo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6110,6 +6232,57 @@ export interface paths {
         put?: never;
         /** Transfer ownership */
         post: operations["ownership.transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pay differences */
+        get: operations["payDifference.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle pay differences */
+        post: operations["payDifference.settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["payDifference.dismiss"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9341,6 +9514,15 @@ export interface components {
             last_activity_at: string | null;
             journey_computed_at: string | null;
         };
+        /**
+         * AllowDeviceAddressRequest
+         * @description One address to add to a device's webhook allowlist: the one its refused
+         *     call came from. A single address, not a range; a range is set on the
+         *     device's own form, where its width can be thought about.
+         */
+        AllowDeviceAddressRequest: {
+            ip: string;
+        };
         /** AnnouncementResource */
         AnnouncementResource: {
             public_id: string;
@@ -9467,6 +9649,7 @@ export interface components {
          */
         ApprovePayrollRunRequest: {
             acknowledged_pension_exemptions?: number | null;
+            acknowledged_pay_differences?: number | null;
         };
         /**
          * ApproverKind
@@ -10161,6 +10344,7 @@ export interface components {
             commands_enabled: boolean;
             accepts_commands: boolean;
             receives_only: boolean;
+            pulled: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
@@ -10169,6 +10353,18 @@ export interface components {
             last_sync_at: string | null;
             clock_offset_seconds: number | null;
             clock_checked_at: string | null;
+            /** @enum {string|null} */
+            clock_source: "heartbeat" | "punch" | "heartbeat_no_time" | null;
+            clock_measurable: boolean | null;
+            today: {
+                day: string;
+                received: number;
+                recorded: number;
+                held: number;
+                duplicate: number;
+                quarantined: number;
+                waiting: number;
+            } | null;
             adms?: {
                 server: string;
                 last_rejected: {
@@ -10186,6 +10382,7 @@ export interface components {
             branch_public_id: string | null;
             attendance_records_count?: number;
             sync_logs_count?: number;
+            quarantined_count?: number;
             latest_sync_log?: components["schemas"]["DeviceSyncLogResource"];
             /** Format: date-time */
             created_at: string | null;
@@ -10277,6 +10474,13 @@ export interface components {
         DismissNextStepRequest: {
             signature: string;
             snooze_days?: number | null;
+        };
+        /**
+         * DismissPayDifferenceRequest
+         * @description Why the difference needs no payment.
+         */
+        DismissPayDifferenceRequest: {
+            note: string;
         };
         /** DismissUnmatchedBadgeRequest */
         DismissUnmatchedBadgeRequest: {
@@ -11370,6 +11574,33 @@ export interface components {
             net_cents: number;
             calculation_log?: unknown[] | null;
         };
+        /** PayrollPayDifferenceResource */
+        PayrollPayDifferenceResource: {
+            public_id: string;
+            employee_public_id: string | null;
+            employee_name: string | null;
+            run_public_id: string | null;
+            period_label: string | null;
+            period_start: string | null;
+            period_end: string | null;
+            kind: string | null;
+            gross_cents: number | null;
+            net_cents: number | null;
+            paid_gross_cents: number | null;
+            paid_net_cents: number | null;
+            due_gross_cents: number | null;
+            due_net_cents: number | null;
+            status: string;
+            changed_from: string;
+            trail_rebuilt_at_release: boolean;
+            net_is_estimate: boolean;
+            error: string | null;
+            note: string | null;
+            /** Format: date-time */
+            settled_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** PayrollRuleResource */
         PayrollRuleResource: {
             public_id: string;
@@ -11695,6 +11926,13 @@ export interface components {
                     userHandle?: string | null;
                 };
             };
+        };
+        /**
+         * QuarantineRowsRequest
+         * @description The punches in quarantine a person is replaying or dismissing, by public id.
+         */
+        QuarantineRowsRequest: {
+            ids: string[];
         };
         /** ReadPeopleRequest */
         ReadPeopleRequest: {
@@ -12094,6 +12332,13 @@ export interface components {
             user_ids?: string[];
             /** @enum {string} */
             scope?: "not_activated";
+        };
+        /**
+         * SettlePayDifferenceRequest
+         * @description What finance did about the difference: a reference or a few words.
+         */
+        SettlePayDifferenceRequest: {
+            note: string;
         };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
@@ -13079,6 +13324,15 @@ export interface components {
             logo_url: string | null;
             url: string;
         };
+        /**
+         * UndoMigrationRequest
+         * @description Undoing what a list added: the second, explicit call after the preview.
+         *     Archiving people is not done by a request that does not say so.
+         */
+        UndoMigrationRequest: {
+            /** @enum {unknown} */
+            confirm: "yes" | "on" | "1" | 1 | "true" | true;
+        };
         /** UnregisteredEmployeeResource */
         UnregisteredEmployeeResource: {
             public_id: string;
@@ -13359,6 +13613,8 @@ export interface components {
             /** Format: date-time */
             probation_end_date?: string | null;
             salary_cents?: number | null;
+            /** Format: date-time */
+            salary_effective_date?: string | null;
             tin?: string | null;
             department_id?: string | null;
             branch_id?: string | null;
@@ -14152,6 +14408,7 @@ export interface components {
         /** VoidPayrollRunRequest */
         VoidPayrollRunRequest: {
             reason: string;
+            acknowledged_settled_pay_differences?: number | null;
         };
     };
     responses: {
@@ -15110,40 +15367,48 @@ export interface operations {
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be recorded. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 detail: string;
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Invalid employee PIN.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Employee not found with the given code.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This number matches more than one person. Type your full code with the ABC key.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Kiosk check-in is switched off, and this offline punch cannot be shown to have been made before it was. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be read. Punch again.";
+                                final: boolean;
                             };
                         }[];
                     };
@@ -16277,19 +16542,22 @@ export interface operations {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            /** @constant */
-                            detail: "You can only sync your own attendance.";
+                            detail: string;
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            detail: string;
+                            /** @constant */
+                            detail: "You can only sync your own attendance.";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
                             /** @constant */
                             detail: "Employee not found";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */
@@ -22347,6 +22615,14 @@ export interface operations {
                             held: number;
                             waiting: number;
                         };
+                        quarantined: {
+                            punches: number;
+                            devices: {
+                                device_public_id: string;
+                                name: string;
+                                punches: number;
+                            }[];
+                        };
                         unmatched: {
                             badges: number;
                             punches: number;
@@ -22363,6 +22639,63 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "deviceQuarantine.replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        replayed: number;
+                        skipped: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deviceQuarantine.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dismissed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.syncAll": {
@@ -22412,8 +22745,8 @@ export interface operations {
                         status: "quiet" | "offline" | "online" | "pending";
                         /** @enum {string|null} */
                         error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
-                        details: unknown[];
-                        device_info: unknown[];
+                        details: string | unknown[];
+                        device_info: string | unknown[];
                     };
                 };
             };
@@ -22516,6 +22849,39 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "device.allowAddress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllowDeviceAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description `DeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "device.syncLogs": {
         parameters: {
             query?: {
@@ -22597,6 +22963,35 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceQuarantine.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LengthAwarePaginator"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deviceEnrollment.index": {
@@ -28742,6 +29137,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -28880,6 +29277,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29096,6 +29495,17 @@ export interface operations {
                             created_by_name: string | null;
                             mine: boolean;
                         }[];
+                        added: {
+                            public_id: string;
+                            mode: string;
+                            source_type: string;
+                            rows: number;
+                            created: number;
+                            committed_at: string | null;
+                            created_by_name: string | null;
+                            mine: boolean;
+                            undone_at: string | null;
+                        }[];
                     };
                 };
             };
@@ -29129,6 +29539,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29433,6 +29845,118 @@ export interface operations {
                         /**
                          * @description Error overview.
                          * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.undoPreview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        origin: string;
+                        exact: boolean;
+                        added: number;
+                        already_archived: number;
+                        matched: number;
+                        archive_count: number;
+                        archive: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        }[];
+                        keep_count: number;
+                        keep: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                            reasons: string[];
+                        }[];
+                        out_of_reach: number;
+                        undone_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "migration.undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoMigrationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: boolean;
+                        archived: number;
+                        remaining: number;
+                        kept: number;
+                        out_of_reach: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
                          */
                         message: string;
                     };
@@ -31471,6 +31995,123 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.index": {
+        parameters: {
+            query?: {
+                status?: "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded" | null;
+                employee?: string | null;
+                for_run?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PayrollPayDifferenceResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlePayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissPayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };

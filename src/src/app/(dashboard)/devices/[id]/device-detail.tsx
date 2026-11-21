@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuarantineCard } from "@/features/devices/components/quarantine-card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -50,6 +51,12 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
+  DeviceClockNote,
+  clockValue,
+} from "@/features/devices/components/device-clock-note";
+import { DeviceTodayCard } from "@/features/devices/components/device-today";
+import { clockFinding } from "@/features/devices/clock";
+import {
   DeviceHeardLine,
   DeviceKeepAliveLine,
   WebhookRejectedLine,
@@ -74,6 +81,7 @@ import {
   type DeviceEvent,
   type DeviceSyncLog,
   type DeviceUpdate,
+  isPulled,
 } from "@/features/devices/api";
 import {
   deviceStatusBadgeClass,
@@ -272,6 +280,12 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const isOnline = device.status === "online";
   // Never called, so nothing to test or pull: see DeviceHeardLine.
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
+  const finding = clockFinding(
+    device.clock_offset_seconds ?? null,
+    device.clock_measurable ?? null,
+  );
+  const showClock = finding.kind !== "unknown";
   const syncLogItems: DeviceSyncLog[] = syncLogs?.data ?? [];
   const eventItems: DeviceEvent[] = events?.data ?? [];
   const syncLogPages = syncLogs?.meta.last_page ?? 1;
@@ -304,7 +318,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ` · ${device.location_description}`}
               {device.branch?.name && ` · ${device.branch.name}`}
             </p>
-            {sendsOnly && (
+            {!pulled && (
               <div className="mt-2 text-sm text-muted-foreground">
                 <DeviceHeardLine device={device} />
                 <DeviceKeepAliveLine
@@ -312,7 +326,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 />
               </div>
             )}
-            <WebhookRejectedLine rejected={device.webhook_rejected} />
+            <WebhookRejectedLine
+              rejected={device.webhook_rejected}
+              devicePublicId={device.public_id}
+            />
           </div>
           <div className="flex items-center gap-2">
             {!sendsOnly && (
@@ -331,23 +348,21 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </Button>
             )}
             {/* A terminal that pushes its punches (ADMS, or a Hikvision on the office network) has nothing to pull. */}
-            {canUpdate &&
-              device.adapter_type !== "zkteco_adms" &&
-              !sendsOnly && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={pull}
-                  disabled={pullMutation.isPending}
-                >
-                  {pullMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  {t("devices_page.pull")}
-                </Button>
-              )}
+            {canUpdate && pulled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={pull}
+                disabled={pullMutation.isPending}
+              >
+                {pullMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {t("devices_page.pull")}
+              </Button>
+            )}
             {canUpdate && (
               <Button
                 variant="outline"
@@ -372,7 +387,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         {/* Info Cards */}
         <div
           className={
-            device.clock_checked_at
+            showClock
               ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
               : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           }
@@ -400,7 +415,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 : t("devices_page.never")
             }
           />
-          {!sendsOnly && (
+          {pulled && (
             <InfoCard
               icon={isOnline ? Wifi : WifiOff}
               label={t("device_detail_page.auto_sync")}
@@ -417,14 +432,18 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               }
             />
           )}
-          {device.clock_checked_at && (
+          {showClock && (
             <InfoCard
               icon={Clock}
               label={t("device_clock.label")}
-              value={clockLabel(device.clock_offset_seconds, t)}
+              value={clockValue(finding, t)}
             />
           )}
         </div>
+
+        <DeviceClockNote device={device} />
+
+        <DeviceTodayCard today={device.today} />
 
         <AdmsSetupCard device={device} />
 
@@ -490,6 +509,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </CardContent>
             </Card>
           )}
+
+        <QuarantineCard deviceId={device.public_id} canUpdate={canUpdate} />
 
         {/* Tabs: Sync History + Events */}
         <Tabs defaultValue="syncs">
@@ -847,7 +868,8 @@ function EditDeviceDialog({
   const hasConnectionChoice = canSendToEthr(device.adapter_type);
   const sendsToEthr = hasConnectionChoice && form.sends_to_ethr;
   // A terminal switched back to an address has none stored that is usable.
-  const addressRequired = device.receives_only === true && !sendsToEthr;
+  const addressRequired =
+    hasConnectionChoice && device.receives_only === true && !sendsToEthr;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1085,7 +1107,7 @@ function EditDeviceDialog({
           </div>
           <div
             className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr}
+            hidden={sendsToEthr || !isPulled(device)}
           >
             <div>
               <p className="text-sm font-medium">
@@ -1118,7 +1140,7 @@ function EditDeviceDialog({
               />
             </div>
           )}
-          {form.auto_sync && !sendsToEthr && (
+          {form.auto_sync && !sendsToEthr && isPulled(device) && (
             <div>
               <Label htmlFor="sync-interval">
                 {t("device_detail_page.sync_interval")}
@@ -1198,22 +1220,6 @@ function syncStatusLabel(
     running: t("device_detail_page.sync_running"),
   };
   return map[status] ?? status;
-}
-
-/**
- * The device clock as last read off a pushed punch (DeviceClock). Within two
- * minutes is in step: delivery delay and rounding.
- */
-function clockLabel(
-  offset: number | null,
-  t: ReturnType<typeof useT>["t"],
-): string {
-  if (offset === null) return "—";
-  const minutes = Math.round(Math.abs(offset) / 60);
-  if (Math.abs(offset) <= 120) return t("device_clock.in_step");
-  return offset > 0
-    ? t("device_clock.ahead", undefined, { minutes })
-    : t("device_clock.behind", undefined, { minutes });
 }
 
 /**

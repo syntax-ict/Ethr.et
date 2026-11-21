@@ -8,6 +8,13 @@ use App\Enums\ContractStatus;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeContract;
+use App\Models\EmployeeSalaryHistory;
+use App\Models\Tenant;
+use App\Services\Payroll\PayDifferenceRecorder;
+use App\Services\Payroll\SalaryHistoryWriter;
+use App\Support\BackgroundWork;
+use App\Support\SalaryChangeContext;
+use App\Support\TenantTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -68,6 +75,7 @@ class EmployeeContractService
             $contract->status = ContractStatus::RENEWED;
             $contract->ended_at = Carbon::parse($data['start_date'])->subDay();
             $contract->save();
+            $this->dropUnstartedSalary($contract);
 
             $salaryChange = $this->applyContractSalary($contract->employee, $successor);
 
@@ -86,9 +94,11 @@ class EmployeeContractService
      * never met: the salary typed on the contract form stayed on the contract
      * row, PayrollEngine read employees.salary_cents, and a salaried employee
      * was skipped from every run in silence (production QA, F1). A
-     * future-dated contract changes nothing here — the engine falls back to
-     * the contract in force during the run's own period, so the change takes
-     * effect when its start date does, not before.
+     * future-dated contract leaves the column alone and writes a future-dated
+     * salary history row instead, which the engine reads, so the change takes
+     * effect when its start date does, not before. The column catches up on
+     * the start date through the hourly ApplyDuePersonnelActionsJob
+     * (PersonnelActionService::syncSalaryInForce).
      *
      * @return array<string, int> Audit payload fragment, empty when nothing changed.
      */
@@ -96,14 +106,66 @@ class EmployeeContractService
     {
         $salary = (int) ($contract->salary_cents ?? 0);
 
-        if ($salary <= 0 || $contract->start_date->isFuture() || $salary === (int) $employee->salary_cents) {
+        if ($salary <= 0) {
+            return [];
+        }
+
+        // A contract that has not started leaves the column alone and writes
+        // its dated row now, so a run for a period it reaches pays it from
+        // its start date and a run before that does not.
+        if ($contract->start_date->toDateString() > TenantTime::today(Tenant::query()->find($employee->tenant_id))->toDateString()) {
+            app(SalaryHistoryWriter::class)->record(
+                $employee,
+                $salary,
+                $contract->start_date->toDateString(),
+                'contract',
+                $contract->id,
+                BackgroundWork::active() ? null : auth()->id(),
+            );
+
+            return [];
+        }
+
+        if ($salary === (int) $employee->salary_cents) {
             return [];
         }
 
         $previous = (int) $employee->salary_cents;
-        $employee->forceFill(['salary_cents' => $salary])->save();
+        SalaryChangeContext::during(
+            $contract->start_date,
+            'contract',
+            $contract->id,
+            fn () => $employee->forceFill(['salary_cents' => $salary])->save(),
+        );
 
         return ['salary_cents_from' => $previous, 'salary_cents_to' => $salary];
+    }
+
+    /**
+     * A contract that ends before it starts never takes effect, so the row it
+     * dated in advance goes with it. A contract already in force has written
+     * its salary into the column, and ending it leaves that alone.
+     */
+    private function dropUnstartedSalary(EmployeeContract $contract): void
+    {
+        // Only a contract that has not started: an ended_at typed before the
+        // start date of one already in force must not take its row away.
+        $today = TenantTime::today(Tenant::query()->find($contract->tenant_id))->toDateString();
+
+        if ($contract->ended_at !== null
+            && $contract->start_date->toDateString() > $today
+            && $contract->ended_at->lt($contract->start_date)) {
+            $rows = EmployeeSalaryHistory::query()
+                ->where('tenant_id', $contract->tenant_id)
+                ->where('source', 'contract')
+                ->where('source_id', $contract->id);
+            $earliest = (clone $rows)->min('effective_date');
+            $rows->delete();
+
+            if (is_string($earliest) && ($employee = Employee::query()->find($contract->employee_id)) !== null) {
+                app(PayDifferenceRecorder::class)->flag($employee, $earliest);
+            }
+        }
     }
 
     /** @param  array<string, mixed>  $data  Validated request data. */
@@ -115,6 +177,7 @@ class EmployeeContractService
         $contract->ended_at = ! empty($data['ended_at']) ? Carbon::parse($data['ended_at']) : now();
         $contract->end_notes = $data['end_notes'] ?? null;
         $contract->save();
+        $this->dropUnstartedSalary($contract);
 
         AuditLog::record('employee.contract_ended', $contract->employee, [
             'contract_id' => $contract->public_id,

@@ -187,6 +187,7 @@ return [
 
     'attributes' => [
         'branch_public_id' => 'ቅርንጫፍ',
+        'salary_effective_date' => 'የደመወዝ ተፈጻሚ ቀን',
     ],
 
     // ETHR's own rules.

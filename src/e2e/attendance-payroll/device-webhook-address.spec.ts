@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } from "./support";
+import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsWhen } from "./support";
 
 /**
  * A terminal's punch is recorded when only its token says whose it is.
@@ -28,7 +28,9 @@ test("a terminal's punch is recorded when only its token says whose it is", asyn
   const admin = await as(browser, "e2e-pay", "admin");
   try {
     const person = await employeeId(admin.page, "PAY-0001");
-    const rows = await recordsOf(admin.page, person, addisDate(minutesAgo(1640)), addisDate(new Date()));
+    const rows = await recordsWhen(admin.page, person, addisDate(minutesAgo(1640)), addisDate(new Date()), (found) =>
+      live(found).some((row) => row.check_out !== null),
+    );
 
     expect(live(rows)).toHaveLength(1);
     expect(rows[0].source).toBe("biometric");

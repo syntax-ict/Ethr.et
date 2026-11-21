@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
+use App\Support\BackgroundWork;
+use Illuminate\Contracts\Auth\Authenticatable;
+
 /**
  * The naming convention that carries a super admin's identity through an
  * impersonation session.
@@ -27,6 +30,31 @@ final class ImpersonationToken
     public const ABILITY = 'impersonation';
 
     private const PREFIX = 'impersonation:';
+
+    /**
+     * Whether the signed-in person is an operator in a support session.
+     *
+     * Read from the token's own abilities, never `can()`, which a '*' token
+     * answers yes to for everything. False inside the queue drain and the
+     * scheduler (BackgroundWork), which run inside whatever request happened
+     * to start them and act for nobody: the rule AuditLog::record() applies
+     * to who did a thing.
+     */
+    public static function sessionActive(?Authenticatable $user = null): bool
+    {
+        if (BackgroundWork::active()) {
+            return false;
+        }
+
+        $user ??= auth()->user();
+        if ($user === null || ! method_exists($user, 'currentAccessToken')) {
+            return false;
+        }
+
+        // A user with no token at all (an actingAs() test, a console) reads as
+        // no abilities: the `??` is on a property of null, which is safe.
+        return in_array(self::ABILITY, $user->currentAccessToken()->abilities ?? [], true);
+    }
 
     public static function nameFor(int $impersonatorId): string
     {

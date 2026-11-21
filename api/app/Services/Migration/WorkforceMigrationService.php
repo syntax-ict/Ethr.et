@@ -7,12 +7,14 @@ namespace App\Services\Migration;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Exceptions\DeviceRosterUnavailable;
+use App\Exceptions\ImpersonationRestricted;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\ImpersonationToken;
 use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
 use App\Services\EmployeeContractService;
@@ -105,7 +107,7 @@ final class WorkforceMigrationService
         // DeviceRequestFailed, and a batch created first would be left behind
         // empty — which is what a down device used to produce, as a batch
         // indistinguishable from a device with nobody enrolled.
-        if (DeviceManager::receivesOnly($device)) {
+        if (DeviceManager::hasNoRoster($device)) {
             throw DeviceRosterUnavailable::receivesOnly($device);
         }
 
@@ -415,6 +417,44 @@ final class WorkforceMigrationService
     }
 
     /**
+     * A list is written in chunks, each its own transaction, so one found to
+     * hold bank details half way through would half apply. An operator in a
+     * support session does not write where people are paid: the whole list is
+     * refused before a row is written, whichever way its bank columns arrived
+     * (a grid is mapped only when it is read, so the request cannot say).
+     */
+    private function refuseBankDataInSupportSession(MigrationBatch $batch): void
+    {
+        if (! ImpersonationToken::sessionActive()) {
+            return;
+        }
+
+        $carried = false;
+        MigrationStagingRow::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->where('batch_id', $batch->id)
+            ->whereNotIn('action', [MigrationStagingRow::ACTION_SKIP, MigrationStagingRow::ACTION_DEFER])
+            ->chunkById(500, function ($rows) use (&$carried): bool {
+                foreach ($rows as $row) {
+                    foreach (['bank_name', 'bank_branch', 'bank_account'] as $column) {
+                        $value = $row->raw[$column] ?? null;
+                        if (is_scalar($value) && trim((string) $value) !== '') {
+                            $carried = true;
+
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            });
+
+        if ($carried) {
+            throw new ImpersonationRestricted('WorkforceMigrationService::commitSlice', ['bank_name', 'bank_branch', 'bank_account']);
+        }
+    }
+
+    /**
      * Commit as much of the list as fits in one request, in chunks that are
      * each their own transaction under the organisation's lock. What a chunk
      * wrote stays written: a request that dies loses the chunk it was in and
@@ -433,6 +473,8 @@ final class WorkforceMigrationService
         if ($batch->isCommitted()) {
             return new CommitProgress(true, $this->totalsOf($batch), 0);
         }
+
+        $this->refuseBankDataInSupportSession($batch);
 
         if ($options !== null) {
             // What the list was staged with (its mode) is kept beside what the
@@ -510,6 +552,7 @@ final class WorkforceMigrationService
                             break;
                         }
 
+                        $made = false;
                         $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
                         $employee = $admitted->record();
 
@@ -519,6 +562,7 @@ final class WorkforceMigrationService
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
                             $this->writeProfile($employee, $raw, $actor);
                             $totals['created']++;
+                            $made = true;
                         } else {
                             // The person is here now and was not when the
                             // list was reviewed: an earlier row of this
@@ -530,7 +574,7 @@ final class WorkforceMigrationService
                             $this->resolver->link($employee, $signals, $admitted->match->confidence);
                             $totals['merged']++;
                         }
-                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now(), 'created_employee' => $made]);
                         break;
 
                     case MigrationStagingRow::ACTION_MERGE:
@@ -721,16 +765,31 @@ final class WorkforceMigrationService
 
     /**
      * How many people this batch created with today as their hire date,
-     * because the source gave none. A device never does. Owner decision
-     * (2026-10-28): warn, and leave the date for HR to correct.
+     * because the source gave none, and who are still employees: someone
+     * archived since, by an undo for one, is not counted. A device never gives
+     * a date. Owner decision (2026-10-28): warn, and leave the date for HR to
+     * correct.
      */
     public function hireDatesDefaulted(MigrationBatch $batch): int
     {
-        return $batch->rows()
+        $ids = $batch->rows()
             ->where('action', MigrationStagingRow::ACTION_CREATE)
             ->whereNotNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
             ->get()
             ->filter(fn (MigrationStagingRow $row): bool => empty($this->rawOf($row)['hire_date']))
+            ->pluck('resolved_employee_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        return Employee::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->whereIn('id', $ids)
             ->count();
     }
 

@@ -149,7 +149,7 @@ final class AttendanceEngine
                 // carrying someone else's key was answered with their record
                 // (A-Z review D-09).
                 if ($existing->employee_id !== $input->employeeId) {
-                    throw new AttendanceRefused(__('attendance.retry_key_taken'));
+                    throw new AttendanceRefused(__('attendance.retry_key_taken'), 'key_taken', permanent: true);
                 }
 
                 return new AttendanceResult($existing, wasDuplicate: true, outcome: $this->outcomeFor($existing, 'check_in'));
@@ -196,7 +196,7 @@ final class AttendanceEngine
         $settings = $this->policy->for($employee, $organisation ?? new AttendanceSetting(AttendanceSetting::defaults()));
 
         if (! $settings->isMethodEnabled($input->source->value)) {
-            throw new AttendanceRefused(__('attendance.method_disabled'));
+            throw new AttendanceRefused(__('attendance.method_disabled'), 'method_disabled');
         }
 
         $input = $this->enforceDevice($input, $settings);
@@ -212,7 +212,7 @@ final class AttendanceEngine
         if (in_array($employee->status, [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED], true)) {
             $day = $this->resolveMoment($input)->setTimezone($zone)->format('Y-m-d');
             if ($employee->termination_date === null || $day > $employee->termination_date->format('Y-m-d')) {
-                throw new AttendanceRefused(__('attendance.employee_has_left'));
+                throw new AttendanceRefused(__('attendance.employee_has_left'), 'employee_has_left', permanent: true);
             }
         }
 
@@ -742,10 +742,10 @@ final class AttendanceEngine
         if ($settings?->geofence_required && in_array($input->source, self::GEOFENCED, true)
             && ! ($input->source === AttendanceSource::WEB && $this->onOfficeNetwork($input, $settings))) {
             if ($input->latitude === null || $input->longitude === null) {
-                throw new AttendanceRefused(__('attendance.geofence_location_required'));
+                throw new AttendanceRefused(__('attendance.geofence_location_required'), 'geofence_location');
             }
             if ($geofenceVerified === false) {
-                throw new AttendanceRefused(__('attendance.outside_geofence'));
+                throw new AttendanceRefused(__('attendance.outside_geofence'), 'outside_geofence');
             }
         }
 
@@ -866,7 +866,7 @@ final class AttendanceEngine
         // and is flagged `location_missing` instead.
         if ($settings?->geofence_required && $input->latitude === null
             && in_array($input->source, [AttendanceSource::MOBILE, AttendanceSource::QR], true)) {
-            throw new AttendanceRefused(__('attendance.geofence_location_required'));
+            throw new AttendanceRefused(__('attendance.geofence_location_required'), 'geofence_location');
         }
 
         $updates = ['check_out' => $now];

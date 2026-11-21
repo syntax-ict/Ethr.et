@@ -53,7 +53,7 @@ use Throwable;
 class QueueHealth
 {
     /** Every queue the application dispatches onto. A bare `queue:work` drains only `default`. */
-    public const QUEUES = ['default', 'attendance', 'notifications', 'exports'];
+    public const QUEUES = ['attendance', 'default', 'notifications', 'exports'];
 
     private const HEARTBEAT_KEY = 'ethr:scheduler:heartbeat';
 

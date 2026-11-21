@@ -102,7 +102,7 @@ final class MigrationTerminals
                 'device_name' => $device->name,
                 'adapter_type' => $device->adapter_type,
                 'writable' => $writable,
-                'receives_only' => DeviceManager::receivesOnly($device),
+                'receives_only' => DeviceManager::hasNoRoster($device),
                 'queued' => 0,
                 'done' => 0,
                 'failed' => 0,

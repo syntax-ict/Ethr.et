@@ -81,8 +81,8 @@ it('moves a terminal that only sends to the rule on every run, whatever it was a
     $idle = honestPushDevice($tenant, $branch, ['status' => 'online', 'last_sync_at' => now()->subMinutes(20)]);
     // Another organisation's terminal, which the same run must settle on its own terms.
     $other = createTenant();
-    // Neither Hikvision nor auto-synced: nothing for this run, so it must not be loaded, which also keeps its encrypted config from being decrypted every run.
-    $manual = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'zkteco', 'auto_sync' => false, 'status' => 'online']);
+    // Not a terminal that can send alone, and not auto-synced: nothing for this run, so it must not be loaded, which also keeps its encrypted config from being decrypted every run.
+    $manual = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'generic', 'auto_sync' => false, 'status' => 'online']);
     $otherDevice = honestPushDevice($other, Branch::factory()->create(['tenant_id' => $other->id]), ['status' => 'pending', 'last_sync_at' => now()->subMinutes(5)]);
 
     // The scheduler runs with no request and no organisation resolved.
@@ -378,7 +378,7 @@ it('settles on a single device read and on the dashboard, and the filter follows
     test()->getJson("{$base}?filter[status]=quiet")->assertOk()->assertJsonCount(1, 'data');
 });
 
-it('moves an ADMS terminal with automatic work off to offline when it has gone silent, with no pull and no notice', function () {
+it('moves an ADMS terminal with automatic work off through quiet to offline as it stays silent, with no pull and no notice', function () {
     Queue::fake();
     Event::fake([DeviceOffline::class]);
     [$tenant, $branch] = honestOrganisation();
@@ -392,13 +392,15 @@ it('moves an ADMS terminal with automatic work off to offline when it has gone s
         ...$attrs,
     ]);
     $silent = $make(['last_sync_at' => now()->subMinutes(30)]);
+    $gone = $make(['last_sync_at' => now()->subHours(30)]);
     $calling = $make(['last_sync_at' => now()->subMinutes(2)]);
 
     app()->forgetScopedInstances();
     test()->artisan('devices:sync')->assertSuccessful();
 
     $read = fn (Device $d): string => Device::withoutGlobalScope('tenant')->findOrFail($d->id)->status;
-    expect($read($silent))->toBe('offline')
+    expect($read($silent))->toBe('quiet')
+        ->and($read($gone))->toBe('offline')
         ->and($read($calling))->toBe('online');
     Queue::assertNotPushed(PullDeviceEventsJob::class);
     Event::assertNotDispatched(DeviceOffline::class);

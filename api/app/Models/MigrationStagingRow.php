@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property array<string, mixed> $raw
  * @property array<int, array<string, mixed>>|null $changes
+ * @property bool|null $created_employee whether this create row made its person (true) or only linked to someone already here (false); null for any other row
  */
 class MigrationStagingRow extends Model
 {
@@ -56,6 +57,7 @@ class MigrationStagingRow extends Model
         'action',
         'changes',
         'processed_at',
+        'created_employee',
     ];
 
     protected $hidden = [
@@ -73,6 +75,7 @@ class MigrationStagingRow extends Model
             'candidates' => 'array',
             'match_confidence' => 'float',
             'processed_at' => 'datetime',
+            'created_employee' => 'boolean',
         ];
     }
 
