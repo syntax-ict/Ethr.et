@@ -130,7 +130,7 @@ test('five refusals in a row pause the primary, tell each super admin once and a
     $audits = AuditLog::withoutGlobalScopes()->where('action', 'platform.sms_gateway_paused')->get();
     expect($audits)->toHaveCount(1)
         ->and(json_encode($audits->first()->payload))->not->toContain('911223344')
-        ->and($audits->first()->payload)->toBe(['slot' => 'primary', 'failures' => 5, 'status' => 200]);
+        ->and($audits->first()->payload)->toEqual(['slot' => 'primary', 'failures' => 5, 'status' => 200]);
 });
 
 test('the pause mail names the gateway, the answer and when SMS returns, without the number', function () {
