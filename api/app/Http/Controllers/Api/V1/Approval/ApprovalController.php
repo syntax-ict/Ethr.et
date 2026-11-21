@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Approval;
 
 use App\Enums\ProfileUpdateStatus;
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approval\BatchApprovalRequest;
 use App\Models\ApprovalInstance;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Services\Approval\DecidableApprovals;
 use App\Services\Attendance\CorrectionDecisionService;
 use App\Services\Attendance\OvertimeDecisionService;
+use App\Services\Auth\ImpersonationToken;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Profile\ProfileUpdateRequestService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -186,7 +188,41 @@ class ApprovalController extends Controller
             throw new AuthorizationException;
         }
 
+        $this->refuseBankChangesInSupportSession($request->input('actions'));
+
         return response()->json(['results' => $this->decideAll($request->input('actions'), $request->user())]);
+    }
+
+    /**
+     * Decided one item at a time, so a refusal part way through would leave
+     * the items before it applied and still answer 403. A support session is
+     * refused for the whole batch, before any item is decided, when one of
+     * them approves a bank change.
+     *
+     * @param  array<int, array<string, mixed>>  $actions
+     */
+    private function refuseBankChangesInSupportSession(array $actions): void
+    {
+        if (! ImpersonationToken::sessionActive()) {
+            return;
+        }
+
+        $ids = collect($actions)
+            ->filter(fn (array $action): bool => $action['type'] === 'profile_update' && $action['action'] === 'approve')
+            ->pluck('public_id')
+            ->all();
+
+        $fields = ProfileUpdateRequest::query()
+            ->whereIn('public_id', $ids)
+            ->pluck('field_name')
+            ->filter(fn (string $field): bool => (ProfileUpdateRequest::GATED_FIELDS[$field] ?? null) === 'bank_detail')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($fields !== []) {
+            throw new ImpersonationRestricted('ApprovalController@batch', $fields);
+        }
     }
 
     /**
