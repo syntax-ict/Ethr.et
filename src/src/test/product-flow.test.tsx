@@ -36,7 +36,7 @@ describe("ProductFlow (hero illustration)", () => {
         screen.getByRole("heading", { name: "Check in, anywhere" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "Keeps working offline" }),
+        screen.getByRole("heading", { name: "Attendance works offline" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "Payroll under Ethiopian law" }),
@@ -45,7 +45,7 @@ describe("ProductFlow (hero illustration)", () => {
       // The offline behaviour is the differentiator and it animates away into a
       // "Synced" pill. It must survive in prose, since that pill ends hidden.
       expect(
-        screen.getByText(/records queue on the device/i),
+        screen.getByText(/punches queue on the device/i),
       ).toBeInTheDocument();
     });
 
@@ -71,7 +71,7 @@ describe("ProductFlow (hero illustration)", () => {
         screen.getByRole("heading", { name: "የትም ቦታ ይግቡ" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "ከመስመር ውጭ መስራቱን ይቀጥላል" }),
+        screen.getByRole("heading", { name: "መገኘት ከመስመር ውጭ ይሰራል" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "ደመወዝ በኢትዮጵያ ሕግ መሠረት" }),
