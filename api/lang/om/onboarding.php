@@ -27,6 +27,7 @@ return [
         'still_staging' => 'Tarreen kun amma illee wal-bira qabamaa jira. Hanga xumuramutti eegaa.',
         'discard_committing' => 'Tarreen kun dabalamaa jira, kanaaf dhiisuun hin danda\'amu.',
         'discard_committed' => 'Tarreen kun dabalameera. Kan dhiifamu hin jiru.',
+        'undo_not_committed' => 'Tarreen dabalame qofa deebi\'uu danda\'a.',
         'accept_needs_match' => 'Jijjiirama fudhachuu dura sararri kun hojjetaa kam akka ta\'e filadhaa.',
         'complete_adds_nobody' => 'Tarreen kun namoota as jiran guutuu. Isaa irraa nama tokkollee hin dabalamu.',
         'accept_locked' => 'Hojiin fi kaffaltiin namaa tarkaanfii hojjetaatiin jijjiirama, tarree irraa miti.',
