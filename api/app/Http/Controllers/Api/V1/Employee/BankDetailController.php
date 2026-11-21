@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Employee;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\StoreBankDetailRequest;
 use App\Http\Resources\BankDetailResource;
@@ -39,6 +40,7 @@ class BankDetailController extends Controller
     public function update(StoreBankDetailRequest $request, Employee $employee, EmployeeBankDetail $bankDetail): BankDetailResource
     {
         $this->authorize('updateFinancial', $employee);
+        ImpersonationRestricted::unlessOrganisation('BankDetailController::update');
 
         $data = $request->validated();
 
