@@ -33201,6 +33201,340 @@
                 }
             }
         },
+        "/payroll/pay-differences": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "payroll"
+                ],
+                "operationId": "payDifference.index",
+                "summary": "List pay differences",
+                "tags": [
+                    "Pay Difference"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "pending",
+                                "open",
+                                "failed",
+                                "settled",
+                                "dismissed",
+                                "superseded",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "employee",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 26
+                        }
+                    },
+                    {
+                        "name": "for_run",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 26
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `PayrollPayDifferenceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PayrollPayDifferenceResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/payroll/pay-differences/{payDifference}/dismiss": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payDifference.dismiss",
+                "summary": "Create dismiss",
+                "tags": [
+                    "Pay Difference"
+                ],
+                "parameters": [
+                    {
+                        "name": "payDifference",
+                        "in": "path",
+                        "required": true,
+                        "description": "The pay difference public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DismissPayDifferenceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PayrollPayDifferenceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PayrollPayDifferenceResource"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/payroll/pay-differences/{payDifference}/settle": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "payroll"
+                ],
+                "operationId": "payDifference.settle",
+                "summary": "Settle pay differences",
+                "tags": [
+                    "Pay Difference"
+                ],
+                "parameters": [
+                    {
+                        "name": "payDifference",
+                        "in": "path",
+                        "required": true,
+                        "description": "The pay difference public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SettlePayDifferenceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PayrollPayDifferenceResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PayrollPayDifferenceResource"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/payroll/payslips/my": {
             "get": {
                 "x-abilities": [
@@ -46520,6 +46854,13 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "acknowledged_pay_differences": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
                     }
                 },
                 "title": "ApprovePayrollRunRequest"
@@ -49802,6 +50143,20 @@
                     "signature"
                 ],
                 "title": "DismissNextStepRequest"
+            },
+            "DismissPayDifferenceRequest": {
+                "type": "object",
+                "description": "Why the difference needs no payment.",
+                "properties": {
+                    "note": {
+                        "type": "string",
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "note"
+                ],
+                "title": "DismissPayDifferenceRequest"
             },
             "DismissUnmatchedBadgeRequest": {
                 "type": "object",
@@ -53416,6 +53771,155 @@
                 ],
                 "title": "PayrollEntryResource"
             },
+            "PayrollPayDifferenceResource": {
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "type": "string"
+                    },
+                    "employee_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "employee_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "run_public_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "period_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "period_start": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "period_end": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "kind": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "gross_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "net_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "paid_gross_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "paid_net_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "due_gross_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "due_net_cents": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "changed_from": {
+                        "type": "string"
+                    },
+                    "trail_rebuilt_at_release": {
+                        "type": "boolean"
+                    },
+                    "net_is_estimate": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "settled_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "public_id",
+                    "employee_public_id",
+                    "employee_name",
+                    "run_public_id",
+                    "period_label",
+                    "period_start",
+                    "period_end",
+                    "kind",
+                    "gross_cents",
+                    "net_cents",
+                    "paid_gross_cents",
+                    "paid_net_cents",
+                    "due_gross_cents",
+                    "due_net_cents",
+                    "status",
+                    "changed_from",
+                    "trail_rebuilt_at_release",
+                    "net_is_estimate",
+                    "error",
+                    "note",
+                    "settled_at",
+                    "created_at"
+                ],
+                "title": "PayrollPayDifferenceResource"
+            },
             "PayrollRuleResource": {
                 "type": "object",
                 "properties": {
@@ -55349,6 +55853,20 @@
                     "recipients"
                 ],
                 "title": "ScheduleReportRequest"
+            },
+            "SettlePayDifferenceRequest": {
+                "type": "object",
+                "description": "What finance did about the difference: a reference or a few words.",
+                "properties": {
+                    "note": {
+                        "type": "string",
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "note"
+                ],
+                "title": "SettlePayDifferenceRequest"
             },
             "ShiftAssignmentResource": {
                 "type": "object",
@@ -60333,6 +60851,13 @@
                     "reason": {
                         "type": "string",
                         "maxLength": 500
+                    },
+                    "acknowledged_settled_pay_differences": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
                     }
                 },
                 "required": [

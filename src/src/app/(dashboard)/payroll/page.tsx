@@ -10,6 +10,7 @@ import {
   ChevronRight,
   AlertTriangle,
   ClipboardCheck,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,6 +30,7 @@ import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { ReconcilePanel } from "@/features/payroll/components/reconcile-panel";
+import { PayDifferencesPanel } from "@/features/payroll/components/pay-differences-panel";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 export default function PayrollPage() {
@@ -42,8 +44,12 @@ export default function PayrollPage() {
   // on every plan and the run refused with a 403 (audit N66).
   const hasPayroll = usePlanFeatures().has("payroll");
   // In the address, so the run page's reconciliation banner can link here.
-  const view = useQueryFilters({ tab: "runs" }, { tab: ["runs", "reconcile"] });
+  const view = useQueryFilters(
+    { tab: "runs" },
+    { tab: ["runs", "reconcile", "differences"] },
+  );
   const reconciling = view.values.tab === "reconcile";
+  const differing = view.values.tab === "differences";
 
   return (
     <RoleGate anyPermission={["viewPayrollRuns"]}>
@@ -87,10 +93,23 @@ export default function PayrollPage() {
             <ClipboardCheck className="mr-2 h-3 w-3" />{" "}
             {t("payroll_reconciliation.tab")}
           </Button>
+          <Button
+            variant={differing ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8"
+            aria-pressed={differing}
+            onClick={() =>
+              view.set({ tab: differing ? "runs" : "differences" })
+            }
+          >
+            <Scale className="mr-2 h-3 w-3" /> {t("pay_differences.tab")}
+          </Button>
         </div>
 
         {reconciling ? (
           <ReconcilePanel />
+        ) : differing ? (
+          <PayDifferencesPanel />
         ) : (
           <>
             {isLoading ? (

@@ -8,6 +8,7 @@
  * visit itself.
  */
 import type { LogVisit } from "@/features/attendance/api";
+import { requestPersistentStorage } from "@/lib/persist-storage";
 
 const KEY = "ethr-visit-queue";
 
@@ -35,6 +36,7 @@ export function queuedVisits(): LogVisit[] {
 
 /** Queue a visit; returns false only if not even the text could be kept. */
 export function queueVisit(visit: LogVisit): boolean {
+  requestPersistentStorage();
   const visits = read();
   if (write([...visits, visit])) return true;
   return write([...visits, { ...visit, photo: null }]);
