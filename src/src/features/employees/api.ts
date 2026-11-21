@@ -1073,3 +1073,31 @@ export function useEmployeeAttendanceTimeline(
     enabled: !!publicId,
   });
 }
+
+/** A full `YYYY-MM-DD`, the only value worth asking the server about. */
+export function isFullDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export type PaidMonths =
+  operations["employee.employeePaidMonths"]["responses"][200]["content"]["application/json"]["data"];
+
+/**
+ * The released payroll months a change dated `from` reaches for this person
+ * (the same set the server records a pay difference for). Asked once a full
+ * date is in the field.
+ */
+export function usePaidMonths(publicId: string, from: string, enabled = true) {
+  return useQuery<PaidMonths>({
+    queryKey: [...subResourceKey(publicId, "paid-months"), from],
+    queryFn: async () =>
+      (
+        await apiClient.get<{ data: PaidMonths }>(
+          `/employees/${publicId}/paid-months`,
+          { params: { from } },
+        )
+      ).data.data,
+    enabled: enabled && !!publicId && isFullDate(from),
+    staleTime: 30_000,
+  });
+}

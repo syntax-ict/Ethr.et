@@ -45,6 +45,7 @@ import {
   type PersonnelActionType,
   type RecordPersonnelActionInput,
 } from "@/features/employees/api";
+import { PaidMonthNotice } from "./paid-month-notice";
 import {
   branchesApi,
   departmentsApi,
@@ -427,6 +428,9 @@ function RecordActionDialog({
   });
 
   const isTemporary = TEMPORARY_TYPES.includes(watch("type"));
+  // A raise or a step is what a back-dated date can reach into paid months.
+  const changesSalary =
+    watch("new_salary") !== "" || watch("salary_step") !== "";
 
   async function onSubmit(values: ActionValues) {
     const payload: RecordPersonnelActionInput = {
@@ -562,6 +566,14 @@ function RecordActionDialog({
                 />
               )}
             </Field>
+
+            <div className="col-span-2 empty:hidden">
+              <PaidMonthNotice
+                employeeId={employeeId}
+                from={watch("effective_date")}
+                enabled={changesSalary}
+              />
+            </div>
 
             <Field
               id="action_grade"

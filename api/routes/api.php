@@ -88,6 +88,7 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeIdentityController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
+use App\Http\Controllers\Api\V1\Employee\EmployeePaidMonthsController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
 use App\Http\Controllers\Api\V1\Employee\LetterRequestController;
 use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
@@ -649,6 +650,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/renew', [EmployeeContractController::class, 'renew']);
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
+        Route::get('/paid-months', EmployeePaidMonthsController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
         Route::get('/identities', [EmployeeIdentityController::class, 'index']);
         Route::post('/identities/{identity}/verify', [EmployeeIdentityController::class, 'verify']);
