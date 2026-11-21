@@ -175,17 +175,28 @@ describe("device detail for a terminal that sends to ETHR", () => {
     renderDetail();
 
     expect(
-      await screen.findByText("Enter these on the terminal"),
+      await screen.findByText("The terminal's settings"),
     ).toBeInTheDocument();
     expect(screen.getByText("www.ethr.et")).toBeInTheDocument();
     expect(screen.getByText("443")).toBeInTheDocument();
     expect(screen.getByText("HTTPS")).toBeInTheDocument();
     expect(
-      screen.getByText("/api/v1/devices/webhook/hikvision?token=tok123ab..."),
+      screen.getByText("/api/v1/devices/webhook/hikvision"),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/shown only when it is created or regenerated/i),
     ).toBeInTheDocument();
+    // The settings box describes the terminal and never carries a token.
+    const box = screen.getByText("The terminal's settings").parentElement!;
+    expect(box.textContent).not.toContain("?token=");
+    expect(
+      screen.getByText(
+        /token part is shown only when the address is regenerated/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Enter these on the terminal"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/token=tok123ab[0-9a-f]/),
     ).not.toBeInTheDocument();

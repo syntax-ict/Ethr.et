@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  within,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -220,6 +226,18 @@ describe("<DeviceActionsMenu>", () => {
     await waitFor(() => expect(bodies).toEqual([{ reason: "moving" }]));
     const shown = await screen.findByTestId("issued-address");
     expect(shown).toHaveTextContent(ISSUED);
+    // The four values a person types into the terminal, token included.
+    expect(screen.getByText("Enter these on the terminal")).toBeInTheDocument();
+    expect(
+      screen.getByText("/api/v1/devices/webhook/hikvision?token=issued-once"),
+    ).toBeInTheDocument();
+
+    // Escape and a click outside do not close it; only Done does.
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("issued-address")).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    fireEvent.pointerUp(document.body);
+    expect(screen.getByTestId("issued-address")).toBeInTheDocument();
     expect(
       screen.getByText(/shown only now and cannot be shown again/i),
     ).toBeInTheDocument();

@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PushSetup } from "@/features/devices/components/push-setup";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -42,7 +43,12 @@ export function IssuedAddressDialog({
 
   return (
     <Dialog open={url !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      {/* Done is the only way out: the address cannot be shown again. */}
+      <DialogContent
+        className="[&>button]:hidden"
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{t("device_token.issued_title")}</DialogTitle>
           <DialogDescription>
@@ -66,6 +72,7 @@ export function IssuedAddressDialog({
             <Copy className="h-3 w-3" />
           </Button>
         </div>
+        {url && <PushSetup url={url} />}
         {graceHours ? (
           <p className="text-xs text-muted-foreground">
             {t("device_token.grace_note", undefined, { hours: graceHours })}
