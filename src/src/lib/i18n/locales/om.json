@@ -7036,6 +7036,7 @@
   "audit.action.admin.tenant.impersonation_handoff_claimed": "Liinkiin bakka bu'anii seenuu itti fayyadamameera",
   "audit.action.admin.tenant.impersonation_handoff_issued": "Liinkiin bakka bu'anii seenuu kennameera",
   "audit.action.admin.tenant.impersonation_mfa_failed": "Bakka bu'anii seenuun didameera: koodiin mirkaneessaa dogoggora",
+  "audit.action.admin.tenant.impersonation_refused": "Bakka bu'anii seenuu keessatti tarkaanfiin didameera",
   "audit.action.admin.tenant.restored": "Dhaabbanni deebifameera",
   "audit.action.admin.tenant.showcase_hidden": "Dhaabbanni marsariitii ETHR irraa dhokfameera",
   "audit.action.admin.tenant.showcase_unhidden": "Dhaabbanni marsariitii ETHR irratti irra deebiin mul'ateera",

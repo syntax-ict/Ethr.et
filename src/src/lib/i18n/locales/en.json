@@ -7036,6 +7036,7 @@
   "audit.action.admin.tenant.impersonation_handoff_claimed": "Impersonation link used",
   "audit.action.admin.tenant.impersonation_handoff_issued": "Impersonation link issued",
   "audit.action.admin.tenant.impersonation_mfa_failed": "Impersonation refused: wrong authenticator code",
+  "audit.action.admin.tenant.impersonation_refused": "Action refused during impersonation",
   "audit.action.admin.tenant.restored": "Organisation restored",
   "audit.action.admin.tenant.showcase_hidden": "Organisation hidden from the ETHR website",
   "audit.action.admin.tenant.showcase_unhidden": "Organisation shown on the ETHR website again",

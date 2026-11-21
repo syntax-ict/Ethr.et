@@ -7,6 +7,7 @@ use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
 use App\Exceptions\DeviceRosterUnavailable;
 use App\Exceptions\EmployeeAlreadyExists;
+use App\Exceptions\ImpersonationRestricted;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
@@ -225,6 +226,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // responses. No-ops when SENTRY_LARAVEL_DSN is unset, so local and test runs
         // are unaffected. Payload scrubbing lives in config/sentry.php `before_send`.
         Integration::handles($exceptions);
+
+        // A refusal, not a fault: it records itself when rendered.
+        $exceptions->dontReport(ImpersonationRestricted::class);
 
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 

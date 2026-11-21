@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Profile;
 
 use App\Enums\ProfileUpdateStatus;
+use App\Exceptions\ImpersonationRestricted;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
@@ -133,6 +134,10 @@ class ProfileUpdateRequestService
     {
         if ($request->status !== ProfileUpdateStatus::PENDING) {
             return $request;
+        }
+
+        if (ProfileUpdateRequest::GATED_FIELDS[$request->field_name] === 'bank_detail') {
+            ImpersonationRestricted::unlessOrganisation('ProfileUpdateRequestService::approve', [$request->field_name]);
         }
 
         // A chain with steps still to go records this one and stays pending.
