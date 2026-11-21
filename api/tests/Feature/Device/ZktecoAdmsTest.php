@@ -199,15 +199,16 @@ it('reads the device clock off a punch, and flags a device that runs ahead', fun
         ->toContain('device_clock_ahead');
 });
 
-it('shows a device behind without flagging it, and ignores a backlog', function () {
+it('never reads a clock as behind from a punch, which may only have been kept through an outage', function () {
     [, $device, $employee] = admsSetup();
 
+    // Three minutes old and a day old look the same as a clock that is behind.
     adms('POST', 'cdata', "1042\t2026-10-14 17:57:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG']);
-    expect($device->fresh()->clock_offset_seconds)->toBe(-180)
-        ->and(AttendanceIntegrityFlag::where('employee_id', $employee->id)->where('type', 'device_clock_ahead')->exists())->toBeFalse();
-
     adms('POST', 'cdata', "1042\t2026-10-13 09:00:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG']);
-    expect($device->fresh()->clock_offset_seconds)->toBe(-180);
+
+    expect($device->fresh()->clock_offset_seconds)->toBeNull()
+        ->and($device->fresh()->clock_checked_at)->toBeNull()
+        ->and(AttendanceIntegrityFlag::where('employee_id', $employee->id)->where('type', 'device_clock_ahead')->exists())->toBeFalse();
 });
 
 it('packs the time the way the firmware reads it', function () {
@@ -221,7 +222,11 @@ it('is online while it keeps checking in', function () {
     $status = app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh());
     expect($status['online'])->toBeTrue();
 
-    Carbon::setTestNow(now()->addMinutes(11));
+    // The shared push window (PushDeviceStatus): 15 minutes, as for every terminal that only sends.
+    Carbon::setTestNow(now()->addMinutes(14));
+    expect(app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh())['online'])->toBeTrue();
+
+    Carbon::setTestNow(now()->addMinutes(2));
     expect(app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh())['online'])->toBeFalse();
 });
 

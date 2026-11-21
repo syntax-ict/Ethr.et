@@ -55,6 +55,7 @@ import {
   useTestDeviceConnection,
   useUpdateDevice,
   type Device,
+  isPulled,
 } from "@/features/devices/api";
 import {
   buildDevicePayload,
@@ -505,6 +506,7 @@ function DeviceCard({
   // from, asked for its users or asked for history: the card says what ETHR
   // last heard from it instead.
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
 
   const statusIcon = isOnline ? (
     <Wifi className="h-5 w-5 text-success" />
@@ -584,7 +586,7 @@ function DeviceCard({
               {device.attendance_records_count.toLocaleString()}
             </p>
           )}
-          {sendsOnly ? (
+          {!pulled ? (
             <DeviceHeardLine device={device} showSetupLink />
           ) : (
             <>
@@ -630,7 +632,7 @@ function DeviceCard({
               )}
               {t("devices_page.test")}
             </Button>
-            {onPull && (
+            {onPull && pulled && (
               <Button
                 variant="outline"
                 size="sm"

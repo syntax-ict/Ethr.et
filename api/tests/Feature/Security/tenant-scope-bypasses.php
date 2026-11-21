@@ -11,6 +11,11 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-21, device capture export: one more, in
+ * `Admin/AdminDeviceCaptureController`, 208/83. The platform console finds one
+ * terminal by its public id across organisations, behind `admin.manage` and the
+ * platform MFA guard, to hand over its redacted inbox; the inbox itself is read
+ * with `tenant_id` and `device_id` stated from that device.)
  * (2026-11-18, a return from a break reopens the day: two more in
  * `AttendanceEngine`, 207/82. `rejoinTarget()` finds the person's latest
  * closed record of the work day and `findByRejoinKey()` the record whose
@@ -285,6 +290,7 @@ return [
     'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
+    'Http/Controllers/Api/V1/Admin/AdminDeviceCaptureController.php' => 1,
     // Platform-admin plan catalog. Both sites count subscriptions on one plan,
     // cross-tenant by intent, from a surface that runs with no tenant resolved
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for

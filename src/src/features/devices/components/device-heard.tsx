@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import type { Device } from "@/features/devices/api";
+import { AllowAddressButton } from "@/features/devices/components/allow-address-button";
 
 /**
  * What a terminal that only sends can honestly say about itself: when ETHR
@@ -92,8 +93,11 @@ const REJECTION_REASONS = [
  */
 export function WebhookRejectedLine({
   rejected,
+  devicePublicId,
 }: {
   rejected: Device["webhook_rejected"];
+  /** Given, a refusal for an address not on the allowlist offers to add it. */
+  devicePublicId?: string;
 }) {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
@@ -120,6 +124,9 @@ export function WebhookRejectedLine({
           ip: rejected.ip ?? "?",
         })}
       </p>
+      {rejected.reason === "ip_not_allowed" && devicePublicId && (
+        <AllowAddressButton devicePublicId={devicePublicId} ip={rejected.ip} />
+      )}
     </div>
   );
 }
