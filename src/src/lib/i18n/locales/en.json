@@ -7938,6 +7938,7 @@
   "device_allow.added": ":ip was added to the allowed addresses.",
   "device_allow.failed": "The address could not be added.",
   "device_token.regenerate_title": "Why are you replacing the address?",
+  "device_token.regenerate_desc": "The terminal must be given the new address before it can send punches again.",
   "device_token.reason_lost": "Lost or stolen: the old address stops now",
   "device_token.reason_moving": "Moving or reconfiguring the terminal: the old address keeps working for 24 hours",
   "device_token.issued_title": "The terminal's new address",

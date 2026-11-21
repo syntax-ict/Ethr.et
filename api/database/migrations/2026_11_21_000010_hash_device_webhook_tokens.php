@@ -41,6 +41,15 @@ return new class extends Migration
             $table->timestamp('webhook_token_previous_expires_at')->nullable();
         });
 
+        $this->backfill();
+    }
+
+    /**
+     * Hash every token still held in clear. Safe to run again: it selects only
+     * rows with plaintext and no hash, and empties the plaintext as it goes.
+     */
+    public function backfill(): void
+    {
         DB::table('devices')
             ->whereNotNull('webhook_token')
             ->where('webhook_token', '!=', '')

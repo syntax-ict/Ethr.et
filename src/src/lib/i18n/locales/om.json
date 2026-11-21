@@ -7938,6 +7938,7 @@
   "device_allow.added": ":ip teessoowwan hayyamamanitti dabalameera.",
   "device_allow.failed": "Teessoon dabaluu hin dandeenye.",
   "device_token.regenerate_title": "Maaliif teessoo jijjiirtu?",
+  "device_token.regenerate_desc": "Teerminaalichi galmee argamaa deebi'ee erguu isaa dura teessoo haaraa argachuu qaba.",
   "device_token.reason_lost": "Dhabameera yookaan hatameera: teessoon durii amma dhaabata",
   "device_token.reason_moving": "Meeshaan socho'aa jira yookaan irra deebi'ee qindaa'aa jira: teessoon durii sa'aatii 24 hojjechuu itti fufa",
   "device_token.issued_title": "Teessoo haaraa meeshaa",

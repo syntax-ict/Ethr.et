@@ -22,6 +22,10 @@ use Illuminate\Support\Carbon;
  * @property int|null $clock_offset_seconds
  * @property Carbon|null $clock_checked_at
  * @property int $sync_interval_minutes
+ * @property string|null $webhook_token_hash
+ * @property string|null $webhook_token_prefix
+ * @property string|null $webhook_token_previous_hash
+ * @property Carbon|null $webhook_token_previous_expires_at
  */
 class Device extends Model
 {

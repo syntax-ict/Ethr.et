@@ -81,7 +81,7 @@ export function RegenerateTokenDialog({
           <DialogHeader>
             <DialogTitle>{t("device_token.regenerate_title")}</DialogTitle>
             <DialogDescription>
-              {t("devices_page.regenerate_confirm_desc")}
+              {t("device_token.regenerate_desc")}
             </DialogDescription>
           </DialogHeader>
           <fieldset className="space-y-2">

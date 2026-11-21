@@ -573,7 +573,7 @@ describe("device detail: regenerating the webhook token", () => {
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/current address stops working at once/i),
+      within(dialog).getByText(/must be given the new address/i),
     ).toBeInTheDocument();
     expect(calls).toBe(0);
 

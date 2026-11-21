@@ -7938,6 +7938,7 @@
   "device_allow.added": ":ip ወደ ተፈቀዱ አድራሻዎች ተጨምሯል።",
   "device_allow.failed": "አድራሻው ሊጨመር አልቻለም።",
   "device_token.regenerate_title": "አድራሻውን ለምን ይቀይራሉ?",
+  "device_token.regenerate_desc": "መሳሪያው የመገኘት ምዝገባዎችን እንደገና ከመላኩ በፊት አዲሱ አድራሻ ሊሰጠው ይገባል።",
   "device_token.reason_lost": "ጠፍቷል ወይም ተሰርቋል፦ አሮጌው አድራሻ አሁኑኑ ይቆማል",
   "device_token.reason_moving": "መሳሪያው እየተዛወረ ወይም እንደገና እየተዋቀረ ነው፦ አሮጌው አድራሻ ለ24 ሰዓት መስራቱን ይቀጥላል",
   "device_token.issued_title": "የመሳሪያው አዲስ አድራሻ",

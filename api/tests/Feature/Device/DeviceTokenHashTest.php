@@ -23,13 +23,13 @@ use Illuminate\Testing\TestResponse;
 
 afterEach(fn () => Carbon::setTestNow());
 
-function hashHost(Tenant $tenant): string
+function dthHost(Tenant $tenant): string
 {
     return "http://{$tenant->subdomain}.ethr.test";
 }
 
 /** @return array{0: Tenant, 1: Device, 2: string} */
-function hashedTerminal(array $attributes = [], UserRole $role = UserRole::TENANT_ADMIN): array
+function dthTerminal(array $attributes = [], UserRole $role = UserRole::TENANT_ADMIN): array
 {
     $tenant = createTenant();
     actingAsUser(['role' => $role], $tenant);
@@ -48,30 +48,30 @@ function hashedTerminal(array $attributes = [], UserRole $role = UserRole::TENAN
     return [$tenant, $device, $token];
 }
 
-function pushWith(Tenant $tenant, ?string $token, string $serial = 'SN-1'): TestResponse
+function dthPush(Tenant $tenant, ?string $token, string $serial = 'SN-1'): TestResponse
 {
     $query = $token === null ? '' : '?token='.$token;
     app()->forgetScopedInstances();
 
-    return test()->postJson(hashHost($tenant)."/api/v1/devices/webhook/hikvision{$query}", [
+    return test()->postJson(dthHost($tenant)."/api/v1/devices/webhook/hikvision{$query}", [
         'dateTime' => '2026-11-13T09:00:00+03:00',
         'AccessControllerEvent' => ['employeeNoString' => '7301', 'attendanceStatus' => 'checkIn', 'deviceSerialNo' => $serial],
     ]);
 }
 
-function regenerate(Tenant $tenant, Device $device, ?string $reason = null): TestResponse
+function dthRegenerate(Tenant $tenant, Device $device, ?string $reason = null): TestResponse
 {
-    return test()->postJson(hashHost($tenant)."/api/v1/devices/{$device->public_id}/regenerate-token", $reason === null ? [] : ['reason' => $reason]);
+    return test()->postJson(dthHost($tenant)."/api/v1/devices/{$device->public_id}/regenerate-token", $reason === null ? [] : ['reason' => $reason]);
 }
 
-function rawDevice(Device $device): object
+function dthRaw(Device $device): object
 {
     return DB::table('devices')->where('id', $device->id)->first();
 }
 
 it('stores a hash, a display prefix and a head hash, and no plaintext', function () {
-    [, $device, $token] = hashedTerminal();
-    $row = rawDevice($device);
+    [, $device, $token] = dthTerminal();
+    $row = dthRaw($device);
 
     expect($row->webhook_token)->toBeNull()
         ->and($row->webhook_token_hash)->toBe(hash('sha256', $token))
@@ -82,44 +82,49 @@ it('stores a hash, a display prefix and a head hash, and no plaintext', function
 });
 
 it('clears all three columns when the token is set to null', function () {
-    [, $device] = hashedTerminal();
+    [, $device] = dthTerminal();
 
     $device->update(['webhook_token' => null]);
-    $row = rawDevice($device);
+    $row = dthRaw($device);
 
     expect($row->webhook_token_hash)->toBeNull()
         ->and($row->webhook_token_prefix)->toBeNull()
         ->and($row->webhook_token_head_hash)->toBeNull();
 });
 
-it('keeps an existing plaintext device working with the same address after the migration, and a re-run changes nothing', function () {
-    [$tenant, $device, $token] = hashedTerminal();
+it('keeps an existing plaintext device working with the same address after the backfill, and a second run changes nothing', function () {
+    [$tenant, $device, $token] = dthTerminal();
     $migration = require base_path('database/migrations/2026_11_21_000010_hash_device_webhook_tokens.php');
 
     // The row as production holds it before the release: plaintext, no hash.
-    $migration->down();
-    DB::table('devices')->where('id', $device->id)->update(['webhook_token' => $token]);
+    DB::table('devices')->where('id', $device->id)->update([
+        'webhook_token' => $token,
+        'webhook_token_hash' => null,
+        'webhook_token_prefix' => null,
+        'webhook_token_head_hash' => null,
+    ]);
 
-    $migration->up();
-    $row = rawDevice($device);
+    $migration->backfill();
+    $first = (array) dthRaw($device);
 
-    expect($row->webhook_token)->toBeNull()
-        ->and($row->webhook_token_hash)->toBe(hash('sha256', $token))
-        ->and($row->webhook_token_prefix)->toBe(substr($token, 0, 8));
+    expect($first['webhook_token'])->toBeNull()
+        ->and($first['webhook_token_hash'])->toBe(hash('sha256', $token))
+        ->and($first['webhook_token_prefix'])->toBe(substr($token, 0, 8))
+        ->and($first['webhook_token_head_hash'])->toBe(hash('sha256', substr($token, 0, 16)));
 
-    pushWith($tenant, $token)->assertStatus(200);
-    pushWith($tenant, 'f'.substr($token, 1))->assertStatus(401);
+    $migration->backfill();
+    expect((array) dthRaw($device))->toBe($first);
 
-    // Nothing is left for a second pass to select.
-    expect(DB::table('devices')->whereNotNull('webhook_token')->whereNull('webhook_token_hash')->count())->toBe(0);
+    dthPush($tenant, $token)->assertStatus(200);
+    dthPush($tenant, 'f'.substr($token, 1))->assertStatus(401);
 });
 
 it('refuses a serial-only call from an allowlisted address to a device that has a token', function () {
-    [$tenant, $device] = hashedTerminal(['serial_number' => 'SN-ALLOW', 'webhook_ip_allowlist' => ['203.0.113.7']]);
+    [$tenant, $device] = dthTerminal(['serial_number' => 'SN-ALLOW', 'webhook_ip_allowlist' => ['203.0.113.7']]);
 
     app()->forgetScopedInstances();
     test()->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
-        ->postJson(hashHost($tenant).'/api/v1/devices/webhook/hikvision', [
+        ->postJson(dthHost($tenant).'/api/v1/devices/webhook/hikvision', [
             'dateTime' => '2026-11-13T09:00:00+03:00',
             'AccessControllerEvent' => ['employeeNoString' => '7301', 'attendanceStatus' => 'checkIn', 'deviceSerialNo' => 'SN-ALLOW'],
         ])->assertStatus(401);
@@ -128,87 +133,92 @@ it('refuses a serial-only call from an allowlisted address to a device that has 
 });
 
 it('still accepts a token-less device from its allowlisted address', function () {
-    [$tenant, $device] = hashedTerminal(['serial_number' => 'SN-LEGACY', 'webhook_ip_allowlist' => ['203.0.113.7'], 'webhook_token' => null]);
+    [$tenant, $device] = dthTerminal(['serial_number' => 'SN-LEGACY', 'webhook_ip_allowlist' => ['203.0.113.7'], 'webhook_token' => null]);
 
     expect($device->fresh()->hasWebhookToken())->toBeFalse();
     app()->forgetScopedInstances();
     test()->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
-        ->postJson(hashHost($tenant).'/api/v1/devices/webhook/hikvision', [
+        ->postJson(dthHost($tenant).'/api/v1/devices/webhook/hikvision', [
             'dateTime' => '2026-11-13T09:00:00+03:00',
             'AccessControllerEvent' => ['employeeNoString' => '7301', 'attendanceStatus' => 'checkIn', 'deviceSerialNo' => 'SN-LEGACY'],
         ])->assertStatus(200);
 });
 
-it('lets only a tenant admin regenerate, and never another organisation', function () {
-    [$tenant, $device] = hashedTerminal();
-    regenerate($tenant, $device)->assertOk();
+it('lets a tenant admin regenerate, and never another organisation', function () {
+    [$tenant, $device] = dthTerminal();
+    dthRegenerate($tenant, $device)->assertOk();
 
-    [$hrTenant, $hrDevice] = hashedTerminal(role: UserRole::HR_ADMIN);
-    regenerate($hrTenant, $hrDevice)->assertForbidden();
-
-    [$tenantA, $deviceA, $tokenA] = hashedTerminal();
+    [$tenantA, $deviceA, $tokenA] = dthTerminal();
     $tenantB = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenantB);
 
-    expect(regenerate($tenantB, $deviceA)->status())->toBeIn([403, 404]);
-    pushWith($tenantA, $tokenA)->assertStatus(200);
+    expect(dthRegenerate($tenantB, $deviceA)->status())->toBeIn([403, 404]);
+    dthPush($tenantA, $tokenA)->assertStatus(200);
 });
 
-it('closes the old address at once when the reason is lost, and when no reason is given', function (?string $reason) {
-    [$tenant, $device, $old] = hashedTerminal();
+it('refuses every role below tenant admin', function (UserRole $role) {
+    [$tenant, $device, $token] = dthTerminal(role: $role);
 
-    $new = regenerate($tenant, $device, $reason)->assertOk()->json();
+    dthRegenerate($tenant, $device)->assertForbidden();
+
+    dthPush($tenant, $token)->assertStatus(200);
+})->with([UserRole::HR_ADMIN, UserRole::FINANCE_ADMIN, UserRole::SUPERVISOR, UserRole::EMPLOYEE]);
+
+it('closes the old address at once when the reason is lost, and when no reason is given', function (?string $reason) {
+    [$tenant, $device, $old] = dthTerminal();
+
+    $new = dthRegenerate($tenant, $device, $reason)->assertOk()->json();
 
     expect($new['reason'])->toBe('lost')
         ->and($new['webhook_token'])->not->toBe($old)
         ->and($new['webhook_url'])->toContain('?token='.$new['webhook_token'])
         ->and($new['previous_token_expires_at'])->toBeNull();
 
-    pushWith($tenant, $old)->assertStatus(401);
-    pushWith($tenant, $new['webhook_token'])->assertStatus(200);
-    expect(rawDevice($device)->webhook_token_previous_hash)->toBeNull();
+    dthPush($tenant, $old)->assertStatus(401);
+    dthPush($tenant, $new['webhook_token'])->assertStatus(200);
+    expect(dthRaw($device)->webhook_token_previous_hash)->toBeNull();
 })->with(['lost' => 'lost', 'no reason' => null]);
 
 it('keeps the old address working for 24 hours when the terminal is being moved, then refuses it', function () {
     Carbon::setTestNow(Carbon::parse('2026-11-21 08:00:00', 'UTC'));
-    [$tenant, $device, $old] = hashedTerminal();
+    [$tenant, $device, $old] = dthTerminal();
 
-    $new = regenerate($tenant, $device, 'moving')->assertOk()->json();
+    $new = dthRegenerate($tenant, $device, 'moving')->assertOk()->json();
 
     expect($new['previous_token_expires_at'])->not->toBeNull();
-    pushWith($tenant, $old)->assertStatus(200);
-    pushWith($tenant, $new['webhook_token'])->assertStatus(200);
+    dthPush($tenant, $old)->assertStatus(200);
+    dthPush($tenant, $new['webhook_token'])->assertStatus(200);
 
     Carbon::setTestNow(Carbon::parse('2026-11-22 07:59:00', 'UTC'));
-    pushWith($tenant, $old)->assertStatus(200);
+    dthPush($tenant, $old)->assertStatus(200);
 
     Carbon::setTestNow(Carbon::parse('2026-11-22 08:01:00', 'UTC'));
-    pushWith($tenant, $old)->assertStatus(401);
-    pushWith($tenant, $new['webhook_token'])->assertStatus(200);
+    dthPush($tenant, $old)->assertStatus(401);
+    dthPush($tenant, $new['webhook_token'])->assertStatus(200);
 });
 
 it('kills a token still inside its moving grace when the next regeneration is lost', function () {
-    [$tenant, $device, $old] = hashedTerminal();
+    [$tenant, $device, $old] = dthTerminal();
 
-    $second = regenerate($tenant, $device, 'moving')->assertOk()->json('webhook_token');
-    pushWith($tenant, $old)->assertStatus(200);
+    $second = dthRegenerate($tenant, $device, 'moving')->assertOk()->json('webhook_token');
+    dthPush($tenant, $old)->assertStatus(200);
 
-    regenerate($tenant, $device, 'lost')->assertOk();
+    dthRegenerate($tenant, $device, 'lost')->assertOk();
 
-    pushWith($tenant, $old)->assertStatus(401);
-    pushWith($tenant, $second)->assertStatus(401);
+    dthPush($tenant, $old)->assertStatus(401);
+    dthPush($tenant, $second)->assertStatus(401);
 });
 
 it('rejects a reason that is neither lost nor moving', function () {
-    [$tenant, $device] = hashedTerminal();
+    [$tenant, $device] = dthTerminal();
 
-    regenerate($tenant, $device, 'whatever')->assertStatus(422);
+    dthRegenerate($tenant, $device, 'whatever')->assertStatus(422);
 });
 
 it('records the reason in the audit log', function () {
-    [$tenant, $device] = hashedTerminal();
+    [$tenant, $device] = dthTerminal();
 
-    regenerate($tenant, $device, 'moving')->assertOk();
+    dthRegenerate($tenant, $device, 'moving')->assertOk();
 
     $row = DB::table('audit_log')->where('action', 'device.token_regenerated')->latest('id')->first();
     expect($row)->not->toBeNull()
@@ -216,21 +226,21 @@ it('records the reason in the audit log', function () {
 });
 
 it('traces a cut-off address through the head hash, and a retired one through its hash', function () {
-    [$tenant, $device, $token] = hashedTerminal();
+    [$tenant, $device, $token] = dthTerminal();
 
-    pushWith($tenant, substr($token, 0, 40))->assertStatus(401);
+    dthPush($tenant, substr($token, 0, 40))->assertStatus(401);
     expect(WebhookRejections::last($device)['reason'])->toBe('token_truncated');
 
     WebhookRejections::forget($device);
-    regenerate($tenant, $device, 'lost')->assertOk();
-    pushWith($tenant, $token)->assertStatus(401);
+    dthRegenerate($tenant, $device, 'lost')->assertOk();
+    dthPush($tenant, $token)->assertStatus(401);
     expect(WebhookRejections::last($device)['reason'])->toBe('token_retired');
 });
 
 it('does not trace a prefix shorter than sixteen characters', function () {
-    [$tenant, $device, $token] = hashedTerminal();
+    [$tenant, $device, $token] = dthTerminal();
 
-    pushWith($tenant, substr($token, 0, 12))->assertStatus(401);
+    dthPush($tenant, substr($token, 0, 12))->assertStatus(401);
 
     expect(WebhookRejections::last($device))->toBeNull();
 });
@@ -240,7 +250,7 @@ it('returns the token and the address once, on create and on regenerate, and nev
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
     $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
 
-    $created = test()->postJson(hashHost($tenant).'/api/v1/devices', [
+    $created = test()->postJson(dthHost($tenant).'/api/v1/devices', [
         'name' => 'Gate',
         'adapter_type' => 'hikvision',
         'serial_number' => 'SN-NEW',
@@ -253,17 +263,17 @@ it('returns the token and the address once, on create and on regenerate, and nev
     expect($token)->toMatch('/^[0-9a-f]{64}$/')
         ->and($created->json('webhook_url'))->toContain('?token='.$token);
 
-    foreach (['/api/v1/devices/'.$id, '/api/v1/devices'] as $path) {
-        $body = test()->getJson(hashHost($tenant).$path)->assertOk()->getContent();
+    foreach (['/api/v1/devices/'.$id, '/api/v1/devices', '/api/v1/devices/dashboard'] as $path) {
+        $body = test()->getJson(dthHost($tenant).$path)->assertOk()->getContent();
         expect($body)->not->toContain($token)->not->toContain('"webhook_url"');
     }
 
-    $shown = test()->getJson(hashHost($tenant).'/api/v1/devices/'.$id)->json();
+    $shown = test()->getJson(dthHost($tenant).'/api/v1/devices/'.$id)->json();
     expect($shown['has_webhook_token'])->toBeTrue()
         ->and($shown['webhook_token_prefix'])->toBe(substr($token, 0, 8))
         ->and($shown)->not->toHaveKey('webhook_token');
 
-    $update = test()->putJson(hashHost($tenant).'/api/v1/devices/'.$id, ['name' => 'Gate 2'])->assertOk()->getContent();
+    $update = test()->putJson(dthHost($tenant).'/api/v1/devices/'.$id, ['name' => 'Gate 2'])->assertOk()->getContent();
     expect($update)->not->toContain($token);
 });
 
@@ -274,7 +284,7 @@ it('puts no hash of a token into the tenant data export', function () {
 });
 
 it('authenticates nobody when a token matches two devices', function () {
-    [$tenant, $device, $token] = hashedTerminal();
+    [$tenant, $device, $token] = dthTerminal();
     $other = Device::factory()->hikvision()->create([
         'tenant_id' => $tenant->id,
         'branch_id' => $device->branch_id,
@@ -292,5 +302,5 @@ it('authenticates nobody when a token matches two devices', function () {
         'webhook_token_previous_expires_at' => now()->addHour(),
     ]);
 
-    pushWith($tenant, $token)->assertStatus(401);
+    dthPush($tenant, $token)->assertStatus(401);
 });
