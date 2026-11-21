@@ -84,6 +84,8 @@ function StatusCard({ state }: { state: SmsDeliveryState }) {
   const shareId = useId();
   const [share, setShare] = useState(String(state.invitation_share));
   const primaryVerified = state.primary?.verified === true;
+  const paused = state.primary?.paused === true;
+  const { formatDateTime } = useDateFormatters();
 
   function save(
     payload: Partial<
@@ -115,6 +117,10 @@ function StatusCard({ state }: { state: SmsDeliveryState }) {
           {t("admin_sms.status_title", "Status")}
           {state.available ? (
             <Badge variant="success">{t("admin_sms.state_on", "On")}</Badge>
+          ) : paused ? (
+            <Badge variant="warning">
+              {t("admin_sms.state_paused", "Paused")}
+            </Badge>
           ) : (
             <Badge variant="neutral">{t("admin_sms.state_off", "Off")}</Badge>
           )}
@@ -126,6 +132,24 @@ function StatusCard({ state }: { state: SmsDeliveryState }) {
             {t(
               "admin_sms.source_env",
               "SMS is currently configured in the server's .env file. Saving a gateway here takes over from it.",
+            )}
+          </p>
+        )}
+
+        {paused && state.primary && (
+          <p
+            role="status"
+            className="rounded-lg bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            {t(
+              "admin_sms.paused_note",
+              "The gateway refused the last :count messages. SMS is offered again at :time, or as soon as a test succeeds.",
+              {
+                count: state.primary.consecutive_failures,
+                time: state.primary.paused_until
+                  ? formatDateTime(state.primary.paused_until)
+                  : "",
+              },
             )}
           </p>
         )}
@@ -577,6 +601,7 @@ function GatewayCard({
         </div>
 
         {gateway && <TestPanel slot={slot} gateway={gateway} />}
+        {gateway && <LivePanel gateway={gateway} />}
       </CardContent>
     </Card>
   );
@@ -679,6 +704,56 @@ function TestPanel({
             </pre>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function LivePanel({ gateway }: { gateway: SmsGatewayState }) {
+  const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
+      <p className="font-medium text-foreground">
+        {t("admin_sms.live_title", "Live sends")}
+      </p>
+      <p className="text-muted-foreground">
+        {t("admin_sms.live_last_success", "Last delivered")}
+        {": "}
+        {gateway.last_success_at
+          ? formatDateTime(gateway.last_success_at)
+          : t("admin_sms.live_never", "Nothing delivered yet")}
+      </p>
+      <p className="text-muted-foreground">
+        {t("admin_sms.live_failures", "Refused in a row")}
+        {": "}
+        {gateway.consecutive_failures}
+      </p>
+      {gateway.last_failure_at ? (
+        <div className="space-y-1">
+          <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
+            <Badge variant="warning">
+              {t("admin_sms.live_last_failure", "Last refusal")}
+            </Badge>
+            <span>
+              {t("admin_sms.test_status", "HTTP :status", {
+                status: gateway.last_failure_status ?? "—",
+              })}
+              {" · "}
+              {formatDateTime(gateway.last_failure_at)}
+            </span>
+          </p>
+          {gateway.last_failure_response && (
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-2 font-mono text-xs text-foreground">
+              {gateway.last_failure_response}
+            </pre>
+          )}
+        </div>
+      ) : (
+        <p className="text-muted-foreground">
+          {t("admin_sms.live_none", "No refusals")}
+        </p>
       )}
     </div>
   );
