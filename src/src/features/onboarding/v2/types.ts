@@ -303,6 +303,10 @@ export interface MigrationBatch {
   summary: Record<string, number>;
   sign_in_plan?: SignInPlan | null;
   rows: StagingRow[];
+  /** When the list's additions were undone; null if they were not. */
+  undone_at?: string | null;
+  /** How many people that undo archived. */
+  undo_archived?: number;
 }
 
 /**
@@ -323,6 +327,69 @@ export interface MigrationListInProgress {
   created_by_name: string | null;
   /** The viewer started it. */
   mine: boolean;
+}
+
+/** A list that has been added, newest first: one line of "lists added in the last 30 days". */
+export interface MigrationListAdded {
+  public_id: string;
+  mode: ListMode;
+  source_type: string;
+  rows: number;
+  /** How many people it added. */
+  created: number;
+  committed_at: string | null;
+  created_by_name: string | null;
+  mine: boolean;
+  undone_at: string | null;
+}
+
+/** A person named in the preview of an undo. */
+export interface UndoPerson {
+  employee_public_id: string;
+  name: string;
+  employee_code: string | null;
+}
+
+/** Why somebody a list added is kept when it is undone. */
+export type UndoKeepReason =
+  | "attendance"
+  | "signed_in"
+  | "payroll"
+  | "leave"
+  | "overtime"
+  | "documents"
+  | "hr_records"
+  | "in_charge"
+  | "assigned"
+  | "unsure_origin";
+
+/** Who undoing a committed list would archive, and who it would keep. */
+export interface UndoPreview {
+  /** `derived`: added before ETHR recorded which people a list added. */
+  origin: "recorded" | "derived";
+  /** False: the records disagree, so nobody whose origin is unsure is archived. */
+  exact: boolean;
+  added: number;
+  already_archived: number;
+  /** Matched or updated by the list, never touched. */
+  matched: number;
+  archive_count: number;
+  /** The first 200. */
+  archive: UndoPerson[];
+  keep_count: number;
+  /** The first 200. Codes the screen does not know are possible. */
+  keep: (UndoPerson & { reasons: string[] })[];
+  /** People the reader may not archive: counted, not named. */
+  out_of_reach: number;
+  undone_at: string | null;
+}
+
+export interface UndoResult {
+  done: boolean;
+  archived: number;
+  remaining: number;
+  kept: number;
+  out_of_reach: number;
 }
 
 export interface CommitResult extends MigrationLogins {

@@ -510,6 +510,7 @@ final class WorkforceMigrationService
                             break;
                         }
 
+                        $made = false;
                         $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
                         $employee = $admitted->record();
 
@@ -519,6 +520,7 @@ final class WorkforceMigrationService
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
                             $this->writeProfile($employee, $raw, $actor);
                             $totals['created']++;
+                            $made = true;
                         } else {
                             // The person is here now and was not when the
                             // list was reviewed: an earlier row of this
@@ -530,7 +532,7 @@ final class WorkforceMigrationService
                             $this->resolver->link($employee, $signals, $admitted->match->confidence);
                             $totals['merged']++;
                         }
-                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now(), 'created_employee' => $made]);
                         break;
 
                     case MigrationStagingRow::ACTION_MERGE:
