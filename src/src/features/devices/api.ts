@@ -87,6 +87,17 @@ function isPoll(
   );
 }
 
+/**
+ * Whether ETHR pulls from this device. False for a terminal that only sends,
+ * which includes ADMS: its sync, pull and history controls would do nothing.
+ * A response without the field is read from `receives_only`.
+ */
+export function isPulled(
+  device: Pick<Device, "pulled" | "receives_only">,
+): boolean {
+  return device.pulled ?? device.receives_only !== true;
+}
+
 export function useDevices(
   params?: DeviceListParams,
   options?: { refetchInterval?: number },
@@ -288,6 +299,18 @@ export function useTestDeviceConnection() {
   return useDeviceMutation(
     async (publicId: string): Promise<DeviceStatusResult> =>
       (await apiClient.get(`/devices/${publicId}/status`)).data,
+  );
+}
+
+/** Add the address a refused call came from to the device's allowlist. */
+export function useAllowDeviceAddress() {
+  return useDeviceMutation(
+    async (vars: { publicId: string; ip: string }): Promise<Device> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/allowlist`, {
+          ip: vars.ip,
+        })
+      ).data,
   );
 }
 

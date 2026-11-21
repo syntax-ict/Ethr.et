@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Device;
 use App\Enums\AttendanceSource;
 use App\Enums\Feature;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Device\AllowDeviceAddressRequest;
 use App\Http\Requests\Device\ImportHistoryRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
@@ -24,12 +25,16 @@ use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
 use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
+use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceCommandQueue;
+use App\Services\Device\DeviceDayCounts;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchKey;
 use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\HeartbeatCapture;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
+use App\Services\Device\PushDeviceStatus;
 use App\Services\Device\TerminalKeepAlive;
 use App\Services\Device\TerminalNames;
 use App\Services\Device\WebhookRejections;
@@ -37,7 +42,9 @@ use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
 use App\Services\Features\FeatureGate;
 use App\Services\PlanLimitService;
+use App\Support\DeviceClock;
 use App\Support\DeviceErrorCode;
+use App\Support\DeviceTime;
 use App\Support\FeatureUnavailable;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
@@ -46,6 +53,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class DeviceController extends Controller
@@ -93,9 +101,15 @@ class DeviceController extends Controller
 
         $query->orderBy('name');
 
-        return DeviceResource::collection(
-            $query->paginate($request->integer('per_page', 25))
-        );
+        $page = $query->paginate($request->integer('per_page', 25));
+
+        // One grouped query for the page, not one per device (DeviceResource).
+        $tenant = app(CurrentTenant::class)->get();
+        if ($tenant !== null) {
+            $request->attributes->set(DeviceResource::COUNTS_ATTRIBUTE, DeviceDayCounts::forDevices($tenant->id, $page->getCollection()));
+        }
+
+        return DeviceResource::collection($page);
     }
 
     public function store(StoreDeviceRequest $request, PlanLimitService $planLimits): JsonResponse
@@ -146,7 +160,7 @@ class DeviceController extends Controller
         Gate::authorize('device.view');
 
         if (DeviceManager::receivesOnly($device)) {
-            HikvisionPushAdapter::settleStatus($device);
+            PushDeviceStatus::settle($device);
         }
 
         $device->load('branch');
@@ -236,7 +250,7 @@ class DeviceController extends Controller
     private function settleSendingTerminals(): void
     {
         $devices = Device::query()
-            ->where('adapter_type', 'hikvision')
+            ->whereIn('adapter_type', ['hikvision', 'zkteco', 'suprema', AdmsDeviceResolver::ADAPTER])
             ->whereIn('status', ['online', 'quiet'])
             ->get();
 
@@ -244,7 +258,7 @@ class DeviceController extends Controller
             // One device whose config will not decrypt must not break the page.
             try {
                 if (DeviceManager::receivesOnly($device)) {
-                    HikvisionPushAdapter::settleStatus($device);
+                    PushDeviceStatus::settle($device);
                 }
             } catch (Throwable $e) {
                 report($e);
@@ -256,7 +270,14 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.view');
 
-        $adapter = $this->deviceManager->adapter($device);
+        // A terminal that only sends is not probed: it answers from when it
+        // was last heard, and "never heard" is its own state, not offline.
+        // Decided first, so a terminal with no address is never called.
+        $sendsOnly = DeviceManager::receivesOnly($device);
+
+        $adapter = $sendsOnly && $device->adapter_type !== AdmsDeviceResolver::ADAPTER && $device->adapter_type !== 'hikvision'
+            ? app(HikvisionPushAdapter::class)
+            : $this->deviceManager->adapter($device);
         $status = $adapter->getStatus($device);
         $online = $status['online'] ?? false;
 
@@ -264,13 +285,9 @@ class DeviceController extends Controller
         // offline device a second time doubles the wait on the connect timeout and blocks
         // the request (and worker) for no useful data.
         $info = $online ? $adapter->getDeviceInfo($device) : [];
-
-        // A terminal that only sends was not probed: it answers from when it
-        // was last heard, and "never heard" is its own state, not offline.
-        $sendsOnly = DeviceManager::receivesOnly($device);
         /** @var 'pending'|'online'|'quiet'|'offline' $newStatus */
         $newStatus = $sendsOnly
-            ? HikvisionPushAdapter::settleStatus($device)
+            ? PushDeviceStatus::settle($device)
             : ($online ? 'online' : 'offline');
         if (! $sendsOnly && $device->status !== $newStatus) {
             $device->update(['status' => $newStatus]);
@@ -301,7 +318,7 @@ class DeviceController extends Controller
             if (! $wasPush && $device->last_sync_at !== null) {
                 $device->update(['last_sync_at' => null]);
             }
-            HikvisionPushAdapter::settleStatus($device);
+            PushDeviceStatus::settle($device);
         } elseif ($wasPush && $device->status !== 'pending') {
             $device->update(['status' => 'pending']);
         }
@@ -310,6 +327,7 @@ class DeviceController extends Controller
     public function pull(Request $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
 
@@ -319,9 +337,18 @@ class DeviceController extends Controller
         ]);
     }
 
+    /** A terminal that only sends is never pulled: a job queued for it would do nothing. */
+    private function refuseWhenNothingToPull(Device $device): void
+    {
+        if (DeviceManager::receivesOnly($device)) {
+            throw ValidationException::withMessages(['device' => __('device.not_pulled')]);
+        }
+    }
+
     public function importHistory(ImportHistoryRequest $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         // Resolve the backfill start. `full` passes no `since`, letting the
         // adapter return the earliest history it retains.
@@ -368,6 +395,43 @@ class DeviceController extends Controller
             'dispatched' => $dispatched,
         ]);
     }
+
+    /** Add one address to the device's webhook allowlist. */
+    public function allowAddress(AllowDeviceAddressRequest $request, Device $device): DeviceResource
+    {
+        Gate::authorize('device.update');
+
+        // The device page offers this beside "tried to connect from ...", so
+        // the fix is one click rather than a typed address. A single address;
+        // one already there changes nothing and writes no audit entry.
+
+        $ip = (string) $request->validated('ip');
+        $list = array_values(array_filter((array) ($device->webhook_ip_allowlist ?? []), 'is_string'));
+
+        if (! in_array($ip, $list, true)) {
+            if (count($list) >= self::ALLOWLIST_MAX) {
+                throw ValidationException::withMessages(['ip' => __('device.allowlist_full')]);
+            }
+
+            $list[] = $ip;
+            $device->update(['webhook_ip_allowlist' => $list]);
+            WebhookRejections::forget($device);
+            AdmsDeviceResolver::forgetRejection($device);
+
+            AuditLog::record('device.allowlist_address_added', $device, [
+                'device' => $device->public_id,
+                'address' => $ip,
+            ]);
+        }
+
+        $device->load('branch');
+        $device->loadCount(['attendanceRecords', 'syncLogs']);
+
+        return new DeviceResource($device);
+    }
+
+    /** The most addresses an allowlist holds (StoreDeviceRequest). */
+    private const ALLOWLIST_MAX = 20;
 
     public function regenerateToken(Device $device): JsonResponse
     {
@@ -567,8 +631,12 @@ class DeviceController extends Controller
                 TerminalKeepAlive::note($device);
             }
 
+            $this->readHeartbeat($device, $request);
+
             return response()->json(['status' => 'ignored'], 200);
         }
+
+        HeartbeatCapture::noteEvent($device, $request);
 
         $badge = HikvisionEvent::badge($event);
         $timestamp = $event['time'] ?? null;
@@ -593,7 +661,7 @@ class DeviceController extends Controller
         // new key and record twice. It goes to quarantine at once, keyed by
         // what it said, so a resend is the same row.
         if ($timestamp === '') {
-            DeviceInboundPunch::stash([[
+            $undated = DeviceInboundPunch::stash([[
                 'tenant_id' => $device->tenant_id,
                 'device_id' => $device->id,
                 'badge' => mb_substr($badge, 0, 64),
@@ -607,6 +675,8 @@ class DeviceController extends Controller
                 'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
             ]]);
 
+            DeviceDayCounts::notePush($device, 1, $undated);
+
             return response()->json(['status' => 'accepted'], 200);
         }
 
@@ -619,6 +689,8 @@ class DeviceController extends Controller
             'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:{$timestamp}"),
             'raw' => $raw,
         ]]);
+
+        DeviceDayCounts::notePush($device, 1, $queued);
 
         if ($queued === 1) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
@@ -759,9 +831,12 @@ class DeviceController extends Controller
             ];
         }
 
-        DeviceInboundPunch::stash($undated);
+        $newUndated = DeviceInboundPunch::stash($undated);
+        $new = DeviceInboundPunch::stash($rows);
 
-        if (DeviceInboundPunch::stash($rows) > 0) {
+        DeviceDayCounts::notePush($device, count($rows) + count($undated), $new + $newUndated);
+
+        if ($new > 0) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
         }
 
@@ -781,6 +856,28 @@ class DeviceController extends Controller
         $tenant = app(CurrentTenant::class)->get() ?? Tenant::query()->find($device->tenant_id);
 
         return $tenant === null ? null : app(FeatureGate::class)->decide($tenant, Feature::DeviceWebhooksInbound);
+    }
+
+    /**
+     * A notification that is not an access event: if it is a heartbeat, what
+     * it says of the terminal's clock (DeviceClock::observeHeartbeat), and the
+     * body kept for a fixture (HeartbeatCapture). Never fails the answer.
+     */
+    private function readHeartbeat(Device $device, Request $request): void
+    {
+        try {
+            $heartbeat = HikvisionEvent::heartbeat($request->all());
+            if ($heartbeat === null) {
+                return;
+            }
+
+            HeartbeatCapture::note($device, $request);
+
+            $moment = $heartbeat['time'] === null ? null : DeviceTime::normalize($heartbeat['time'], $device);
+            DeviceClock::observeHeartbeat($device, $moment);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /** A device heard from this recently is not stamped again. */

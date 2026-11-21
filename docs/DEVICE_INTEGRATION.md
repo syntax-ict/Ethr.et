@@ -726,21 +726,46 @@ received from this terminal yet"; re-enter the address from the device page.
 A terminal retrying every few seconds is written once a minute, and a cache that cannot be
 reached never turns the 401 into a 500.
 
-## Device clocks (2026-10-14)
+## Device clocks (2026-10-14, reworked 2026-11-21)
 
-`devices.clock_offset_seconds` is how far a device's clock is from the server's, read off
-each pushed punch (`DeviceClock`): the punch time minus the time it arrived. Pushes
-arrive seconds after the punch, so the gap is the clock error plus delivery delay.
+`devices.clock_offset_seconds` is how far a device's clock is from the server's, positive
+when the device runs ahead (`DeviceClock`). Two sources, which do not say the same thing:
 
-- A gap over an hour is ignored. That is a backlog uploaded after an outage, or a time
-  that is simply wrong.
-- **Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the
-  punch. Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
-  `DeviceTime::isInFuture` refuses it, but the clock reading is still taken first.
-- **Behind is shown, not flagged.** It cannot be told apart from a punch that arrived
-  late.
+- **A heartbeat** (Hikvision push: a notification that is not an access event, read before it
+  is answered `ignored`) is stamped with the terminal's clock when it is sent, so its time
+  against now is the clock error, whatever its size. Any offset is stored. A heartbeat with
+  no time leaves nothing stored and the page says *clock not measurable on this terminal*;
+  it is never shown as zero. A door event carries its own event time and may be buffered, so
+  only `eventType` `heartBeat` (or none) counts.
+- **A punch** can only prove a clock is **ahead**: one kept through an outage arrives late
+  and looks like a clock that is behind. A behind reading is never stored, and a punch never
+  overwrites a heartbeat reading taken in the last hour. The offset still goes on the punch
+  for the integrity check.
 
-The device page shows the reading as *in step*, *N min ahead* or *N min behind*. The fix
-is the `set_time` command, sent daily to every device that takes commands, or **Set clock
-now** on its Commands tab.
+**Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the punch.
+Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
+`DeviceTime::isInFuture` refuses it (`clock_ahead`, kept in quarantine), but the clock reading
+is still taken first.
 
+The device page shows the reading as *in step*, *N ahead* or *N behind*, with a warning
+beyond two minutes. Within 30 minutes of six hours it says the terminal is probably set to
+Ethiopian time of day (use the 24-hour clock, or NTP); a year or more out, that the date is
+probably set to the Ethiopian calendar. The fix is the `set_time` command, sent daily to every
+device that takes commands, or **Set clock now** on its Commands tab. The source of the
+reading is kept in the signals store (`device-clock:source:{id}`), not a column.
+
+## Terminals that only send (2026-11-21)
+
+`DeviceManager::receivesOnly()` is true for a Hikvision terminal with no address, every
+`zkteco_adms` device, and a ZKTeco or Suprema device with no address. Such a device is never
+pulled whatever its `auto_sync` says; `devices:sync` and every page that reads it only settle
+its status by `PushDeviceStatus`: `pending` (never heard), `online` (under 15 minutes),
+`quiet` (under 24 hours), `offline`. An ADMS terminal keeps its own adapter, its commands and
+the roster it last reported; `DeviceManager::hasNoRoster()` asks whether ETHR can read a
+roster by asking the terminal.
+
+Each device reports `today` (received, recorded, held, duplicate, quarantined, waiting) for
+the organisation's day (`DeviceDayCounts`). `POST /devices/{device}/allowlist` adds the
+address a refusal names (`device.update`, audited, idempotent, at most 20 entries).
+`GET /admin/devices/{devicePublicId}/capture` is the platform operator's redacted export of one
+terminal's last seven days and its last 20 heartbeat bodies (body only, never the token).
