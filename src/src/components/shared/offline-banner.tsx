@@ -9,9 +9,8 @@ import { useT } from "@/lib/i18n/useT";
 
 /**
  * Persistent, global connectivity indicator. Deliberately does NOT trigger
- * a sync itself (that stays owned by useOfflineSync on the attendance
- * check-in page) — mounting a second live sync loop here would race with
- * that page's own auto-sync-on-reconnect effect. This just reads state:
+ * a sync itself (OfflineSyncAgent, mounted beside it, does that). This just
+ * reads state:
  * navigator.onLine plus the IndexedDB pending-record count.
  *
  * On a shared phone the count is the signed-in person's own, as the punch

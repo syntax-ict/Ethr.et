@@ -1,3 +1,5 @@
+import { requestPersistentStorage } from "@/lib/persist-storage";
+
 const DB_NAME = "ethr-offline";
 const DB_VERSION = 1;
 const STORE_NAME = "attendance_queue";
@@ -72,6 +74,7 @@ function openDB(): Promise<IDBDatabase> {
 export async function enqueueOfflineRecord(
   record: Omit<OfflineAttendanceRecord, "id" | "synced">,
 ): Promise<number> {
+  requestPersistentStorage();
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -189,6 +192,8 @@ export async function markRefused(
         record.synced = 2;
         record.sync_error = reason ?? null;
         record.refused_locally = !reason;
+        // The refused card shows type, time and reason, never the selfie.
+        record.photo = null;
         store.put(record);
       }
       resolve();

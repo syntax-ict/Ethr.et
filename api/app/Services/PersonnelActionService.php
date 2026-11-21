@@ -14,6 +14,7 @@ use App\Models\Grade;
 use App\Models\GradeSalaryStep;
 use App\Models\PersonnelAction;
 use App\Models\Position;
+use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\SalaryChangeContext;
 use Illuminate\Database\Eloquent\Model;
@@ -282,11 +283,16 @@ class PersonnelActionService
                 'changes' => $locked->changes,
             ]);
 
-            EmployeeSalaryHistory::query()
+            $rows = EmployeeSalaryHistory::query()
                 ->where('tenant_id', $locked->tenant_id)
                 ->where('source', 'personnel_action')
-                ->where('source_id', $locked->id)
-                ->delete();
+                ->where('source_id', $locked->id);
+            $earliest = (clone $rows)->min('effective_date');
+            $rows->delete();
+
+            if (is_string($earliest)) {
+                app(PayDifferenceRecorder::class)->flag($employee, $earliest);
+            }
 
             $locked->delete();
         });

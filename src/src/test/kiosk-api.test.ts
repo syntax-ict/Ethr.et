@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
-import { authenticateKiosk, kioskPunch } from "@/features/kiosk/api";
+import { apiClient } from "@/api/client";
+import {
+  authenticateKiosk,
+  KIOSK_PUNCH_TIMEOUT_MS,
+  kioskPunch,
+} from "@/features/kiosk/api";
 
 /**
  * The kiosk terminal has no user session. A 401 from its endpoints means
@@ -88,5 +93,26 @@ describe("kiosk calls answered 401", () => {
     ).rejects.toMatchObject({ response: { status: 401 } });
     expect(refreshes()).toBe(0);
     expect(window.location.href).toBe("http://localhost:3000/kiosk");
+  });
+});
+
+describe("a kiosk punch on a dead line", () => {
+  it("gives up after 8 seconds, not the 30 the rest of the app waits", async () => {
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: {} } as never);
+
+    await kioskPunch("tok", {
+      employee_code: "E-1",
+      type: "auto",
+      idempotency_key: "k1",
+    } as never);
+
+    expect(KIOSK_PUNCH_TIMEOUT_MS).toBe(8000);
+    expect(post.mock.calls[0][2]).toMatchObject({
+      timeout: 8000,
+      headers: { "X-Kiosk-Token": "tok" },
+    });
+    post.mockRestore();
   });
 });

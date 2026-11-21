@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\EmployeeContract;
 use App\Models\EmployeeSalaryHistory;
 use App\Models\Tenant;
+use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\BackgroundWork;
 use App\Support\SalaryChangeContext;
@@ -154,11 +155,16 @@ class EmployeeContractService
         if ($contract->ended_at !== null
             && $contract->start_date->toDateString() > $today
             && $contract->ended_at->lt($contract->start_date)) {
-            EmployeeSalaryHistory::query()
+            $rows = EmployeeSalaryHistory::query()
                 ->where('tenant_id', $contract->tenant_id)
                 ->where('source', 'contract')
-                ->where('source_id', $contract->id)
-                ->delete();
+                ->where('source_id', $contract->id);
+            $earliest = (clone $rows)->min('effective_date');
+            $rows->delete();
+
+            if (is_string($earliest) && ($employee = Employee::query()->find($contract->employee_id)) !== null) {
+                app(PayDifferenceRecorder::class)->flag($employee, $earliest);
+            }
         }
     }
 
