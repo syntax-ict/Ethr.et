@@ -67,7 +67,7 @@ class ProcessDeviceInboundPunchesJob implements ShouldBeUniqueUntilProcessing, S
      */
     private const MAX_SECONDS_PER_RUN = 4;
 
-    /** A row that has failed this often is marked processed with its error. */
+    /** A row that has failed this often is quarantined as an error. */
     private const MAX_ATTEMPTS = 5;
 
     public function __construct(
@@ -190,7 +190,7 @@ class ProcessDeviceInboundPunchesJob implements ShouldBeUniqueUntilProcessing, S
     private function process(DeviceInboundPunch $row, Device $device, DevicePunchRecorder $punches, UnmatchedPunches $unmatched): bool
     {
         if ($row->attempts >= self::MAX_ATTEMPTS) {
-            $this->finish($row, 'gave up after '.self::MAX_ATTEMPTS.' attempts');
+            $this->quarantine($row, 'error', 'gave up after '.self::MAX_ATTEMPTS.' attempts');
 
             return false;
         }
@@ -201,17 +201,18 @@ class ProcessDeviceInboundPunchesJob implements ShouldBeUniqueUntilProcessing, S
             if ($employee === null) {
                 // Held, not dropped: replayed once someone says whose badge it is.
                 $unmatched->hold($device, $row->badge, $row->punch_type, $row->idempotency_key, $row->occurred_raw);
-                $this->finish($row, null);
+                $this->finish($row);
 
                 return false;
             }
 
             $punches->record($device, $employee, $row->punch_type, $row->idempotency_key, $row->occurred_raw);
-            $this->finish($row, null);
+            $this->finish($row);
 
             return true;
         } catch (AttendanceRefused $e) {
-            $this->finish($row, $e->getMessage());
+            $reason = $e->reasonCode();
+            $this->quarantine($row, in_array($reason, ['clock_ahead', 'no_time'], true) ? $reason : 'refused:'.$reason, $e->getMessage());
 
             return false;
         } catch (QueryException|PDOException|DeadlockException|LostConnectionException $e) {
@@ -224,17 +225,36 @@ class ProcessDeviceInboundPunchesJob implements ShouldBeUniqueUntilProcessing, S
         } catch (Throwable $e) {
             // One bad punch must not hold the device's queue.
             report($e);
-            $this->finish($row, $e->getMessage());
+            $this->quarantine($row, 'error', $e->getMessage());
 
             return false;
         }
     }
 
-    private function finish(DeviceInboundPunch $row, ?string $error): void
+    /** Handled: recorded, or held for an unknown badge. The raw copy is no longer needed. */
+    private function finish(DeviceInboundPunch $row): void
     {
         $row->forceFill([
             'processed_at' => Carbon::now(),
-            'error' => $error === null ? null : mb_substr($error, 0, 255),
+            'error' => null,
+            'raw' => null,
+        ])->save();
+    }
+
+    /**
+     * The punch could not be recorded and nobody has been told: it is kept,
+     * with what the terminal sent, for a person to replay or dismiss. The
+     * device's later rows carry on.
+     */
+    private function quarantine(DeviceInboundPunch $row, string $failure, string $error): void
+    {
+        $now = Carbon::now();
+
+        $row->forceFill([
+            'processed_at' => $now,
+            'failed_at' => $now,
+            'failure' => mb_substr($failure, 0, 40),
+            'error' => DeviceInboundPunch::scrub($error),
         ])->save();
     }
 }
