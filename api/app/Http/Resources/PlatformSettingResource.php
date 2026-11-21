@@ -21,6 +21,7 @@ class PlatformSettingResource extends JsonResource
         return [
             'public_id' => $this->public_id,
             'bank_name' => $this->bank_name,
+            'bank_code' => $this->bank_code,
             'bank_account_number' => $this->bank_account_number,
             'bank_account_name' => $this->bank_account_name,
             'payment_instructions' => $this->payment_instructions,

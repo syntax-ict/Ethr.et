@@ -44,10 +44,12 @@ function Harness({
   kind = "region",
   initial = { code: null, text: "" },
   parentCode,
+  allowOther,
 }: {
   kind?: ReferenceKind;
   initial?: ReferenceValue;
   parentCode?: string | null;
+  allowOther?: boolean;
 }) {
   const [value, setValue] = useState<ReferenceValue>(initial);
   return (
@@ -58,6 +60,7 @@ function Harness({
         value={value}
         onChange={setValue}
         parentCode={parentCode}
+        allowOther={allowOther}
       />
       <output data-testid="value">{JSON.stringify(value)}</output>
     </>
@@ -189,5 +192,21 @@ describe("ReferenceSelect", () => {
     await waitFor(() =>
       expect(value()).toEqual({ code: null, text: "Hawassa" }),
     );
+  });
+
+  it("does not offer Other where there is nowhere to keep typed text", async () => {
+    const user = userEvent.setup();
+    renderHarness({ allowOther: false });
+
+    await user.click(await screen.findByRole("combobox"));
+    await screen.findByText("Oromia");
+    expect(screen.queryByText("Other (type it)")).not.toBeInTheDocument();
+  });
+
+  it("locks the box instead of taking text that could not be kept, when the list cannot be loaded", async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error("offline"));
+    renderHarness({ allowOther: false });
+
+    expect(await screen.findByRole("textbox")).toBeDisabled();
   });
 });

@@ -103,7 +103,9 @@ export function ReferenceSelect({
       value={value.text}
       onChange={(e) => onChange({ code: null, text: e.target.value })}
       placeholder={t("reference.type_here", "Type it here")}
-      disabled={disabled}
+      // A list with nowhere to keep typed text cannot fall back to typing:
+      // the box is shown, but locked.
+      disabled={disabled || (lookups.isError && !allowOther)}
       aria-invalid={ariaInvalid}
       aria-required={ariaRequired}
       aria-describedby={ariaDescribedBy}
