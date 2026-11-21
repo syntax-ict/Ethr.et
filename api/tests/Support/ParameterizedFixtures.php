@@ -190,6 +190,7 @@ final class ParameterizedFixtures
             'payrollEntry' => $entry->public_id, 'payrollRule' => $rule->public_id, 'customRole' => $customRole->public_id,
             'shift' => $shift->public_id, 'rotation' => $rotation->public_id, 'webhook' => $webhook->public_id,
             'publicId' => $tenant->public_id, 'employeePublicId' => $employee->public_id,
+            'devicePublicId' => $device->public_id,
             'subdomain' => $tenant->subdomain, 'slug' => (string) $templateSlug,
             'batch' => $migrationBatch->public_id,
             'identity' => EmployeeExternalIdentity::query()->forceCreate([
