@@ -4563,6 +4563,7 @@
   "org.field.address": "Address",
   "org.field.branch": "Branch",
   "org.field.city": "City",
+  "org.field.region": "Region",
   "org.field.code": "Code",
   "org.field.department_head": "Department head",
   "org.field.department_head_hint": "Approval chains with a department-head step send requests from this department to this person.",

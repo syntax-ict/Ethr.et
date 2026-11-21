@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Larastan's static migration reader cannot follow — hence the declaration.
  *
  * @property string $public_id
+ * @property string|null $bank_code
  */
 class EmployeeBankDetail extends Model
 {
@@ -23,6 +24,7 @@ class EmployeeBankDetail extends Model
         'tenant_id',
         'employee_id',
         'bank_name',
+        'bank_code',
         'branch_name',
         'account_number',
         'is_primary',

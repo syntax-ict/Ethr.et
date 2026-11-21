@@ -46,7 +46,9 @@ class BankDetailController extends Controller
             $employee->bankDetails()->where('id', '!=', $bankDetail->id)->update(['is_primary' => false]);
         }
 
-        $bankDetail->update($data);
+        // A bank sent without a code is typed text: the code it had before
+        // belonged to the old name.
+        $bankDetail->update($data + ['bank_code' => null]);
 
         AuditLog::record('employee.bank_detail.updated', $employee);
 

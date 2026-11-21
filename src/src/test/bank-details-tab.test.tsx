@@ -20,6 +20,7 @@ function buildBank(overrides: Record<string, unknown> = {}) {
   return {
     public_id: "01HZBANK00000000000000001",
     bank_name: "Commercial Bank of Ethiopia",
+    bank_code: null,
     branch_name: "Bole",
     account_number_masked: "*********6789",
     is_primary: true,
@@ -229,10 +230,58 @@ describe("<BankDetailsTab> add", () => {
     await waitFor(() => expect(bodies).toHaveLength(1));
     expect(Object.keys(bodies[0]).sort()).toEqual([
       "account_number",
+      "bank_code",
       "bank_name",
       "branch_name",
       "is_primary",
     ]);
+  });
+
+  it("keeps the code of a bank picked from the list, and none for one typed", async () => {
+    server.use(
+      http.get(BANK_URL, () => HttpResponse.json([])),
+      http.get("*/api/v1/lookups", () =>
+        HttpResponse.json({
+          version: "abc123abc123",
+          items: {
+            region: [],
+            sub_city: [],
+            town: [],
+            bank: [
+              {
+                code: "awash",
+                parent_code: null,
+                name: "Awash Bank",
+                name_am: "አዋሽ ባንክ",
+                name_om: "Baankii Awaash",
+                meta: {},
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    const bodies = capturePost();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(await screen.findByRole("button", { name: /Add/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: /Bank Name/ }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Awash Bank" }));
+    await user.type(
+      within(dialog).getByLabelText(/Account Number/),
+      "2000987654321",
+    );
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({
+      bank_name: "Awash Bank",
+      bank_code: "awash",
+    });
   });
 
   it("does not make a second account the salary account unless asked", async () => {

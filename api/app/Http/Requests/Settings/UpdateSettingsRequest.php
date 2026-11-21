@@ -6,6 +6,7 @@ namespace App\Http\Requests\Settings;
 
 use App\Http\Requests\Onboarding\ApplyConfigurationRequest;
 use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
+use App\Rules\ReferenceCode;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
@@ -63,6 +64,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.pension_registration_number' => ['sometimes', 'nullable', 'string', 'max:40'],
             'settings.payout_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYOUT_METHODS)],
             'settings.employer_bank_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'settings.employer_bank_code' => ['sometimes', 'nullable', 'string', 'max:60', new ReferenceCode(['bank'])],
             'settings.letterhead_address' => ['sometimes', 'nullable', 'string', 'max:200'],
             'settings.letterhead_phone' => ['sometimes', 'nullable', 'string', 'max:40'],
             'settings.letterhead_email' => ['sometimes', 'nullable', 'email', 'max:120'],
@@ -135,6 +137,16 @@ class UpdateSettingsRequest extends FormRequest
             $settings = $this->input('settings');
             if (! is_array($settings)) {
                 return;
+            }
+
+            // A bank code names a bank, so the name it stands for travels with it.
+            $code = $settings['employer_bank_code'] ?? null;
+            $name = $settings['employer_bank_name'] ?? null;
+            if (is_string($code) && $code !== '' && (! is_string($name) || trim($name) === '')) {
+                $validator->errors()->add('settings.employer_bank_name', __('validation.required_with', [
+                    'attribute' => 'settings.employer_bank_name',
+                    'values' => 'settings.employer_bank_code',
+                ]));
             }
 
             $allowed = self::writableKeys();
