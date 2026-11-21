@@ -75,7 +75,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // is outside the api group too. AdmsDeviceResolver authenticates
             // each request by serial and IP allowlist.
             Route::prefix('iclock')
-                ->middleware('throttle:adms')
+                ->middleware(['throttle:adms', RunBackgroundWorkAfterResponse::class])
                 ->group(function (): void {
                     foreach (['', '.aspx'] as $ext) {
                         Route::get('/cdata'.$ext, [AdmsController::class, 'handshake']);
