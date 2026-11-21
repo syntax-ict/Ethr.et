@@ -154,7 +154,7 @@ export function PunchButton({
           aria-describedby={status ? statusId : undefined}
           aria-busy={busy}
           className={cn(
-            "flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full border text-lg font-semibold shadow-lg transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-95 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100",
+            "flex h-40 w-40 touch-manipulation flex-col items-center justify-center gap-2 rounded-full border text-lg font-semibold shadow-lg transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-95 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100",
             notReady
               ? "border-border bg-muted text-muted-foreground shadow-none"
               : type === "check_in"

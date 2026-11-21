@@ -167,3 +167,37 @@ describe("attendance anomaly count", () => {
     expect(hits).toEqual([]);
   });
 });
+
+describe("sidebar collapsed regions and pin buttons", () => {
+  it("takes collapsed groups out of the tab order and reveals pins on focus", async () => {
+    signedInAs("tenant_admin", [
+      "attendance.viewAll",
+      "employee.create",
+      "payroll.viewAll",
+      "report.generate",
+      "settings.manage",
+    ]);
+    const { container } = renderNav();
+    await screen.findByRole("link", { name: /^reports$/i });
+
+    const wrappers = Array.from(
+      container.querySelectorAll<HTMLElement>("div.grid"),
+    ).filter((el) => /grid-rows-\[(0|1)fr\]/.test(el.className));
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const el of wrappers) {
+      const collapsed = el.className.includes("grid-rows-[0fr]");
+      expect(el.hasAttribute("inert")).toBe(collapsed);
+    }
+
+    const pins = Array.from(
+      container.querySelectorAll<HTMLElement>("button[aria-label]"),
+    ).filter((el) => /^(Pin|Unpin)/.test(el.getAttribute("aria-label") ?? ""));
+    expect(pins.length).toBeGreaterThan(0);
+    for (const pin of pins) {
+      if (pin.className.includes("opacity-0")) {
+        expect(pin.className).toContain("focus-visible:opacity-100");
+        expect(pin.className).toContain("[@media(pointer:coarse)]:opacity-100");
+      }
+    }
+  });
+});

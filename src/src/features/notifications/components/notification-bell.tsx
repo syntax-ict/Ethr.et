@@ -49,12 +49,23 @@ export function NotificationBell() {
         >
           <Bell className="h-4 w-4" aria-hidden />
           {count > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+            <span
+              aria-hidden="true"
+              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground"
+            >
               {count > 99 ? "99+" : count}
             </span>
           )}
           <span className="sr-only">
-            {t("common.notifications", "Notifications")}
+            {count > 0
+              ? t(
+                  "notifications.bell_label_count",
+                  ":count unread notifications",
+                  {
+                    count,
+                  },
+                )
+              : t("common.notifications", "Notifications")}
           </span>
         </Button>
       </PopoverTrigger>

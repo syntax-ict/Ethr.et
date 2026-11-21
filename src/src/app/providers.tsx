@@ -13,6 +13,7 @@ import { useServiceWorker } from "@/lib/hooks/useServiceWorker";
 import { listenForInstallPrompt } from "@/lib/hooks/useInstallPrompt";
 import { getLocale } from "@/lib/i18n/translations";
 import { useRouteLocale } from "@/lib/i18n/route-locale";
+import { ThemeColorSync } from "@/components/shared/theme-color-sync";
 
 function ServiceWorkerRegistrar() {
   useServiceWorker();
@@ -108,6 +109,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={250} skipDelayDuration={300}>
           <ServiceWorkerRegistrar />
           <HtmlLangSync />
+          <ThemeColorSync />
           <ServerTextLocaleSync />
           {children}
           <AppToaster />
