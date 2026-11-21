@@ -101,4 +101,5 @@ return [
         'identifier' => 'This employee would have no way to sign in. Turn on employee code sign-in in settings first.',
     ],
     'phone_invalid' => 'Enter an Ethiopian phone number, for example 0912345678 or +251912345678.',
+    'phone_any_invalid' => 'Enter a phone number, for example 0912345678 or +251912345678. A number from another country needs its country code, like +44 20 7946 0958.',
 ];

@@ -1752,3 +1752,72 @@ describe("what the terminals hold, after a list is added", () => {
     expect(screen.queryByText("Give them a way to sign in")).toBeNull();
   });
 });
+
+describe("the confirmation before a list is added", () => {
+  const NEW_ROW: MigrationBatch = {
+    ...AMBIGUOUS_BATCH,
+    summary: { new: 1 },
+    rows: [
+      {
+        ...AMBIGUOUS_BATCH.rows[0],
+        match_outcome: "new",
+        match_confidence: null,
+        candidates: [],
+        action: "create",
+      },
+    ],
+  };
+
+  async function openConfirm(permissions: string[]) {
+    server.use(
+      http.get("*/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6R80", role: "hr_admin" },
+          permissions,
+          tenant: null,
+        }),
+      ),
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(NEW_ROW, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(NEW_ROW),
+      ),
+    );
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+    fireEvent.click(await screen.findByText("Commit migration"));
+  }
+
+  it("says the additions can be undone to someone who may archive employees", async () => {
+    await openConfirm(["employee.delete"]);
+
+    expect(
+      await screen.findByText(
+        /can be archived again afterwards with Undo this list's additions/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/This cannot be undone from here\./),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the old sentence for someone who may not", async () => {
+    await openConfirm(["employee.create"]);
+
+    expect(
+      await screen.findByText(
+        "Employees are created and merged as the table shows. This cannot be undone from here.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/can be archived again afterwards/),
+    ).not.toBeInTheDocument();
+  });
+});

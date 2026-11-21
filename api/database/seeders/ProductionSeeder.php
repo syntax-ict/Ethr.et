@@ -8,8 +8,8 @@ use Illuminate\Database\Seeder;
 
 /**
  * Seeds the global system catalog required for a production install:
- * permissions, subscription plans, Ethiopian tax brackets, and organization
- * templates.
+ * permissions, subscription plans, Ethiopian tax brackets, organization
+ * templates, and the regions, towns and banks the forms offer as pick lists.
  *
  * Unlike DatabaseSeeder, this seeder does NOT create a demo tenant or a
  * default-password super admin. The super admin is provisioned separately and
@@ -29,9 +29,10 @@ class ProductionSeeder extends Seeder
             TaxBracketSeeder::class,
             OrganizationTemplateSeeder::class,
             MarketingContentSeeder::class,
+            ReferenceDataSeeder::class,
         ]);
 
-        $this->command?->info('Production system data seeded (permissions, plans, tax brackets, templates).');
+        $this->command?->info('Production system data seeded (permissions, plans, tax brackets, templates, reference lists).');
         $this->command?->info('Next: create the super admin with `php artisan ethr:create-admin`.');
     }
 }
