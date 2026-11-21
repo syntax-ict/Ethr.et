@@ -5042,3 +5042,16 @@ Review follow-ups to the same PR, one line each:
 Tenant-bypass inventory 208 call sites across 83 files: the capture export finds one terminal by its public id across organisations, behind `admin.manage`, and reads its inbox with `tenant_id` and `device_id` stated.
 
 **Not measured.** The backend suite on MariaDB, the counting query's plan on a table holding a week of a busy terminal's rows (handled rows are kept seven days and there is no index on `created_at`; the query narrows by `tenant_id` and `device_id` first), the browser journey `device-health-counts.spec.ts`, and any real terminal's heartbeat.
+
+### 25ac. The places and banks forms offer: one catalogue, loaded by the migration — built 2026-11-20
+
+There was no list of Ethiopian regions, sub-cities, towns or banks anywhere in the code; every address field and every bank name was free text. `reference_items` (kind, code, parent code, three names, order, active flag) now holds them, read from `api/database/data/reference/` by `App\Support\Reference\ReferenceCatalogue` and served by `GET /api/v1/lookups`.
+
+- **Loaded by the migration, re-synced by the seeder.** Deploy and `migrate` are one step; seeding is a separate call. A form that checks a code against these rows must never meet an empty table because that call was late (the failure class of §25f), so the migration makes the first load and `ReferenceDataSeeder` (in `ProductionSeeder`) re-syncs after a file changes. Both call `ReferenceCatalogue::sync()`, so they cannot drift.
+- **Never regenerates.** Rows are matched by (kind, code); `public_id` is written on insert only (`PermissionSeeder` and `TaxBracketSeeder` rewrite theirs every run); a row that leaves the files is deactivated, never deleted. Pinned by `tests/Feature/Reference/ReferenceCatalogueTest.php` and `ProductionSeederTest`, which compares every `public_id` across a second run. Run on a fresh MariaDB: 121 rows, identical ids after `ProductionSeeder` and `ReferenceDataSeeder` (0 added, 0 updated).
+- **Open for the owner, in this order:**
+  1. A native reading of every Amharic and Afaan Oromoo name in the four data files (regions, 11 Addis Ababa sub-cities, 68 towns, 28 banks). They were written without a native reader. Afaan Oromoo uses Finfinnee for Addis Ababa (`docs/LOCALIZATION.md`).
+  2. The bank list was compiled from public knowledge on 2026-11-20 and is **not** checked against the National Bank of Ethiopia register, which was not reachable as one authoritative list. Two banks were left out because it was unclear they had opened. A bank not listed is typed in, so nothing breaks.
+  3. Lemi Kura is listed as the eleventh Addis Ababa sub-city from the 2020 city council restructuring; no source confirmed it is operating as one today.
+  4. The town list is a curated set (regional capitals and the towns most organisations sit in), not a gazetteer; woredas and kebeles stay typed.
+- **Not done in this change:** no form uses the picker yet. Branches, onboarding and bank details (PR 4) and the employee address block (PR 5) adopt it.
