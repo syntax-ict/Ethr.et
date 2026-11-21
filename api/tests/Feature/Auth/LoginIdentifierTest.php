@@ -74,6 +74,74 @@ describe('login by identifier', function () {
         expect($user->fresh()->last_login_at)->not->toBeNull();
     });
 
+    it('finds a number stored in E.164 when the user types the local form', function () {
+        $tenant = loginTenant(['phone']);
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'phone' => '+251911456789',
+            'password' => Hash::make('secret123'),
+            'status' => 'active',
+            'role' => UserRole::EMPLOYEE,
+        ]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/login", [
+            'identifier' => '0911 45 67 89',
+            'password' => 'secret123',
+        ])->assertOk()->assertJsonStructure(['access_token']);
+
+        expect($user->fresh()->last_login_at)->not->toBeNull();
+    });
+
+    it('finds a number stored in the local form when the user types E.164', function () {
+        $tenant = loginTenant(['phone']);
+        User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'phone' => '0911456789',
+            'password' => Hash::make('secret123'),
+            'status' => 'active',
+            'role' => UserRole::EMPLOYEE,
+        ]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/login", [
+            'identifier' => '+251 911 456 789',
+            'password' => 'secret123',
+        ])->assertOk()->assertJsonStructure(['access_token']);
+    });
+
+    it('finds a number held only on the linked employee record in another shape', function () {
+        $tenant = loginTenant(['phone']);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'phone' => '+251911456789']);
+        User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'phone' => null,
+            'password' => Hash::make('secret123'),
+            'status' => 'active',
+            'role' => UserRole::EMPLOYEE,
+        ]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/login", [
+            'identifier' => '0911456789',
+            'password' => 'secret123',
+        ])->assertOk()->assertJsonStructure(['access_token']);
+    });
+
+    it('does not match a different number that merely shares trailing digits', function () {
+        $tenant = loginTenant(['phone']);
+        User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'phone' => '+251911456789',
+            'password' => Hash::make('secret123'),
+            'status' => 'active',
+            'role' => UserRole::EMPLOYEE,
+        ]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/login", [
+            'identifier' => '0711456789',
+            'password' => 'secret123',
+        ])->assertStatus(422);
+    });
+
     it('authenticates by username, case-insensitively, when enabled', function () {
         $tenant = loginTenant(['username']);
         $user = User::factory()->create([

@@ -184,7 +184,7 @@ describe("Personal details", () => {
     render(<PersonalDetailsPage />, { wrapper });
 
     // Phone is rendered by PhoneInput, which strips the +251 prefix.
-    expect(await screen.findByDisplayValue("911223344")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("91 122 3344")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Ethiopian")).toBeInTheDocument();
   });
 

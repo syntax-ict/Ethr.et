@@ -4,6 +4,7 @@ import { Building2, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { TableRowActions } from "@/components/shared/simple-table";
 import {
   ActiveToggle,
@@ -130,9 +131,9 @@ export function BranchesSection() {
               />
             </CrudField>
             <CrudField label={t("common.phone", "Phone")}>
-              <Input
+              <PhoneInput
                 value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
+                onChange={(v) => set("phone", v)}
               />
             </CrudField>
           </CrudFieldRow>

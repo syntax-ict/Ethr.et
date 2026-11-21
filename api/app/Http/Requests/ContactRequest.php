@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Rules\Phone;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ContactRequest extends FormRequest
@@ -19,7 +20,7 @@ class ContactRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'organization' => ['nullable', 'string', 'max:255'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
 

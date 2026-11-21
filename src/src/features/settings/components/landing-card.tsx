@@ -53,6 +53,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CoverUpload } from "@/features/settings/components/brand-image-upload";
 import { PortalPreview } from "@/features/settings/components/portal-preview";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 type Background = LandingBackground["background"];
 const BACKGROUNDS: readonly Background[] = [
@@ -695,12 +696,10 @@ export function LandingCard({
                 label={t("settings.landing_support_phone", "HR help phone")}
                 error={fieldErrors.support_phone}
               >
-                <Input
+                <PhoneInput
                   id="landing-phone"
-                  type="tel"
                   value={form.support_phone}
-                  placeholder="+251 11 000 0000"
-                  onChange={(e) => set("support_phone", e.target.value)}
+                  onChange={(v) => set("support_phone", v)}
                 />
               </Field>
             </div>
