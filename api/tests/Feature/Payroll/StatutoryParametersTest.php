@@ -146,6 +146,7 @@ it('carries no statutory number in the payroll services', function () {
     // Numbers that are not law, each with the reason it may stay in code.
     $notStatutory = [
         'AttendanceReconciliation::CACHE_SECONDS', // how long a computed report is cached
+        'PayDifferenceRecorder::CHAIN_LIMIT', // how many replaced runs a reprocess chain is followed through
     ];
     $offenders = [];
 

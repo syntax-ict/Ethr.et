@@ -18,6 +18,7 @@ class VoidPayrollRunRequest extends FormRequest
     {
         return [
             'reason' => ['required', 'string', 'max:500'],
+            'acknowledged_settled_pay_differences' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

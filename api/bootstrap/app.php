@@ -330,6 +330,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             if ($e->employees !== []) {
                 $problem['employees'] = $e->employees;
             }
+            $problem += $e->extra;
 
             return response()->json($problem, 422, ['Content-Type' => 'application/problem+json']);
         });

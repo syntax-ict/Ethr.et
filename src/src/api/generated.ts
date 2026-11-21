@@ -6221,6 +6221,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll/pay-differences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pay differences */
+        get: operations["payDifference.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle pay differences */
+        post: operations["payDifference.settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["payDifference.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/process": {
         parameters: {
             query?: never;
@@ -9572,6 +9623,7 @@ export interface components {
          */
         ApprovePayrollRunRequest: {
             acknowledged_pension_exemptions?: number | null;
+            acknowledged_pay_differences?: number | null;
         };
         /**
          * ApproverKind
@@ -10383,6 +10435,13 @@ export interface components {
         DismissNextStepRequest: {
             signature: string;
             snooze_days?: number | null;
+        };
+        /**
+         * DismissPayDifferenceRequest
+         * @description Why the difference needs no payment.
+         */
+        DismissPayDifferenceRequest: {
+            note: string;
         };
         /** DismissUnmatchedBadgeRequest */
         DismissUnmatchedBadgeRequest: {
@@ -11476,6 +11535,33 @@ export interface components {
             net_cents: number;
             calculation_log?: unknown[] | null;
         };
+        /** PayrollPayDifferenceResource */
+        PayrollPayDifferenceResource: {
+            public_id: string;
+            employee_public_id: string | null;
+            employee_name: string | null;
+            run_public_id: string | null;
+            period_label: string | null;
+            period_start: string | null;
+            period_end: string | null;
+            kind: string | null;
+            gross_cents: number | null;
+            net_cents: number | null;
+            paid_gross_cents: number | null;
+            paid_net_cents: number | null;
+            due_gross_cents: number | null;
+            due_net_cents: number | null;
+            status: string;
+            changed_from: string;
+            trail_rebuilt_at_release: boolean;
+            net_is_estimate: boolean;
+            error: string | null;
+            note: string | null;
+            /** Format: date-time */
+            settled_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** PayrollRuleResource */
         PayrollRuleResource: {
             public_id: string;
@@ -12207,6 +12293,13 @@ export interface components {
             user_ids?: string[];
             /** @enum {string} */
             scope?: "not_activated";
+        };
+        /**
+         * SettlePayDifferenceRequest
+         * @description What finance did about the difference: a reference or a few words.
+         */
+        SettlePayDifferenceRequest: {
+            note: string;
         };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
@@ -14276,6 +14369,7 @@ export interface components {
         /** VoidPayrollRunRequest */
         VoidPayrollRunRequest: {
             reason: string;
+            acknowledged_settled_pay_differences?: number | null;
         };
     };
     responses: {
@@ -31829,6 +31923,123 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.index": {
+        parameters: {
+            query?: {
+                status?: "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded" | null;
+                employee?: string | null;
+                for_run?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PayrollPayDifferenceResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlePayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissPayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
