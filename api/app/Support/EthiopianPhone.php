@@ -102,6 +102,56 @@ final class EthiopianPhone
     }
 
     /**
+     * Display form: `+251 91 122 3344`. Mobile and landline numbers both group
+     * as country code, two-digit prefix, three digits, four digits. A number that
+     * is not Ethiopian is returned as it was given.
+     */
+    public static function format(string $phone): string
+    {
+        $canonical = self::canonical($phone);
+
+        if ($canonical === null) {
+            return $phone;
+        }
+
+        return sprintf(
+            '+251 %s %s %s',
+            substr($canonical, 4, 2),
+            substr($canonical, 6, 3),
+            substr($canonical, 9, 4),
+        );
+    }
+
+    /**
+     * A number from another country, written with its country code: a plus and
+     * 8 to 15 digits (the E.164 limit), with the usual separators allowed.
+     *
+     * Ethiopian numbers are never international here, even a malformed one such
+     * as `+251 91 122`: an Ethiopian number that does not parse is a typing
+     * mistake and must be refused, not accepted as somebody else's country.
+     */
+    public static function isInternational(string $phone): bool
+    {
+        $trimmed = trim($phone);
+
+        if (! str_starts_with($trimmed, '+')) {
+            return false;
+        }
+
+        if (preg_match('/^\+[\d\s().-]+$/', $trimmed) !== 1) {
+            return false;
+        }
+
+        $digits = preg_replace('/\D+/', '', $trimmed) ?? '';
+
+        if (str_starts_with($digits, '251')) {
+            return false;
+        }
+
+        return preg_match('/^[1-9]\d{7,14}$/', $digits) === 1;
+    }
+
+    /**
      * Every shape this number may already be stored as, for a tolerant lookup.
      *
      * Existing rows predate canonicalization and were written in whichever form

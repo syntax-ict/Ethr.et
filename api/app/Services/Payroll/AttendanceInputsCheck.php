@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  * requires it; the default is off. So a correction approved, a device backlog
  * drained, a late real check-out or unpaid leave approved after a run was
  * calculated used to leave a run to be approved and paid at overtime, lateness
- * and leave figures that were no longer true (docs/audit/BASELINE.md §25aj).
+ * and leave figures that were no longer true (docs/audit/BASELINE.md §25ak).
  *
  * Two steps, both bounded. First, cheaply, who might differ: people with an
  * attendance record in the window the engine reads for overtime, a

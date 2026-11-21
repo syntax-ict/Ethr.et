@@ -42,6 +42,7 @@ import {
   TrustedDevicesCard,
 } from "@/features/auth/components/active-sessions-card";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 /** The URL never changes while this page is open, so there is nothing to subscribe to. */
 function subscribeToNothing(): () => void {
@@ -100,12 +101,11 @@ function OwnPhoneCard({ current }: { current: string | null | undefined }) {
           {t("profile_security.phone_title", "Your phone")}
         </Label>
         <div className="flex flex-wrap gap-2">
-          <Input
+          <PhoneInput
             id="own-phone"
             className="max-w-xs"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="0912345678"
+            onChange={setPhone}
           />
           <Button
             onClick={save}

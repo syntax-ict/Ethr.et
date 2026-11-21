@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
+use App\Rules\Phone;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -45,7 +46,7 @@ class StoreEmployeeRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'employee_code' => [
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId),
