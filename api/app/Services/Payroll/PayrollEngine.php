@@ -9,6 +9,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Enums\OvertimeRequestStatus;
+use App\Exceptions\ImpersonationRestricted;
 use App\Exceptions\PayrollRunRefused;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -391,6 +392,8 @@ final class PayrollEngine
      */
     public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0): PayrollRun
     {
+        ImpersonationRestricted::unlessOrganisation('PayrollEngine::approve');
+
         return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
@@ -465,6 +468,8 @@ final class PayrollEngine
      */
     public function markPaid(PayrollRun $run, int $paidBy, string $paidOn, ?string $reference, ?string $note): PayrollRun
     {
+        ImpersonationRestricted::unlessOrganisation('PayrollEngine::markPaid');
+
         return DB::transaction(function () use ($run, $paidBy, $paidOn, $reference, $note): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
