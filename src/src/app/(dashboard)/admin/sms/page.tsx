@@ -33,6 +33,7 @@ import {
 } from "@/features/admin/sms";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 /**
  * SMS delivery for the whole platform: the gateway a provider's documentation
@@ -631,13 +632,7 @@ function TestPanel({
         {t("admin_sms.test_label", "Send a test SMS to")}
       </Label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          id={phoneId}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="09XXXXXXXX / 07XXXXXXXX"
-          inputMode="tel"
-        />
+        <PhoneInput id={phoneId} value={phone} onChange={setPhone} />
         <Button
           variant="outline"
           disabled={test.isPending || phone.trim() === ""}
