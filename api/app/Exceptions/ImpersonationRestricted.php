@@ -10,7 +10,7 @@ use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Throwable;
 
 /**
@@ -26,7 +26,7 @@ use Throwable;
  *
  * The record names the action and the fields that were refused, never a value.
  */
-class ImpersonationRestricted extends RuntimeException
+class ImpersonationRestricted extends AccessDeniedHttpException
 {
     /** @param  list<string>  $fields  names of the request fields refused, never their values */
     public function __construct(public readonly string $action, public readonly array $fields = [])

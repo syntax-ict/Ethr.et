@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Onboarding;
 
 use App\Enums\OnboardingStep;
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Migration\CommitMigrationRequest;
 use App\Http\Requests\Migration\ReadPeopleRequest;
@@ -20,6 +21,7 @@ use App\Models\MigrationStagingRow;
 use App\Models\OnboardingProgress;
 use App\Models\PersonnelAction;
 use App\Models\User;
+use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Migration\ListUndo;
@@ -178,6 +180,7 @@ class MigrationController extends Controller
         abort_if($tenantId === null, 422, __('general.not_found', ['resource' => 'Tenant']));
 
         $rows = $request->staged();
+        $this->refuseBankDataInSupportSession($rows);
         foreach ($rows as $row) {
             if (array_intersect(StagedChanges::PAY, array_keys($row)) !== []) {
                 Gate::authorize('employee.updateFinancial');
@@ -918,5 +921,28 @@ class MigrationController extends Controller
             ->groupBy('match_outcome')
             ->map(fn ($group) => $group->count())
             ->all();
+    }
+
+    /**
+     * The rows as staged, whichever shape the request brought them in (keyed
+     * rows, or a grid or file read): the middleware cannot see a mapped column.
+     * Thrown before anything is staged.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function refuseBankDataInSupportSession(array $rows): void
+    {
+        if (! ImpersonationToken::sessionActive()) {
+            return;
+        }
+
+        foreach ($rows as $row) {
+            foreach (['bank_name', 'bank_branch', 'bank_account'] as $column) {
+                $value = $row[$column] ?? null;
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    throw new ImpersonationRestricted('MigrationController@stageFromRows', ['bank_name', 'bank_branch', 'bank_account']);
+                }
+            }
+        }
     }
 }

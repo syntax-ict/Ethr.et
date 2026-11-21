@@ -438,3 +438,20 @@ test('the refusal is kept even when the work it interrupted was inside a transac
         ->and($rows[0]['payload']['impersonated_by'])->toBe($operator->id)
         ->and($rows[0]['payload']['action'])->toBe('EmployeeBankDetail::saving');
 });
+
+test('a support session cannot stage bank data through a grid read, and the refusal stages nothing', function () {
+    [$tenant, $hr, $operator] = supportPayWorld(UserRole::HR_ADMIN);
+    $grid = [
+        ['Name', 'Hire date', 'Bank name', 'Bank account'],
+        ['Selam Bekele', '2026-01-15', 'CBE', SUPPORT_ACCOUNT],
+    ];
+
+    $response = supportPayCall(supportPayToken($hr, $operator), 'POST', $tenant, 'onboarding/migration/rows', ['grid' => $grid]);
+
+    supportPayExpectRefused($response, $tenant, $operator, 'MigrationController@stageFromRows');
+    expect(MigrationBatch::query()->count())->toBe(0);
+
+    supportPayCall(supportPayToken($hr, $operator), 'POST', $tenant, 'onboarding/migration/rows', [
+        'grid' => [['Name', 'Hire date'], ['Selam Bekele', '2026-01-15']],
+    ])->assertCreated();
+});
