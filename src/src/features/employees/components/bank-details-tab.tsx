@@ -19,6 +19,7 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
+import { ReferenceSelect } from "@/components/shared/reference-select";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -34,6 +35,8 @@ import {
 
 const bankSchema = z.object({
   bank_name: rules.requiredText(255),
+  // The list entry the name came from; null when the bank was typed.
+  bank_code: z.string().nullable(),
   branch_name: rules.text(255),
   // Digits and separators only. This is the number the bank export writes into
   // a payment file — `BankExportService` already shipped blank columns once
@@ -55,6 +58,7 @@ type BankValues = z.infer<typeof bankSchema>;
 
 const EMPTY_BANK: BankValues = {
   bank_name: "",
+  bank_code: null,
   branch_name: "",
   account_number: "",
   is_primary: true,
@@ -67,7 +71,9 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
 
   const {
     register,
-    control,
+    control: formControl,
+    setValue,
+    watch,
     submit,
     reset,
     rootError,
@@ -217,7 +223,29 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.bank_name?.message)}
             >
-              <Input {...register("bank_name")} className="mt-1" />
+              {(control) => (
+                <Controller
+                  name="bank_name"
+                  control={formControl}
+                  render={({ field }) => (
+                    <ReferenceSelect
+                      {...control}
+                      kind="bank"
+                      className="mt-1"
+                      value={{
+                        code: watch("bank_code"),
+                        text: field.value,
+                      }}
+                      onChange={(next) => {
+                        field.onChange(next.text);
+                        setValue("bank_code", next.code, {
+                          shouldDirty: true,
+                        });
+                      }}
+                    />
+                  )}
+                />
+              )}
             </FormField>
 
             <FormField
@@ -243,7 +271,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
 
             <Controller
               name="is_primary"
-              control={control}
+              control={formControl}
               render={({ field }) => (
                 <div className="flex items-start gap-2">
                   <Checkbox

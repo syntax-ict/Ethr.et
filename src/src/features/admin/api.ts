@@ -674,6 +674,8 @@ export function useAdminAuditLog(params?: {
 export interface PlatformSettings {
   public_id: string;
   bank_name: string | null;
+  /** The bank list entry the name came from; null when it was typed. */
+  bank_code: string | null;
   bank_account_number: string | null;
   bank_account_name: string | null;
   payment_instructions: string | null;
