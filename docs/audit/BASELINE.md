@@ -5060,7 +5060,7 @@ There was no list of Ethiopian regions, sub-cities, towns or banks anywhere in t
   4. The town list is a curated set (regional capitals and the towns most organisations sit in), not a gazetteer; woredas and kebeles stay typed.
 - **Not done in this change:** no form uses the picker yet. Branches, onboarding and bank details (PR 4) and the employee address block (PR 5) adopt it.
 
-### 25ad. The pick lists in the forms that already ask for a place or a bank — built 2026-11-21
+### 25af. The pick lists in the forms that already ask for a place or a bank — built 2026-11-21
 
 PR 4 of the reference-data plan puts `ReferenceSelect` (§25z) into the forms that were free text: a branch's region and town, the organisation's bank and an employee's bank, the platform's payment bank, and the region on the onboarding step.
 
