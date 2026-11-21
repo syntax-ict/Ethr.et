@@ -51,6 +51,12 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
 import {
+  DeviceClockNote,
+  clockValue,
+} from "@/features/devices/components/device-clock-note";
+import { DeviceTodayCard } from "@/features/devices/components/device-today";
+import { clockFinding } from "@/features/devices/clock";
+import {
   DeviceHeardLine,
   DeviceKeepAliveLine,
   WebhookRejectedLine,
@@ -273,6 +279,11 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const isOnline = device.status === "online";
   // Never called, so nothing to test or pull: see DeviceHeardLine.
   const sendsOnly = device.receives_only === true;
+  const finding = clockFinding(
+    device.clock_offset_seconds ?? null,
+    device.clock_measurable ?? null,
+  );
+  const showClock = finding.kind !== "unknown";
   const syncLogItems: DeviceSyncLog[] = syncLogs?.data ?? [];
   const eventItems: DeviceEvent[] = events?.data ?? [];
   const syncLogPages = syncLogs?.meta.last_page ?? 1;
@@ -313,7 +324,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 />
               </div>
             )}
-            <WebhookRejectedLine rejected={device.webhook_rejected} />
+            <WebhookRejectedLine
+              rejected={device.webhook_rejected}
+              devicePublicId={device.public_id}
+            />
           </div>
           <div className="flex items-center gap-2">
             {!sendsOnly && (
@@ -373,7 +387,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         {/* Info Cards */}
         <div
           className={
-            device.clock_checked_at
+            showClock
               ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
               : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           }
@@ -418,14 +432,18 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               }
             />
           )}
-          {device.clock_checked_at && (
+          {showClock && (
             <InfoCard
               icon={Clock}
               label={t("device_clock.label")}
-              value={clockLabel(device.clock_offset_seconds, t)}
+              value={clockValue(finding, t)}
             />
           )}
         </div>
+
+        <DeviceClockNote device={device} />
+
+        <DeviceTodayCard today={device.today} />
 
         <AdmsSetupCard device={device} />
 
@@ -850,7 +868,8 @@ function EditDeviceDialog({
   const hasConnectionChoice = canSendToEthr(device.adapter_type);
   const sendsToEthr = hasConnectionChoice && form.sends_to_ethr;
   // A terminal switched back to an address has none stored that is usable.
-  const addressRequired = device.receives_only === true && !sendsToEthr;
+  const addressRequired =
+    hasConnectionChoice && device.receives_only === true && !sendsToEthr;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1201,22 +1220,6 @@ function syncStatusLabel(
     running: t("device_detail_page.sync_running"),
   };
   return map[status] ?? status;
-}
-
-/**
- * The device clock as last read off a pushed punch (DeviceClock). Within two
- * minutes is in step: delivery delay and rounding.
- */
-function clockLabel(
-  offset: number | null,
-  t: ReturnType<typeof useT>["t"],
-): string {
-  if (offset === null) return "—";
-  const minutes = Math.round(Math.abs(offset) / 60);
-  if (Math.abs(offset) <= 120) return t("device_clock.in_step");
-  return offset > 0
-    ? t("device_clock.ahead", undefined, { minutes })
-    : t("device_clock.behind", undefined, { minutes });
 }
 
 /**

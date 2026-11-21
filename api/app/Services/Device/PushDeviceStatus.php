@@ -22,7 +22,7 @@ use App\Models\Device;
  * The pull job never touches such a device, so without this a first contact
  * left it Online for good, whatever happened to the terminal afterwards. An
  * ADMS terminal with automatic sync on was the case that kept it: its empty
- * pull moved `last_sync_at`, so it looked heard from forever (BASELINE 25z).
+ * pull moved `last_sync_at`, so it looked heard from forever (BASELINE 25ab).
  */
 final class PushDeviceStatus
 {

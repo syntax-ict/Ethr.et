@@ -17,13 +17,13 @@ use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCaptureRedactor;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\WebhookRejections;
+use App\Support\HealthSignals;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
 /*
- * Device health that tells the truth (BASELINE 25z): one rule for every
+ * Device health that tells the truth (BASELINE 25ab): one rule for every
  * terminal that only sends, today's counts, the clock read off heartbeats,
  * "allow this address", and the redacted capture export.
  */
@@ -409,6 +409,18 @@ describe('the capture export', function () {
         expect(AuditLog::withoutGlobalScopes()->where('action', 'platform.device_capture_exported')->count())->toBe(0);
     });
 
+    it('never keeps the token a terminal sends in its address', function () {
+        [$tenant, $branch] = truthOrganisation();
+        $device = truthDevice($tenant, $branch, 'hikvision', ['connection_config' => ['mode' => 'push']]);
+
+        test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision?token=truth-token", truthHeartbeat('2026-11-21T12:00:00+03:00'))->assertOk();
+
+        $kept = HealthSignals::store()->get('device-heartbeats:'.$device->id);
+        expect($kept)->toHaveCount(1)
+            ->and(json_encode($kept))->not->toContain('truth-token')
+            ->and(json_encode($kept))->toContain('heartBeat');
+    });
+
     it('keeps only the last twenty heartbeats', function () {
         [$tenant, $branch] = truthOrganisation();
         $device = truthDevice($tenant, $branch, 'hikvision', ['connection_config' => ['mode' => 'push']]);
@@ -417,7 +429,7 @@ describe('the capture export', function () {
             truthHikvision($tenant, truthHeartbeat('2026-11-21T12:00:00+03:00') + ['seq' => $n])->assertOk();
         }
 
-        expect(Cache::get('device-heartbeats:'.$device->id))->toHaveCount(20);
+        expect(HealthSignals::store()->get('device-heartbeats:'.$device->id))->toHaveCount(20);
     });
 });
 

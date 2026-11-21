@@ -8,10 +8,10 @@ use App\Models\Device;
 use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
 use App\Services\CurrentTenant;
+use App\Support\HealthSignals;
 use App\Support\TenantTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -50,8 +50,8 @@ final class DeviceDayCounts
 
         try {
             $key = self::key($device->id, self::dayFor($device));
-            Cache::add($key, 0, now()->addHours(self::TTL_HOURS));
-            Cache::increment($key, $duplicates);
+            HealthSignals::store()->add($key, 0, now()->addHours(self::TTL_HOURS));
+            HealthSignals::store()->increment($key, $duplicates);
         } catch (\Throwable $e) {
             // The count is a courtesy; the punch is already stored.
             report($e);
@@ -97,6 +97,8 @@ final class DeviceDayCounts
             ->get()
             ->keyBy('device_id');
 
+        $counted = self::duplicatesFor($ids, $day);
+
         $out = [];
         foreach ($devices as $device) {
             $row = $rows->get($device->id);
@@ -104,7 +106,7 @@ final class DeviceDayCounts
             $quarantined = (int) ($row->quarantined ?? 0);
             $waiting = (int) ($row->waiting ?? 0);
             $held = (int) ($row->held ?? 0);
-            $duplicate = self::duplicates($device->id, $day);
+            $duplicate = $counted[$device->id] ?? 0;
 
             $out[$device->id] = [
                 'day' => $day,
@@ -120,12 +122,28 @@ final class DeviceDayCounts
         return $out;
     }
 
-    private static function duplicates(int $deviceId, string $day): int
+    /**
+     * One read for every device on the page.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, int>
+     */
+    private static function duplicatesFor(array $ids, string $day): array
     {
         try {
-            return max(0, (int) Cache::get(self::key($deviceId, $day), 0));
+            $keys = [];
+            foreach ($ids as $id) {
+                $keys[self::key($id, $day)] = $id;
+            }
+
+            $out = [];
+            foreach (HealthSignals::store()->many(array_keys($keys)) as $key => $value) {
+                $out[$keys[$key]] = max(0, (int) $value);
+            }
+
+            return $out;
         } catch (\Throwable) {
-            return 0;
+            return [];
         }
     }
 

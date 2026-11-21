@@ -6,7 +6,6 @@ namespace App\Support;
 
 use App\Models\Device;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * How far a device's clock is from the server's.
@@ -151,7 +150,7 @@ final class DeviceClock
     private static function source(Device $device): array
     {
         try {
-            $value = Cache::get(self::sourceKey($device));
+            $value = HealthSignals::store()->get(self::sourceKey($device));
         } catch (\Throwable) {
             return ['source' => null, 'at' => null];
         }
@@ -162,7 +161,7 @@ final class DeviceClock
     }
 
     /**
-     * Kept in the cache, not a column: a lost entry only means a punch may
+     * Kept in the signals store (a release's `optimize:clear` leaves it), not a column: a lost entry only means a punch may
      * overwrite a heartbeat reading it would have left alone, and the page
      * says "not measurable" until the next heartbeat. Written no more than
      * once a minute, as a terminal's heartbeat arrives every few seconds.
@@ -171,14 +170,14 @@ final class DeviceClock
     {
         try {
             $key = self::sourceKey($device);
-            $last = Cache::get($key);
+            $last = HealthSignals::store()->get($key);
 
             if (is_array($last) && ($last['source'] ?? null) === $source && isset($last['at'])
                 && Carbon::parse((string) $last['at'])->gt(now()->subSeconds(self::REWRITE_AFTER_SECONDS))) {
                 return;
             }
 
-            Cache::put($key, ['source' => $source, 'at' => now()->toIso8601String()], now()->addDays(self::SOURCE_TTL_DAYS));
+            HealthSignals::store()->put($key, ['source' => $source, 'at' => now()->toIso8601String()], now()->addDays(self::SOURCE_TTL_DAYS));
         } catch (\Throwable) {
             // A downed cache must not turn an acknowledged post into a 500.
         }

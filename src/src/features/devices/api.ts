@@ -291,6 +291,18 @@ export function useTestDeviceConnection() {
   );
 }
 
+/** Add the address a refused call came from to the device's allowlist. */
+export function useAllowDeviceAddress() {
+  return useDeviceMutation(
+    async (vars: { publicId: string; ip: string }): Promise<Device> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/allowlist`, {
+          ip: vars.ip,
+        })
+      ).data,
+  );
+}
+
 export function useRegenerateDeviceToken() {
   return useDeviceMutation(
     async (publicId: string) =>

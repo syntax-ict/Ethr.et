@@ -21,6 +21,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Device */
 class DeviceResource extends JsonResource
 {
+    /** @var array{source: string|null, measurable: bool|null}|null */
+    private ?array $clock = null;
+
     /** The request attribute a list fills with its devices' counts, so the page costs one query. */
     public const COUNTS_ATTRIBUTE = 'device_day_counts';
 
@@ -86,12 +89,18 @@ class DeviceResource extends JsonResource
     /** @return 'heartbeat'|'punch'|'heartbeat_no_time'|null */
     private function clockSource(): ?string
     {
-        return DeviceClock::describe($this->resource)['source'];
+        return $this->clock()['source'];
     }
 
     private function clockMeasurable(): ?bool
     {
-        return DeviceClock::describe($this->resource)['measurable'];
+        return $this->clock()['measurable'];
+    }
+
+    /** @return array{source: string|null, measurable: bool|null} */
+    private function clock(): array
+    {
+        return $this->clock ??= DeviceClock::describe($this->resource);
     }
 
     /**

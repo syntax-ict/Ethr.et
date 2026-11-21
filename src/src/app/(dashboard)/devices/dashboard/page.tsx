@@ -23,6 +23,7 @@ import {
   deviceStatusLabelKey,
 } from "@/features/devices/status";
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import { DeviceTodayLine } from "@/features/devices/components/device-today";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
@@ -324,6 +325,7 @@ export default function DeviceDashboardPage() {
                   t("common.status"),
                   t("devices_page.records"),
                   t("devices_dashboard_page.last_contact"),
+                  t("device_today.title"),
                 ]}
                 align={[
                   "left",
@@ -332,6 +334,7 @@ export default function DeviceDashboardPage() {
                   "left",
                   "left",
                   "right",
+                  "left",
                   "left",
                 ]}
                 colClassName={[
@@ -342,6 +345,7 @@ export default function DeviceDashboardPage() {
                   "",
                   "hidden lg:table-cell",
                   "hidden lg:table-cell",
+                  "hidden xl:table-cell",
                 ]}
                 rows={allDevices.map((d) => ({
                   key: d.public_id,
@@ -389,6 +393,9 @@ export default function DeviceDashboardPage() {
                       ) : (
                         t("devices_page.never")
                       )}
+                    </span>,
+                    <span key="td" className="text-xs text-muted-foreground">
+                      <DeviceTodayLine today={d.today} />
                     </span>,
                   ],
                   actions: (
