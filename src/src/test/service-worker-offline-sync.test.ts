@@ -360,3 +360,62 @@ describe("service worker push", () => {
     expect(failing.showNotification).toHaveBeenCalledOnce();
   });
 });
+
+describe("service worker, a punch refused for good", () => {
+  const SELFIE = "data:image/jpeg;base64,AAAA";
+
+  async function queueWithSelfie(key: string) {
+    await clearQueue();
+    await enqueueOfflineRecord({
+      employee_public_id: "01HQZX3NDJKMNP4RSTVWXY5Z6A",
+      type: "check_in",
+      idempotency_key: key,
+      offline_token: key,
+      photo: SELFIE,
+      captured_at: "2026-10-13T05:20:00.000Z",
+      tenant: "acme",
+      locale: "en",
+    });
+  }
+
+  it("drops the selfie when the server calls the punch final", async () => {
+    await queueWithSelfie("p-final");
+    const fetch = vi.fn(async () =>
+      Response.json({
+        results: [
+          {
+            idempotency_key: "p-final",
+            status: "error",
+            detail: "This day is closed.",
+            final: true,
+          },
+        ],
+      }),
+    );
+    await loadWorker({ fetch }).fireSync();
+
+    const [record] = await getAllRecords();
+    expect(record.synced).toBe(2);
+    expect(record.photo ?? null).toBeNull();
+  });
+
+  it("drops the selfie when the punch is refused alone as too large", async () => {
+    await queueWithSelfie("p-big");
+    const fetch = vi.fn(async () => new Response("{}", { status: 413 }));
+    await loadWorker({ fetch }).fireSync();
+
+    const [record] = await getAllRecords();
+    expect(record.synced).toBe(2);
+    expect(record.photo ?? null).toBeNull();
+  });
+
+  it("keeps the selfie of a punch that only failed this time", async () => {
+    await queueWithSelfie("p-later");
+    const fetch = vi.fn(async () => new Response("{}", { status: 401 }));
+    await loadWorker({ fetch }).fireSync();
+
+    const [record] = await getAllRecords();
+    expect(record.synced).toBe(0);
+    expect(record.photo).toBe(SELFIE);
+  });
+});

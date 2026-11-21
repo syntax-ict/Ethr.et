@@ -161,4 +161,34 @@ describe("logging out", () => {
     expect(readOfflineIdentity()).toBeNull();
     expect(localStorage.getItem("ethr.offline-identity")).toBeNull();
   });
+
+  it("removes the offline grants even when clearing the punch queue fails", async () => {
+    // A phone with no IndexedDB must still sign out.
+    mockMe();
+    server.use(http.post("*/auth/logout", () => HttpResponse.error()));
+    localStorage.setItem("ethr.offline_grant.01HEMP", "{}");
+    const original = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const client = makeClient();
+      const { result } = renderHook(() => useLogout(), {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      });
+
+      await act(async () => {
+        await result.current.mutateAsync().catch(() => {});
+      });
+
+      expect(localStorage.getItem("ethr.offline_grant.01HEMP")).toBeNull();
+      expect(window.location.href).toBe("/login");
+    } finally {
+      if (original) Object.defineProperty(globalThis, "indexedDB", original);
+    }
+  });
 });

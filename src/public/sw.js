@@ -378,7 +378,7 @@ async function sendBatch(db, headers, batch) {
     }
     // Alone and still refused: it can never be sent.
     if (batch[0].id) {
-      await updatePunch(db, batch[0].id, { synced: 2, sync_error: null, refused_locally: true });
+      await updatePunch(db, batch[0].id, { synced: 2, sync_error: null, refused_locally: true, photo: null });
     }
     return 0;
   }
@@ -405,6 +405,7 @@ async function sendBatch(db, headers, batch) {
         synced: 2,
         sync_error: result.detail || null,
         refused_locally: !result.detail,
+        photo: null,
       });
     } else {
       await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
