@@ -1671,6 +1671,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Rules\\IpOrCidr' => __DIR__ . '/../..' . '/app/Rules/IpOrCidr.php',
         'App\\Rules\\PasswordPolicy' => __DIR__ . '/../..' . '/app/Rules/PasswordPolicy.php',
         'App\\Rules\\PermittedMarketingClaim' => __DIR__ . '/../..' . '/app/Rules/PermittedMarketingClaim.php',
+        'App\\Rules\\Phone' => __DIR__ . '/../..' . '/app/Rules/Phone.php',
         'App\\Rules\\ReferenceCode' => __DIR__ . '/../..' . '/app/Rules/ReferenceCode.php',
         'App\\Rules\\VerifyFileContent' => __DIR__ . '/../..' . '/app/Rules/VerifyFileContent.php',
         'App\\Services\\Accounting\\AccountingExportService' => __DIR__ . '/../..' . '/app/Services/Accounting/AccountingExportService.php',

@@ -937,6 +937,7 @@ return array(
     'App\\Rules\\IpOrCidr' => $baseDir . '/app/Rules/IpOrCidr.php',
     'App\\Rules\\PasswordPolicy' => $baseDir . '/app/Rules/PasswordPolicy.php',
     'App\\Rules\\PermittedMarketingClaim' => $baseDir . '/app/Rules/PermittedMarketingClaim.php',
+    'App\\Rules\\Phone' => $baseDir . '/app/Rules/Phone.php',
     'App\\Rules\\ReferenceCode' => $baseDir . '/app/Rules/ReferenceCode.php',
     'App\\Rules\\VerifyFileContent' => $baseDir . '/app/Rules/VerifyFileContent.php',
     'App\\Services\\Accounting\\AccountingExportService' => $baseDir . '/app/Services/Accounting/AccountingExportService.php',
