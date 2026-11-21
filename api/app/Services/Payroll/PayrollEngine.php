@@ -1072,7 +1072,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.9',
+            'version' => '1.10',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -1261,7 +1261,7 @@ final class PayrollEngine
             'unexplained_absence_days' => $this->unexplainedAbsences($employee, $periodStart, $periodEnd),
         ];
 
-        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
+        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay, 'skipped' => $overlappingSkipped] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
         $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id, $periodStart);
 
         $overtimeAmount = 0;
@@ -1299,6 +1299,8 @@ final class PayrollEngine
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
+            // Since 1.10: records passed over because another covers the same hours.
+            'overlapping_records_skipped' => $overlappingSkipped,
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
@@ -1630,7 +1632,12 @@ final class PayrollEngine
      * ends in the next is read whole, or twelve hours split across two runs
      * would never be flagged. Only the period's own days are paid.
      *
-     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
+     * Records whose punches overlap another record's pay once: the longest of
+     * the group, the lowest id on a tie (OverlappingAttendance). `skipped` lists
+     * the ones passed over on the period's own days. Overtime is never held back
+     * for being unapproved or over a limit; this only stops one shift paying twice.
+     *
+     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>, skipped: list<array{record: string, kept: string, date: string}>}
      */
     public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
@@ -1675,10 +1682,23 @@ final class PayrollEngine
         // normal day, and a Sunday at a six-day one as a rest day.
         $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
+        $overlapping = OverlappingAttendance::skipped($records);
+        $byId = $records->keyBy('id');
+        $skipped = [];
+
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
             $day = $date->format('Y-m-d');
             $paid = $day >= $firstPaid && $day <= $lastPaid;
+
+            if (isset($overlapping[$record->id])) {
+                if ($paid) {
+                    $skipped[] = ['record' => $record->public_id, 'kept' => $byId[$overlapping[$record->id]]->public_id, 'date' => $day];
+                }
+
+                continue;
+            }
+
             $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
             $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
                 ?? ($record->shift !== null
@@ -1697,7 +1717,7 @@ final class PayrollEngine
 
         ksort($byDay);
 
-        return ['buckets' => $buckets, 'by_day' => $byDay];
+        return ['buckets' => $buckets, 'by_day' => $byDay, 'skipped' => $skipped];
     }
 
     /**
