@@ -703,7 +703,12 @@ list, will be archived, will be kept, and already archived when there are any), 
 names with the reasons in words, and a destructive button "Archive N people", which is the second
 confirmation. The dialog cannot be closed while it runs. When the list is not exact the button is
 disabled and the dialog says nobody is archived. After an undo the committed screen says "This
-list's additions were undone on :date." with the count. The card above the list box has a second
+list's additions were undone on :date." with the count, the hire-date warning counts only people
+who are still employees, and the sign-in card says "This list's additions were undone. Nobody from
+it is waiting for a way to sign in." instead of "Everyone brought in can already sign in." The
+confirmation before the list is added tells someone who may delete employees that the people it
+adds can be archived again with "Undo this list's additions"; for anyone else it still says nothing
+can be undone from there. The card above the list box has a second
 group, "Lists added recently", each list with "Open", the badge "Added" or "Additions undone",
 and "N people added".
 
