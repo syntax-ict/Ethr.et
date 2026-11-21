@@ -14,6 +14,7 @@ import {
   useCrudSection,
 } from "@/components/shared/crud-section";
 import { branchesApi, type Branch } from "@/features/organization/api";
+import { ReferenceSelect } from "@/components/shared/reference-select";
 import { MapPicker } from "@/components/shared/map-picker/map-picker";
 import { useMapConfig } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
@@ -25,12 +26,17 @@ const EMPTY = {
   code: "",
   address: "",
   city: "",
+  region_code: "",
+  town_code: "",
   phone: "",
   latitude: "",
   longitude: "",
   geofence_radius_meters: "100",
   is_active: true,
 };
+
+/** Addis Ababa is a city administration: its places are sub-cities, not towns. */
+const ADDIS_ABABA = "addis_ababa";
 
 export function BranchesSection() {
   const { t } = useT();
@@ -47,6 +53,8 @@ export function BranchesSection() {
       code: b.code ?? "",
       address: b.address ?? "",
       city: b.city ?? "",
+      region_code: b.region_code ?? "",
+      town_code: b.town_code ?? "",
       phone: b.phone ?? "",
       latitude: b.latitude?.toString() ?? "",
       longitude: b.longitude?.toString() ?? "",
@@ -59,6 +67,8 @@ export function BranchesSection() {
       code: f.code || null,
       address: f.address || null,
       city: f.city || null,
+      region_code: f.region_code || null,
+      town_code: f.town_code || null,
       phone: f.phone || null,
       latitude: f.latitude ? parseFloat(f.latitude) : null,
       longitude: f.longitude ? parseFloat(f.longitude) : null,
@@ -133,12 +143,50 @@ export function BranchesSection() {
               onChange={(e) => set("address", e.target.value)}
             />
           </CrudField>
-          <CrudField label={t("org.field.city", "City")}>
-            <Input
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
-            />
-          </CrudField>
+          <CrudFieldRow>
+            <CrudField label={t("org.field.region", "Region")}>
+              <ReferenceSelect
+                kind="region"
+                // A region is a closed list; there is nowhere to keep one that
+                // is typed.
+                allowOther={false}
+                value={{
+                  code: form.region_code || null,
+                  text: form.region_code,
+                }}
+                onChange={(next) => {
+                  if ((next.code ?? "") === form.region_code) return;
+                  set("region_code", next.code ?? "");
+                  // A town picked from the old region's list does not belong to
+                  // the new one. Text typed by hand is kept.
+                  if (form.town_code !== "") {
+                    set("town_code", "");
+                    set("city", "");
+                  }
+                }}
+              />
+            </CrudField>
+            <CrudField label={t("org.field.city", "City")}>
+              {form.region_code === "" ? (
+                <Input
+                  value={form.city}
+                  onChange={(e) => set("city", e.target.value)}
+                />
+              ) : (
+                <ReferenceSelect
+                  // A new region is a new list: start it from the stored value.
+                  key={form.region_code}
+                  kind={form.region_code === ADDIS_ABABA ? "sub_city" : "town"}
+                  parentCode={form.region_code}
+                  value={{ code: form.town_code || null, text: form.city }}
+                  onChange={(next) => {
+                    set("town_code", next.code ?? "");
+                    set("city", next.text);
+                  }}
+                />
+              )}
+            </CrudField>
+          </CrudFieldRow>
           <CrudField label={t("org.field.location", "Location and area")}>
             <MapPicker
               googleMapsKey={mapConfig.data?.google_maps_key}

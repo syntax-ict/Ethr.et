@@ -39723,6 +39723,12 @@
                                                         "string",
                                                         "null"
                                                     ]
+                                                },
+                                                "employer_bank_code": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -39739,7 +39745,8 @@
                                                 "pension_agency",
                                                 "pension_registration_number",
                                                 "payout_method",
-                                                "employer_bank_name"
+                                                "employer_bank_name",
+                                                "employer_bank_code"
                                             ]
                                         },
                                         "documents": {
@@ -48618,6 +48625,12 @@
                     "bank_name": {
                         "type": "string"
                     },
+                    "bank_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "branch_name": {
                         "type": [
                             "string",
@@ -48634,6 +48647,7 @@
                 "required": [
                     "public_id",
                     "bank_name",
+                    "bank_code",
                     "branch_name",
                     "account_number_masked",
                     "is_primary"
@@ -48721,6 +48735,18 @@
                             "null"
                         ]
                     },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "phone": {
                         "type": [
                             "string",
@@ -48773,6 +48799,8 @@
                     "code",
                     "address",
                     "city",
+                    "region_code",
+                    "town_code",
                     "phone",
                     "latitude",
                     "longitude",
@@ -56988,6 +57016,13 @@
                         "type": "string",
                         "maxLength": 255
                     },
+                    "bank_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
                     "branch_name": {
                         "type": [
                             "string",
@@ -57047,6 +57082,20 @@
                             "null"
                         ],
                         "maxLength": 100
+                    },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
                     },
                     "phone": {
                         "type": [
@@ -59615,6 +59664,20 @@
                             "null"
                         ],
                         "maxLength": 100
+                    },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
                     },
                     "phone": {
                         "type": [

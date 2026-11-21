@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests\Organization\Concerns;
 
 use App\Rules\Phone;
+use App\Rules\ReferenceCode;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
  * The branch fields, shared by `StoreBranchRequest` and `UpdateBranchRequest`.
@@ -20,7 +22,7 @@ trait BranchRules
 {
     /**
      * @param  'required'|'sometimes'  $presence
-     * @return array<string, list<mixed>>
+     * @return array<string, list<string|ValidationRule>>
      */
     protected function branchRules(string $presence): array
     {
@@ -32,7 +34,9 @@ trait BranchRules
             'name_am' => ['nullable', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:500'],
-            'city' => ['nullable', 'string', 'max:100'],
+            'city' => ['nullable', 'required_with:town_code', 'string', 'max:100'],
+            'region_code' => ['nullable', 'string', 'max:60', new ReferenceCode(['region'])],
+            'town_code' => ['nullable', 'string', 'max:60', new ReferenceCode(['town', 'sub_city'], 'region_code')],
             'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged($stored)],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],

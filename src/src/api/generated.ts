@@ -4896,6 +4896,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lookups */
+        get: operations["lookup.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/marketing-content": {
         parameters: {
             query?: never;
@@ -10035,6 +10052,7 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
+            bank_code: string | null;
             branch_name: string | null;
             account_number_masked: string;
             is_primary: boolean;
@@ -10058,6 +10076,8 @@ export interface components {
             code: string | null;
             address: string | null;
             city: string | null;
+            region_code: string | null;
+            town_code: string | null;
             phone: string | null;
             latitude: string | null;
             longitude: string | null;
@@ -11757,6 +11777,7 @@ export interface components {
         PlatformSettingResource: {
             public_id: string;
             bank_name: string | null;
+            bank_code: string | null;
             bank_account_number: string | null;
             bank_account_name: string | null;
             payment_instructions: string | null;
@@ -12628,6 +12649,7 @@ export interface components {
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
             bank_name: string;
+            bank_code?: string | null;
             branch_name?: string | null;
             account_number: string;
             is_primary?: boolean | null;
@@ -12639,6 +12661,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13495,6 +13519,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13904,6 +13930,7 @@ export interface components {
         /** UpdatePlatformSettingsRequest */
         UpdatePlatformSettingsRequest: {
             bank_name?: string | null;
+            bank_code?: string | null;
             /**
              * @description Ethiopian bank account numbers are digits, commonly written with
              *     spaces or dashes for readability. Anything else is a typo on a field
@@ -14052,6 +14079,7 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                employer_bank_code?: string | null;
                 letterhead_address?: string | null;
                 letterhead_phone?: string | null;
                 /** Format: email */
@@ -28005,6 +28033,69 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "lookup.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        version: string;
+                        items: {
+                            region: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            sub_city: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            town: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            bank: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
     "marketingContent.index": {
         parameters: {
             query?: never;
@@ -36566,6 +36657,7 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                            employer_bank_code: string | null;
                         };
                         documents: {
                             letterhead_address: string | null;
