@@ -259,6 +259,38 @@ describe('archiving what the list added', function () {
     });
 });
 
+describe('what the committed screen says afterwards', function () {
+    it('stops counting hire dates and sign-ins for people the undo archived', function () {
+        [$tenant, $user] = Undo::admin();
+        $batch = Undo::committed($tenant, $user, Undo::people(['Abebe Kebede', 'Sara Tesfaye', 'Dawit Haile']));
+        $logins = Staging::url($tenant, "batches/{$batch->public_id}/logins");
+
+        test()->getJson($logins)->assertOk()
+            ->assertJsonPath('hire_dates_defaulted', 3)
+            ->assertJsonCount(3, 'without_login');
+
+        test()->postJson(Undo::url($tenant, $batch), ['confirm' => true])->assertOk()->assertJsonPath('archived', 3);
+
+        test()->getJson($logins)->assertOk()
+            ->assertJsonPath('hire_dates_defaulted', 0)
+            ->assertJsonCount(0, 'without_login');
+    });
+
+    it('still counts the person the undo kept', function () {
+        [$tenant, $user] = Undo::admin();
+        $batch = Undo::committed($tenant, $user, Undo::people(['Abebe Kebede', 'Sara Tesfaye', 'Dawit Haile']));
+        Undo::use($tenant, Undo::who($tenant, 'Abebe Kebede'), 'attendance');
+
+        test()->postJson(Undo::url($tenant, $batch), ['confirm' => true])->assertOk()
+            ->assertJsonPath('archived', 2)
+            ->assertJsonPath('kept', 1);
+
+        test()->getJson(Staging::url($tenant, "batches/{$batch->public_id}/logins"))->assertOk()
+            ->assertJsonPath('hire_dates_defaulted', 1)
+            ->assertJsonCount(1, 'without_login');
+    });
+});
+
 describe('a list committed before the list recorded what it made', function () {
     it('is read from when each person was made, and archives the same people', function () {
         [$tenant, $user] = Undo::admin();
