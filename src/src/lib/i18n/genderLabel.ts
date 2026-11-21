@@ -1,3 +1,5 @@
+import { genderOptionLabel } from "@/lib/options/gender";
+
 type Translate = (key: string, fallback?: string) => string;
 
 /**
@@ -13,8 +15,9 @@ export function genderLabel(
   t: Translate,
   gender: string | null | undefined,
 ): string {
-  if (gender === "male") return t("common.male", "Male");
-  if (gender === "female") return t("common.female", "Female");
+  if (gender === "male" || gender === "female") {
+    return genderOptionLabel(t, gender);
+  }
   if (gender === "" || gender === null || gender === undefined) {
     return t("executive_dashboard.gender_unrecorded", "Not recorded");
   }

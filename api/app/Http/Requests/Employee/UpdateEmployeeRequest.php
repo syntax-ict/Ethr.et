@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee;
 
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Rules\Phone;
@@ -70,12 +72,12 @@ class UpdateEmployeeRequest extends FormRequest
                 'nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
             ],
-            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
+            'gender' => ['nullable', 'string', Rule::enum(Gender::class)],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],
             'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             'national_id' => ['nullable', 'string', 'max:50'],
-            'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
+            'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
