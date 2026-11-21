@@ -38375,6 +38375,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38402,6 +38409,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38465,6 +38479,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38492,6 +38513,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38558,6 +38586,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38585,6 +38620,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38647,6 +38689,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38674,6 +38723,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
