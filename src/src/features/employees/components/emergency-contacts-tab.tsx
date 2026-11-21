@@ -28,7 +28,6 @@ import {
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
-import { Controller } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
