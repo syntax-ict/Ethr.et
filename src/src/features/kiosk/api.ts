@@ -44,6 +44,8 @@ export async function verifyKioskExit(
 /** The punch, whether it was a replay, and who it was for (name, title, face). */
 export type KioskPunchResult = components["schemas"]["KioskPunchResource"];
 
+export const KIOSK_PUNCH_TIMEOUT_MS = 8000;
+
 export async function kioskPunch(
   token: string,
   payload: components["schemas"]["KioskCheckInRequest"],
@@ -52,6 +54,10 @@ export async function kioskPunch(
     await apiClient.post<KioskPunchResult>("/kiosk/check-in", payload, {
       headers: { "X-Kiosk-Token": token },
       skipAuthRefresh: true,
+      // A connected but dead line must not hold the queue of people for 30 s
+      // each. A timeout has no response, so the page saves the punch offline
+      // under the same key; a punch that did arrive is then a duplicate.
+      timeout: KIOSK_PUNCH_TIMEOUT_MS,
     })
   ).data;
 }

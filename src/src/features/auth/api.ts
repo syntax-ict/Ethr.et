@@ -4,6 +4,7 @@ import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { User } from "@/api/types";
 import { clearApiCache } from "@/lib/api-cache";
+import { clearOfflineOnSignOut } from "@/lib/offline-signout";
 import {
   clearOfflineIdentity,
   readOfflineIdentity,
@@ -296,6 +297,7 @@ export function useLogout() {
     onSettled: async () => {
       queryClient.clear();
       clearOfflineIdentity();
+      await clearOfflineOnSignOut();
       await clearApiCache();
       window.location.href = "/login";
     },
