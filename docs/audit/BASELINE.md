@@ -5043,6 +5043,10 @@ Tenant-bypass inventory 208 call sites across 83 files: the capture export finds
 
 **Not measured.** The backend suite on MariaDB, the counting query's plan on a table holding a week of a busy terminal's rows (handled rows are kept seven days and there is no index on `created_at`; the query narrows by `tenant_id` and `device_id` first), the browser journey `device-health-counts.spec.ts`, and any real terminal's heartbeat.
 
+### 25ac. Each release erased the scheduler's catch-up marker: found 2026-11-20 (subsystem integration review finding 3), fixed 2026-11-21
+
+`ethr:schedule-run` remembers when it last ran so that a late HTTP caller still runs what came due in the gap. It kept that time in the default cache store, which every release's `optimize:clear` empties. The first run after a deploy then found no marker, covered only its own minute, and skipped everything due since the last tick: the 01:00 backup, the monthly invoices, the holiday roll-forward. The marker now lives in the `signals` store through `HealthSignals::store()`, the file store nothing clears and the one the other health timestamps already use. **Upgrade path:** when the signals store has no marker, the command reads the old key from the default store once and writes only to the signals store, so the release that ships this does not drop a window itself. `ScheduleCatchUpCommandTest` flushes the default store between the marker and the run and expects a 01:00 task to still run (it failed against the old code), and a second test proves a marker left in the old place is honoured and then moved.
+
 ### 25ad. Device webhook tokens stored hashed (PR 3 of the biometric upgrade, 2026-11-21)
 
 Finding F11 of the biometric review: `devices.webhook_token` held the credential in clear, database backups go off-host (S3, Google Drive), and so a copy of any backup could post punches into any organisation. Rotation also killed the old token instantly, which is wrong while a terminal is being moved, and the rotation endpoint had no test.
