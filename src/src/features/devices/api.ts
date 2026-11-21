@@ -567,3 +567,67 @@ export function useDismissUnmatchedBadge() {
       void queryClient.invalidateQueries({ queryKey: UNMATCHED_KEY }),
   });
 }
+
+// ── Punches that need attention (DeviceQuarantineController) ───────────────
+
+/**
+ * One punch a terminal sent that could not be recorded. `raw` is what the
+ * terminal sent, shown only to someone who may change the device.
+ */
+export interface QuarantinedPunch {
+  public_id: string;
+  badge: string;
+  punch_type: string;
+  occurred_raw: string;
+  /** `refused:<reason>`, `clock_ahead`, `no_time` or `error`. */
+  failure: string | null;
+  error: string | null;
+  failed_at: string | null;
+  received_at: string | null;
+  raw: string | null;
+}
+
+export type QuarantinePage = Omit<
+  components["schemas"]["LengthAwarePaginator"],
+  "data"
+> & { data: QuarantinedPunch[] };
+
+const quarantineKey = (deviceId: string) =>
+  ["devices", deviceId, "quarantine"] as const;
+
+export function useDeviceQuarantine(deviceId: string) {
+  return useQuery<QuarantinePage>({
+    queryKey: quarantineKey(deviceId),
+    queryFn: async () =>
+      (
+        await apiClient.get<QuarantinePage>(`/devices/${deviceId}/quarantine`, {
+          params: { per_page: 50 },
+        })
+      ).data,
+  });
+}
+
+function useQuarantineAction(action: "replay" | "dismiss") {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) =>
+      (
+        await apiClient.post<{
+          replayed?: number;
+          skipped?: number;
+          dismissed?: number;
+        }>(`/devices/quarantine/${action}`, { ids })
+      ).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["devices"] });
+      if (action === "replay") {
+        void queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      }
+    },
+  });
+}
+
+export const useReplayQuarantine = () => useQuarantineAction("replay");
+
+export const useDismissQuarantine = () => useQuarantineAction("dismiss");

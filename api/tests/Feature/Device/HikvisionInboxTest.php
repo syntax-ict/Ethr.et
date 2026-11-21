@@ -300,3 +300,43 @@ it('deletes processed inbox rows after a week and never a pending one', function
 // Measured 3 (device by token, tenant, the insert); the slack is for one more
 // lookup, not for a per-post engine run.
 const INBOX_QUERY_BUDGET = 6;
+
+// Measured ceiling of one device's inbox: 2,000 punches already waiting (a
+// terminal that was cut off and caught up) are drained by the job's own
+// continuation, which hands the rest to a fresh job every 200 rows or four
+// seconds. The figure is printed so CI logs carry the MySQL 8 number.
+it('drains two thousand waiting punches of one device by continuation', function () {
+    Queue::fake();
+    [$tenant, $device] = inboxFixture();
+
+    $people = Employee::factory()->count(100)->create(['tenant_id' => $tenant->id]);
+    $rows = [];
+    foreach ($people as $i => $person) {
+        $person->update(['badge_number' => (string) (5000 + $i)]);
+        for ($n = 0; $n < 20; $n++) {
+            $time = Carbon::parse('2026-10-14 06:30:00', 'Africa/Addis_Ababa')->addMinutes($n * 30)->toIso8601String();
+            $rows[] = [
+                'tenant_id' => $tenant->id, 'device_id' => $device->id, 'badge' => (string) (5000 + $i),
+                'punch_type' => 'auto', 'occurred_raw' => $time,
+                'idempotency_key' => "webhook:hik:{$device->id}:".(5000 + $i).":{$time}",
+            ];
+        }
+    }
+    expect(DeviceInboundPunch::stash($rows))->toBe(2000);
+
+    $started = microtime(true);
+    $runs = 0;
+    while (DeviceInboundPunch::withoutGlobalScopes()->whereNull('processed_at')->exists()) {
+        inboxRun($device);
+        $runs++;
+        expect($runs)->toBeLessThan(200);
+    }
+    $seconds = microtime(true) - $started;
+
+    $recorded = AttendanceRecord::withoutGlobalScopes()->count();
+    $quarantined = DeviceInboundPunch::withoutGlobalScopes()->whereNotNull('failed_at')->count();
+    fwrite(STDERR, sprintf("\n[inbox drain] 2000 rows, %d runs, %.1f s, %d records, %d quarantined\n", $runs, $seconds, $recorded, $quarantined));
+
+    expect(DeviceInboundPunch::withoutGlobalScopes()->whereNull('processed_at')->count())->toBe(0)
+        ->and($runs)->toBeGreaterThan(1);
+});
