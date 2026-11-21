@@ -118,6 +118,7 @@ class SettingsController extends Controller
                 'pension_registration_number' => StatutorySchedules::setting($tenant, 'pension_registration_number'),
                 'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
                 'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
+                'employer_bank_code' => StatutorySchedules::setting($tenant, 'employer_bank_code'),
             ],
             'documents' => [
                 'letterhead_address' => StatutorySchedules::setting($tenant, 'letterhead_address'),
@@ -184,7 +185,13 @@ class SettingsController extends Controller
         $currentSettings = $tenant->settings ?? [];
         // validated(), not input(): only keys UpdateSettingsRequest names reach
         // the JSON (an unknown key is a 422 there).
-        $newSettings = array_merge($currentSettings, $request->validated('settings'));
+        $incoming = $request->validated('settings');
+        // A bank name saved without a code is typed text; the code beside it
+        // belonged to the name it replaces.
+        if (array_key_exists('employer_bank_name', $incoming) && ! array_key_exists('employer_bank_code', $incoming)) {
+            $incoming['employer_bank_code'] = null;
+        }
+        $newSettings = array_merge($currentSettings, $incoming);
         $tenant->update(['settings' => $newSettings]);
 
         AuditLog::record('settings.updated', $tenant);
