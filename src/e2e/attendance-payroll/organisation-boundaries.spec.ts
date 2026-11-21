@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { api } from "../helpers";
-import { addisDate, as, devicePunch, employeeId, minutesAgo, recordsOf } from "./support";
+import { addisDate, as, devicePunch, employeeId, minutesAgo, recordsOf, recordsWhen, unmatchedBadges } from "./support";
 
 /**
  * J10, acceptance matrix F1 to F3 and F6, through real sessions: another
@@ -22,7 +22,7 @@ test("another organisation cannot read or write this one's attendance", async ({
 
   try {
     const person = await employeeId(owner.page, "ATT-0003");
-    const [record] = await recordsOf(owner.page, person, day.from, day.to);
+    const [record] = await recordsWhen(owner.page, person, day.from, day.to, (found) => found.length > 0);
     expect(record).toBeTruthy();
 
     const devices = await api(owner.page, "GET", "/devices");
@@ -57,9 +57,13 @@ test("another organisation cannot read or write this one's attendance", async ({
     expect([403, 404, 422]).toContain(written.status);
 
     // This organisation's terminal reports a badge that exists only in the
-    // other one. The token decides whose terminal it is, so nobody is punched.
+    // other one. The token decides whose terminal it is, so nobody is punched:
+    // the queue holds the punch for a badge nobody here has.
     const otherPerson = await employeeId(stranger.page, "OTH-0001");
-    expect(await devicePunch(request, "e2e-att", "9201", "check_in", minutesAgo(60))).toBe(0);
+    expect(await devicePunch(request, "e2e-att", "9201", "check_in", minutesAgo(60))).toBe(1);
+    await expect
+      .poll(async () => (await unmatchedBadges(owner.page)).some((row) => row.badge === "9201"), { timeout: 60_000 })
+      .toBe(true);
     expect(await recordsOf(stranger.page, otherPerson, day.from, day.to)).toHaveLength(0);
 
     // Nothing above changed the record it was aimed at.

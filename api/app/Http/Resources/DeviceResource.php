@@ -68,6 +68,7 @@ class DeviceResource extends JsonResource
             'branch_public_id' => $this->branch?->public_id,
             'attendance_records_count' => $this->whenCounted('attendanceRecords'),
             'sync_logs_count' => $this->whenCounted('syncLogs'),
+            'quarantined_count' => $this->whenCounted('quarantinedPunches'),
             'latest_sync_log' => new DeviceSyncLogResource($this->whenLoaded('latestSyncLog')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

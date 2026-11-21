@@ -11,4 +11,10 @@ namespace App\Exceptions;
  * bare RuntimeException that the web, kiosk, manual and offline-sync endpoints
  * did not catch, so a forgotten check-in answered 500.
  */
-final class NoOpenCheckIn extends AttendanceRefused {}
+final class NoOpenCheckIn extends AttendanceRefused
+{
+    public function reasonCode(): string
+    {
+        return 'no_open_check_in';
+    }
+}
