@@ -23,6 +23,7 @@ export type ClockFinding =
   | { kind: "ahead"; seconds: number }
   | { kind: "behind"; seconds: number }
   | { kind: "ethiopian_time"; seconds: number }
+  | { kind: "timezone"; seconds: number }
   | { kind: "ethiopian_calendar"; seconds: number };
 
 export function clockFinding(
@@ -43,6 +44,17 @@ export function clockFinding(
     return { kind: "ethiopian_time", seconds: offset };
   }
 
+  // A whole number of hours out: the terminal is on another time zone (one
+  // shipped from China is on UTC+8, which reads five hours ahead).
+  const hours = size / 3600;
+  if (
+    hours >= 1 &&
+    hours <= 14 &&
+    Math.abs(size - Math.round(hours) * 3600) <= CLOCK_TOLERANCE_SECONDS
+  ) {
+    return { kind: "timezone", seconds: offset };
+  }
+
   return offset > 0
     ? { kind: "ahead", seconds: offset }
     : { kind: "behind", seconds: offset };
@@ -54,6 +66,7 @@ export function clockNeedsAttention(finding: ClockFinding): boolean {
     finding.kind === "ahead" ||
     finding.kind === "behind" ||
     finding.kind === "ethiopian_time" ||
+    finding.kind === "timezone" ||
     finding.kind === "ethiopian_calendar"
   );
 }

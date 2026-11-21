@@ -7886,5 +7886,7 @@
   "device_today.line": ":received ga'e, :recorded galmaa'e, :held kuufame, :quarantined ilaalcha barbaada",
   "device_allow.button": ":ip hayyami",
   "device_allow.added": ":ip teessoowwan hayyamamanitti dabalameera.",
-  "device_allow.failed": "Teessoon dabaluu hin dandeenye."
+  "device_allow.failed": "Teessoon dabaluu hin dandeenye.",
+  "adms_setup.resends": "Teerminaalichi waan hin ga'in hunda ofumaa irra deebi'ee erga. ETHR isa irraa gonkumaa hin fudhatu.",
+  "device_clock.warning_timezone": "Sa'aatiin teessoo teerminaalichaa dogoggora fakkaata. UTC+3 (Afrikaa Bahaa) irratti kaa'aa."
 }

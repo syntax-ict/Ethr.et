@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCaptureRedactor;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\HikvisionEvent;
 use App\Services\Device\WebhookRejections;
 use App\Support\HealthSignals;
 use Carbon\Carbon;
@@ -426,6 +427,7 @@ describe('the capture export', function () {
         $device = truthDevice($tenant, $branch, 'hikvision', ['connection_config' => ['mode' => 'push']]);
 
         foreach (range(1, 25) as $n) {
+            Carbon::setTestNow(now()->addMinutes(6));
             truthHikvision($tenant, truthHeartbeat('2026-11-21T12:00:00+03:00') + ['seq' => $n])->assertOk();
         }
 
@@ -451,5 +453,85 @@ describe('the redactor', function () {
         $out = (string) $redactor->raw($body);
 
         expect($out)->not->toContain('Abebe')->not->toContain('1042')->toContain('checkIn');
+    });
+});
+
+describe('capture limits and a redaction that keeps the shape', function () {
+    it('keeps one heartbeat body per device every five minutes', function () {
+        [$tenant, $branch] = truthOrganisation();
+        $device = truthDevice($tenant, $branch, 'hikvision', ['connection_config' => ['mode' => 'push']]);
+
+        foreach (range(1, 10) as $_) {
+            truthHikvision($tenant, truthHeartbeat('2026-11-21T12:00:00+03:00'))->assertOk();
+        }
+        expect(HealthSignals::store()->get('device-heartbeats:'.$device->id))->toHaveCount(1);
+
+        Carbon::setTestNow(now()->addMinutes(5)->addSecond());
+        truthHikvision($tenant, truthHeartbeat('2026-11-21T12:06:00+03:00'))->assertOk();
+        expect(HealthSignals::store()->get('device-heartbeats:'.$device->id))->toHaveCount(2);
+    });
+
+    it('keeps the last twenty access events under their own key, body only, and exports them redacted', function () {
+        Queue::fake();
+        [$tenant, $branch] = truthOrganisation();
+        $device = truthDevice($tenant, $branch, 'hikvision', ['connection_config' => ['mode' => 'push']]);
+
+        foreach (range(1, 22) as $n) {
+            test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision?token=truth-token", truthEvent((string) (5000 + $n), '2026-11-21T08:'.sprintf('%02d', $n).':00+03:00'))->assertOk();
+        }
+
+        $kept = HealthSignals::store()->get('device-events:'.$device->id);
+        expect($kept)->toHaveCount(20)->and(json_encode($kept))->not->toContain('truth-token');
+
+        captureOperator();
+        $text = test()->getJson(CAPTURE_HOST."/{$device->public_id}/capture")->assertOk()->assertJsonCount(20, 'events')->getContent();
+        expect($text)->not->toContain('Abebe')->not->toContain('5005')->not->toContain('truth-token');
+    });
+
+    it('redacts a realistic access event and leaves what the direction and time depend on', function () {
+        $redactor = new DeviceCaptureRedactor;
+        $event = [
+            'ipAddress' => '10.0.0.7', 'dateTime' => '2026-11-21T08:02:00+03:00', 'eventType' => 'AccessControllerEvent',
+            'AccessControllerEvent' => [
+                'deviceName' => 'Front', 'majorEventType' => 5, 'subEventType' => 75, 'name' => 'Abebe Kebede',
+                'cardNo' => '0099887766', 'cardType' => 1, 'cardReaderNo' => 1, 'doorNo' => 1, 'verifyNo' => 4321,
+                'serialNo' => 77, 'currentVerifyMode' => 'cardOrFaceOrFp', 'attendanceStatus' => 'checkOut',
+                'label' => 'Check Out', 'employeeNoString' => '1042', 'userType' => 'normal', 'mask' => 'no',
+            ],
+        ];
+
+        $out = json_decode((string) $redactor->raw(json_encode($event)), true);
+
+        expect(json_encode($out))->not->toContain('Abebe')->not->toContain('1042')->not->toContain('0099887766');
+        $kept = $out['AccessControllerEvent'];
+        foreach (['cardReaderNo' => 1, 'cardType' => 1, 'verifyNo' => 4321, 'serialNo' => 77, 'currentVerifyMode' => 'cardOrFaceOrFp', 'attendanceStatus' => 'checkOut', 'majorEventType' => 5, 'subEventType' => 75, 'label' => 'Check Out'] as $key => $value) {
+            expect($kept[$key])->toBe($value);
+        }
+
+        $before = HikvisionEvent::fromNotification($event);
+        $after = HikvisionEvent::fromNotification($out);
+        expect(HikvisionEvent::direction($after))->toBe(HikvisionEvent::direction($before))->toBe('check_out')
+            ->and($after['time'])->toBe($before['time']);
+    });
+});
+
+describe('a terminal that only sends has nothing to pull', function () {
+    it('refuses Pull and Import history with 422, and says the terminal is not pulled', function () {
+        Queue::fake();
+        [$tenant, $branch] = truthOrganisation();
+        $admin = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $adms = truthDevice($tenant, $branch, 'zkteco_adms', ['serial_number' => 'S-NP']);
+        $pulledDevice = truthDevice($tenant, $branch, 'generic', ['webhook_token' => 'gen-np']);
+
+        truthApi($tenant, 'GET', $adms->public_id)->assertOk()->assertJsonPath('pulled', false)->assertJsonPath('receives_only', false);
+        truthApi($tenant, 'GET', $pulledDevice->public_id)->assertOk()->assertJsonPath('pulled', true);
+
+        truthApi($tenant, 'POST', "{$adms->public_id}/pull")->assertUnprocessable()->assertJsonValidationErrors('device');
+        truthApi($tenant, 'POST', "{$adms->public_id}/import-history", ['window' => 'last_30'])->assertUnprocessable();
+        Queue::assertNotPushed(PullDeviceEventsJob::class);
+
+        truthApi($tenant, 'POST', "{$pulledDevice->public_id}/pull")->assertOk();
+        Queue::assertPushed(PullDeviceEventsJob::class);
+        expect($admin->exists)->toBeTrue();
     });
 });

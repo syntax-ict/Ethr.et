@@ -7886,5 +7886,7 @@
   "device_today.line": ":received received, :recorded recorded, :held held, :quarantined need a look",
   "device_allow.button": "Allow :ip",
   "device_allow.added": ":ip was added to the allowed addresses.",
-  "device_allow.failed": "The address could not be added."
+  "device_allow.failed": "The address could not be added.",
+  "adms_setup.resends": "The terminal sends again, by itself, whatever it has not delivered. ETHR never pulls from it.",
+  "device_clock.warning_timezone": "The terminal's time zone looks wrong. Set it to UTC+3 (East Africa)."
 }

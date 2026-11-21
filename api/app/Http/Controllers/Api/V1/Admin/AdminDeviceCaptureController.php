@@ -68,10 +68,19 @@ class AdminDeviceCaptureController extends Controller
             HeartbeatCapture::all($device),
         );
 
+        $events = array_map(
+            fn (array $event): array => [
+                'at' => $event['at'],
+                'body' => $redactor->raw($event['body']),
+            ],
+            HeartbeatCapture::events($device),
+        );
+
         AuditLog::record('platform.device_capture_exported', $device, [
             'device' => $device->public_id,
             'rows' => count($rows),
             'heartbeats' => count($heartbeats),
+            'events' => count($events),
         ]);
 
         return response()->json([
@@ -82,6 +91,7 @@ class AdminDeviceCaptureController extends Controller
             'redacted' => true,
             'inbox' => $rows,
             'heartbeats' => $heartbeats,
+            'events' => $events,
         ]);
     }
 }

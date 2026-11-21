@@ -33,6 +33,7 @@ import {
   useSetDeviceTime,
   useTestDeviceConnection,
   type Device,
+  isPulled,
 } from "@/features/devices/api";
 import { syncErrorHintKeys } from "@/features/devices/components/device-heard";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -94,6 +95,7 @@ export function DeviceActionsMenu({
 
   const id = device.public_id;
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
   const takesCommands =
     device.accepts_commands === true && device.commands_enabled === true;
 
@@ -183,7 +185,7 @@ export function DeviceActionsMenu({
         {t("devices_page.test_connection")}
       </DropdownMenuItem>
     ),
-    !sendsOnly && canUpdate && (
+    pulled && canUpdate && (
       <DropdownMenuItem
         key="pull"
         onSelect={onPull ?? ownPull}
@@ -221,7 +223,7 @@ export function DeviceActionsMenu({
         {t("devices_page.discover_users", "Discover enrolled users")}
       </DropdownMenuItem>
     ),
-    !sendsOnly && canUpdate && onImportHistory && (
+    pulled && canUpdate && onImportHistory && (
       <DropdownMenuItem key="history" onSelect={onImportHistory}>
         <History className={icon} aria-hidden="true" />
         {t("devices_page.import_history", "Import attendance history")}

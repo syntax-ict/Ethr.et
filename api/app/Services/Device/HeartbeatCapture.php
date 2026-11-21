@@ -28,22 +28,49 @@ final class HeartbeatCapture
 
     public const TTL_HOURS = 24;
 
+    /** A heartbeat is kept at most this often per device: a terminal sends one every few seconds. */
+    public const HEARTBEAT_EVERY_SECONDS = 300;
+
+    /** The terminal sent a notification that is not an access event. At most one per five minutes is kept. */
     public static function note(Device $device, Request $request): void
     {
         try {
-            $key = self::key($device->id);
-            $kept = HealthSignals::store()->get($key);
-            $kept = is_array($kept) ? $kept : [];
+            $store = HealthSignals::store();
+            if (! $store->add('device-heartbeats:last:'.$device->id, 1, self::HEARTBEAT_EVERY_SECONDS)) {
+                return;
+            }
 
-            $kept[] = [
-                'at' => now()->toIso8601String(),
-                'body' => DeviceInboundPunch::capRaw(self::body($request)),
-            ];
-
-            HealthSignals::store()->put($key, array_slice($kept, -self::KEEP), now()->addHours(self::TTL_HOURS));
+            self::keep(self::key($device->id), $request);
         } catch (\Throwable) {
             // A downed cache must not turn an acknowledged post into a 500.
         }
+    }
+
+    /**
+     * The terminal sent an access event. Plain events are kept (the inbox clears
+     * `raw` once a row is handled), the last 20 per device under their own key.
+     */
+    public static function noteEvent(Device $device, Request $request): void
+    {
+        try {
+            self::keep(self::eventsKey($device->id), $request);
+        } catch (\Throwable) {
+            // As above.
+        }
+    }
+
+    private static function keep(string $key, Request $request): void
+    {
+        $store = HealthSignals::store();
+        $kept = $store->get($key);
+        $kept = is_array($kept) ? $kept : [];
+
+        $kept[] = [
+            'at' => now()->toIso8601String(),
+            'body' => DeviceInboundPunch::capRaw(self::body($request)),
+        ];
+
+        $store->put($key, array_slice($kept, -self::KEEP), now()->addHours(self::TTL_HOURS));
     }
 
     /** What the terminal posted, without the query string where its token travels. */
@@ -55,13 +82,30 @@ final class HeartbeatCapture
     /** @return list<array{at: string, body: string|null}> */
     public static function all(Device $device): array
     {
+        return self::read(self::key($device->id));
+    }
+
+    /** @return list<array{at: string, body: string|null}> */
+    public static function events(Device $device): array
+    {
+        return self::read(self::eventsKey($device->id));
+    }
+
+    /** @return list<array{at: string, body: string|null}> */
+    private static function read(string $key): array
+    {
         try {
-            $kept = HealthSignals::store()->get(self::key($device->id));
+            $kept = HealthSignals::store()->get($key);
         } catch (\Throwable) {
             return [];
         }
 
         return is_array($kept) ? array_values($kept) : [];
+    }
+
+    private static function eventsKey(int $deviceId): string
+    {
+        return 'device-events:'.$deviceId;
     }
 
     private static function key(int $deviceId): string

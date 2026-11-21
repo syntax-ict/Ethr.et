@@ -327,6 +327,7 @@ class DeviceController extends Controller
     public function pull(Request $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
 
@@ -336,9 +337,18 @@ class DeviceController extends Controller
         ]);
     }
 
+    /** A terminal that only sends is never pulled: a job queued for it would do nothing. */
+    private function refuseWhenNothingToPull(Device $device): void
+    {
+        if (DeviceManager::receivesOnly($device)) {
+            throw ValidationException::withMessages(['device' => __('device.not_pulled')]);
+        }
+    }
+
     public function importHistory(ImportHistoryRequest $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         // Resolve the backfill start. `full` passes no `since`, letting the
         // adapter return the earliest history it retains.
@@ -625,6 +635,8 @@ class DeviceController extends Controller
 
             return response()->json(['status' => 'ignored'], 200);
         }
+
+        HeartbeatCapture::noteEvent($device, $request);
 
         $badge = HikvisionEvent::badge($event);
         $timestamp = $event['time'] ?? null;

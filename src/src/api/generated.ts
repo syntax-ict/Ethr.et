@@ -10292,6 +10292,7 @@ export interface components {
             commands_enabled: boolean;
             accepts_commands: boolean;
             receives_only: boolean;
+            pulled: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];

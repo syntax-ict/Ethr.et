@@ -24,9 +24,9 @@ namespace App\Services\Device;
  */
 final class DeviceCaptureRedactor
 {
-    private const PERSON = '/(name|username|personname|cardholder|surname|firstname|lastname|fullname)$/i';
+    private const PERSON = '/^(name|username|personname|firstname|lastname|fullname|surname|cardholder)$/i';
 
-    private const BADGE = '/(employeeno|badge|cardno|cardnumber|card|pin|userid|personid|verifyno|workno|idcard|idnumber)/i';
+    private const BADGE = '/^(employeeno|employeenostring|cardno|cardnumber|pin|badge|userid|personid|workno|idcard|idnumber)$/i';
 
     private const BINARY = '/(face|photo|picture|image|snapshot|template|fingerprint|biometric|base64|capture)/i';
 

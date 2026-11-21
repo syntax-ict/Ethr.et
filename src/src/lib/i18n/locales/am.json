@@ -7886,5 +7886,7 @@
   "device_today.line": ":received ደርሰዋል፣ :recorded ተመዝግበዋል፣ :held ተይዘዋል፣ :quarantined ትኩረት ይሹ",
   "device_allow.button": ":ip ፍቀድ",
   "device_allow.added": ":ip ወደ ተፈቀዱ አድራሻዎች ተጨምሯል።",
-  "device_allow.failed": "አድራሻው ሊጨመር አልቻለም።"
+  "device_allow.failed": "አድራሻው ሊጨመር አልቻለም።",
+  "adms_setup.resends": "መሣሪያው ያላደረሰውን ሁሉ በራሱ እንደገና ይልካል። ETHR ከእሱ በጭራሽ አይጎትትም።",
+  "device_clock.warning_timezone": "የመሣሪያው የሰዓት ሰቅ የተሳሳተ ይመስላል። ወደ UTC+3 (ምሥራቅ አፍሪካ) ያስቀምጡት።"
 }

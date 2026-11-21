@@ -38,6 +38,9 @@ export function AdmsSetupCard({ device }: { device: Device }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("adms_setup.where")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("adms_setup.resends")}
+        </p>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
           {rows.map(([label, value, typed]) => (
             <div key={label} className="contents">

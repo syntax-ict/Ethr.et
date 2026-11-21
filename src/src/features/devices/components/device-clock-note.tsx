@@ -85,6 +85,9 @@ export function DeviceClockNote({
         {finding.kind === "ethiopian_time" && (
           <p>{t("device_clock.hint_ethiopian_time")}</p>
         )}
+        {finding.kind === "timezone" && (
+          <p>{t("device_clock.warning_timezone")}</p>
+        )}
         {finding.kind === "ethiopian_calendar" && (
           <p>{t("device_clock.hint_ethiopian_calendar")}</p>
         )}

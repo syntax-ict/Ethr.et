@@ -40,6 +40,7 @@ class DeviceResource extends JsonResource
             'commands_enabled' => (bool) $this->commands_enabled,
             'accepts_commands' => (bool) app(DeviceCommandQueue::class)->supports($this->resource),
             'receives_only' => DeviceManager::hasNoRoster($this->resource),
+            'pulled' => ! DeviceManager::receivesOnly($this->resource),
             'sync_interval_minutes' => $this->sync_interval_minutes,
             'timezone' => $this->timezone,
             'webhook_ip_allowlist' => $this->when(

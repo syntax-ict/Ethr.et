@@ -25,7 +25,17 @@ describe("clockFinding", () => {
     expect(clockFinding(6 * HOUR + 1799, true).kind).toBe("ethiopian_time");
     expect(clockFinding(6 * HOUR - 1800, true).kind).toBe("ethiopian_time");
     expect(clockFinding(6 * HOUR + 1801, true).kind).toBe("ahead");
-    expect(clockFinding(3 * HOUR, true).kind).toBe("ahead");
+    expect(clockFinding(3 * HOUR + 900, true).kind).toBe("ahead");
+  });
+
+  it("calls a whole number of hours out, other than six, a wrong time zone", () => {
+    expect(clockFinding(5 * HOUR, true).kind).toBe("timezone");
+    expect(clockFinding(-3 * HOUR, true).kind).toBe("timezone");
+    expect(clockFinding(5 * HOUR + 100, true).kind).toBe("timezone");
+    expect(clockFinding(5 * HOUR + 600, true).kind).toBe("ahead");
+    expect(clockFinding(6 * HOUR, true).kind).toBe("ethiopian_time");
+    expect(clockFinding(-6 * HOUR, true).kind).toBe("ethiopian_time");
+    expect(clockFinding(15 * HOUR, true).kind).toBe("ahead");
   });
 
   it("calls a year or more the Ethiopian calendar", () => {
@@ -61,6 +71,19 @@ describe("DeviceClockNote", () => {
     expect(screen.getByRole("status").textContent).toMatch(/6 hours ahead/);
     expect(screen.getByRole("status").textContent).toMatch(/24-hour clock/);
     expect(screen.getByRole("status").textContent).toMatch(/NTP/);
+  });
+
+  it("tells a terminal on the wrong time zone to set UTC+3", () => {
+    render(
+      <DeviceClockNote
+        device={{ clock_offset_seconds: 5 * HOUR, clock_measurable: true }}
+      />,
+    );
+
+    expect(screen.getByRole("status").textContent).toMatch(/5 hours ahead/);
+    expect(screen.getByRole("status").textContent).toMatch(
+      /UTC\+3 \(East Africa\)/,
+    );
   });
 
   it("names the Ethiopian calendar for a date years out", () => {

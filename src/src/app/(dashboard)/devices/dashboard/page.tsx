@@ -30,6 +30,7 @@ import {
   useDeviceDashboard,
   useDevices,
   type Device,
+  isPulled,
 } from "@/features/devices/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
@@ -63,7 +64,7 @@ export default function DeviceDashboardPage() {
 
   // Sync logs are written only when ETHR pulls from a device, so for a
   // terminal that only sends the card would be four zeros that mean nothing.
-  const anyPulled = allDevices.some((d) => d.receives_only !== true);
+  const anyPulled = allDevices.some((d) => isPulled(d));
 
   return (
     <RoleGate anyPermission={["viewDevices"]}>

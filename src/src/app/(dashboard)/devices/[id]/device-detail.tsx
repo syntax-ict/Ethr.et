@@ -81,6 +81,7 @@ import {
   type DeviceEvent,
   type DeviceSyncLog,
   type DeviceUpdate,
+  isPulled,
 } from "@/features/devices/api";
 import {
   deviceStatusBadgeClass,
@@ -279,6 +280,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const isOnline = device.status === "online";
   // Never called, so nothing to test or pull: see DeviceHeardLine.
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
   const finding = clockFinding(
     device.clock_offset_seconds ?? null,
     device.clock_measurable ?? null,
@@ -316,7 +318,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ` · ${device.location_description}`}
               {device.branch?.name && ` · ${device.branch.name}`}
             </p>
-            {sendsOnly && (
+            {!pulled && (
               <div className="mt-2 text-sm text-muted-foreground">
                 <DeviceHeardLine device={device} />
                 <DeviceKeepAliveLine
@@ -346,23 +348,21 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </Button>
             )}
             {/* A terminal that pushes its punches (ADMS, or a Hikvision on the office network) has nothing to pull. */}
-            {canUpdate &&
-              device.adapter_type !== "zkteco_adms" &&
-              !sendsOnly && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={pull}
-                  disabled={pullMutation.isPending}
-                >
-                  {pullMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  {t("devices_page.pull")}
-                </Button>
-              )}
+            {canUpdate && pulled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={pull}
+                disabled={pullMutation.isPending}
+              >
+                {pullMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {t("devices_page.pull")}
+              </Button>
+            )}
             {canUpdate && (
               <Button
                 variant="outline"
@@ -415,7 +415,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 : t("devices_page.never")
             }
           />
-          {!sendsOnly && (
+          {pulled && (
             <InfoCard
               icon={isOnline ? Wifi : WifiOff}
               label={t("device_detail_page.auto_sync")}
@@ -1107,7 +1107,7 @@ function EditDeviceDialog({
           </div>
           <div
             className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr}
+            hidden={sendsToEthr || !isPulled(device)}
           >
             <div>
               <p className="text-sm font-medium">
@@ -1140,7 +1140,7 @@ function EditDeviceDialog({
               />
             </div>
           )}
-          {form.auto_sync && !sendsToEthr && (
+          {form.auto_sync && !sendsToEthr && isPulled(device) && (
             <div>
               <Label htmlFor="sync-interval">
                 {t("device_detail_page.sync_interval")}

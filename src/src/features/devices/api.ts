@@ -87,6 +87,17 @@ function isPoll(
   );
 }
 
+/**
+ * Whether ETHR pulls from this device. False for a terminal that only sends,
+ * which includes ADMS: its sync, pull and history controls would do nothing.
+ * A response without the field is read from `receives_only`.
+ */
+export function isPulled(
+  device: Pick<Device, "pulled" | "receives_only">,
+): boolean {
+  return device.pulled ?? device.receives_only !== true;
+}
+
 export function useDevices(
   params?: DeviceListParams,
   options?: { refetchInterval?: number },

@@ -49349,6 +49349,9 @@
                     "receives_only": {
                         "type": "boolean"
                     },
+                    "pulled": {
+                        "type": "boolean"
+                    },
                     "sync_interval_minutes": {
                         "type": "integer"
                     },
@@ -49568,6 +49571,7 @@
                     "commands_enabled",
                     "accepts_commands",
                     "receives_only",
+                    "pulled",
                     "sync_interval_minutes",
                     "timezone",
                     "last_sync_at",
