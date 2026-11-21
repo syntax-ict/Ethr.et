@@ -100,6 +100,21 @@ describe("<DeviceActionsMenu>", () => {
     expect(screen.queryByText(/ETHR cannot call it/i)).not.toBeInTheDocument();
   });
 
+  it("offers an ADMS terminal its users but no pull and no history, since ETHR never pulls from it", async () => {
+    const user = userEvent.setup();
+    renderMenu({
+      ...PULLED,
+      adapter_type: "zkteco_adms",
+      receives_only: false,
+      pulled: false,
+    } as unknown as Device);
+    await openMenu(user);
+
+    expect(item(/discover enrolled users/i)).toBeInTheDocument();
+    expect(item(/pull records/i)).not.toBeInTheDocument();
+    expect(item(/import attendance history/i)).not.toBeInTheDocument();
+  });
+
   it("offers a terminal that only sends no test, pull, users or history, and says why", async () => {
     const user = userEvent.setup();
     renderMenu(SENDS);
