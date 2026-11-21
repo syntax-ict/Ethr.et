@@ -31,7 +31,7 @@ use Illuminate\Support\Str;
 /**
  * A change to pay that reaches back into a month already released records the
  * difference for finance, and the next approval must acknowledge it
- * (docs/audit/BASELINE.md §25x).
+ * (docs/audit/BASELINE.md §25y).
  */
 afterEach(function () {
     IlluminateCarbon::setTestNow();
