@@ -43,6 +43,7 @@ import { LifecycleTab } from "@/features/employees/components/lifecycle-tab";
 import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
+import { useGenderLabel } from "@/lib/options/gender";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
@@ -94,6 +95,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
+  const genderText = useGenderLabel();
   const { formatDate } = useDateFormatters();
   const {
     data: employee,
@@ -466,7 +468,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                     {employee.gender && (
                       <InfoRow
                         label={t("employee.detail.gender", "Gender")}
-                        value={employee.gender}
+                        value={genderText(employee.gender)}
                       />
                     )}
                   </>

@@ -161,4 +161,41 @@ describe("<EducationTab>", () => {
     expect(bodies[0]).not.toHaveProperty("end_year");
     expect(bodies[0]).not.toHaveProperty("gpa");
   });
+
+  it("sends the level picked beside the degree title, and none when none is picked", async () => {
+    server.use(http.get(EDUCATION_URL, () => HttpResponse.json([])));
+    const bodies: Array<Record<string, unknown>> = [];
+    server.use(
+      http.post(EDUCATION_URL, async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(buildEducation(), { status: 201 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderTab();
+
+    for (const pick of ["Bachelor's degree", null]) {
+      await user.click(await screen.findByRole("button", { name: /Add/ }));
+      const dialog = await screen.findByRole("dialog");
+      await user.type(within(dialog).getByLabelText(/Institution/), "AAU");
+      await user.type(
+        within(dialog).getByLabelText(/Degree/),
+        "BSc Accounting",
+      );
+      if (pick) {
+        await user.click(within(dialog).getByRole("combobox"));
+        await user.click(await screen.findByRole("option", { name: pick }));
+      }
+      await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    }
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toMatchObject({
+      degree: "BSc Accounting",
+      level: "bachelor",
+    });
+    expect(bodies[1]).not.toHaveProperty("level");
+  });
 });

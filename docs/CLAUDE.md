@@ -134,6 +134,8 @@ These are hard constraints on every slice. No exceptions.
 | 14 | Soft delete policy | Follow the entity-level soft delete policy in this document. Never hard-delete employees, attendance, payroll, or audit logs. |
 | 15 | File content verification | After upload, verify file magic bytes match declared content-type. Strip EXIF from images. |
 
+**Closed lists have one home.** A choice the code branches on — gender, marital status, relationship, education level, nationality status — is a PHP enum in `api/app/Enums/` validated with `Rule::enum()`, and one module in `src/src/lib/options/` that the forms, reports and labels all read. Never write `in:single,married,...` or a list of `<SelectItem>`s again. `Scramble` carries the enum into `generated.ts`, and `lib/options/contract.ts` fails to compile when a list drifts from it. A new value needs its label key in `en`, `am` and `om`: `src/test/option-lists.test.ts` checks every value, because the i18n gate cannot see a key built in a function. Open lists that grow (regions, towns, banks) are rows in `reference_items` instead (BASELINE §25y).
+
 > **Two things learned writing that gate, both worth more than the gate.**
 >
 > **The check is tokenised, and the first draft was wrong.** It matched any

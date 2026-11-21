@@ -25,6 +25,7 @@ class EmployeeEducation extends Model
         'employee_id',
         'institution',
         'degree',
+        'level',
         'field_of_study',
         'start_date',
         'end_date',

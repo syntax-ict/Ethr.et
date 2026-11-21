@@ -38,6 +38,7 @@ import {
 } from "@/features/profile/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { genderOptionLabel } from "@/lib/options/gender";
 import { toast } from "sonner";
 
 /** Matches the server rule on POST /profile/photo. */
@@ -247,8 +248,9 @@ function ProfileOverview({
               <InfoRow
                 icon={User}
                 label={t("employee.detail.gender", "Gender")}
-                value={employee.gender ?? "—"}
-                className="capitalize"
+                value={
+                  employee.gender ? genderOptionLabel(t, employee.gender) : "—"
+                }
               />
               <InfoRow
                 icon={Building2}

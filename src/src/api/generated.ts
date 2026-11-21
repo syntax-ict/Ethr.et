@@ -10337,11 +10337,18 @@ export interface components {
             device_public_id: string;
             badge: string;
         };
+        /**
+         * EducationLevel
+         * @description The level of an education record, from the Ethiopian school ladder. `degree` stays the free-text title ("BSc Accounting"); this is the level it sits at, so a report can count graduates without parsing titles.
+         * @enum {string}
+         */
+        EducationLevel: "primary" | "secondary" | "preparatory" | "certificate" | "diploma" | "bachelor" | "master" | "doctorate" | "other";
         /** EducationResource */
         EducationResource: {
             public_id: string;
             institution: string;
             degree: string;
+            level: string;
             field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;
@@ -10630,6 +10637,12 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        /**
+         * Gender
+         * @description The genders the employee record stores. Two, because leave rules (`gender_restriction`) and the statutory reports branch on them; an employee whose gender was never recorded has none, not a third value.
+         * @enum {string}
+         */
+        Gender: "male" | "female";
         /** GenerateReportRequest */
         GenerateReportRequest: {
             /** @enum {string} */
@@ -11122,6 +11135,12 @@ export interface components {
             check_out?: string | null;
             reason: string;
         };
+        /**
+         * MaritalStatus
+         * @description The marital statuses the employee record stores.
+         * @enum {string}
+         */
+        MaritalStatus: "single" | "married" | "divorced" | "widowed";
         /** MarkPayrollRunPaidRequest */
         MarkPayrollRunPaidRequest: {
             /** Format: date */
@@ -12574,6 +12593,7 @@ export interface components {
         StoreEducationRequest: {
             institution: string;
             degree: string;
+            level?: components["schemas"]["EducationLevel"] | null;
             field_of_study?: string | null;
             /** Format: date-time */
             start_date?: string | null;
@@ -12610,8 +12630,7 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
@@ -12621,8 +12640,7 @@ export interface components {
              *     import and device sync (see IDENTITY_RESOLUTION.md).
              */
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             hire_date: string;
@@ -12711,8 +12729,7 @@ export interface components {
             min_notice_days?: number | null;
             max_consecutive?: number | null;
             is_paid?: boolean | null;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number | null;
         };
         /** StoreLetterRequest */
@@ -13408,15 +13425,13 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
             nationality_status?: components["schemas"]["NationalityStatus"] | null;
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             /** Format: date-time */
             hire_date?: string;
             /** Format: date-time */
@@ -13619,8 +13634,7 @@ export interface components {
             max_consecutive?: number | null;
             is_paid?: boolean;
             is_active?: boolean;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number;
         };
         /**
@@ -13803,8 +13817,7 @@ export interface components {
         UpdateProfileRequest: {
             /** @description Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS. */
             phone?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             nationality?: string | null;
             /**
              * @description Shorthand for the primary emergency contact. The full list is managed
