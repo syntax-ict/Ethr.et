@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
+use App\Http\Controllers\Api\V1\Employee\BankDetailController;
 use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController;
+use App\Http\Controllers\Api\V1\Onboarding\MigrationController;
+use App\Http\Controllers\Api\V1\Payroll\PayrollController;
+use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\User\StartingPasswordController;
 use App\Services\Auth\ImpersonationToken;
@@ -36,7 +41,20 @@ class BlockImpersonatedActions
         // operator does not have, but that is the only thing in the way:
         // this refuses by name, as it does for the address above.
         StartingPasswordController::class.'@store',
+        // Pay is released and paid by the organisation, never by the platform.
+        // The domain code refuses these too (PayrollEngine, BankExportService,
+        // EmployeeBankDetail), so a route added later is covered; naming them
+        // here refuses before any work and says which action it was.
+        PayrollController::class.'@approve',
+        PayrollController::class.'@markPaid',
+        PayrollController::class.'@bankExport',
+        PayrollController::class.'@downloadBankExport',
+        BankDetailController::class.'@store',
+        BankDetailController::class.'@update',
     ];
+
+    /** The columns of a staged person that name a bank account. */
+    private const BANK_COLUMNS = ['bank_name', 'bank_branch', 'bank_account'];
 
     /**
      * Actions an operator may use, except for the fields named here.
@@ -65,6 +83,7 @@ class BlockImpersonatedActions
                 static fn (string $key): string => 'settings.'.$key,
                 array_values(StatutorySettingsBridge::SETTINGS),
             ),
+            ProfileController::class.'@update' => ['bank_name', 'bank_account_number'],
             // The setup wizard's apply writes the same two things by another
             // route: the kind, and plan.settings, which is held to what
             // PUT /settings may write. Its screen always sends the kind, so an
@@ -82,31 +101,77 @@ class BlockImpersonatedActions
 
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $request->user()?->currentAccessToken();
-
         // Sanctum's can() treats '*' as matching any ability, so a normal
-        // token (abilities: ['*']) would also match 'impersonation'. Check
-        // the abilities list directly instead of via can().
-        if ($token && in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
+        // token (abilities: ['*']) would also match 'impersonation'.
+        // sessionActive() checks the abilities list directly instead.
+        if (ImpersonationToken::sessionActive($request->user())) {
             $action = $request->route()?->getActionName();
 
-            if ($request->isMethod('delete') || in_array($action, self::BLOCKED_ACTIONS, true) || $this->carriesBlockedField($request, $action)) {
-                return response()->json([
-                    'type' => 'https://ethr.et/errors/impersonation-restricted',
-                    'title' => 'Action Restricted',
-                    'status' => 403,
-                    'detail' => __('auth.impersonation_restricted'),
-                ], 403)->header('Content-Type', 'application/problem+json');
+            if ($request->isMethod('delete') || in_array($action, self::BLOCKED_ACTIONS, true)) {
+                throw new ImpersonationRestricted($action ?? $request->method());
+            }
+
+            $fields = $this->blockedFieldsCarried($request, $action);
+            if ($fields !== []) {
+                throw new ImpersonationRestricted((string) $action, $fields);
             }
         }
 
         return $next($request);
     }
 
-    private function carriesBlockedField(Request $request, ?string $action): bool
+    /**
+     * The refused fields this request carries, by name.
+     *
+     * @return list<string>
+     */
+    private function blockedFieldsCarried(Request $request, ?string $action): array
     {
-        $fields = $action === null ? null : (self::blockedFields()[$action] ?? null);
+        if ($action === null) {
+            return [];
+        }
 
-        return $fields !== null && $request->hasAny($fields);
+        $named = array_values(array_filter(
+            self::blockedFields()[$action] ?? [],
+            static fn (string $field): bool => $request->has($field),
+        ));
+
+        return [...$named, ...$this->bankColumnsCarried($request, $action)];
+    }
+
+    /**
+     * Bank columns inside the rows of a staged list, or the accepted
+     * differences of a reviewed one. Request::has() does not expand
+     * `rows.*.bank_name`, so the rows are read. A list read from a grid is
+     * not visible here, by column name; its commit is refused instead, where
+     * the staged rows are (WorkforceMigrationService::commitSlice).
+     *
+     * @return list<string>
+     */
+    private function bankColumnsCarried(Request $request, string $action): array
+    {
+        if ($action === MigrationController::class.'@stageFromRows') {
+            $found = [];
+            foreach ((array) $request->input('rows', []) as $row) {
+                foreach (self::BANK_COLUMNS as $column) {
+                    if (is_array($row) && isset($row[$column]) && trim((string) (is_scalar($row[$column]) ? $row[$column] : 'x')) !== '') {
+                        $found[$column] = true;
+                    }
+                }
+            }
+
+            return array_map(static fn (string $column): string => 'rows.*.'.$column, array_keys($found));
+        }
+
+        if ($action === MigrationController::class.'@updateRow') {
+            $accepted = array_map('strval', array_filter((array) $request->input('accept', []), 'is_scalar'));
+
+            return array_map(
+                static fn (string $field): string => 'accept.'.$field,
+                array_values(array_intersect($accepted, ['bank', ...self::BANK_COLUMNS])),
+            );
+        }
+
+        return [];
     }
 }

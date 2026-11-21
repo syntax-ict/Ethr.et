@@ -71,6 +71,8 @@ class E2eAttendanceSeeder extends Seeder
                 ['code' => 'ATT-0004', 'name' => 'Mulu Girma', 'badge' => '9004', 'login' => 'emp4', 'salary_cents' => 1500000],
                 // The only person at the Annex, the one branch with a place on the map: the presence-check journey.
                 ['code' => 'ATT-0005', 'name' => 'Lemlem Tadesse', 'badge' => '9005', 'login' => 'emp5', 'salary_cents' => 1500000, 'branch' => 'annex'],
+                // The offline-punch journey's: saves a punch with no signal, then reads it back.
+                ['code' => 'ATT-0006', 'name' => 'Birtukan Assefa', 'badge' => '9006', 'login' => 'emp6', 'salary_cents' => 1500000],
             ],
             'staff' => ['admin' => UserRole::TENANT_ADMIN],
             'annex' => true,

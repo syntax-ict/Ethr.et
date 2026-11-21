@@ -13,6 +13,9 @@
 // removes the copies v4 already kept. Later the same day, stored API answers
 // gained a one-week limit (API_MAX_AGE_MS); copies without a stamp count as
 // expired, so no version change was needed to retire them.
+// Also v5, from 2026-11-21, with no version change (that would empty the offline
+// shell on every phone): /_next/static copies are stamped, and the ones no
+// stored page names and nobody has used for 30 days are pruned (pruneStatic).
 const CACHE_VERSION = 'ethr-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -45,6 +48,14 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const STORED_AT_HEADER = 'X-ETHR-Stored-At';
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
 let lastSweep = 0;
+
+// Every release adds hashed chunks under /_next/static and nothing removed the
+// old ones, so a phone's storage grew with each release. A chunk is deleted only
+// when no stored page or page payload names it and it has gone unused this long.
+// A use older than a day is stamped again, so a chunk in use never looks idle.
+const ASSET_MAX_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
+const ASSET_TOUCH_MS = 24 * 60 * 60 * 1000;
+const STATIC_ASSET_PATTERN = /\/_next\/static\/[^"'\s\\)]+/g;
 
 function neverCached(pathname) {
   if (OFFLINE_PAY_API.some(path => pathname === path)) return false;
@@ -82,7 +93,7 @@ self.addEventListener('activate', (event) => {
           .filter(k => k.startsWith('ethr-') && k !== STATIC_CACHE && k !== API_CACHE)
           .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => pruneStatic().catch(() => {})).then(() => self.clients.claim())
   );
 });
 
@@ -114,7 +125,7 @@ self.addEventListener('fetch', (event) => {
 
   // Next.js _next/static: cache-first (immutable)
   if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    event.respondWith(cacheFirst(request, STATIC_CACHE, event));
     return;
   }
 
@@ -180,9 +191,12 @@ async function storePage(cache, key, response) {
   if (!response.ok || response.redirected) return;
 
   const html = await response.clone().text();
-  const assets = [...new Set(html.match(/\/_next\/static\/[^"'\s\\)]+/g) || [])];
+  const assets = [...new Set(html.match(STATIC_ASSET_PATTERN) || [])];
   const stored = await Promise.allSettled(assets.map(async (asset) => {
-    if (!(await cache.match(asset))) await cache.add(asset);
+    if (await cache.match(asset)) return;
+    const fetched = await fetch(asset);
+    if (!fetched.ok) throw new Error('asset not stored: ' + asset);
+    await cache.put(asset, await stamped(fetched));
   }));
 
   if (stored.every(result => result.status === 'fulfilled')) {
@@ -219,6 +233,44 @@ async function refreshShellIfStale() {
   const cachedAt = stamp ? Number(await stamp.text()) : 0;
   if (Date.now() - cachedAt < SHELL_REFRESH_MS) return;
   await cacheShell();
+  // After the shell, so the pages just stored already name the chunks they use.
+  await pruneStatic();
+}
+
+// Deletes the /_next/static copies that no stored page names and nobody has
+// used for ASSET_MAX_IDLE_MS. A copy with no stamp was stored before stamps
+// existed, so its age is unknown and it may belong to the current release's
+// lazy chunks: it is stamped now and given the full period instead.
+async function pruneStatic() {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    const requests = await cache.keys();
+    const isAsset = (request) => new URL(request.url).pathname.startsWith('/_next/static/');
+
+    // Every chunk a stored page or page payload still asks for.
+    const named = new Set();
+    for (const request of requests) {
+      const pathname = new URL(request.url).pathname;
+      if (isAsset(request) || pathname === SHELL_STAMP) continue;
+      const response = await cache.match(request);
+      if (!response) continue;
+      for (const asset of (await response.text()).match(STATIC_ASSET_PATTERN) || []) named.add(asset);
+    }
+
+    for (const request of requests) {
+      if (!isAsset(request)) continue;
+      const response = await cache.match(request);
+      if (!response) continue;
+      const storedAt = Number(response.headers.get(STORED_AT_HEADER));
+      if (!storedAt) {
+        await cache.put(request, await stamped(response));
+      } else if (!named.has(new URL(request.url).pathname) && Date.now() - storedAt > ASSET_MAX_IDLE_MS) {
+        await cache.delete(request);
+      }
+    }
+  } catch {
+    // Cache Storage refused; the next refresh tries again.
+  }
 }
 
 // ── Background Sync: flush offline attendance queue ───────────────────────────
@@ -593,11 +645,29 @@ async function sweepExpired(cache) {
   }
 }
 
-async function cacheFirst(request, cacheName) {
+async function cacheFirst(request, cacheName, event) {
   const cached = await caches.match(request);
-  if (cached) return cached;
+  if (cached) {
+    // The copy is served as it is; recording the use happens beside it and
+    // never delays or breaks the answer.
+    const touch = touchAsset(request, cacheName, cached.clone()).catch(() => {});
+    if (event && event.waitUntil) event.waitUntil(touch);
+    return cached;
+  }
   const cache = await caches.open(cacheName);
   const response = await fetch(request);
-  if (response.ok) cache.put(request, response.clone());
+  if (response.ok) {
+    // Stamped beside the answer, so the first load does not wait for the copy.
+    const keep = stamped(response.clone()).then(copy => cache.put(request, copy)).catch(() => {});
+    if (event && event.waitUntil) event.waitUntil(keep);
+  }
   return response;
+}
+
+// Stamps a copy again when its stamp is more than a day old, or missing.
+async function touchAsset(request, cacheName, cached) {
+  const storedAt = Number(cached.headers.get(STORED_AT_HEADER));
+  if (storedAt && Date.now() - storedAt < ASSET_TOUCH_MS) return;
+  const cache = await caches.open(cacheName);
+  await cache.put(request, await stamped(cached));
 }
