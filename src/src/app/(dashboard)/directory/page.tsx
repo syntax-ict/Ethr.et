@@ -13,6 +13,7 @@ import { PaginationControls } from "@/components/shared/pagination-controls";
 import { useDirectory } from "@/features/directory/api";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { formatPhone, telHref } from "@/lib/phone";
 
 export default function DirectoryPage() {
   const { t } = useT();
@@ -120,14 +121,16 @@ export default function DirectoryPage() {
                           )}
                           {e.phone && (
                             <a
-                              href={`tel:${e.phone}`}
+                              href={telHref(e.phone)}
                               className="flex min-h-6 min-w-0 items-center gap-1.5 text-xs text-primary hover:underline"
                             >
                               <Phone
                                 className="h-3 w-3 shrink-0"
                                 aria-hidden="true"
                               />
-                              <span className="truncate">{e.phone}</span>
+                              <span className="truncate">
+                                {formatPhone(e.phone)}
+                              </span>
                             </a>
                           )}
                         </div>

@@ -10368,6 +10368,9 @@ export interface components {
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
+            has_webhook_token?: boolean;
+            webhook_token_prefix?: string | null;
+            webhook_url_masked?: string | null;
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
@@ -12009,6 +12012,16 @@ export interface components {
             code: string;
             password: string;
             password_confirmation: string;
+        };
+        /**
+         * RegenerateDeviceTokenRequest
+         * @description Why a terminal's address is being replaced. A request with no reason is
+         *     read as `lost`, the one that closes the old address at once: a cached page
+         *     that still posts nothing must not leave a stolen address open.
+         */
+        RegenerateDeviceTokenRequest: {
+            /** @enum {string|null} */
+            reason?: "lost" | "moving" | null;
         };
         /**
          * RegisterAttendanceDeviceRequest
@@ -22858,7 +22871,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegenerateDeviceTokenRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -22867,6 +22884,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         webhook_token: string | null;
+                        webhook_url: string | null;
+                        reason: string;
+                        previous_token_expires_at: string | null;
                         /** @constant */
                         message: "Webhook token regenerated";
                     };
@@ -22875,6 +22895,7 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.allowAddress": {
@@ -38341,6 +38362,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38368,6 +38396,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38431,6 +38466,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38458,6 +38500,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38524,6 +38573,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38551,6 +38607,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38613,6 +38676,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38640,6 +38710,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };

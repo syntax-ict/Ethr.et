@@ -47,13 +47,25 @@ class DeviceResource extends JsonResource
                 $request->user()?->isAtLeast(UserRole::TENANT_ADMIN),
                 fn () => $this->webhook_ip_allowlist ?? [],
             ),
-            'webhook_token' => $this->when(
+            'has_webhook_token' => $this->when(
                 $this->showsToken($request),
-                $this->webhook_token,
+                fn (): bool => $this->hasWebhookToken(),
+            ),
+            'webhook_token_prefix' => $this->when(
+                $this->showsToken($request),
+                fn (): ?string => $this->webhook_token_prefix,
+            ),
+            'webhook_url_masked' => $this->when(
+                $this->showsToken($request) && $this->hasWebhookToken(),
+                fn (): ?string => $this->webhookUrlFor((string) $this->webhook_token_prefix.'...'),
+            ),
+            'webhook_token' => $this->when(
+                $this->showsToken($request) && $this->issuedWebhookToken !== null,
+                fn (): ?string => $this->issuedWebhookToken,
             ),
             'webhook_url' => $this->when(
-                $this->showsToken($request) && $this->webhook_token,
-                fn () => $this->buildWebhookUrl(),
+                $this->showsToken($request) && $this->issuedWebhookToken !== null,
+                fn (): ?string => $this->webhookUrlFor((string) $this->issuedWebhookToken),
             ),
             'last_sync_at' => $this->last_sync_at?->toIso8601String(),
             'clock_offset_seconds' => $this->clock_offset_seconds,
@@ -128,18 +140,5 @@ class DeviceResource extends JsonResource
     {
         return $request->user()?->isAtLeast(UserRole::TENANT_ADMIN) === true
             && ! $request->attributes->has(AuthenticateApiKey::ATTRIBUTE);
-    }
-
-    private function buildWebhookUrl(): ?string
-    {
-        $type = $this->adapter_type;
-
-        if (! in_array($type, ['hikvision', 'zkteco', 'suprema'])) {
-            return null;
-        }
-
-        $base = config('app.url').'/api/v1/devices/webhook/'.$type;
-
-        return $base.'?token='.$this->webhook_token;
     }
 }

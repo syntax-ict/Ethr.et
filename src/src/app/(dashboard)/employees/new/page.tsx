@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stepper, type Step } from "@/components/shared/stepper";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
@@ -743,12 +744,10 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               label={t("common.phone", "Phone")}
               error={errors.phone}
             >
-              <Input
-                type="tel"
+              <PhoneInput
+                international
                 value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="+251 9..."
-                autoComplete="off"
+                onChange={(v) => updateField("phone", v)}
               />
             </FormField>
 

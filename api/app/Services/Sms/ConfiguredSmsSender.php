@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Services\Sms;
 
 use App\Contracts\SmsSender;
+use App\Models\AuditLog;
 use App\Models\SmsGateway;
 use App\Models\SmsSend;
 use App\Models\SmsSetting;
+use App\Notifications\SmsGatewayPausedNotification;
+use App\Services\Support\PlatformSupportInbox;
 use App\Support\EthiopianPhone;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * The platform's SMS sender: the gateways the super admin configured in the
@@ -19,7 +25,11 @@ use Illuminate\Support\Facades\Log;
  *
  * 1. **Console.** Once a primary gateway exists in `sms_gateways`, the console
  *    decides alone. SMS is available only while the switch is on, the primary
- *    gateway has passed a test send, and today's count is under the cap.
+ *    gateway has passed a test send, today's count is under the cap, and the
+ *    primary is not paused. A gateway that refuses `PAUSE_AFTER_FAILURES` real
+ *    messages in a row is paused for `PAUSE_MINUTES`: SMS reports itself
+ *    unavailable (the sign-in page offers email alone), the super admins are
+ *    told once, and the first send after the cooldown is the probe.
  * 2. **`.env`.** With no console gateway, `SMS_DRIVER=ethiotelecom` and the
  *    `ETHIOTELECOM_SMS_*` values describe one form-post gateway — the shape the
  *    old EthioTelecomSmsSender guessed at, now expressed as configuration. It
@@ -107,22 +117,96 @@ final class ConfiguredSmsSender implements SmsSender
         }
 
         foreach ($this->gatewaysFor($to, $plan) as $gateway) {
-            $result = (new HttpSmsGateway($gateway))->send($to, $message);
+            $http = new HttpSmsGateway($gateway);
+            $result = $http->send($to, $message);
 
             if ($result->ok) {
                 SmsSend::create(['slot' => $gateway->slot, 'purpose' => $purpose]);
+                $this->recordSuccess($gateway);
 
                 return true;
             }
 
-            // The number is personal data; the gateway's own logs hold it.
+            // The number is personal data: the response is stored and logged
+            // only with it taken out.
+            $response = $http->withoutRecipient($result->response, $to);
+
             Log::warning('SMS gateway did not accept the message', [
                 'slot' => $gateway->slot,
                 'status' => $result->status,
+                'response' => Str::limit($response, 300),
             ]);
+
+            $this->recordFailure($gateway, $result->status, $response);
         }
 
         return false;
+    }
+
+    /** A real message went through: the refusals before it prove nothing now. The `.env` gateway has no row to record on. */
+    private function recordSuccess(SmsGateway $gateway): void
+    {
+        if (! $gateway->exists) {
+            return;
+        }
+
+        $gateway->forceFill([
+            'consecutive_failures' => 0,
+            'last_success_at' => now(),
+            'paused_until' => null,
+        ])->save();
+    }
+
+    /**
+     * A real message was refused. The count moves in one statement so two
+     * sends refused together cannot both read the same number; the send that
+     * takes it to the threshold pauses the gateway and tells the super admins,
+     * and a refusal after that (the probe once the cooldown is over) only
+     * pauses it again.
+     */
+    private function recordFailure(SmsGateway $gateway, ?int $status, string $response): void
+    {
+        if (! $gateway->exists) {
+            return;
+        }
+
+        SmsGateway::query()->whereKey($gateway->getKey())->increment('consecutive_failures', 1, [
+            'last_failure_at' => now(),
+            'last_failure_status' => $status,
+            'last_failure_response' => $response,
+        ]);
+
+        $failures = (int) SmsGateway::query()->whereKey($gateway->getKey())->value('consecutive_failures');
+
+        if ($failures < SmsGateway::PAUSE_AFTER_FAILURES) {
+            return;
+        }
+
+        $until = now()->addMinutes(SmsGateway::PAUSE_MINUTES);
+        SmsGateway::query()->whereKey($gateway->getKey())->update(['paused_until' => $until]);
+
+        if ($failures === SmsGateway::PAUSE_AFTER_FAILURES) {
+            $this->announcePause($gateway, $failures, $status, $response, $until->toIso8601String());
+        }
+    }
+
+    /** Never allowed to break the send that triggered it. */
+    private function announcePause(SmsGateway $gateway, int $failures, ?int $status, string $response, string $until): void
+    {
+        try {
+            AuditLog::record('platform.sms_gateway_paused', $gateway, [
+                'slot' => $gateway->slot,
+                'failures' => $failures,
+                'status' => $status,
+            ]);
+
+            Notification::send(
+                app(PlatformSupportInbox::class)->platformAdmins(),
+                new SmsGatewayPausedNotification($gateway->slot, $gateway->label, $failures, $status, $response, $until),
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -157,7 +241,7 @@ final class ConfiguredSmsSender implements SmsSender
         if ($primary instanceof SmsGateway) {
             $settings = SmsSetting::current();
 
-            if (! $settings->enabled || ! $primary->isVerified()) {
+            if (! $settings->enabled || ! $primary->isVerified() || $primary->isPaused()) {
                 return null;
             }
 
@@ -165,8 +249,8 @@ final class ConfiguredSmsSender implements SmsSender
 
             return [
                 'primary' => $primary,
-                // A route only counts once its own gateway has passed a test.
-                'secondary' => $secondary instanceof SmsGateway && $secondary->isVerified() ? $secondary : null,
+                // A route only counts once its own gateway has passed a test, and drops out while it is paused.
+                'secondary' => $secondary instanceof SmsGateway && $secondary->isVerified() && ! $secondary->isPaused() ? $secondary : null,
                 'route' => $settings->route_prefix,
                 'cap' => $settings->daily_cap,
             ];

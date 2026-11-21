@@ -164,6 +164,7 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                   render={({ field }) => (
                     <PhoneInput
                       id="phone"
+                      international
                       value={field.value ?? ""}
                       onChange={field.onChange}
                     />
@@ -502,6 +503,7 @@ function ContactForm({
             render={({ field }) => (
               <PhoneInput
                 id="contact_phone"
+                international
                 value={field.value ?? ""}
                 onChange={field.onChange}
               />

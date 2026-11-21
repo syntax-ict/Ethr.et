@@ -93,3 +93,42 @@ describe('EthiopianPhone::variants', function () {
         expect(EthiopianPhone::variants('not a phone'))->toBe(['not a phone']);
     });
 });
+
+describe('EthiopianPhone::format', function () {
+    it('groups every Ethiopian shape the same way', function (string $input) {
+        expect(EthiopianPhone::format($input))->toBe('+251 91 122 3344');
+    })->with([
+        'local' => '0911223344',
+        'e164' => '+251911223344',
+        'spaced' => '0911 22 33 44',
+    ]);
+
+    it('groups a landline the same way', function () {
+        expect(EthiopianPhone::format('0111234567'))->toBe('+251 11 123 4567');
+    });
+
+    it('returns a number it cannot parse exactly as given', function () {
+        expect(EthiopianPhone::format('+44 20 7946 0958'))->toBe('+44 20 7946 0958');
+    });
+});
+
+describe('EthiopianPhone::isInternational', function () {
+    it('accepts a number with a foreign country code', function (string $input) {
+        expect(EthiopianPhone::isInternational($input))->toBeTrue();
+    })->with([
+        'uk' => '+44 20 7946 0958',
+        'us dashed' => '+1 (415) 555-0132',
+        'kenya' => '+254712345678',
+    ]);
+
+    it('refuses what is not a foreign number', function (string $input) {
+        expect(EthiopianPhone::isInternational($input))->toBeFalse();
+    })->with([
+        'no plus' => '442079460958',
+        'letters' => '+44 call me',
+        'too short' => '+44 123',
+        'too long' => '+1234567890123456',
+        'a malformed ethiopian number is a typo, not a foreign number' => '+251 91 122',
+        'a good ethiopian number is not international' => '+251911223344',
+    ]);
+});

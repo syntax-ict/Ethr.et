@@ -159,9 +159,10 @@ describe("device detail for a terminal that sends to ETHR", () => {
           ...DEVICE,
           adapter_type: "hikvision",
           receives_only: true,
-          webhook_token: "tok123",
-          webhook_url:
-            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+          has_webhook_token: true,
+          webhook_token_prefix: "tok123ab",
+          webhook_url_masked:
+            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
         }),
       ),
       http.get("*/api/v1/devices/DEV1/sync-logs", () =>
@@ -174,14 +175,31 @@ describe("device detail for a terminal that sends to ETHR", () => {
     renderDetail();
 
     expect(
-      await screen.findByText("Enter these on the terminal"),
+      await screen.findByText("The terminal's settings"),
     ).toBeInTheDocument();
     expect(screen.getByText("www.ethr.et")).toBeInTheDocument();
     expect(screen.getByText("443")).toBeInTheDocument();
     expect(screen.getByText("HTTPS")).toBeInTheDocument();
     expect(
-      screen.getByText("/api/v1/devices/webhook/hikvision?token=tok123"),
+      screen.getByText("/api/v1/devices/webhook/hikvision"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/shown only when it is created or regenerated/i),
+    ).toBeInTheDocument();
+    // The settings box describes the terminal and never carries a token.
+    const box = screen.getByText("The terminal's settings").parentElement!;
+    expect(box.textContent).not.toContain("?token=");
+    expect(
+      screen.getByText(
+        /token part is shown only when the address is regenerated/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Enter these on the terminal"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/token=tok123ab[0-9a-f]/),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -196,9 +214,10 @@ describe("device detail for a terminal that has not been heard from", () => {
     receives_only: true,
     status: "pending",
     auto_sync: false,
-    webhook_token: "tok123",
-    webhook_url:
-      "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+    has_webhook_token: true,
+    webhook_token_prefix: "tok123ab",
+    webhook_url_masked:
+      "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
   };
 
   function serveDevice(device: object, syncLogs: object[] = []) {
@@ -534,9 +553,10 @@ describe("device detail: regenerating the webhook token", () => {
           ...DEVICE,
           adapter_type: "hikvision",
           receives_only: true,
-          webhook_token: "tok123",
-          webhook_url:
-            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123",
+          has_webhook_token: true,
+          webhook_token_prefix: "tok123ab",
+          webhook_url_masked:
+            "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
         }),
       ),
       http.get("*/api/v1/devices/DEV1/sync-logs", () =>
@@ -558,11 +578,13 @@ describe("device detail: regenerating the webhook token", () => {
     renderDetail();
 
     await user.click(
-      await screen.findByRole("button", { name: /regenerate token/i }),
+      await screen.findByRole("button", {
+        name: /regenerate to see the address again/i,
+      }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/current address stops working at once/i),
+      within(dialog).getByText(/must be given the new address/i),
     ).toBeInTheDocument();
     expect(calls).toBe(0);
 

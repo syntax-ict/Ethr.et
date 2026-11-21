@@ -701,6 +701,31 @@ tenant journey keeps its own three-day `devices_silent`, with the same registrat
 for both kinds: a terminal not set up three days after it was registered is a stalled setup
 the platform should see.
 
+## Webhook tokens are stored hashed (2026-11-21)
+
+A terminal's token used to sit in `devices.webhook_token` in clear, and database backups go
+off-host, so a copy of any backup could post punches into any organisation. The device now
+keeps `webhook_token_hash` (plain sha256 of the 64-hex-character token; not keyed on `APP_KEY`,
+which must never be regenerated), `webhook_token_prefix` (the first eight characters, for
+display) and `webhook_token_head_hash` (sha256 of the first sixteen, so a cut-off address can
+still be traced). The old plaintext column stays, empty, until a later release drops it.
+Assigning `Device::webhook_token` hashes it; reading it back gives the token only on the
+instance it was assigned to.
+
+- **Shown once.** `POST /devices` and `POST /devices/{device}/regenerate-token` return
+  `webhook_token` and `webhook_url`; no later response does. The device resource carries
+  `has_webhook_token`, `webhook_token_prefix` and `webhook_url_masked` instead. Nothing can
+  show an address again: the only way to see one is to regenerate it.
+- **Regenerate takes a `reason`.** `lost` (the default, also when none is sent): the new token
+  replaces the old at once, and a token still inside a `moving` grace dies too. `moving`: the old
+  token is kept as `webhook_token_previous_hash` for 24 hours (`webhook_token_previous_expires_at`),
+  so a terminal can be reset without losing punches. The reason is in the `device.token_regenerated`
+  audit entry.
+- **A device that has a token needs it.** A serial-only call is refused with `token_missing`,
+  even from an allowlisted address; only a device with no token authenticates by allowlist.
+- **Rollback.** The migration's `down()` drops the new columns and cannot restore the plaintext;
+  the pre-migrate backup taken by the release steps is the only way back.
+
 ## Why a terminal's calls were refused (2026-11-13)
 
 A refused webhook used to leave only a log line, so a terminal with a stale or cut-off
@@ -712,8 +737,8 @@ integration key). It stops showing once the terminal has been heard from since.
 
 | Reason | How the call is traced to the device |
 |---|---|
-| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation stores a hash of the old token against the device, never the token. |
-| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, so no `LIKE` wildcard reaches the match, and only when exactly one device of that vendor matches. |
+| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation remembers the old token's sha256 for a week, never the token. |
+| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, matched on the stored hash of its first 16 characters (never a `LIKE` on the token), and only when exactly one device of that vendor matches. |
 | `token_missing` | The request named the device by its serial and carried no token, and the device has one. |
 | `ip_not_allowed` | A device without a token called from an address not on its allowlist. |
 
