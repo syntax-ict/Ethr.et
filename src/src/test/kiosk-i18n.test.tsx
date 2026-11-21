@@ -159,7 +159,7 @@ describe("SearchInput translations", () => {
     localStorage.setItem("locale", "am");
     render(<SearchInput value="abc" onChange={() => {}} />);
 
-    expect(await screen.findByPlaceholderText("ፈልግ...")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("ፈልግ…")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "ፍለጋውን አጽዳ" }),
     ).toBeInTheDocument();

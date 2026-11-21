@@ -108,8 +108,6 @@ describe("the text-message code page", () => {
   it("tells people both networks are accepted", () => {
     renderForm();
 
-    expect(
-      screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX"),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("911234567…")).toBeInTheDocument();
   });
 });

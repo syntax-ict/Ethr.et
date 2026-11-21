@@ -52,6 +52,28 @@ describe("<AttendanceImportPage>", () => {
     expect(sample).toHaveClass("whitespace-pre", "overflow-x-auto");
   });
 
+  it("offers a real button that opens the file picker", async () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, "click");
+    const user = userEvent.setup();
+    const { container } = renderPage();
+
+    const button = screen.getByRole("button", { name: "Choose a file" });
+    expect(button.tabIndex).toBe(0);
+    const input = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input.tabIndex).toBe(-1);
+    expect(input).toHaveAttribute("aria-label", "Choose a file");
+
+    click.mockClear();
+    await user.tab();
+    await user.tab();
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
+  });
+
   it("retries a failed commit under the same import key", async () => {
     // The commit is idempotent on import_key, but the page minted a fresh key
     // on every click — so retrying a commit whose response was lost imported

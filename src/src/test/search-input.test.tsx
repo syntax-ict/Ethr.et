@@ -32,7 +32,7 @@ describe("<SearchInput>", () => {
     const calls: string[] = [];
     render(<SearchInput value="" onChange={(v) => calls.push(v)} />);
 
-    fireEvent.change(screen.getByRole("textbox"), {
+    fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "abe" },
     });
     act(() => {
@@ -44,5 +44,13 @@ describe("<SearchInput>", () => {
     });
 
     expect(calls).toEqual(["abe"]);
+  });
+
+  it("is a named search field with an ellipsis placeholder", () => {
+    render(<SearchInput value="" onChange={() => {}} />);
+    const field = screen.getByRole("searchbox", { name: "Search…" });
+    expect(field).toHaveAttribute("placeholder", "Search…");
+    expect(field).toHaveAttribute("name", "q");
+    expect(field).toHaveAttribute("autocomplete", "off");
   });
 });
