@@ -2987,6 +2987,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/allowlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add one address to the device's webhook allowlist */
+        post: operations["device.allowAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device}/sync-logs": {
         parameters: {
             query?: never;
@@ -9514,6 +9531,15 @@ export interface components {
             last_activity_at: string | null;
             journey_computed_at: string | null;
         };
+        /**
+         * AllowDeviceAddressRequest
+         * @description One address to add to a device's webhook allowlist: the one its refused
+         *     call came from. A single address, not a range; a range is set on the
+         *     device's own form, where its width can be thought about.
+         */
+        AllowDeviceAddressRequest: {
+            ip: string;
+        };
         /** AnnouncementResource */
         AnnouncementResource: {
             public_id: string;
@@ -10338,6 +10364,7 @@ export interface components {
             commands_enabled: boolean;
             accepts_commands: boolean;
             receives_only: boolean;
+            pulled: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
@@ -10346,6 +10373,18 @@ export interface components {
             last_sync_at: string | null;
             clock_offset_seconds: number | null;
             clock_checked_at: string | null;
+            /** @enum {string|null} */
+            clock_source: "heartbeat" | "punch" | "heartbeat_no_time" | null;
+            clock_measurable: boolean | null;
+            today: {
+                day: string;
+                received: number;
+                recorded: number;
+                held: number;
+                duplicate: number;
+                quarantined: number;
+                waiting: number;
+            } | null;
             adms?: {
                 server: string;
                 last_rejected: {
@@ -22734,8 +22773,8 @@ export interface operations {
                         status: "quiet" | "offline" | "online" | "pending";
                         /** @enum {string|null} */
                         error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
-                        details: unknown[];
-                        device_info: unknown[];
+                        details: string | unknown[];
+                        device_info: string | unknown[];
                     };
                 };
             };
@@ -22836,6 +22875,39 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "device.allowAddress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllowDeviceAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description `DeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.syncLogs": {
