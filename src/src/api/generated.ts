@@ -10400,7 +10400,7 @@ export interface components {
             public_id: string;
             institution: string;
             degree: string;
-            level: string;
+            level: string | null;
             field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;

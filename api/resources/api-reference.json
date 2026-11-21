@@ -49823,7 +49823,10 @@
                         "type": "string"
                     },
                     "level": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "field_of_study": {
                         "type": [

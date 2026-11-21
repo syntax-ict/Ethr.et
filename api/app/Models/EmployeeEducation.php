@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property string|null $level
  * @property Carbon|null $start_date
  * @property Carbon|null $end_date
  */
