@@ -219,19 +219,22 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.phone?.message)}
             >
-              <Controller
-                control={control}
-                name="phone"
-                render={({ field }) => (
-                  <PhoneInput
-                    international
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    className="mt-1"
-                  />
-                )}
-              />
+              {(controlProps) => (
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field }) => (
+                    <PhoneInput
+                      {...controlProps}
+                      international
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      className="mt-1"
+                    />
+                  )}
+                />
+              )}
             </FormField>
 
             <DialogFooter>
