@@ -8,6 +8,7 @@ use App\Enums\AttendanceStatus;
 use App\Enums\ConflictType;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceRecord;
+use App\Services\Payroll\PayrollPeriodLock;
 use App\Support\AttendanceRules;
 use Carbon\Carbon;
 
@@ -52,6 +53,15 @@ final class ConflictResolver
         $gapMinutes = abs($existing->check_in->diffInMinutes($newRecord->check_in, true));
         $sameSource = $this->sourceKey($newRecord) === $this->sourceKey($existing);
 
+        // A day already paid in an approved run is never rewritten by a
+        // merge: the survivor was updated and the loser voided, and either
+        // could be the record a payslip was paid from. The punch that arrived
+        // late is the one that gives way (PayrollPeriodLock).
+        if ($gapMinutes <= AttendanceRules::MERGE_WINDOW_MINUTES
+            && app(PayrollPeriodLock::class)->isClosed($newRecord->employee_id, $newRecord->date)) {
+            return $this->keepPaid($newRecord, $existing);
+        }
+
         if ($gapMinutes < self::DEDUPE_THRESHOLD_MINUTES && $sameSource) {
             return $this->combine($newRecord, $existing, 'deduped');
         }
@@ -65,6 +75,20 @@ final class ConflictResolver
         }
 
         return $this->flag($newRecord, $existing);
+    }
+
+    private function keepPaid(AttendanceRecord $newRecord, AttendanceRecord $existing): ConflictResolution
+    {
+        $newRecord->update([
+            'status' => AttendanceStatus::VOIDED,
+            'metadata' => array_merge($newRecord->metadata ?? [], [
+                'voided_reason' => 'paid_day_duplicate',
+                'duplicate_of' => $existing->public_id,
+                'voided_at' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        return new ConflictResolution($existing, 'kept_paid');
     }
 
     private function mergeByConfidence(AttendanceRecord $newRecord, AttendanceRecord $existing, string $action): ConflictResolution
