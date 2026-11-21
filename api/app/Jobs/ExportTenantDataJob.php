@@ -100,6 +100,11 @@ class ExportTenantDataJob implements ShouldQueue
         'token',
         'token_hash',
         'webhook_token',
+        'webhook_token_hash',
+        'webhook_token_head_hash',
+        'webhook_token_prefix',
+        'webhook_token_previous_expires_at',
+        'webhook_token_previous_hash',
     ];
 
     public function __construct(
