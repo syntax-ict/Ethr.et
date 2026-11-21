@@ -723,16 +723,31 @@ final class WorkforceMigrationService
 
     /**
      * How many people this batch created with today as their hire date,
-     * because the source gave none. A device never does. Owner decision
-     * (2026-10-28): warn, and leave the date for HR to correct.
+     * because the source gave none, and who are still employees: someone
+     * archived since, by an undo for one, is not counted. A device never gives
+     * a date. Owner decision (2026-10-28): warn, and leave the date for HR to
+     * correct.
      */
     public function hireDatesDefaulted(MigrationBatch $batch): int
     {
-        return $batch->rows()
+        $ids = $batch->rows()
             ->where('action', MigrationStagingRow::ACTION_CREATE)
             ->whereNotNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
             ->get()
             ->filter(fn (MigrationStagingRow $row): bool => empty($this->rawOf($row)['hire_date']))
+            ->pluck('resolved_employee_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        return Employee::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->whereIn('id', $ids)
             ->count();
     }
 

@@ -50,17 +50,21 @@ const INVITE_SLICE = 200;
  * @param inviteMarked Invite the people the list marks yes, tick or no tick.
  *   Only for the screen that has just added the list: a list opened again
  *   later must not send anything by itself.
+ * @param undone The list's additions were undone: nobody it added is waiting
+ *   for a way in, and "can already sign in" would not be true.
  */
 export function MigrationLogins({
   batchId,
   onContinue,
   autoSend = false,
   inviteMarked = false,
+  undone = false,
 }: {
   batchId: string;
   onContinue?: () => void;
   autoSend?: boolean;
   inviteMarked?: boolean;
+  undone?: boolean;
 }) {
   const { t } = useT();
   const { can } = usePermissions();
@@ -235,10 +239,15 @@ export function MigrationLogins({
             {() =>
               pending.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {t(
-                    "migration_logins.none",
-                    "Everyone brought in can already sign in.",
-                  )}
+                  {undone
+                    ? t(
+                        "migration_logins.none_undone",
+                        "This list's additions were undone. Nobody from it is waiting for a way to sign in.",
+                      )
+                    : t(
+                        "migration_logins.none",
+                        "Everyone brought in can already sign in.",
+                      )}
                 </p>
               ) : (
                 <>
