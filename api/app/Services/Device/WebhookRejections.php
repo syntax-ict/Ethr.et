@@ -127,6 +127,16 @@ final class WebhookRejections
         return ['reason' => (string) $value['reason'], 'ip' => $value['ip'] ?? null, 'at' => (string) $value['at']];
     }
 
+    /** The refusal is fixed: stop saying it. */
+    public static function forget(Device $device): void
+    {
+        try {
+            Cache::forget(self::rejectionKey($device));
+        } catch (\Throwable) {
+            // A downed cache must not fail the change that fixed it.
+        }
+    }
+
     private static function retiredFor(string $adapterType, string $token): ?Device
     {
         $id = Cache::get(self::retiredKey($token));
