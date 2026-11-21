@@ -83,6 +83,51 @@ export default function DeviceDashboardPage() {
           )}
         </div>
 
+        {stats && stats.quarantined.punches > 0 && (
+          <div
+            role="status"
+            className="space-y-1 rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            <p className="font-medium">
+              {t("devices_dashboard_page.quarantine_title")}
+            </p>
+            <p>
+              {stats.quarantined.punches === 1
+                ? t("devices_dashboard_page.quarantine_body_one")
+                : t("devices_dashboard_page.quarantine_body_many", undefined, {
+                    punches: stats.quarantined.punches.toLocaleString(),
+                  })}
+            </p>
+            <ul className="space-y-0.5">
+              {stats.quarantined.devices.map((entry) => (
+                <li key={entry.device_public_id}>
+                  <Link
+                    href={`/devices/${entry.device_public_id}#quarantine`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {entry.punches === 1
+                      ? t(
+                          "devices_dashboard_page.quarantine_device_one",
+                          undefined,
+                          {
+                            device: entry.name,
+                          },
+                        )
+                      : t(
+                          "devices_dashboard_page.quarantine_device_many",
+                          undefined,
+                          {
+                            device: entry.name,
+                            punches: entry.punches.toLocaleString(),
+                          },
+                        )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {stats && stats.unmatched.badges > 0 && (
           <div
             role="status"

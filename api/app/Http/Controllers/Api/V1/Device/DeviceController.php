@@ -26,6 +26,7 @@ use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\DevicePunchKey;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
@@ -43,7 +44,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -52,7 +52,6 @@ class DeviceController extends Controller
 {
     public function __construct(
         private readonly DeviceManager $deviceManager,
-        private readonly DevicePunchRecorder $punches,
         private readonly TerminalNames $terminalNames,
     ) {}
 
@@ -151,7 +150,7 @@ class DeviceController extends Controller
         }
 
         $device->load('branch');
-        $device->loadCount(['attendanceRecords', 'syncLogs']);
+        $device->loadCount(['attendanceRecords', 'syncLogs', 'quarantinedPunches']);
 
         return new DeviceResource($device);
     }
@@ -484,6 +483,14 @@ class DeviceController extends Controller
         $unmatchedPunches = (int) (clone $pendingHeld)->count();
         $unmatchedBadges = count($pendingHeld->select('device_id', 'badge')->distinct()->get());
 
+        $quarantined = DeviceInboundPunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->whereNotNull('failed_at')
+            ->whereNull('dismissed_at')
+            ->selectRaw('device_id, COUNT(*) as punches')
+            ->groupBy('device_id')
+            ->pluck('punches', 'device_id');
+
         return response()->json([
             'total' => $devices->count(),
             'online' => $devices->where('status', 'online')->count(),
@@ -497,6 +504,14 @@ class DeviceController extends Controller
                 'recorded' => $totalEvents,
                 'held' => $heldToday,
                 'waiting' => $waiting,
+            ],
+            'quarantined' => [
+                'punches' => (int) $quarantined->sum(),
+                'devices' => $devices
+                    ->filter(fn (Device $d) => (int) $quarantined->get($d->id, 0) > 0)
+                    ->map(fn (Device $d) => ['device_public_id' => (string) $d->public_id, 'name' => (string) $d->name, 'punches' => (int) $quarantined->get($d->id)])
+                    ->values()
+                    ->all(),
             ],
             'unmatched' => [
                 'badges' => $unmatchedBadges,
@@ -556,7 +571,8 @@ class DeviceController extends Controller
         }
 
         $badge = HikvisionEvent::badge($event);
-        $timestamp = $event['time'] ?? now()->toIso8601String();
+        $timestamp = $event['time'] ?? null;
+        $timestamp = is_scalar($timestamp) ? trim((string) $timestamp) : '';
 
         if ($badge === null) {
             return response()->json(['status' => 'no_badge'], 200);
@@ -571,16 +587,38 @@ class DeviceController extends Controller
         // work is done by ProcessDeviceInboundPunchesJob, in arrival order.
         // The key is the one the punch is recorded under, so a re-sent event
         // is one row, and the job is queued only for a row that is new.
-        $queued = DB::table('device_inbound_punches')->insertOrIgnore([
+        $raw = DeviceInboundPunch::capRaw($event);
+
+        // An event with no time is never dated now(): a resend would get a
+        // new key and record twice. It goes to quarantine at once, keyed by
+        // what it said, so a resend is the same row.
+        if ($timestamp === '') {
+            DeviceInboundPunch::stash([[
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
+                'occurred_raw' => '',
+                'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                'raw' => $raw,
+                'processed_at' => now(),
+                'failed_at' => now(),
+                'failure' => 'no_time',
+                'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+            ]]);
+
+            return response()->json(['status' => 'accepted'], 200);
+        }
+
+        $queued = DeviceInboundPunch::stash([[
             'tenant_id' => $device->tenant_id,
             'device_id' => $device->id,
             'badge' => mb_substr($badge, 0, 64),
             'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
-            'occurred_raw' => mb_substr((string) $timestamp, 0, 64),
-            'idempotency_key' => mb_substr("webhook:hik:{$device->id}:{$badge}:{$timestamp}", 0, 191),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            'occurred_raw' => mb_substr($timestamp, 0, 64),
+            'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:{$timestamp}"),
+            'raw' => $raw,
+        ]]);
 
         if ($queued === 1) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
@@ -604,17 +642,22 @@ class DeviceController extends Controller
         $payload = $request->all();
         $records = $payload['records'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($records as $record) {
-            $badge = (string) ($record['pin'] ?? $record['user_id'] ?? '');
-            $timestamp = $record['timestamp'] ?? $record['datetime'] ?? now()->toIso8601String();
-            $punchType = ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null);
-
-            if ($this->punches->recordBatched($device, 'zk', $badge, $timestamp, $punchType)) {
-                $processed++;
+        foreach (is_array($records) ? $records : [] as $record) {
+            if (! is_array($record)) {
+                continue;
             }
+
+            $rows[] = [
+                'badge' => (string) ($record['pin'] ?? $record['user_id'] ?? ''),
+                'time' => $record['timestamp'] ?? $record['datetime'] ?? null,
+                'type' => ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null),
+                'raw' => $record,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'zk', $rows);
 
         $this->markWebhookReceived($device);
 
@@ -636,22 +679,93 @@ class DeviceController extends Controller
         $payload = $request->all();
         $events = $payload['EventCollection'] ?? $payload['events'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($events as $event) {
-            $badge = (string) ($event['user_id'] ?? $event['user']['user_id'] ?? '');
-            $timestamp = $event['datetime'] ?? $event['timestamp'] ?? now()->toIso8601String();
-            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
-            $type = ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in';
-
-            if ($this->punches->recordBatched($device, 'sup', $badge, $timestamp, $type)) {
-                $processed++;
+        foreach (is_array($events) ? $events : [] as $event) {
+            if (! is_array($event)) {
+                continue;
             }
+
+            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
+
+            $rows[] = [
+                'badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
+                'time' => $event['datetime'] ?? $event['timestamp'] ?? null,
+                'type' => ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in',
+                'raw' => $event,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'sup', $rows);
 
         $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
+    }
+
+    /**
+     * Put the punches of a JSON push in the inbox and queue the work: one
+     * insert per 500, no engine call in the request. The key is the one
+     * `webhook:<vendor>:<device id>:<badge>:<time>` always was, so a punch
+     * recorded before this change still dedupes a resend. A database failure
+     * is thrown, so the terminal is answered an error and sends it again.
+     *
+     * @param  list<array{badge: string, time: mixed, type: string, raw: mixed}>  $punches
+     * @return int how many punches were accepted (those that name a badge)
+     */
+    private function stashPushed(Device $device, string $vendor, array $punches): int
+    {
+        $rows = [];
+        $undated = [];
+
+        foreach ($punches as $punch) {
+            $badge = $punch['badge'];
+            if ($badge === '') {
+                continue;
+            }
+
+            $time = is_scalar($punch['time']) ? trim((string) $punch['time']) : '';
+
+            // A punch with no time is never dated now(): a resend would get a
+            // new key and record twice. It is kept in quarantine at once,
+            // keyed by what it said, so a resend is the same row.
+            if ($time === '') {
+                $raw = DeviceInboundPunch::capRaw($punch['raw']);
+                $undated[] = [
+                    'tenant_id' => $device->tenant_id,
+                    'device_id' => $device->id,
+                    'badge' => mb_substr($badge, 0, 64),
+                    'punch_type' => mb_substr($punch['type'], 0, 20),
+                    'occurred_raw' => '',
+                    'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                    'raw' => $raw,
+                    'processed_at' => now(),
+                    'failed_at' => now(),
+                    'failure' => 'no_time',
+                    'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+                ];
+
+                continue;
+            }
+
+            $rows[] = [
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr($punch['type'], 0, 20),
+                'occurred_raw' => mb_substr($time, 0, 64),
+                'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:{$time}"),
+                'raw' => DeviceInboundPunch::capRaw($punch['raw']),
+            ];
+        }
+
+        DeviceInboundPunch::stash($undated);
+
+        if (DeviceInboundPunch::stash($rows) > 0) {
+            ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
+        }
+
+        return count($rows) + count($undated);
     }
 
     /**
