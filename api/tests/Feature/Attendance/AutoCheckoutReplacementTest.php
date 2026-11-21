@@ -25,6 +25,7 @@ use App\Services\Attendance\AttendanceResult;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\AttendanceReconciliation;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 // Subsystem integration review 2026-11-20, finding 4. Automatic check-out
 // closes a day left open at the shift's end. When the person's own check-out
@@ -273,4 +274,38 @@ it('ends a device punch through the inbox as the replaced check-out, not a quara
     expect(DeviceInboundPunch::withoutGlobalScopes()->whereNotNull('failed_at')->count())->toBe(0)
         ->and($record->fresh()->check_out->equalTo(acrAt('19:00')))->toBeTrue()
         ->and(isset($record->fresh()->metadata['auto_checkout_replaced']))->toBeTrue();
+});
+
+it('does not overwrite a real check-out that lands between the command loading a record and closing it', function () {
+    Carbon::setTestNow(acrAt('20:30'));
+    $tenant = createTenant(['timezone' => 'Africa/Addis_Ababa']);
+    AttendanceSetting::create([...AttendanceSetting::defaults(), 'tenant_id' => $tenant->id, 'auto_checkout_enabled' => true]);
+    app(CurrentTenant::class)->set($tenant);
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id, 'start_time' => '08:30', 'end_time' => '17:30']);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'shift_id' => $shift->id,
+        'date' => ACR_DAY, 'status' => AttendanceStatus::PRESENT, 'check_in' => acrAt('08:25'), 'check_out' => null,
+    ]);
+
+    // The person's own check-out is written the moment the command has loaded the
+    // open record, so the command holds a stale copy.
+    $landed = false;
+    AttendanceRecord::retrieved(function (AttendanceRecord $loaded) use (&$landed, $record): void {
+        if ($landed || $loaded->id !== $record->id) {
+            return;
+        }
+        $landed = true;
+        DB::table('attendance_records')->where('id', $record->id)->update(['check_out' => acrAt('19:00')]);
+    });
+
+    test()->artisan('attendance:auto-checkout')->assertSuccessful();
+    app(CurrentTenant::class)->set($tenant);
+
+    $fresh = AttendanceRecord::query()->whereKey($record->id)->sole();
+    expect($landed)->toBeTrue()
+        ->and($fresh->check_out->equalTo(acrAt('19:00')))->toBeTrue()
+        ->and(isset(($fresh->metadata ?? [])['auto_checkout']))->toBeFalse()
+        ->and(AuditLog::query()->where('action', 'attendance.auto_checkout')->count())->toBe(0)
+        ->and(DB::table('notifications')->count())->toBe(0);
 });

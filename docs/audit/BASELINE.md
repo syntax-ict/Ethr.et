@@ -5070,4 +5070,6 @@ The rule now: a record closed by automatic check-out and not corrected by a pers
 
 `AutoCheckoutReplacementTest` covers each case; nine of its fifteen tests fail against the old engine, the rest pin behaviour that must not change (corrected, paid, later record, past the window). Not measured: the suite on MariaDB.
 
+`AutoCheckoutCommand` now closes a record only if it is still open at write time (a locked, conditional update on `tenant_id`, id and `check_out IS NULL`, metadata merged from the row as it is), so a real check-out that lands after its chunk was loaded is no longer overwritten with the shift end; a record that is no longer open gets no audit row, notification or count.
+
 Not done: payroll approval does not notice an attendance record changed after the run's `processed_at` (`AttendanceReconciliation::decidedSince` reads corrections, leave and overtime requests only, and `PayrollPeriodLock::isClosed` covers approved runs), so a replacement between calculation and approval can be approved at the old figure. Punches already quarantined as `refused:no_open_check_in` before this change can be replayed after it is deployed.
