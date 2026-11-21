@@ -206,6 +206,7 @@ return [
 
     'attributes' => [
         'branch_public_id' => 'damee',
+        'salary_effective_date' => 'guyyaa mindaan itti jalqabu',
     ],
 
     /*

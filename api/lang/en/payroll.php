@@ -29,6 +29,7 @@ return [
     'period_overlaps' => 'A payroll run already covers :start to :end (:label). Void that run first if this period must be computed again.',
     'reconciliation_open' => 'Attendance for this period is not reconciled yet: :count exceptions are still open or waiting for a decision. Settle them on the Reconcile tab first.',
     'reconciliation_moved' => 'Attendance for this period was decided after the run was calculated. Reprocess the run so it pays from the decisions.',
+    'inputs_changed_since_processed' => 'A salary changed after this run was calculated. Void it and process it again so it pays the current figures.',
     'reconciliation_range' => 'Reconcile at most 92 days at a time.',
     'tax_ladder_locked' => 'Income tax follows :reference, and an organisation cannot change it. The law\'s ladder is applied to every payroll.',
     'pension_rule_locked' => 'Pension contributions follow :reference, and an organisation cannot change them. The law\'s rates are applied to every payroll.',

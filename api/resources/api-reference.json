@@ -26150,7 +26150,7 @@
                     "read"
                 ],
                 "operationId": "migration.index",
-                "description": "Each is named by what it is, not by who is in it: `rows` is how many\nlines it holds, `mode` is `add` or `complete`, `created_by_name` is\nnull when whoever started it has gone, and `mine` says the viewer\nstarted it. Any member of the organisation who may view employees can\nopen any of these, as `/migration/batches/{batch}` already allows.",
+                "description": "Each is named by what it is, not by who is in it: `rows` is how many\nlines it holds, `mode` is `add` or `complete`, `created_by_name` is\nnull when whoever started it has gone, and `mine` says the viewer\nstarted it. Any member of the organisation who may view employees can\nopen any of these, as `/migration/batches/{batch}` already allows.\n\n`added` is the lists that have been added, newest first, at most\ntwenty, for the screen that undoes a list's additions: `rows` is how many\nlines it held, `created` how many people it made, `committed_at` when it\nwas added and `undone_at` when an undo of it last finished (null when\nnone has). They are not in `data`.",
                 "summary": "The organisation's lists that are not finished: still being read\n(`staging`), waiting for review (`reviewing`) or part way through being\nadded (`committing`), newest first, at most twenty. A list that has been\nadded is not here; it is kept for a month but there is nothing left to\ndo with it",
                 "tags": [
                     "Onboarding"
@@ -26217,10 +26217,66 @@
                                                     "mine"
                                                 ]
                                             }
+                                        },
+                                        "added": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "mode": {
+                                                        "type": "string"
+                                                    },
+                                                    "source_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "rows": {
+                                                        "type": "integer"
+                                                    },
+                                                    "created": {
+                                                        "type": "integer"
+                                                    },
+                                                    "committed_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_by_name": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "mine": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "undone_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "public_id",
+                                                    "mode",
+                                                    "source_type",
+                                                    "rows",
+                                                    "created",
+                                                    "committed_at",
+                                                    "created_by_name",
+                                                    "mine",
+                                                    "undone_at"
+                                                ]
+                                            }
                                         }
                                     },
                                     "required": [
-                                        "data"
+                                        "data",
+                                        "added"
                                     ]
                                 }
                             }
@@ -26298,6 +26354,15 @@
                                                 "null"
                                             ],
                                             "items": []
+                                        },
+                                        "undone_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "undo_archived": {
+                                            "type": "integer"
                                         },
                                         "summary": {
                                             "type": "object",
@@ -26537,6 +26602,8 @@
                                         "mode",
                                         "arrival_status",
                                         "totals",
+                                        "undone_at",
+                                        "undo_archived",
                                         "summary",
                                         "sign_in_plan",
                                         "rows"
@@ -27218,6 +27285,277 @@
                 }
             }
         },
+        "/onboarding/migration/batches/{batch}/undo": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "migration.undoPreview",
+                "description": "Only a list that has been added can be undone, and only by someone who\nmay delete employees. The people the list itself made are archived (the\nordinary delete: each can be restored with `POST /employees/{employee}/restore`) unless\nthey have been used since, and nobody else is touched: not someone the\nlist only matched, and not a change a match made to their record.\n\n`archive` is who would be archived and `keep` who would be left alone,\neach with why (`reasons`: `attendance`, `signed_in`, `payroll`, `leave`,\n`overtime`, `documents`, `hr_records`, `in_charge`, `assigned`, or\n`unsure_origin`), the first two hundred by name; `archive_count` and\n`keep_count` are the whole. People the viewer has no reach over are\ncounted in `out_of_reach` and never named. `already_archived` is how many\nthe list made who are archived now.\n\n`origin` is `recorded` when the list noted what each of its lines did and\n`derived` when it was added before it did. `exact` is false when some\npeople cannot be told from ones the list only matched: they are all kept.\n`added` is how many people the list made.",
+                "summary": "What undoing a list's additions would do, without doing it",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "origin": {
+                                            "type": "string"
+                                        },
+                                        "exact": {
+                                            "type": "boolean"
+                                        },
+                                        "added": {
+                                            "type": "integer"
+                                        },
+                                        "already_archived": {
+                                            "type": "integer"
+                                        },
+                                        "matched": {
+                                            "type": "integer"
+                                        },
+                                        "archive_count": {
+                                            "type": "integer"
+                                        },
+                                        "archive": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "employee_code"
+                                                ]
+                                            }
+                                        },
+                                        "keep_count": {
+                                            "type": "integer"
+                                        },
+                                        "keep": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "employee_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "employee_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "reasons": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "required": [
+                                                    "employee_public_id",
+                                                    "name",
+                                                    "employee_code",
+                                                    "reasons"
+                                                ]
+                                            }
+                                        },
+                                        "out_of_reach": {
+                                            "type": "integer"
+                                        },
+                                        "undone_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "origin",
+                                        "exact",
+                                        "added",
+                                        "already_archived",
+                                        "matched",
+                                        "archive_count",
+                                        "archive",
+                                        "keep_count",
+                                        "keep",
+                                        "out_of_reach",
+                                        "undone_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Only a list that has been added can be undone."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.undo",
+                "description": "Send `confirm` as true: this is the second, explicit call after the\npreview. A long list is archived a slice at a time; while `done` is\nfalse, `remaining` people are still to be dealt with and the same request\nis sent again. `archived` is how many have been archived so far in this\nundo, and once it is done, how many the one audit entry for it records.\nPressing it again archives nobody and records nothing: `done` is true and\n`archived` is 0. `kept` is how many are left alone for being used, and\n`out_of_reach` how many the person asking has no reach over.",
+                "summary": "Undo a list's additions, as much as fits in one request",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UndoMigrationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "done": {
+                                            "type": "boolean"
+                                        },
+                                        "archived": {
+                                            "type": "integer"
+                                        },
+                                        "remaining": {
+                                            "type": "integer"
+                                        },
+                                        "kept": {
+                                            "type": "integer"
+                                        },
+                                        "out_of_reach": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "done",
+                                        "archived",
+                                        "remaining",
+                                        "kept",
+                                        "out_of_reach"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Only a list that has been added can be undone."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/onboarding/migration/devices/{device}": {
             "post": {
                 "x-abilities": [
@@ -27281,6 +27619,15 @@
                                                 "null"
                                             ],
                                             "items": []
+                                        },
+                                        "undone_at": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "undo_archived": {
+                                            "type": "integer"
                                         },
                                         "summary": {
                                             "type": "object",
@@ -27520,6 +27867,8 @@
                                         "mode",
                                         "arrival_status",
                                         "totals",
+                                        "undone_at",
+                                        "undo_archived",
                                         "summary",
                                         "sign_in_plan",
                                         "rows"
@@ -27802,6 +28151,15 @@
                                                     ],
                                                     "items": []
                                                 },
+                                                "undone_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "undo_archived": {
+                                                    "type": "integer"
+                                                },
                                                 "summary": {
                                                     "type": "object",
                                                     "additionalProperties": {
@@ -28040,6 +28398,8 @@
                                                 "mode",
                                                 "arrival_status",
                                                 "totals",
+                                                "undone_at",
+                                                "undo_archived",
                                                 "summary",
                                                 "sign_in_plan",
                                                 "rows"
@@ -57836,6 +58196,26 @@
                 ],
                 "title": "TransitionEmployeeRequest"
             },
+            "UndoMigrationRequest": {
+                "type": "object",
+                "description": "Undoing what a list added: the second, explicit call after the preview.\nArchiving people is not done by a request that does not say so.",
+                "properties": {
+                    "confirm": {
+                        "enum": [
+                            "yes",
+                            "on",
+                            "1",
+                            1,
+                            "true",
+                            true
+                        ]
+                    }
+                },
+                "required": [
+                    "confirm"
+                ],
+                "title": "UndoMigrationRequest"
+            },
             "UnregisteredEmployeeResource": {
                 "type": "object",
                 "properties": {
@@ -58734,6 +59114,13 @@
                             "null"
                         ],
                         "minimum": 0
+                    },
+                    "salary_effective_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "tin": {
                         "type": [

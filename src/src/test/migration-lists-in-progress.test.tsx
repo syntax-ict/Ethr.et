@@ -6,7 +6,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { MigrationListsInProgress } from "@/features/onboarding/v2/components/migration-lists-in-progress";
-import type { MigrationListInProgress } from "@/features/onboarding/v2/types";
+import type {
+  MigrationListAdded,
+  MigrationListInProgress,
+} from "@/features/onboarding/v2/types";
 
 /**
  * The organisation's lists that are not finished, above the box a new one is
@@ -59,12 +62,30 @@ function me(permissions: string[]) {
   );
 }
 
-function serves(lists: MigrationListInProgress[]) {
+function added(over: Partial<MigrationListAdded>): MigrationListAdded {
+  return {
+    public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A01",
+    mode: "add",
+    source_type: "csv",
+    rows: 30,
+    created: 28,
+    committed_at: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+    created_by_name: null,
+    mine: true,
+    undone_at: null,
+    ...over,
+  };
+}
+
+function serves(
+  lists: MigrationListInProgress[],
+  addedLists: MigrationListAdded[] = [],
+) {
   const asked = { count: 0 };
   server.use(
     http.get("*/onboarding/migration/batches", () => {
       asked.count += 1;
-      return HttpResponse.json({ data: lists });
+      return HttpResponse.json({ data: lists, added: addedLists });
     }),
   );
   return asked;
@@ -294,5 +315,114 @@ describe("Lists in progress", () => {
     expect(
       await screen.findByRole("button", { name: "Matching people: 3 of 9" }),
     ).toBeDisabled();
+  });
+
+  it("lists what was added, newest first, with who and how many", async () => {
+    server.use(me(["employee.create"]));
+    serves(
+      [],
+      [
+        added({}),
+        added({
+          public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A02",
+          mode: "complete",
+          rows: 1,
+          created: 1,
+          mine: false,
+          created_by_name: "Selam Bekele",
+        }),
+        added({
+          public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A03",
+          mine: false,
+          created_by_name: null,
+          undone_at: "2026-11-02T09:00:00Z",
+        }),
+      ],
+    );
+    renderCard();
+
+    expect(await screen.findByText("Lists added recently")).toBeInTheDocument();
+    // Nothing is in progress, so that group's heading and hint are not shown.
+    expect(screen.queryByText("Lists in progress")).toBeNull();
+
+    const rows = await screen.findAllByTestId("list-added");
+    expect(rows).toHaveLength(3);
+
+    expect(within(rows[0]).getByText("Adding people")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Added")).toBeInTheDocument();
+    expect(
+      within(rows[0]).getByText(/Added 3 h ago by you/),
+    ).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/30 lines/)).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/28 people added/)).toBeInTheDocument();
+
+    expect(
+      within(rows[1]).getByText("Completing people who are already here"),
+    ).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/by Selam Bekele/)).toBeInTheDocument();
+    expect(
+      within(rows[1]).getByText(/1 line · 1 person added$/),
+    ).toBeInTheDocument();
+
+    expect(within(rows[2]).getByText("Additions undone")).toBeInTheDocument();
+    expect(within(rows[2]).queryByText("Added")).toBeNull();
+    expect(within(rows[2]).getByText(/by someone else/)).toBeInTheDocument();
+  });
+
+  it("opens an added list into its committed view", async () => {
+    server.use(me(["employee.create"]));
+    serves([], [added({})]);
+    const { onOpen } = renderCard();
+
+    const row = await screen.findByTestId("list-added");
+    await userEvent.click(within(row).getByRole("button", { name: "Open" }));
+
+    expect(onOpen).toHaveBeenCalledWith({
+      public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A01",
+      status: "committed",
+    });
+  });
+
+  it("shows both groups together, each under its own heading", async () => {
+    server.use(me(["employee.create"]));
+    serves([REVIEWING], [added({})]);
+    renderCard();
+
+    expect(await screen.findByText("Lists in progress")).toBeInTheDocument();
+    expect(await screen.findByText("Lists added recently")).toBeInTheDocument();
+    expect(screen.getAllByTestId("list-in-progress")).toHaveLength(1);
+    expect(screen.getAllByTestId("list-added")).toHaveLength(1);
+  });
+
+  it("offers no discard on a list that was added", async () => {
+    server.use(me(["employee.create"]));
+    serves([], [added({})]);
+    renderCard();
+
+    const row = await screen.findByTestId("list-added");
+    expect(within(row).queryByRole("button", { name: "Discard" })).toBeNull();
+  });
+
+  it("shows nothing when both groups are empty", async () => {
+    server.use(me(["employee.create"]));
+    const asked = serves([], []);
+    renderCard();
+
+    await waitFor(() => expect(asked.count).toBe(1));
+    expect(screen.queryByText("Lists added recently")).toBeNull();
+    expect(screen.queryByText("Lists in progress")).toBeNull();
+  });
+
+  it("copes with an answer that has no added group", async () => {
+    server.use(
+      me(["employee.create"]),
+      http.get("*/onboarding/migration/batches", () =>
+        HttpResponse.json({ data: [REVIEWING] }),
+      ),
+    );
+    renderCard();
+
+    expect(await screen.findByText("Lists in progress")).toBeInTheDocument();
+    expect(screen.queryByText("Lists added recently")).toBeNull();
   });
 });
