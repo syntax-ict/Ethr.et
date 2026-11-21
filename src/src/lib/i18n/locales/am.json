@@ -7937,6 +7937,17 @@
   "device_allow.button": ":ip ፍቀድ",
   "device_allow.added": ":ip ወደ ተፈቀዱ አድራሻዎች ተጨምሯል።",
   "device_allow.failed": "አድራሻው ሊጨመር አልቻለም።",
+  "device_token.regenerate_title": "አድራሻውን ለምን ይቀይራሉ?",
+  "device_token.reason_lost": "ጠፍቷል ወይም ተሰርቋል፦ አሮጌው አድራሻ አሁኑኑ ይቆማል",
+  "device_token.reason_moving": "መሳሪያው እየተዛወረ ወይም እንደገና እየተዋቀረ ነው፦ አሮጌው አድራሻ ለ24 ሰዓት መስራቱን ይቀጥላል",
+  "device_token.issued_title": "የመሳሪያው አዲስ አድራሻ",
+  "device_token.issued_intro": "ይህን አድራሻ በመሳሪያው ላይ ያስገቡ። የሚታየው አሁን ብቻ ነው፤ ዳግም ሊታይ አይችልም።",
+  "device_token.copy": "አድራሻውን ቅዳ",
+  "device_token.copied": "አድራሻው ተቀድቷል",
+  "device_token.done": "ተጠናቀቀ",
+  "device_token.grace_note": "አሮጌው አድራሻ ለ:hours ሰዓት መስራቱን ይቀጥላል፤ ከዚያ ይቆማል።",
+  "device_token.masked_hint": "ሙሉው አድራሻ የሚታየው ሲፈጠር ወይም እንደገና ሲመነጭ ብቻ ነው። እዚህ የቶከኑ መጀመሪያ ብቻ ይታያል።",
+  "device_token.regenerate_to_see": "አድራሻውን ዳግም ለማየት እንደገና ያመንጩ",
   "adms_setup.resends": "መሣሪያው ያላደረሰውን ሁሉ በራሱ እንደገና ይልካል። ETHR ከእሱ በጭራሽ አይጎትትም።",
   "device_clock.warning_timezone": "የመሣሪያው የሰዓት ሰቅ የተሳሳተ ይመስላል። ወደ UTC+3 (ምሥራቅ አፍሪካ) ያስቀምጡት።"
 }

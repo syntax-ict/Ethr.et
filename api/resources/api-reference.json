@@ -49708,6 +49708,21 @@
                             "type": "string"
                         }
                     },
+                    "has_webhook_token": {
+                        "type": "boolean"
+                    },
+                    "webhook_token_prefix": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "webhook_url_masked": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "webhook_token": {
                         "type": [
                             "string",
