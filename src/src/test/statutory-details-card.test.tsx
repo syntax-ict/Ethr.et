@@ -10,7 +10,7 @@ import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-de
  * The header of the monthly tax and pension schedules (2026-10-14): without
  * the employer TIN they still download, but say NOT SET where it belongs.
  */
-function serve() {
+function serve(payroll: Record<string, unknown> = {}) {
   const saved: Record<string, unknown>[] = [];
   server.use(
     http.get("*/api/v1/settings", () =>
@@ -25,6 +25,7 @@ function serve() {
           pension_registration_number: null,
           payout_method: null,
           employer_bank_name: null,
+          ...payroll,
         },
       }),
     ),
@@ -73,6 +74,7 @@ describe("<StatutoryDetailsCard>", () => {
       pension_registration_number: null,
       payout_method: null,
       employer_bank_name: null,
+      employer_bank_code: null,
     });
   });
 
@@ -116,6 +118,54 @@ describe("<StatutoryDetailsCard>", () => {
       pension_registration_number: "P-0042",
       payout_method: "bank",
       employer_bank_name: "Commercial Bank of Ethiopia",
+      employer_bank_code: null,
+    });
+  });
+
+  it("keeps the code of a bank picked from the list, and drops it when the name is typed", async () => {
+    server.use(
+      http.get("*/api/v1/lookups", () =>
+        HttpResponse.json({
+          version: "abc123abc123",
+          items: {
+            region: [],
+            sub_city: [],
+            town: [],
+            bank: [
+              {
+                code: "awash",
+                parent_code: null,
+                name: "Awash Bank",
+                name_am: "አዋሽ ባንክ",
+                name_om: "Baankii Awaash",
+                meta: {},
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    const saved = serve({ payout_method: "bank" });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <StatutoryDetailsCard />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("combobox", { name: "Bank you pay from" }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Awash Bank" }));
+    await user.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toMatchObject({
+      employer_bank_name: "Awash Bank",
+      employer_bank_code: "awash",
     });
   });
 });

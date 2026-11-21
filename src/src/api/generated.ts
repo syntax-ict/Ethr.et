@@ -10052,6 +10052,7 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
+            bank_code: string | null;
             branch_name: string | null;
             account_number_masked: string;
             is_primary: boolean;
@@ -10075,6 +10076,8 @@ export interface components {
             code: string | null;
             address: string | null;
             city: string | null;
+            region_code: string | null;
+            town_code: string | null;
             phone: string | null;
             latitude: string | null;
             longitude: string | null;
@@ -11777,6 +11780,7 @@ export interface components {
         PlatformSettingResource: {
             public_id: string;
             bank_name: string | null;
+            bank_code: string | null;
             bank_account_number: string | null;
             bank_account_name: string | null;
             payment_instructions: string | null;
@@ -12658,6 +12662,7 @@ export interface components {
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
             bank_name: string;
+            bank_code?: string | null;
             branch_name?: string | null;
             account_number: string;
             is_primary?: boolean | null;
@@ -12669,6 +12674,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13525,6 +13532,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13934,6 +13943,7 @@ export interface components {
         /** UpdatePlatformSettingsRequest */
         UpdatePlatformSettingsRequest: {
             bank_name?: string | null;
+            bank_code?: string | null;
             /**
              * @description Ethiopian bank account numbers are digits, commonly written with
              *     spaces or dashes for readability. Anything else is a typo on a field
@@ -14082,6 +14092,7 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                employer_bank_code?: string | null;
                 letterhead_address?: string | null;
                 letterhead_phone?: string | null;
                 /** Format: email */
@@ -36667,6 +36678,7 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                            employer_bank_code: string | null;
                         };
                         documents: {
                             letterhead_address: string | null;

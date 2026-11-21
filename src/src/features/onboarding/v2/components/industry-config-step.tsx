@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, X, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ReferenceSelect } from "@/components/shared/reference-select";
+import { EMPTY_REFERENCE, type ReferenceValue } from "@/features/reference/api";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -78,7 +79,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const { data: tenant } = useCurrentTenant();
   const [chosen, setChosen] = useState<string | null>(null);
   const [staffBand, setStaffBand] = useState<StaffBand | null>(null);
-  const [region, setRegion] = useState("");
+  const [region, setRegion] = useState<ReferenceValue>(EMPTY_REFERENCE);
   // The kind of organisation in law (asked at sign-up; confirmed here), and
   // how and in which calendar it pays: with the industry, the five answers
   // its statutory rules resolve from.
@@ -225,7 +226,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     const request: PreviewRequest = {
       industry: selected,
       staff_band: staffBand ?? undefined,
-      region: region || undefined,
+      // The English name, as typed text always was: the resolver reads it as a
+      // place name, and a code means nothing to it.
+      region: region.text.trim() || undefined,
       workforce_profile: workforceProfile ?? undefined,
       policy_profile: policyProfile ?? undefined,
       // The kind in law decides which body of employment law the policies
@@ -549,12 +552,12 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                       <Label htmlFor="region">
                         {t("setup2.region", "Region")}
                       </Label>
-                      <Input
+                      <ReferenceSelect
                         id="region"
+                        kind="region"
                         value={region}
-                        onChange={(e) => setRegion(e.target.value)}
+                        onChange={setRegion}
                         className="mt-1"
-                        placeholder={t("setup.default_city", "Addis Ababa")}
                       />
                     </div>
                   </div>

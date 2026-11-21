@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Cache;
  * Global by design — no tenant scope. See the migration for why, and
  * TenantIsolationTest::GLOBAL_MODELS for the allow-list entry that makes it
  * a reviewed decision.
+ *
+ * @property string|null $bank_code
  */
 class PlatformSetting extends Model
 {
@@ -21,6 +23,7 @@ class PlatformSetting extends Model
 
     protected $fillable = [
         'bank_name',
+        'bank_code',
         'bank_account_number',
         'bank_account_name',
         'payment_instructions',
