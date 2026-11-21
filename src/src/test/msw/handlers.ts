@@ -177,8 +177,8 @@ export const handlers = [
   http.get("*/onboarding/migration/sources", () =>
     HttpResponse.json({ data: [] }),
   ),
-  // ...and which lists are in progress (useMigrationListsInProgress); none.
+  // ...and which lists are in progress (useMigrationListsInProgress); none, and none added.
   http.get("*/onboarding/migration/batches", () =>
-    HttpResponse.json({ data: [] }),
+    HttpResponse.json({ data: [], added: [] }),
   ),
 ];

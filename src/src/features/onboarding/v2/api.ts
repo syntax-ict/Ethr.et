@@ -22,6 +22,7 @@ import type {
   ListMode,
   LoginIdentifier,
   MigrationBatch,
+  MigrationListAdded,
   MigrationListInProgress,
   MigrationLogins,
   MigrationTerminals,
@@ -29,6 +30,8 @@ import type {
   ReadinessReport,
   StagingAction,
   StagingRow,
+  UndoPreview,
+  UndoResult,
 } from "./types";
 
 /** The headcount bands onboarding asks for (`TenantLanding::STAFF_BANDS`). */
@@ -182,17 +185,43 @@ export function useMigrationBatch(batchId: string | null) {
   });
 }
 
+/** What the lists endpoint answers: the unfinished ones, and the ones that were added. */
+interface MigrationListsResponse {
+  data?: MigrationListInProgress[];
+  added?: MigrationListAdded[];
+}
+
+/**
+ * One request serves both groups on the card. The two hooks below share its
+ * key and select their own half, so the card never asks twice.
+ */
+function useMigrationLists<T>(
+  select: (body: MigrationListsResponse) => T,
+  enabled: boolean,
+) {
+  return useQuery<MigrationListsResponse, Error, T>({
+    queryKey: MIGRATION_BATCHES_KEY,
+    queryFn: async () =>
+      (await apiClient.get("/onboarding/migration/batches")).data,
+    select,
+    enabled,
+  });
+}
+
 /**
  * The organisation's lists that are not finished, newest first: staged and
  * left, or started in another tab. Asked only while no list is open.
  */
 export function useMigrationListsInProgress(enabled = true) {
-  return useQuery<MigrationListInProgress[]>({
-    queryKey: MIGRATION_BATCHES_KEY,
-    queryFn: async () =>
-      (await apiClient.get("/onboarding/migration/batches")).data.data,
-    enabled,
-  });
+  return useMigrationLists((body) => body.data ?? [], enabled);
+}
+
+/**
+ * The lists that were added, newest first. How many and how far back is the
+ * server's to decide. Read from the request the in-progress hook makes.
+ */
+export function useMigrationListsAdded(enabled = true) {
+  return useMigrationLists((body) => body.added ?? [], enabled);
 }
 
 /** Throw away a list nobody will finish. The server refuses one that is being added. */
@@ -572,6 +601,86 @@ export function useCommitMigration(
       // Finished or part way, the lists in progress have changed either way.
       qc.invalidateQueries({ queryKey: MIGRATION_BATCHES_KEY });
       // The people it added are employees now, wherever they are listed.
+      qc.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
+}
+
+/** An undo that kept answering without the list getting shorter. */
+export class UndoStalled extends Error {
+  constructor() {
+    super("The undo stopped moving.");
+    this.name = "UndoStalled";
+  }
+}
+
+/** Slices in a row that may pass without the undo getting shorter. */
+const UNDO_STALLED_AFTER = 2;
+
+/**
+ * Who undoing a committed list would archive and who it would keep. Asked
+ * when the dialog opens and never kept: what a list's people have been used
+ * for changes by the minute, so a preview is only true while it is on screen.
+ */
+export function useUndoPreview(batchId: string | null, enabled: boolean) {
+  return useQuery<UndoPreview>({
+    queryKey: ["onboarding", "migration", batchId, "undo"],
+    queryFn: async () =>
+      (await apiClient.get(`/onboarding/migration/batches/${batchId}/undo`))
+        .data,
+    enabled: enabled && !!batchId,
+    gcTime: 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+}
+
+/**
+ * Archive the people a committed list added. The server works in slices and
+ * answers `done: false` with how many are left, so the same request is sent
+ * again until it answers `done`. A slice that archived nobody and left the
+ * count where it was twice over stops the loop.
+ */
+export async function undoMigration(
+  batchId: string,
+  onProgress?: (result: UndoResult) => void,
+): Promise<UndoResult> {
+  let left = Number.POSITIVE_INFINITY;
+  let stalled = 0;
+
+  for (;;) {
+    const result: UndoResult = (
+      await apiClient.post(`/onboarding/migration/batches/${batchId}/undo`, {
+        confirm: true,
+      })
+    ).data;
+
+    if (result.done) return result;
+
+    onProgress?.(result);
+
+    stalled = result.remaining < left ? 0 : stalled + 1;
+    left = result.remaining;
+    if (stalled >= UNDO_STALLED_AFTER) {
+      throw new UndoStalled();
+    }
+  }
+}
+
+export function useUndoMigration(onProgress?: (result: UndoResult) => void) {
+  const qc = useQueryClient();
+  return useMutation<UndoResult, unknown, string>({
+    mutationFn: (batchId) => undoMigration(batchId, onProgress),
+    // Settled, not only succeeded: a stopped undo has still archived people.
+    onSettled: (_data, _error, batchId) => {
+      qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
+      qc.invalidateQueries({ queryKey: MIGRATION_BATCHES_KEY });
+      qc.invalidateQueries({
+        queryKey: ["onboarding", "migration", batchId, "logins"],
+      });
+      qc.invalidateQueries({
+        queryKey: ["onboarding", "migration", batchId, "terminals"],
+      });
       qc.invalidateQueries({ queryKey: ["employees"] });
     },
   });

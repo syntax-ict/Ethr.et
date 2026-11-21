@@ -56,6 +56,8 @@ class MigrationBatch extends Model
         'commit_cursor',
         'committed_at',
         'options',
+        'undone_at',
+        'undo_totals',
     ];
 
     protected $hidden = [
@@ -70,6 +72,8 @@ class MigrationBatch extends Model
             'commit_cursor' => 'integer',
             'committed_at' => 'datetime',
             'options' => 'array',
+            'undone_at' => 'datetime',
+            'undo_totals' => 'array',
         ];
     }
 

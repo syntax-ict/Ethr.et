@@ -5422,6 +5422,12 @@ export interface paths {
          *     null when whoever started it has gone, and `mine` says the viewer
          *     started it. Any member of the organisation who may view employees can
          *     open any of these, as `/migration/batches/{batch}` already allows.
+         *
+         *     `added` is the lists that have been added, newest first, at most
+         *     twenty, for the screen that undoes a list's additions: `rows` is how many
+         *     lines it held, `created` how many people it made, `committed_at` when it
+         *     was added and `undone_at` when an undo of it last finished (null when
+         *     none has). They are not in `data`.
          */
         get: operations["migration.index"];
         put?: never;
@@ -5544,6 +5550,54 @@ export interface paths {
          *     list begins to be added; a later request cannot change it.
          */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What undoing a list's additions would do, without doing it
+         * @description Only a list that has been added can be undone, and only by someone who
+         *     may delete employees. The people the list itself made are archived (the
+         *     ordinary delete: each can be restored with `POST /employees/{employee}/restore`) unless
+         *     they have been used since, and nobody else is touched: not someone the
+         *     list only matched, and not a change a match made to their record.
+         *
+         *     `archive` is who would be archived and `keep` who would be left alone,
+         *     each with why (`reasons`: `attendance`, `signed_in`, `payroll`, `leave`,
+         *     `overtime`, `documents`, `hr_records`, `in_charge`, `assigned`, or
+         *     `unsure_origin`), the first two hundred by name; `archive_count` and
+         *     `keep_count` are the whole. People the viewer has no reach over are
+         *     counted in `out_of_reach` and never named. `already_archived` is how many
+         *     the list made who are archived now.
+         *
+         *     `origin` is `recorded` when the list noted what each of its lines did and
+         *     `derived` when it was added before it did. `exact` is false when some
+         *     people cannot be told from ones the list only matched: they are all kept.
+         *     `added` is how many people the list made.
+         */
+        get: operations["migration.undoPreview"];
+        put?: never;
+        /**
+         * Undo a list's additions, as much as fits in one request
+         * @description Send `confirm` as true: this is the second, explicit call after the
+         *     preview. A long list is archived a slice at a time; while `done` is
+         *     false, `remaining` people are still to be dealt with and the same request
+         *     is sent again. `archived` is how many have been archived so far in this
+         *     undo, and once it is done, how many the one audit entry for it records.
+         *     Pressing it again archives nobody and records nothing: `done` is true and
+         *     `archived` is 0. `kept` is how many are left alone for being used, and
+         *     `out_of_reach` how many the person asking has no reach over.
+         */
+        post: operations["migration.undo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13137,6 +13191,15 @@ export interface components {
             name: string;
             logo_url: string | null;
             url: string;
+        };
+        /**
+         * UndoMigrationRequest
+         * @description Undoing what a list added: the second, explicit call after the preview.
+         *     Archiving people is not done by a request that does not say so.
+         */
+        UndoMigrationRequest: {
+            /** @enum {unknown} */
+            confirm: "yes" | "on" | "1" | 1 | "true" | true;
         };
         /** UnregisteredEmployeeResource */
         UnregisteredEmployeeResource: {
@@ -28908,6 +28971,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29046,6 +29111,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29262,6 +29329,17 @@ export interface operations {
                             created_by_name: string | null;
                             mine: boolean;
                         }[];
+                        added: {
+                            public_id: string;
+                            mode: string;
+                            source_type: string;
+                            rows: number;
+                            created: number;
+                            committed_at: string | null;
+                            created_by_name: string | null;
+                            mine: boolean;
+                            undone_at: string | null;
+                        }[];
                     };
                 };
             };
@@ -29295,6 +29373,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29599,6 +29679,118 @@ export interface operations {
                         /**
                          * @description Error overview.
                          * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.undoPreview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        origin: string;
+                        exact: boolean;
+                        added: number;
+                        already_archived: number;
+                        matched: number;
+                        archive_count: number;
+                        archive: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        }[];
+                        keep_count: number;
+                        keep: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                            reasons: string[];
+                        }[];
+                        out_of_reach: number;
+                        undone_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "migration.undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoMigrationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: boolean;
+                        archived: number;
+                        remaining: number;
+                        kept: number;
+                        out_of_reach: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
                          */
                         message: string;
                     };
