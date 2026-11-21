@@ -858,6 +858,18 @@ final class AttendanceEngine
         $resolution = $this->conflictResolver->resolve($record);
         $record = $resolution->record;
 
+        // The day was paid in an approved run and this punch is the same
+        // arrival seen again: the paid record is not touched (no punch log,
+        // no reclassification) and nothing is announced. The punch answers
+        // "already checked in", as any duplicate does.
+        if ($resolution->action === 'kept_paid') {
+            AuditLog::record('attendance.conflict_kept_paid', $record, [
+                'source' => $input->source->value,
+            ]);
+
+            return new AttendanceResult($record, wasDuplicate: true, outcome: $this->alreadyIn($record));
+        }
+
         if ($resolution->action !== 'created') {
             AuditLog::record('attendance.conflict_'.$resolution->action, $record, [
                 'source' => $input->source->value,
