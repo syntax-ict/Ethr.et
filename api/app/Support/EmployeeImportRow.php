@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Identity\IdentitySignals;
@@ -558,7 +560,7 @@ final class EmployeeImportRow
             'national_id' => ['nullable', 'string', 'max:50'],
             'tin' => ['nullable', 'string', 'max:20'],
             'badge_number' => ['nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/'],
-            'gender' => ['nullable', 'string', 'in:male,female'],
+            'gender' => ['nullable', 'string', 'in:'.implode(',', Gender::values())],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'hire_date' => ['required', 'date'],
             'department_code' => ['nullable', 'string', 'max:255'],
@@ -568,7 +570,7 @@ final class EmployeeImportRow
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'nationality' => ['nullable', 'string', 'max:100'],
             'nationality_status' => ['nullable', 'string', 'in:'.implode(',', NationalityStatus::values())],
-            'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
+            'marital_status' => ['nullable', 'string', 'in:'.implode(',', MaritalStatus::values())],
             'status' => ['nullable', 'string', 'in:'.implode(',', self::STATUSES)],
             'external_id' => ['nullable', 'string', 'max:100'],
         ];
@@ -691,12 +693,7 @@ final class EmployeeImportRow
         }
 
         if (is_string($row['gender'] ?? null)) {
-            $gender = mb_strtolower($row['gender']);
-            $row['gender'] = match ($gender) {
-                'm' => 'male',
-                'f' => 'female',
-                default => $gender,
-            };
+            $row['gender'] = Gender::fromInput($row['gender'])->value ?? mb_strtolower($row['gender']);
         }
 
         if (is_string($row['marital_status'] ?? null)) {

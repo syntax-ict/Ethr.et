@@ -9,6 +9,7 @@ use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationOwnership;
+use App\Support\Locales;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -41,7 +42,7 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', 'string', Rule::enum(UserRole::class)],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'suspended'])],
             'custom_role_id' => ['sometimes', 'nullable', 'string', 'exists:custom_roles,public_id'],
-            'locale' => ['sometimes', 'string', 'in:en,am,om'],
+            'locale' => ['sometimes', 'string', Locales::rule()],
         ];
     }
 

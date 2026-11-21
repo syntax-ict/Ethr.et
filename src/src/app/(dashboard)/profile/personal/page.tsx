@@ -10,13 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { OptionSelect } from "@/components/shared/option-select";
 import { PhoneInput } from "@/components/shared/phone-input";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -31,17 +25,16 @@ import {
   type UpdateProfilePayload,
 } from "@/features/profile/api";
 import { useT } from "@/lib/i18n/useT";
+import {
+  MARITAL_STATUSES,
+  useMaritalStatusLabel,
+} from "@/lib/options/marital-status";
+import {
+  RELATIONSHIPS,
+  useRelationshipLabel,
+} from "@/lib/options/relationship";
 import { toast } from "sonner";
 
-const MARITAL_STATUSES = ["single", "married", "divorced", "widowed"] as const;
-const RELATIONSHIPS = [
-  "spouse",
-  "parent",
-  "sibling",
-  "child",
-  "friend",
-  "other",
-] as const;
 /** Server-side cap; kept here so the Add button disables instead of 422-ing. */
 const MAX_CONTACTS = 5;
 
@@ -64,6 +57,7 @@ export default function PersonalDetailsPage() {
 
 function PersonalDetails({ profile }: { profile: ProfileResponse }) {
   const { t } = useT();
+  const maritalLabel = useMaritalStatusLabel();
   const updateProfile = useUpdateProfile();
   const employee = profile.employee;
 
@@ -184,23 +178,13 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                   control={control}
                   name="marital_status"
                   render={({ field }) => (
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger id="marital_status">
-                        <SelectValue
-                          placeholder={t("common.select", "Select")}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MARITAL_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {t(`marital_status.${status}`, status)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <OptionSelect
+                      id="marital_status"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={MARITAL_STATUSES}
+                      getLabel={maritalLabel}
+                    />
                   )}
                 />
               </div>
@@ -262,6 +246,7 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
 
 function EmergencyContactsCard({ contacts }: { contacts: EmergencyContact[] }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const [editing, setEditing] = useState<EmergencyContact | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<EmergencyContact | null>(
     null,
@@ -327,11 +312,8 @@ function EmergencyContactsCard({ contacts }: { contacts: EmergencyContact[] }) {
                   {contact.name}
                 </p>
                 <p className="text-sm capitalize text-muted-foreground">
-                  {t(
-                    `relationship.${contact.relationship}`,
-                    contact.relationship,
-                  )}{" "}
-                  · <span className="tabular-nums">{contact.phone}</span>
+                  {relationshipText(contact.relationship)} ·{" "}
+                  <span className="tabular-nums">{contact.phone}</span>
                 </p>
               </div>
               <div className="flex gap-1">
@@ -391,6 +373,7 @@ function ContactForm({
   onDone: () => void;
 }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const create = useCreateEmergencyContact();
   const update = useUpdateEmergencyContact();
   const saving = create.isPending || update.isPending;
@@ -468,21 +451,18 @@ function ContactForm({
             control={control}
             name="relationship"
             render={({ field }) => (
-              <Select
-                value={field.value || undefined}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger id="contact_relationship">
-                  <SelectValue placeholder={t("common.select", "Select")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {RELATIONSHIPS.map((rel) => (
-                    <SelectItem key={rel} value={rel}>
-                      {t(`relationship.${rel}`, rel)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <OptionSelect
+                id="contact_relationship"
+                value={field.value}
+                onChange={field.onChange}
+                options={RELATIONSHIPS}
+                getLabel={relationshipText}
+                otherValue="other"
+                otherLabel={t(
+                  "relationship.other_specify",
+                  "Say how they are related",
+                )}
+              />
             )}
           />
           {errors.relationship && (

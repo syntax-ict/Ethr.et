@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Profile;
 
+use App\Enums\MaritalStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProfileRequest extends FormRequest
 {
@@ -19,7 +21,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             // Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS.
             'phone' => ['nullable', 'string', 'max:20'],
-            'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
+            'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'nationality' => ['nullable', 'string', 'max:100'],
 
             // Shorthand for the primary emergency contact. The full list is managed

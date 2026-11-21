@@ -21,6 +21,12 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { Controller } from "react-hook-form";
+import { OptionSelect } from "@/components/shared/option-select";
+import {
+  EDUCATION_LEVELS,
+  useEducationLevelLabel,
+} from "@/lib/options/education-level";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -28,6 +34,7 @@ import {
   useAddEducation,
   useDeleteEducation,
   useEmployeeEducation,
+  type EducationPayload,
 } from "../api";
 
 /**
@@ -66,6 +73,7 @@ const educationSchema = z
   .object({
     institution: rules.requiredText(255),
     degree: rules.requiredText(255),
+    level: z.string(),
     field_of_study: rules.text(255),
     start_year: optionalYear,
     end_year: optionalYear,
@@ -96,6 +104,7 @@ type EducationValues = z.infer<typeof educationSchema>;
 const EMPTY_EDUCATION: EducationValues = {
   institution: "",
   degree: "",
+  level: "",
   field_of_study: "",
   start_year: "",
   end_year: "",
@@ -104,11 +113,13 @@ const EMPTY_EDUCATION: EducationValues = {
 
 export function EducationTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const levelText = useEducationLevelLabel();
   const { requestConfirm, confirmDialog } = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
     register,
+    control,
     submit,
     reset,
     rootError,
@@ -128,6 +139,7 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     await addEducation.mutateAsync({
       institution: values.institution,
       degree: values.degree,
+      level: (values.level || undefined) as EducationPayload["level"],
       field_of_study: values.field_of_study,
       start_date: yearToDate(values.start_year),
       end_date: yearToDate(values.end_year),
@@ -203,6 +215,11 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
                         {e.degree}
                         {e.field_of_study && `, ${e.field_of_study}`}
                       </p>
+                      {e.level && (
+                        <p className="text-xs text-muted-foreground">
+                          {levelText(e.level)}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {e.institution}
                       </p>
@@ -259,6 +276,31 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
               error={fieldMessage(t, errors.institution?.message)}
             >
               <Input {...register("institution")} className="mt-1" />
+            </FormField>
+
+            <FormField
+              id="edu_level"
+              label={t("employee.education.level", "Level")}
+              error={fieldMessage(t, errors.level?.message)}
+            >
+              <Controller
+                control={control}
+                name="level"
+                render={({ field }) => (
+                  <OptionSelect
+                    id="edu_level"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={EDUCATION_LEVELS}
+                    getLabel={levelText}
+                    placeholder={t(
+                      "employee.education.level_select",
+                      "Select level",
+                    )}
+                    className="mt-1"
+                  />
+                )}
+              />
             </FormField>
 
             <FormField
