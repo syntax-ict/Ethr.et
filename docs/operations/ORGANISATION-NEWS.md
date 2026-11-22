@@ -70,6 +70,31 @@ starts with `https://` becomes a link that opens in a new tab with
 `rel="noopener noreferrer nofollow ugc"`. Markup is stripped by the server and
 rendered as text by the page, so nothing in a story can run or style the page.
 
+### One announcement, one presentation
+
+*Added 2026-11-22.* A story is drawn by the same three components wherever it
+appears: the announcements page, the dashboard card, the organisation's news
+page, an article and the portal's news section.
+
+| What | The one component | Where it lives |
+|---|---|---|
+| Date, category, featured and priority | `NewsMeta` | `src/src/features/news/components/news-card.tsx` |
+| A story as a card | `NewsCard` | the same file |
+| A story in full | `ArticleView` | `features/news/components/article-view.tsx` |
+| Its state: draft, scheduled, published, archived | `StatusBadge` with `domain="announcement"` | `components/shared/status-badge.tsx`, from `lib/status/registry.ts` |
+| Its shortened text | `excerpt`, from `App\Support\PlainExcerpt` | the API, for the in-app list and the public feed alike |
+
+**Do not draw any of these again.** Each had grown a second version: priority
+was three tables (`priorityColors` on the page, `priorityConfig` in the widget,
+`NewsMeta` on the public pages), so one story read "High" in the app and
+"Important" on the organisation's own website, and "low" had no word at all.
+The text was clamped by CSS in two places while the public feed shortened it on
+the server, so the same story was cut at different points.
+
+The words are `landing.urgent` and `landing.important`; normal and low carry no
+badge. `e2e/announcements.spec.ts` publishes one story and reads the same word
+back from all three screens, so the next copy cannot pass unnoticed.
+
 ### Cover photos
 
 A story may carry one cover photo, chosen in the story form (Cover photo →

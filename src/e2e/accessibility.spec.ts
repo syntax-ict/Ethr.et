@@ -120,6 +120,17 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
       await assertNoA11yViolations(page);
     });
 
+    test('announcements page and its editor have no critical a11y violations', async ({ page }) => {
+      await page.goto('/announcements');
+      await page.waitForLoadState('networkidle');
+      await assertNoA11yViolations(page);
+
+      // The write form, which carries the file inputs and every select.
+      await page.getByRole('button', { name: /New Announcement|አዲስ/i }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await assertNoA11yViolations(page);
+    });
+
     test('settings page has no critical a11y violations', async ({ page }) => {
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');

@@ -19,13 +19,17 @@
       "marketing_features": [
         "Attendance and leave",
         "Employee records",
-        "Works offline"
+        "Attendance works offline"
       ],
-      "marketing_features_am": ["መገኘት እና ፈቃድ", "የሠራተኛ መዝገብ", "ከመስመር ውጭ ይሠራል"],
+      "marketing_features_am": [
+        "መገኘት እና ፈቃድ",
+        "የሠራተኛ መዝገብ",
+        "መገኘት ከመስመር ውጭ ይሠራል"
+      ],
       "marketing_features_om": [
         "Argamaa fi boqonnaa",
         "Galmee hojjettootaa",
-        "Toora ala ni hojjeta"
+        "Argamaan toora ala ni hojjeta"
       ],
       "is_popular": false,
       "sort_order": 1
