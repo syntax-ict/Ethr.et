@@ -7,6 +7,8 @@ return [
     'template_unknown_variables' => 'ይህ አብነት :variables መጠቀም አይችልም። ሊጠቀሙባቸው የሚችሉ ተለዋዋጮች፦ :allowed።',
     'leave_year_locked' => 'ፈቃድ ከተወሰደ፣ ከተጠየቀ ወይም ወደሚቀጥለው ዓመት ከተሸጋገረ በኋላ የፈቃድ ዓመቱ መቀየር አይችልም። እነዚያ ቀሪ ቀናት የአሁኑ የፈቃድ ዓመት ናቸው።',
     'attributes' => [
+        'pay_change_alert_percent' => 'የደመወዝ ለውጥ ማሳወቂያ መቶኛ',
+        'pay_change_alert_min_cents' => 'የደመወዝ ለውጥ ማሳወቂያ ዝቅተኛ መጠን',
         'fiscal_year_start_month' => 'የበጀት ዓመት መጀመሪያ ወር',
         'pagumen_proration_strategy' => 'የጳጉሜን ክፍያ ስሌት',
         'retirement_age' => 'የጡረታ ዕድሜ',

@@ -4,6 +4,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AllowanceRulesCard } from "@/features/payroll/components/allowance-rules-card";
 import { OvertimeRatesCard } from "@/features/payroll/components/overtime-rates-card";
+import { PayChangeChecksCard } from "@/features/payroll/components/pay-change-checks-card";
 import { PayrollScheduleCard } from "@/features/payroll/components/payroll-schedule-card";
 import { PrintedDocumentsCard } from "@/features/payroll/components/printed-documents-card";
 import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-details-card";
@@ -35,6 +36,7 @@ export default function PayrollConfigPage() {
         <TabsContent value="setup" className="mt-6 space-y-6">
           <PayrollScheduleCard />
           <StatutoryDetailsCard />
+          <PayChangeChecksCard />
           <PrintedDocumentsCard />
           <AllowanceRulesCard />
           <TaxBracketsCard />

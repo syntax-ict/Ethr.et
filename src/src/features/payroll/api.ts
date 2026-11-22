@@ -180,6 +180,57 @@ export interface PayrollRegister {
   reconciliation?: RegisterReconciliation;
   /** Payslips whose lateness, loan and cost-sharing deductions pass a third of basic. */
   deduction_ceiling?: DeductionCeiling;
+  /** Net pay that moved past the organisation's thresholds since the last released run. */
+  pay_changes?: PayChanges;
+  /** Two or more people of the run paid into one account. */
+  shared_bank_accounts?: SharedBankAccounts;
+  /** People paid with no TIN on record. */
+  missing_tin?: MissingTin;
+  /** People paid who were expected at work and have no attendance at all. */
+  no_attendance?: NoAttendance;
+}
+
+export interface PayChanges {
+  count: number;
+  /** The period of the last released run compared with; null for a first run. */
+  previous_period: string | null;
+  /** People with no entry in that run, so nothing to compare. */
+  first_payslip: number;
+  percent: number;
+  min_cents: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    previous_net_cents: number;
+    net_cents: number;
+    change_cents: number;
+    change_percent: number | null;
+    reasons: { part: string; change_cents: number }[];
+  }[];
+}
+
+export interface SharedBankAccounts {
+  count: number;
+  /** Accounts of the run's people saved before the check existed, not yet comparable. */
+  pending_hashes: number;
+  groups: {
+    banks: string[];
+    employees: { employee_public_id: string | null; employee_name: string }[];
+  }[];
+}
+
+export interface MissingTin {
+  count: number;
+  employees: { employee_public_id: string | null; employee_name: string }[];
+}
+
+export interface NoAttendance {
+  count: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    days: number;
+  }[];
 }
 
 export type DeductionCeiling =

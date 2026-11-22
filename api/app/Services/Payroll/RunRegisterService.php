@@ -31,6 +31,7 @@ final class RunRegisterService
     ];
 
     /**
+     * @param  bool  $checks  whether the checks before approval are worked out (PreApprovalChecks); the approval itself and the CSV need none of them
      * @return array{
      *     rows: list<array<string, mixed>>,
      *     totals: array<string, int>,
@@ -41,9 +42,13 @@ final class RunRegisterService
      *     deduction_ceiling: array{count: int, employees: list<array{employee_public_id: mixed, employee_name: mixed, ceiling_cents: int, deducted_cents: int}>},
      *     integrity: array{count: int, flags: int, employees: list<array{employee_public_id: string|null, employee_name: string|null, flags: int}>},
      *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
+     *     pay_changes: array{count: int, previous_period: string|null, first_payslip: int, percent: int, min_cents: int, employees: list<array{employee_public_id: string|null, employee_name: string, previous_net_cents: int, net_cents: int, change_cents: int, change_percent: float|null, reasons: list<array{part: string, change_cents: int}>}>},
+     *     shared_bank_accounts: array{count: int, pending_hashes: int, groups: list<array{banks: list<string>, employees: list<array{employee_public_id: string|null, employee_name: string}>}>},
+     *     missing_tin: array{count: int, employees: list<array{employee_public_id: string|null, employee_name: string}>},
+     *     no_attendance: array{count: int, employees: list<array{employee_public_id: string|null, employee_name: string, days: int}>},
      * }
      */
-    public function register(PayrollRun $run): array
+    public function register(PayrollRun $run, bool $checks = true): array
     {
         $entries = PayrollEntry::query()
             ->where('payroll_run_id', $run->id)
@@ -61,6 +66,8 @@ final class RunRegisterService
             $totals[$column] = (int) array_sum(array_column($rows, $column));
         }
 
+        $before = new PreApprovalChecks($this, $checks);
+
         return [
             'rows' => $rows,
             'totals' => $totals,
@@ -71,6 +78,10 @@ final class RunRegisterService
             'absences' => self::absences($rows),
             'deduction_ceiling' => self::deductionCeiling($rows),
             'integrity' => $this->openIntegrity($run, $entries->pluck('employee_id')->all()),
+            'pay_changes' => $before->payChanges($run, $entries, $rows),
+            'shared_bank_accounts' => $before->sharedBankAccounts($run, $entries, $rows),
+            'missing_tin' => $before->missingTin($entries),
+            'no_attendance' => $before->noAttendance($run, $entries, $rows),
         ];
     }
 
@@ -365,7 +376,7 @@ final class RunRegisterService
 
     public function csv(PayrollRun $run): string
     {
-        $register = $this->register($run);
+        $register = $this->register($run, checks: false);
 
         $lines = [Csv::row([
             'Employee Code', 'Employee Name', 'Basic (ETB)', 'Overtime (ETB)', 'Allowances (ETB)',
