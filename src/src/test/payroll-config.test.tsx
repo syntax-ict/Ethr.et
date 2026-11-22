@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -23,6 +23,30 @@ function renderWithClient(ui: React.ReactElement) {
     </QueryClientProvider>,
   );
 }
+
+/** The signed-in user's permissions, as `/auth/me` reports them. */
+function asUserHolding(...permissions: string[]) {
+  server.use(
+    http.get("*/api/v1/auth/me", () =>
+      HttpResponse.json({
+        user: { public_id: "U1", name: "Test User", role: "tenant_admin" },
+        tenant: {
+          public_id: "T1",
+          name: "Demo",
+          timezone: "Africa/Addis_Ababa",
+        },
+        permissions,
+      }),
+    ),
+  );
+}
+
+// Reading the rules takes payroll.viewConfig and changing them
+// payroll.manageConfig, so the write controls below need both. The read-only
+// cases override this with `asUserHolding("payroll.viewConfig")`.
+beforeEach(() => {
+  asUserHolding("payroll.viewConfig", "payroll.manageConfig");
+});
 
 const RULES_URL = "*/api/v1/payroll/rules";
 const BRACKETS_URL = "*/api/v1/payroll/tax-brackets";
@@ -61,6 +85,24 @@ const PERCENT_RULE = {
 // ── Allowance rules ───────────────────────────────────────────────────────────
 
 describe("AllowanceRulesCard", () => {
+  it("offers no way to add, edit or delete to a role that can only view the rules", async () => {
+    asUserHolding("payroll.viewConfig");
+    server.use(http.get(RULES_URL, () => rulesResponse([FIXED_RULE])));
+
+    renderWithClient(<AllowanceRulesCard />);
+
+    expect(await screen.findByText("Transport Allowance")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /add allowance/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /edit transport allowance/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /delete transport allowance/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the empty state when no allowances are configured", async () => {
     server.use(http.get(RULES_URL, () => rulesResponse([])));
 
@@ -190,6 +232,29 @@ describe("TaxBracketsCard", () => {
 // ── Overtime rates ────────────────────────────────────────────────────────────
 
 describe("OvertimeRatesCard", () => {
+  it("shows the rates read-only to a role that can only view them", async () => {
+    asUserHolding("payroll.viewConfig");
+    server.use(
+      http.get(RATES_URL, () =>
+        HttpResponse.json({
+          rates: DEFAULTS,
+          defaults: DEFAULTS,
+          is_customized: false,
+        }),
+      ),
+    );
+
+    renderWithClient(<OvertimeRatesCard />);
+
+    expect(await screen.findByLabelText(/ordinary day/i)).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /^save$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /fill in the defaults/i }),
+    ).not.toBeInTheDocument();
+  });
+
   // Labour Proclamation 1156/2019 Art. 68(1). These were the repealed
   // 377/2003 rates (1.25 / 1.5 / 2 / 2.5, no rest day) until 2026-10-01.
   const DEFAULTS = {

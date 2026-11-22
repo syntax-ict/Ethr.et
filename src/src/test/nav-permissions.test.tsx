@@ -101,6 +101,30 @@ describe("navigation follows the ability each screen's API checks", () => {
   });
 });
 
+// Payroll Rules was shown to tenant admins by role level, while its APIs check
+// payroll.viewConfig: a Finance Admin, who holds it, never saw the link, and a
+// custom role could not be given it.
+describe("Payroll Rules in the settings navigation", () => {
+  it("is offered for payroll.viewConfig, whatever the role level", async () => {
+    asCustomRole(["payroll.viewConfig"]);
+    renderWith(<SettingsNav />);
+
+    expect(
+      await screen.findByRole("link", { name: /payroll rules/i }),
+    ).toHaveAttribute("href", "/settings/payroll");
+  });
+
+  it("is not offered for payroll.viewAll, which is every run and payslip, not the rules", async () => {
+    asCustomRole(["payroll.viewAll", "users.viewAny"]);
+    renderWith(<SettingsNav />);
+
+    await screen.findByRole("link", { name: /users & access/i });
+    expect(
+      screen.queryByRole("link", { name: /payroll rules/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 // Settings was offered to `settings.manage` alone, so an HR admin, holding
 // Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no way to
 // reach any of them (audit N91).
