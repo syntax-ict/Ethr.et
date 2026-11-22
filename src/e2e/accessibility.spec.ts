@@ -10,6 +10,7 @@
  */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { api } from './helpers';
 
 // Helper: run axe and assert no critical/serious violations.
 //
@@ -129,6 +130,52 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
       await page.getByRole('button', { name: /New Announcement|አዲስ/i }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await assertNoA11yViolations(page);
+    });
+
+    test('the announcement reading panel is reachable and closable by keyboard', async ({ page }) => {
+      // Everyone reads announcements, so the panel is one of the few dialogs a
+      // keyboard-only or screen-reader user meets on an ordinary day.
+      //
+      // A page first: `api()` runs its fetch inside the page, and on
+      // `about:blank` a relative address resolves nowhere and carries no cookies.
+      await page.goto('/dashboard');
+      const created = await api<{ public_id?: string; data?: { public_id: string } }>(
+        page,
+        'POST',
+        '/announcements',
+        {
+          title: 'Accessibility check notice',
+          body: 'A first paragraph.\n\nA second paragraph.',
+          priority: 'normal',
+          publish_now: true,
+        },
+      );
+      expect(created.status).toBe(201);
+      const publicId = created.data.public_id ?? created.data.data?.public_id ?? '';
+
+      try {
+        await page.goto('/announcements');
+        const title = page.getByRole('button', {
+          name: 'Accessibility check notice',
+          exact: true,
+        });
+        await title.focus();
+        await page.keyboard.press('Enter');
+
+        const pane = page.getByRole('dialog');
+        await expect(pane).toContainText('A second paragraph.', { timeout: 15000 });
+        await assertNoA11yViolations(page);
+
+        await page.keyboard.press('Escape');
+        await expect(pane).toBeHidden();
+        // Focus belongs back on the story that opened the panel, or the reader
+        // is returned to the top of the list and has to find their place again.
+        // The panel closes a step after the address changes, so the dialog's
+        // own restore runs too early and the page has to do it.
+        await expect(title).toBeFocused();
+      } finally {
+        if (publicId) await api(page, 'DELETE', `/announcements/${publicId}`);
+      }
     });
 
     test('settings page has no critical a11y violations', async ({ page }) => {

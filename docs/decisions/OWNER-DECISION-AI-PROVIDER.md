@@ -7,7 +7,7 @@
 > - the checks before payroll approval
 >   ([syntax-ict/Ethr.et#842](https://github.com/syntax-ict/Ethr.et/pull/842) is the import half;
 >   the payroll half is the pull request that adds this document);
-> - BASELINE §25an.
+> - BASELINE §25ao.
 >
 > Three further answers were given for the day this is reopened. They are recorded below and
 > **authorise nothing today**.
