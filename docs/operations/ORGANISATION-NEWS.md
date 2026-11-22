@@ -122,6 +122,20 @@ product that sent it.
   fills no `url` (it needs the organisation's public id), so the panel passes
   `onDownload` to `ArticleView` and the file arrives as a blob. A public
   article keeps its plain links.
+- **No name rather than an email address.** `User::name` falls back to the
+  login email for an account with no employee record and no display name, so
+  the author line is left empty for them instead of printing an address to the
+  whole audience.
+- **It says which state a manager is reading.** A draft, a scheduled story and
+  an archived one carry their badge in the panel, because a manager may open
+  any of them and an unpublished story otherwise reads exactly like a live one.
+  **Featured** is not shown to a reader at all: it means "first on the public
+  website", which is the publishing desk's business, and the dashboard card
+  withholds it for the same reason.
+- **Only a missing story says it is missing.** A dropped connection or a
+  server error says the load failed and offers Try again. Telling a reader a
+  notice may have been withdrawn when nothing of the sort happened is a wrong
+  answer, not a missing one.
 - **The author's name is eager-loaded.** `User::name` is a computed accessor
   that reads the employee record, so the list loads `publisher.employee`.
   Read row by row it is a 500 under `preventLazyLoading` and a query per row

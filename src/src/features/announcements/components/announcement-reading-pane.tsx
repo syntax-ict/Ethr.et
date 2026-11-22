@@ -1,5 +1,6 @@
 "use client";
 
+import axios from "axios";
 import { Megaphone } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
 import { Sheet } from "@/components/ui/sheet";
@@ -8,26 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "sonner";
 import { ArticleView } from "@/features/news/components/article-view";
-import {
-  downloadAnnouncementFile,
-  useAnnouncement,
-  type Announcement,
-} from "../api";
-
-/** A saved announcement as the shared article view draws it. */
-export function articleOf(a: Announcement) {
-  return {
-    public_id: a.public_id,
-    title: a.title,
-    body: a.body,
-    category: a.category ?? null,
-    featured: a.featured,
-    priority: a.priority,
-    published_at: a.published_at ?? null,
-    cover: a.cover,
-    attachments: a.attachments ?? [],
-  };
-}
+import { downloadAnnouncementFile, useAnnouncement } from "../api";
+import { articleOf } from "../article";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 /**
  * One announcement, read in full, for everyone.
@@ -55,6 +40,16 @@ export function AnnouncementReadingPane({
 }) {
   const { t } = useT();
   const query = useAnnouncement(publicId);
+  const { can } = usePermissions();
+  const manager = can.manageAnnouncements;
+
+  // Only a 404 means the story is not the reader's to see. A network failure
+  // or a 500 must not be reported as a notice that was taken down: the reader
+  // would believe a withdrawal that never happened, and this product is used
+  // where the connection drops. `QueryBoundary`'s own error state says what is
+  // true instead, and offers the retry.
+  const notAvailable =
+    axios.isAxiosError(query.error) && query.error.response?.status === 404;
 
   return (
     <Sheet
@@ -81,24 +76,43 @@ export function AnnouncementReadingPane({
           error={
             // A story the reader may not see answers exactly as a missing one
             // does, so this one state says both without telling them which.
-            <EmptyState
-              icon={Megaphone}
-              title={t(
-                "announcements.not_available_title",
-                "This announcement is not available",
-              )}
-              description={t(
-                "announcements.not_available_desc",
-                "It may have been taken down, or it was not addressed to you.",
-              )}
-            />
+            notAvailable ? (
+              <EmptyState
+                icon={Megaphone}
+                title={t(
+                  "announcements.not_available_title",
+                  "This announcement is not available",
+                )}
+                description={t(
+                  "announcements.not_available_desc",
+                  "It may have been taken down, or it was not addressed to you.",
+                )}
+              />
+            ) : undefined
           }
           isEmpty={() => false}
         >
           {(announcement) => (
             <>
+              {/*
+               * A manager reads every state, so the pane has to say which one
+               * it is drawing. Without it a draft and a scheduled story look
+               * exactly like a published one, while the row behind the panel
+               * carries a badge for the same story.
+               */}
+              {manager && announcement.status !== "published" && (
+                <div className="mb-3">
+                  <StatusBadge
+                    status={announcement.status}
+                    domain="announcement"
+                  />
+                </div>
+              )}
               <ArticleView
-                article={articleOf(announcement)}
+                // Featured means "first on the organisation's public
+                // website". It is the publishing desk's business, not a
+                // reader's, and the dashboard card already withholds it.
+                article={{ ...articleOf(announcement), featured: false }}
                 onDownload={(file) =>
                   downloadAnnouncementFile(announcement.public_id, file).catch(
                     () =>

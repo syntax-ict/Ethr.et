@@ -12,22 +12,6 @@ import {
   ArticleView,
   type ArticleContent,
 } from "@/features/news/components/article-view";
-import type { Announcement } from "../api";
-
-/** A saved announcement as the shared article view draws it. */
-export function articleOf(a: Announcement): ArticleContent {
-  return {
-    public_id: a.public_id,
-    title: a.title,
-    body: a.body,
-    category: a.category ?? null,
-    featured: a.featured,
-    priority: a.priority,
-    published_at: a.published_at ?? null,
-    cover: a.cover,
-    attachments: (a.attachments ?? []).map((f) => ({ ...f, url: null })),
-  };
-}
 
 /**
  * How a story reads on the organisation's news page, drawn by the same

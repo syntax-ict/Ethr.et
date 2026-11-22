@@ -126,6 +126,70 @@ describe("the reading pane", () => {
     ).toBeInTheDocument();
   });
 
+  it("says the connection failed rather than that the story was taken down", async () => {
+    window.history.replaceState(null, "", "/announcements?read=ANN1");
+    server.use(
+      me([]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(page([STORY])),
+      ),
+      // Only a 404 means the story is not this reader's to see. Telling them a
+      // notice may have been withdrawn because the connection dropped would
+      // have them believe a withdrawal that never happened.
+      http.get("*/api/v1/announcements/ANN1", () =>
+        HttpResponse.json({ detail: "Server Error" }, { status: 500 }),
+      ),
+    );
+    renderWithQuery(<AnnouncementsPage />);
+
+    const pane = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(
+        screen.queryByText("This announcement is not available"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(pane).toHaveTextContent("Couldn't load this");
+    expect(pane).toHaveTextContent("Try again");
+  });
+
+  it("keeps the featured mark out of a reader's view", async () => {
+    window.history.replaceState(null, "", "/announcements?read=ANN1");
+    const featured = { ...STORY, featured: true, show_on_landing: true };
+    server.use(
+      me([]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(page([featured])),
+      ),
+      http.get("*/api/v1/announcements/ANN1", () =>
+        HttpResponse.json(featured),
+      ),
+    );
+    renderWithQuery(<AnnouncementsPage />);
+
+    const pane = await screen.findByRole("dialog");
+    await waitFor(() => expect(pane).toHaveTextContent("Enjoy the holiday."));
+    // "Featured" means first on the organisation's public website. It is the
+    // publishing desk's business, and the dashboard card already withholds it.
+    expect(pane).not.toHaveTextContent("Featured");
+  });
+
+  it("tells a manager that what they are reading is still a draft", async () => {
+    window.history.replaceState(null, "", "/announcements?read=ANN1");
+    const draft = { ...STORY, status: "draft", published_at: null };
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(page([draft])),
+      ),
+      http.get("*/api/v1/announcements/ANN1", () => HttpResponse.json(draft)),
+    );
+    renderWithQuery(<AnnouncementsPage />);
+
+    const pane = await screen.findByRole("dialog");
+    await waitFor(() => expect(pane).toHaveTextContent("Enjoy the holiday."));
+    expect(pane).toHaveTextContent("Draft");
+  });
+
   it("offers a document the reader can fetch, though it has no public address", async () => {
     const withFile = {
       ...STORY,
