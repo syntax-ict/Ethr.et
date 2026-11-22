@@ -1938,6 +1938,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\DeviceTime' => __DIR__ . '/../..' . '/app/Support/DeviceTime.php',
         'App\\Support\\DiskUsage' => __DIR__ . '/../..' . '/app/Support/DiskUsage.php',
         'App\\Support\\DocumentDownload' => __DIR__ . '/../..' . '/app/Support/DocumentDownload.php',
+        'App\\Support\\EmployeeAddress' => __DIR__ . '/../..' . '/app/Support/EmployeeAddress.php',
         'App\\Support\\EmployeeAuditMask' => __DIR__ . '/../..' . '/app/Support/EmployeeAuditMask.php',
         'App\\Support\\EmployeeGaps' => __DIR__ . '/../..' . '/app/Support/EmployeeGaps.php',
         'App\\Support\\EmployeeImportChoices' => __DIR__ . '/../..' . '/app/Support/EmployeeImportChoices.php',

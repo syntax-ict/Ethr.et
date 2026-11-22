@@ -1204,6 +1204,7 @@ return array(
     'App\\Support\\DeviceTime' => $baseDir . '/app/Support/DeviceTime.php',
     'App\\Support\\DiskUsage' => $baseDir . '/app/Support/DiskUsage.php',
     'App\\Support\\DocumentDownload' => $baseDir . '/app/Support/DocumentDownload.php',
+    'App\\Support\\EmployeeAddress' => $baseDir . '/app/Support/EmployeeAddress.php',
     'App\\Support\\EmployeeAuditMask' => $baseDir . '/app/Support/EmployeeAuditMask.php',
     'App\\Support\\EmployeeGaps' => $baseDir . '/app/Support/EmployeeGaps.php',
     'App\\Support\\EmployeeImportChoices' => $baseDir . '/app/Support/EmployeeImportChoices.php',

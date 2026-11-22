@@ -10,6 +10,7 @@ use App\Enums\NationalityStatus;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Rules\Phone;
 use App\Services\CurrentTenant;
+use App\Support\EmployeeAddress;
 use App\Support\TenantTime;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -32,6 +33,7 @@ class UpdateEmployeeRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $this->validateRelationTenancy($validator);
+        EmployeeAddress::check($validator, $this->route('employee'));
 
         // Not after today in the organisation's own zone, which UTC's "today"
         // gets wrong for the first three hours of an Addis Ababa day.
@@ -78,6 +80,7 @@ class UpdateEmployeeRequest extends FormRequest
             'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
+            ...EmployeeAddress::rules(),
             'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
