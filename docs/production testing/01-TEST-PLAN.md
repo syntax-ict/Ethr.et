@@ -126,6 +126,7 @@ the execution log.
 | Notices in the reader's language and only to active people; vacancies on the public site and not over-filled; announcements fit | #466, #482, #510, #624 | NOT-006, NOT-007, VAC-004, ANN-009; NOT-005, VAC-001 changed |
 | Public site: what the product does, call links, feed out of shared caches | #507, #519, #632 | MKT-013, MKT-014, LAND-009; MKT-006, NEWS-003 changed |
 | Webhooks: delivery id signed, held deliveries expire, connect to the checked address | #489, #624 | WH-008, WH-009; WH-003, KEY-006 changed |
+| An announcement reads the same everywhere, and every reader can open one in full | #836, #843 | ANN-010 to ANN-018 |
 
 **Third edition, stage 2, file 05** (2026-11-08). #646 merged after the rest; check S-01 before running its cases:
 
