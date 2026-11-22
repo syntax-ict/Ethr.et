@@ -34,6 +34,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules as rulesLib, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { centsToETB, etbToCents, formatETB } from "@/lib/utils/currency";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
@@ -106,6 +107,9 @@ export function AllowanceRulesCard() {
   const updateRule = useUpdateAllowanceRule();
   const deleteRule = useDeleteAllowanceRule();
   const { requestConfirm, confirmDialog } = useConfirm();
+  // Reading the rules takes `payroll.viewConfig`; adding, editing and deleting
+  // take `payroll.manageConfig`.
+  const canManage = usePermissions().can.managePayrollConfig;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -220,10 +224,12 @@ export function AllowanceRulesCard() {
             )}
           </p>
         </div>
-        <Button onClick={openNew} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {t("payroll_config.add_allowance", "Add allowance")}
-        </Button>
+        {canManage && (
+          <Button onClick={openNew} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            {t("payroll_config.add_allowance", "Add allowance")}
+          </Button>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
@@ -282,7 +288,7 @@ export function AllowanceRulesCard() {
                       : t("common.inactive", "Inactive")}
                   </Badge>,
                 ],
-                actions: (
+                actions: canManage ? (
                   <div className="flex justify-end gap-1">
                     <Button
                       variant="ghost"
@@ -313,7 +319,7 @@ export function AllowanceRulesCard() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                ),
+                ) : undefined,
               }))}
             />
           )}

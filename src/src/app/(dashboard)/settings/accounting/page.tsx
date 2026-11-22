@@ -37,6 +37,7 @@ import { useAllPayrollRuns } from "@/features/payroll/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { statusLabelKeyOf } from "@/lib/status/registry";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { localizedPeriodLabel } from "@/lib/calendar/period-label";
@@ -50,7 +51,8 @@ type AccountEdit = Partial<
 
 export default function AccountingSettingsPage() {
   return (
-    // Every accounting endpoint authorizes `payroll.viewAll`.
+    // Reading the chart and the journal authorizes `payroll.viewAll`; saving
+    // the chart authorizes `payroll.manageConfig`, which the section checks.
     <RoleGate anyPermission={["viewPayrollRuns"]}>
       <div className="space-y-8">
         <ChartOfAccountsSection />
@@ -64,6 +66,9 @@ function ChartOfAccountsSection() {
   const { t } = useT();
   const accountsQuery = useChartOfAccounts();
   const updateChart = useUpdateChartOfAccounts();
+  // The mapping decides where every payroll figure lands in the books, so
+  // changing it is payroll configuration, not a view of payroll.
+  const canEdit = usePermissions().can.managePayrollConfig;
 
   // Unsaved edits, by account key, laid over the server's rows. The rows used
   // to be copied into state from inside the query function, which runs only on
@@ -157,6 +162,17 @@ function ChartOfAccountsSection() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!canEdit && (
+              <p
+                role="note"
+                className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+              >
+                {t(
+                  "accounting_page.read_only",
+                  "You can view the chart of accounts but not change it. Changing it needs the Manage payroll configuration permission, so ask your organisation's administrator.",
+                )}
+              </p>
+            )}
             {/* The column headers are for wide screens; on a phone each row
                 stacks and carries its own visible labels instead. */}
             <div
@@ -204,6 +220,7 @@ function ChartOfAccountsSection() {
                         )
                       }
                       className="font-mono text-sm"
+                      disabled={!canEdit}
                       placeholder="5100"
                       maxLength={20}
                     />
@@ -227,13 +244,14 @@ function ChartOfAccountsSection() {
                         )
                       }
                       className="text-sm"
+                      disabled={!canEdit}
                       maxLength={100}
                     />
                   </div>
                 </div>
               );
             })}
-            {dirty && (
+            {canEdit && dirty && (
               <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <Button
                   variant="ghost"
