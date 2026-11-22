@@ -189,7 +189,9 @@ export default function AnnouncementsPage() {
                              */}
                             <button
                               type="button"
-                              onClick={() => set({ read: a.public_id })}
+                              onClick={() =>
+                                set({ read: a.public_id }, { push: true })
+                              }
                               className="rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               {a.title}
@@ -258,7 +260,9 @@ export default function AnnouncementsPage() {
                           busy={updateAnnouncement.isPending}
                           onAct={act}
                           onPublish={setPendingPublish}
-                          onPreview={(story) => set({ read: story.public_id })}
+                          onPreview={(story) =>
+                            set({ read: story.public_id }, { push: true })
+                          }
                           onEdit={setEditor}
                           onDelete={setPendingDelete}
                         />
