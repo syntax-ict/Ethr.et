@@ -28335,6 +28335,40 @@
                                         "calendar_from_header": {
                                             "type": "boolean"
                                         },
+                                        "calendar_hints": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
+                                                    "calendar": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "ethiopian",
+                                                            "gregorian"
+                                                        ]
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "line": {
+                                                        "type": "integer"
+                                                    },
+                                                    "from_header": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "column",
+                                                    "calendar",
+                                                    "value",
+                                                    "line",
+                                                    "from_header"
+                                                ]
+                                            }
+                                        },
                                         "without_hire_date": {
                                             "type": "integer"
                                         },
@@ -28448,6 +28482,7 @@
                                         "ignored",
                                         "calendar",
                                         "calendar_from_header",
+                                        "calendar_hints",
                                         "without_hire_date",
                                         "problems",
                                         "warnings",
