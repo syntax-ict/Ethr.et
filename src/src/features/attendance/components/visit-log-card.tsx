@@ -24,10 +24,12 @@ import {
 } from "@/features/attendance/api";
 import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
 import {
-  dropQueuedVisit,
+  VISIT_QUEUE_CHANGED_EVENT,
   queueVisit,
-  queuedVisits,
+  visitsOwnedBy,
 } from "@/lib/attendance/visit-queue";
+import { tenantHeaderValue } from "@/api/client";
+import { useCurrentUser } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { fitSelfie } from "@/lib/uploads/selfie";
@@ -77,32 +79,17 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
   const [note, setNote] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [queued, setQueued] = useState(() =>
-    typeof window === "undefined" ? 0 : queuedVisits().length,
-  );
-
-  // Send what was logged offline as soon as there is a connection.
+  const { data: me } = useCurrentUser();
+  const employeePublicId = me?.employee_public_id ?? null;
+  // Only this person's own. Sending is the shell's OfflineSyncAgent, from any
+  // page; this card only shows what is waiting.
+  const [queued, setQueued] = useState(0);
   useEffect(() => {
-    if (!isOnline) return;
-    let cancelled = false;
-    void (async () => {
-      for (const visit of queuedVisits()) {
-        if (cancelled) return;
-        try {
-          await log.mutateAsync(visit);
-          dropQueuedVisit(visit.idempotency_key);
-        } catch {
-          // Refused for good (too old, method off): keep it out of the way.
-          dropQueuedVisit(visit.idempotency_key);
-        }
-      }
-      if (!cancelled) setQueued(queuedVisits().length);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline]);
+    const refresh = () => setQueued(visitsOwnedBy(employeePublicId).length);
+    refresh();
+    window.addEventListener(VISIT_QUEUE_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(VISIT_QUEUE_CHANGED_EVENT, refresh);
+  }, [employeePublicId]);
 
   async function submit() {
     setBusy(true);
@@ -128,10 +115,11 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
     };
 
     if (!isOnline) {
-      const kept = queueVisit({
-        ...visit,
-        occurred_at: new Date().toISOString(),
-      });
+      const kept = queueVisit(
+        { ...visit, occurred_at: new Date().toISOString() },
+        employeePublicId,
+        tenantHeaderValue(),
+      );
       setBusy(false);
       if (!kept) {
         toast.error(
@@ -139,7 +127,6 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
         );
         return;
       }
-      setQueued(queuedVisits().length);
       toast.success(
         t(
           "visits.saved_offline",

@@ -3699,6 +3699,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/paid-months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List paid months */
+        get: operations["employee.employeePaidMonths"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/kiosk-pin": {
         parameters: {
             query?: never;
@@ -24598,6 +24615,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employee.employeePaidMonths": {
+        parameters: {
+            query: {
+                from: string;
+            };
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            count: number;
+                            earliest_period_start: string | null;
+                            latest_period_end: string | null;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

@@ -86,11 +86,39 @@ describe("clearOfflineOnSignOut", () => {
   });
 
   it("keeps the field visits that are not on the server yet", async () => {
-    queueVisit({ idempotency_key: "v1" } as never);
+    queueVisit({ idempotency_key: "v1" } as never, "01HEMP", null);
 
     await clearOfflineOnSignOut();
 
     expect(queuedVisits()).toHaveLength(1);
+  });
+
+  it("gives unowned visits to the departing person and leaves owned ones", async () => {
+    localStorage.setItem(
+      "ethr-visit-queue",
+      JSON.stringify([
+        { idempotency_key: "old" },
+        { idempotency_key: "mine", owner: "01HOTHER", tenant: "acme" },
+      ]),
+    );
+
+    await clearOfflineOnSignOut(EMP);
+
+    const [old, owned] = queuedVisits();
+    expect(old).toMatchObject({ owner: EMP });
+    expect(old).toHaveProperty("tenant");
+    expect(owned).toMatchObject({ owner: "01HOTHER", tenant: "acme" });
+  });
+
+  it("leaves unowned visits as they are when there is no employee id", async () => {
+    localStorage.setItem(
+      "ethr-visit-queue",
+      JSON.stringify([{ idempotency_key: "old" }]),
+    );
+
+    await clearOfflineOnSignOut(null);
+
+    expect(queuedVisits()[0]).toEqual({ idempotency_key: "old" });
   });
 
   it("completes when IndexedDB throws", async () => {

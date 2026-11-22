@@ -44,6 +44,7 @@ import {
   type RetirementCase,
   type RetirementType,
 } from "@/features/employees/api";
+import { PaidMonthNotice } from "./paid-month-notice";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -604,6 +605,7 @@ function FinalizeDialog({
     control,
     submit,
     reset,
+    watch,
     rootError,
     formState: { errors, isSubmitting },
   } = useZodForm<FinalizeValues>({
@@ -677,6 +679,11 @@ function FinalizeDialog({
               />
             )}
           </FormField>
+
+          <PaidMonthNotice
+            employeeId={employeeId}
+            from={watch("effective_date")}
+          />
 
           <DialogFooter>
             <Button

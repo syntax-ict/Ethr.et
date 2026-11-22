@@ -10,6 +10,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollPayDifference;
 use App\Models\PayrollRun;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
@@ -95,20 +96,34 @@ class PayDifferenceRecorder
         $this->flagNow($employee, $from);
     }
 
+    /**
+     * The employee's payslips in released runs that end on or after `$from`:
+     * exactly what a change dated `$from` reaches. flagNow() records a
+     * difference for each; the paid-months lookup tells HR before they save.
+     * One query, so the warning and the record cannot disagree. States
+     * tenant_id on both tables and adds no tenant-scope bypass.
+     *
+     * @return Collection<int, \stdClass> rows of entry_id, run_id, period_start, period_end
+     */
+    public function releasedEntriesFrom(int $tenantId, int $employeeId, string $from): Collection
+    {
+        return DB::table('payroll_entries as e')
+            ->join('payroll_runs as r', 'r.id', '=', 'e.payroll_run_id')
+            ->where('e.tenant_id', $tenantId)
+            ->where('r.tenant_id', $tenantId)
+            ->where('e.employee_id', $employeeId)
+            ->whereIn('r.status', PayrollRun::RELEASED_STATUSES)
+            ->whereDate('r.period_end', '>=', $from)
+            ->orderBy('r.id')
+            ->select(['e.id as entry_id', 'r.id as run_id', 'r.period_start', 'r.period_end'])
+            ->get();
+    }
+
     private function flagNow(Employee $employee, string $from): void
     {
         $tenantId = (int) $employee->tenant_id;
 
-        $entries = DB::table('payroll_entries as e')
-            ->join('payroll_runs as r', 'r.id', '=', 'e.payroll_run_id')
-            ->where('e.tenant_id', $tenantId)
-            ->where('r.tenant_id', $tenantId)
-            ->where('e.employee_id', $employee->id)
-            ->whereIn('r.status', PayrollRun::RELEASED_STATUSES)
-            ->whereDate('r.period_end', '>=', $from)
-            ->orderBy('r.id')
-            ->select(['e.id as entry_id', 'r.id as run_id'])
-            ->get();
+        $entries = $this->releasedEntriesFrom($tenantId, (int) $employee->id, $from);
 
         if ($entries->isEmpty()) {
             return;
