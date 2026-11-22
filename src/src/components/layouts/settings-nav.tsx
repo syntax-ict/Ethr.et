@@ -73,7 +73,7 @@ function resolveActiveHref(
  */
 export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
-  const { can, isTenantAdmin, hasPermission } = usePermissions();
+  const { can, hasPermission } = usePermissions();
 
   const groups: SettingsNavGroup[] = [
     {
@@ -130,7 +130,9 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
           label: t("nav.payroll_config", "Payroll Rules"),
           href: "/settings/payroll",
           icon: Coins,
-          show: isTenantAdmin,
+          // payroll.viewConfig reads the rules; changing them takes
+          // payroll.manageConfig, which the page checks.
+          show: can.viewPayrollConfig,
         },
         {
           label: t("nav.opening_balances", "Opening balances"),
