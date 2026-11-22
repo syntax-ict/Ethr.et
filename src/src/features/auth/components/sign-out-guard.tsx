@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCurrentUser, useLogout } from "@/features/auth/api";
-import { queuedVisits } from "@/lib/attendance/visit-queue";
+import { visitsOwnedBy } from "@/lib/attendance/visit-queue";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { useT } from "@/lib/i18n/useT";
 import { getPendingCount } from "@/lib/offline-queue";
@@ -44,12 +44,14 @@ async function readPunches(employeePublicId: string | null): Promise<number> {
 }
 
 /**
- * Field visits have no owner on the phone (the queue stores the request body,
- * which names no person), so this counts every visit waiting on this phone.
+ * Field visits carry the person who logged them, so a shared phone's other
+ * people's visits are not counted. Visits queued before that was recorded have
+ * no owner and are counted as the signing-out person's: sign out hands them to
+ * that person.
  */
-function readVisits(): number {
+function readVisits(employeePublicId: string | null): number {
   try {
-    return queuedVisits().length;
+    return visitsOwnedBy(employeePublicId).length;
   } catch {
     return 0;
   }
@@ -86,7 +88,7 @@ export function useGuardedSignOut(): {
       try {
         found = {
           punches: await readPunches(employeePublicId),
-          visits: readVisits(),
+          visits: readVisits(employeePublicId),
           offline: isOffline,
         };
       } catch {

@@ -9,7 +9,6 @@ import {
 const mocks = vi.hoisted(() => ({
   logout: vi.fn(),
   pending: vi.fn(),
-  visits: vi.fn(),
   offline: { isOffline: false, isOnline: true },
   user: { employee_public_id: "01HEMP" } as { employee_public_id?: string },
 }));
@@ -20,9 +19,6 @@ vi.mock("@/features/auth/api", () => ({
 }));
 vi.mock("@/lib/offline-queue", () => ({
   getPendingCount: (...a: unknown[]) => mocks.pending(...a),
-}));
-vi.mock("@/lib/attendance/visit-queue", () => ({
-  queuedVisits: () => mocks.visits(),
 }));
 vi.mock("@/lib/hooks/useOfflineStatus", () => ({
   useOfflineStatus: () => mocks.offline,
@@ -41,7 +37,7 @@ function Harness() {
 beforeEach(() => {
   mocks.logout.mockReset();
   mocks.pending.mockReset().mockResolvedValue(0);
-  mocks.visits.mockReset().mockReturnValue([]);
+  localStorage.removeItem("ethr-visit-queue");
   mocks.offline = { isOffline: false, isOnline: true };
   mocks.user = { employee_public_id: "01HEMP" };
 });
@@ -94,7 +90,13 @@ describe("useGuardedSignOut", () => {
   });
 
   it("warns about unsent field visits", async () => {
-    mocks.visits.mockReturnValue([{}, {}]);
+    localStorage.setItem(
+      "ethr-visit-queue",
+      JSON.stringify([
+        { idempotency_key: "a", owner: "01HEMP", tenant: null },
+        { idempotency_key: "b" },
+      ]),
+    );
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: "Log Out" }));
@@ -104,6 +106,21 @@ describe("useGuardedSignOut", () => {
       ),
     ).toBeInTheDocument();
     expect(mocks.logout).not.toHaveBeenCalled();
+  });
+
+  it("does not count another person's visits on a shared phone", async () => {
+    localStorage.setItem(
+      "ethr-visit-queue",
+      JSON.stringify([
+        { idempotency_key: "a", owner: "01HOTHER", tenant: null },
+        { idempotency_key: "b", owner: "01HOTHER", tenant: null },
+      ]),
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Log Out" }));
+    expect(mocks.logout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("warns when offline even with nothing waiting", async () => {

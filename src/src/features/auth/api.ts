@@ -295,9 +295,20 @@ export function useLogout() {
     // dashboard believing they had. For an offline-first product that is not an
     // edge case.
     onSettled: async () => {
+      // Who is leaving, read before the cache and the kept identity go.
+      let departing: string | null = null;
+      try {
+        departing =
+          queryClient.getQueryData<MeResponse>(meQueryOptions.queryKey)?.user
+            ?.employee_public_id ??
+          readOfflineIdentity()?.user?.employee_public_id ??
+          null;
+      } catch {
+        // Never let this stand between a person and signing out.
+      }
       queryClient.clear();
       clearOfflineIdentity();
-      await clearOfflineOnSignOut();
+      await clearOfflineOnSignOut(departing);
       await clearApiCache();
       window.location.href = "/login";
     },

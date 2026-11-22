@@ -1,6 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import { clearOfflineIdentity } from "@/features/auth/offline-identity";
+import {
+  clearOfflineIdentity,
+  readOfflineIdentity,
+} from "@/features/auth/offline-identity";
 import { clearOfflineOnSignOut } from "@/lib/offline-signout";
 import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
@@ -320,8 +323,15 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        // Read before the identity goes: it names who is leaving.
+        let departing: string | null = null;
+        try {
+          departing = readOfflineIdentity()?.user?.employee_public_id ?? null;
+        } catch {
+          // Signing out goes ahead regardless.
+        }
         clearOfflineIdentity();
-        await clearOfflineOnSignOut();
+        await clearOfflineOnSignOut(departing);
         await clearApiCache();
         window.location.href = "/login";
       }
