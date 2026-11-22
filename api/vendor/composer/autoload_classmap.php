@@ -1130,6 +1130,8 @@ return array(
     'App\\Services\\Onboarding\\ReadinessScorer' => $baseDir . '/app/Services/Onboarding/ReadinessScorer.php',
     'App\\Services\\Onboarding\\WorkforceProfileCatalog' => $baseDir . '/app/Services/Onboarding/WorkforceProfileCatalog.php',
     'App\\Services\\Payroll\\AllowanceService' => $baseDir . '/app/Services/Payroll/AllowanceService.php',
+    'App\\Services\\Payroll\\AttendanceInputsCheck' => $baseDir . '/app/Services/Payroll/AttendanceInputsCheck.php',
+    'App\\Services\\Payroll\\AttendanceInputsVerdict' => $baseDir . '/app/Services/Payroll/AttendanceInputsVerdict.php',
     'App\\Services\\Payroll\\AttendanceReconciliation' => $baseDir . '/app/Services/Payroll/AttendanceReconciliation.php',
     'App\\Services\\Payroll\\BankExportService' => $baseDir . '/app/Services/Payroll/BankExportService.php',
     'App\\Services\\Payroll\\CostSharingService' => $baseDir . '/app/Services/Payroll/CostSharingService.php',

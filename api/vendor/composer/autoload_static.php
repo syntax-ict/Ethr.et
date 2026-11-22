@@ -1864,6 +1864,8 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\Onboarding\\ReadinessScorer' => __DIR__ . '/../..' . '/app/Services/Onboarding/ReadinessScorer.php',
         'App\\Services\\Onboarding\\WorkforceProfileCatalog' => __DIR__ . '/../..' . '/app/Services/Onboarding/WorkforceProfileCatalog.php',
         'App\\Services\\Payroll\\AllowanceService' => __DIR__ . '/../..' . '/app/Services/Payroll/AllowanceService.php',
+        'App\\Services\\Payroll\\AttendanceInputsCheck' => __DIR__ . '/../..' . '/app/Services/Payroll/AttendanceInputsCheck.php',
+        'App\\Services\\Payroll\\AttendanceInputsVerdict' => __DIR__ . '/../..' . '/app/Services/Payroll/AttendanceInputsVerdict.php',
         'App\\Services\\Payroll\\AttendanceReconciliation' => __DIR__ . '/../..' . '/app/Services/Payroll/AttendanceReconciliation.php',
         'App\\Services\\Payroll\\BankExportService' => __DIR__ . '/../..' . '/app/Services/Payroll/BankExportService.php',
         'App\\Services\\Payroll\\CostSharingService' => __DIR__ . '/../..' . '/app/Services/Payroll/CostSharingService.php',
