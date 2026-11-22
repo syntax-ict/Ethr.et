@@ -95,6 +95,42 @@ The words are `landing.urgent` and `landing.important`; normal and low carry no
 badge. `e2e/announcements.spec.ts` publishes one story and reads the same word
 back from all three screens, so the next copy cannot pass unnoticed.
 
+### Reading one in the app
+
+*Added 2026-11-22.* `/announcements?read={public_id}` opens the story in a
+panel, drawn by the same `ArticleView` the public article page uses. Everyone
+gets it, not only a manager: until then the list clamped the body to two lines
+and only a manager had the preview, so a long notice could not be read in the
+product that sent it.
+
+- **A query, not a route of its own.** `/announcements/{id}` would need an
+  entry in the shared-hosting rewrite rules (`.htaccess` group 1), which is a
+  deployment surface. `?read=` is the same shareable address with none of
+  that, and the back button closes the panel. It is read through
+  `useQueryFilters`, which uses `useSyncExternalStore` rather than
+  `useSearchParams`, so the page stays prerenderable for the static export
+  with no Suspense boundary.
+- **The notification leads to the story.** `AnnouncementNotification` stores
+  `/announcements?read={public_id}`, and the dashboard card links the same
+  way. Both pointed at the list before, and `announcement_id` sat unused in
+  the payload.
+- **A story the reader may not see says only that it is not available.** The
+  API answers a draft, an expired story, one addressed to another department
+  and a missing id identically, which is what stops a public id being
+  confirmed across that line; the panel repeats that and says no more.
+- **Documents download through the API.** In the app `attachmentsPresented()`
+  fills no `url` (it needs the organisation's public id), so the panel passes
+  `onDownload` to `ArticleView` and the file arrives as a blob. A public
+  article keeps its plain links.
+- **The author's name is eager-loaded.** `User::name` is a computed accessor
+  that reads the employee record, so the list loads `publisher.employee`.
+  Read row by row it is a 500 under `preventLazyLoading` and a query per row
+  in production; `AnnouncementReadingTest` pins that five times the rows cost
+  no more queries.
+- **Publishing asks first.** The audience is notified exactly once
+  (`notified_at`), so taking the story down afterwards does not unsend it.
+  Unpublish, archive and restore stay one click, because each reverses.
+
 ### Cover photos
 
 A story may carry one cover photo, chosen in the story form (Cover photo →
