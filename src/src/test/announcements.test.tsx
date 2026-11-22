@@ -258,7 +258,7 @@ describe("<AnnouncementsPage> publishing", () => {
     expect(screen.getByText("Featured")).toBeInTheDocument();
   });
 
-  it("publishes a draft in one click", async () => {
+  it("asks before publishing, because the audience is notified once", async () => {
     let put: Record<string, unknown> | null = null;
     server.use(
       me(["announcement.manage"]),
@@ -276,6 +276,14 @@ describe("<AnnouncementsPage> publishing", () => {
     await user.click(
       await screen.findByRole("button", { name: /publish now/i }),
     );
+
+    // Nothing is sent until it is confirmed: publishing notifies everyone the
+    // story is addressed to exactly once, and taking it down afterwards does
+    // not unsend that.
+    expect(put).toBeNull();
+    expect(await screen.findByText(/notified once/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^publish$/i }));
 
     await waitFor(() => expect(put).not.toBeNull());
     expect(typeof put!.published_at).toBe("string");
@@ -480,29 +488,29 @@ describe("<AnnouncementsPage> publishing", () => {
     ).toBeInTheDocument();
   });
 
-  it("previews a story exactly as the news page shows it, links included", async () => {
+  it("opens a story in the reading pane, drawn as the news page draws it", async () => {
+    const story = {
+      ...DRAFT,
+      body: "First part.\n\nDetails at https://acme.example/menu.",
+    };
     server.use(
       me(["announcement.manage"]),
       http.get("*/api/v1/announcements", () =>
-        HttpResponse.json(
-          page([
-            {
-              ...DRAFT,
-              body: "First part.\n\nDetails at https://acme.example/menu.",
-            },
-          ]),
-        ),
+        HttpResponse.json(page([story])),
       ),
+      // The pane reads the one story back, so it shows what was saved rather
+      // than whatever the list happened to be holding.
+      http.get("*/api/v1/announcements/ANN2", () => HttpResponse.json(story)),
     );
     const user = userEvent.setup();
     renderWithQuery(<AnnouncementsPage />);
 
     await user.click(
-      await screen.findByRole("button", { name: /^Preview: Canteen reopens/ }),
+      await screen.findByRole("button", { name: /^Open: Canteen reopens/ }),
     );
 
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent("First part.");
+    const pane = await screen.findByRole("dialog");
+    await waitFor(() => expect(pane).toHaveTextContent("First part."));
     expect(
       screen.getByRole("link", { name: /acme\.example\/menu/ }),
     ).toHaveAttribute("href", "https://acme.example/menu");

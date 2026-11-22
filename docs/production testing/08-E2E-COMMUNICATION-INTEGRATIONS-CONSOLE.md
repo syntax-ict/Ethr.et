@@ -49,6 +49,16 @@ browser, never in Chrome.
 | ANN-008 | P2 | R | Rights | EMP creates an announcement | Refused (`announcement.manage` is HR) |
 | ANN-009 | P3 | W | Body fits (#624, #606) | Create, then edit, a draft whose body is 10,001 characters; then 10,000 | 10,001: 422 "The body field must not be greater than 10000 characters.", on create and on update, never a 500. 10,000: saved, and the public article shows all of it |
 
+| ANN-010 | P1 | R | Read one in full (#843) | EMP opens a published notice longer than two lines, from the list and from the dashboard card | Opens in a panel showing the whole body, the date, the category and the author. The address becomes `/announcements?read=<id>`, and that address opens the same notice when sent to a colleague |
+| ANN-011 | P1 | R | The notification leads to the story (#843) | HR publishes; EMP opens the notification from the bell | Lands on the notice itself, not on the list |
+| ANN-012 | P2 | R | Back and Escape close it (#843) | Open a notice, press the browser's back button. Open another, close it with Escape, then press back | Both close the panel. After Escape, back leaves the announcements page rather than doing nothing, and focus returns to the notice that was opened |
+| ANN-013 | P2 | R | A notice that is not yours (#843) | EMP opens the address of a notice addressed to another department, and the address of a notice that does not exist | Both say only "This announcement is not available", word for word the same, so a real id cannot be told from an invented one |
+| ANN-014 | P2 | R | A dropped connection is not a withdrawal (#843) | Open a notice with the network switched off (or the API stopped) | Says the load failed and offers Try again. It must **not** say the notice may have been taken down |
+| ANN-015 | P2 | W | What a manager sees in the panel (#843) | HR opens a draft and a scheduled notice from the publishing desk | The panel carries its Draft or Scheduled badge. A reader never sees the Featured mark in the panel, even on a featured public story |
+| ANN-016 | P2 | W | Publishing asks first (#843) | HR presses Publish now | Asks first, saying everyone addressed is notified once and taking it down afterwards does not unsend it. Unpublish, archive and restore stay one press |
+| ANN-017 | P3 | R | The author's name (#843) | Open a notice published by the account that registered the organisation | Shows a name, or nothing. It must never show an email address |
+| ANN-018 | P3 | R | On a phone (#843) | Open a notice on a phone, one whose body contains a long web address | The panel fits the screen: no sideways scrolling, and the address wraps rather than running off the edge |
+
 ## 2. Vacancies, news site and organisation landing page
 
 | ID | P | Mode | Scenario | Steps | Expected |
