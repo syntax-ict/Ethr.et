@@ -177,12 +177,12 @@ final class EmployeeImportGrid
             foreach ($found as $problem) {
                 $problems[] = ['line' => $line, ...$problem];
             }
+            $this->noteName($row, $namesSeen, $line, $found === []);
             if ($found === []) {
                 $rows[] = EmployeeImportRow::staged($row, $source);
                 foreach ($this->terminalWarnings($row, $terminals) as $warning) {
                     $warnings[] = ['line' => $line, ...$warning];
                 }
-                $this->noteName($row, $namesSeen, $line);
             }
         }
 
@@ -251,13 +251,14 @@ final class EmployeeImportGrid
     }
 
     /**
-     * The line a person ready to be staged is on, under their full name as
-     * two records are compared on it (PersonName).
+     * The line a person is on, under their full name as two records are
+     * compared on it (PersonName), and whether that line is staged. A line
+     * with a problem still counts: once it is fixed, both are added.
      *
      * @param  array<string, mixed>  $row
-     * @param  array<string, array{name: string, lines: list<int>}>  $namesSeen
+     * @param  array<string, array{name: string, lines: list<int>, staged: list<int>}>  $namesSeen
      */
-    private function noteName(array $row, array &$namesSeen, int $line): void
+    private function noteName(array $row, array &$namesSeen, int $line, bool $staged): void
     {
         $name = is_string($row['name'] ?? null) ? $row['name'] : null;
         $key = PersonName::normalised($name);
@@ -265,29 +266,34 @@ final class EmployeeImportGrid
             return;
         }
 
-        $namesSeen[$key] ??= ['name' => $name, 'lines' => []];
+        $namesSeen[$key] ??= ['name' => $name, 'lines' => [], 'staged' => []];
         $namesSeen[$key]['lines'][] = $line;
+        if ($staged) {
+            $namesSeen[$key]['staged'][] = $line;
+        }
     }
 
     /**
      * Every line of a name that is on more than one line of the list. Names
      * repeat, so they are all added: the reader is told in case one person
      * was written twice. One message per name, so a screen that groups what
-     * a read found keeps each name's lines together.
+     * a read found keeps each name's lines together. A warning is for a line
+     * that is staged; a line with a problem is listed with its problem, and
+     * its name still counts.
      *
-     * @param  array<string, array{name: string, lines: list<int>}>  $namesSeen
+     * @param  array<string, array{name: string, lines: list<int>, staged: list<int>}>  $namesSeen
      * @return list<array{line: int, column: string, code: string, message: string}>
      */
     private function sameNameWarnings(array $namesSeen): array
     {
         $warnings = [];
-        foreach ($namesSeen as ['name' => $name, 'lines' => $lines]) {
+        foreach ($namesSeen as ['name' => $name, 'lines' => $lines, 'staged' => $staged]) {
             if (count($lines) < 2) {
                 continue;
             }
 
             $message = __('onboarding.migration.same_name_in_list', ['name' => $name]);
-            foreach ($lines as $line) {
+            foreach ($staged as $line) {
                 $warnings[] = [
                     'line' => $line,
                     'column' => EmployeeImportRow::templateColumn('name'),

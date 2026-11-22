@@ -8014,5 +8014,6 @@
   "setup2.calendar_hint_gc": "Line :line has :value under :column, a date the Ethiopian calendar does not have. These dates look Gregorian (G.C.).",
   "setup2.calendar_hint_use_ec": "Read the dates as Ethiopian (E.C.)",
   "setup2.calendar_hint_use_gc": "Read the dates as Gregorian (G.C.)",
-  "setup2.calendar_hint_header": "The column name says the other calendar. Correct the column name in the file and bring it again."
+  "setup2.calendar_hint_header": "The column name says the other calendar. Correct the column name in the file and bring it again.",
+  "setup2.calendar_hint_every_column": "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead."
 }

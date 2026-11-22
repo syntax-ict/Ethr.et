@@ -34,6 +34,7 @@ final class DateColumnCalendar
     {
         $ethiopian = null;
         $gregorian = null;
+        $calendar = app(EthiopianCalendar::class);
 
         foreach ($values as $line => $value) {
             $value = trim($value);
@@ -47,7 +48,7 @@ final class DateColumnCalendar
             }
 
             [$year, $month, $day] = $parts;
-            $inEthiopian = self::ethiopianDay($year, $month, $day);
+            $inEthiopian = self::ethiopianDay($calendar, $year, $month, $day);
             $inGregorian = checkdate($month, $day, $year);
 
             if ($inEthiopian && ! $inGregorian) {
@@ -64,12 +65,12 @@ final class DateColumnCalendar
         return $ethiopian ?? $gregorian;
     }
 
-    private static function ethiopianDay(int $year, int $month, int $day): bool
+    private static function ethiopianDay(EthiopianCalendar $calendar, int $year, int $month, int $day): bool
     {
         if ($month < 1 || $month > 13 || $day < 1) {
             return false;
         }
 
-        return $day <= ($month === 13 ? app(EthiopianCalendar::class)->daysInPagume($year) : 30);
+        return $day <= ($month === 13 ? $calendar->daysInPagume($year) : 30);
     }
 }

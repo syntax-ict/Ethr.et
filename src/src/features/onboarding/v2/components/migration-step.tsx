@@ -1340,22 +1340,30 @@ export function MigrationStep({
                             )}
                           </span>
                         ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setChosenCalendar(hint.calendar)}
-                          >
-                            {ethiopian
-                              ? t(
-                                  "setup2.calendar_hint_use_ec",
-                                  "Read the dates as Ethiopian (E.C.)",
-                                )
-                              : t(
-                                  "setup2.calendar_hint_use_gc",
-                                  "Read the dates as Gregorian (G.C.)",
-                                )}
-                          </Button>
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setChosenCalendar(hint.calendar)}
+                            >
+                              {ethiopian
+                                ? t(
+                                    "setup2.calendar_hint_use_ec",
+                                    "Read the dates as Ethiopian (E.C.)",
+                                  )
+                                : t(
+                                    "setup2.calendar_hint_use_gc",
+                                    "Read the dates as Gregorian (G.C.)",
+                                  )}
+                            </Button>
+                            <span>
+                              {t(
+                                "setup2.calendar_hint_every_column",
+                                "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead.",
+                              )}
+                            </span>
+                          </>
                         )}
                       </p>
                     );

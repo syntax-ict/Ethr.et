@@ -644,7 +644,7 @@ final class EmployeeImportRow
      * seven letters, two for a longer one. Words of Latin letters only, since
      * the distance is counted in bytes, and shorter words are left alone:
      * "tel" is one letter from "tin". The closest word wins; on a tie, the
-     * one HINTS lists first.
+     * one listed first.
      *
      * @param  list<string>  $words
      */
@@ -679,7 +679,8 @@ final class EmployeeImportRow
 
     /**
      * Whole Latin words of five letters or more that name a column: the
-     * hints, in their order, then the one-word spellings and columns.
+     * one-word spellings, then the columns. Not the hints: many are stems
+     * ("depart", "national") that a different word is one letter from.
      *
      * @return list<array{0: string, 1: string}>
      */
@@ -698,11 +699,6 @@ final class EmployeeImportRow
             }
         };
 
-        foreach (self::HINTS as $column => $hints) {
-            foreach ($hints as $hint) {
-                $add($hint, $column);
-            }
-        }
         foreach (self::ALIASES as $spelling => $column) {
             $add($spelling, $column);
         }

@@ -67,6 +67,22 @@ it('says so when the column name set the calendar the dates disagree with', func
         ->and($read['calendar_hints'][0])->toMatchArray(['calendar' => 'gregorian', 'from_header' => true, 'line' => 2]);
 });
 
+it('gives the hint on the line the reader counts in a list with no column names', function () {
+    [$tenant] = Staging::organisation();
+
+    // No header: the columns are DEFAULT_ORDER, and line 1 is a person.
+    $read = test()->postJson(Staging::url($tenant, 'read'), ['grid' => [
+        array_replace(array_fill(0, count(EmployeeImportRow::DEFAULT_ORDER), ''), [
+            array_search('name', EmployeeImportRow::DEFAULT_ORDER, true) => 'Abebe Kebede',
+            array_search('hire_date', EmployeeImportRow::DEFAULT_ORDER, true) => '2016-13-03',
+        ]),
+    ], 'calendar' => 'gregorian'])->assertOk()->json();
+
+    expect($read['header'])->toBeFalse()
+        ->and($read['calendar_hints'])->toHaveCount(1)
+        ->and($read['calendar_hints'][0])->toMatchArray(['column' => 'hire_date', 'line' => 1, 'calendar' => 'ethiopian']);
+});
+
 it('reads a column name in either Amharic spelling of a sound', function (string $header, string $column) {
     expect(EmployeeImportRow::header($header))->toBe($column);
 })->with([
@@ -108,6 +124,8 @@ it('suggests the column of a known word written one or two letters out', functio
     ['Notes', null],
     ['Allowance', null],
     ['Net pay', null],
+    // A hint stem is not a word to be one letter from: "Rational" is not "national".
+    ['Rational', null],
 ]);
 
 it('warns when one name is on two lines, and adds both', function () {
@@ -129,4 +147,19 @@ it('warns when one name is on two lines, and adds both', function () {
     // One message for the name, so the lines of one name group together.
     expect(array_unique(array_column($read['warnings'], 'message')))->toHaveCount(1)
         ->and($read['warnings'][0]['message'])->toContain('Abebe Kebede');
+});
+
+it('counts a name on a line with a problem, and warns on the staged one', function () {
+    [$tenant] = Staging::organisation();
+
+    $read = test()->postJson(Staging::url($tenant, 'read'), ['grid' => [
+        ['Name', 'Department'],
+        ['Abebe Kebede', 'No such department'],
+        ['Abebe Kebede', ''],
+    ]])->assertOk()->json();
+
+    expect($read['people'])->toBe(1)
+        ->and(array_column($read['problems'], 'line'))->toBe([2])
+        ->and(array_column($read['warnings'], 'line'))->toBe([3])
+        ->and($read['warnings'][0]['code'])->toBe('same_name_in_list');
 });
