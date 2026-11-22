@@ -8009,5 +8009,10 @@
   "reference.clear": "አጽዳ",
   "address.house_number_n": "የቤት ቁጥር :n",
   "address.kebele_n": "ቀበሌ :n",
-  "address.woreda_n": "ወረዳ :n"
+  "address.woreda_n": "ወረዳ :n",
+  "setup2.calendar_hint_ec": "መስመር :line በ:column ስር :value አለው፤ ይህ ቀን ያለው በኢትዮጵያ አቆጣጠር ብቻ ነው። እነዚህ ቀኖች የኢትዮጵያ አቆጣጠር (ዓ.ም) ይመስላሉ።",
+  "setup2.calendar_hint_gc": "መስመር :line በ:column ስር :value አለው፤ ይህ ቀን በኢትዮጵያ አቆጣጠር የለም። እነዚህ ቀኖች የግሪጎሪያን አቆጣጠር (እ.ኤ.አ) ይመስላሉ።",
+  "setup2.calendar_hint_use_ec": "ቀኖቹን በኢትዮጵያ አቆጣጠር (ዓ.ም) አንብብ",
+  "setup2.calendar_hint_use_gc": "ቀኖቹን በግሪጎሪያን አቆጣጠር (እ.ኤ.አ) አንብብ",
+  "setup2.calendar_hint_header": "የአምዱ ስም ሌላውን አቆጣጠር ይላል። በፋይሉ ውስጥ የአምዱን ስም አስተካክለው እንደገና ያምጡት።"
 }

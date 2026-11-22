@@ -1307,6 +1307,59 @@ export function MigrationStep({
                           )}
                     </p>
                   )}
+                  {(read?.calendar_hints ?? []).map((hint) => {
+                    const params = {
+                      line: hint.line,
+                      value: hint.value,
+                      column: columnLabel(hint.column, t),
+                    };
+                    const ethiopian = hint.calendar === "ethiopian";
+                    return (
+                      <p
+                        key={hint.column}
+                        className="flex flex-wrap items-center gap-2 text-warning-on-soft"
+                      >
+                        <span>
+                          {ethiopian
+                            ? t(
+                                "setup2.calendar_hint_ec",
+                                "Line :line has :value under :column, a date only the Ethiopian calendar has. These dates look Ethiopian (E.C.).",
+                                params,
+                              )
+                            : t(
+                                "setup2.calendar_hint_gc",
+                                "Line :line has :value under :column, a date the Ethiopian calendar does not have. These dates look Gregorian (G.C.).",
+                                params,
+                              )}
+                        </span>
+                        {hint.from_header ? (
+                          <span>
+                            {t(
+                              "setup2.calendar_hint_header",
+                              "The column name says the other calendar. Correct the column name in the file and bring it again.",
+                            )}
+                          </span>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setChosenCalendar(hint.calendar)}
+                          >
+                            {ethiopian
+                              ? t(
+                                  "setup2.calendar_hint_use_ec",
+                                  "Read the dates as Ethiopian (E.C.)",
+                                )
+                              : t(
+                                  "setup2.calendar_hint_use_gc",
+                                  "Read the dates as Gregorian (G.C.)",
+                                )}
+                          </Button>
+                        )}
+                      </p>
+                    );
+                  })}
                   {(read?.without_hire_date ?? 0) > 0 &&
                     !(canComplete && mode === "complete") && (
                       <p className="text-warning-on-soft">

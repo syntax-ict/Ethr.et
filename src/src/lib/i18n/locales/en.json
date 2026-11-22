@@ -8009,5 +8009,10 @@
   "reference.clear": "Clear",
   "address.house_number_n": "House number :n",
   "address.kebele_n": "Kebele :n",
-  "address.woreda_n": "Woreda :n"
+  "address.woreda_n": "Woreda :n",
+  "setup2.calendar_hint_ec": "Line :line has :value under :column, a date only the Ethiopian calendar has. These dates look Ethiopian (E.C.).",
+  "setup2.calendar_hint_gc": "Line :line has :value under :column, a date the Ethiopian calendar does not have. These dates look Gregorian (G.C.).",
+  "setup2.calendar_hint_use_ec": "Read the dates as Ethiopian (E.C.)",
+  "setup2.calendar_hint_use_gc": "Read the dates as Gregorian (G.C.)",
+  "setup2.calendar_hint_header": "The column name says the other calendar. Correct the column name in the file and bring it again."
 }
