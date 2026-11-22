@@ -42,6 +42,7 @@ import {
   type ContractType,
   type EmployeeContract,
 } from "@/features/employees/api";
+import { PaidMonthNotice } from "./paid-month-notice";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -479,6 +480,13 @@ function ContractDialog({
                 />
               )}
             </FormField>
+
+            <div className="col-span-2 empty:hidden">
+              <PaidMonthNotice
+                employeeId={employeeId}
+                from={watch("start_date")}
+              />
+            </div>
 
             <FormField
               id="contract_salary"

@@ -168,6 +168,13 @@ export const handlers = [
       buildEmployee({ public_id: params.publicId as string }),
     );
   }),
+  // A form whose date can change pay asks which paid months it reaches
+  // (PaidMonthNotice); none, unless a test says otherwise.
+  http.get("*/api/v1/employees/:publicId/paid-months", () =>
+    HttpResponse.json({
+      data: { count: 0, earliest_period_start: null, latest_period_end: null },
+    }),
+  ),
   // The console's organisation page lists the feature switches for it
   // (TenantFeaturesCard); none, unless a test says otherwise.
   http.get("*/api/v1/admin/tenants/:publicId/features", () =>
