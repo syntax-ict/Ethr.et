@@ -46528,6 +46528,9 @@
                     "body": {
                         "type": "string"
                     },
+                    "excerpt": {
+                        "type": "string"
+                    },
                     "category": {
                         "type": [
                             "string",
@@ -46630,6 +46633,7 @@
                     "public_id",
                     "title",
                     "body",
+                    "excerpt",
                     "category",
                     "priority",
                     "target_type",

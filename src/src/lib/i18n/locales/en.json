@@ -4248,6 +4248,7 @@
   "news.error_desc": "Check your connection and try again.",
   "news.error_title": "News could not be loaded",
   "news.featured": "Featured",
+  "news.file_meta": "PDF, :size",
   "news.filter_label": "Filter by category",
   "news.home": "Home",
   "news.next": "Next",
