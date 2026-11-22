@@ -37,11 +37,7 @@ import { NotificationBell } from "@/features/notifications/components/notificati
 import { GetHelpDialogHost, openGetHelp } from "@/features/support/components";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { openCommandPalette } from "@/components/shared/command-palette";
-import {
-  useCurrentTenant,
-  useCurrentUser,
-  useLogout,
-} from "@/features/auth/api";
+import { useCurrentTenant, useCurrentUser } from "@/features/auth/api";
 import {
   Tooltip,
   TooltipContent,
@@ -102,6 +98,7 @@ const CALENDARS: readonly CalendarSystem[] = ["ethiopian", "gregorian"];
 const HEADER_ACTION =
   "h-9 text-muted-foreground hover:text-foreground [&_svg]:h-4 [&_svg]:w-4";
 
+import { useGuardedSignOut } from "@/features/auth/components/sign-out-guard";
 import { getRouteMeta, routeText } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
@@ -117,7 +114,7 @@ export function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
-  const logout = useLogout();
+  const { requestSignOut, signOutDialog } = useGuardedSignOut();
   const pageLabel = useCurrentPageLabel();
   // Get help belongs to an organisation's people. A platform super admin is
   // the one answering, in the console.
@@ -361,7 +358,7 @@ export function AppHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-                onClick={() => logout.mutate()}
+                onClick={requestSignOut}
               >
                 <LogOut className="h-4 w-4" />
                 {t("common.logout", "Log Out")}
@@ -371,6 +368,7 @@ export function AppHeader() {
         </div>
       </header>
       {canAskForHelp && <GetHelpDialogHost />}
+      {signOutDialog}
     </>
   );
 }
