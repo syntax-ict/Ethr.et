@@ -41,6 +41,16 @@ export interface SmsGatewayState {
   last_test_ok: boolean | null;
   last_test_status: number | null;
   last_test_response: string | null;
+  /** Real messages refused in a row; reset by a delivery, a test or a new connection. */
+  consecutive_failures: number;
+  /** Refused too many in a row: SMS is not offered until `paused_until`, or a test succeeds. */
+  paused: boolean;
+  paused_until: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_failure_status: number | null;
+  /** What the gateway said, with the recipient's number taken out. */
+  last_failure_response: string | null;
 }
 
 export interface SmsDeliveryState {

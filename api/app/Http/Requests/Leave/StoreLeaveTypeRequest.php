@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Leave;
 
 use App\Enums\AccrualType;
+use App\Enums\Gender;
 use App\Http\Requests\Leave\Concerns\ValidatesLeaveTypeIntegrity;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
 class StoreLeaveTypeRequest extends FormRequest
@@ -36,7 +38,7 @@ class StoreLeaveTypeRequest extends FormRequest
             'min_notice_days' => ['nullable', 'integer', 'min:0'],
             'max_consecutive' => ['nullable', 'integer', 'min:1'],
             'is_paid' => ['nullable', 'boolean'],
-            'gender_restriction' => ['nullable', 'string', 'in:male,female'],
+            'gender_restriction' => ['nullable', 'string', Rule::enum(Gender::class)],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ];
     }

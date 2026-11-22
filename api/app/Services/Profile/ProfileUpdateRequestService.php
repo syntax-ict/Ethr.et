@@ -264,7 +264,9 @@ class ProfileUpdateRequestService
         $detail = $this->primaryBankDetail($employee);
 
         if ($detail instanceof EmployeeBankDetail) {
-            $detail->update([$column => $value]);
+            // A bank name changed here is typed text: the code beside it
+            // belonged to the name it replaces.
+            $detail->update($column === 'bank_name' ? ['bank_name' => $value, 'bank_code' => null] : [$column => $value]);
 
             return;
         }

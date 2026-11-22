@@ -17,6 +17,7 @@ class EducationResource extends JsonResource
             'public_id' => $this->public_id,
             'institution' => $this->institution,
             'degree' => $this->degree,
+            'level' => $this->level,
             'field_of_study' => $this->field_of_study,
             'start_date' => $this->start_date?->format('Y-m-d'),
             'end_date' => $this->end_date?->format('Y-m-d'),

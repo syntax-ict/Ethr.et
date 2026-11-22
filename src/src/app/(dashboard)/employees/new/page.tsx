@@ -32,10 +32,17 @@ import {
   Wallet,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
+import { GENDERS, useGenderLabel } from "@/lib/options/gender";
+import {
+  MARITAL_STATUSES,
+  useMaritalStatusLabel,
+} from "@/lib/options/marital-status";
+import { OptionSelect } from "@/components/shared/option-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stepper, type Step } from "@/components/shared/stepper";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
@@ -143,6 +150,8 @@ export default function NewEmployeePage() {
 
 function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const { t } = useT();
+  const genderText = useGenderLabel();
+  const maritalText = useMaritalStatusLabel();
   const router = useRouter();
   const createEmployee = useCreateEmployee();
   const nextCode = useNextEmployeeCode();
@@ -630,24 +639,14 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               label={t("employee.gender", "Gender")}
               error={errors.gender}
             >
-              <Select
+              <OptionSelect
+                id="gender"
                 value={form.gender}
-                onValueChange={(v) => updateField("gender", v)}
-              >
-                <SelectTrigger id="gender">
-                  <SelectValue
-                    placeholder={t("employee.select_gender", "Select gender")}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">
-                    {t("common.male", "Male")}
-                  </SelectItem>
-                  <SelectItem value="female">
-                    {t("common.female", "Female")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => updateField("gender", v)}
+                options={GENDERS}
+                getLabel={genderText}
+                placeholder={t("employee.select_gender", "Select gender")}
+              />
             </FormField>
 
             <FormField
@@ -666,28 +665,13 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               label={t("employee.marital_status", "Marital Status")}
               error={errors.marital_status}
             >
-              <Select
+              <OptionSelect
+                id="marital_status"
                 value={form.marital_status}
-                onValueChange={(v) => updateField("marital_status", v)}
-              >
-                <SelectTrigger id="marital_status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">
-                    {t("common.single", "Single")}
-                  </SelectItem>
-                  <SelectItem value="married">
-                    {t("common.married", "Married")}
-                  </SelectItem>
-                  <SelectItem value="divorced">
-                    {t("common.divorced", "Divorced")}
-                  </SelectItem>
-                  <SelectItem value="widowed">
-                    {t("common.widowed", "Widowed")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => updateField("marital_status", v)}
+                options={MARITAL_STATUSES}
+                getLabel={maritalText}
+              />
             </FormField>
 
             <FormField
@@ -743,12 +727,10 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               label={t("common.phone", "Phone")}
               error={errors.phone}
             >
-              <Input
-                type="tel"
+              <PhoneInput
+                international
                 value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="+251 9..."
-                autoComplete="off"
+                onChange={(v) => updateField("phone", v)}
               />
             </FormField>
 

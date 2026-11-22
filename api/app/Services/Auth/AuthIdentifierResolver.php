@@ -7,6 +7,7 @@ namespace App\Services\Auth;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\EthiopianPhone;
 use Illuminate\Support\Collection;
 
 /**
@@ -138,18 +139,28 @@ final class AuthIdentifierResolver
             return null;
         }
 
+        // `phone_normalized` only strips separators, so the same subscriber is
+        // stored as `251911…`, `0911…` or `911…` depending on how it was written.
+        // Match every shape of the typed number, as the OTP path already does.
+        // `whereIn` on the same indexed column keeps the lookup on the
+        // (tenant_id, phone_normalized) index.
+        $shapes = array_values(array_unique(array_map(
+            static fn (string $shape): string => preg_replace('/\D+/', '', $shape) ?? '',
+            EthiopianPhone::variants($value),
+        )));
+
         // Prefer a phone recorded on the user account; fall back to the linked
         // employee record's phone.
         //
         // The `whereNotNull('phone')` these two queries used to carry is gone
         // because it can no longer do anything: a NULL phone generates a NULL
-        // `phone_normalized`, and `= $digits` never matches NULL. `$digits` is
+        // `phone_normalized`, and `IN (…)` never matches NULL. `$digits` is
         // non-empty by the guard above, so a blank or punctuation-only phone
         // normalises to '' and is excluded the same way.
         $user = $this->single(
             User::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
-                ->where('phone_normalized', $digits)
+                ->whereIn('phone_normalized', $shapes)
                 ->get()
         );
 
@@ -159,7 +170,7 @@ final class AuthIdentifierResolver
 
         $employeeIds = Employee::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->where('phone_normalized', $digits)
+            ->whereIn('phone_normalized', $shapes)
             ->pluck('id');
 
         if ($employeeIds->count() !== 1) {

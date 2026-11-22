@@ -39811,6 +39811,12 @@
                                                         "string",
                                                         "null"
                                                     ]
+                                                },
+                                                "employer_bank_code": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -39827,7 +39833,8 @@
                                                 "pension_agency",
                                                 "pension_registration_number",
                                                 "payout_method",
-                                                "employer_bank_name"
+                                                "employer_bank_name",
+                                                "employer_bank_code"
                                             ]
                                         },
                                         "documents": {
@@ -48710,6 +48717,12 @@
                     "bank_name": {
                         "type": "string"
                     },
+                    "bank_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "branch_name": {
                         "type": [
                             "string",
@@ -48726,6 +48739,7 @@
                 "required": [
                     "public_id",
                     "bank_name",
+                    "bank_code",
                     "branch_name",
                     "account_number_masked",
                     "is_primary"
@@ -48813,6 +48827,18 @@
                             "null"
                         ]
                     },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "phone": {
                         "type": [
                             "string",
@@ -48865,6 +48891,8 @@
                     "code",
                     "address",
                     "city",
+                    "region_code",
+                    "town_code",
                     "phone",
                     "latitude",
                     "longitude",
@@ -49800,6 +49828,21 @@
                             "type": "string"
                         }
                     },
+                    "has_webhook_token": {
+                        "type": "boolean"
+                    },
+                    "webhook_token_prefix": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "webhook_url_masked": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "webhook_token": {
                         "type": [
                             "string",
@@ -50411,6 +50454,22 @@
                 ],
                 "title": "DismissUnmatchedBadgeRequest"
             },
+            "EducationLevel": {
+                "type": "string",
+                "description": "The level of an education record, from the Ethiopian school ladder. `degree` stays the free-text title (\"BSc Accounting\"); this is the level it sits at, so a report can count graduates without parsing titles.\n",
+                "enum": [
+                    "primary",
+                    "secondary",
+                    "preparatory",
+                    "certificate",
+                    "diploma",
+                    "bachelor",
+                    "master",
+                    "doctorate",
+                    "other"
+                ],
+                "title": "EducationLevel"
+            },
             "EducationResource": {
                 "type": "object",
                 "properties": {
@@ -50422,6 +50481,12 @@
                     },
                     "degree": {
                         "type": "string"
+                    },
+                    "level": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "field_of_study": {
                         "type": [
@@ -50452,6 +50517,7 @@
                     "public_id",
                     "institution",
                     "degree",
+                    "level",
                     "field_of_study",
                     "start_date",
                     "end_date",
@@ -51465,6 +51531,15 @@
                 ],
                 "title": "FinalizeRetirementCaseRequest"
             },
+            "Gender": {
+                "type": "string",
+                "description": "The genders the employee record stores. Two, because leave rules (`gender_restriction`) and the statutory reports branch on them; an employee whose gender was never recorded has none, not a third value.\n",
+                "enum": [
+                    "male",
+                    "female"
+                ],
+                "title": "Gender"
+            },
             "GenerateReportRequest": {
                 "type": "object",
                 "properties": {
@@ -51846,7 +51921,6 @@
                                         "string",
                                         "null"
                                     ],
-                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
                                     "maxLength": 20
                                 },
                                 "employee_code": {
@@ -52947,6 +53021,17 @@
                     "reason"
                 ],
                 "title": "ManualAttendanceRequest"
+            },
+            "MaritalStatus": {
+                "type": "string",
+                "description": "The marital statuses the employee record stores.\n",
+                "enum": [
+                    "single",
+                    "married",
+                    "divorced",
+                    "widowed"
+                ],
+                "title": "MaritalStatus"
             },
             "MarkPayrollRunPaidRequest": {
                 "type": "object",
@@ -56761,7 +56846,6 @@
                                         "string",
                                         "null"
                                     ],
-                                    "pattern": "^\\+?[0-9 ()-]{6,20}$",
                                     "maxLength": 20
                                 },
                                 "department": {
@@ -57078,6 +57162,13 @@
                         "type": "string",
                         "maxLength": 255
                     },
+                    "bank_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
                     "branch_name": {
                         "type": [
                             "string",
@@ -57137,6 +57228,20 @@
                             "null"
                         ],
                         "maxLength": 100
+                    },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
                     },
                     "phone": {
                         "type": [
@@ -57604,6 +57709,16 @@
                         "type": "string",
                         "maxLength": 255
                     },
+                    "level": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EducationLevel"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
                     "field_of_study": {
                         "type": [
                             "string",
@@ -57652,7 +57767,6 @@
                     },
                     "phone": {
                         "type": "string",
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "email": {
@@ -57751,7 +57865,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "employee_code": {
@@ -57770,14 +57883,13 @@
                         "maxLength": 32
                     },
                     "gender": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "male",
-                            "female",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Gender"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "date_of_birth": {
@@ -57813,16 +57925,13 @@
                         "maxLength": 50
                     },
                     "marital_status": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "single",
-                            "married",
-                            "divorced",
-                            "widowed",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MaritalStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "status": {
@@ -58039,7 +58148,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "source": {
@@ -58206,14 +58314,13 @@
                         ]
                     },
                     "gender_restriction": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "male",
-                            "female",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Gender"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "sort_order": {
@@ -59709,6 +59816,20 @@
                         ],
                         "maxLength": 100
                     },
+                    "region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
                     "phone": {
                         "type": [
                             "string",
@@ -60029,7 +60150,6 @@
                             "string",
                             "null"
                         ],
-                        "pattern": "^\\+?[0-9 ()-]{6,20}$",
                         "maxLength": 20
                     },
                     "employee_code": {
@@ -60048,14 +60168,13 @@
                         "maxLength": 32
                     },
                     "gender": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "male",
-                            "female",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Gender"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "date_of_birth": {
@@ -60090,16 +60209,13 @@
                         "maxLength": 50
                     },
                     "marital_status": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "single",
-                            "married",
-                            "divorced",
-                            "widowed",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MaritalStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "hire_date": {
@@ -60451,14 +60567,13 @@
                         "type": "boolean"
                     },
                     "gender_restriction": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "male",
-                            "female",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Gender"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "sort_order": {

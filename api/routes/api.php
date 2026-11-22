@@ -107,6 +107,7 @@ use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
+use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\MarketingContentController;
 use App\Http\Controllers\Api\V1\NextSteps\NextStepsController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
@@ -247,6 +248,8 @@ Route::get('/marketing-content', [MarketingContentController::class, 'index'])->
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
 // The kinds of organisation statutory rules are scoped by (OrganizationTypeController).
 Route::get('/organization-types', [OrganizationTypeController::class, 'index'])->middleware('throttle:public-catalogue');
+// The pick lists forms offer: regions, sub-cities, towns, banks (LookupController).
+Route::get('/lookups', [LookupController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  within,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -27,8 +33,8 @@ const toast = vi.hoisted(() => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 
-const ADDRESS =
-  "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=abc";
+const ISSUED =
+  "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=issued-once";
 
 const PULLED = {
   public_id: "DEV1",
@@ -38,13 +44,13 @@ const PULLED = {
   receives_only: false,
   accepts_commands: false,
   commands_enabled: false,
-  webhook_url: null,
+  has_webhook_token: false,
 } as unknown as Device;
 
 const SENDS = {
   ...PULLED,
   receives_only: true,
-  webhook_url: ADDRESS,
+  has_webhook_token: true,
 } as unknown as Device;
 
 const handlers = {
@@ -146,18 +152,12 @@ describe("<DeviceActionsMenu>", () => {
     expect(item(/view details/i)).not.toBeInTheDocument();
   });
 
-  it("copies the address only when the device has one", async () => {
+  it("offers no copy of the address, which the page no longer has", async () => {
     const user = userEvent.setup();
-    const none = renderMenu(PULLED);
-    await openMenu(user);
-    expect(item(/copy webhook url/i)).not.toBeInTheDocument();
-    none.unmount();
-
     renderMenu(SENDS);
     await openMenu(user);
-    await user.click(item(/copy webhook url/i)!);
-    await waitFor(() => expect(toast.success).toHaveBeenCalled());
-    expect(await navigator.clipboard.readText()).toBe(ADDRESS);
+    expect(item(/copy webhook url/i)).not.toBeInTheDocument();
+    expect(item(/regenerate token/i)).toBeInTheDocument();
   });
 
   it("asks before regenerating the token, and calls the API once on confirm", async () => {
@@ -165,7 +165,11 @@ describe("<DeviceActionsMenu>", () => {
     server.use(
       http.post("*/api/v1/devices/DEV1/regenerate-token", () => {
         calls += 1;
-        return HttpResponse.json({ webhook_token: "new" });
+        return HttpResponse.json({
+          webhook_token: "new",
+          webhook_url: ISSUED,
+          reason: "lost",
+        });
       }),
     );
     const user = userEvent.setup();
@@ -175,7 +179,7 @@ describe("<DeviceActionsMenu>", () => {
 
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/current address stops working at once/i),
+      within(dialog).getByText(/must be given the new address/i),
     ).toBeInTheDocument();
     expect(calls).toBe(0);
 
@@ -184,6 +188,65 @@ describe("<DeviceActionsMenu>", () => {
     );
     await waitFor(() => expect(calls).toBe(1));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  });
+
+  it("asks why, defaults to lost, sends the reason, and shows the new address once", async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(
+        "*/api/v1/devices/DEV1/regenerate-token",
+        async ({ request }) => {
+          bodies.push(await request.json());
+          return HttpResponse.json({
+            webhook_token: "issued-once",
+            webhook_url: ISSUED,
+            reason: bodies.length === 1 ? "lost" : "moving",
+          });
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    renderMenu(SENDS);
+    await openMenu(user);
+    await user.click(item(/regenerate token/i)!);
+
+    const dialog = await screen.findByRole("dialog");
+    const lost = within(dialog).getByRole("radio", { name: /lost or stolen/i });
+    const moving = within(dialog).getByRole("radio", {
+      name: /moving or reconfiguring/i,
+    });
+    expect(lost).toBeChecked();
+    expect(moving).not.toBeChecked();
+
+    await user.click(moving);
+    await user.click(
+      within(dialog).getByRole("button", { name: /regenerate token/i }),
+    );
+
+    await waitFor(() => expect(bodies).toEqual([{ reason: "moving" }]));
+    const shown = await screen.findByTestId("issued-address");
+    expect(shown).toHaveTextContent(ISSUED);
+    // The four values a person types into the terminal, token included.
+    expect(screen.getByText("Enter these on the terminal")).toBeInTheDocument();
+    expect(
+      screen.getByText("/api/v1/devices/webhook/hikvision?token=issued-once"),
+    ).toBeInTheDocument();
+
+    // Escape and a click outside do not close it; only Done does.
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("issued-address")).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    fireEvent.pointerUp(document.body);
+    expect(screen.getByTestId("issued-address")).toBeInTheDocument();
+    expect(
+      screen.getByText(/shown only now and cannot be shown again/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/keeps working for 24 hours/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^done$/i }));
+    await waitFor(() =>
+      expect(screen.queryByTestId("issued-address")).not.toBeInTheDocument(),
+    );
   });
 
   it("does not regenerate when the confirmation is cancelled", async () => {
@@ -232,7 +295,7 @@ describe("<DeviceActionsMenu>", () => {
   it("leaves out update and delete items the viewer may not use", async () => {
     granted.abilities = ["device.viewAny", "device.view"];
     const user = userEvent.setup();
-    renderMenu({ ...PULLED, webhook_url: ADDRESS } as unknown as Device);
+    renderMenu({ ...PULLED, has_webhook_token: true } as unknown as Device);
     await openMenu(user);
 
     for (const name of [
@@ -245,14 +308,13 @@ describe("<DeviceActionsMenu>", () => {
       expect(item(name)).not.toBeInTheDocument();
     }
     expect(item(/test connection/i)).toBeInTheDocument();
-    expect(item(/copy webhook url/i)).toBeInTheDocument();
   });
 
   it("renders nothing when there is nothing to offer", () => {
     granted.abilities = [];
     // A terminal that only sends, with no address, no callbacks and no
     // permissions, is offered only the link to its page; on that page, nothing.
-    const sends = { ...SENDS, webhook_url: null } as unknown as Device;
+    const sends = { ...SENDS, has_webhook_token: false } as unknown as Device;
     const { container } = renderMenu(sends, {
       hideDetailsLink: true,
       onEdit: undefined,

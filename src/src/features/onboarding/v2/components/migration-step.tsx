@@ -30,6 +30,7 @@ import { useDevices } from "@/features/devices/api";
 import { saveBlob, saveCsv } from "@/lib/utils/csv-export";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useDebounce } from "@/lib/hooks/useDebounce";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   CommitStalled,
   isNotFound,
@@ -183,6 +184,7 @@ export function MigrationStep({
 }) {
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
+  const { can } = usePermissions();
   const devicesQuery = useDevices();
   const stageDevice = useStageFromDevice();
   // How far a long list has been matched, while it is, and the list whose
@@ -810,10 +812,15 @@ export function MigrationStep({
             "setup2.complete_confirm_desc",
             "Blanks are filled in as the table shows. Nobody is added. This cannot be undone from here.",
           )
-        : t(
-            "setup2.commit_confirm_desc",
-            "Employees are created and merged as the table shows. This cannot be undone from here.",
-          ),
+        : can.deleteEmployees
+          ? t(
+              "setup2.commit_confirm_desc_undoable",
+              "Employees are created and merged as the table shows. The people this list adds can be archived again afterwards with Undo this list's additions. Changes to people who are already here cannot be undone from here.",
+            )
+          : t(
+              "setup2.commit_confirm_desc",
+              "Employees are created and merged as the table shows. This cannot be undone from here.",
+            ),
       confirmLabel: completing
         ? t("setup2.complete_confirm", "Fill them in")
         : t("setup2.commit_confirm", "Bring them in"),
@@ -1908,6 +1915,7 @@ export function MigrationStep({
                 onContinue={onCommitted}
                 autoSend={inviteNow && commit.isSuccess}
                 inviteMarked={commit.isSuccess}
+                undone={Boolean(batch.undone_at)}
               />
             )}
 

@@ -42,6 +42,12 @@ use Illuminate\Support\Carbon;
  * @property bool|null $last_test_ok
  * @property int|null $last_test_status
  * @property string|null $last_test_response
+ * @property int $consecutive_failures
+ * @property Carbon|null $last_success_at
+ * @property Carbon|null $last_failure_at
+ * @property int|null $last_failure_status
+ * @property string|null $last_failure_response
+ * @property Carbon|null $paused_until
  */
 class SmsGateway extends Model
 {
@@ -57,6 +63,11 @@ class SmsGateway extends Model
 
     /** +2519…, 2519…, or 09… */
     public const NUMBER_FORMATS = ['e164', 'international', 'local'];
+
+    /** Refusals in a row, of real messages, after which the gateway is left alone for a while. */
+    public const PAUSE_AFTER_FAILURES = 5;
+
+    public const PAUSE_MINUTES = 15;
 
     /**
      * Fields that change where or how a message is sent. Editing any of them
@@ -89,12 +100,23 @@ class SmsGateway extends Model
             'last_test_at' => 'datetime',
             'last_test_ok' => 'boolean',
             'last_test_status' => 'integer',
+            'consecutive_failures' => 'integer',
+            'last_success_at' => 'datetime',
+            'last_failure_at' => 'datetime',
+            'last_failure_status' => 'integer',
+            'paused_until' => 'datetime',
         ];
     }
 
     public function isVerified(): bool
     {
         return $this->verified_at !== null;
+    }
+
+    /** Refused too many real messages in a row, and still inside its cooldown. */
+    public function isPaused(): bool
+    {
+        return $this->paused_until !== null && $this->paused_until->isFuture();
     }
 
     public function hasSecret(): bool

@@ -357,7 +357,7 @@ final class TenantLanding
 
     public static function phone(mixed $value): ?string
     {
-        return is_string($value) && preg_match('/^\+?[0-9 ()-]{6,24}$/', $value) === 1 ? $value : null;
+        return is_string($value) && preg_match('/^\+?[0-9 ().-]{6,24}$/', $value) === 1 ? $value : null;
     }
 
     /**
