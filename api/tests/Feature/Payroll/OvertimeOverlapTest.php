@@ -59,17 +59,15 @@ test('two records of the same shift pay its overtime once', function () {
 
     expect($step['overtime_minutes'])->toBe(120)
         ->and($step['overtime_amount_cents'])->toBe($single['overtime_amount_cents'])
-        ->and($step['overlapping_records_skipped'])->toHaveCount(1);
+        ->and(array_map(function (array $entry): array {
+            ksort($entry);
 
-    // Field by field rather than `toBe` on the whole entry. `calculation_log`
-    // is a JSON column, and MySQL 8 stores an object's keys in its own order
-    // (shorter first, then by bytes) while SQLite and MariaDB keep them as
-    // written. A strict array comparison therefore passed `gates.sh backend`
-    // and `gates.sh mysql` and failed only on the MySQL 8 job.
-    $skipped = $step['overlapping_records_skipped'][0];
-    expect($skipped['record'])->toBe($records[1]->public_id)
-        ->and($skipped['kept'])->toBe($records[0]->public_id)
-        ->and($skipped['date'])->toBe('2026-06-02');
+            return $entry;
+        }, $step['overlapping_records_skipped']))->toBe([[
+            'date' => '2026-06-02',
+            'kept' => $records[0]->public_id,
+            'record' => $records[1]->public_id,
+        ]]);
 });
 
 test('a split day of two separate records still pays both in full', function () {
