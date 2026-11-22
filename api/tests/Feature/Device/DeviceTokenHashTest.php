@@ -116,7 +116,9 @@ it('keeps an existing plaintext device working with the same address after the b
     expect((array) dthRaw($device))->toBe($first);
 
     dthPush($tenant, $token)->assertStatus(200);
-    dthPush($tenant, 'f'.substr($token, 1))->assertStatus(401);
+    // A different first character, whichever the token starts with: a fixed
+    // one equals the token itself one run in sixteen.
+    dthPush($tenant, ($token[0] === 'f' ? 'e' : 'f').substr($token, 1))->assertStatus(401);
 });
 
 it('refuses a serial-only call from an allowlisted address to a device that has a token', function () {
