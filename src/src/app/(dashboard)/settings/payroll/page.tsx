@@ -40,7 +40,7 @@ export default function PayrollConfigPage() {
           >
             {t(
               "payroll_config.read_only",
-              "You can view these rules but not change them. Changing them needs the Manage payroll configuration permission, so ask your organisation's administrator.",
+              "You can view the allowance, tax, pension, overtime and statutory rules but not change them. Changing them needs the Manage payroll configuration permission, so ask your organisation's administrator.",
             )}
           </p>
         )}

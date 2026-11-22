@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -34,10 +34,17 @@ const RATES = {
   holiday_night: 2.75,
 };
 
+// How many times /auth/me has answered: RoleGate denies while it is still
+// loading, so a test of a denial must wait for the answer to be sure the
+// permissions, not the loading state, are what refused.
+let meAnswered = 0;
+
 function serve(permissions: string[], planFeatures: string[] | null = null) {
+  meAnswered = 0;
   server.use(
-    http.get("*/api/v1/auth/me", () =>
-      HttpResponse.json({
+    http.get("*/api/v1/auth/me", () => {
+      meAnswered += 1;
+      return HttpResponse.json({
         user: { public_id: "U1", name: "Test User", role: "finance_admin" },
         tenant: {
           public_id: "T1",
@@ -46,8 +53,8 @@ function serve(permissions: string[], planFeatures: string[] | null = null) {
         },
         permissions,
         plan_features: planFeatures,
-      }),
-    ),
+      });
+    }),
     http.get("*/api/v1/payroll/rules", () =>
       HttpResponse.json({
         data: [RULE],
@@ -88,7 +95,29 @@ describe("<PayrollConfigPage> permissions", () => {
     serve(["payroll.viewAll"]);
     renderPage();
 
-    expect(await screen.findByTestId("role-gate-denied")).toBeInTheDocument();
+    await waitFor(() => expect(meAnswered).toBeGreaterThan(0));
+    // Let the answer reach the page, then check the denial is still there and
+    // the rules never rendered behind it.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByTestId("role-gate-denied")).toBeInTheDocument();
+    expect(screen.queryByText("Transport")).not.toBeInTheDocument();
+  });
+
+  it("is allowed to a viewer whose role level is below tenant admin", async () => {
+    // The old gate was a role level (90): this role is finance_admin (70).
+    serve(["payroll.viewConfig"]);
+    renderPage();
+
+    expect(await screen.findByText("Transport")).toBeInTheDocument();
+    expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
+  });
+
+  it("leaves out the cards that read the organisation's settings without settings.manage", async () => {
+    serve(["payroll.viewConfig", "payroll.manageConfig"]);
+    renderPage();
+
+    await screen.findByText("Transport");
+    expect(screen.queryByText("Payroll schedule")).not.toBeInTheDocument();
   });
 
   it("is read-only for a viewer: the rules show, nothing offers to change them", async () => {

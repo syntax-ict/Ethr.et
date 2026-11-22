@@ -665,7 +665,7 @@
   "next_steps.step.statutory_override.title": "የሕጉን የግብር ምጣኔና የጡረታ መዋጮ መጠን ይጠቀሙ",
   "payroll_config.tab_rules": "የሕግ ደንቦች",
   "payroll_config.tab_setup": "የደመወዝ ክፍያ ዝግጅት",
-  "payroll_config.read_only": "እነዚህን ደንቦች ማየት ይችላሉ፣ መቀየር ግን አይችሉም። ለመቀየር «የደመወዝ ውቅር አስተዳደር» ፈቃድ ያስፈልጋል፤ የድርጅትዎን አስተዳዳሪ ይጠይቁ።",
+  "payroll_config.read_only": "አበል፣ ታክስ፣ ጡረታ፣ ትርፍ ሰዓት እና የሕግ ደንቦችን ማየት ይችላሉ፣ መቀየር ግን አይችሉም። ለመቀየር «የደመወዝ ውቅር አስተዳደር» ፈቃድ ያስፈልጋል፤ የድርጅትዎን አስተዳዳሪ ይጠይቁ።",
   "payroll_config.tax_brackets_locked": "ሕጉ ያስቀመጠው ወርሃዊ የሥራ ገቢ ግብር። የደመወዝ ስሌቱ እንዳለ ይተገብረዋል፤ ድርጅቱ ሊቀይረው አይችልም።",
   "pension_rules.locked_description": "ሕጉ ለእያንዳንዱ ዕቅድ ያስቀመጣቸው የመዋጮ መጠኖች። የደመወዝ ስሌቱ እንዳሉ ይተገብራቸዋል፤ ድርጅቱ ሊቀይራቸው አይችልም።",
   "relationship.other_specify": "ግንኙነቱን ይጻፉ",
