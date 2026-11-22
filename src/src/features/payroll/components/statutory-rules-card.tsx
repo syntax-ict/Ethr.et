@@ -198,7 +198,12 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
   const query = useStatutoryRules();
   const reset = useResetStatutoryRule();
   const endOwnRates = useEndOwnRates();
-  const canManage = usePermissions().hasPermission("payroll.manageConfig");
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("payroll.manageConfig");
+  // "Change" leads to the setup tab, whose cards read and save the
+  // organisation's settings (`settings.manage`): without it there is nothing
+  // to edit there.
+  const canChange = canManage && hasPermission("settings.manage");
 
   return (
     <Card>
@@ -288,6 +293,7 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
                           key={rule.code}
                           rule={rule}
                           canManage={canManage}
+                          canChange={canChange}
                           resetting={
                             reset.isPending && reset.variables === rule.code
                           }
@@ -330,12 +336,14 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
 function RuleRow({
   rule,
   canManage,
+  canChange,
   resetting,
   onEdit,
   onReset,
 }: {
   rule: StatutoryRule;
   canManage: boolean;
+  canChange: boolean;
   resetting: boolean;
   onEdit?: () => void;
   onReset: () => void;
@@ -399,7 +407,7 @@ function RuleRow({
             {t("statutory_rules.unconfirmed", "Awaiting accountant sign-off")}
           </Badge>
         )}
-        {rule.editable && canManage && onEdit && (
+        {rule.editable && canChange && onEdit && (
           <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
             {t("statutory_rules.change", "Change")}
           </Button>
