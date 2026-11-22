@@ -48687,11 +48687,7 @@
                         ]
                     },
                     "created_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time",
+                        "type": "string",
                         "format": "date-time"
                     }
                 },
@@ -54269,7 +54265,11 @@
                         "format": "date-time"
                     },
                     "created_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     }
                 },
                 "required": [
