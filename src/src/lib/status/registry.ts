@@ -148,7 +148,12 @@ const DOMAIN_LABEL_KEYS: Record<StatusDomain, Record<string, string>> = {
     draft: "announcements.status_draft",
     published: "announcements.status_published",
     archived: "announcements.status_archived",
-    scheduled: "announcements.status_scheduled",
+    // The plain word, not `announcements.status_scheduled` ("Scheduled for
+    // :date"): a key this table names is rendered with no replacements, so a
+    // placeholder would reach the reader as the literal `:date`. A caller that
+    // has the date passes `StatusBadge`'s `label` instead, as the
+    // announcements page does.
+    scheduled: "announcements.scheduled",
   },
 };
 

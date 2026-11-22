@@ -135,7 +135,13 @@ export function AnnouncementsWidget() {
                   edge.bg,
                 )}
               >
-                <NewsMeta item={ann} />
+                {/*
+                 * `featured` is publishing metadata: it means "first on the
+                 * public website", which is the publisher's business and not
+                 * the reader's. Everyone sees this card, so the star is left
+                 * off here; the announcements page shows it to managers only.
+                 */}
+                <NewsMeta item={{ ...ann, featured: false }} />
                 <p className="mt-1 break-words text-sm font-semibold text-foreground">
                   {ann.title}
                 </p>

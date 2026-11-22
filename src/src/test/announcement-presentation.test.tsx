@@ -35,6 +35,8 @@ const STORY = {
   created_at: "2026-09-25T06:00:00Z",
 };
 
+const TITLE_TEXT = "Office closed on Meskel";
+
 const page = (rows: unknown[]) => ({
   data: rows,
   meta: { current_page: 1, last_page: 1, per_page: 25, total: rows.length },
@@ -84,6 +86,18 @@ describe("one announcement presentation", () => {
     expect(screen.queryByText(/FULL BODY/)).not.toBeInTheDocument();
   });
 
+  it("keeps the featured star off the dashboard card, where every reader sees it", async () => {
+    server.use(
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(page([{ ...STORY, featured: true }])),
+      ),
+    );
+    renderWithQuery(<AnnouncementsWidget />);
+
+    expect(await screen.findByText(TITLE_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText("Featured")).not.toBeInTheDocument();
+  });
+
   it("gives a normal priority story no priority word", () => {
     render(<NewsMeta item={{ ...STORY, priority: "normal" } as never} />);
 
@@ -98,6 +112,15 @@ describe("the announcement status domain", () => {
     expect(statusToneOf("scheduled", "announcement")).toBe("info");
     expect(statusToneOf("published", "announcement")).toBe("success");
     expect(statusToneOf("archived", "announcement")).toBe("neutral");
+  });
+
+  it("never names a label key that carries an unfilled placeholder", () => {
+    // The badge renders a registry key with no replacements, so a key like
+    // "Scheduled for :date" would reach the reader as the literal ":date".
+    render(<StatusBadge status="scheduled" domain="announcement" />);
+
+    expect(screen.getByText("Scheduled")).toBeInTheDocument();
+    expect(screen.queryByText(/:date/)).not.toBeInTheDocument();
   });
 
   it("draws the registry's word, or the caller's more exact one", () => {
