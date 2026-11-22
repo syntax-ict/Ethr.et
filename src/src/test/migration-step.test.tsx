@@ -929,10 +929,30 @@ describe("<MigrationStep>", () => {
     reads({
       people: 4,
       warnings: [
-        { line: 2, column: "name", code: "same_name_in_list", message: 'The name "Abebe" is on more than one line.' },
-        { line: 3, column: "name", code: "same_name_in_list", message: 'The name "Hanna" is on more than one line.' },
-        { line: 4, column: "name", code: "same_name_in_list", message: 'The name "Abebe" is on more than one line.' },
-        { line: 5, column: "name", code: "same_name_in_list", message: 'The name "Hanna" is on more than one line.' },
+        {
+          line: 2,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 3,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
+        {
+          line: 4,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 5,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
       ],
     });
     server.use(
@@ -947,10 +967,14 @@ describe("<MigrationStep>", () => {
       target: { value: "Name\nAbebe\nHanna\nAbebe\nHanna" },
     });
 
-    const abebe = await screen.findByText('The name "Abebe" is on more than one line.');
+    const abebe = await screen.findByText(
+      'The name "Abebe" is on more than one line.',
+    );
     expect(abebe.closest("tr")).toHaveTextContent("2, 4");
     expect(
-      screen.getByText('The name "Hanna" is on more than one line.').closest("tr"),
+      screen
+        .getByText('The name "Hanna" is on more than one line.')
+        .closest("tr"),
     ).toHaveTextContent("3, 5");
   });
 
