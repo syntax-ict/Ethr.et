@@ -255,7 +255,7 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | `CurrencyInput` | value, onChange | ETB-formatted input. Stores integer cents. Shows `ETB` prefix. |
 | `PhoneInput` | value, onChange | Ethiopian format: `+251 XX XXX XXXX`. |
 | `DualCalendarPicker` | value, onChange, showEthiopian | Gregorian + Ethiopian side-by-side when tenant enables dual display. |
-| `AddressForm` | value, onChange | Ethiopian address: region, city, subcity, woreda, kebele. |
+| `AddressForm` | value, onChange, errors | Ethiopian address over the shared pick lists: region, then a sub-city in Addis Ababa or a zone and town elsewhere, then woreda, kebele, house number. Each pick clears. Also `addressToPayload` and `useFormatAddress`. |
 | `FileUpload` | accept, maxSize, onUpload | Drag-and-drop, preview, progress, client-side type/size validation. |
 | `SearchInput` | value, onChange, placeholder | Debounced (300ms), clear button, search icon. |
 | `CrudSection`, `useCrudSection` | crud, title, query, form | A list with an add and edit dialog and a confirmed delete. The hook owns the dialog state and the two requests, and shows the server's reason when a save is refused; the page owns its fields and rows. The organization page is six of them. |

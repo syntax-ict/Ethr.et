@@ -390,11 +390,11 @@ final class PayrollEngine
      * controller's status check apply the balances once, not twice. The
      * balance movements and the status change commit together or not at all.
      */
-    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0): PayrollRun
+    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0, ?float $deadline = null): PayrollRun
     {
         ImpersonationRestricted::unlessOrganisation('PayrollEngine::approve');
 
-        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences): PayrollRun {
+        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences, $deadline): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'completed') {
@@ -406,6 +406,12 @@ final class PayrollEngine
             if ($this->inputsChangedSince($locked)) {
                 throw PayrollRunRefused::inputsChangedSinceProcessed();
             }
+
+            // And attendance, in every reconciliation mode: overtime, lateness
+            // and leave that moved since the run was calculated are refused
+            // here, so a run is never approved at figures that are no longer
+            // true. `$deadline` is the request's own budget.
+            app(AttendanceInputsCheck::class)->assertUnchanged($this, $locked, $deadline);
 
             // Pay differences are counted here too, under the lock: a change
             // that committed after the controller counted them is not missed.
@@ -809,6 +815,28 @@ final class PayrollEngine
     }
 
     /**
+     * The pay-moving figures attendance and leave give one person's entry, by
+     * the same methods computeEntry() calls: overtime minutes by type, the
+     * lateness minutes decided (only when `$withLateness`, as the entry logged
+     * them), unpaid leave days and the Art. 85 half-pay and unpaid sick days.
+     * What AttendanceInputsCheck compares with the entry's log at approval.
+     *
+     * @return array{overtime: array<string, int>, lateness_minutes: int|null, unpaid_leave_days: float, sick_half_days: float, sick_unpaid_days: float}
+     */
+    public function attendanceFigures(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules, bool $withLateness): array
+    {
+        $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $rules->int('payroll.working_days_per_month'));
+
+        return [
+            'overtime' => $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules)['buckets'],
+            'lateness_minutes' => $withLateness ? $this->decidedLateness($employee, $periodStart, $periodEnd)['minutes'] : null,
+            'unpaid_leave_days' => $this->gatherUnpaidLeaveDays($employee, $periodStart, $periodEnd),
+            'sick_half_days' => $sick['half'],
+            'sick_unpaid_days' => $sick['unpaid'],
+        ];
+    }
+
+    /**
      * The last day of the period a person is paid for: a leaving date counts
      * only when it falls inside the period, otherwise the period's end. Shared
      * by computeEntry() and inputsChangedSince() so both read the same rule.
@@ -1072,7 +1100,7 @@ final class PayrollEngine
         }
 
         $log = [
-            'version' => '1.9',
+            'version' => '1.10',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -1261,7 +1289,7 @@ final class PayrollEngine
             'unexplained_absence_days' => $this->unexplainedAbsences($employee, $periodStart, $periodEnd),
         ];
 
-        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
+        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay, 'skipped' => $overlappingSkipped] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
         $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id, $periodStart);
 
         $overtimeAmount = 0;
@@ -1299,6 +1327,8 @@ final class PayrollEngine
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
+            // Since 1.10: records passed over because another covers the same hours.
+            'overlapping_records_skipped' => $overlappingSkipped,
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
@@ -1630,7 +1660,12 @@ final class PayrollEngine
      * ends in the next is read whole, or twelve hours split across two runs
      * would never be flagged. Only the period's own days are paid.
      *
-     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
+     * Records whose punches overlap another record's pay once: the longest of
+     * the group, the lowest id on a tie (OverlappingAttendance). `skipped` lists
+     * the ones passed over on the period's own days. Overtime is never held back
+     * for being unapproved or over a limit; this only stops one shift paying twice.
+     *
+     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>, skipped: list<array{record: string, kept: string, date: string}>}
      */
     public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
@@ -1675,10 +1710,23 @@ final class PayrollEngine
         // normal day, and a Sunday at a six-day one as a rest day.
         $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
+        $overlapping = OverlappingAttendance::skipped($records);
+        $byId = $records->keyBy('id');
+        $skipped = [];
+
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
             $day = $date->format('Y-m-d');
             $paid = $day >= $firstPaid && $day <= $lastPaid;
+
+            if (isset($overlapping[$record->id])) {
+                if ($paid) {
+                    $skipped[] = ['record' => $record->public_id, 'kept' => $byId[$overlapping[$record->id]]->public_id, 'date' => $day];
+                }
+
+                continue;
+            }
+
             $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
             $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
                 ?? ($record->shift !== null
@@ -1697,7 +1745,7 @@ final class PayrollEngine
 
         ksort($byDay);
 
-        return ['buckets' => $buckets, 'by_day' => $byDay];
+        return ['buckets' => $buckets, 'by_day' => $byDay, 'skipped' => $skipped];
     }
 
     /**

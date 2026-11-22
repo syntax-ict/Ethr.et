@@ -30,6 +30,8 @@ return [
     'reconciliation_open' => 'Attendance for this period is not reconciled yet: :count exceptions are still open or waiting for a decision. Settle them on the Reconcile tab first.',
     'reconciliation_moved' => 'Attendance for this period was decided after the run was calculated. Reprocess the run so it pays from the decisions.',
     'inputs_changed_since_processed' => 'A salary changed after this run was calculated. Void it and process it again so it pays the current figures.',
+    'attendance_changed_since_processed' => 'Overtime, lateness or leave changed for :count person(s) after this run was calculated, so their payslips would pay figures that are no longer true. Void the run and process it again.',
+    'attendance_check_timed_out' => 'Approval could not finish checking whether attendance changed after this run was calculated, so nothing was approved. Void the run and process it again.',
     'reconciliation_range' => 'Reconcile at most 92 days at a time.',
     'tax_ladder_locked' => 'Income tax follows :reference, and an organisation cannot change it. The law\'s ladder is applied to every payroll.',
     'pension_rule_locked' => 'Pension contributions follow :reference, and an organisation cannot change them. The law\'s rates are applied to every payroll.',
