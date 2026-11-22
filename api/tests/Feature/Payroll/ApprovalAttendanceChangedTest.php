@@ -186,17 +186,17 @@ it('refuses a run when a real check-out replaced the automatic one', function ()
     expect(approvalRefusal($run, $user->id)?->type)->toBe('https://ethr.et/errors/attendance-changed-since-processed');
 });
 
-it('refuses a run when a merge voided a duplicate that had been paid twice', function () {
+it('approves when a merge voided a duplicate the run never paid twice', function () {
     [$tenant, $user, $employee, $shift] = approvalSetup();
     approvalRecord($tenant, $employee, $shift, '2026-06-02', '20:30');
     $duplicate = approvalRecord($tenant, $employee, $shift, '2026-06-02', '20:30');
     $run = approvalJune($tenant, $user);
-    expect(approvalOvertime($run, $employee))->toBe(360);
+    expect(approvalOvertime($run, $employee))->toBe(180);
 
     approvalLater();
     $duplicate->update(['status' => 'voided']);
 
-    expect(approvalRefusal($run, $user->id)?->type)->toBe('https://ethr.et/errors/attendance-changed-since-processed');
+    expect(approvalRefusal($run, $user->id))->toBeNull();
 });
 
 it('refuses a run when a holiday was announced on a day already worked', function () {
