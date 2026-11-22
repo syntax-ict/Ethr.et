@@ -26,7 +26,7 @@ export type StatusTone =
   "success" | "warning" | "error" | "info" | "primary" | "neutral";
 
 /** A status whose meaning depends on what it is the status of. */
-export type StatusDomain = "payroll_run";
+export type StatusDomain = "payroll_run" | "announcement";
 
 const TONES: Record<string, StatusTone> = {
   active: "success",
@@ -73,6 +73,13 @@ const DOMAIN_TONES: Record<StatusDomain, Record<string, StatusTone>> = {
   // it reads like `pending`, not like the approved run beside it. A completed
   // loan is repaid, which is why this is per domain and not in TONES.
   payroll_run: { completed: "warning" },
+  // A story waiting for its time is in motion, a live one is done and good,
+  // an archived one is closed. Draft is neutral in the shared table.
+  announcement: {
+    scheduled: "info",
+    published: "success",
+    archived: "neutral",
+  },
 };
 
 export interface ToneClasses {
@@ -137,6 +144,12 @@ const CLASSES: Record<StatusTone, ToneClasses> = {
  */
 const DOMAIN_LABEL_KEYS: Record<StatusDomain, Record<string, string>> = {
   payroll_run: { completed: "status.payroll_run.completed" },
+  announcement: {
+    draft: "announcements.status_draft",
+    published: "announcements.status_published",
+    archived: "announcements.status_archived",
+    scheduled: "announcements.status_scheduled",
+  },
 };
 
 /** The translation key for a status's label. */

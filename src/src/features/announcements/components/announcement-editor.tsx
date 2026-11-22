@@ -529,6 +529,7 @@ export function AnnouncementEditor({
                     type="file"
                     accept={COVER_TYPES.join(",")}
                     className="sr-only"
+                    tabIndex={-1}
                     aria-labelledby="announcement-cover-label"
                     aria-describedby="announcement-cover-hint"
                     onChange={(e) => {
@@ -615,6 +616,7 @@ export function AnnouncementEditor({
                 type="file"
                 accept="application/pdf"
                 className="sr-only"
+                tabIndex={-1}
                 aria-labelledby="announcement-files-label"
                 aria-describedby="announcement-files-hint"
                 onChange={(e) => {
@@ -684,7 +686,7 @@ export function AnnouncementEditor({
                       {t("common.normal", "Normal")}
                     </SelectItem>
                     <SelectItem value="high">
-                      {t("common.high", "High")}
+                      {t("landing.important", "Important")}
                     </SelectItem>
                     <SelectItem value="urgent">
                       {t("common.urgent", "Urgent")}

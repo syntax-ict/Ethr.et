@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Globe, Megaphone, Plus, Star } from "lucide-react";
+import { FileText, Globe, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -34,21 +34,8 @@ import {
 } from "@/features/announcements/components/announcement-row-actions";
 import { fileSize } from "@/features/news/news-format";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
-import { cn } from "@/lib/utils";
-
-const priorityColors: Record<string, string> = {
-  urgent: "bg-destructive-soft text-destructive-on-soft",
-  high: "bg-warning-soft text-warning-on-soft",
-  normal: "bg-info-soft text-info-on-soft",
-  low: "bg-muted text-muted-foreground",
-};
-
-const statusColors: Record<Status, string> = {
-  draft: "bg-muted text-muted-foreground",
-  scheduled: "bg-info-soft text-info-on-soft",
-  published: "bg-success-soft text-success-on-soft",
-  archived: "bg-muted text-muted-foreground",
-};
+import { NewsMeta } from "@/features/news/components/news-card";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 /**
  * Announcements: the reading list for everyone, and the publishing desk for
@@ -60,7 +47,7 @@ const statusColors: Record<Status, string> = {
  */
 export default function AnnouncementsPage() {
   const { t } = useT();
-  const { formatDate, formatDateTime } = useDateFormatters();
+  const { formatDateTime } = useDateFormatters();
   const { can } = usePermissions();
   const manager = can.manageAnnouncements;
   // `undefined`: closed. `null`: a new story. An announcement: editing it.
@@ -170,29 +157,20 @@ export default function AnnouncementsPage() {
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 @container sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold text-foreground">
+                        <NewsMeta
+                          item={{ ...a, featured: manager && a.featured }}
+                        />
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <h3 className="min-w-0 break-words text-sm font-semibold text-foreground">
                             {a.title}
                           </h3>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "border-0 text-[11px]",
-                              priorityColors[a.priority] ?? "",
-                            )}
-                          >
-                            {t(`common.${a.priority}`, a.priority)}
-                          </Badge>
                           {manager && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "border-0 text-[11px]",
-                                statusColors[status],
-                              )}
-                            >
-                              {statusLabel(a)}
-                            </Badge>
+                            <StatusBadge
+                              status={status}
+                              domain="announcement"
+                              label={statusLabel(a)}
+                              className="text-[11px]"
+                            />
                           )}
                           {manager && a.show_on_landing && (
                             <Badge
@@ -203,23 +181,9 @@ export default function AnnouncementsPage() {
                               {t("announcements.on_website", "On website")}
                             </Badge>
                           )}
-                          {manager && a.featured && (
-                            <Badge
-                              variant="outline"
-                              className="gap-1 border-0 bg-brand-soft text-[11px] text-brand-on-soft"
-                            >
-                              <Star className="h-3 w-3" aria-hidden="true" />
-                              {t("news.featured", "Featured")}
-                            </Badge>
-                          )}
-                          {a.category && (
-                            <Badge variant="outline" className="text-[11px]">
-                              {t(`news.category_${a.category}`, a.category)}
-                            </Badge>
-                          )}
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                          {a.body}
+                        <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                          {a.excerpt}
                         </p>
                         {(a.attachments ?? []).length > 0 && (
                           <ul className="mt-2 flex flex-wrap gap-2">
@@ -255,11 +219,6 @@ export default function AnnouncementsPage() {
                             ))}
                           </ul>
                         )}
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {a.published_at
-                            ? formatDate(a.published_at)
-                            : t("common.draft", "Draft")}
-                        </p>
                       </div>
                       {manager && (
                         <AnnouncementRowActions

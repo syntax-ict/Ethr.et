@@ -172,6 +172,7 @@ const TRANSLATIONS = {
     "reports_page.email_placeholder", // hr@example.com, an example address
     "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
     "attendance.source_qr", // QR
+    "news.file_meta", // "PDF, :size" — a format naming a file type
     "audit_logs_page.ip", // IP
     "nav.sso", // SSO / SAML
     "settings.tab_sso", // SSO
@@ -193,6 +194,7 @@ const TRANSLATIONS = {
     "admin_features.changed", // ":when: :reason" — a format
     "admin_sms.test_status", // "HTTP :status"
     "attendance.source_qr", // QR
+    "news.file_meta", // "PDF, :size" — a format naming a file type
     "attendance.kiosks_page.lock_ipad_title", // iPad
     "audit_logs_page.ip", // IP
     "audit.subject.webhook", // Webhook — the technical term, kept
