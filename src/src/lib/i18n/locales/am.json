@@ -4248,6 +4248,7 @@
   "news.error_desc": "ግንኙነትዎን ያረጋግጡና እንደገና ይሞክሩ።",
   "news.error_title": "ዜናውን መጫን አልተቻለም",
   "news.featured": "ተለይቶ የቀረበ",
+  "news.file_meta": "ፒዲኤፍ፣ :size",
   "news.filter_label": "በምድብ አጣራ",
   "news.home": "መነሻ",
   "news.next": "ቀጣይ",
