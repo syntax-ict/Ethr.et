@@ -43,6 +43,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stepper, type Step } from "@/components/shared/stepper";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/shared/phone-input";
+import {
+  AddressForm,
+  EMPTY_ADDRESS,
+  addressToPayload,
+  type AddressFields,
+} from "@/components/shared/address-fields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
@@ -192,6 +198,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   // Bumped by "Save and add another" so every control, including the ones
   // that keep their own text, starts empty.
   const [formKey, setFormKey] = useState(0);
+  const [address, setAddress] = useState<AddressFields>(EMPTY_ADDRESS);
   const afterSave = useRef<"open" | "another">("open");
 
   // The name the terminal calls the badge starts an empty name field, once,
@@ -258,6 +265,8 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       department_id: form.department_id,
       position_id: form.position_id,
     });
+    // An address is the person's own, not where the next hire starts.
+    setAddress(EMPTY_ADDRESS);
     setSendLogin(false);
     setHasUnsavedChanges(false);
     setFormKey((k) => k + 1);
@@ -299,6 +308,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       tin: form.tin || null,
       marital_status: (form.marital_status ||
         null) as CreateEmployeePayload["marital_status"],
+      ...addressToPayload(address),
       hire_date: form.hire_date,
       // Already integer cents — CurrencyInput does the ETB conversion, so
       // this page no longer hand-rolls it (`parseInt` once turned 5000.50
@@ -733,6 +743,29 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
                 onChange={(v) => updateField("phone", v)}
               />
             </FormField>
+
+            <fieldset className="space-y-3 sm:col-span-2">
+              <legend className="text-sm font-medium">
+                {t("address.title", "Address")}
+              </legend>
+              <AddressForm
+                value={address}
+                onChange={(next) => {
+                  setAddress(next);
+                  setHasUnsavedChanges(true);
+                  setErrors((prev) =>
+                    Object.keys(prev).some((k) => k.startsWith("address_"))
+                      ? Object.fromEntries(
+                          Object.entries(prev).filter(
+                            ([k]) => !k.startsWith("address_"),
+                          ),
+                        )
+                      : prev,
+                  );
+                }}
+                errors={errors}
+              />
+            </fieldset>
 
             <div className="flex items-start gap-3 rounded-md border border-border-default p-4 sm:col-span-2">
               <Checkbox

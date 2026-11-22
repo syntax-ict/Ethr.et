@@ -6,14 +6,21 @@ namespace App\Http\Requests\Profile;
 
 use App\Enums\MaritalStatus;
 use App\Rules\Phone;
+use App\Support\EmployeeAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        EmployeeAddress::check($validator, $this->user()?->employee);
     }
 
     /** @return array<string, mixed> */
@@ -27,6 +34,7 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged(is_string($stored) ? $stored : null)],
             'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'nationality' => ['nullable', 'string', 'max:100'],
+            ...EmployeeAddress::rules(),
 
             // Shorthand for the primary emergency contact. The full list is managed
             // through /profile/emergency-contacts.

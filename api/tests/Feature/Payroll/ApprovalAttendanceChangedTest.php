@@ -24,7 +24,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Carbon as IlluminateCarbon;
 
 /**
- * Found 2026-11-21 (docs/audit/BASELINE.md §25ak). Approval refused a run whose
+ * Found 2026-11-21 (docs/audit/BASELINE.md §25al). Approval refused a run whose
  * salary moved since it was calculated, but only looked at attendance in an
  * organisation that requires reconciliation, and the default is off. So
  * overtime, lateness and leave decided after a run was calculated were paid at

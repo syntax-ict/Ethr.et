@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\EmployeeAddress;
 use App\Support\EmployeeAuditMask;
 use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
@@ -77,6 +78,7 @@ final class EmployeeUpdater
         }
 
         $data = EmployeeRelations::resolveIds($data);
+        $data = EmployeeAddress::normalize($data, $employee);
 
         if (isset($data['phone'])) {
             $data['phone'] = EthiopianPhone::canonicalOrRaw($data['phone']);
