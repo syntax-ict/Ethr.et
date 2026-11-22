@@ -390,11 +390,11 @@ final class PayrollEngine
      * controller's status check apply the balances once, not twice. The
      * balance movements and the status change commit together or not at all.
      */
-    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0): PayrollRun
+    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0, ?float $deadline = null): PayrollRun
     {
         ImpersonationRestricted::unlessOrganisation('PayrollEngine::approve');
 
-        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences): PayrollRun {
+        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences, $deadline): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'completed') {
@@ -406,6 +406,12 @@ final class PayrollEngine
             if ($this->inputsChangedSince($locked)) {
                 throw PayrollRunRefused::inputsChangedSinceProcessed();
             }
+
+            // And attendance, in every reconciliation mode: overtime, lateness
+            // and leave that moved since the run was calculated are refused
+            // here, so a run is never approved at figures that are no longer
+            // true. `$deadline` is the request's own budget.
+            app(AttendanceInputsCheck::class)->assertUnchanged($this, $locked, $deadline);
 
             // Pay differences are counted here too, under the lock: a change
             // that committed after the controller counted them is not missed.
@@ -806,6 +812,28 @@ final class PayrollEngine
             });
 
         return $changed || ($judgeable && $this->payableEmployeeMissing($run, $start, $end));
+    }
+
+    /**
+     * The pay-moving figures attendance and leave give one person's entry, by
+     * the same methods computeEntry() calls: overtime minutes by type, the
+     * lateness minutes decided (only when `$withLateness`, as the entry logged
+     * them), unpaid leave days and the Art. 85 half-pay and unpaid sick days.
+     * What AttendanceInputsCheck compares with the entry's log at approval.
+     *
+     * @return array{overtime: array<string, int>, lateness_minutes: int|null, unpaid_leave_days: float, sick_half_days: float, sick_unpaid_days: float}
+     */
+    public function attendanceFigures(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules, bool $withLateness): array
+    {
+        $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $rules->int('payroll.working_days_per_month'));
+
+        return [
+            'overtime' => $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules)['buckets'],
+            'lateness_minutes' => $withLateness ? $this->decidedLateness($employee, $periodStart, $periodEnd)['minutes'] : null,
+            'unpaid_leave_days' => $this->gatherUnpaidLeaveDays($employee, $periodStart, $periodEnd),
+            'sick_half_days' => $sick['half'],
+            'sick_unpaid_days' => $sick['unpaid'],
+        ];
     }
 
     /**

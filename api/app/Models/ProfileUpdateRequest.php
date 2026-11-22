@@ -55,6 +55,15 @@ class ProfileUpdateRequest extends Model
         'phone',
         'marital_status',
         'nationality',
+        'address_region_code',
+        'address_region_text',
+        'address_sub_city_code',
+        'address_zone_or_sub_city_text',
+        'address_town_code',
+        'address_town_text',
+        'address_woreda',
+        'address_kebele',
+        'address_house_number',
     ];
 
     protected $fillable = [

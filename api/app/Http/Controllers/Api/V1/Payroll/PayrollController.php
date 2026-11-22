@@ -221,7 +221,7 @@ class PayrollController extends Controller
         // Approval is where loan and cost-sharing balances move. The engine
         // re-checks the status under a lock and refuses, as a 422, a run whose
         // balances changed after it was calculated (PayrollRunRefused).
-        $payrollRun = $engine->approve($payrollRun, $approver->id, $acknowledgedDifferences);
+        $payrollRun = $engine->approve($payrollRun, $approver->id, $acknowledgedDifferences, RequestBudget::deadline());
 
         $approvedPayload = $selfApproved ? ['self_approved' => true] : [];
         if ($openDifferences > 0) {

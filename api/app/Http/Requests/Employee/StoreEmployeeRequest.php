@@ -12,9 +12,11 @@ use App\Enums\UserRole;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Rules\Phone;
 use App\Services\CurrentTenant;
+use App\Support\EmployeeAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreEmployeeRequest extends FormRequest
 {
@@ -22,11 +24,19 @@ class StoreEmployeeRequest extends FormRequest
     // unscoped, because Laravel's presence verifier ignores global scopes. The
     // tenant check is a withValidator() hook so that rules() — and therefore
     // the generated API contract — is untouched. See the trait.
-    use ValidatesRelationTenancy;
+    use ValidatesRelationTenancy {
+        withValidator as private validateRelationTenancy;
+    }
 
     public function authorize(): bool
     {
         return true;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->validateRelationTenancy($validator);
+        EmployeeAddress::check($validator, null);
     }
 
     /**
@@ -65,6 +75,7 @@ class StoreEmployeeRequest extends FormRequest
             // import and device sync (see IDENTITY_RESOLUTION.md).
             'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
+            ...EmployeeAddress::rules(),
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
             'hire_date' => ['required', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date', 'after_or_equal:hire_date'],

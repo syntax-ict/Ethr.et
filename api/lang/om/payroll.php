@@ -30,6 +30,8 @@ return [
     'reconciliation_open' => 'Argamni yeroo kanaa ammallee hin walsimne: waan addaa :count ammallee banaa dha ykn murtee eegaa jira. Jalqaba kutaa Walsimsiisi irratti xumuraa.',
     'reconciliation_moved' => 'Argamni yeroo kanaa erga raawwiin herregamee booda murtaa\'eera. Akka murtee irraa kaffaluuf raawwii sana irra deebi\'aa hojjedhaa.',
     'inputs_changed_since_processed' => 'Raawwiin kun erga herregamee booda mindaan jijjiirameera. Raawwii kana haqaatii, akka lakkoofsota ammaa kaffaluuf irra deebi\'aa hojjedhaa.',
+    'attendance_changed_since_processed' => 'Erga raawwiin kun herregamee booda sa\'aatiin ol aanaa, turtiin ykn hayyamni namoota :count(tti) jijjiirameera, kanaaf waraqaan mindaa isaanii lakkoofsota dhugaa hin taane kaffaluu danda\'a. Raawwii sana haqaatii irra deebi\'aa hojjedhaa.',
+    'attendance_check_timed_out' => 'Erga raawwiin kun herregamee booda argamni jijjiirame ta\'uu isaa mirkaneessuun hin xumuramne, kanaaf homtuu hin raggaasifamne. Raawwii sana haqaatii irra deebi\'aa hojjedhaa.',
     'reconciliation_range' => 'Yeroo tokkotti yoo baay\'ate guyyoota 92 walsimsiisaa.',
     'tax_ladder_locked' => 'Gibirri galii :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Sadarkaaleen gibiraa seeraa shallaggii mindaa hunda irratti hojiirra oolu.',
     'pension_rule_locked' => 'Gumaachi sooramaa :reference hordofa, dhaabbatni immoo jijjiiruu hin danda\'u. Gatiiwwan gumaachaa seeraa shallaggii mindaa hunda irratti hojiirra oolu.',

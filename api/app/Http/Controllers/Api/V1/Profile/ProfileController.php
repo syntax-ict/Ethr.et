@@ -14,9 +14,11 @@ use App\Models\Employee;
 use App\Models\ProfileUpdateRequest;
 use App\Services\FileStorageService;
 use App\Services\Profile\ProfileUpdateRequestService;
+use App\Support\EmployeeAddress;
 use App\Support\EthiopianPhone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class ProfileController extends Controller
 {
@@ -65,6 +67,15 @@ class ProfileController extends Controller
                 'date_of_birth' => $employee->date_of_birth?->format('Y-m-d'),
                 'nationality' => $employee->nationality,
                 'marital_status' => $employee->marital_status,
+                'address_region_code' => $employee->address_region_code,
+                'address_region_text' => $employee->address_region_text,
+                'address_sub_city_code' => $employee->address_sub_city_code,
+                'address_zone_or_sub_city_text' => $employee->address_zone_or_sub_city_text,
+                'address_town_code' => $employee->address_town_code,
+                'address_town_text' => $employee->address_town_text,
+                'address_woreda' => $employee->address_woreda,
+                'address_kebele' => $employee->address_kebele,
+                'address_house_number' => $employee->address_house_number,
                 'hire_date' => $employee->hire_date?->format('Y-m-d'),
                 // Cast to EmployeeStatus on the model; a backed enum serialises to
                 // its value on the way out.
@@ -176,6 +187,12 @@ class ProfileController extends Controller
             $data['emergency_contact_relationship'],
         );
 
+        // The address is the one field group where a null is a change: an
+        // employee who moves, or drops a code, has to be able to clear a box.
+        // Nulls elsewhere still mean "not sent", as they always have.
+        $addressChanges = EmployeeAddress::normalize(Arr::only($data, EmployeeAddress::COLUMNS), $employee);
+        $data = array_diff_key($data, array_flip(EmployeeAddress::COLUMNS));
+
         $gatedFields = array_keys(ProfileUpdateRequest::GATED_FIELDS);
         $sensitiveChanges = array_filter(
             array_intersect_key($data, array_flip($gatedFields)),
@@ -184,7 +201,7 @@ class ProfileController extends Controller
         $allowedChanges = array_diff_key($data, array_flip($gatedFields));
 
         // Apply allowed (non-sensitive) employee fields immediately.
-        $employeeChanges = array_filter($allowedChanges, fn ($v) => $v !== null);
+        $employeeChanges = [...array_filter($allowedChanges, fn ($v) => $v !== null), ...$addressChanges];
         if (! empty($employeeChanges)) {
             // Store the identifier phone in one canonical shape (+251…) regardless
             // of whether the employee typed the local 09… or E.164 form; the user

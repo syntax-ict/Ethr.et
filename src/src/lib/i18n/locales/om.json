@@ -7986,5 +7986,17 @@
   "device_token.masked_hint": "Teessoon guutuun yeroo uumamu yookaan irra deebi'amee uumamu qofa mul'ata. Asitti jalqabni tokenii qofa mul'ata.",
   "device_token.regenerate_to_see": "Teessoo deebi'ee argachuuf irra deebi'ii uumi",
   "adms_setup.resends": "Teerminaalichi waan hin ga'in hunda ofumaa irra deebi'ee erga. ETHR isa irraa gonkumaa hin fudhatu.",
-  "device_clock.warning_timezone": "Sa'aatiin teessoo teerminaalichaa dogoggora fakkaata. UTC+3 (Afrikaa Bahaa) irratti kaa'aa."
+  "device_clock.warning_timezone": "Sa'aatiin teessoo teerminaalichaa dogoggora fakkaata. UTC+3 (Afrikaa Bahaa) irratti kaa'aa.",
+  "address.title": "Teessoo",
+  "address.region": "Naannoo",
+  "address.sub_city": "Kutaa magaalaa",
+  "address.zone": "Godina",
+  "address.town": "Magaalaa",
+  "address.woreda": "Aanaa",
+  "address.kebele": "Gandaa",
+  "address.house_number": "Lakkoofsa mana",
+  "reference.clear": "Haqi",
+  "address.house_number_n": "Lakkoofsa mana :n",
+  "address.kebele_n": "Gandaa :n",
+  "address.woreda_n": "Aanaa :n"
 }
