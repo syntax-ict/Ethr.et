@@ -30,7 +30,7 @@ class PlanSeeder extends Seeder
                 'marketing_features_am' => [
                     'መገኘት እና ፈቃድ',
                     'የሠራተኛ መዝገብ',
-                    'መገኘት ከመስመር ውጭ ይሠራል',
+                    'መገኘት ኢንተርኔት ባይኖርም ይሠራል',
                 ],
                 'description_om' => 'Waajjira tokko kan argamaa fi boqonnaa sirnatti galchuu barbaaduuf.',
                 'marketing_features_om' => [
