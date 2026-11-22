@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\EmployeeBankDetail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -29,8 +30,12 @@ use Illuminate\Support\Facades\DB;
  *
  * A number that cannot be decrypted is given an empty hash, which matches
  * nothing, so it is not read again on every run.
+ *
+ * One queued job per organisation at a time: the hourly schedule and the
+ * job's own next slice would otherwise stack copies that redo each other's
+ * work and use up the drain.
  */
-class BackfillBankAccountHashesJob implements ShouldQueue
+class BackfillBankAccountHashesJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -44,18 +49,23 @@ class BackfillBankAccountHashesJob implements ShouldQueue
 
     public int $timeout = 60;
 
+    /** Seconds a queued copy holds the organisation's place. */
+    public int $uniqueFor = 3600;
+
     public function __construct(
         public readonly int $tenantId,
-        public readonly ?float $deadline = null,
     ) {
         $this->onQueue('default');
     }
 
+    public function uniqueId(): string
+    {
+        return (string) $this->tenantId;
+    }
+
     public function handle(): void
     {
-        $deadline = $this->deadline ?? microtime(true) + self::SECONDS;
-
-        if (self::fill($this->tenantId, $deadline) > 0) {
+        if (self::fill($this->tenantId, microtime(true) + self::SECONDS) > 0) {
             self::dispatch($this->tenantId);
         }
     }

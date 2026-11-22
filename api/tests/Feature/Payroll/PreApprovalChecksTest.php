@@ -10,6 +10,7 @@ use App\Models\EmployeeBankDetail;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
+use App\Services\Auth\ImpersonationToken;
 use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PreApprovalChecks;
 use App\Services\Payroll\RunRegisterService;
@@ -257,6 +258,36 @@ describe('shared bank accounts', function () {
             ->and(pacChecks($run)['shared_bank_accounts'])->toMatchArray(['count' => 1, 'pending_hashes' => 0]);
     });
 
+    it('shows no shared account to an operator in a support session', function () {
+        $platform = createTenant();
+        $operator = createUser(['role' => UserRole::SUPER_ADMIN], $platform);
+        $tenant = createTenant();
+        $admin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        [$a, $b] = [pacEmployee($tenant), pacEmployee($tenant)];
+        pacBank($tenant, $a, '1000 1234 5678');
+        pacBank($tenant, $b, '1000 1234 5678');
+        $run = pacRun($tenant, '2026-10-01', '2026-10-31', 'completed', [$a->id => [], $b->id => []]);
+        $token = $admin->createToken(ImpersonationToken::nameFor($operator->id), ['*', ImpersonationToken::ABILITY], now()->addMinutes(30))->plainTextToken;
+
+        app('auth')->forgetGuards();
+        test()->withToken($token)->getJson(pacUrl($tenant, "payroll/runs/{$run->public_id}/register"))
+            ->assertOk()
+            ->assertJsonPath('shared_bank_accounts.count', 0)
+            ->assertJsonPath('shared_bank_accounts.support_session', true)
+            ->assertJsonPath('shared_bank_accounts.groups', []);
+    });
+
+    it('keeps one backfill queued per organisation', function () {
+        Queue::fake();
+        $tenant = createTenant();
+
+        BackfillBankAccountHashesJob::dispatch($tenant->id);
+        BackfillBankAccountHashesJob::dispatch($tenant->id);
+        BackfillBankAccountHashesJob::dispatch(createTenant()->id);
+
+        Queue::assertPushed(BackfillBankAccountHashesJob::class, 2);
+    });
+
     it('does not queue itself again once every hash is filled', function () {
         Queue::fake();
         $tenant = createTenant();
@@ -321,6 +352,17 @@ describe('missing TIN and no attendance', function () {
             ->and($register['missing_tin']['count'])->toBe(0)
             ->and($register['no_attendance']['count'])->toBe(0);
     });
+});
+
+it('reads none of it for the approval, the CSV and the schedules', function () {
+    $tenant = createTenant();
+    $without = pacEmployee($tenant, ['tin' => null]);
+    $run = pacRun($tenant, '2026-10-01', '2026-10-31', 'completed', [$without->id => []]);
+
+    $register = app(RunRegisterService::class)->register($run, checks: false);
+
+    expect($register['missing_tin']['count'])->toBe(0)
+        ->and(pacChecks($run)['missing_tin']['count'])->toBe(1);
 });
 
 it('lets a run with every list full be approved all the same', function () {

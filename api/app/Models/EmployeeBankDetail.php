@@ -57,7 +57,9 @@ class EmployeeBankDetail extends Model
         static::saving(static function (self $detail): void {
             ImpersonationRestricted::unlessOrganisation('EmployeeBankDetail::saving');
 
-            if ($detail->isDirty('account_number') || ($detail->account_number_hash === null && $detail->getRawOriginal('account_number') !== null)) {
+            // Only with the number in hand: a model read without it must not
+            // write a hash of nothing over the one stored.
+            if ($detail->isDirty('account_number') || ($detail->account_number_hash === null && $detail->getRawOriginal('account_number') !== null && array_key_exists('account_number_hash', $detail->getAttributes()))) {
                 $detail->account_number_hash = self::hashAccountNumber($detail->account_number);
             }
         });

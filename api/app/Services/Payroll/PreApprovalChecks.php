@@ -11,6 +11,7 @@ use App\Models\EmployeeBankDetail;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
+use App\Services\Auth\ImpersonationToken;
 use App\Support\PayChangeThresholds;
 use Illuminate\Support\Collection;
 
@@ -193,13 +194,18 @@ final class PreApprovalChecks
      * those people's accounts saved before the hash existed and not yet
      * filled (BackfillBankAccountHashesJob), which this cannot compare yet.
      *
+     * Not in a support session: who is paid where is the organisation's, and
+     * an operator reads no bank details (ImpersonationRestricted). The list
+     * is empty then and `support_session` says why.
+     *
      * @param  Collection<int, PayrollEntry>  $entries
      * @param  list<array<string, mixed>>  $rows
-     * @return array{count: int, pending_hashes: int, groups: list<array{banks: list<string>, employees: list<array{employee_public_id: string|null, employee_name: string}>}>}
+     * @return array{count: int, pending_hashes: int, support_session: bool, groups: list<array{banks: list<string>, employees: list<array{employee_public_id: string|null, employee_name: string}>}>}
      */
     public function sharedBankAccounts(PayrollRun $run, Collection $entries, array $rows): array
     {
-        $paid = $this->enabled ? self::paid($entries, $rows) : [];
+        $supportSession = ImpersonationToken::sessionActive();
+        $paid = $this->enabled && ! $supportSession ? self::paid($entries, $rows) : [];
         $details = $paid === [] ? collect() : EmployeeBankDetail::query()
             ->where('tenant_id', $run->tenant_id)
             ->whereIn('employee_id', array_keys($paid))
@@ -241,7 +247,7 @@ final class PreApprovalChecks
             ];
         }
 
-        return ['count' => count($groups), 'pending_hashes' => $pending, 'groups' => $groups];
+        return ['count' => count($groups), 'pending_hashes' => $pending, 'support_session' => $supportSession, 'groups' => $groups];
     }
 
     /**

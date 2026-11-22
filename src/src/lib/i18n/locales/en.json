@@ -8043,5 +8043,6 @@
   "payroll_checks.percent_label": "Change of at least (%)",
   "payroll_checks.percent_help": "Of the employee's last released net pay.",
   "payroll_checks.min_label": "And of at least (ETB)",
-  "payroll_checks.min_help": "So a large percent of a small payslip is not listed."
+  "payroll_checks.min_help": "So a large percent of a small payslip is not listed.",
+  "payroll_checks.shared_support_session": "Who is paid into which account is not shown in a support session. The organisation sees this check on its own."
 }

@@ -146,6 +146,21 @@ export function SharedBankAccountsBanner({
   shared: SharedBankAccounts;
 }) {
   const { t } = useT();
+  if (shared.support_session) {
+    return (
+      <CheckBanner
+        label={t("payroll_checks.shared_title", "Accounts paid more than once")}
+        icon={<Landmark className="h-4 w-4" />}
+      >
+        <p>
+          {t(
+            "payroll_checks.shared_support_session",
+            "Who is paid into which account is not shown in a support session. The organisation sees this check on its own.",
+          )}
+        </p>
+      </CheckBanner>
+    );
+  }
   if (shared.count === 0 && shared.pending_hashes === 0) return null;
 
   return (

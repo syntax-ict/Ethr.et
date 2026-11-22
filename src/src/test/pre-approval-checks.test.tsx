@@ -77,6 +77,23 @@ describe("checks before approval", () => {
     );
   });
 
+  it("says the accounts are not shown in a support session", () => {
+    render(
+      <SharedBankAccountsBanner
+        shared={{
+          count: 0,
+          pending_hashes: 0,
+          support_session: true,
+          groups: [],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText(/not shown in a support session/),
+    ).toBeInTheDocument();
+  });
+
   it("says when some accounts cannot be compared yet", () => {
     render(
       <SharedBankAccountsBanner

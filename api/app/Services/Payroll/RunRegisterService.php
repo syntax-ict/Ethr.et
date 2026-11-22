@@ -43,7 +43,7 @@ final class RunRegisterService
      *     integrity: array{count: int, flags: int, employees: list<array{employee_public_id: string|null, employee_name: string|null, flags: int}>},
      *     overtime_limits: array{count: int, daily_limit_minutes: int|null, legal_daily_limit_minutes: int|null, legal_weekly_limit_minutes: int|null, employees: list<array{employee_public_id: mixed, employee_name: mixed, overtime_minutes: int, days_over_daily_limit: int, days_over_legal_daily_limit: int, weeks_over_legal_weekly_limit: int, longest_week_minutes: int, days_over_approved: int}>},
      *     pay_changes: array{count: int, previous_period: string|null, first_payslip: int, percent: int, min_cents: int, employees: list<array{employee_public_id: string|null, employee_name: string, previous_net_cents: int, net_cents: int, change_cents: int, change_percent: float|null, reasons: list<array{part: string, change_cents: int}>}>},
-     *     shared_bank_accounts: array{count: int, pending_hashes: int, groups: list<array{banks: list<string>, employees: list<array{employee_public_id: string|null, employee_name: string}>}>},
+     *     shared_bank_accounts: array{count: int, pending_hashes: int, support_session: bool, groups: list<array{banks: list<string>, employees: list<array{employee_public_id: string|null, employee_name: string}>}>},
      *     missing_tin: array{count: int, employees: list<array{employee_public_id: string|null, employee_name: string}>},
      *     no_attendance: array{count: int, employees: list<array{employee_public_id: string|null, employee_name: string, days: int}>},
      * }
@@ -66,7 +66,7 @@ final class RunRegisterService
             $totals[$column] = (int) array_sum(array_column($rows, $column));
         }
 
-        $before = new PreApprovalChecks($this, $checks);
+        $preApproval = new PreApprovalChecks($this, $checks);
 
         return [
             'rows' => $rows,
@@ -78,10 +78,10 @@ final class RunRegisterService
             'absences' => self::absences($rows),
             'deduction_ceiling' => self::deductionCeiling($rows),
             'integrity' => $this->openIntegrity($run, $entries->pluck('employee_id')->all()),
-            'pay_changes' => $before->payChanges($run, $entries, $rows),
-            'shared_bank_accounts' => $before->sharedBankAccounts($run, $entries, $rows),
-            'missing_tin' => $before->missingTin($entries),
-            'no_attendance' => $before->noAttendance($run, $entries, $rows),
+            'pay_changes' => $preApproval->payChanges($run, $entries, $rows),
+            'shared_bank_accounts' => $preApproval->sharedBankAccounts($run, $entries, $rows),
+            'missing_tin' => $preApproval->missingTin($entries),
+            'no_attendance' => $preApproval->noAttendance($run, $entries, $rows),
         ];
     }
 

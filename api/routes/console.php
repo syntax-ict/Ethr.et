@@ -147,12 +147,14 @@ Schedule::call(function () {
 })->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
 
 // Bank account hashes for the shared-account check before approval, on rows
-// saved before the hash existed (2026-11-22). Only organisations with a row
-// still to fill get a job, so once every row has one this queues nothing.
+// saved before the hash existed (2026-11-22). Only operational organisations
+// with a row still to fill get a job, so once every row has one this queues
+// nothing.
 Schedule::call(function () {
     DB::table('employee_bank_details')
         ->whereNull('account_number_hash')
         ->whereNotNull('account_number')
+        ->whereIn('tenant_id', Tenant::operational()->select('id'))
         ->distinct()
         ->pluck('tenant_id')
         ->each(fn (mixed $tenantId) => BackfillBankAccountHashesJob::dispatch((int) $tenantId));

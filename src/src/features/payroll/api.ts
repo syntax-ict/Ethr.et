@@ -213,6 +213,8 @@ export interface SharedBankAccounts {
   count: number;
   /** Accounts of the run's people saved before the check existed, not yet comparable. */
   pending_hashes: number;
+  /** True in a support session: an operator is shown no one's account. */
+  support_session?: boolean;
   groups: {
     banks: string[];
     employees: { employee_public_id: string | null; employee_name: string }[];

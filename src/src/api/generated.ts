@@ -32833,6 +32833,7 @@ export interface operations {
                         shared_bank_accounts: {
                             count: number;
                             pending_hashes: number;
+                            support_session: boolean;
                             groups: {
                                 banks: unknown[];
                                 employees: unknown[];
@@ -32988,6 +32989,10 @@ export interface operations {
                             period: string;
                             /** @enum {string} */
                             status: "Approved and paid" | "Approved" | "NOT APPROVED — draft figures";
+                            /**
+                             * @description A user with no token at all (an actingAs() test, a console) reads as
+                             *     no abilities: the `??` is on a property of null, which is safe.
+                             */
                             approved: boolean;
                             basis: string;
                             notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";

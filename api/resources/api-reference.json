@@ -36357,6 +36357,9 @@
                                                 "pending_hashes": {
                                                     "type": "integer"
                                                 },
+                                                "support_session": {
+                                                    "type": "boolean"
+                                                },
                                                 "groups": {
                                                     "type": "array",
                                                     "items": {
@@ -36381,6 +36384,7 @@
                                             "required": [
                                                 "count",
                                                 "pending_hashes",
+                                                "support_session",
                                                 "groups"
                                             ]
                                         },
@@ -36735,7 +36739,8 @@
                                                     ]
                                                 },
                                                 "approved": {
-                                                    "type": "boolean"
+                                                    "type": "boolean",
+                                                    "description": "A user with no token at all (an actingAs() test, a console) reads as\nno abilities: the `??` is on a property of null, which is safe."
                                                 },
                                                 "basis": {
                                                     "type": "string"
