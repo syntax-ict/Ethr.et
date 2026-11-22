@@ -6125,6 +6125,8 @@
   "settings.sp_metadata_url": "URL Metadata SP",
   "settings.sso_disabled": "Dhaabameera",
   "settings.sso_enabled": "Jalqabameera",
+  "settings.sso_not_ready": "Hin qophoofne",
+  "settings.sso_not_ready_missing": "SSO jalqabameera, garuu namoonni ammaaf itti fayyadamuu hin danda'an. Kan hafe: :items.",
   "settings.sso_saml": "Seensa Tokkichaa SAML (SSO)",
   "settings.sso_save_failed": "Qindaa'ina SSO olkaa'uun hin milkoofne",
   "settings.sso_saved": "Qindaa'inni SSO olkaa'ameera",
