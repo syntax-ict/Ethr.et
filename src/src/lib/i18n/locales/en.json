@@ -1764,7 +1764,7 @@
   "auth.layout_bilingual": "Multilingual (EN · AM · OM)",
   "auth.layout_biometric": "Biometric devices",
   "auth.layout_multi_tenant": "Multi-tenant SaaS",
-  "auth.layout_offline": "Offline-first",
+  "auth.layout_offline": "Attendance works offline",
   "auth.layout_subtitle": "Manage employees, attendance, payroll and leave in one platform built for Ethiopian organizations.",
   "auth.layout_tax": "Ethiopian tax & pension",
   "auth.layout_title": "Ethiopian Workforce Operating System",

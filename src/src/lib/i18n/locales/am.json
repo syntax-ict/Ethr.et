@@ -1764,7 +1764,7 @@
   "auth.layout_bilingual": "ብዙ ቋንቋ (እንግ · አማ · ኦሮ)",
   "auth.layout_biometric": "ባዮሜትሪክ መሳሪያዎች",
   "auth.layout_multi_tenant": "ባለብዙ ተከራይ SaaS",
-  "auth.layout_offline": "ከመስመር ውጭ ቅድሚያ",
+  "auth.layout_offline": "መገኘት ከመስመር ውጭ ይሠራል",
   "auth.layout_subtitle": "ሰራተኞችን፣ መገኘትን፣ ደመወዝን እና ፈቃድን ያስተዳድሩ፣ ለኢትዮጵያ ድርጅቶች በተዘጋጀ አንድ መድረክ።",
   "auth.layout_tax": "የኢትዮጵያ ግብር እና ጡረታ",
   "auth.layout_title": "የኢትዮጵያ የሰው ሃብት አስተዳደር ስርዓት",
