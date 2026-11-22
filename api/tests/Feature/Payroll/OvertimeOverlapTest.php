@@ -59,10 +59,14 @@ test('two records of the same shift pay its overtime once', function () {
 
     expect($step['overtime_minutes'])->toBe(120)
         ->and($step['overtime_amount_cents'])->toBe($single['overtime_amount_cents'])
-        ->and($step['overlapping_records_skipped'])->toBe([[
-            'record' => $records[1]->public_id,
-            'kept' => $records[0]->public_id,
+        ->and(array_map(function (array $entry): array {
+            ksort($entry);
+
+            return $entry;
+        }, $step['overlapping_records_skipped']))->toBe([[
             'date' => '2026-06-02',
+            'kept' => $records[0]->public_id,
+            'record' => $records[1]->public_id,
         ]]);
 });
 
