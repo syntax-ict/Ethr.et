@@ -14,6 +14,8 @@ interface StatusBadgeProps {
   status: string;
   /** For a status whose meaning depends on what it describes, such as a payroll run's `completed`. */
   domain?: StatusDomain;
+  /** A word more exact than the registry's, such as a story's "Scheduled for :date". */
+  label?: string;
   className?: string;
 }
 
@@ -27,7 +29,12 @@ interface StatusBadgeProps {
  * humanised value stays as the fallback, so a status with no key yet still renders
  * readably instead of leaking a bare key like `status.foo` into the UI.
  */
-export function StatusBadge({ status, domain, className }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  domain,
+  label,
+  className,
+}: StatusBadgeProps) {
   const { t } = useT();
   // One table for every status colour in the app: lib/status/registry.ts.
   const tone = toneClasses(statusToneOf(status, domain));
@@ -49,7 +56,7 @@ export function StatusBadge({ status, domain, className }: StatusBadgeProps) {
           aria-hidden
         />
       )}
-      {t(statusLabelKeyOf(status, domain), humanized)}
+      {label ?? t(statusLabelKeyOf(status, domain), humanized)}
     </Badge>
   );
 }

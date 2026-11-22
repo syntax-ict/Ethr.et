@@ -5,36 +5,34 @@ import { useAnnouncements } from "@/features/announcements/api";
 import { useT } from "@/lib/i18n/useT";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Megaphone, AlertTriangle, Info } from "lucide-react";
-import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { ArrowRight, Megaphone } from "lucide-react";
+import { NewsMeta } from "@/features/news/components/news-card";
 import { cn } from "@/lib/utils";
 import { WidgetError } from "./widget-error";
 
-const priorityConfig = {
+/**
+ * The left edge a story carries on the dashboard card. Only urgent and
+ * important ones stand out; "low" and anything new read as normal. The
+ * priority's word is drawn by the shared `NewsMeta`, so it says the same
+ * thing here as on the announcements page and the public news page.
+ */
+const priorityEdge = {
   urgent: {
-    icon: AlertTriangle,
-    badge: "destructive" as const,
     border: "border-l-status-error",
     bg: "bg-status-error/[0.03]",
   },
   high: {
-    icon: AlertTriangle,
-    badge: "warning" as const,
     border: "border-l-status-warning",
     bg: "bg-status-warning/[0.03]",
   },
   normal: {
-    icon: Info,
-    badge: "secondary" as const,
     border: "border-l-interactive-primary",
     bg: "",
   },
 };
 
 export function AnnouncementsWidget() {
-  const { timeAgo } = useDateFormatters();
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useAnnouncements({ page: 1 });
 
@@ -124,40 +122,31 @@ export function AnnouncementsWidget() {
       <CardContent>
         <div className="space-y-2">
           {announcements.map((ann) => {
-            // "low" (and anything new) falls back to the normal styling.
-            const config =
-              priorityConfig[ann.priority as keyof typeof priorityConfig] ??
-              priorityConfig.normal;
-            const postedAt = ann.published_at ?? ann.created_at;
+            const edge =
+              priorityEdge[ann.priority as keyof typeof priorityEdge] ??
+              priorityEdge.normal;
             return (
               <Link
                 key={ann.public_id}
                 href="/announcements"
                 className={cn(
-                  "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-all duration-200 hover:border-border hover:shadow-sm",
-                  config.border,
-                  config.bg,
+                  "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm",
+                  edge.border,
+                  edge.bg,
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {ann.title}
-                      </p>
-                      {ann.priority !== "normal" && (
-                        <Badge variant={config.badge} className="text-caption">
-                          {t(`common.${ann.priority}`, ann.priority)}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                      {ann.body}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-2 text-caption text-muted-foreground/70">
-                  {postedAt ? timeAgo(postedAt) : null}
+                {/*
+                 * `featured` is publishing metadata: it means "first on the
+                 * public website", which is the publisher's business and not
+                 * the reader's. Everyone sees this card, so the star is left
+                 * off here; the announcements page shows it to managers only.
+                 */}
+                <NewsMeta item={{ ...ann, featured: false }} />
+                <p className="mt-1 break-words text-sm font-semibold text-foreground">
+                  {ann.title}
+                </p>
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                  {ann.excerpt}
                 </p>
               </Link>
             );
