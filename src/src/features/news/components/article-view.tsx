@@ -108,7 +108,9 @@ export function ArticleView({ article }: { article: ArticleContent }) {
                     {file.name}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    PDF, {fileSize(file.size)}
+                    {t("news.file_meta", "PDF, :size", {
+                      size: fileSize(file.size),
+                    })}
                   </span>
                 </>
               );

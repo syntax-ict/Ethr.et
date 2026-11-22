@@ -196,9 +196,25 @@ Tooling that would stop regressions: enable `eslint-plugin-jsx-a11y` recommended
 `src/eslint.config.mjs` (it would have caught W-07, W-14, W-15, W-16 and W-28), and fix the
 dangling `docs/audits/UX_PHASE_XX.md` reference in `src/e2e/ux-audit.spec.ts`.
 
+## What has been fixed since
+
+*Added 2026-11-22, by the announcements upgrade (PR A1). Each finding below lists
+many sites; only the announcement and news ones are closed, and the finding stays
+open for the rest.*
+
+| Finding | Site closed | How |
+|---|---|---|
+| W-25 | `features/news/components/article-view.tsx:111` | The `PDF, ` literal reads `news.file_meta` in en, am and om |
+| W-28 | `app/(dashboard)/announcements/page.tsx:974`, `:1060` | Both hidden file inputs carry `tabIndex={-1}`; they moved to `features/announcements/components/announcement-editor.tsx` |
+| W-30 | `app/(dashboard)/announcements/page.tsx:589` | The story title carries `break-words` |
+| W-40 | `features/dashboard/components/announcements-widget.tsx:137` | `transition-all` became `transition-[border-color,box-shadow]` |
+
+W-18's announcements site (`page.tsx:580`) is **not** closed: the list still
+fetches every page. It is PR A2's pager.
+
 ## What this pass does not claim
 
-- Nothing was fixed. Every line above is a reading of `b452c55983`.
+- Nothing was fixed in the pass itself. Every line above is a reading of `b452c55983`.
 - The browser pass used the desktop app's built-in pane with the viewport emulated at 375 px and
   the colour scheme emulated. It did not run on a phone, iPad Safari or Android Chrome, so the
   address-bar colour (W-34), kiosk safe areas and `h-screen` folds (W-33), pull-to-refresh and
