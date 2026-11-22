@@ -46621,7 +46621,28 @@
                             ]
                         }
                     },
+                    "author": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ]
+                    },
                     "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "updated_at": {
                         "type": [
                             "string",
                             "null"
@@ -46644,7 +46665,9 @@
                     "featured",
                     "cover",
                     "attachments",
-                    "created_at"
+                    "author",
+                    "created_at",
+                    "updated_at"
                 ],
                 "title": "AnnouncementResource"
             },
