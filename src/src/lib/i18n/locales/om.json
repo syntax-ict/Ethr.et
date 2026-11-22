@@ -1755,7 +1755,7 @@
   "auth.layout_bilingual": "Afaan hedduu (EN · AM · OM)",
   "auth.layout_biometric": "Meeshaalee baayoometirikii",
   "auth.layout_multi_tenant": "SaaS dhaabbilee hedduu",
-  "auth.layout_offline": "Toora ala dursee",
+  "auth.layout_offline": "Argamaan toora ala ni hojjeta",
   "auth.layout_subtitle": "Hojjettoota, argama, kaffaltii mindaa fi boqonnaa waltajjii tokko dhaabbilee Itoophiyaaf ijaarame keessatti bulchaa.",
   "auth.layout_tax": "Gibira fi soorama Itoophiyaa",
   "auth.layout_title": "Sirna Hojii Humna Hojii Itoophiyaa",
