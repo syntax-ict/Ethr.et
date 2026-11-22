@@ -38,6 +38,8 @@ interface ReferenceSelectProps {
   parentCode?: string | null;
   /** Offer "Other" so a name that is not listed can be typed. On by default. */
   allowOther?: boolean;
+  /** Offer "Clear" while something is chosen, for a field that may be left empty. */
+  clearable?: boolean;
   id?: string;
   disabled?: boolean;
   className?: string;
@@ -78,6 +80,7 @@ export function ReferenceSelect({
   onChange,
   parentCode,
   allowOther = true,
+  clearable = false,
   id,
   disabled,
   className,
@@ -119,7 +122,7 @@ export function ReferenceSelect({
     return <Skeleton className="h-10 w-full" aria-hidden="true" />;
   }
 
-  const all = lookups.data.items[kind] ?? [];
+  const all = lookups.data.items?.[kind] ?? [];
 
   if (typing && allowOther) {
     return (
@@ -197,6 +200,25 @@ export function ReferenceSelect({
               {t("reference.empty", "No match. Choose Other to type it.")}
             </CommandEmpty>
             <CommandGroup>
+              {clearable &&
+                (value.code !== null || value.text.trim() !== "") && (
+                  <CommandItem
+                    // Not a place name, so a search never finds it by accident;
+                    // `forceMount` keeps it at hand while one is typed.
+                    forceMount
+                    value="__clear__"
+                    onSelect={() => {
+                      setTyping(false);
+                      setOpen(false);
+                      onChange({ code: null, text: "" });
+                    }}
+                  >
+                    <span className="h-4 w-4" aria-hidden="true" />
+                    <span className="truncate">
+                      {t("reference.clear", "Clear")}
+                    </span>
+                  </CommandItem>
+                )}
               {choices.map((item) => (
                 <CommandItem
                   key={item.code}

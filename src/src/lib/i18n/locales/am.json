@@ -7986,5 +7986,17 @@
   "device_token.masked_hint": "ሙሉው አድራሻ የሚታየው ሲፈጠር ወይም እንደገና ሲመነጭ ብቻ ነው። እዚህ የቶከኑ መጀመሪያ ብቻ ይታያል።",
   "device_token.regenerate_to_see": "አድራሻውን ዳግም ለማየት እንደገና ያመንጩ",
   "adms_setup.resends": "መሣሪያው ያላደረሰውን ሁሉ በራሱ እንደገና ይልካል። ETHR ከእሱ በጭራሽ አይጎትትም።",
-  "device_clock.warning_timezone": "የመሣሪያው የሰዓት ሰቅ የተሳሳተ ይመስላል። ወደ UTC+3 (ምሥራቅ አፍሪካ) ያስቀምጡት።"
+  "device_clock.warning_timezone": "የመሣሪያው የሰዓት ሰቅ የተሳሳተ ይመስላል። ወደ UTC+3 (ምሥራቅ አፍሪካ) ያስቀምጡት።",
+  "address.title": "አድራሻ",
+  "address.region": "ክልል",
+  "address.sub_city": "ክፍለ ከተማ",
+  "address.zone": "ዞን",
+  "address.town": "ከተማ",
+  "address.woreda": "ወረዳ",
+  "address.kebele": "ቀበሌ",
+  "address.house_number": "የቤት ቁጥር",
+  "reference.clear": "አጽዳ",
+  "address.house_number_n": "የቤት ቁጥር :n",
+  "address.kebele_n": "ቀበሌ :n",
+  "address.woreda_n": "ወረዳ :n"
 }

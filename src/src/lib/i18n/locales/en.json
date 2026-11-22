@@ -7986,5 +7986,17 @@
   "device_token.masked_hint": "The full address is shown only when it is created or regenerated. Here you see the start of the token.",
   "device_token.regenerate_to_see": "Regenerate to see the address again",
   "adms_setup.resends": "The terminal sends again, by itself, whatever it has not delivered. ETHR never pulls from it.",
-  "device_clock.warning_timezone": "The terminal's time zone looks wrong. Set it to UTC+3 (East Africa)."
+  "device_clock.warning_timezone": "The terminal's time zone looks wrong. Set it to UTC+3 (East Africa).",
+  "address.title": "Address",
+  "address.region": "Region",
+  "address.sub_city": "Sub-city",
+  "address.zone": "Zone",
+  "address.town": "Town or city",
+  "address.woreda": "Woreda",
+  "address.kebele": "Kebele",
+  "address.house_number": "House number",
+  "reference.clear": "Clear",
+  "address.house_number_n": "House number :n",
+  "address.kebele_n": "Kebele :n",
+  "address.woreda_n": "Woreda :n"
 }

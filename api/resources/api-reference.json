@@ -50916,6 +50916,60 @@
                             "null"
                         ]
                     },
+                    "address_region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_region_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_sub_city_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_zone_or_sub_city_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_town_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_woreda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_kebele": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_house_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "status": {
                         "type": "string"
                     },
@@ -51104,6 +51158,15 @@
                     "nationality_status",
                     "nationality_needs_review",
                     "marital_status",
+                    "address_region_code",
+                    "address_region_text",
+                    "address_sub_city_code",
+                    "address_zone_or_sub_city_text",
+                    "address_town_code",
+                    "address_town_text",
+                    "address_woreda",
+                    "address_kebele",
+                    "address_house_number",
                     "status",
                     "hire_date",
                     "probation_end_date",
@@ -54114,11 +54177,7 @@
                         "format": "date-time"
                     },
                     "created_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -57846,6 +57905,69 @@
                             }
                         ]
                     },
+                    "address_region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_region_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_sub_city_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_zone_or_sub_city_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_town_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_woreda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
+                    },
+                    "address_kebele": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
+                    },
+                    "address_house_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
+                    },
                     "status": {
                         "anyOf": [
                             {
@@ -60129,6 +60251,69 @@
                                 "type": "null"
                             }
                         ]
+                    },
+                    "address_region_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_region_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_sub_city_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_zone_or_sub_city_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_town_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "address_town_text": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "address_woreda": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
+                    },
+                    "address_kebele": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
+                    },
+                    "address_house_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 50
                     },
                     "hire_date": {
                         "type": "string",

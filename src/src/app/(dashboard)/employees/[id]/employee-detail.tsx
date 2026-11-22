@@ -23,6 +23,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/shared/phone-input";
+import {
+  AddressForm,
+  EMPTY_ADDRESS,
+  addressFromRecord,
+  addressToPayload,
+  useFormatAddress,
+  type AddressFields,
+} from "@/components/shared/address-fields";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -123,9 +131,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const { data: teams } = teamsApi.useList();
   const { data: costCenters } = costCentersApi.useList();
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editAddress, setEditAddress] = useState<AddressFields>(EMPTY_ADDRESS);
+  const formatAddress = useFormatAddress();
 
   function startEdit() {
     if (!employee) return;
+    setEditAddress(addressFromRecord(employee));
     setEditForm({
       name: employee.name ?? "",
       email: employee.email ?? "",
@@ -148,20 +159,23 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   }
 
   function handleSave() {
-    updateEmployee.mutate(editForm, {
-      onSuccess: () => {
-        toast.success(t("employee.detail.updated", "Employee updated"));
-        setEditing(false);
-      },
-      // The server's reason, so a badge already taken says so.
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t("employee.detail.update_failed", "Failed to update employee"),
+    updateEmployee.mutate(
+      { ...editForm, ...addressToPayload(editAddress) },
+      {
+        onSuccess: () => {
+          toast.success(t("employee.detail.updated", "Employee updated"));
+          setEditing(false);
+        },
+        // The server's reason, so a badge already taken says so.
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("employee.detail.update_failed", "Failed to update employee"),
+            ),
           ),
-        ),
-    });
+      },
+    );
   }
 
   if (!id || isLoading) {
@@ -396,6 +410,16 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         {t("employee.nationality_status_hint")}
                       </p>
                     </div>
+                    <fieldset className="space-y-3">
+                      <legend className="text-sm font-medium">
+                        {t("address.title", "Address")}
+                      </legend>
+                      <AddressForm
+                        idPrefix="edit-address"
+                        value={editAddress}
+                        onChange={setEditAddress}
+                      />
+                    </fieldset>
                     <RelationPicker
                       id="edit-supervisor"
                       label={t("employee.supervisor", "Supervisor")}
@@ -443,6 +467,10 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       icon={Phone}
                       label={t("common.phone", "Phone")}
                       value={employee.phone ? formatPhone(employee.phone) : "—"}
+                    />
+                    <InfoRow
+                      label={t("address.title", "Address")}
+                      value={formatAddress(employee) || "—"}
                     />
                     <InfoRow
                       icon={Calendar}

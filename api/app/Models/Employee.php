@@ -36,6 +36,15 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $attendance_device_exempt_until
  * @property NationalityStatus|null $nationality_status
  * @property bool $nationality_needs_review
+ * @property string|null $address_region_code
+ * @property string|null $address_region_text
+ * @property string|null $address_sub_city_code
+ * @property string|null $address_zone_or_sub_city_text
+ * @property string|null $address_town_code
+ * @property string|null $address_town_text
+ * @property string|null $address_woreda
+ * @property string|null $address_kebele
+ * @property string|null $address_house_number
  * @property-read Department|null $department
  * @property-read Position|null $position
  * @property-read Branch|null $branch
@@ -77,6 +86,15 @@ class Employee extends Model
         'nationality_needs_review',
         'national_id',
         'marital_status',
+        'address_region_code',
+        'address_region_text',
+        'address_sub_city_code',
+        'address_zone_or_sub_city_text',
+        'address_town_code',
+        'address_town_text',
+        'address_woreda',
+        'address_kebele',
+        'address_house_number',
         'status',
         'hire_date',
         'probation_end_date',

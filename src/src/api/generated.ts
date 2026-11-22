@@ -10656,6 +10656,15 @@ export interface components {
             nationality_status: string;
             nationality_needs_review: boolean;
             marital_status: string | null;
+            address_region_code: string | null;
+            address_region_text: string | null;
+            address_sub_city_code: string | null;
+            address_zone_or_sub_city_text: string | null;
+            address_town_code: string | null;
+            address_town_text: string | null;
+            address_woreda: string | null;
+            address_kebele: string | null;
+            address_house_number: string | null;
             status: string;
             hire_date: string | null;
             probation_end_date: string | null;
@@ -11640,8 +11649,7 @@ export interface components {
             note: string | null;
             /** Format: date-time */
             settled_at: string | null;
-            /** Format: date-time */
-            created_at: string | null;
+            created_at: string;
         };
         /** PayrollRuleResource */
         PayrollRuleResource: {
@@ -12869,6 +12877,15 @@ export interface components {
              */
             national_id?: string | null;
             marital_status?: components["schemas"]["MaritalStatus"] | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             hire_date: string;
@@ -13662,6 +13679,15 @@ export interface components {
             nationality_status?: components["schemas"]["NationalityStatus"] | null;
             national_id?: string | null;
             marital_status?: components["schemas"]["MaritalStatus"] | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             /** Format: date-time */
             hire_date?: string;
             /** Format: date-time */
@@ -14050,6 +14076,15 @@ export interface components {
             phone?: string | null;
             marital_status?: components["schemas"]["MaritalStatus"] | null;
             nationality?: string | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             /**
              * @description Shorthand for the primary emergency contact. The full list is managed
              *     through /profile/emergency-contacts.
@@ -40231,6 +40266,15 @@ export interface operations {
                             date_of_birth: string | null;
                             nationality: string | null;
                             marital_status: string | null;
+                            address_region_code: string | null;
+                            address_region_text: string | null;
+                            address_sub_city_code: string | null;
+                            address_zone_or_sub_city_text: string | null;
+                            address_town_code: string | null;
+                            address_town_text: string | null;
+                            address_woreda: string | null;
+                            address_kebele: string | null;
+                            address_house_number: string | null;
                             hire_date: string | null;
                             /**
                              * @description Cast to EmployeeStatus on the model; a backed enum serialises to
@@ -40292,7 +40336,16 @@ export interface operations {
                             self: [
                                 "phone",
                                 "marital_status",
-                                "nationality"
+                                "nationality",
+                                "address_region_code",
+                                "address_region_text",
+                                "address_sub_city_code",
+                                "address_zone_or_sub_city_text",
+                                "address_town_code",
+                                "address_town_text",
+                                "address_woreda",
+                                "address_kebele",
+                                "address_house_number"
                             ];
                             gated: string[];
                         };
