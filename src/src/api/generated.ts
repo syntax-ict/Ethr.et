@@ -9585,8 +9585,13 @@ export interface components {
                 size: number;
                 url: string | null;
             }[];
+            author: {
+                name: string;
+            } | null;
             /** Format: date-time */
             created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
         };
         /**
          * ApplyConfigurationRequest
