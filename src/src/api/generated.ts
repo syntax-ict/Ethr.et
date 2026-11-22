@@ -9562,6 +9562,7 @@ export interface components {
             public_id: string;
             title: string;
             body: string;
+            excerpt: string;
             category: string | null;
             priority: string;
             target_type: string;
