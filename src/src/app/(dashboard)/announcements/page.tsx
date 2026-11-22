@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FileText, Globe, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -66,6 +66,29 @@ export default function AnnouncementsPage() {
   const { values, set } = useQueryFilters({ read: "", page: "1" });
   const reading = values.read === "" ? null : values.read;
   const page = Math.max(1, Number(values.page) || 1);
+
+  // Opening a story adds a history entry, so Back closes the panel. Closing it
+  // by the X or Escape must undo that entry rather than replace it: replacing
+  // would leave two entries for the same list, and the next Back press would
+  // visibly do nothing. Someone who arrived straight on `?read=` has no entry
+  // of ours to undo, so for them the address is rewritten in place and Back
+  // still leaves the page.
+  const openedHere = useRef(false);
+  const openStory = useCallback(
+    (publicId: string) => {
+      openedHere.current = true;
+      set({ read: publicId }, { push: true });
+    },
+    [set],
+  );
+  const closeStory = useCallback(() => {
+    if (openedHere.current) {
+      openedHere.current = false;
+      window.history.back();
+      return;
+    }
+    set({ read: "" });
+  }, [set]);
 
   const live = useAnnouncements({ page });
   const managed = useManagedAnnouncements(manager, page);
@@ -189,9 +212,7 @@ export default function AnnouncementsPage() {
                              */}
                             <button
                               type="button"
-                              onClick={() =>
-                                set({ read: a.public_id }, { push: true })
-                              }
+                              onClick={() => openStory(a.public_id)}
                               className="rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               {a.title}
@@ -260,9 +281,7 @@ export default function AnnouncementsPage() {
                           busy={updateAnnouncement.isPending}
                           onAct={act}
                           onPublish={setPendingPublish}
-                          onPreview={(story) =>
-                            set({ read: story.public_id }, { push: true })
-                          }
+                          onPreview={(story) => openStory(story.public_id)}
                           onEdit={setEditor}
                           onDelete={setPendingDelete}
                         />
@@ -329,10 +348,7 @@ export default function AnnouncementsPage() {
         }}
       />
 
-      <AnnouncementReadingPane
-        publicId={reading}
-        onClose={() => set({ read: "" })}
-      />
+      <AnnouncementReadingPane publicId={reading} onClose={closeStory} />
 
       {editor !== undefined && (
         <AnnouncementEditor
