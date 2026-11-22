@@ -97,7 +97,7 @@ test.describe('Announcements: reading a story', () => {
 
   test('opens a story in full, keeps it in the address, and closes on back', async ({ page }) => {
     await page.goto('/announcements');
-    await page.getByRole('button', { name: TITLE_READ }).click();
+    await page.getByRole('button', { name: TITLE_READ, exact: true }).click();
 
     const pane = page.getByRole('dialog');
     await expect(pane).toContainText('The second paragraph', { timeout: 15000 });
