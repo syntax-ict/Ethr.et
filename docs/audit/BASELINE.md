@@ -5023,6 +5023,14 @@ Second review fixes, 2026-11-21. (1) A row that cannot be worked out is marked `
 
 Still not done: the cost-sharing and loan balances are not reinstated when a settled difference reverses a deduction (finance does that by hand from `detail`); no automatic arrears or recovery.
 
+### 25aa. The fixed lists were written out again at every use — measured 2026-11-21, changed the same day
+
+Marital status was a literal list in five server files and two client ones, with two sets of label keys (`common.single` and `marital_status.single`) that gave different Amharic for the same word. Gender was a list in six server places and a hand-written `<SelectItem>` pair in the employee form, and the employee page showed the stored English word (`male`) to a reader in any language. The emergency-contact relationship was a select on the profile and free text on the HR tab. The locale lists were restated in two request classes although `Locales::rule()` exists.
+
+Now `Gender`, `MaritalStatus`, `Relationship` and `EducationLevel` are enums beside `NationalityStatus`, validated with `Rule::enum()` in the employee, profile and leave-type requests (the import reads the same `values()`) and carried into `generated.ts` by Scramble. `src/src/lib/options/` holds one module per list and `OptionSelect` is the one control; `lib/options/contract.ts` makes a drift between the client list and the contract a compile error. Nothing saved is lost to a list: a stored value the list does not know is shown as written, and "Other" beside the relationship keeps what is typed (the server does not enforce `Relationship`, because rows written before it hold free text). `employee_education.level` is new, nullable and never backfilled; `degree` stays the free-text title.
+
+Left as they were, on purpose: `UpdateProfilePreferencesRequest` and `UpdateOrganizationRequest` accept `ti`, `so` (and `sid`) as stored preferences, and the two lists differ by `sid`; that difference is not settled here. `StagedChanges::LOCALES` and `NotificationTemplates::LOCALES` are different questions (which languages a message has) and were not touched. **Needs a native reading:** the Amharic and Afaan Oromoo for the nine education levels and `relationship.other_specify`. The `common.single/married/divorced/widowed` keys are no longer used by the employee form and are left in the files.
+
 ### 25ab. Device health told less than it knew — found 2026-11-21, fixed the same day (PR 2 of the biometric upgrade)
 
 Five findings from the Habru terminal's first weeks, numbered as the biometric review numbered them (F1-F6 are 25y's; F11, token storage, is PR 3's). The section is 25ab because 25z and 25aa were taken by open branches when this was written.
@@ -5109,6 +5117,14 @@ AfroMessage refuses with **HTTP 200** and the reason in the body (`{"acknowledge
 - **Recovery:** a delivery, a successful console test, or a changed connection clears the count and the pause; a failed test leaves them alone. The `.env` gateway has no row and records nothing.
 - **Known limits.** Two refusals landing in the same instant can both read a count past five and send no mail (the pause itself still happens). The pause counts refusals by the gateway's success rule, so a wrong rule pauses a working gateway; the test button is what proves the rule. Nothing here was run against AfroMessage itself: Pest uses faked HTTP only, and the migration was run on a scratch MariaDB.
 - **Pinned by** `tests/Feature/Sms/SmsLiveFailureTest.php` and the two new cases in `src/test/admin-sms-page.test.tsx`.
+
+### 25aj. An automatic merge rewrote a day already paid: found 2026-11-21, fixed 2026-11-21
+
+`ConflictResolver::resolve` merges a new check-in into an existing record of the same person and day when they are under five minutes apart: it updates the survivor (earlier check-in, later check-out, higher confidence) and voids the loser, and the survivor can be the new record, so the old one is the one voided. Nothing asked `PayrollPeriodLock`, so a device backlog synced after payday, or an offline phone, could rewrite or void the record a payslip was paid from, and a void-and-reprocess would then pay a different figure. Every other writer already checked the lock: the importer, the split-day joiner, conflict resolution by a person and the engine's rejoin path.
+
+The rule now: on a day in an approved or paid run, a punch under the merge window from an existing record never changes that record. The new record is voided as `paid_day_duplicate` (`duplicate_of` names the paid record, `voided_at` says when) and the resolution action is `kept_paid`. The engine answers it as a duplicate (`wasDuplicate`, outcome `already_checked_in`), writes an `attendance.conflict_kept_paid` audit entry, and does not log the punch on the paid record, reclassify it, score it or announce `attendance.checked_in`. A far second punch is flagged as before, which already left the old record alone. A day in a run that is only `completed`, or in no run, merges exactly as before.
+
+`PaidDayMergeTest` covers each case; four of its eight tests fail against the old resolver, the other four pin behaviour that must not change (flagging, an unapproved run, no run, another organisation's run; the last cannot fail either way, because the lock keys on the employee, so it pins rather than proves isolation). The lock runs inside the engine's own tenant context, which every caller must already have (the engine looks the employee up through the scope), so a queued drain is covered. The lock is read once, and only when a candidate is inside the merge window.
 
 ### 25ak. Approval paid overtime, lateness and leave that had moved since the run was calculated: found 2026-11-21, fixed 2026-11-21
 

@@ -754,6 +754,27 @@ describe('employee education', function () {
             ->assertJsonPath('degree', 'MSc');
     });
 
+    it('keeps the level beside the degree title, and refuses a level that is not on the ladder', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $url = "/api/v1/employees/{$employee->public_id}/education";
+
+        $this->postJson($url, ['institution' => 'Bahir Dar University', 'degree' => 'BSc Accounting', 'level' => 'bachelor'])
+            ->assertCreated()
+            ->assertJsonPath('degree', 'BSc Accounting')
+            ->assertJsonPath('level', 'bachelor');
+
+        $this->postJson($url, ['institution' => 'Somewhere', 'degree' => 'Certificate in IT'])
+            ->assertCreated()
+            ->assertJsonPath('level', null);
+
+        $this->postJson($url, ['institution' => 'Somewhere', 'degree' => 'BSc', 'level' => 'bachelors'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('level');
+    });
+
     it('deletes an education record', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

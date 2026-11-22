@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Leave;
 
 use App\Enums\AccrualType;
+use App\Enums\Gender;
 use App\Http\Requests\Leave\Concerns\ValidatesLeaveTypeIntegrity;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
 class UpdateLeaveTypeRequest extends FormRequest
@@ -37,7 +39,7 @@ class UpdateLeaveTypeRequest extends FormRequest
             'max_consecutive' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'is_paid' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
-            'gender_restriction' => ['sometimes', 'nullable', 'string', 'in:male,female'],
+            'gender_restriction' => ['sometimes', 'nullable', 'string', Rule::enum(Gender::class)],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];
     }
