@@ -1248,6 +1248,7 @@ return array(
     'App\\Support\\PeopleRead' => $baseDir . '/app/Support/PeopleRead.php',
     'App\\Support\\PersonName' => $baseDir . '/app/Support/PersonName.php',
     'App\\Support\\PhotoConsent' => $baseDir . '/app/Support/PhotoConsent.php',
+    'App\\Support\\PlainExcerpt' => $baseDir . '/app/Support/PlainExcerpt.php',
     'App\\Support\\PortalHead' => $baseDir . '/app/Support/PortalHead.php',
     'App\\Support\\PortalPage' => $baseDir . '/app/Support/PortalPage.php',
     'App\\Support\\PunchSignals' => $baseDir . '/app/Support/PunchSignals.php',

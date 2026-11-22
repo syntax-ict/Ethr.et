@@ -11,6 +11,7 @@ use App\Models\Branch;
 use App\Models\Holiday;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
+use App\Support\PlainExcerpt;
 use App\Support\TenantLanding;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -217,7 +218,7 @@ class LandingFeedController extends Controller
 
         return response()->json([
             ...self::newsSummary($model, $tenant->public_id),
-            'body' => self::excerpt($model->body, 10000),
+            'body' => PlainExcerpt::of($model->body, 10000),
             'attachments' => $model->attachmentsPresented($tenant->public_id),
             'related' => $related,
         ]);
@@ -246,7 +247,7 @@ class LandingFeedController extends Controller
         return [
             'public_id' => $a->public_id,
             'title' => Str::limit($a->title, 150),
-            'excerpt' => self::excerpt($a->body, 280),
+            'excerpt' => PlainExcerpt::of($a->body, 280),
             'category' => $a->category,
             'featured' => (bool) $a->featured,
             'priority' => $a->priority,
@@ -276,8 +277,8 @@ class LandingFeedController extends Controller
 
         return response()->json([
             ...self::vacancySummary($model),
-            'description' => self::excerpt($model->description, 5000),
-            'requirements' => $model->requirements === null ? null : self::excerpt($model->requirements, 5000),
+            'description' => PlainExcerpt::of($model->description, 5000),
+            'requirements' => $model->requirements === null ? null : PlainExcerpt::of($model->requirements, 5000),
         ]);
     }
 
@@ -301,13 +302,5 @@ class LandingFeedController extends Controller
                 : null,
             'apply_url' => TenantLanding::httpsUrl($v->apply_url),
         ];
-    }
-
-    /** Plain text only: whatever markup a body holds never reaches the page. */
-    private static function excerpt(string $text, int $max): string
-    {
-        $plain = trim((string) preg_replace('/[ \t]+/', ' ', strip_tags($text)));
-
-        return Str::limit($plain, $max);
     }
 }

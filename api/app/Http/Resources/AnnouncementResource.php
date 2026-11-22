@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Models\Announcement;
 use App\Services\CurrentTenant;
+use App\Support\PlainExcerpt;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +19,7 @@ class AnnouncementResource extends JsonResource
             'public_id' => $this->public_id,
             'title' => $this->title,
             'body' => $this->body,
+            'excerpt' => PlainExcerpt::of($this->body, 280),
             'category' => $this->category,
             'priority' => $this->priority,
             'target_type' => $this->target_type,
