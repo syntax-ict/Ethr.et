@@ -134,6 +134,8 @@ These are hard constraints on every slice. No exceptions.
 | 14 | Soft delete policy | Follow the entity-level soft delete policy in this document. Never hard-delete employees, attendance, payroll, or audit logs. |
 | 15 | File content verification | After upload, verify file magic bytes match declared content-type. Strip EXIF from images. |
 
+**Closed lists have one home.** A choice the code branches on — gender, marital status, relationship, education level, nationality status — is a PHP enum in `api/app/Enums/` validated with `Rule::enum()`, and one module in `src/src/lib/options/` that the forms, reports and labels all read. Never write `in:single,married,...` or a list of `<SelectItem>`s again. `Scramble` carries the enum into `generated.ts`, and `lib/options/contract.ts` fails to compile when a list drifts from it. A new value needs its label key in `en`, `am` and `om`: `src/test/option-lists.test.ts` checks every value, because the i18n gate cannot see a key built in a function. Open lists that grow (regions, towns, banks) are rows in `reference_items` instead (BASELINE §25z).
+
 > **Two things learned writing that gate, both worth more than the gate.**
 >
 > **The check is tokenised, and the first draft was wrong.** It matched any
@@ -854,6 +856,7 @@ These models are global and must NOT have `tenant_id` or `BelongsToTenant`:
 - `OrganizationType` — the kinds of organisation (private, public enterprise, government, charity, international organisation, defence and police) that statutory parameters, tax ladders and pension rules may be scoped to, written by migrations, and since 2026-11-09 sixteen legal forms of which ten inherit a parent's rules *(2026-10-27, `docs/payroll/STATUTORY-PARAMETERS.md`)*
 - `ProfileVersion` — the published batches of statutory parameters each platform row belongs to, reported in every value's provenance; written by migrations *(2026-11-09, `docs/payroll/STATUTORY-PARAMETERS.md`)*
 - `StatutoryLayout` — the dated layouts of the national statutory schedules (MoR, POESSA, PSSSA), edited from the platform console *(2026-10-14)*
+- `ReferenceItem` — the pick lists the forms offer: regions, the sub-cities of Addis Ababa, main towns and banks, one table keyed by (`kind`, `code`); loaded by the migration that creates it and re-synced by `ReferenceDataSeeder` from `api/database/data/reference/`, `public_id` written on insert only and a row that leaves the files deactivated, never deleted *(2026-11-20)*
 - `SmsGateway`, `SmsSetting`, `SmsSend` — SMS delivery, bought and switched on once for the platform; the send ledger holds no number or text *(2026-10-14)*
 - `BackupStorageSetting`, `BackupDriveSetting` — where the platform's backups are copied off the host: the S3-compatible storage and the Google Drive fallback, one row each, secrets and archive keys encrypted *(2026-11-01, 2026-11-15)*
 - `MarketingSection`, `MarketingItem` — the public landing page's sections and rows, one marketing site read by every visitor and edited from the platform console; the registry of kinds is `App\Support\MarketingContent` and every text field is checked by `PermittedMarketingClaim` *(2026-10-24, `docs/operations/MARKETING-SITE.md`)*

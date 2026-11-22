@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Rules\Phone;
 use App\Services\CurrentTenant;
 use App\Support\TenantLanding;
 use Illuminate\Foundation\Http\FormRequest;
@@ -31,7 +32,17 @@ class UpdateLandingRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, array<int, string>> */
+    private function storedSupportPhone(): ?string
+    {
+        // Read via getAttribute so the array cast's loose static type does not
+        // defeat the offset access.
+        $landing = app(CurrentTenant::class)->get()->getAttribute('landing');
+        $phone = is_array($landing) ? ($landing['support_phone'] ?? null) : null;
+
+        return is_string($phone) ? $phone : null;
+    }
+
+    /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
         return [
@@ -42,7 +53,7 @@ class UpdateLandingRequest extends FormRequest
             'message_am' => ['nullable', 'string', 'max:280'],
             'message_om' => ['nullable', 'string', 'max:280'],
             'support_email' => ['nullable', 'email', 'max:120'],
-            'support_phone' => ['nullable', 'string', 'regex:/^\+?[0-9 ()-]{6,24}$/'],
+            'support_phone' => ['nullable', 'string', 'max:24', Phone::any()->unlessUnchanged($this->storedSupportPhone())],
             'background' => ['required', 'string', 'in:brand,gradient,pattern,image'],
             'about' => ['nullable', 'string', 'max:600'],
             'about_am' => ['nullable', 'string', 'max:600'],

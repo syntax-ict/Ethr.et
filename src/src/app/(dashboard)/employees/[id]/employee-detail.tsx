@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +44,7 @@ import { LifecycleTab } from "@/features/employees/components/lifecycle-tab";
 import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
+import { useGenderLabel } from "@/lib/options/gender";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
@@ -61,6 +63,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PrintAction } from "@/components/shared/print-action";
 import { usePrintTitle } from "@/components/layouts/print-title";
+import { formatPhone } from "@/lib/phone";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -94,6 +97,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
+  const genderText = useGenderLabel();
   const { formatDate } = useDateFormatters();
   const {
     data: employee,
@@ -344,11 +348,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       />
                     </div>
                     <div>
-                      <Label>{t("common.phone", "Phone")}</Label>
-                      <Input
+                      <Label htmlFor="edit-phone">
+                        {t("common.phone", "Phone")}
+                      </Label>
+                      <PhoneInput
+                        id="edit-phone"
+                        international
                         value={editForm.phone}
-                        onChange={(e) =>
-                          setEditForm((p) => ({ ...p, phone: e.target.value }))
+                        onChange={(v) =>
+                          setEditForm((p) => ({ ...p, phone: v }))
                         }
                         className="mt-1"
                       />
@@ -434,7 +442,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                     <InfoRow
                       icon={Phone}
                       label={t("common.phone", "Phone")}
-                      value={employee.phone ?? "—"}
+                      value={employee.phone ? formatPhone(employee.phone) : "—"}
                     />
                     <InfoRow
                       icon={Calendar}
@@ -466,7 +474,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                     {employee.gender && (
                       <InfoRow
                         label={t("employee.detail.gender", "Gender")}
-                        value={employee.gender}
+                        value={genderText(employee.gender)}
                       />
                     )}
                   </>

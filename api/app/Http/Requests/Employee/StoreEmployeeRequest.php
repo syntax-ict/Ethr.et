@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests\Employee;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
+use App\Rules\Phone;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -45,7 +48,7 @@ class StoreEmployeeRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'employee_code' => [
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId),
@@ -54,14 +57,14 @@ class StoreEmployeeRequest extends FormRequest
                 'nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/',
                 Rule::unique('employees')->where('tenant_id', $tenantId),
             ],
-            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
+            'gender' => ['nullable', 'string', Rule::enum(Gender::class)],
             'date_of_birth' => ['nullable', 'date', 'before:today', $this->oldEnoughToWork()],
             'nationality' => ['nullable', 'string', 'max:100'],
             'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             // Encrypted at rest; a blind index drives duplicate detection during
             // import and device sync (see IDENTITY_RESOLUTION.md).
             'national_id' => ['nullable', 'string', 'max:50'],
-            'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
+            'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
             'hire_date' => ['required', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date', 'after_or_equal:hire_date'],

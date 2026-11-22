@@ -4896,6 +4896,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lookups */
+        get: operations["lookup.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/marketing-content": {
         parameters: {
             query?: never;
@@ -10035,6 +10052,7 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
+            bank_code: string | null;
             branch_name: string | null;
             account_number_masked: string;
             is_primary: boolean;
@@ -10058,6 +10076,8 @@ export interface components {
             code: string | null;
             address: string | null;
             city: string | null;
+            region_code: string | null;
+            town_code: string | null;
             phone: string | null;
             latitude: string | null;
             longitude: string | null;
@@ -10348,6 +10368,9 @@ export interface components {
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
+            has_webhook_token?: boolean;
+            webhook_token_prefix?: string | null;
+            webhook_url_masked?: string | null;
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
@@ -10487,11 +10510,18 @@ export interface components {
             device_public_id: string;
             badge: string;
         };
+        /**
+         * EducationLevel
+         * @description The level of an education record, from the Ethiopian school ladder. `degree` stays the free-text title ("BSc Accounting"); this is the level it sits at, so a report can count graduates without parsing titles.
+         * @enum {string}
+         */
+        EducationLevel: "primary" | "secondary" | "preparatory" | "certificate" | "diploma" | "bachelor" | "master" | "doctorate" | "other";
         /** EducationResource */
         EducationResource: {
             public_id: string;
             institution: string;
             degree: string;
+            level: string | null;
             field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;
@@ -10780,6 +10810,12 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        /**
+         * Gender
+         * @description The genders the employee record stores. Two, because leave rules (`gender_restriction`) and the statutory reports branch on them; an employee whose gender was never recorded has none, not a third value.
+         * @enum {string}
+         */
+        Gender: "male" | "female";
         /** GenerateReportRequest */
         GenerateReportRequest: {
             /** @enum {string} */
@@ -11272,6 +11308,12 @@ export interface components {
             check_out?: string | null;
             reason: string;
         };
+        /**
+         * MaritalStatus
+         * @description The marital statuses the employee record stores.
+         * @enum {string}
+         */
+        MaritalStatus: "single" | "married" | "divorced" | "widowed";
         /** MarkPayrollRunPaidRequest */
         MarkPayrollRunPaidRequest: {
             /** Format: date */
@@ -11757,6 +11799,7 @@ export interface components {
         PlatformSettingResource: {
             public_id: string;
             bank_name: string | null;
+            bank_code: string | null;
             bank_account_number: string | null;
             bank_account_name: string | null;
             payment_instructions: string | null;
@@ -11988,6 +12031,16 @@ export interface components {
             code: string;
             password: string;
             password_confirmation: string;
+        };
+        /**
+         * RegenerateDeviceTokenRequest
+         * @description Why a terminal's address is being replaced. A request with no reason is
+         *     read as `lost`, the one that closes the old address at once: a cached page
+         *     that still posts nothing must not leave a stolen address open.
+         */
+        RegenerateDeviceTokenRequest: {
+            /** @enum {string|null} */
+            reason?: "lost" | "moving" | null;
         };
         /**
          * RegisterAttendanceDeviceRequest
@@ -12628,6 +12681,7 @@ export interface components {
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
             bank_name: string;
+            bank_code?: string | null;
             branch_name?: string | null;
             account_number: string;
             is_primary?: boolean | null;
@@ -12639,6 +12693,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -12765,6 +12821,7 @@ export interface components {
         StoreEducationRequest: {
             institution: string;
             degree: string;
+            level?: components["schemas"]["EducationLevel"] | null;
             field_of_study?: string | null;
             /** Format: date-time */
             start_date?: string | null;
@@ -12801,8 +12858,7 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
@@ -12812,8 +12868,7 @@ export interface components {
              *     import and device sync (see IDENTITY_RESOLUTION.md).
              */
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             hire_date: string;
@@ -12902,8 +12957,7 @@ export interface components {
             min_notice_days?: number | null;
             max_consecutive?: number | null;
             is_paid?: boolean | null;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number | null;
         };
         /** StoreLetterRequest */
@@ -13495,6 +13549,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13599,15 +13655,13 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
             nationality_status?: components["schemas"]["NationalityStatus"] | null;
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             /** Format: date-time */
             hire_date?: string;
             /** Format: date-time */
@@ -13810,8 +13864,7 @@ export interface components {
             max_consecutive?: number | null;
             is_paid?: boolean;
             is_active?: boolean;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number;
         };
         /**
@@ -13904,6 +13957,7 @@ export interface components {
         /** UpdatePlatformSettingsRequest */
         UpdatePlatformSettingsRequest: {
             bank_name?: string | null;
+            bank_code?: string | null;
             /**
              * @description Ethiopian bank account numbers are digits, commonly written with
              *     spaces or dashes for readability. Anything else is a typo on a field
@@ -13994,8 +14048,7 @@ export interface components {
         UpdateProfileRequest: {
             /** @description Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS. */
             phone?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             nationality?: string | null;
             /**
              * @description Shorthand for the primary emergency contact. The full list is managed
@@ -14052,6 +14105,7 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                employer_bank_code?: string | null;
                 letterhead_address?: string | null;
                 letterhead_phone?: string | null;
                 /** Format: email */
@@ -22830,7 +22884,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegenerateDeviceTokenRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -22839,6 +22897,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         webhook_token: string | null;
+                        webhook_url: string | null;
+                        reason: string;
+                        previous_token_expires_at: string | null;
                         /** @constant */
                         message: "Webhook token regenerated";
                     };
@@ -22847,6 +22908,7 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.allowAddress": {
@@ -28003,6 +28065,69 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "lookup.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        version: string;
+                        items: {
+                            region: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            sub_city: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            town: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            bank: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
         };
     };
     "marketingContent.index": {
@@ -36566,6 +36691,7 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                            employer_bank_code: string | null;
                         };
                         documents: {
                             letterhead_address: string | null;
@@ -38249,6 +38375,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38276,6 +38409,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38339,6 +38479,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38366,6 +38513,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38432,6 +38586,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38459,6 +38620,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38521,6 +38689,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -38548,6 +38723,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };

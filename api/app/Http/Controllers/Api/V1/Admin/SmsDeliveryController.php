@@ -85,6 +85,8 @@ class SmsDeliveryController extends Controller
 
         if ($reconnected) {
             $gateway->verified_at = null;
+            $gateway->consecutive_failures = 0;
+            $gateway->paused_until = null;
         }
 
         $gateway->save();
@@ -133,7 +135,17 @@ class SmsDeliveryController extends Controller
             'last_test_status' => $result->status,
             'last_test_response' => $result->response,
             'verified_at' => $result->ok ? now() : $gateway->verified_at,
-        ])->save();
+        ]);
+
+        if ($result->ok) {
+            $gateway->forceFill([
+                'consecutive_failures' => 0,
+                'paused_until' => null,
+                'last_success_at' => now(),
+            ]);
+        }
+
+        $gateway->save();
 
         if ($result->ok) {
             SmsSend::create(['slot' => $slot, 'purpose' => SmsSend::PURPOSE_TEST]);
@@ -230,6 +242,13 @@ class SmsDeliveryController extends Controller
             'last_test_ok' => $gateway->last_test_ok,
             'last_test_status' => $gateway->last_test_status,
             'last_test_response' => $gateway->last_test_response,
+            'consecutive_failures' => $gateway->consecutive_failures,
+            'paused' => $gateway->isPaused(),
+            'paused_until' => $gateway->paused_until?->toIso8601String(),
+            'last_success_at' => $gateway->last_success_at?->toIso8601String(),
+            'last_failure_at' => $gateway->last_failure_at?->toIso8601String(),
+            'last_failure_status' => $gateway->last_failure_status,
+            'last_failure_response' => $gateway->last_failure_response,
         ];
     }
 }

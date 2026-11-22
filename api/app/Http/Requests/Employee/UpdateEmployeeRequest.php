@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee;
 
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
+use App\Rules\Phone;
 use App\Services\CurrentTenant;
 use App\Support\TenantTime;
 use Illuminate\Foundation\Http\FormRequest;
@@ -60,7 +63,7 @@ class UpdateEmployeeRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged($employee?->phone)],
             'employee_code' => [
                 'nullable', 'string', 'max:30',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
@@ -69,12 +72,12 @@ class UpdateEmployeeRequest extends FormRequest
                 'nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/',
                 Rule::unique('employees')->where('tenant_id', $tenantId)->ignore($employee?->id),
             ],
-            'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
+            'gender' => ['nullable', 'string', Rule::enum(Gender::class)],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],
             'nationality_status' => ['nullable', 'string', Rule::enum(NationalityStatus::class)],
             'national_id' => ['nullable', 'string', 'max:50'],
-            'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
+            'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],

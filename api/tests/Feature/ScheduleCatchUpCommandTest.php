@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Console\Commands\ScheduleCatchUpCommand;
+use App\Support\HealthSignals;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -33,6 +34,11 @@ function catchUpSchedule(callable $define): Schedule
     return $schedule;
 }
 
+beforeEach(function () {
+    HealthSignals::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
+    Cache::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
+});
+
 afterEach(function () {
     Carbon::setTestNow();
 });
@@ -46,7 +52,7 @@ it('runs a daily task whose minute was missed, once, on the next late call', fun
     });
 
     // The previous call came before 05:00; the next one arrives at 07:29.
-    Cache::forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 04:50:00')->getTimestamp());
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 04:50:00')->getTimestamp());
     Carbon::setTestNow('2026-10-12 07:29:18');
 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
@@ -86,7 +92,7 @@ it('runs an hourly task once after a gap of several hours', function () {
         })->hourly();
     });
 
-    Cache::forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 01:21:00')->getTimestamp());
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 01:21:00')->getTimestamp());
     Carbon::setTestNow('2026-10-12 07:29:00');
 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
@@ -105,14 +111,15 @@ it('does not fire past work on its first run, only what is due now', function ()
         })->everyMinute();
     });
 
-    Cache::forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
+    HealthSignals::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
+    Cache::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
     Carbon::setTestNow('2026-10-12 07:29:18');
 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
 
     expect($daily)->toBe(0)
         ->and($minutely)->toBe(1)
-        ->and(Cache::get(ScheduleCatchUpCommand::LAST_RUN_KEY))
+        ->and(HealthSignals::store()->get(ScheduleCatchUpCommand::LAST_RUN_KEY))
         ->toBe(Carbon::parse('2026-10-12 07:29:00')->getTimestamp());
 });
 
@@ -125,7 +132,7 @@ it('runs a monthly task missed by days', function () {
     });
 
     // Dead since 30 September; the call on 3 October still runs the 1 October task.
-    Cache::forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-09-30 12:00:00')->getTimestamp());
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-09-30 12:00:00')->getTimestamp());
     Carbon::setTestNow('2026-10-03 10:00:00');
 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
@@ -142,14 +149,14 @@ it('does not reach back further than the window', function () {
 
     // Dead since June; on 1 March the 1 January run is 59 days old, past the
     // 31-day window, so it is not resurrected.
-    Cache::forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2025-06-01 00:00:00')->getTimestamp());
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2025-06-01 00:00:00')->getTimestamp());
     Carbon::setTestNow('2026-03-01 10:00:00');
 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
     expect($runs)->toBe(0);
 
     // Control: inside the window the same task does run.
-    Cache::forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2025-12-31 00:00:00')->getTimestamp());
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2025-12-31 00:00:00')->getTimestamp());
     Carbon::setTestNow('2026-01-20 10:00:00');
     $this->artisan('ethr:schedule-run')->assertSuccessful();
     expect($runs)->toBe(1);
@@ -178,4 +185,39 @@ it('fails when a task that runs as a child process exits non-zero', function () 
     });
 
     $this->artisan('ethr:schedule-run')->assertFailed();
+});
+
+it('still catches up after a release empties the default cache store', function () {
+    $runs = 0;
+    catchUpSchedule(function (Schedule $s) use (&$runs) {
+        $s->call(function () use (&$runs) {
+            $runs++;
+        })->dailyAt('01:00');
+    });
+
+    // The last tick came before 01:00; the release (optimize:clear) empties
+    // the default store; the next tick arrives at 07:29.
+    HealthSignals::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 00:50:00')->getTimestamp());
+    Cache::store()->flush();
+    Carbon::setTestNow('2026-10-12 07:29:18');
+
+    $this->artisan('ethr:schedule-run')->assertSuccessful();
+    expect($runs)->toBe(1);
+});
+
+it('honours a marker left in the default store by the previous release, then moves it', function () {
+    $runs = 0;
+    catchUpSchedule(function (Schedule $s) use (&$runs) {
+        $s->call(function () use (&$runs) {
+            $runs++;
+        })->dailyAt('05:00');
+    });
+
+    Cache::store()->forever(ScheduleCatchUpCommand::LAST_RUN_KEY, Carbon::parse('2026-10-12 04:50:00')->getTimestamp());
+    Carbon::setTestNow('2026-10-12 07:29:18');
+
+    $this->artisan('ethr:schedule-run')->assertSuccessful();
+    expect($runs)->toBe(1)
+        ->and(HealthSignals::store()->get(ScheduleCatchUpCommand::LAST_RUN_KEY))
+        ->toBe(Carbon::parse('2026-10-12 07:29:00')->getTimestamp());
 });

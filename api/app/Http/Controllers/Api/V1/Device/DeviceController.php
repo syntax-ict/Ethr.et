@@ -9,6 +9,7 @@ use App\Enums\Feature;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\AllowDeviceAddressRequest;
 use App\Http\Requests\Device\ImportHistoryRequest;
+use App\Http\Requests\Device\RegenerateDeviceTokenRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Http\Resources\DeviceResource;
@@ -433,18 +434,44 @@ class DeviceController extends Controller
     /** The most addresses an allowlist holds (StoreDeviceRequest). */
     private const ALLOWLIST_MAX = 20;
 
-    public function regenerateToken(Device $device): JsonResponse
+    /** How long a "moving" regeneration keeps the old address working. */
+    private const MOVING_GRACE_HOURS = 24;
+
+    public function regenerateToken(RegenerateDeviceTokenRequest $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
 
-        $retired = $device->webhook_token;
-        $device->update(['webhook_token' => Device::generateWebhookToken()]);
-        WebhookRejections::retire($device, $retired);
+        $reason = $request->reason();
+        $retiredHash = $device->webhook_token_hash;
+        $retiredPreviousHash = $device->webhook_token_previous_hash;
 
-        AuditLog::record('device.token_regenerated', $device);
+        $device->webhook_token = Device::generateWebhookToken();
+
+        if ($reason === RegenerateDeviceTokenRequest::MOVING && $retiredHash !== null) {
+            $device->forceFill([
+                'webhook_token_previous_hash' => $retiredHash,
+                'webhook_token_previous_expires_at' => now()->addHours(self::MOVING_GRACE_HOURS),
+            ]);
+        } else {
+            $device->forceFill([
+                'webhook_token_previous_hash' => null,
+                'webhook_token_previous_expires_at' => null,
+            ]);
+        }
+
+        $device->save();
+        WebhookRejections::retire($device, $retiredHash);
+        if ($reason === RegenerateDeviceTokenRequest::LOST || $retiredHash === null) {
+            WebhookRejections::retire($device, $retiredPreviousHash);
+        }
+
+        AuditLog::record('device.token_regenerated', $device, ['reason' => $reason]);
 
         return response()->json([
-            'webhook_token' => $device->webhook_token,
+            'webhook_token' => $device->issuedWebhookToken,
+            'webhook_url' => $device->webhookUrlFor((string) $device->issuedWebhookToken),
+            'reason' => $reason,
+            'previous_token_expires_at' => $device->webhook_token_previous_expires_at?->toIso8601String(),
             'message' => 'Webhook token regenerated',
         ]);
     }
@@ -941,10 +968,7 @@ class DeviceController extends Controller
         $token = $request->query('token') ?? $request->header('X-Webhook-Token');
 
         if ($token) {
-            $device = is_string($token) ? Device::withoutGlobalScope('tenant')
-                ->where('webhook_token', $token)
-                ->where('adapter_type', $adapterType)
-                ->first() : null;
+            $device = is_string($token) ? $this->deviceForToken($token, $adapterType) : null;
 
             if ($device === null && is_string($token)) {
                 WebhookRejections::traceToken($adapterType, $token, $request->ip());
@@ -991,7 +1015,7 @@ class DeviceController extends Controller
 
         // A device that has a token must use it — a serial-only call cannot
         // stand in for the token it was issued.
-        if (! empty($device->webhook_token)) {
+        if ($device->hasWebhookToken()) {
             $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'token_required');
             WebhookRejections::record($device, 'token_missing', $request->ip());
 
@@ -1007,6 +1031,32 @@ class DeviceController extends Controller
         }
 
         return $device;
+    }
+
+    /**
+     * The device a presented token belongs to: its current token, or the one a
+     * "moving" regeneration is still keeping alive. Hashed here, so the stored
+     * value is never compared in clear. Two matches authenticate nobody, as an
+     * ambiguous serial does; the unique indexes make two unrepresentable, and
+     * this does not rely on them.
+     */
+    private function deviceForToken(string $token, string $adapterType): ?Device
+    {
+        $hash = Device::hashToken($token);
+
+        $candidates = Device::withoutGlobalScope('tenant')
+            ->where('adapter_type', $adapterType)
+            ->where(function ($query) use ($hash): void {
+                $query->where('webhook_token_hash', $hash)
+                    ->orWhere(function ($previous) use ($hash): void {
+                        $previous->where('webhook_token_previous_hash', $hash)
+                            ->where('webhook_token_previous_expires_at', '>', now());
+                    });
+            })
+            ->limit(2)
+            ->get();
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
     }
 
     private function logWebhookRejection(string $adapterType, string $serial, ?string $ip, string $reason): void

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Models\Permission;
 use App\Models\Plan;
+use App\Models\ReferenceItem;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\ProductionSeeder;
+use Illuminate\Support\Facades\DB;
 
 test('production seeder populates the system catalog without demo data or a default admin', function () {
     $this->seed(ProductionSeeder::class);
@@ -27,4 +29,18 @@ test('production seeder is idempotent', function () {
     $this->seed(ProductionSeeder::class);
 
     expect(Permission::count())->toBe(92);
+});
+
+test('production seeder keeps every public id it has already written', function () {
+    $this->seed(ProductionSeeder::class);
+
+    $templates = DB::table('organization_templates')->orderBy('id')->pluck('public_id', 'id')->all();
+    $reference = ReferenceItem::query()->orderBy('id')->pluck('public_id', 'id')->all();
+
+    expect($reference)->not->toBeEmpty();
+
+    $this->seed(ProductionSeeder::class);
+
+    expect(DB::table('organization_templates')->orderBy('id')->pluck('public_id', 'id')->all())->toBe($templates);
+    expect(ReferenceItem::query()->orderBy('id')->pluck('public_id', 'id')->all())->toBe($reference);
 });

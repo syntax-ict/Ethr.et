@@ -26,6 +26,7 @@ use App\Support\TenantTime;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\IpUtils;
@@ -265,7 +266,7 @@ final class AttendanceEngine
     private function processAuto(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings): AttendanceResult
     {
         $now = $this->resolveMoment($input);
-        $open = $this->findOpenRecord($input, $now, $zone, directionGuessed: true);
+        $open = $this->findOpenRecord($input, $now, $zone, directionGuessed: true, includeAutoClosed: true);
 
         // A punch older than every open record's check-in (an offline kiosk
         // syncing late, a device backlog) finds none, since it cannot end a
@@ -610,8 +611,14 @@ final class AttendanceEngine
      * the person is arriving or leaving. It closes yesterday's record only
      * when it could be the end of that record's shift, not merely within
      * MAX_OPEN_HOURS of its check-in.
+     *
+     * $includeAutoClosed is a check-out or an `auto` punch, the person's own
+     * departure. A record that automatic check-out closed, and that nobody has
+     * corrected, is still waiting for it (autoClosedCandidate): it is taken
+     * only when no genuinely open record is, and the punch replaces the
+     * system's guess. Break punches never ask for it.
      */
-    private function findOpenRecord(AttendanceInput $input, Carbon $now, string $zone, bool $directionGuessed = false): ?AttendanceRecord
+    private function findOpenRecord(AttendanceInput $input, Carbon $now, string $zone, bool $directionGuessed = false, bool $includeAutoClosed = false): ?AttendanceRecord
     {
         $local = $now->copy()->setTimezone($zone);
         $today = $local->format('Y-m-d');
@@ -620,7 +627,7 @@ final class AttendanceEngine
         // a 22:00-06:00 record is dated the night it began, so a lookup on
         // today's date alone could never close it — the morning check-out
         // answered 500 and device webhooks dropped the punch.
-        $candidates = AttendanceRecord::withoutGlobalScope('tenant')
+        $query = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
             ->where('employee_id', $input->employeeId)
             ->whereDate('date', '>=', $local->copy()->subDay()->format('Y-m-d'))
@@ -630,31 +637,64 @@ final class AttendanceEngine
             // backlog) closes the record it belongs to, never one that began
             // after it: that record would end before it started (A-Z review D-05).
             ->where('check_in', '<=', $now)
-            ->whereNull('check_out')
             // A voided duplicate keeps its check-in; closing it would put the
             // check-out on a record nothing counts.
             ->where('status', '!=', AttendanceStatus::VOIDED)
             ->with('shift')
-            ->latest('check_in')
-            ->get();
+            ->latest('check_in');
 
-        // Yesterday's record is also closable when it began less than
-        // MAX_OPEN_HOURS ago: an evening shift whose overtime runs past the
-        // tenant's midnight belongs to the day it began. The UTC clock hid
-        // this until 03:00 Addis by accident; dating by the tenant's day
-        // (processCheckIn) exposed it. A check-in left open yesterday morning
-        // stays out of reach — it is a missing punch, not this check-out.
-        //
-        // A night shift's record is closable past MAX_OPEN_HOURS (a long
-        // shift, an early arrival), but only until a few hours after the
-        // shift ends. It was closable at any time on the next day: a guard
-        // who missed the 06:00 exit scan had the next evening's arrival read
-        // as the check-out of a 24-hour shift, and the morning's exit then
-        // opened a new record.
-        return $candidates->first(fn (AttendanceRecord $r) => $r->date->format('Y-m-d') === $today)
-            ?? $candidates->first(function (AttendanceRecord $r) use ($now, $zone, $directionGuessed): bool {
-                $nearShiftEnd = $r->shift !== null
-                    && $now->lt($r->shift->windowOn($r->workDate($zone), $zone)[1]->addHours(AttendanceRules::CLOSE_HOURS_AFTER_SHIFT_END));
+        // Auto-closed records are told apart in PHP, not in SQL: a JSON
+        // predicate on `metadata` differs between SQLite, MySQL 8 and MariaDB,
+        // and the two days of one person are a handful of rows.
+        $all = $includeAutoClosed ? $query->get() : $query->whereNull('check_out')->get();
+        $candidates = $all->whereNull('check_out')->values();
+
+        $closable = $this->closableAmong($candidates, $now, $zone, $today, $directionGuessed, autoClosed: false);
+
+        if ($closable !== null || ! $includeAutoClosed) {
+            return $closable;
+        }
+
+        $autoClosed = $all
+            ->filter(fn (AttendanceRecord $r) => $this->autoClosedCandidate($r, $all))
+            ->values();
+
+        return $this->closableAmong($autoClosed, $now, $zone, $today, $directionGuessed, autoClosed: true);
+    }
+
+    /**
+     * Today's record, or yesterday's when it is still closable. Yesterday's is
+     * closable when it began less than MAX_OPEN_HOURS ago: an evening shift
+     * whose overtime runs past the tenant's midnight belongs to the day it
+     * began. The UTC clock hid this until 03:00 Addis by accident; dating by
+     * the tenant's day (processCheckIn) exposed it. A check-in left open
+     * yesterday morning stays out of reach: it is a missing punch, not this
+     * check-out.
+     *
+     * A night shift's record is closable past MAX_OPEN_HOURS (a long shift, an
+     * early arrival), but only until a few hours after the shift ends. It was
+     * closable at any time on the next day: a guard who missed the 06:00 exit
+     * scan had the next evening's arrival read as the check-out of a 24-hour
+     * shift, and the morning's exit then opened a new record.
+     *
+     * An `auto` punch (a guessed direction) may replace an automatic check-out
+     * only while the shift's end is recent, today's record included: a scan at
+     * 22:00 on a 17:30 shift is an arrival or noise, and paying four and a half
+     * hours of overtime on it would be a guess. A directed check-out is the
+     * person's own statement and needs no such bound.
+     *
+     * @param  Collection<int, AttendanceRecord>  $records
+     */
+    private function closableAmong(Collection $records, Carbon $now, string $zone, string $today, bool $directionGuessed, bool $autoClosed): ?AttendanceRecord
+    {
+        $recent = fn (AttendanceRecord $r): bool => $r->shift !== null
+            && $now->lt($r->shift->windowOn($r->workDate($zone), $zone)[1]->addHours(AttendanceRules::CLOSE_HOURS_AFTER_SHIFT_END));
+
+        return $records->first(function (AttendanceRecord $r) use ($today, $directionGuessed, $autoClosed, $recent): bool {
+            return $r->date->format('Y-m-d') === $today && (! ($autoClosed && $directionGuessed) || $recent($r));
+        })
+            ?? $records->first(function (AttendanceRecord $r) use ($now, $directionGuessed, $recent): bool {
+                $nearShiftEnd = $recent($r);
 
                 // An `auto` punch hours after yesterday's shift ended is
                 // today's arrival, however recently yesterday's check-in was.
@@ -665,6 +705,27 @@ final class AttendanceEngine
                 return $r->check_in->diffInMinutes($now, absolute: true) < AttendanceRules::MAX_OPEN_HOURS * 60
                     || ($nearShiftEnd && $r->shift->crossesMidnight());
             });
+    }
+
+    /**
+     * A record closed by automatic check-out and not since corrected by a
+     * person is still waiting for the person's own check-out. Not when a later
+     * record of theirs exists (the punch belongs to that one or to nothing),
+     * and not for a day already paid in an approved run.
+     *
+     * @param  Collection<int, AttendanceRecord>  $all  the person's records in the window
+     */
+    private function autoClosedCandidate(AttendanceRecord $r, Collection $all): bool
+    {
+        if ($r->check_out === null || empty($r->metadata['auto_checkout']) || ! empty($r->metadata['is_corrected'])) {
+            return false;
+        }
+
+        if ($all->contains(fn (AttendanceRecord $other) => $other->id !== $r->id && $other->check_in > $r->check_in)) {
+            return false;
+        }
+
+        return ! app(PayrollPeriodLock::class)->isClosed($r->employee_id, $r->date);
     }
 
     /**
@@ -797,6 +858,18 @@ final class AttendanceEngine
         $resolution = $this->conflictResolver->resolve($record);
         $record = $resolution->record;
 
+        // The day was paid in an approved run and this punch is the same
+        // arrival seen again: the paid record is not touched (no punch log,
+        // no reclassification) and nothing is announced. The punch answers
+        // "already checked in", as any duplicate does.
+        if ($resolution->action === 'kept_paid') {
+            AuditLog::record('attendance.conflict_kept_paid', $record, [
+                'source' => $input->source->value,
+            ]);
+
+            return new AttendanceResult($record, wasDuplicate: true, outcome: $this->alreadyIn($record));
+        }
+
         if ($resolution->action !== 'created') {
             AuditLog::record('attendance.conflict_'.$resolution->action, $record, [
                 'source' => $input->source->value,
@@ -847,7 +920,7 @@ final class AttendanceEngine
     private function processCheckOut(AttendanceInput $input, Employee $employee, string $zone, ?AttendanceSetting $settings = null): AttendanceResult
     {
         $now = $this->resolveMoment($input);
-        $record = $this->findOpenRecord($input, $now, $zone);
+        $record = $this->findOpenRecord($input, $now, $zone, includeAutoClosed: true);
 
         if (! $record) {
             // Closed a moment ago, by this method or another: the departure
@@ -897,8 +970,25 @@ final class AttendanceEngine
             'checkout_geofence_verified' => $this->insidePlace($input, $employee),
         ], fn ($value) => $value !== null);
 
+        // A record automatic check-out closed and nobody corrected: this is
+        // the person's own check-out, and it replaces the system's guess. The
+        // `auto_checkout` flag goes, since every reader takes it to mean the
+        // system closed the day (MyShiftService, AttendanceReconciliation); what
+        // was replaced is kept beside it. A pending correction stays pending
+        // and still wins when approved.
+        $replaced = $record->check_out !== null ? $record->check_out->copy() : null;
+        $base = $record->metadata ?? [];
+        if ($replaced !== null) {
+            $base['auto_checkout_replaced'] = [
+                'shift_end' => $replaced->toIso8601String(),
+                'auto_checkout_at' => $base['auto_checkout_at'] ?? null,
+                'replaced_at' => Carbon::now('UTC')->toIso8601String(),
+            ];
+            unset($base['auto_checkout'], $base['auto_checkout_at']);
+        }
+
         $updates['metadata'] = $this->punchLog(
-            array_merge($record->metadata ?? [], $metadata),
+            array_merge($base, $metadata),
             $input,
             'check_out',
             $now,
@@ -906,6 +996,14 @@ final class AttendanceEngine
         );
 
         $record->update($updates);
+
+        if ($replaced !== null) {
+            AuditLog::record('attendance.auto_checkout_replaced', $record, [
+                'automatic_check_out' => $replaced->toIso8601String(),
+                'check_out' => $now->toIso8601String(),
+                'source' => $input->source->value,
+            ]);
+        }
 
         if ($record->shift && $record->status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone)) {
             $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);

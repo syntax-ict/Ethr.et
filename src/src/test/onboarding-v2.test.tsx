@@ -272,6 +272,68 @@ describe("IndustryConfigStep — follows the sign-up type", () => {
   );
 });
 
+describe("IndustryConfigStep — the region", () => {
+  it("is picked from the list and sent as the English name", async () => {
+    const previewBodies: Record<string, unknown>[] = [];
+    server.use(
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+              profile: "continuous_24_7",
+              policy: "ethiopia_private",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.get("*/api/v1/lookups", () =>
+        HttpResponse.json({
+          version: "abc123abc123",
+          items: {
+            region: [
+              {
+                code: "oromia",
+                parent_code: null,
+                name: "Oromia",
+                name_am: "ኦሮሚያ",
+                name_om: "Oromiyaa",
+                meta: {},
+              },
+            ],
+            sub_city: [],
+            town: [],
+            bank: [],
+          },
+        }),
+      ),
+      http.post(
+        "*/api/v1/onboarding/configuration/preview",
+        async ({ request }) => {
+          previewBodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({ message: "stop here" }, { status: 500 });
+        },
+      ),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(await screen.findByRole("combobox", { name: "Region" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Oromia" }));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    await waitFor(() => expect(previewBodies).toHaveLength(1));
+    expect(previewBodies[0]).toHaveProperty("region", "Oromia");
+  });
+});
+
 describe("IndustryConfigStep — composed profiles and review", () => {
   it("shows the industry's usual profiles, sends only real choices, and holds apply until the review is read", async () => {
     const previewBodies: Record<string, unknown>[] = [];
