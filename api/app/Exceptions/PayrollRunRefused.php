@@ -102,6 +102,26 @@ class PayrollRunRefused extends RuntimeException
         );
     }
 
+    /** Overtime, lateness or leave moved for some people after the run was calculated, whatever the reconciliation mode. */
+    public static function attendanceChangedSinceProcessed(int $people): self
+    {
+        return new self(
+            'https://ethr.et/errors/attendance-changed-since-processed',
+            'Attendance changed since processing',
+            __('payroll.attendance_changed_since_processed', ['count' => $people]),
+        );
+    }
+
+    /** The request ran out of time before every changed person was checked, so nothing is approved unchecked. */
+    public static function attendanceCheckTimedOut(): self
+    {
+        return new self(
+            'https://ethr.et/errors/attendance-check-timed-out',
+            'Attendance check not finished',
+            __('payroll.attendance_check_timed_out'),
+        );
+    }
+
     /** Pay differences are still being worked out, so approval cannot count them. */
     public static function payDifferencesPending(): self
     {
