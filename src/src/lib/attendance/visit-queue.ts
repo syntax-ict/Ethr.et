@@ -70,6 +70,13 @@ export function visitBody(entry: QueuedVisit): LogVisit {
  * Whether `entry` is this person's to send here. An entry with no owner is an
  * old one, treated as the signed-in person's; one with no tenant field is
  * likewise sent wherever the person is.
+ *
+ * The organisation is refused only when both sides name one and they differ.
+ * A null on either side is not a mismatch: `tenantHeaderValue()` is null on an
+ * organisation's own subdomain and the slug on the apex, and both addresses
+ * reach the same organisation, so a visit queued at one must send from the
+ * other. The owner check is the real guarantee: the same person has a
+ * different employee id in each organisation.
  */
 export function isSendableBy(
   entry: QueuedVisit,
@@ -77,7 +84,9 @@ export function isSendableBy(
   tenant: string | null,
 ): boolean {
   if (entry.owner != null && entry.owner !== owner) return false;
-  if (entry.tenant !== undefined && entry.tenant !== tenant) return false;
+  if (entry.tenant != null && tenant != null && entry.tenant !== tenant) {
+    return false;
+  }
   return true;
 }
 
