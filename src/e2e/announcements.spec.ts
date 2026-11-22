@@ -85,7 +85,12 @@ test.describe("Announcements: reading a story", () => {
     await page.goto("/dashboard");
     const created = await api(page, "POST", "/announcements", {
       title: TITLE_READ,
-      body: "The first paragraph.\n\nThe second paragraph, which the list never shows in full.",
+      // The long address is deliberate: an unbroken string is what actually
+      // overflows a narrow panel, and the body renders https addresses as
+      // links, so this exercises their wrapping rather than only prose.
+      body:
+        "The first paragraph.\n\nThe second paragraph, which the list never shows in full.\n\n" +
+        "https://example.gov.et/circulars/2026/finance-directorate/annual-leave-carryover-and-settlement-procedure-revision-three.pdf",
       priority: "normal",
       publish_now: true,
     });
@@ -109,6 +114,23 @@ test.describe("Announcements: reading a story", () => {
       timeout: 15000,
     });
     await expect(page).toHaveURL(new RegExp(`read=${publicId}`));
+
+    // Most people read a notice on a phone. The width is set here rather than
+    // left to the `webkit-mobile` project, because `gates.sh e2e` runs
+    // `--project=chromium-desktop` only, so that project proves nothing in CI.
+    //
+    // Measured on the panel, not the document: the panel is `position: fixed`
+    // and locks the body's scroll, so it cannot widen the page however wide
+    // its content gets. Anything too wide scrolls sideways inside it instead,
+    // which is what a reader on a phone would be stuck with.
+    await page.setViewportSize({ width: 375, height: 812 });
+    const box = await pane.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      right: el.getBoundingClientRect().right,
+    }));
+    expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
+    expect(box.right).toBeLessThanOrEqual(376);
 
     await page.goBack();
     await expect(pane).toBeHidden();

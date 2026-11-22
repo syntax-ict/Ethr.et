@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, Globe, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -74,8 +74,16 @@ export default function AnnouncementsPage() {
   // of ours to undo, so for them the address is rewritten in place and Back
   // still leaves the page.
   const openedHere = useRef(false);
+  // What the reader was on when they opened it, so closing puts them back
+  // there. Read from the document rather than passed in: a click and an Enter
+  // both leave the control focused, and every opener on this page is a button.
+  const opener = useRef<HTMLElement | null>(null);
   const openStory = useCallback(
     (publicId: string) => {
+      opener.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       openedHere.current = true;
       set({ read: publicId }, { push: true });
     },
@@ -89,6 +97,21 @@ export default function AnnouncementsPage() {
     }
     set({ read: "" });
   }, [set]);
+
+  // Put focus back on the story that was opened, by Escape, by the X and by
+  // the back button alike. The panel closes a step after the address changes,
+  // so the dialog's own focus restore has already run against a page state
+  // that no longer holds it, and a keyboard reader was left at the top of the
+  // list having to find their place again.
+  const wasReading = useRef<string | null>(null);
+  useEffect(() => {
+    const closed = wasReading.current !== null && reading === null;
+    wasReading.current = reading;
+    if (!closed) return;
+    const target = opener.current;
+    opener.current = null;
+    if (target !== null && target.isConnected) target.focus();
+  }, [reading]);
 
   const live = useAnnouncements({ page });
   const managed = useManagedAnnouncements(manager, page);
