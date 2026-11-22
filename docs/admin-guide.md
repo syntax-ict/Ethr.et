@@ -397,7 +397,7 @@ Public holidays are managed at Settings → Holidays, which can auto-detect Ethi
 
 ### Configuration
 
-Settings → Payroll Rules (Tenant Admin only):
+Settings → Payroll Rules. Anyone with the **View payroll configuration** permission (the Finance Admin has it) can read the rules; changing them takes **Manage payroll configuration**, which only the Tenant Admin holds by default. A viewer sees the same page with no Add, Edit, Delete or Save. The payroll schedule, statutory details and printed-documents cards also need **settings.manage**, so they show for the Tenant Admin only:
 - **Payroll Schedule** — payroll run day, fiscal-year start month (Ethiopian months, Meskerem to Pagume), Pagume pay (a full month, or its days at the daily rate of annual salary ÷ 365), and retirement age (45–75). The pay period is shown read-only.
 - **Tax brackets** — Ethiopian income tax rates (pre-loaded, update when government changes them)
 - **Overtime rates** — defaults are the statutory minimums: 1.5× daytime, 1.75× night, 2.0× weekly rest day, 2.5× public holiday
@@ -485,10 +485,10 @@ The **Settings** item in the sidebar is shown to holders of `settings.manage` (T
 | Shift Rules | Shifts and their working days, grace and break minutes |
 | Leave Types | Leave types, and the organization's working week |
 | Holidays | Public holidays, including auto-detection |
-| Payroll Rules | Payroll schedule, fiscal year, Pagume pay, retirement age, allowances, tax brackets, overtime rates (Tenant Admin) |
+| Payroll Rules | Payroll schedule, fiscal year, Pagume pay, retirement age, allowances, tax brackets, overtime rates (view: View payroll configuration; change: Manage payroll configuration, Tenant Admin by default) |
 | Users & Access | Login accounts and their roles. A tenant admin can **reset two-factor authentication** for someone who lost their authenticator (the shield icon on a user with **2FA**). That person signs in with their password and sets it up again, is emailed that it happened, and their trusted browsers are forgotten. It cannot be used on your own account or on a higher role. For a platform super admin, or an organisation's only tenant admin, run `ethr:reset-mfa <email>` (add `--tenant=<slug>` for a tenant's user) from the Laravel Toolkit's Artisan tab |
 | Roles & Permissions | Custom roles (Tenant Admin) |
-| API Keys, Webhooks, Accounting, Notification Templates, SCIM Provisioning | Integrations |
+| API Keys, Webhooks, Accounting, Notification Templates, SCIM Provisioning | Integrations. Accounting: anyone who can view all payroll data (the Finance Admin) can read the chart of accounts and download the journal; changing the chart takes **Manage payroll configuration** (Tenant Admin by default) |
 | Audit Log | View all actions (Tenant Admin) |
 
 A Tenant Admin can export the organization's whole data set from **Settings → Data export**: the export is prepared in the background and can be downloaded for 7 days. Employee lists, reports and payroll bank files can also be exported individually; full backups are taken by the platform administrator.
@@ -519,7 +519,7 @@ Each user has one role. The built-in roles and what they hold today:
 |------|--------|
 | Tenant Admin | Everything in the organization. Only this role can approve, void and reprocess payroll; change payroll rules; change organization settings, roles, API keys, webhooks and billing; register, edit and remove devices; delete employees, shifts, holidays and organization units; deactivate logins |
 | HR Admin | The people side. All employees: create, update, status transitions, bank and salary details, personnel actions, disciplinary and retirement cases. Organization structure, shifts and holidays (create and update). Attendance for everyone, attendance rules and conflicts, viewing devices. Leave types, all leave, balance adjustments. Leave and correction approval for everyone. Reports, announcements, the executive dashboard. Inviting users and changing their access. **No payroll** |
-| Finance Admin | The payroll side. Running payroll, loans and cost sharing; viewing payroll rules, every payroll run and payslip, and the accounting export. Reading every employee, their attendance, leave and pay details. Leave and correction approval for everyone. Reports and the executive dashboard. **Cannot add or change employees, or their bank details** |
+| Finance Admin | The payroll side. Running payroll, loans and cost sharing; viewing (not changing) payroll rules, every payroll run and payslip, and the accounting export and chart of accounts. Reading every employee, their attendance, leave and pay details. Leave and correction approval for everyone. Reports and the executive dashboard. **Cannot add or change employees, or their bank details** |
 | Department Admin | Same permissions as Supervisor, reaching everyone in their own department |
 | Supervisor | Their direct reports: leave and correction approval, team attendance and leave, employee records (read), employment history, disciplinary and retirement cases (read); a dashboard limited to their own branch |
 | Employee | Own attendance, corrections, leave, payslips and profile |
