@@ -1,5 +1,6 @@
 import type { useT } from "@/lib/i18n/useT";
 import { formatETB } from "@/lib/utils/currency";
+import { GENDERS, genderOptionLabel } from "@/lib/options/gender";
 
 type T = ReturnType<typeof useT>["t"];
 
@@ -103,9 +104,9 @@ export function reportValueLabel(t: T, field: string, value: unknown): unknown {
       return t(`status.${value}`, value);
     case "gender": {
       const gender = value.toLowerCase();
-      if (gender === "male") return t("common.male", "Male");
-      if (gender === "female") return t("common.female", "Female");
-      return value;
+      return (GENDERS as readonly string[]).includes(gender)
+        ? genderOptionLabel(t, gender)
+        : value;
     }
     case "source":
       return t(

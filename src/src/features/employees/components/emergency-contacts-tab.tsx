@@ -19,10 +19,15 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
+import { Controller } from "react-hook-form";
+import { OptionSelect } from "@/components/shared/option-select";
+import {
+  RELATIONSHIPS,
+  useRelationshipLabel,
+} from "@/lib/options/relationship";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
-import { Controller } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -47,6 +52,7 @@ type ContactValues = z.infer<typeof contactSchema>;
 
 export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const { requestConfirm, confirmDialog } = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -135,7 +141,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
                     <div>
                       <p className="text-sm font-medium">{c.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.relationship} · {c.phone}
+                        {relationshipText(c.relationship)} · {c.phone}
                       </p>
                     </div>
                   </div>
@@ -186,13 +192,24 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.relationship?.message)}
             >
-              <Input
-                {...register("relationship")}
-                placeholder={t(
-                  "employee.emergency.relationship_placeholder",
-                  "Spouse, Parent...",
+              <Controller
+                control={control}
+                name="relationship"
+                render={({ field }) => (
+                  <OptionSelect
+                    id="contact_relationship"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={RELATIONSHIPS}
+                    getLabel={relationshipText}
+                    otherValue="other"
+                    otherLabel={t(
+                      "relationship.other_specify",
+                      "Say how they are related",
+                    )}
+                    className="mt-1"
+                  />
                 )}
-                className="mt-1"
               />
             </FormField>
 
@@ -202,19 +219,22 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.phone?.message)}
             >
-              <Controller
-                control={control}
-                name="phone"
-                render={({ field }) => (
-                  <PhoneInput
-                    international
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    className="mt-1"
-                  />
-                )}
-              />
+              {(controlProps) => (
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field }) => (
+                    <PhoneInput
+                      {...controlProps}
+                      international
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      className="mt-1"
+                    />
+                  )}
+                />
+              )}
             </FormField>
 
             <DialogFooter>

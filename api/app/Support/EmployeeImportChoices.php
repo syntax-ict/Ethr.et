@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\ContractType;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Models\Branch;
 use App\Models\CostCenter;
@@ -35,10 +37,10 @@ final class EmployeeImportChoices
     public static function forTenant(?int $tenantId): array
     {
         return [
-            'gender' => ['male', 'female'],
+            'gender' => Gender::values(),
             'status' => EmployeeImportRow::STATUSES,
             'nationality_status' => NationalityStatus::values(),
-            'marital_status' => ['single', 'married', 'divorced', 'widowed'],
+            'marital_status' => MaritalStatus::values(),
             'sign_in' => EmployeeImportRow::SIGN_IN_VALUES,
             'contract_type' => array_map(fn (ContractType $type): string => $type->value, ContractType::cases()),
             'department' => self::named(Department::class, 'name', $tenantId),
