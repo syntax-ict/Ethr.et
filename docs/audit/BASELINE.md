@@ -5155,6 +5155,6 @@ Who is recomputed is bounded: people with an `attendance_records` row (voided in
 
 Entries calculated before log version 1.9 are skipped, as in §25w (the figures are logged since 1.7, but the code that produced them differs from today's). Recovery is void, then reprocess (`POST /runs/{run}/reprocess` takes a voided run only); the message names it. Pay differences are recorded only against released runs, so voiding a completed one asks for no acknowledgement.
 
-`ApprovalAttendanceChangedTest` (15 tests): the nine that expect a refusal fail with the call removed; the rest pin that nothing is refused when no figure moved, for another organisation, and for a pre-1.9 entry.
+`ApprovalAttendanceChangedTest` (16 tests): the nine that expect a refusal fail with the call removed; the rest pin that nothing is refused when no figure moved, for another organisation, and for a pre-1.9 entry.
 
 Not done or not covered: a holiday that is deleted (the table has no soft delete) or moved out of the weeks, a shift rotation, an organisation setting (lateness switched on, overtime rules) and a leave type edited after calculation are not detected; salary-independent inputs are still `inputsChangedSince`'s. The window is mirrored from `gatherOvertimeByType`, not shared. A shift edited after a large run makes everyone a candidate, and a run too big to recompute in the budget is refused as timed out rather than approved. Not measured: the suite on MariaDB, and the recompute's time on a large run.

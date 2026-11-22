@@ -199,6 +199,18 @@ it('approves when a merge voided a duplicate the run never paid twice', function
     expect(approvalRefusal($run, $user->id))->toBeNull();
 });
 
+it('refuses a run when a voided record had overtime the run paid', function () {
+    [$tenant, $user, $employee, $shift] = approvalSetup();
+    approvalRecord($tenant, $employee, $shift, '2026-06-02', '17:30');
+    $lone = approvalRecord($tenant, $employee, $shift, '2026-06-03', '20:30');
+    $run = approvalJune($tenant, $user);
+
+    approvalLater();
+    $lone->update(['status' => 'voided']);
+
+    expect(approvalRefusal($run, $user->id)?->type)->toBe('https://ethr.et/errors/attendance-changed-since-processed');
+});
+
 it('refuses a run when a holiday was announced on a day already worked', function () {
     [$tenant, $user, $employee, $shift] = approvalSetup();
     approvalRecord($tenant, $employee, $shift, '2026-06-02', '20:30');
