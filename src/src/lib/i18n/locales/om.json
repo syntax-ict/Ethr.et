@@ -8047,5 +8047,7 @@
   "payroll_checks.percent_help": "Kaffaltii qulqulluu hojjetaa gadhiifame dhumaa irraa.",
   "payroll_checks.min_label": "Fi yoo xiqqaate (Qarshii)",
   "payroll_checks.min_help": "Akka dhibbeentaan guddaan waraqaa mindaa xiqqaa hin tarreeffamne.",
-  "payroll_checks.shared_support_session": "Yeroo deeggarsaa keessatti eenyu herrega kamitti akka kaffalamu hin agarsiifamu. Dhaabbatichi qorannoo kana ofii isaatii ni arga."
+  "payroll_checks.shared_support_session": "Yeroo deeggarsaa keessatti eenyu herrega kamitti akka kaffalamu hin agarsiifamu. Dhaabbatichi qorannoo kana ofii isaatii ni arga.",
+  "payroll_checks.show_all": "Hunda :count agarsiisi",
+  "payroll_checks.show_fewer": "Xiqqaa agarsiisi"
 }

@@ -8047,5 +8047,7 @@
   "payroll_checks.percent_help": "ከሠራተኛው ያለፈ የተለቀቀ የተጣራ ክፍያ።",
   "payroll_checks.min_label": "እና ቢያንስ (ብር)",
   "payroll_checks.min_help": "የትንሽ ደመወዝ ወረቀት ትልቅ መቶኛ እንዳይዘረዘር።",
-  "payroll_checks.shared_support_session": "በድጋፍ ክፍለ ጊዜ ውስጥ ማን ወደየትኛው ሂሳብ እንደሚከፈል አይታይም። ድርጅቱ ይህን ምርመራ ራሱ ያየዋል።"
+  "payroll_checks.shared_support_session": "በድጋፍ ክፍለ ጊዜ ውስጥ ማን ወደየትኛው ሂሳብ እንደሚከፈል አይታይም። ድርጅቱ ይህን ምርመራ ራሱ ያየዋል።",
+  "payroll_checks.show_all": "ሁሉንም :count አሳይ",
+  "payroll_checks.show_fewer": "ያነሰ አሳይ"
 }

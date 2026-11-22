@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Landmark, Receipt, TrendingUp, UserX } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
 import { formatETB } from "@/lib/utils/currency";
@@ -57,6 +57,45 @@ function CheckBanner({
   );
 }
 
+/** How many of a list are shown before "Show all". */
+export const SHOWN = 10;
+
+/**
+ * The first few of a list, and a button for the rest: a run of 4,000 people
+ * with no TIN is not 4,000 lines on the page.
+ */
+function ShortList<T>({
+  items,
+  render,
+}: {
+  items: T[];
+  render: (item: T, index: number) => ReactNode;
+}) {
+  const { t } = useT();
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, SHOWN);
+
+  return (
+    <>
+      <ul className="list-inside list-disc space-y-0.5">{shown.map(render)}</ul>
+      {items.length > SHOWN && (
+        <button
+          type="button"
+          aria-expanded={all}
+          onClick={() => setAll(!all)}
+          className="font-medium underline underline-offset-2"
+        >
+          {all
+            ? t("payroll_checks.show_fewer", "Show fewer")
+            : t("payroll_checks.show_all", "Show all :count", {
+                count: items.length,
+              })}
+        </button>
+      )}
+    </>
+  );
+}
+
 /** A signed amount: "+ETB 3,500.00" or "-ETB 1,200.00". */
 function signed(cents: number): string {
   return `${cents > 0 ? "+" : "-"}${formatETB(Math.abs(cents))}`;
@@ -105,8 +144,9 @@ export function PayChangesBanner({ changes }: { changes: PayChanges }) {
           "A change can be right, such as a raise or overtime. Check each one is expected before approving.",
         )}
       </p>
-      <ul className="list-inside list-disc space-y-0.5">
-        {changes.employees.map((e, i) => (
+      <ShortList
+        items={changes.employees}
+        render={(e, i) => (
           <li key={e.employee_public_id ?? i}>
             <PersonName person={e} />
             {": "}
@@ -133,8 +173,8 @@ export function PayChangesBanner({ changes }: { changes: PayChanges }) {
               </span>
             )}
           </li>
-        ))}
-      </ul>
+        )}
+      />
     </CheckBanner>
   );
 }
@@ -183,8 +223,9 @@ export function SharedBankAccountsBanner({
               "Two people paid into one account can be a mistake in their bank details, or pay going to someone it should not. Check each before approving.",
             )}
           </p>
-          <ul className="list-inside list-disc space-y-0.5">
-            {shared.groups.map((group, i) => (
+          <ShortList
+            items={shared.groups}
+            render={(group, i) => (
               <li key={i}>
                 {group.employees.map((e, j) => (
                   <span key={e.employee_public_id ?? j}>
@@ -200,8 +241,8 @@ export function SharedBankAccountsBanner({
                   </span>
                 )}
               </li>
-            ))}
-          </ul>
+            )}
+          />
         </>
       )}
       {shared.pending_hashes > 0 && (
@@ -240,13 +281,14 @@ export function MissingTinBanner({ missing }: { missing: MissingTin }) {
           "The monthly tax schedule needs each employee's TIN. Add it on their profile.",
         )}
       </p>
-      <ul className="list-inside list-disc space-y-0.5">
-        {missing.employees.map((e, i) => (
+      <ShortList
+        items={missing.employees}
+        render={(e, i) => (
           <li key={e.employee_public_id ?? i}>
             <PersonName person={e} />
           </li>
-        ))}
-      </ul>
+        )}
+      />
     </CheckBanner>
   );
 }
@@ -274,8 +316,9 @@ export function NoAttendanceBanner({ none }: { none: NoAttendance }) {
           "They were expected at work and nobody recorded them. It may be work away from site, or someone who no longer works here. Check each before approving.",
         )}
       </p>
-      <ul className="list-inside list-disc space-y-0.5">
-        {none.employees.map((e, i) => (
+      <ShortList
+        items={none.employees}
+        render={(e, i) => (
           <li key={e.employee_public_id ?? i}>
             <PersonName person={e} />
             {": "}
@@ -285,8 +328,8 @@ export function NoAttendanceBanner({ none }: { none: NoAttendance }) {
               { days: e.days },
             )}
           </li>
-        ))}
-      </ul>
+        )}
+      />
     </CheckBanner>
   );
 }

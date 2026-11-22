@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import {
   MissingTinBanner,
   NoAttendanceBanner,
@@ -123,6 +123,22 @@ describe("checks before approval", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")[1]).toHaveTextContent(
       "Abebe Kebede: 21 expected workday(s)",
+    );
+  });
+
+  it("shows ten names of a long list and the rest on request", () => {
+    const employees = Array.from({ length: 150 }, (_, i) => ({
+      employee_public_id: null,
+      employee_name: `Person ${i + 1}`,
+    }));
+    render(<MissingTinBanner missing={{ count: 150, employees }} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(10);
+    fireEvent.click(screen.getByRole("button", { name: "Show all 150" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(150);
+    expect(screen.getByRole("button", { name: "Show fewer" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
     );
   });
 
