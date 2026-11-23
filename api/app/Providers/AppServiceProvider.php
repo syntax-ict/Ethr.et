@@ -17,6 +17,7 @@ use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
+use App\Listeners\BrandMail;
 use App\Listeners\CloseLeaverLogin;
 use App\Listeners\HoldMailOverBudget;
 use App\Listeners\InvalidateDashboardCache;
@@ -70,6 +71,7 @@ use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
 use App\Support\Mail\SmtpTransportWithCaFile;
+use App\Support\MailBrand;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
 use App\Support\Scramble\TypeLoadedRelationOverlays;
@@ -109,6 +111,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
 
         $this->app->singleton(SmsSender::class, fn ($app) => $app->make(ConfiguredSmsSender::class));
+
+        $this->app->scoped(MailBrand::class);
     }
 
     public function boot(): void
@@ -194,6 +198,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
         Event::listen(NotificationSending::class, HoldMailOverBudget::class);
+        Event::listen(NotificationSending::class, BrandMail::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
         Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
         Event::listen(PayrollRunFailed::class, NotifyPayrollRunFailed::class);

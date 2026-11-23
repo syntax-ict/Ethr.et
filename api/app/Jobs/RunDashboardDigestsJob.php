@@ -143,7 +143,7 @@ class RunDashboardDigestsJob implements ShouldQueue
             // digest, not necessarily user accounts in this tenant — same
             // choice RunScheduledReportsJob makes for the identical reason.
             $this->notify(
-                Notification::route('mail', $email),
+                Notification::route('mail', $email)->route('tenant', $digest->tenant_id),
                 (new DashboardDigestNotification($digest->frequency, $overview, $compliance, $branchName, $alerts))->locale(self::organisationLocale($digest->tenant_id)),
             );
         }
@@ -183,7 +183,7 @@ class RunDashboardDigestsJob implements ShouldQueue
             }
 
             $this->notify(
-                Notification::route('mail', $email),
+                Notification::route('mail', $email)->route('tenant', $digest->tenant_id),
                 (new DashboardDigestFailedNotification((string) $digest->frequency))->locale(self::organisationLocale($digest->tenant_id)),
             );
         }
