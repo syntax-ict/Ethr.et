@@ -29,6 +29,7 @@ test('tenant admin can update sso settings', function () {
         'is_enabled' => true,
         'idp_entity_id' => 'https://idp.example.com/entity',
         'idp_sso_url' => 'https://idp.example.com/sso',
+        'idp_certificate' => 'cert-data',
         'default_role' => 'employee',
         'auto_provision' => true,
     ]);
@@ -37,6 +38,114 @@ test('tenant admin can update sso settings', function () {
     expect($response->json('sso.is_enabled'))->toBeTrue();
     expect($response->json('sso.idp_entity_id'))->toBe('https://idp.example.com/entity');
     expect($response->json('sso.auto_provision'))->toBeTrue();
+    expect($response->json('sso.configured'))->toBeTrue();
+    expect($response->json('sso.has_certificate'))->toBeTrue();
+});
+
+test('sso cannot be switched on without the identity provider details', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/sso', ['is_enabled' => true])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_entity_id', 'idp_sso_url', 'idp_certificate']);
+
+    $this->putJson('/api/v1/settings/sso', [
+        'is_enabled' => true,
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_sso_url' => 'https://idp.example.com/sso',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_certificate'])
+        ->assertJsonMissingValidationErrors(['idp_entity_id', 'idp_sso_url']);
+
+    expect(SsoSetting::query()->where('is_enabled', true)->exists())->toBeFalse();
+});
+
+test('sso can be switched on with the certificate already stored', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    SsoSetting::create([
+        'tenant_id' => $tenant->id,
+        'provider' => 'saml',
+        'is_enabled' => false,
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_sso_url' => 'https://idp.example.com/sso',
+        'idp_certificate' => 'cert-data',
+    ]);
+
+    $this->putJson('/api/v1/settings/sso', ['is_enabled' => true])
+        ->assertOk()
+        ->assertJsonPath('sso.is_enabled', true)
+        ->assertJsonPath('sso.configured', true);
+});
+
+test('sso that is on cannot lose its certificate or its sign-in url', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    SsoSetting::create([
+        'tenant_id' => $tenant->id,
+        'provider' => 'saml',
+        'is_enabled' => true,
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_sso_url' => 'https://idp.example.com/sso',
+        'idp_certificate' => 'cert-data',
+    ]);
+
+    $this->putJson('/api/v1/settings/sso', ['idp_sso_url' => null])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_sso_url']);
+
+    $this->putJson('/api/v1/settings/sso', ['idp_certificate' => null])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_certificate']);
+
+    $this->putJson('/api/v1/settings/sso', ['default_role' => 'supervisor'])->assertOk();
+
+    $this->putJson('/api/v1/settings/sso', ['is_enabled' => false, 'idp_certificate' => null])->assertOk();
+
+    $stored = SsoSetting::query()->first();
+    expect($stored->is_enabled)->toBeFalse()
+        ->and($stored->getRawOriginal('idp_certificate'))->toBeNull();
+});
+
+test('sso cannot be switched on with a 1 or "1" instead of true', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    foreach ([1, '1'] as $on) {
+        $this->putJson('/api/v1/settings/sso', ['is_enabled' => $on])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['idp_entity_id', 'idp_sso_url', 'idp_certificate']);
+    }
+});
+
+test('a rule failure does not hide the missing identity provider details', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/sso', ['is_enabled' => true, 'idp_sso_url' => 'not-a-url'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_sso_url']);
+});
+
+test('the settings page says an enabled but incomplete sso is not configured', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    SsoSetting::create([
+        'tenant_id' => $tenant->id,
+        'provider' => 'saml',
+        'is_enabled' => true,
+    ]);
+
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('sso.is_enabled', true)
+        ->assertJsonPath('sso.configured', false)
+        ->assertJsonPath('sso.has_certificate', false);
 });
 
 test('employee cannot update sso settings', function () {
