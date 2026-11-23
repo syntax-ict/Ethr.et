@@ -43,7 +43,8 @@ return [
     'DashboardDigestNotification' => 'scheduled digest to the digest\'s own recipient list',
     'ScheduledReportNotification' => 'scheduled report to the schedule\'s own recipient list, free-text addresses',
 
-    // Employee-facing, waiting for a preference type
-    'LetterDecidedNotification' => 'no preference type yet; planned',
-    'LetterRequestedNotification' => 'no preference type yet; planned',
+    // Letters: no preference type yet, one is planned. Decided goes to the employee,
+    // Requested goes to HR.
+    'LetterDecidedNotification' => 'to the employee; no preference type yet, planned',
+    'LetterRequestedNotification' => 'to HR; no preference type yet, planned',
 ];

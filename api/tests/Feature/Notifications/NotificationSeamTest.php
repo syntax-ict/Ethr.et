@@ -44,30 +44,27 @@ function seamNotificationClasses(): array
         $count = count($tokens);
 
         $name = null;
-        $extendsNotification = false;
         $classAt = null;
 
         for ($i = 0; $i < $count; $i++) {
             if (is_array($tokens[$i]) && $tokens[$i][0] === T_CLASS && ($tokens[$i - 1][0] ?? null) !== T_DOUBLE_COLON) {
                 $isAbstract = is_array($tokens[$i - 1] ?? null) && $tokens[$i - 1][0] === T_ABSTRACT;
-                $name = $tokens[$i + 1][1];
+                $name = $isAbstract ? null : $tokens[$i + 1][1];
                 $classAt = $i;
-
-                for ($j = $i; $j < $count && $tokens[$j] !== '{'; $j++) {
-                    if (is_array($tokens[$j]) && $tokens[$j][0] === T_EXTENDS) {
-                        $extendsNotification = is_array($tokens[$j + 1]) && $tokens[$j + 1][1] === 'Notification';
-                    }
-                }
-
-                if ($isAbstract) {
-                    $name = null;
-                }
 
                 break;
             }
         }
 
-        if ($name === null || ! $extendsNotification) {
+        // Whatever it extends, a concrete class that declares via() is a notification.
+        $declaresVia = false;
+        foreach ($tokens as $k => $t) {
+            if (is_array($t) && $t[0] === T_FUNCTION && is_array($tokens[$k + 1] ?? null) && $tokens[$k + 1][1] === 'via') {
+                $declaresVia = true;
+            }
+        }
+
+        if ($name === null || ! $declaresVia) {
             continue;
         }
 
@@ -78,7 +75,7 @@ function seamNotificationClasses(): array
         for ($i = $classAt; $i < $count; $i++) {
             $t = $tokens[$i];
 
-            if ($t === '{') {
+            if ($t === '{' || (is_array($t) && in_array($t[0], [T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES], true))) {
                 $depth++;
             } elseif ($t === '}') {
                 $depth--;
@@ -96,7 +93,7 @@ function seamNotificationClasses(): array
             if (is_array($t) && $t[0] === T_FUNCTION && is_array($tokens[$i + 1] ?? null) && $tokens[$i + 1][1] === 'via') {
                 $bodyDepth = 0;
                 for ($j = $i; $j < $count; $j++) {
-                    if ($tokens[$j] === '{') {
+                    if ($tokens[$j] === '{' || (is_array($tokens[$j]) && in_array($tokens[$j][0], [T_CURLY_OPEN, T_DOLLAR_OPEN_CURLY_BRACES], true))) {
                         $bodyDepth++;
                     } elseif ($tokens[$j] === '}') {
                         $bodyDepth--;

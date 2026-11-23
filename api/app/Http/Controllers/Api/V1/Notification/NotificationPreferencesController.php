@@ -51,7 +51,7 @@ class NotificationPreferencesController extends Controller
      *
      * @return list<string>
      *
-     * @scramble-return list<string>
+     * @scramble-return list<\App\Enums\NotificationType>
      */
     private function typeKeys(): array
     {
