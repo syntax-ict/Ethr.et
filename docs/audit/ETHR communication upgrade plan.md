@@ -8,7 +8,7 @@
 | Score today | 13 of 24 on the scorecard below, about 5.5 out of 10 |
 | Score after the six PRs | 22 of 24, about 9 out of 10 |
 | The last two points | SMS for staff notices, which waits on an owner decision |
-| Status | PR 1 merged (#859, BASELINE 25ar). PR 2 open on `feat/notification-inbox` (BASELINE 25as). PRs 3 to 6 not started: PR 3 waits for the news plan's N2, which builds the story browser it needs. Corrections found while building: see section 13. |
+| Status | PR 1 (#859) and PR 2 (#868) merged. PR 5 open on `feat/branded-mail` (BASELINE 25at). PRs 3, 4 and 6 not started: they wait for the news plan's N2, which builds the story browser they need. Corrections found while building: see section 13. |
 
 The owner's rules for this work: upgrade and reuse, do not regenerate; one clean shared code path; the least code that does the job.
 

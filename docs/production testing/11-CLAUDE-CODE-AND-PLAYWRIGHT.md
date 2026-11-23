@@ -109,6 +109,7 @@ metadata; an agent still never opens or prints the file (rule 4 of `CLAUDE.md`).
 
 ```bash
 cd src && npm run test:e2e:production
+cd src && npm run test:e2e:production:offline   # the offline shell only, with the network cut
 ```
 
 What it covers, all Mode R:
@@ -148,8 +149,12 @@ Run one row with `--grep "S-02"`, a priority with `--grep @P1`. Settings, none o
 2. Service workers are blocked (`serviceWorkers: "block"` in `playwright.production.config.ts`).
    The guard sees requests a page makes; the app's service worker makes one of its own, replaying
    punches queued while offline with `POST /api/v1/attendance/sync` (`src/public/sw.js`,
-   `flushQueue`). With no worker there is no replay. The cost: the scripted run says nothing about
-   the PWA, which is tested by hand (09, section 8).
+   `flushQueue`). With no worker there is no replay. The cost: these specs say nothing about the
+   PWA. One project is the exception, `production-offline` (`e2e-production/offline.spec.ts`):
+   it runs the signed-out PWA cases (PWA-002, PWA-012, PWA-013) with the worker allowed, and is
+   safe because every test starts from an empty profile and never signs in, so nothing is queued
+   on the phone for the worker to replay. Do not add a signed-in test to that project. The
+   signed-in PWA cases are still tested by hand (09, section 8).
 
 - **A GET is let through.** Read-only here means no state-changing method, not no trace: the
   server may log or count a read.
@@ -174,7 +179,7 @@ A skipped check is **Not run** with its reason, never Pass. The tester is record
 
 | Suite | Config | Where it may run |
 |---|---|---|
-| `src/e2e-production/` | `playwright.production.config.ts` | Production. Read-only, never signs in |
+| `src/e2e-production/` | `playwright.production.config.ts` | Production. Read-only, never signs in. Two projects: `production-chromium` (service workers blocked) and `production-offline` (the offline shell, worker allowed, signed out only) |
 | `src/e2e/` | `playwright.config.ts` | Local and CI. Signs in with demo passwords and writes data; never production with its defaults ([01, section 3](01-TEST-PLAN.md#3-approach)) |
 | `src/e2e/attendance-payroll/` (#688) | `playwright.attendance.config.ts` | Local and CI only (`./scripts/gates.sh e2e-attendance`). It seeds its own organisations (`E2eAttendanceSeeder`), punches and processes payroll. **Never production, under any setting** |
 
