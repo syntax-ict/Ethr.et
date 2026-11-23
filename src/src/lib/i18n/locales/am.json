@@ -6137,6 +6137,8 @@
   "settings.sp_metadata_url": "የSP ሜታዳታ URL",
   "settings.sso_disabled": "ተዘግቷል",
   "settings.sso_enabled": "ነቅቷል",
+  "settings.sso_not_ready": "ዝግጁ አይደለም",
+  "settings.sso_not_ready_missing": "SSO ነቅቷል፣ ግን ሰዎች ገና ሊጠቀሙበት አይችሉም። የጎደለው፦ :items።",
   "settings.sso_saml": "SAML ነጠላ መግቢያ",
   "settings.sso_save_failed": "የSSO ቅንብሮችን ማስቀመጥ አልተሳካም",
   "settings.sso_saved": "የSSO ቅንብሮች ተቀምጠዋል",

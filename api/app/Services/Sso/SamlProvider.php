@@ -134,7 +134,7 @@ class SamlProvider implements SsoProviderInterface
             && $settings->is_enabled
             && $settings->idp_entity_id !== null
             && $settings->idp_sso_url !== null
-            && $settings->idp_certificate !== null;
+            && $settings->getRawOriginal('idp_certificate') !== null;
     }
 
     private function getSettings(Tenant $tenant): SsoSetting
