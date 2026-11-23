@@ -25445,67 +25445,9 @@
                                     "properties": {
                                         "notification_types": {
                                             "type": "array",
-                                            "prefixItems": [
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_requested"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_approved"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_rejected"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_changed"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "attendance_correction"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "overtime_request"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "attendance_anomaly"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "payslip_available"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "payroll_processed"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "announcement"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "approval_reminder"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "expiry_reminder"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "profile_update"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "employee_voice"
-                                                }
-                                            ],
-                                            "minItems": 14,
-                                            "maxItems": 14,
-                                            "additionalItems": false
+                                            "items": {
+                                                "type": "string"
+                                            }
                                         },
                                         "channels": {
                                             "type": "array",
@@ -25601,67 +25543,9 @@
                                     "properties": {
                                         "notification_types": {
                                             "type": "array",
-                                            "prefixItems": [
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_requested"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_approved"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_rejected"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "leave_changed"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "attendance_correction"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "overtime_request"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "attendance_anomaly"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "payslip_available"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "payroll_processed"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "announcement"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "approval_reminder"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "expiry_reminder"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "profile_update"
-                                                },
-                                                {
-                                                    "type": "string",
-                                                    "const": "employee_voice"
-                                                }
-                                            ],
-                                            "minItems": 14,
-                                            "maxItems": 14,
-                                            "additionalItems": false
+                                            "items": {
+                                                "type": "string"
+                                            }
                                         },
                                         "channels": {
                                             "type": "array",

@@ -28806,22 +28806,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: string[];
                         channels: [
                             "in_app",
                             "email",
@@ -28867,22 +28852,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: string[];
                         channels: [
                             "in_app",
                             "email",
