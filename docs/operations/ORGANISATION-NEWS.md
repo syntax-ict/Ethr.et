@@ -200,6 +200,21 @@ say `index, follow`. Otherwise they say `noindex, nofollow`. Organisations on th
 shared host keep their sign-in entry in the sitemap and no news entries, because
 their news pages carry no head of their own.
 
+What the heads carry (2026-11-23). The news page's head lists the first page of
+public stories, nine, as a `CollectionPage` with an `ItemList`, in the order the
+page itself shows them (`Announcement::scopeNewsOrder()`, one definition for the
+page, the feed and this head), and a `BreadcrumbList` from the organisation's
+home to News. An organisation with no stories has the breadcrumb and no list.
+An article's head carries `article:modified_time`, the story's text as
+`articleBody`, the organisation as `author`, a breadcrumb of three steps, and
+`inLanguage` only when the story's script agrees with the organisation's
+language (Ethiopic text in an Amharic organisation, Latin text in an English or
+Afaan Oromoo one); otherwise the field is left out, because a wrong language is
+worse than none. The page title, the description and `og:locale` follow the
+organisation's own language, with the other two as alternates. The sitemap dates
+each article by `updated_at` and the news page by its newest article; the
+sign-in entry has no date. The `hreflang` alternates are unchanged by decision.
+
 ## Deploying it
 
 The release that introduced these pages needs `migrate` (one migration:
