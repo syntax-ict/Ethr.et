@@ -152,7 +152,7 @@ class PayrollController extends Controller
         // A run that exempts anyone from pension is approved only by someone
         // who says how many: an exemption wrongly applied leaves the employer
         // owing the contributions plus 5 % a month (research P12).
-        $exempt = RunRegisterService::exemptions($registerService->register($payrollRun)['rows'])['count'];
+        $exempt = RunRegisterService::exemptions($registerService->register($payrollRun, checks: false)['rows'])['count'];
         if ($exempt > 0 && (int) $request->validated('acknowledged_pension_exemptions') !== $exempt) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/pension-exemptions-unacknowledged',
@@ -451,6 +451,10 @@ class PayrollController extends Controller
             'absences' => $register['absences'],
             'integrity' => $register['integrity'],
             'deduction_ceiling' => $register['deduction_ceiling'],
+            'pay_changes' => $register['pay_changes'],
+            'shared_bank_accounts' => $register['shared_bank_accounts'],
+            'missing_tin' => $register['missing_tin'],
+            'no_attendance' => $register['no_attendance'],
             'reconciliation' => $reconciled,
         ]);
     }

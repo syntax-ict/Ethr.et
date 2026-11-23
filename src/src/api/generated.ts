@@ -14165,6 +14165,8 @@ export interface components {
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
                 employer_bank_code?: string | null;
+                pay_change_alert_percent?: number;
+                pay_change_alert_min_cents?: number;
                 letterhead_address?: string | null;
                 letterhead_phone?: string | null;
                 /** Format: email */
@@ -32818,6 +32820,46 @@ export interface operations {
                                 deducted_cents: number;
                             }[];
                         };
+                        pay_changes: {
+                            count: number;
+                            previous_period: string | null;
+                            first_payslip: number;
+                            percent: number | null;
+                            min_cents: number | null;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string;
+                                previous_net_cents: number;
+                                net_cents: number;
+                                change_cents: string;
+                                change_percent: number | null;
+                                reasons: unknown[];
+                            }[];
+                        };
+                        shared_bank_accounts: {
+                            count: number;
+                            pending_hashes: number;
+                            support_session: boolean;
+                            groups: {
+                                banks: unknown[];
+                                employees: unknown[];
+                            }[];
+                        };
+                        missing_tin: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                            }[];
+                        };
+                        no_attendance: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string;
+                                days: number;
+                            }[];
+                        };
                         reconciliation: {
                             mode: string;
                             lateness_deduction_enabled: boolean;
@@ -32953,6 +32995,10 @@ export interface operations {
                             period: string;
                             /** @enum {string} */
                             status: "Approved and paid" | "Approved" | "NOT APPROVED — draft figures";
+                            /**
+                             * @description A user with no token at all (an actingAs() test, a console) reads as
+                             *     no abilities: the `??` is on a property of null, which is safe.
+                             */
                             approved: boolean;
                             basis: string;
                             notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";
@@ -36785,6 +36831,8 @@ export interface operations {
                             payout_method: string | null;
                             employer_bank_name: string | null;
                             employer_bank_code: string | null;
+                            pay_change_alert_percent: number | null;
+                            pay_change_alert_min_cents: number | null;
                         };
                         documents: {
                             letterhead_address: string | null;
