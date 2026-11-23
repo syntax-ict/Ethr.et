@@ -48,6 +48,10 @@ const CAN_ABILITIES = {
   viewPayrollRuns: "payroll.viewAll",
   manageLoans: "payroll.manageLoan",
   manageCostSharing: "payroll.manageCostSharing",
+  // The payroll rules (allowances, overtime, statutory rules) can be read with
+  // `viewConfig` and changed only with `manageConfig`; the Finance Admin holds
+  // the first, the Tenant Admin both.
+  viewPayrollConfig: "payroll.viewConfig",
   managePayrollConfig: "payroll.manageConfig",
   approveLeave: "leave.approve",
   requestOvertime: "overtime.request",

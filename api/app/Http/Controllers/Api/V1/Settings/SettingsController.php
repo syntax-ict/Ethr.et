@@ -29,6 +29,7 @@ use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\PayChangeThresholds;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
@@ -60,6 +61,7 @@ class SettingsController extends Controller
         // its organisation type (StatutoryRules).
         $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
         $leaveYear = LeaveYear::forTenant($tenant);
+        $payChange = PayChangeThresholds::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -120,6 +122,8 @@ class SettingsController extends Controller
                 'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
                 'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
                 'employer_bank_code' => StatutorySchedules::setting($tenant, 'employer_bank_code'),
+                'pay_change_alert_percent' => $payChange->percent,
+                'pay_change_alert_min_cents' => $payChange->minCents,
             ],
             'documents' => [
                 'letterhead_address' => StatutorySchedules::setting($tenant, 'letterhead_address'),

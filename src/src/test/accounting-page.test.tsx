@@ -232,7 +232,7 @@ describe("<AccountingSettingsPage>", () => {
     let sent: unknown = null;
     serveRuns(0);
     server.use(
-      me(["payroll.viewAll"]),
+      me(["payroll.viewAll", "payroll.manageConfig"]),
       http.get("*/api/v1/accounting/chart-of-accounts", () =>
         HttpResponse.json(CHART),
       ),
@@ -261,5 +261,54 @@ describe("<AccountingSettingsPage>", () => {
         },
       ],
     });
+  });
+
+  it("is read-only for a role that can view payroll but not manage its configuration", async () => {
+    // The Finance Admin holds payroll.viewAll and not payroll.manageConfig,
+    // and the API refuses its PUT with a 403: the page must not offer one.
+    serveRuns(0);
+    server.use(
+      me(["payroll.viewAll"]),
+      http.get("*/api/v1/accounting/chart-of-accounts", () =>
+        HttpResponse.json(CHART),
+      ),
+    );
+    renderPage();
+
+    const code = await screen.findByRole("textbox", {
+      name: /Account code for Income tax payable/i,
+    });
+    expect(code).toBeDisabled();
+    expect(
+      screen.getByRole("textbox", {
+        name: /Account name for Income tax payable/i,
+      }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(/needs the Manage payroll configuration permission/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Save$/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets a role with payroll.manageConfig edit the mapping", async () => {
+    serveRuns(0);
+    server.use(
+      me(["payroll.viewAll", "payroll.manageConfig"]),
+      http.get("*/api/v1/accounting/chart-of-accounts", () =>
+        HttpResponse.json(CHART),
+      ),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByRole("textbox", {
+        name: /Account code for Income tax payable/i,
+      }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByText(/needs the Manage payroll configuration permission/i),
+    ).not.toBeInTheDocument();
   });
 });

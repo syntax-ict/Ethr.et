@@ -95,6 +95,56 @@ The words are `landing.urgent` and `landing.important`; normal and low carry no
 badge. `e2e/announcements.spec.ts` publishes one story and reads the same word
 back from all three screens, so the next copy cannot pass unnoticed.
 
+### Reading one in the app
+
+*Added 2026-11-22.* `/announcements?read={public_id}` opens the story in a
+panel, drawn by the same `ArticleView` the public article page uses. Everyone
+gets it, not only a manager: until then the list clamped the body to two lines
+and only a manager had the preview, so a long notice could not be read in the
+product that sent it.
+
+- **A query, not a route of its own.** `/announcements/{id}` would need an
+  entry in the shared-hosting rewrite rules (`.htaccess` group 1), which is a
+  deployment surface. `?read=` is the same shareable address with none of
+  that, and the back button closes the panel. It is read through
+  `useQueryFilters`, which uses `useSyncExternalStore` rather than
+  `useSearchParams`, so the page stays prerenderable for the static export
+  with no Suspense boundary.
+- **The notification leads to the story.** `AnnouncementNotification` stores
+  `/announcements?read={public_id}`, and the dashboard card links the same
+  way. Both pointed at the list before, and `announcement_id` sat unused in
+  the payload.
+- **A story the reader may not see says only that it is not available.** The
+  API answers a draft, an expired story, one addressed to another department
+  and a missing id identically, which is what stops a public id being
+  confirmed across that line; the panel repeats that and says no more.
+- **Documents download through the API.** In the app `attachmentsPresented()`
+  fills no `url` (it needs the organisation's public id), so the panel passes
+  `onDownload` to `ArticleView` and the file arrives as a blob. A public
+  article keeps its plain links.
+- **No name rather than an email address.** `User::name` falls back to the
+  login email for an account with no employee record and no display name, so
+  the author line is left empty for them instead of printing an address to the
+  whole audience.
+- **It says which state a manager is reading.** A draft, a scheduled story and
+  an archived one carry their badge in the panel, because a manager may open
+  any of them and an unpublished story otherwise reads exactly like a live one.
+  **Featured** is not shown to a reader at all: it means "first on the public
+  website", which is the publishing desk's business, and the dashboard card
+  withholds it for the same reason.
+- **Only a missing story says it is missing.** A dropped connection or a
+  server error says the load failed and offers Try again. Telling a reader a
+  notice may have been withdrawn when nothing of the sort happened is a wrong
+  answer, not a missing one.
+- **The author's name is eager-loaded.** `User::name` is a computed accessor
+  that reads the employee record, so the list loads `publisher.employee`.
+  Read row by row it is a 500 under `preventLazyLoading` and a query per row
+  in production; `AnnouncementReadingTest` pins that five times the rows cost
+  no more queries.
+- **Publishing asks first.** The audience is notified exactly once
+  (`notified_at`), so taking the story down afterwards does not unsend it.
+  Unpublish, archive and restore stay one click, because each reverses.
+
 ### Cover photos
 
 A story may carry one cover photo, chosen in the story form (Cover photo →
