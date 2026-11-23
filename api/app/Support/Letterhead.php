@@ -29,7 +29,7 @@ final class Letterhead
     /**
      * @return array{name: string, logo: string|null, lines: list<string>}
      */
-    public static function for(?Tenant $tenant, string $locale, bool $withTin = true): array
+    public static function for(?Tenant $tenant, string $locale, bool $withTin = true, bool $withLogo = true): array
     {
         if ($tenant === null) {
             return ['name' => 'ETHR', 'logo' => null, 'lines' => []];
@@ -53,7 +53,7 @@ final class Letterhead
 
         return [
             'name' => (string) $tenant->name,
-            'logo' => self::logo($tenant),
+            'logo' => $withLogo ? self::logo($tenant) : null,
             'lines' => $lines,
         ];
     }
