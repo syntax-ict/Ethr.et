@@ -241,6 +241,7 @@ return array(
     'App\\Http\\Controllers\\Api\\V1\\LookupController' => $baseDir . '/app/Http/Controllers/Api/V1/LookupController.php',
     'App\\Http\\Controllers\\Api\\V1\\Maintenance\\MaintenanceController' => $baseDir . '/app/Http/Controllers/Api/V1/Maintenance/MaintenanceController.php',
     'App\\Http\\Controllers\\Api\\V1\\MarketingContentController' => $baseDir . '/app/Http/Controllers/Api/V1/MarketingContentController.php',
+    'App\\Http\\Controllers\\Api\\V1\\Navigation\\NavigationBadgesController' => $baseDir . '/app/Http/Controllers/Api/V1/Navigation/NavigationBadgesController.php',
     'App\\Http\\Controllers\\Api\\V1\\NextSteps\\NextStepsController' => $baseDir . '/app/Http/Controllers/Api/V1/NextSteps/NextStepsController.php',
     'App\\Http\\Controllers\\Api\\V1\\Notification\\NotificationController' => $baseDir . '/app/Http/Controllers/Api/V1/Notification/NotificationController.php',
     'App\\Http\\Controllers\\Api\\V1\\Notification\\NotificationPreferencesController' => $baseDir . '/app/Http/Controllers/Api/V1/Notification/NotificationPreferencesController.php',

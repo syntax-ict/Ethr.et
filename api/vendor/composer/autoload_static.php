@@ -975,6 +975,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Http\\Controllers\\Api\\V1\\LookupController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/LookupController.php',
         'App\\Http\\Controllers\\Api\\V1\\Maintenance\\MaintenanceController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Maintenance/MaintenanceController.php',
         'App\\Http\\Controllers\\Api\\V1\\MarketingContentController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/MarketingContentController.php',
+        'App\\Http\\Controllers\\Api\\V1\\Navigation\\NavigationBadgesController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Navigation/NavigationBadgesController.php',
         'App\\Http\\Controllers\\Api\\V1\\NextSteps\\NextStepsController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/NextSteps/NextStepsController.php',
         'App\\Http\\Controllers\\Api\\V1\\Notification\\NotificationController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Notification/NotificationController.php',
         'App\\Http\\Controllers\\Api\\V1\\Notification\\NotificationPreferencesController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/V1/Notification/NotificationPreferencesController.php',
