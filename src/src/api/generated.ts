@@ -14217,13 +14217,10 @@ export interface components {
             idp_entity_id?: string | null;
             /** Format: uri */
             idp_sso_url?: string | null;
-            /** Format: uri */
-            idp_slo_url?: string | null;
             idp_certificate?: string | null;
             /** @enum {string|null} */
             default_role?: "employee" | "supervisor" | "dept_admin" | "hr_admin" | null;
             auto_provision?: boolean;
-            attribute_mapping?: string[] | null;
         };
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
