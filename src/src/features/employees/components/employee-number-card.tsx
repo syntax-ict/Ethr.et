@@ -11,6 +11,8 @@ import {
   type TenantSettings,
 } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -36,10 +38,12 @@ export function EmployeeNumberCard({
 }) {
   const { t } = useT();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
   const [draft, setDraft] = useState<string | null>(null);
   const format = draft ?? employees.number_format;
   const valid = SHAPE.test(format);
   const isDirty = draft !== null && draft !== employees.number_format;
+  useUnsavedChangesWarning(isDirty);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,17 +56,21 @@ export function EmployeeNumberCard({
           toast.success(
             t("settings.employee_number_saved", "Employee number format saved"),
           );
+          announceSaved(
+            t("settings.employee_number_saved", "Employee number format saved"),
+          );
         },
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "settings.employee_number_save_failed",
-                "Could not save the employee number format",
-              ),
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "settings.employee_number_save_failed",
+              "Could not save the employee number format",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

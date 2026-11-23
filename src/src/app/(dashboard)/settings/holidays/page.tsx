@@ -45,6 +45,8 @@ import {
 } from "@/features/holidays/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -110,11 +112,16 @@ export default function HolidaysPage() {
     submit,
     reset,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<HolidayValues>({
     schema: holidaySchema,
     defaultValues: { name: "", date: "", recurring: false },
   });
+
+  // The dialog is the form: closing it resets to the loaded values, so a saved
+  // or cancelled holiday is clean again.
+  useUnsavedChangesWarning(dialogOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
 
   const holidaysQuery = useHolidays();
   const createHoliday = useCreateHoliday();
@@ -131,9 +138,11 @@ export default function HolidaysPage() {
         ...values,
       });
       toast.success(t("holidays_page.updated", "Holiday updated"));
+      announceSaved(t("holidays_page.updated", "Holiday updated"));
     } else {
       await createHoliday.mutateAsync(values);
       toast.success(t("holidays_page.added", "Holiday added"));
+      announceSaved(t("holidays_page.added", "Holiday added"));
     }
     closeDialog();
   }
@@ -165,35 +174,43 @@ export default function HolidaysPage() {
   function confirmDelete() {
     if (!deleting) return;
     deleteHoliday.mutate(deleting.public_id, {
-      onSuccess: () =>
-        toast.success(t("holidays_page.deleted", "Holiday deleted")),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t("holidays_page.delete_failed", "Could not delete the holiday"),
-          ),
-        ),
+      onSuccess: () => {
+        toast.success(t("holidays_page.deleted", "Holiday deleted"));
+        announceSaved(t("holidays_page.deleted", "Holiday deleted"));
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t("holidays_page.delete_failed", "Could not delete the holiday"),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
       onSettled: () => setDeleting(null),
     });
   }
 
   function runAutoDetect() {
     autoDetect.mutate(undefined, {
-      onSuccess: () =>
-        toast.success(
-          t("holidays_page.auto_detected", "Ethiopian public holidays added"),
-        ),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "holidays_page.auto_detect_failed",
-              "Could not add the Ethiopian holidays",
-            ),
+      onSuccess: () => {
+        const message = t(
+          "holidays_page.auto_detected",
+          "Ethiopian public holidays added",
+        );
+        toast.success(message);
+        announceSaved(message);
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t(
+            "holidays_page.auto_detect_failed",
+            "Could not add the Ethiopian holidays",
           ),
-        ),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 
