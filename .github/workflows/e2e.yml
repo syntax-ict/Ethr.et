@@ -3,22 +3,32 @@ name: E2E
 # The Playwright suite in src/e2e (13 specs) ran in no workflow and no gate until
 # 2026-09-30, so the only full-stack test of the frontend was never exercised.
 #
-# REQUIRED since 2026-11-23. It was advisory until then, on the condition that it
-# must be green on several consecutive runs first: a suite that has never run in
-# CI surfaces environment problems before it surfaces regressions, and a
-# permanently red required check is one people learn to click past. Over the 59
-# completed runs to 2026-11-23 it was green 46 times, cancelled 11 (superseded
-# pushes) and red twice, and BOTH reds were real regressions on the branch that
-# caused them, not flakes. Branch protection on `main` now requires both jobs:
-# `Playwright (desktop Chromium)` and `Playwright (attendance to payslip)`.
+# BOTH JOBS REQUIRED since 2026-11-23. `Playwright (desktop Chromium)` was
+# already required by the `main` repository RULESET; `Playwright (attendance to
+# payslip)` was not, so the attendance and offline journeys — the ones that read
+# back what the database holds after a punch — could go red without stopping a
+# merge. Both are in the ruleset now, alongside all eleven Quality gates jobs.
+#
+# The name said "advisory" until today on the condition that it be green on
+# several consecutive runs first: a suite that has never run in CI surfaces
+# environment problems before regressions, and a permanently red required check
+# is one people learn to click past. Over the 59 completed runs to 2026-11-23 it
+# was green 46 times, cancelled 11 (superseded pushes) and red twice, and BOTH
+# reds were real regressions on the branch that caused them, not flakes.
+#
+# WHERE THE RULES LIVE: the repository ruleset named `main`, not classic branch
+# protection. `gh api repos/.../branches/main/protection` answers "Branch not
+# protected" and that is NOT the whole story — read
+# `gh api repos/.../rulesets` instead, or you will conclude nothing is enforced.
 #
 # The required contexts are the JOB names above, not this workflow name, so
 # renaming the workflow does not move them; renaming a job does, and would let
-# every PR merge unchecked until the protection is updated to match.
+# every PR merge unchecked until the ruleset is updated to match.
 #
-# Protection is deliberately `strict: false` — a PR need not be rebased onto the
-# newest `main` before merging. `main` is busy, and requiring that turns every
-# merge into a rebase race.
+# The ruleset is `strict: true`: a PR must be rebased onto the newest `main`
+# before it can merge. On a busy `main` that is a real rebase race, and the
+# longest check (`Backend coverage (PCOV)`, ~26 min) sets how wide the window
+# has to be. If merges start starving, that is the setting to revisit.
 #
 # What it drives is the development shape — `php artisan serve` plus `next dev`,
 # the same stack the specs were written against — not the static export. The
