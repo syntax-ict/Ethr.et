@@ -96,7 +96,7 @@ class AttendanceIntegrityFlag extends Model
      */
     public static function openFor(User $user): Builder
     {
-        return static::query()->visibleTo($user)->where('status', 'open');
+        return self::query()->visibleTo($user)->where('status', 'open');
     }
 
     /** @return BelongsTo<AttendanceRecord, $this> */
