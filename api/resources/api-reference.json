@@ -40552,10 +40552,16 @@
                                                     "subject_am": {
                                                         "type": "string"
                                                     },
+                                                    "subject_om": {
+                                                        "type": "string"
+                                                    },
                                                     "body_en": {
                                                         "type": "string"
                                                     },
                                                     "body_am": {
+                                                        "type": "string"
+                                                    },
+                                                    "body_om": {
                                                         "type": "string"
                                                     },
                                                     "is_customized": {
@@ -40572,8 +40578,10 @@
                                                     "type",
                                                     "subject_en",
                                                     "subject_am",
+                                                    "subject_om",
                                                     "body_en",
                                                     "body_am",
+                                                    "body_om",
                                                     "is_customized",
                                                     "variables"
                                                 ]
