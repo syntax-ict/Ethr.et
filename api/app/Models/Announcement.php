@@ -38,6 +38,9 @@ class Announcement extends Model
      */
     public const CATEGORIES = ['news', 'notice', 'event', 'deadline'];
 
+    /** How many stories the public news page lists at a time. */
+    public const NEWS_PER_PAGE = 9;
+
     /** How many documents a story may carry. */
     public const ATTACHMENTS_MAX = 3;
 
@@ -223,6 +226,25 @@ class Announcement extends Model
             ->notExpired()
             ->where('show_on_landing', true)
             ->where('target_type', 'all');
+    }
+
+    /**
+     * The order the public news page lists stories in, and the one place it
+     * is written: featured first, then urgent and important, then newest. The
+     * feed, the news list, a story's related stories and the server-rendered
+     * head of the news page all read through this, so the list a crawler is
+     * given is the list a visitor sees.
+     *
+     * @param  Builder<Announcement>  $query
+     * @return Builder<Announcement>
+     */
+    public function scopeNewsOrder(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('featured')
+            ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")
+            ->orderByDesc('published_at')
+            ->orderByDesc('id');
     }
 
     public function publisher(): BelongsTo
