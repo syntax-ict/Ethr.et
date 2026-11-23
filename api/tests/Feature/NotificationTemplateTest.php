@@ -422,12 +422,14 @@ it('falls back to the English built-in text for a field a locale has none for', 
         ->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_en']);
 });
 
-it('keeps the shipped English subjects and bodies free of em dashes', function () {
+it('keeps every shipped subject and body, in every language, free of em dashes', function () {
     expect(NotificationTemplates::DEFAULTS['missing_punch']['subject_en'])->toBe('Missing {punch_type} on {date}');
 
     foreach (NotificationTemplates::DEFAULTS as $type => $fields) {
-        expect($fields['subject_en'])->not->toContain('—', "{$type} subject_en")
-            ->and($fields['body_en'])->not->toContain('—', "{$type} body_en");
+        foreach (NotificationTemplates::FIELDS as $field) {
+            expect($fields)->toHaveKey($field)
+                ->and($fields[$field])->not->toContain('—', "{$type} {$field}");
+        }
     }
 });
 

@@ -77,10 +77,10 @@ final class NotificationTemplates
     public const DEFAULTS = [
         'leave_requested' => [
             'subject_en' => 'New leave request from {employee_name}',
-            'subject_am' => 'አዲስ የፈቃድ ጥያቄ — {employee_name}',
+            'subject_am' => 'አዲስ የፈቃድ ጥያቄ፦ {employee_name}',
             'body_en' => '{employee_name} has submitted a {leave_type} request from {start_date} to {end_date} ({days} days). It is waiting for your approval.',
             'body_am' => '{employee_name} ከ{start_date} እስከ {end_date} ({days} ቀናት) {leave_type} ጥያቄ አቅርበዋል። ፈቃድዎ ያስፈልጋል።',
-            'subject_om' => 'Gaaffii boqonnaa haaraa — {employee_name}',
+            'subject_om' => 'Gaaffii boqonnaa haaraa: {employee_name}',
             'body_om' => '{employee_name} gaaffii {leave_type} {start_date} irraa hanga {end_date} ({days} guyyaa) dhiyeesseera. Raggaasisa keessan eeggachaa jira.',
         ],
         'leave_approved' => [
@@ -109,7 +109,7 @@ final class NotificationTemplates
         ],
         'payslip_available' => [
             'subject_en' => 'Your payslip for {period} is ready',
-            'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው — {period}',
+            'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው፦ {period}',
             'body_en' => 'Your payslip for {period} is now available. Log in to view and download it.',
             'body_am' => 'ለ{period} የደመወዝ ሰነድዎ አሁን ዝግጁ ነው። ለማየት እና ለማውረድ ይግቡ።',
             'subject_om' => "Waraqaan mindaa {period} keessanii qophaa'eera",
@@ -117,10 +117,10 @@ final class NotificationTemplates
         ],
         'missing_punch' => [
             'subject_en' => 'Missing {punch_type} on {date}',
-            'subject_am' => 'የ{punch_type} ምዝገባ ጉድለት — {date}',
+            'subject_am' => 'የ{punch_type} ምዝገባ ጉድለት፦ {date}',
             'body_en' => "{employee_name} is missing a {punch_type} for {date}.\nReview the attendance record and request a correction if needed.",
             'body_am' => "{employee_name}፦ ለ{date} የ{punch_type} ምዝገባ የለም።\nእባክዎ የሰዓት መዝገቡን ይመልከቱ፤ አስፈላጊ ከሆነ ማስተካከያ ይጠይቁ።",
-            'subject_om' => '{punch_type} hin galmoofne — {date}',
+            'subject_om' => '{punch_type} hin galmoofne: {date}',
             'body_om' => "{employee_name} guyyaa {date} {punch_type} hin galmeessine.\nGalmee argamaa ilaalaa; yoo barbaachise sirreeffama gaafadhaa.",
         ],
         'trial_expiring' => [
