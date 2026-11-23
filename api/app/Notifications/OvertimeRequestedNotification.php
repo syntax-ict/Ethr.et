@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\OvertimeRequest;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
@@ -20,19 +21,14 @@ class OvertimeRequestedNotification extends Notification
         private readonly OvertimeRequest $request,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'overtime_request';
+        return NotificationType::OVERTIME_REQUEST;
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database'], broadcast: true);
     }
 
     public function toArray(object $notifiable): array

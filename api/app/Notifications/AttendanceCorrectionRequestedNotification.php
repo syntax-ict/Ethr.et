@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\AttendanceCorrection;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
@@ -18,19 +19,14 @@ class AttendanceCorrectionRequestedNotification extends Notification
         private readonly AttendanceCorrection $correction,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'attendance_correction';
+        return NotificationType::ATTENDANCE_CORRECTION;
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database'], broadcast: true);
     }
 
     public function toArray(object $notifiable): array

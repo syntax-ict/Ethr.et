@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
@@ -29,9 +30,9 @@ class ExpiryReminderNotification extends Notification implements BulkMail
      */
     public function __construct(private readonly array $lines) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'expiry_reminder';
+        return NotificationType::EXPIRY_REMINDER;
     }
 
     public function via(object $notifiable): array

@@ -18,10 +18,9 @@ return [
     // down precisely what the config appears to invite.
     //
     // Coalescing back to the 'null' driver honours the intent. `log` remains
-    // the better choice for a first deployment: it satisfies the twelve
-    // notification classes that guard on
-    // `config('broadcasting.default') === 'reverb'` just as 'null' does, and it
-    // leaves a trace when something tries to broadcast.
+    // the better choice for a first deployment: like 'null' it is off for
+    // `App\Support\LiveUpdates`, which every notification and event asks, and a
+    // misconfigured value fails loudly instead of silently.
     // Default changed from 'reverb' to 'null', 2026-09-25. Reverb needs a
     // long-running daemon; defaulting to it meant a checkout with no `.env`
     // built a Reverb broadcaster with a null Pusher key at `package:discover`
