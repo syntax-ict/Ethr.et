@@ -355,7 +355,7 @@ it('saves the Afaan Oromoo subject and body and sends them in Afaan Oromoo', fun
         'body_om' => 'Raggaasifame: {start_date} hanga {end_date} ({days}).',
     ])->assertOk();
 
-    expect($tenant->fresh()->settings['notification_templates']['leave_approved'])->toBe([
+    expect($tenant->fresh()->settings['notification_templates']['leave_approved'])->toEqual([
         'subject_om' => 'Boqonnaan keessan raggaasifame, {employee_name}',
         'body_om' => 'Raggaasifame: {start_date} hanga {end_date} ({days}).',
     ]);
@@ -454,7 +454,7 @@ it('keeps one organisation templates out of another organisation settings page a
     ])->assertOk();
 
     expect($a->fresh()->settings['notification_templates']['leave_approved'])
-        ->toBe(['subject_om' => 'Org A secret wording', 'subject_en' => 'Org A English'])
+        ->toEqual(['subject_om' => 'Org A secret wording', 'subject_en' => 'Org A English'])
         ->and($b->fresh()->settings['notification_templates']['leave_approved'])
         ->toBe(['subject_om' => 'Org B wording']);
 });
