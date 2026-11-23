@@ -15,6 +15,8 @@ import {
   useUpdateOrganization,
   type OrganizationUpdate,
 } from "@/features/settings/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +96,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
   const { formatDate } = useCalendar();
   const updateOrganization = useUpdateOrganization();
   const organizationTypes = useOrganizationTypes();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const [name, setName] = useState(organization?.name ?? "");
   const [type, setType] = useState(organization?.type ?? "");
@@ -129,6 +132,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     timezone !== (organization?.timezone ?? "Africa/Addis_Ababa") ||
     locale !== (organization?.locale ?? "en") ||
     kind !== (organization?.organization_type ?? "private");
+  useUnsavedChangesWarning(dirty);
 
   // The kind is sent when it changed, or to confirm one the migration
   // guessed. Re-sending the kind in force would say nothing, and a scheduled
@@ -139,11 +143,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     updateOrganization.mutate(
       { cancel_pending_organization_type: true },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             t("settings.organization_kind_cancelled", "Change cancelled"),
-          ),
-        onError: (err) =>
+          );
+          announceSaved(
+            t("settings.organization_kind_cancelled", "Change cancelled"),
+          );
+        },
+        onError: (err) => {
           toast.error(
             apiErrorMessage(
               err,
@@ -152,7 +160,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 "Could not update the organisation",
               ),
             ),
-          ),
+          );
+          announceError(
+            err,
+            t(
+              "settings.organization_save_failed",
+              "Could not update the organisation",
+            ),
+          );
+        },
       },
     );
   }
@@ -170,11 +186,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
         ...(askDate ? { effective_from: kindFrom } : {}),
       },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             t("settings.organization_saved", "Organisation updated"),
-          ),
-        onError: (err) =>
+          );
+          announceSaved(
+            t("settings.organization_saved", "Organisation updated"),
+          );
+        },
+        onError: (err) => {
           toast.error(
             apiErrorMessage(
               err,
@@ -183,7 +203,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 "Could not update the organisation",
               ),
             ),
-          ),
+          );
+          announceError(
+            err,
+            t(
+              "settings.organization_save_failed",
+              "Could not update the organisation",
+            ),
+          );
+        },
       },
     );
   }

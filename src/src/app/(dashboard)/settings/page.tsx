@@ -11,6 +11,8 @@ import {
   KeyRound,
   Copy,
 } from "lucide-react";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +109,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
   const updateSettings = useUpdateSettings();
   const updateSso = useUpdateSso();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const [dirty, setDirty] = useState<SecurityDraft>({});
   // The API names the failing field ("settings.session_timeout_minutes"); a
@@ -158,9 +161,11 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
       onSuccess: () => {
         setDirty({});
         toast.success(t("settings.saved", "Settings saved"));
+        announceSaved();
       },
       onError: (error) => {
         setSecurityErrors(fieldErrors(error));
+        announceError(error);
         toastError(
           error,
           t("settings.save_failed", "Failed to save settings"),
@@ -191,9 +196,14 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   ) {
     setPendingDisplay((p) => ({ ...p, ...display }));
     updateSettings.mutate(display, {
-      onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
-      onError: (error) =>
-        toastError(error, t("settings.save_failed", "Failed to save settings")),
+      onSuccess: () => {
+        toast.success(t("settings.saved", "Settings saved"));
+        announceSaved();
+      },
+      onError: (error) => {
+        announceError(error);
+        toastError(error, t("settings.save_failed", "Failed to save settings"));
+      },
       onSettled: () => setPendingDisplay({}),
     });
   }
@@ -204,9 +214,14 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
       onSuccess: () => {
         setSsoDirty({});
         toast.success(t("settings.sso_saved", "SSO settings saved"));
+        announceSaved(t("settings.sso_saved", "SSO settings saved"));
       },
       onError: (err) => {
         setSsoErrors(fieldErrors(err));
+        announceError(
+          err,
+          t("settings.sso_save_failed", "Failed to save SSO settings"),
+        );
         toast.error(
           apiErrorMessage(
             err,
@@ -266,6 +281,22 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   }
 
   const hasDirty = Object.keys(dirty).length > 0;
+
+  // Differs from what was loaded, not merely touched: a value typed or
+  // chosen back to the saved one is not a change. The certificate is
+  // write-only (the server never returns it), so anything typed counts.
+  const securityChanged = (
+    Object.entries(dirty) as [keyof SecurityDraft, string | undefined][]
+  ).some(
+    ([key, value]) =>
+      value !== undefined && value !== String(data.security[key]),
+  );
+  const ssoChanged = Object.entries(ssoDirty).some(([key, value]) =>
+    key === "idp_certificate"
+      ? typeof value === "string" && value.trim() !== ""
+      : value !== (data.sso as unknown as Record<string, unknown>)[key],
+  );
+  useUnsavedChangesWarning(securityChanged || ssoChanged);
 
   return (
     <div className="space-y-6">

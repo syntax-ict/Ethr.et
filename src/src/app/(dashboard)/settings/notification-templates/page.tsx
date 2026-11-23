@@ -27,6 +27,8 @@ import {
 } from "@/features/settings/api";
 import { toast } from "sonner";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useNotificationTypeLabel } from "@/lib/options/notification-type";
 
@@ -90,6 +92,16 @@ export default function NotificationTemplatesPage() {
   const templatesQuery = useNotificationTemplates();
   const update = useUpdateNotificationTemplate();
   const typeLabel = useTypeLabel();
+  const { announceSaved, announceError } = useSaveStatus();
+
+  // The dialog is the form: dirty when a field differs from the template it
+  // was opened on. Saving or cancelling closes it, which clears the warning.
+  useUnsavedChangesWarning(
+    editing !== null &&
+      (Object.keys(form) as TemplateField[]).some(
+        (field) => form[field] !== editing[field],
+      ),
+  );
 
   function openEdit(template: NotificationTemplate) {
     setForm({
@@ -116,11 +128,19 @@ export default function NotificationTemplatesPage() {
         onSuccess: () => {
           setEditing(null);
           toast.success(t("settings.template_updated", "Template updated"));
+          announceSaved(t("settings.template_updated", "Template updated"));
         },
         onError: (err) => {
           // An unknown {placeholder} comes back as a 422 on the field that
           // carries it; show it there rather than in a toast that vanishes.
           setErrors(fieldErrors(err));
+          announceError(
+            err,
+            t(
+              "settings.template_update_failed",
+              "The template could not be saved.",
+            ),
+          );
           toastError(
             err,
             t(

@@ -58,6 +58,8 @@ import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { fieldMessage, rules } from "@/lib/forms/rules";
 import { useZodForm } from "@/lib/forms/use-zod-form";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 
 const REQUEST_TYPES = [
@@ -282,12 +284,17 @@ export default function ApprovalChainsPage() {
     reset,
     watch,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<ChainValues>({
     schema: chainSchema,
     defaultValues: EMPTY_CHAIN,
     fields: FORM_FIELDS,
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(dialogOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
   const steps = useFieldArray({ control, name: "steps" });
   const requestType = watch("request_type");
 
@@ -418,6 +425,11 @@ export default function ApprovalChainsPage() {
         ? t("approval_chains.saved", "Approval chain saved")
         : t("approval_chains.created", "Approval chain created"),
     );
+    announceSaved(
+      editingId
+        ? t("approval_chains.saved", "Approval chain saved")
+        : t("approval_chains.created", "Approval chain created"),
+    );
     setDialogOpen(false);
   }
 
@@ -436,18 +448,21 @@ export default function ApprovalChainsPage() {
     if (!ok) return;
 
     remove.mutate(w.public_id, {
-      onSuccess: () =>
-        toast.success(t("approval_chains.deleted", "Approval chain deleted")),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "approval_chains.delete_failed",
-              "The approval chain could not be deleted.",
-            ),
+      onSuccess: () => {
+        toast.success(t("approval_chains.deleted", "Approval chain deleted"));
+        announceSaved(t("approval_chains.deleted", "Approval chain deleted"));
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t(
+            "approval_chains.delete_failed",
+            "The approval chain could not be deleted.",
           ),
-        ),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

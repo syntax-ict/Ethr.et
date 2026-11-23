@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSaveStatus } from "@/components/shared/save-status";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useUpdateSettings } from "../api";
 
@@ -21,6 +23,7 @@ const MAX_HOURS = 72;
 export function ActivationCodeCard({ hours }: { hours: number }) {
   const { t } = useT();
   const update = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
   const [draft, setDraft] = useState<string | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -33,6 +36,8 @@ export function ActivationCodeCard({ hours }: { hours: number }) {
       number >= 1 &&
       number <= MAX_HOURS
     );
+  // Typing the saved value back in is not a change.
+  useUnsavedChangesWarning(draft !== undefined && draft !== String(hours));
   const serverError = errors["settings.activation_code_hours"];
   const showError = invalid || !!serverError;
 
@@ -45,9 +50,11 @@ export function ActivationCodeCard({ hours }: { hours: number }) {
         onSuccess: () => {
           setDraft(undefined);
           toast.success(t("settings.saved", "Settings saved"));
+          announceSaved();
         },
         onError: (error) => {
           setErrors(fieldErrors(error));
+          announceError(error);
           toastError(
             error,
             t("settings.save_failed", "Failed to save settings"),
