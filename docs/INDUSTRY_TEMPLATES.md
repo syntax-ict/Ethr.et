@@ -90,7 +90,7 @@ Hamle for `government`), not from this profile.
 | `custom` | annual, sick, unpaid | Meskerem (1) | none |
 
 Labour Proclamation 1156/2019 does not govern civil servants; the Federal Civil
-Servants Proclamation 1064/2017 and regional civil service laws do. So the
+Servants Proclamation 1353/2024 (which repealed 1064/2017) and regional civil service laws do. So the
 public profile is not presented as compliant: its leave values are ETHR's general
 `LeaveTypeCatalog` defaults, and the plan says so in a review note.
 

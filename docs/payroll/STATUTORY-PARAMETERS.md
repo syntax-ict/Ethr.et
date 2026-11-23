@@ -69,7 +69,8 @@ for each code its `layer` (`baseline`, `parent_type`, `organization_type`,
 
 Each platform row carries the `profile_versions` batch it was published in:
 `2026.11.1` for every row in place on 2026-11-09, `2026.11.2` for the leave,
-sick-pay, deduction-cap and pension-coverage rows. A change in the law is a
+sick-pay, deduction-cap and pension-coverage rows, and `2026.11.3` for the
+employment framework rows. A change in the law is a
 new batch of new dated rows; it never touches an organisation's own rows, and
 no organisation pins a batch: the law in force on a payroll date is the law
 applied.
@@ -77,7 +78,7 @@ applied.
 ### Seeing and resetting them
 
 Settings → Payroll → Statutory rules (`GET /payroll/statutory-rules`,
-`payroll.viewConfig`) lists every code in force with its layer, enforcement,
+`payroll.viewConfig`) lists every payroll code in force with its layer, enforcement,
 legal reference, batch and the default it would have without the organisation's
 own value. A `default` code is changed where it always was (`PUT /settings`) and
 reset here (`DELETE /payroll/statutory-rules/{code}`, `payroll.manageConfig`),
@@ -97,6 +98,47 @@ keys; `StatutorySettingsBridge` writes a saved key through to the row (dated
 from the platform's first row for the code, because a key applied to every
 period), and removing the key removes the row. The `tenant_setting` source is
 retired.
+
+## Domains
+
+Every rule carries a `domain`: `payroll` (the default, and every row that
+existed before 2026-11-23) or `employment`, added on 2026-11-23 for HR rules.
+Payroll, its calculation log and the Statutory rules page read the payroll
+domain only, so an employment rule never reaches a payslip or that page.
+
+Every employment code starts with `employment.`, and the model derives the
+domain from that prefix when a writer does not state one, so an HR rule cannot
+land in payroll's set by omission. An explicitly stated domain is respected.
+
+Employment rows are `advisory` and unconfirmed. They are read through
+`StatutoryRules::employment()` and `StatutoryRules::framework()`, resolved by
+organisation kind exactly as payroll rules are. A missing employment rule is
+read with `find()`, `describe()` or `framework()`, which answer null and never
+fall back to a default; `get()` and the typed accessors are payroll's and
+refuse. `describe()` carries `confirmed`, `layer` and `legal_reference`, which
+a screen must show because every employment row is unconfirmed; `framework()`
+alone does not say whether its value is confirmed.
+
+A row starts on the date of the law it cites (`government` and
+`regional_government` from 2025-01-09, the labour kinds from 2019-09-05), so an
+earlier date answers null.
+
+The first employment rule, `employment.framework`, names the body of law that
+governs an organisation's staff (batch `2026.11.3`):
+
+| Organisation kind | Value | Source | Confirmed |
+|---|---|---|---|
+| `private` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3 | no |
+| `ngo` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3 | no |
+| `public_enterprise` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3; Federal Civil Servants Proclamation No. 1353/2024, Art. 2 | no |
+| `government` | `federal_civil_service` | Federal Civil Servants Proclamation No. 1353/2024, Arts. 2 and 3 | no |
+| `regional_government` | `regional_civil_service` | Federal Civil Servants Proclamation No. 1353/2024, Arts. 2 and 3 | no |
+| `defence_police` | `unspecified` | Labour Proclamation No. 1156/2019, Art. 3(2)(e) | no |
+| `international_organization` | `unspecified` | none recorded | no |
+
+Child kinds inherit through their parent, except `regional_government`, which
+has its own row. The law behind each rule is traced in
+[`../EMPLOYMENT-LAW-REGISTER.md`](../EMPLOYMENT-LAW-REGISTER.md).
 
 ## Organisation types
 

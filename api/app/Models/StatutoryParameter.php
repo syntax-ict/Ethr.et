@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string $public_id
  * @property int|null $tenant_id
  * @property string $code
+ * @property string $domain
  * @property string|null $organization_type
  * @property mixed $value
  * @property bool $tenant_overridable
@@ -58,10 +59,27 @@ class StatutoryParameter extends Model
 
     public const ENFORCEMENTS = [self::LOCKED, self::DEFAULT, self::ADVISORY];
 
+    /** Rules payroll reads; the only domain its calculation log and the Statutory rules page list. */
+    public const DOMAIN_PAYROLL = 'payroll';
+
+    /** Employment-law rules for HR features; payroll never reads them. */
+    public const DOMAIN_EMPLOYMENT = 'employment';
+
+    public const DOMAINS = [self::DOMAIN_PAYROLL, self::DOMAIN_EMPLOYMENT];
+
+    public const EMPLOYMENT_PREFIX = 'employment.';
+
+    /** The domain a code belongs to, so a writer that forgets the domain cannot drop an HR rule into payroll's set. */
+    public static function domainOf(string $code): string
+    {
+        return str_starts_with($code, self::EMPLOYMENT_PREFIX) ? self::DOMAIN_EMPLOYMENT : self::DOMAIN_PAYROLL;
+    }
+
     protected static function booted(): void
     {
         static::saving(function (StatutoryParameter $row): void {
             $row->enforcement ??= self::LOCKED;
+            $row->domain ??= self::domainOf($row->code);
             $row->tenant_overridable = $row->enforcement !== self::LOCKED;
         });
     }
@@ -70,6 +88,7 @@ class StatutoryParameter extends Model
         'public_id',
         'tenant_id',
         'code',
+        'domain',
         'organization_type',
         'value',
         'tenant_overridable',
