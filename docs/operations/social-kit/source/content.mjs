@@ -176,7 +176,7 @@ export const LABELS = {
     cta: ["6-month free trial", "No credit card", "Cancel anytime"],
   },
   am: {
-    offline: "ከመስመር ውጪ",
+    offline: "ከመስመር ውጭ",
     synced: "ተመሳስሏል",
     checkIn: "መግቢያ",
     payslip: "የደመወዝ ወረቀት",
