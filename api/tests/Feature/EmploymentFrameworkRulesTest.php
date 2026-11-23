@@ -170,3 +170,26 @@ it('finds a rule or answers null, while get() on a missing code still refuses', 
 
     expect(fn () => $employment->get('employment.absence.grounds'))->toThrow(PayrollRunRefused::class, 'employment.absence.grounds');
 });
+
+it('resolves an organisation own employment row where its kind has no platform row, and never does so for payroll', function () {
+    $tenant = createTenant(['organization_type' => 'ngo']);
+    DB::table('statutory_parameters')->where('code', 'employment.framework')->whereNull('tenant_id')->where('organization_type', 'ngo')->delete();
+    employmentRowFor($tenant->id, null, 'unspecified');
+    $rules = app(StatutoryRules::class);
+    $rules->forget();
+
+    $found = $rules->employment($tenant, Carbon::parse('2026-06-01'))->describe('employment.framework');
+    expect($found['value'])->toBe('unspecified')
+        ->and($found['layer'])->toBe('tenant');
+
+    // A payroll code with an own row and no platform row stays absent.
+    DB::table('statutory_parameters')->insert([
+        'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'organization_type' => null,
+        'code' => 'payroll.test_only_code', 'domain' => 'payroll', 'value' => json_encode(5),
+        'tenant_overridable' => true, 'enforcement' => 'default', 'confirmed' => false,
+        'effective_from' => '2019-09-05', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $rules->forget();
+
+    expect($rules->for($tenant, Carbon::parse('2026-06-01'))->has('payroll.test_only_code'))->toBeFalse();
+});

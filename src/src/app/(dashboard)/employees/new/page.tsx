@@ -73,6 +73,7 @@ import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { toast } from "sonner";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { FrameworkExceptionField } from "@/features/employees/components/framework-exception-field";
 import { ExistingEmployeeDialog } from "@/features/employees/components/existing-employee-dialog";
 import {
   employeeLikeness,
@@ -223,6 +224,8 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   // a payslip (production QA 2026-10-11, P15). Off by default: on would email
   // every person entered, which an admin keying in records may not intend.
   const [sendLogin, setSendLogin] = useState(false);
+  const [outsideFramework, setOutsideFramework] = useState(false);
+  const [frameworkNote, setFrameworkNote] = useState("");
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   useUnsavedChangesWarning(hasUnsavedChanges);
@@ -268,6 +271,8 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
     // An address is the person's own, not where the next hire starts.
     setAddress(EMPTY_ADDRESS);
     setSendLogin(false);
+    setOutsideFramework(false);
+    setFrameworkNote("");
     setHasUnsavedChanges(false);
     setFormKey((k) => k + 1);
     toast.success(
@@ -320,6 +325,12 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       supervisor_id: form.supervisor_id || null,
       team_id: form.team_id || null,
       cost_center_id: form.cost_center_id || null,
+      ...(outsideFramework
+        ? {
+            outside_employment_framework: true,
+            employment_framework_note: frameworkNote.trim() || null,
+          }
+        : {}),
       ...(sendLogin && (form.email || !form.phone)
         ? { create_login: true, user_role: "employee" as const }
         : {}),
@@ -985,6 +996,21 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
                 onChange={(v) => updateField("cost_center_id", v)}
               />
             </FormField>
+
+            <FrameworkExceptionField
+              idPrefix="create"
+              outside={outsideFramework}
+              note={frameworkNote}
+              onOutsideChange={(v) => {
+                setOutsideFramework(v);
+                setHasUnsavedChanges(true);
+              }}
+              onNoteChange={(v) => {
+                setFrameworkNote(v);
+                setHasUnsavedChanges(true);
+              }}
+              className="sm:col-span-2"
+            />
 
             <FormField
               id="badge_number"

@@ -140,6 +140,37 @@ Child kinds inherit through their parent, except `regional_government`, which
 has its own row. The law behind each rule is traced in
 [`../EMPLOYMENT-LAW-REGISTER.md`](../EMPLOYMENT-LAW-REGISTER.md).
 
+### An organisation's own framework (since 2026-11-24)
+
+An organisation sees ETHR's reading in Settings (`GET /settings`,
+`organization.employment_framework`: `framework`, `confirmed`, `source`,
+`legal_reference`, `has_statutory_rules`, `ethr_reading`) and records its own
+with `PUT /settings/organization` and `employment_framework`: a value sets it,
+`null` goes back to ETHR's reading, an absent key changes nothing. The
+organisation's own row is `confirmed` (it recorded it) and, unlike ETHR's, has
+no legal reference. `App\Services\Employment\EmploymentFrameworks` writes it.
+
+The write is dated and never edits history. A row that started before today is
+closed the day before and a new one starts today, in the organisation's own
+zone, so `StatutoryRules::framework()` for an earlier date still answers what
+it did then. Only a row that started today is changed in place, or deleted by a
+reset. Saying what is already recorded writes nothing and no audit row; every
+real change is audited as `statutory_parameter.overridden` or
+`statutory_parameter.reset`. A support session may not set or reset it
+(`BlockImpersonatedActions`), and changing the organisation's kind leaves its
+own row in force.
+
+Because ETHR may have no row for a kind, the resolver lets an organisation's own
+**employment** row stand alone when no platform row exists for the code. A
+payroll code with no platform row stays absent, as before.
+
+`EmploymentFrameworks::forEmployee($employee, $on)` answers which framework
+governs one person: null when `employees.outside_employment_framework` is set
+(a managerial employee of a private company, mixed staff of a public
+enterprise; the optional `employment_framework_note` says why), otherwise the
+organisation's. A feature that needs a person's framework must call it and
+treat null as "ask", never as a default.
+
 ## Organisation types
 
 A global catalogue (`organization_types`), written by migrations: there is

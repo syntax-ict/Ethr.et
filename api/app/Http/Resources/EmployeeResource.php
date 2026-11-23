@@ -68,6 +68,8 @@ class EmployeeResource extends JsonResource
             'probation_end_date' => $this->probation_end_date?->format('Y-m-d'),
             'confirmation_date' => $this->confirmation_date?->format('Y-m-d'),
             'termination_date' => $this->termination_date?->format('Y-m-d'),
+            'outside_employment_framework' => (bool) $this->outside_employment_framework,
+            'employment_framework_note' => $this->employment_framework_note,
             'salary_cents' => $this->when($showPay, fn () => $this->whenHas('salary_cents')),
             'sign_in' => $this->when($signIn !== null, $signIn),
             'photo_path' => $photoPath,

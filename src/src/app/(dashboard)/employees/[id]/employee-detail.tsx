@@ -67,6 +67,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { FrameworkExceptionField } from "@/features/employees/components/framework-exception-field";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PrintAction } from "@/components/shared/print-action";
@@ -132,11 +133,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const { data: costCenters } = costCentersApi.useList();
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [editAddress, setEditAddress] = useState<AddressFields>(EMPTY_ADDRESS);
+  const [editOutside, setEditOutside] = useState(false);
+  const [editFrameworkNote, setEditFrameworkNote] = useState("");
   const formatAddress = useFormatAddress();
 
   function startEdit() {
     if (!employee) return;
     setEditAddress(addressFromRecord(employee));
+    setEditOutside(employee.outside_employment_framework === true);
+    setEditFrameworkNote(employee.employment_framework_note ?? "");
     setEditForm({
       name: employee.name ?? "",
       email: employee.email ?? "",
@@ -160,7 +165,14 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
 
   function handleSave() {
     updateEmployee.mutate(
-      { ...editForm, ...addressToPayload(editAddress) },
+      {
+        ...editForm,
+        ...addressToPayload(editAddress),
+        outside_employment_framework: editOutside,
+        employment_framework_note: editOutside
+          ? editFrameworkNote.trim() || null
+          : null,
+      },
       {
         onSuccess: () => {
           toast.success(t("employee.detail.updated", "Employee updated"));
@@ -455,6 +467,13 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         setEditForm((p) => ({ ...p, cost_center_id: v }))
                       }
                     />
+                    <FrameworkExceptionField
+                      idPrefix="edit"
+                      outside={editOutside}
+                      note={editFrameworkNote}
+                      onOutsideChange={setEditOutside}
+                      onNoteChange={setEditFrameworkNote}
+                    />
                   </>
                 ) : (
                   <>
@@ -499,6 +518,23 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         </span>
                       }
                     />
+                    {employee.outside_employment_framework && (
+                      <InfoRow
+                        label={t(
+                          "employee.detail.employment_law",
+                          "Employment law",
+                        )}
+                        value={[
+                          t(
+                            "employee.outside_framework",
+                            "Not covered by the organisation's employment law",
+                          ),
+                          employee.employment_framework_note,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      />
+                    )}
                     {employee.gender && (
                       <InfoRow
                         label={t("employee.detail.gender", "Gender")}

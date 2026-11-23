@@ -7,6 +7,10 @@ import {
   EDUCATION_LEVELS,
   educationLevelLabel,
 } from "@/lib/options/education-level";
+import {
+  EMPLOYMENT_FRAMEWORKS,
+  employmentFrameworkLabel,
+} from "@/lib/options/employment-framework";
 import { GENDERS, genderOptionLabel } from "@/lib/options/gender";
 import {
   MARITAL_STATUSES,
@@ -34,6 +38,7 @@ const LISTS = [
   ["relationship", RELATIONSHIPS, relationshipLabel],
   ["education level", EDUCATION_LEVELS, educationLevelLabel],
   ["notification type", NOTIFICATION_TYPES, notificationTypeLabel],
+  ["employment framework", EMPLOYMENT_FRAMEWORKS, employmentFrameworkLabel],
 ] as const;
 
 const LOCALES: Record<string, Record<string, string>> = { en, am, om };

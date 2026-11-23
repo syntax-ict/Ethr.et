@@ -10715,6 +10715,8 @@ export interface components {
             probation_end_date: string | null;
             confirmation_date: string | null;
             termination_date: string | null;
+            outside_employment_framework: boolean;
+            employment_framework_note: string | null;
             salary_cents?: number;
             /** @enum {string|null} */
             sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;
@@ -10762,6 +10764,12 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * EmploymentFramework
+         * @description The body of employment law an organisation's staff are governed by, held as the `employment.framework` rule of the employment domain (docs/payroll/STATUTORY-PARAMETERS.md, "Domains"). LABOUR_PROCLAMATION is the private-sector Labour Proclamation, FEDERAL_CIVIL_SERVICE the Federal Civil Servants Proclamation, REGIONAL_CIVIL_SERVICE the civil service law of each region, and UNSPECIFIED a kind whose governing law has not been read.  The codes carry no proclamation number because laws are replaced; the number lives in the rule's legal reference, which a new row can change.
+         * @enum {string}
+         */
+        EmploymentFramework: "labour_proclamation" | "federal_civil_service" | "regional_civil_service" | "unspecified";
         /** EnableMfaRequest */
         EnableMfaRequest: {
             secret: string;
@@ -12943,6 +12951,8 @@ export interface components {
             hire_date: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
             tin?: string | null;
             department_id?: string | null;
@@ -13744,6 +13754,8 @@ export interface components {
             hire_date?: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
             /** Format: date-time */
             salary_effective_date?: string | null;
@@ -13998,6 +14010,7 @@ export interface components {
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om";
+            employment_framework?: components["schemas"]["EmploymentFramework"] | null;
         };
         /**
          * UpdateOvertimeRatesRequest
@@ -36735,6 +36748,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                         address: {
                             mode: string;
@@ -36998,6 +37020,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                     };
                 };

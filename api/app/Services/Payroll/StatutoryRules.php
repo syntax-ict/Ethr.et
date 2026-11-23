@@ -137,6 +137,14 @@ final class StatutoryRules
             }
 
             if ($platform === null) {
+                $alone = $domain === StatutoryParameter::DOMAIN_EMPLOYMENT && $tenantId !== null
+                    ? $candidates->first(fn (StatutoryParameter $row) => $row->tenant_id !== null && (int) $row->tenant_id === $tenantId)
+                    : null;
+
+                if ($alone !== null) {
+                    $rules[$code] = $this->describe($alone, 'tenant');
+                }
+
                 continue;
             }
 

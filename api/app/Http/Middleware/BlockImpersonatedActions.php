@@ -60,7 +60,8 @@ class BlockImpersonatedActions
      * Actions an operator may use, except for the fields named here.
      *
      * The organisation's kind in law decides which statutory rules apply and so
-     * who its pension schedule is addressed to; the four statutory settings
+     * who its pension schedule is addressed to, and the employment framework is
+     * the law the organisation says governs its staff; the four statutory settings
      * decide how pay is worked out. An operator fixing a name, a timezone or a
      * language for a customer who asked must still be able to, so these are
      * refused by what the request carries, not by the action: a request that
@@ -78,6 +79,7 @@ class BlockImpersonatedActions
                 'organization_type',
                 'effective_from',
                 'cancel_pending_organization_type',
+                'employment_framework',
             ],
             SettingsController::class.'@update' => array_map(
                 static fn (string $key): string => 'settings.'.$key,

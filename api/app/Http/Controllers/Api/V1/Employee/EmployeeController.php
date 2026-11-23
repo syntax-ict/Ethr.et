@@ -32,6 +32,7 @@ use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
 use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
+use App\Support\FrameworkExemption;
 use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
@@ -190,6 +191,7 @@ class EmployeeController extends Controller
         $confirmedNew = (bool) ($data['confirm_new'] ?? false);
         unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
+        $data = FrameworkExemption::normalise($data, false);
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
         // Unset means the column default, Ethiopian — never a null.

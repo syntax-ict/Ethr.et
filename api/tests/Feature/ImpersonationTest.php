@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Auth\SessionCookie;
 use App\Services\Onboarding\IndustryCatalog;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -392,6 +393,22 @@ test('an impersonated session cannot schedule or withdraw a change of kind', fun
     'the same kind, confirmed' => [['organization_type' => 'private']],
     'a name sent with a kind' => [['name' => 'Renamed', 'organization_type' => 'ngo']],
 ]);
+
+test('an impersonated session cannot set or reset the employment framework', function (mixed $value) {
+    [$tenant, $impersonation, $own] = kindFixture();
+
+    freshBearer($own);
+    test()->putJson(kindUrl($tenant), ['employment_framework' => 'unspecified'])->assertOk();
+    $rows = DB::table('statutory_parameters')->where('tenant_id', $tenant->id)->where('code', 'employment.framework')->get();
+
+    freshBearer($impersonation);
+    test()->putJson(kindUrl($tenant), ['employment_framework' => $value])
+        ->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect(DB::table('statutory_parameters')->where('tenant_id', $tenant->id)->where('code', 'employment.framework')->get())->toEqual($rows);
+})->with(['a value' => ['labour_proclamation'], 'a reset' => [null]]);
 
 test('an impersonated session can still correct the name, timezone and language', function () {
     [$tenant, $impersonation] = kindFixture();

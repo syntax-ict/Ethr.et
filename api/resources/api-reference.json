@@ -39353,6 +39353,54 @@
                                                         "string",
                                                         "null"
                                                     ]
+                                                },
+                                                "employment_framework": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "framework": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "confirmed": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "source": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ],
+                                                            "enum": [
+                                                                "organisation",
+                                                                "ethr",
+                                                                null
+                                                            ]
+                                                        },
+                                                        "legal_reference": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "has_statutory_rules": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "ethr_reading": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "framework",
+                                                        "confirmed",
+                                                        "source",
+                                                        "legal_reference",
+                                                        "has_statutory_rules",
+                                                        "ethr_reading"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -39364,7 +39412,8 @@
                                                 "organization_type",
                                                 "organization_type_needs_review",
                                                 "organization_type_pending",
-                                                "organization_type_earliest_change"
+                                                "organization_type_earliest_change",
+                                                "employment_framework"
                                             ]
                                         },
                                         "address": {
@@ -51361,6 +51410,15 @@
                             "null"
                         ]
                     },
+                    "outside_employment_framework": {
+                        "type": "boolean"
+                    },
+                    "employment_framework_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "salary_cents": {
                         "type": "integer"
                     },
@@ -51536,6 +51594,8 @@
                     "probation_end_date",
                     "confirmation_date",
                     "termination_date",
+                    "outside_employment_framework",
+                    "employment_framework_note",
                     "photo_path",
                     "photo_url",
                     "photo_thumb_url",
@@ -58379,6 +58439,16 @@
                         ],
                         "format": "date-time"
                     },
+                    "outside_employment_framework": {
+                        "type": "boolean"
+                    },
+                    "employment_framework_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
                     "salary_cents": {
                         "type": [
                             "integer",
@@ -60715,6 +60785,16 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "outside_employment_framework": {
+                        "type": "boolean"
+                    },
+                    "employment_framework_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
                     },
                     "salary_cents": {
                         "type": [
