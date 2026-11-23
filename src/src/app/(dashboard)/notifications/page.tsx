@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,26 +9,30 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import {
   useNotifications,
-  useMarkAsRead,
   useMarkAllAsRead,
-  notificationText,
-  notificationLink,
   type Notification,
 } from "@/features/notifications/api";
-import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { NotificationItem } from "@/features/notifications/components/notification-item";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { ErrorState } from "@/components/shared/error-state";
 
 export default function NotificationsPage() {
   const { t } = useT();
-  const { timeAgo } = useDateFormatters();
-  // Paged: the page showed the first 25 and nothing past them (audit N83).
-  const [page, setPage] = useState(1);
-  const { data, isLoading, isError, refetch } = useNotifications({ page });
-  const markRead = useMarkAsRead();
-  const router = useRouter();
+  // The filter and the page sit in the address, so a reload keeps them and a
+  // link carries them. Paged: the page showed the first 25 and nothing past
+  // them (audit N83).
+  const { values, set } = useQueryFilters(
+    { read: "all", page: "1" },
+    { read: ["all", "unread"] },
+  );
+  const unread = values.read === "unread";
+  const page = Math.max(1, parseInt(values.page, 10) || 1);
+  const { data, isLoading, isError, refetch } = useNotifications({
+    page,
+    unread,
+  });
   const markAllRead = useMarkAllAsRead();
 
   function handleMarkAllRead() {
@@ -62,6 +64,26 @@ export default function NotificationsPage() {
         }
       />
 
+      <div
+        role="group"
+        aria-label={t("notifications.filter_label", "Show")}
+        className="flex gap-2"
+      >
+        {(["all", "unread"] as const).map((value) => (
+          <Button
+            key={value}
+            variant={values.read === value ? "secondary" : "outline"}
+            size="sm"
+            aria-pressed={values.read === value}
+            onClick={() => set({ read: value, page: "1" })}
+          >
+            {value === "all"
+              ? t("notifications.filter_all", "All")
+              : t("notifications.filter_unread", "Unread")}
+          </Button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -73,74 +95,32 @@ export default function NotificationsPage() {
       ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}
-          title={t("common.no_notifications", "No notifications")}
-          description={t("notifications.caught_up", "No new notifications")}
+          title={
+            unread
+              ? t("notifications.no_unread", "No unread notifications")
+              : t("common.no_notifications", "No notifications")
+          }
+          description={
+            unread
+              ? undefined
+              : t("notifications.caught_up", "No new notifications")
+          }
         />
       ) : (
-        <div className="space-y-2">
-          {notifications.map((n: Notification) => (
-            <Card
-              key={n.id}
-              className={cn(
-                "transition-colors hover:bg-muted/50",
-                !n.read_at && "border-l-4 border-l-primary",
-              )}
-            >
-              {/* A button, so marking one read works from the keyboard: the
-                  card was a clickable div that Tab never reached. */}
-              <CardContent className="p-0">
-                <button
-                  type="button"
-                  className="flex w-full items-start gap-3 p-4 text-left"
-                  onClick={() => {
-                    if (!n.read_at) {
-                      markRead.mutate(n.id);
-                    }
-                    const link = notificationLink(n);
-                    if (link) router.push(link);
-                  }}
-                >
-                  <div
-                    className={cn(
-                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                      n.read_at ? "bg-muted" : "bg-primary/10",
-                    )}
-                  >
-                    <Bell
-                      className={cn(
-                        "h-4 w-4",
-                        n.read_at ? "text-muted-foreground" : "text-primary",
-                      )}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn("text-sm", !n.read_at && "font-medium")}>
-                      {notificationText(n) ?? n.type}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {timeAgo(n.created_at)}
-                    </p>
-                  </div>
-                  {!n.read_at && (
-                    <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  )}
-                </button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="divide-y p-0">
+            {notifications.map((n: Notification) => (
+              <NotificationItem key={n.id} notification={n} />
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <PaginationControls
         meta={data?.meta}
-        onPageChange={setPage}
+        onPageChange={(next) => set({ page: String(next) })}
         disabled={isLoading}
       />
     </div>
   );
 }
-
-// `formatTimeAgo` lived here as a second copy of `lib/utils/date.ts`'s
-// `timeAgo`, identical apart from its final branch: past a week it fell back to
-// `toLocaleDateString()` and rendered in the browser's zone. Deleted rather
-// than fixed -- one implementation cannot drift from itself.

@@ -12,6 +12,11 @@ import {
   MARITAL_STATUSES,
   maritalStatusLabel,
 } from "@/lib/options/marital-status";
+import {
+  NOTIFICATION_TYPES,
+  notificationTypeDescription,
+  notificationTypeLabel,
+} from "@/lib/options/notification-type";
 import { RELATIONSHIPS, relationshipLabel } from "@/lib/options/relationship";
 
 /**
@@ -28,6 +33,7 @@ const LISTS = [
   ["marital status", MARITAL_STATUSES, maritalStatusLabel],
   ["relationship", RELATIONSHIPS, relationshipLabel],
   ["education level", EDUCATION_LEVELS, educationLevelLabel],
+  ["notification type", NOTIFICATION_TYPES, notificationTypeLabel],
 ] as const;
 
 const LOCALES: Record<string, Record<string, string>> = { en, am, om };
@@ -73,3 +79,16 @@ it("keeps the Amharic and Afaan Oromoo label from being the English one", () => 
     }
   }
 });
+
+// A profile change has no line under its name, so it is the one type without a key.
+it.each(NOTIFICATION_TYPES.filter((v) => v !== "profile_update"))(
+  "describes the %s notification type in every language",
+  (value) => {
+    const key = keyFor(notificationTypeDescription, value);
+    expect(key, `no description key for "${value}"`).not.toBe("");
+
+    for (const [locale, messages] of Object.entries(LOCALES)) {
+      expect(messages[key], `${locale}: ${key}`).toBeTruthy();
+    }
+  },
+);

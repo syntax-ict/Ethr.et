@@ -42,6 +42,17 @@ describe("NotificationBell", () => {
     expect(screen.getByText("5")).toBeInTheDocument();
   });
 
+  it("puts the unread count in the button's name", async () => {
+    const { useUnreadCount } = await import("@/features/notifications/api");
+    vi.mocked(useUnreadCount).mockReturnValue({
+      data: { count: 5 },
+    } as unknown as ReturnType<typeof useUnreadCount>);
+    render(<NotificationBell />, { wrapper });
+    expect(
+      screen.getByRole("button", { name: "Notifications, 5 unread" }),
+    ).toBeInTheDocument();
+  });
+
   it("opens dropdown on click", async () => {
     render(<NotificationBell />, { wrapper });
     await userEvent.click(

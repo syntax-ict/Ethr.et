@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
+import { useNotificationTypeLabel } from "@/lib/options/notification-type";
 
 type TemplateField =
   | "subject_en"
@@ -38,29 +39,22 @@ type TemplateField =
   | "body_om";
 
 /**
- * Template type → label. Five reuse the notification-preference labels.
+ * Template type → label. A key that is also a notification type reads the one
+ * list of those labels; `missing_punch` and `trial_expiring` are templates
+ * only, so they keep their own.
  */
 function useTypeLabel() {
   const { t } = useT();
+  const typeLabel = useNotificationTypeLabel();
 
   return (type: NotificationTemplate["type"]): string => {
     switch (type) {
-      case "leave_requested":
-        return t("notification_prefs_page.type_leave_requested");
-      case "leave_approved":
-        return t("notification_prefs_page.type_leave_approved");
-      case "leave_rejected":
-        return t("notification_prefs_page.type_leave_rejected");
-      case "leave_changed":
-        return t("notification_prefs_page.type_leave_changed");
-      case "payslip_available":
-        return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
         return t("settings.template_type_missing_punch", "Missing punch");
       case "trial_expiring":
         return t("settings.template_type_trial_expiring", "Trial expiring");
       default:
-        return type;
+        return typeLabel(type);
     }
   };
 }

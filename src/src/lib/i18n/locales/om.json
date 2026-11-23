@@ -8113,5 +8113,14 @@
   "setup2.calendar_hint_use_ec": "Guyyoota akka Dhaha Itoophiyaa (E.C.) tti dubbisi",
   "setup2.calendar_hint_use_gc": "Guyyoota akka Dhaha Giregooriyaa (G.C.) tti dubbisi",
   "setup2.calendar_hint_header": "Maqaan kolomii dhaha kaan ibsa. Faayilii keessatti maqaa kolomii sirreessiitii deebisii fidi.",
-  "setup2.calendar_hint_every_column": "Kun kolomii guyyaa maqaan isaa (E.C.) ykn (G.C.) hin jenne hunda jijjiira. Kolomiin kun qofti dhaha kaan yoo ta'e, qooda kanaa faayilii keessatti maqaa isaatti dabalaa."
+  "setup2.calendar_hint_every_column": "Kun kolomii guyyaa maqaan isaa (E.C.) ykn (G.C.) hin jenne hunda jijjiira. Kolomiin kun qofti dhaha kaan yoo ta'e, qooda kanaa faayilii keessatti maqaa isaatti dabalaa.",
+  "notification_prefs_page.type_letter": "Xalayaalee",
+  "notification_prefs_page.desc_letter": "Yeroo xalayaan hojii gaafatamu, fi yeroo kan keessanii kennamu ykn didamu",
+  "notification_prefs_page.not_sent_this_way": "Karaa kanaan hin ergamu",
+  "notification_prefs_page.this_device": "Beeksisa meeshaa kana irratti",
+  "common.notifications_unread": "Beeksisa, kan hin dubbifamne :count",
+  "notifications.filter_all": "Hunda",
+  "notifications.filter_unread": "Kan hin dubbifamne",
+  "notifications.filter_label": "Agarsiisi",
+  "notifications.no_unread": "Beeksisni hin dubbifamne hin jiru"
 }

@@ -25497,13 +25497,23 @@
                                                 "email",
                                                 "sms"
                                             ]
+                                        },
+                                        "type_channels": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     },
                                     "required": [
                                         "notification_types",
                                         "channels",
                                         "preferences",
-                                        "channel_availability"
+                                        "channel_availability",
+                                        "type_channels"
                                     ]
                                 }
                             }
@@ -25595,13 +25605,23 @@
                                                 "email",
                                                 "sms"
                                             ]
+                                        },
+                                        "type_channels": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     },
                                     "required": [
                                         "notification_types",
                                         "channels",
                                         "preferences",
-                                        "channel_availability"
+                                        "channel_availability",
+                                        "type_channels"
                                     ]
                                 }
                             }
@@ -53945,7 +53965,8 @@
                     "approval_reminder",
                     "expiry_reminder",
                     "profile_update",
-                    "employee_voice"
+                    "employee_voice",
+                    "letter"
                 ],
                 "title": "NotificationType"
             },
