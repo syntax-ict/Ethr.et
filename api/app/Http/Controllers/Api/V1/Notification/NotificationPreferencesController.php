@@ -39,8 +39,9 @@ class NotificationPreferencesController extends Controller
             'channel_availability' => [
                 'in_app' => true,
                 'email' => true,
-                'sms' => (bool) app(SmsSender::class)->isAvailable(),
+                'sms' => $this->smsAvailable(),
             ],
+            'type_channels' => $this->typeChannels(),
         ]);
     }
 
@@ -56,6 +57,37 @@ class NotificationPreferencesController extends Controller
     private function typeKeys(): array
     {
         return NotificationType::values();
+    }
+
+    /**
+     * Notification type => the channels it can reach. A switch for any other channel
+     * would change nothing. The `@scramble-return` is for the API contract, which
+     * cannot type a map built by key.
+     *
+     * @return array<string, list<string>>
+     *
+     * @scramble-return array<string, list<string>>
+     */
+    private function typeChannels(): array
+    {
+        $channels = [];
+        foreach (NotificationType::cases() as $type) {
+            $channels[$type->value] = $type->channels();
+        }
+
+        return $channels;
+    }
+
+    /** A gateway is on, and at least one type sends SMS. */
+    private function smsAvailable(): bool
+    {
+        foreach (NotificationType::cases() as $type) {
+            if (in_array('sms', $type->channels(), true)) {
+                return (bool) app(SmsSender::class)->isAvailable();
+            }
+        }
+
+        return false;
     }
 
     /**
