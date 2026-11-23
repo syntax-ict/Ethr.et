@@ -21,6 +21,7 @@ use App\Services\CurrentTenant;
 use App\Support\NotificationTemplates;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 
 /*
  * Audit N7: Settings → Notification Templates saved a tenant's subject and body
@@ -329,4 +330,182 @@ it('lists every variable each e-mail supplies on the settings page', function ()
     expect($listed)->toBe(NotificationTemplates::VARIABLES)
         ->and($listed['payslip_available'])->toContain('employee_name', 'net_amount')
         ->and($listed['leave_rejected'])->toContain('employee_name', 'reason');
+});
+
+// ── Afaan Oromoo ───────────────────────────────────────────────────────────
+
+it('lists the Afaan Oromoo fields beside the Amharic ones, from the built-in text', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $listed = collect($this->getJson('/api/v1/settings/notification-templates')->assertOk()->json('templates'))
+        ->firstWhere('type', 'leave_approved');
+
+    expect($listed['subject_om'])->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_om'])
+        ->and($listed['body_om'])->toBe(NotificationTemplates::DEFAULTS['leave_approved']['body_om'])
+        ->and($listed['is_customized'])->toBeFalse();
+});
+
+it('saves the Afaan Oromoo subject and body and sends them in Afaan Oromoo', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/notification-templates/leave_approved', [
+        'subject_om' => 'Boqonnaan keessan raggaasifame, {employee_name}',
+        'body_om' => 'Raggaasifame: {start_date} hanga {end_date} ({days}).',
+    ])->assertOk();
+
+    expect($tenant->fresh()->settings['notification_templates']['leave_approved'])->toEqual([
+        'subject_om' => 'Boqonnaan keessan raggaasifame, {employee_name}',
+        'body_om' => 'Raggaasifame: {start_date} hanga {end_date} ({days}).',
+    ]);
+
+    $listed = collect($this->getJson('/api/v1/settings/notification-templates')->json('templates'))
+        ->firstWhere('type', 'leave_approved');
+    expect($listed['subject_om'])->toBe('Boqonnaan keessan raggaasifame, {employee_name}')
+        ->and($listed['is_customized'])->toBeTrue();
+
+    ['leave' => $leave, 'user' => $user] = templateLeave($tenant);
+    app()->setLocale('om');
+    $mail = (new LeaveApprovedNotification($leave))->toMail($user);
+    app()->setLocale('en');
+
+    expect($mail->subject)->toBe('Boqonnaan keessan raggaasifame, Abebe Kebede')
+        ->and(templateMailText($mail))->toStartWith('Raggaasifame: ');
+});
+
+it('refuses an unknown placeholder and an overlong field in the Afaan Oromoo text', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/notification-templates/payslip_available', [
+        'body_om' => 'Waraqaa {employe_name}',
+    ])->assertStatus(422)->assertJsonValidationErrors(['body_om']);
+
+    $this->putJson('/api/v1/settings/notification-templates/payslip_available', [
+        'subject_om' => str_repeat('a', 201),
+        'body_om' => str_repeat('a', 2001),
+    ])->assertStatus(422)->assertJsonValidationErrors(['subject_om', 'body_om']);
+
+    expect($tenant->fresh()->settings['notification_templates']['payslip_available'] ?? null)->toBeNull();
+});
+
+it('does not store an Afaan Oromoo field saved unchanged from the built-in text', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/notification-templates/leave_rejected', [
+        'subject_om' => NotificationTemplates::DEFAULTS['leave_rejected']['subject_om'],
+        'body_om' => NotificationTemplates::DEFAULTS['leave_rejected']['body_om'],
+    ])->assertOk();
+
+    expect($tenant->fresh()->settings['notification_templates']['leave_rejected'])->toBe([]);
+});
+
+it('sends the built-in Afaan Oromoo text to a reader whose organisation edited only the English', function () {
+    $tenant = createTenant();
+    templateSave($tenant, 'leave_approved', ['subject_en' => 'English only', 'body_en' => 'English body']);
+    ['leave' => $leave, 'user' => $user] = templateLeave($tenant);
+
+    app()->setLocale('om');
+    $mail = (new LeaveApprovedNotification($leave))->toMail($user);
+    app()->setLocale('en');
+
+    expect($mail->subject)->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_om'])
+        ->and($mail->subject)->not->toBe('English only');
+});
+
+it('falls back to the English built-in text for a field a locale has none for', function () {
+    $field = new ReflectionMethod(NotificationTemplates::class, 'field');
+
+    expect($field->invoke(null, 'leave_approved', 'subject_xx', [], [], null))
+        ->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_en']);
+});
+
+it('keeps every shipped subject and body, in every language, free of em dashes', function () {
+    expect(NotificationTemplates::DEFAULTS['missing_punch']['subject_en'])->toBe('Missing {punch_type} on {date}');
+
+    foreach (NotificationTemplates::DEFAULTS as $type => $fields) {
+        foreach (NotificationTemplates::FIELDS as $field) {
+            expect($fields)->toHaveKey($field)
+                ->and($fields[$field])->not->toContain('—', "{$type} {$field}");
+        }
+    }
+});
+
+// ── Tenant isolation of the template itself ────────────────────────────────
+
+it('keeps one organisation templates out of another organisation settings page and saves', function () {
+    $a = createTenant();
+    templateSave($a, 'leave_approved', ['subject_om' => 'Org A secret wording', 'subject_en' => 'Org A English']);
+
+    $b = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $b);
+
+    $listed = collect($this->getJson('/api/v1/settings/notification-templates')->assertOk()->json('templates'))
+        ->firstWhere('type', 'leave_approved');
+
+    expect($listed['subject_om'])->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_om'])
+        ->and($listed['subject_en'])->toBe(NotificationTemplates::DEFAULTS['leave_approved']['subject_en'])
+        ->and($listed['is_customized'])->toBeFalse();
+
+    $this->putJson('/api/v1/settings/notification-templates/leave_approved', [
+        'subject_om' => 'Org B wording',
+    ])->assertOk();
+
+    expect($a->fresh()->settings['notification_templates']['leave_approved'])
+        ->toEqual(['subject_om' => 'Org A secret wording', 'subject_en' => 'Org A English'])
+        ->and($b->fresh()->settings['notification_templates']['leave_approved'])
+        ->toBe(['subject_om' => 'Org B wording']);
+});
+
+it('keeps the template settings behind the settings permission', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+    $this->getJson('/api/v1/settings/notification-templates')->assertForbidden();
+    $this->putJson('/api/v1/settings/notification-templates/leave_approved', ['subject_om' => 'x'])->assertForbidden();
+});
+
+it('refuses an organisation admin who names another organisation, and leaves its templates alone', function () {
+    config(['app.domain' => 'ethr.et']);
+    $a = createTenant(['subdomain' => 'orga']);
+    templateSave($a, 'leave_approved', ['subject_om' => 'Org A wording']);
+
+    $b = createTenant(['subdomain' => 'orgb']);
+    $admin = createUser(['role' => UserRole::TENANT_ADMIN], $b);
+    $token = $admin->createToken('auth', ['*'])->plainTextToken;
+    $url = "http://{$a->subdomain}.ethr.et/api/v1/settings/notification-templates";
+
+    test()->withToken($token)->getJson($url)
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/tenant-mismatch');
+
+    test()->withToken($token)->putJson("{$url}/leave_approved", ['subject_om' => 'Hijacked'])
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/tenant-mismatch');
+
+    expect($a->fresh()->settings['notification_templates']['leave_approved'])
+        ->toBe(['subject_om' => 'Org A wording']);
+});
+
+it('writes to an Afaan Oromoo reader in Afaan Oromoo without anyone setting the locale by hand', function () {
+    $tenant = createTenant();
+    templateSave($tenant, 'leave_approved', ['subject_om' => 'Raggaasifame, {employee_name}']);
+    ['leave' => $leave, 'user' => $user] = templateLeave($tenant);
+    $user->forceFill(['locale' => 'om'])->save();
+
+    NotificationFacade::fake();
+    $user->notify(new LeaveApprovedNotification($leave));
+
+    NotificationFacade::assertSentTo($user, LeaveApprovedNotification::class, function ($notification, $channels, $notifiable, $locale) {
+        return $locale === 'om';
+    });
+
+    // What the notification sender does with the locale it was handed.
+    app()->setLocale((string) $user->preferredLocale());
+    $subject = (new LeaveApprovedNotification($leave))->toMail($user)->subject;
+    app()->setLocale('en');
+
+    expect($subject)->toBe('Raggaasifame, Abebe Kebede');
 });
