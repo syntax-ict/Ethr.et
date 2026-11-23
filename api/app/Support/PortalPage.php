@@ -64,11 +64,19 @@ final class PortalPage
             return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
-        // Whether there is anything on the page decides whether it is worth
-        // keeping in search; PortalHead::news() says why.
-        $hasArticles = self::withTenant($tenant, fn (): bool => Announcement::query()->publiclyListed()->exists());
-        $head = PortalHead::news($tenant, $hasArticles);
-        $robots = PortalHead::newsRobots($tenant, $hasArticles);
+        // The first page of stories, as the page's own list reads it: the
+        // same order and the same count (Announcement::scopeNewsOrder() and
+        // NEWS_PER_PAGE). The head lists them, and whether there are any
+        // decides whether the page is worth keeping in search;
+        // PortalHead::news() says why.
+        $articles = self::withTenant($tenant, fn (): array => Announcement::query()
+            ->publiclyListed()
+            ->newsOrder()
+            ->limit(Announcement::NEWS_PER_PAGE)
+            ->get()
+            ->all());
+        $head = PortalHead::news($tenant, $articles);
+        $robots = PortalHead::newsRobots($tenant, $articles !== []);
 
         return self::send($file, $head, $tenant->brandAssetUrl('mark') !== null, $robots, 200);
     }
