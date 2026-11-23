@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,34 @@ const holidaySchema = z.object({
   recurring: z.boolean(),
 });
 type HolidayValues = z.infer<typeof holidaySchema>;
+
+/** How close the end of the list may get before the page says so. */
+const RUNWAY_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The year whose holidays are missing, or null while the list still reaches
+ * more than `RUNWAY_DAYS` past today. "Last year listed" is the latest
+ * one-time holiday date on record, so a list that already runs into next year
+ * stays quiet. Recurring holidays repeat by themselves and never need adding
+ * again, so they are left out; with no one-time holiday there is nothing to
+ * run out and no notice.
+ * Dates are `YYYY-MM-DD` and read as UTC midnight, which keeps the answer the
+ * same in every browser timezone.
+ */
+function missingNextYear(holidays: Holiday[], now: number): number | null {
+  const latest = holidays.reduce<string | null>((max, h) => {
+    if (h.recurring) return max;
+    const day = h.date.slice(0, 10);
+    return max === null || day > max ? day : max;
+  }, null);
+  if (latest === null) return null;
+  const ends = Date.parse(`${latest}T00:00:00Z`);
+  if (Number.isNaN(ends)) return null;
+  return ends - now <= RUNWAY_DAYS * DAY_MS
+    ? Number(latest.slice(0, 4)) + 1
+    : null;
+}
 
 export default function HolidaysPage() {
   const { t } = useT();
@@ -215,84 +244,133 @@ export default function HolidaysPage() {
             />
           }
         >
-          {(holidays) => (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t("holidays_page.title", "Holidays")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <SimpleTable
-                  mobileCards
-                  caption={t("holidays_page.title", "Holidays")}
-                  headers={[
-                    t("common.name"),
-                    t("common.date"),
-                    t("holidays_page.recurring", "Recurring"),
-                  ]}
-                  rows={holidays.map((holiday) => ({
-                    key: holiday.public_id,
-                    cells: [
-                      <span key="n" className="font-medium">
-                        {holiday.name}
-                      </span>,
-                      <span key="d" className="text-muted-foreground">
-                        {formatDate(holiday.date)}
-                      </span>,
-                      // A kind, not a state: both read in the same neutral tint.
-                      <Badge
-                        key="r"
-                        variant="outline"
-                        className="border-neutral-edge bg-neutral-soft text-neutral-on-soft"
+          {(holidays) => {
+            const missingYear = missingNextYear(holidays, Date.now());
+            const anyEstimated = holidays.some((h) => h.is_estimated);
+            return (
+              <>
+                {missingYear !== null && (
+                  <Alert variant="warning">
+                    <AlertTitle>
+                      {t(
+                        "holidays_page.next_year_title",
+                        "Holidays for :year have not been added yet",
+                        { year: missingYear },
+                      )}
+                    </AlertTitle>
+                    <AlertDescription>
+                      {t(
+                        "holidays_page.next_year_body",
+                        "HR admins and organisation admins can add them with Add holiday.",
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {t("holidays_page.title", "Holidays")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <SimpleTable
+                      mobileCards
+                      caption={t("holidays_page.title", "Holidays")}
+                      headers={[
+                        t("common.name"),
+                        t("common.date"),
+                        t("holidays_page.recurring", "Recurring"),
+                      ]}
+                      rows={holidays.map((holiday) => ({
+                        key: holiday.public_id,
+                        cells: [
+                          <span key="n" className="font-medium">
+                            {holiday.name}
+                          </span>,
+                          <span
+                            key="d"
+                            className="inline-flex flex-wrap items-center gap-2 text-muted-foreground"
+                          >
+                            {formatDate(holiday.date)}
+                            {holiday.is_estimated && (
+                              <Badge
+                                variant="warning"
+                                aria-describedby="holidays-estimated-help"
+                              >
+                                {t("holidays_page.estimated", "Estimated")}
+                              </Badge>
+                            )}
+                          </span>,
+                          // A kind, not a state: both read in the same neutral tint.
+                          <Badge
+                            key="r"
+                            variant="outline"
+                            className="border-neutral-edge bg-neutral-soft text-neutral-on-soft"
+                          >
+                            {holiday.recurring
+                              ? t("holidays_page.recurring", "Recurring")
+                              : t("holidays_page.one_time", "One-time")}
+                          </Badge>,
+                        ],
+                        actions:
+                          canUpdate || canDelete ? (
+                            <div className="flex justify-end gap-1">
+                              {canUpdate && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEdit(holiday)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">
+                                    {t(
+                                      "holidays_page.edit_named",
+                                      "Edit :name",
+                                      {
+                                        name: holiday.name,
+                                      },
+                                    )}
+                                  </span>
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive-on-soft hover:bg-destructive-soft"
+                                  onClick={() => setDeleting(holiday)}
+                                  disabled={deleteHoliday.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">
+                                    {t(
+                                      "holidays_page.delete_named",
+                                      "Delete :name",
+                                      { name: holiday.name },
+                                    )}
+                                  </span>
+                                </Button>
+                              )}
+                            </div>
+                          ) : undefined,
+                      }))}
+                    />
+                    {anyEstimated && (
+                      <p
+                        id="holidays-estimated-help"
+                        className="border-t px-6 py-3 text-sm text-muted-foreground"
                       >
-                        {holiday.recurring
-                          ? t("holidays_page.recurring", "Recurring")
-                          : t("holidays_page.one_time", "One-time")}
-                      </Badge>,
-                    ],
-                    actions:
-                      canUpdate || canDelete ? (
-                        <div className="flex justify-end gap-1">
-                          {canUpdate && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEdit(holiday)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">
-                                {t("holidays_page.edit_named", "Edit :name", {
-                                  name: holiday.name,
-                                })}
-                              </span>
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive-on-soft hover:bg-destructive-soft"
-                              onClick={() => setDeleting(holiday)}
-                              disabled={deleteHoliday.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">
-                                {t(
-                                  "holidays_page.delete_named",
-                                  "Delete :name",
-                                  { name: holiday.name },
-                                )}
-                              </span>
-                            </Button>
-                          )}
-                        </div>
-                      ) : undefined,
-                  }))}
-                />
-              </CardContent>
-            </Card>
-          )}
+                        {t(
+                          "holidays_page.estimated_help",
+                          "Estimated dates follow the moon and may move by a day. Edit the date once it is announced.",
+                        )}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          }}
         </QueryBoundary>
 
         <Dialog

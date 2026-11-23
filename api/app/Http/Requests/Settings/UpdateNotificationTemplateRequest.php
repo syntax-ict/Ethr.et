@@ -20,8 +20,10 @@ class UpdateNotificationTemplateRequest extends FormRequest
         return [
             'subject_en' => ['nullable', 'string', 'max:200'],
             'subject_am' => ['nullable', 'string', 'max:200'],
+            'subject_om' => ['nullable', 'string', 'max:200'],
             'body_en' => ['nullable', 'string', 'max:2000'],
             'body_am' => ['nullable', 'string', 'max:2000'],
+            'body_om' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
