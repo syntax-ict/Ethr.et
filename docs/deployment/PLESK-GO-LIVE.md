@@ -221,6 +221,14 @@ release steps (Part 5). A release from before the check reports nothing there, w
 the script shows as unknown. *(On 2026-11-04 a release went live at 05:33Z without its
 steps; `release.json` alone read in step for five hours while the schema was behind.)*
 
+CI never drives the static export Apache serves, so the offline shell is checked here,
+against the live site, with the network cut by the browser (about three minutes, signed
+out, read-only):
+
+```bash
+cd src && npm run test:e2e:production:offline
+```
+
 Then open `https://<APP_DOMAIN>/login`, sign in, and run
 [`shared-hosting/deploy-checklist.md`](shared-hosting/deploy-checklist.md). Now do Part 1
 step 2 so the scheduler starts.
