@@ -854,6 +854,130 @@ describe("<MigrationStep>", () => {
     ]);
   });
 
+  // Dates real in one calendar only (2026-11-22): the reader is told which
+  // line says so and chooses; nothing is switched for them.
+  it("says when the dates look like the other calendar and lets the reader switch", async () => {
+    const asked = reads({
+      people: 1,
+      calendar_hints: [
+        {
+          column: "hire_date",
+          calendar: "ethiopian",
+          value: "2016-13-03",
+          line: 3,
+          from_header: false,
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\tHire date\nAbebe Kebede\t2016-13-03" },
+    });
+
+    expect(
+      await screen.findByText(/a date only the Ethiopian calendar has/),
+    ).toHaveTextContent("Line 3 has 2016-13-03");
+    expect(asked[asked.length - 1].calendar).toBe("gregorian");
+
+    fireEvent.click(screen.getByText("Read the dates as Ethiopian (E.C.)"));
+    await waitFor(() =>
+      expect(asked[asked.length - 1].calendar).toBe("ethiopian"),
+    );
+  });
+
+  it("says the column name decides when it set the calendar the dates disagree with", async () => {
+    reads({
+      people: 1,
+      calendar_hints: [
+        {
+          column: "hire_date",
+          calendar: "gregorian",
+          value: "2019-01-31",
+          line: 2,
+          from_header: true,
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\tHire date (E.C.)\nAbebe Kebede\t2019-01-31" },
+    });
+
+    expect(
+      await screen.findByText(/The column name says the other calendar/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Read the dates as Gregorian (G.C.)"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the lines of each repeated name together", async () => {
+    reads({
+      people: 4,
+      warnings: [
+        {
+          line: 2,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 3,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
+        {
+          line: 4,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 5,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\nAbebe\nHanna\nAbebe\nHanna" },
+    });
+
+    const abebe = await screen.findByText(
+      'The name "Abebe" is on more than one line.',
+    );
+    expect(abebe.closest("tr")).toHaveTextContent("2, 4");
+    expect(
+      screen
+        .getByText('The name "Hanna" is on more than one line.')
+        .closest("tr"),
+    ).toHaveTextContent("3, 5");
+  });
+
   it("shows the lines a staging was refused for, until the list changes", async () => {
     server.use(
       http.get("*/devices", () =>
