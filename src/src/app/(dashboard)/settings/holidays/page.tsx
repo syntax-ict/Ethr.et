@@ -65,13 +65,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The year whose holidays are missing, or null while the list still reaches
- * more than `RUNWAY_DAYS` past today. "Last year listed" is the latest holiday
- * date on record, so a list that already runs into next year stays quiet.
+ * more than `RUNWAY_DAYS` past today. "Last year listed" is the latest
+ * one-time holiday date on record, so a list that already runs into next year
+ * stays quiet. Recurring holidays repeat by themselves and never need adding
+ * again, so they are left out; with no one-time holiday there is nothing to
+ * run out and no notice.
  * Dates are `YYYY-MM-DD` and read as UTC midnight, which keeps the answer the
  * same in every browser timezone.
  */
 function missingNextYear(holidays: Holiday[], now: number): number | null {
   const latest = holidays.reduce<string | null>((max, h) => {
+    if (h.recurring) return max;
     const day = h.date.slice(0, 10);
     return max === null || day > max ? day : max;
   }, null);

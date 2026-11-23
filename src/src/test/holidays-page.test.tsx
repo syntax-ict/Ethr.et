@@ -228,6 +228,35 @@ describe("<HolidaysPage>", () => {
       ).toBeInTheDocument();
     });
 
+    it("ignores recurring holidays, which repeat by themselves", async () => {
+      today("2027-09-01");
+      serveHolidays([
+        holiday(1, { name: "Meskel", date: "2027-09-28", recurring: true }),
+      ]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Meskel");
+      expect(
+        screen.queryByText(/have not been added yet/),
+      ).not.toBeInTheDocument();
+    });
+
+    it("counts one-time holidays even when recurring ones run later", async () => {
+      today("2027-09-01");
+      serveHolidays([
+        holiday(1, { name: "Eid al-Adha", date: "2027-09-20" }),
+        holiday(2, { name: "Genna", date: "2028-01-07", recurring: true }),
+      ]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Genna");
+      expect(
+        screen.getByText("Holidays for 2028 have not been added yet"),
+      ).toBeInTheDocument();
+    });
+
     it("stays quiet when the list reaches further than 90 days", async () => {
       today("2027-06-01");
       serveHolidays([holiday(1, { name: "Meskel", date: "2027-09-28" })]);
