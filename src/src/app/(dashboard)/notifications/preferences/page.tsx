@@ -19,70 +19,14 @@ import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
 } from "@/features/notifications/api";
+import { PushToggle } from "@/features/notifications/components/push-toggle";
 import { useT } from "@/lib/i18n/useT";
+import {
+  useNotificationTypeDescription,
+  useNotificationTypeLabel,
+} from "@/lib/options/notification-type";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
-
-const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
-  {
-    leave_requested: {
-      labelKey: "notification_prefs_page.type_leave_requested",
-      descKey: "notification_prefs_page.desc_leave_requested",
-    },
-    leave_approved: {
-      labelKey: "notification_prefs_page.type_leave_approved",
-      descKey: "notification_prefs_page.desc_leave_approved",
-    },
-    leave_rejected: {
-      labelKey: "notification_prefs_page.type_leave_rejected",
-      descKey: "notification_prefs_page.desc_leave_rejected",
-    },
-    leave_changed: {
-      labelKey: "notification_prefs_page.type_leave_changed",
-      descKey: "notification_prefs_page.desc_leave_changed",
-    },
-    attendance_correction: {
-      labelKey: "notification_prefs_page.type_correction_request",
-      descKey: "notification_prefs_page.desc_correction_request",
-    },
-    attendance_anomaly: {
-      labelKey: "notification_prefs_page.type_attendance_anomaly",
-      descKey: "notification_prefs_page.desc_attendance_anomaly",
-    },
-    payslip_available: {
-      labelKey: "notification_prefs_page.type_payslip_available",
-      descKey: "notification_prefs_page.desc_payslip_available",
-    },
-    payroll_processed: {
-      labelKey: "notification_prefs_page.type_payroll_processed",
-      descKey: "notification_prefs_page.desc_payroll_processed",
-    },
-    announcement: {
-      labelKey: "notification_prefs_page.type_announcement",
-      descKey: "notification_prefs_page.desc_announcement",
-    },
-    approval_reminder: {
-      labelKey: "notification_prefs_page.type_approval_reminder",
-      descKey: "notification_prefs_page.desc_approval_reminder",
-    },
-    expiry_reminder: {
-      labelKey: "notification_prefs_page.type_expiry_reminder",
-      descKey: "notification_prefs_page.desc_expiry_reminder",
-    },
-    // The API has sent this type since profile changes became reviewable; with
-    // no entry here its row was labelled with the raw key "profile_update".
-    profile_update: {
-      labelKey: "approvals.type_profile_update",
-    },
-    overtime_request: {
-      labelKey: "notification_prefs_page.type_overtime_request",
-      descKey: "notification_prefs_page.desc_overtime_request",
-    },
-    employee_voice: {
-      labelKey: "notification_prefs_page.type_employee_voice",
-      descKey: "notification_prefs_page.desc_employee_voice",
-    },
-  };
 
 const CHANNEL_META: Record<
   string,
@@ -103,6 +47,8 @@ const CHANNEL_META: Record<
 
 export default function NotificationPreferencesPage() {
   const { t } = useT();
+  const typeLabel = useNotificationTypeLabel();
+  const typeDescription = useNotificationTypeDescription();
   const [local, setLocal] = useState<Record<
     string,
     Record<string, boolean>
@@ -145,6 +91,21 @@ export default function NotificationPreferencesPage() {
     const availability: Record<string, boolean> | undefined =
       data?.channel_availability;
     return availability?.[channelKey] === false;
+  }
+
+  /**
+   * The channels this page draws: SMS is left out while it is unavailable,
+   * because no type can send it, so its column would be switches that change
+   * nothing.
+   */
+  const channels = (data?.channels ?? []).filter(
+    (ch) => ch !== "sms" || !isUnavailable("sms"),
+  );
+
+  /** What a type can reach. An older server omits the map: assume every channel. */
+  function sendsOn(type: string, channelKey: string) {
+    const reach: Record<string, string[]> | undefined = data?.type_channels;
+    return reach?.[type]?.includes(channelKey) ?? true;
   }
 
   function toggle(typeKey: string, channelKey: string) {
@@ -224,7 +185,7 @@ export default function NotificationPreferencesPage() {
             )}
             headers={[
               t("notification_prefs_page.event"),
-              ...data.channels.map((ch) => {
+              ...channels.map((ch) => {
                 const meta = CHANNEL_META[ch];
                 const Icon = meta?.icon ?? Bell;
                 const unavailable = isUnavailable(ch);
@@ -244,11 +205,10 @@ export default function NotificationPreferencesPage() {
                 );
               }),
             ]}
-            align={["left", ...data.channels.map(() => "center" as const)]}
+            align={["left", ...channels.map(() => "center" as const)]}
             rows={data.notification_types.map((type) => {
-              const meta = TYPE_LABEL_KEYS[type];
-              const label = meta ? t(meta.labelKey) : type;
-              const description = meta?.descKey ? t(meta.descKey) : "";
+              const label = typeLabel(type);
+              const description = typeDescription(type);
               return {
                 key: type,
                 cells: [
@@ -258,7 +218,20 @@ export default function NotificationPreferencesPage() {
                       {description}
                     </p>
                   </div>,
-                  ...data.channels.map((ch) => {
+                  ...channels.map((ch) => {
+                    if (!sendsOn(type, ch)) {
+                      return (
+                        <span
+                          key={ch}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {t(
+                            "notification_prefs_page.not_sent_this_way",
+                            "Not sent this way",
+                          )}
+                        </span>
+                      );
+                    }
                     const cm = CHANNEL_META[ch];
                     const unavailable = isUnavailable(ch);
                     const value = local[type]?.[ch] ?? false;
@@ -287,6 +260,27 @@ export default function NotificationPreferencesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* PushToggle draws nothing where the browser or the server has no push,
+          so the section hides itself until a switch is there. */}
+      <section
+        aria-labelledby="push-heading"
+        className="hidden has-[[role=switch]]:block"
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle id="push-heading" className="text-base">
+              {t(
+                "notification_prefs_page.this_device",
+                "Notifications on this device",
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PushToggle />
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

@@ -29,6 +29,8 @@ import {
   useUpdateAttendanceSettings,
   type AttendanceSettings,
 } from "@/features/attendance/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
@@ -151,6 +153,7 @@ export default function AttendanceSettingsPage() {
   }
 
   const save = useUpdateAttendanceSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const rangeMessage = (key: NumericKey) =>
     t(
@@ -189,6 +192,7 @@ export default function AttendanceSettingsPage() {
     baseline !== null &&
     (JSON.stringify(pendingForm) !== JSON.stringify(baseline) ||
       Object.keys(drafts).length > 0);
+  useUnsavedChangesWarning(isDirty);
 
   function handleSave() {
     if (!pendingForm) return;
@@ -208,17 +212,16 @@ export default function AttendanceSettingsPage() {
         setDrafts({});
         setNetworksText(null);
         toast.success(t("attendance.settings_page.saved", "Settings saved"));
+        announceSaved(t("attendance.settings_page.saved", "Settings saved"));
       },
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "attendance.settings_page.save_failed",
-              "Failed to save settings",
-            ),
-          ),
-        ),
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t("attendance.settings_page.save_failed", "Failed to save settings"),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

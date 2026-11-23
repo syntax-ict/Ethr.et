@@ -36,6 +36,8 @@ import {
 import { useAllPayrollRuns } from "@/features/payroll/api";
 import { saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { statusLabelKeyOf } from "@/lib/status/registry";
@@ -66,6 +68,7 @@ function ChartOfAccountsSection() {
   const { t } = useT();
   const accountsQuery = useChartOfAccounts();
   const updateChart = useUpdateChartOfAccounts();
+  const { announceSaved, announceError } = useSaveStatus();
   // The mapping decides where every payroll figure lands in the books, so
   // changing it is payroll configuration, not a view of payroll.
   const canEdit = usePermissions().can.managePayrollConfig;
@@ -76,6 +79,7 @@ function ChartOfAccountsSection() {
   // rendered no rows at all.
   const [edits, setEdits] = useState<Record<string, AccountEdit>>({});
   const dirty = Object.keys(edits).length > 0;
+  useUnsavedChangesWarning(dirty);
 
   function updateAccount(key: string, field: keyof AccountEdit, value: string) {
     setEdits((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
@@ -98,17 +102,19 @@ function ChartOfAccountsSection() {
         onSuccess: () => {
           setEdits({});
           toast.success(t("accounting_page.chart_saved"));
+          announceSaved(t("accounting_page.chart_saved"));
         },
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "accounting_page.chart_save_failed",
-                "The chart of accounts could not be saved.",
-              ),
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "accounting_page.chart_save_failed",
+              "The chart of accounts could not be saved.",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

@@ -109,6 +109,7 @@ use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\MarketingContentController;
+use App\Http\Controllers\Api\V1\Navigation\NavigationBadgesController;
 use App\Http\Controllers\Api\V1\NextSteps\NextStepsController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
 use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
@@ -988,6 +989,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/subscriptions', [PushSubscriptionController::class, 'store']);
         Route::delete('/subscriptions', [PushSubscriptionController::class, 'destroy']);
     });
+
+    // Sidebar and tab-bar badge counts: two numbers, not the manager dashboard
+    Route::get('/navigation/badges', NavigationBadgesController::class);
 
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);

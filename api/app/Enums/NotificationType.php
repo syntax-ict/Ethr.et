@@ -35,6 +35,36 @@ enum NotificationType: string
 
     case EMPLOYEE_VOICE = 'employee_voice';
 
+    case LETTER = 'letter';
+
+    /**
+     * The channels, in the preferences API's vocabulary, that notifications of this
+     * type can reach. Read off the `via()` lists of the classes that return the type;
+     * `NotificationSeamTest` fails when they drift apart. No class sends SMS yet.
+     *
+     * @return list<string>
+     */
+    public function channels(): array
+    {
+        return match ($this) {
+            self::LEAVE_REQUESTED,
+            self::LEAVE_APPROVED,
+            self::LEAVE_REJECTED,
+            self::LEAVE_CHANGED,
+            self::ATTENDANCE_ANOMALY,
+            self::PAYSLIP_AVAILABLE,
+            self::APPROVAL_REMINDER,
+            self::EXPIRY_REMINDER,
+            self::EMPLOYEE_VOICE,
+            self::LETTER => ['in_app', 'email'],
+            self::ATTENDANCE_CORRECTION,
+            self::OVERTIME_REQUEST,
+            self::PAYROLL_PROCESSED,
+            self::ANNOUNCEMENT,
+            self::PROFILE_UPDATE => ['in_app'],
+        };
+    }
+
     /** @return list<string> */
     public static function values(): array
     {

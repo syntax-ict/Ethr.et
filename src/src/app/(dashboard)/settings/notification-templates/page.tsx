@@ -27,7 +27,10 @@ import {
 } from "@/features/settings/api";
 import { toast } from "sonner";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
+import { useNotificationTypeLabel } from "@/lib/options/notification-type";
 
 type TemplateField =
   | "subject_en"
@@ -38,29 +41,22 @@ type TemplateField =
   | "body_om";
 
 /**
- * Template type → label. Five reuse the notification-preference labels.
+ * Template type → label. A key that is also a notification type reads the one
+ * list of those labels; `missing_punch` and `trial_expiring` are templates
+ * only, so they keep their own.
  */
 function useTypeLabel() {
   const { t } = useT();
+  const typeLabel = useNotificationTypeLabel();
 
   return (type: NotificationTemplate["type"]): string => {
     switch (type) {
-      case "leave_requested":
-        return t("notification_prefs_page.type_leave_requested");
-      case "leave_approved":
-        return t("notification_prefs_page.type_leave_approved");
-      case "leave_rejected":
-        return t("notification_prefs_page.type_leave_rejected");
-      case "leave_changed":
-        return t("notification_prefs_page.type_leave_changed");
-      case "payslip_available":
-        return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
         return t("settings.template_type_missing_punch", "Missing punch");
       case "trial_expiring":
         return t("settings.template_type_trial_expiring", "Trial expiring");
       default:
-        return type;
+        return typeLabel(type);
     }
   };
 }
@@ -96,6 +92,16 @@ export default function NotificationTemplatesPage() {
   const templatesQuery = useNotificationTemplates();
   const update = useUpdateNotificationTemplate();
   const typeLabel = useTypeLabel();
+  const { announceSaved, announceError } = useSaveStatus();
+
+  // The dialog is the form: dirty when a field differs from the template it
+  // was opened on. Saving or cancelling closes it, which clears the warning.
+  useUnsavedChangesWarning(
+    editing !== null &&
+      (Object.keys(form) as TemplateField[]).some(
+        (field) => form[field] !== editing[field],
+      ),
+  );
 
   function openEdit(template: NotificationTemplate) {
     setForm({
@@ -122,11 +128,19 @@ export default function NotificationTemplatesPage() {
         onSuccess: () => {
           setEditing(null);
           toast.success(t("settings.template_updated", "Template updated"));
+          announceSaved(t("settings.template_updated", "Template updated"));
         },
         onError: (err) => {
           // An unknown {placeholder} comes back as a 422 on the field that
           // carries it; show it there rather than in a toast that vanishes.
           setErrors(fieldErrors(err));
+          announceError(
+            err,
+            t(
+              "settings.template_update_failed",
+              "The template could not be saved.",
+            ),
+          );
           toastError(
             err,
             t(

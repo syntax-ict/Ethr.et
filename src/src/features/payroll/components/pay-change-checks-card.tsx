@@ -10,6 +10,8 @@ import { FormField } from "@/components/patterns/FormField";
 import { ErrorState } from "@/components/shared/error-state";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -38,6 +40,7 @@ export function PayChangeChecksCard() {
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const persisted: ChecksForm = {
     percent: String(data?.payroll?.pay_change_alert_percent ?? 20),
@@ -53,6 +56,7 @@ export function PayChangeChecksCard() {
   const isDirty =
     edits !== null &&
     (form.percent !== persisted.percent || form.minBirr !== persisted.minBirr);
+  useUnsavedChangesWarning(isDirty);
 
   function update(key: keyof ChecksForm, value: string) {
     setEdits({ ...form, [key]: value });
@@ -87,17 +91,21 @@ export function PayChangeChecksCard() {
           toast.success(
             t("payroll_checks.saved", "Checks before approval saved"),
           );
+          announceSaved(
+            t("payroll_checks.saved", "Checks before approval saved"),
+          );
         },
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "payroll_checks.save_failed",
-                "Could not save the checks before approval",
-              ),
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "payroll_checks.save_failed",
+              "Could not save the checks before approval",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }
