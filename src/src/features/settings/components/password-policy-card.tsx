@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useSaveStatus } from "@/components/shared/save-status";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import {
   useUpdateSettings,
@@ -39,6 +41,7 @@ type Rule =
 export function PasswordPolicyCard({ policy }: { policy: PasswordPolicy }) {
   const { t } = useT();
   const update = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
   const [lengthDraft, setLengthDraft] = useState<string | undefined>();
   const [flags, setFlags] = useState<Partial<Record<Rule, boolean>>>({});
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -78,6 +81,13 @@ export function PasswordPolicyCard({ policy }: { policy: PasswordPolicy }) {
       lengthNumber <= MIN_LENGTH_CEILING
     );
   const dirty = lengthDraft !== undefined || Object.keys(flags).length > 0;
+  // Differs from what was loaded: a value typed or toggled back is not a change.
+  useUnsavedChangesWarning(
+    (lengthDraft !== undefined && lengthDraft !== String(policy.min_length)) ||
+      (Object.entries(flags) as [Rule, boolean][]).some(
+        ([key, value]) => value !== policy[key],
+      ),
+  );
   const lengthError = errors["settings.password_policy.min_length"];
   const showLengthError = lengthInvalid || !!lengthError;
 
@@ -98,9 +108,11 @@ export function PasswordPolicyCard({ policy }: { policy: PasswordPolicy }) {
           setLengthDraft(undefined);
           setFlags({});
           toast.success(t("settings.saved", "Settings saved"));
+          announceSaved();
         },
         onError: (error) => {
           setErrors(fieldErrors(error));
+          announceError(error);
           toastError(
             error,
             t("settings.save_failed", "Failed to save settings"),

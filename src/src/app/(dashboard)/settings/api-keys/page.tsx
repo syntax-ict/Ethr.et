@@ -50,6 +50,8 @@ import {
 } from "@/features/api-keys/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -107,11 +109,16 @@ export default function ApiKeysPage() {
     watch,
     setValue,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<ApiKeyValues>({
     schema: apiKeySchema,
     defaultValues: { name: "", abilities: ["read"], expiry: "90" },
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(createOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
 
   const selectedAbilities = watch("abilities");
   const expiry = watch("expiry");
@@ -161,6 +168,7 @@ export default function ApiKeysPage() {
     setCreateOpen(false);
     reset();
     toast.success(t("api_keys_page.key_created"));
+    announceSaved(t("api_keys_page.key_created"));
   }
 
   // Revoking is immediate and permanent — every integration using the key
@@ -171,10 +179,14 @@ export default function ApiKeysPage() {
     revokeKey.mutate(revoking.public_id, {
       onSuccess: () => {
         toast.success(t("api_keys_page.key_revoked"));
+        announceSaved(t("api_keys_page.key_revoked"));
         setRevoking(null);
       },
-      onError: (err) =>
-        toast.error(apiErrorMessage(err, t("common.action_failed"))),
+      onError: (err) => {
+        const message = apiErrorMessage(err, t("common.action_failed"));
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

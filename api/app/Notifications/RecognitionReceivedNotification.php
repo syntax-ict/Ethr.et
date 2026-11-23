@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\Recognition;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
@@ -20,9 +21,9 @@ class RecognitionReceivedNotification extends Notification implements ShouldQueu
 
     public function __construct(private readonly Recognition $recognition) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'employee_voice';
+        return NotificationType::EMPLOYEE_VOICE;
     }
 
     public function via(object $notifiable): array

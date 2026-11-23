@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Notification;
 
 use App\Contracts\SmsSender;
+use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Notification\UpdatePreferencesRequest;
 use App\Models\AuditLog;
@@ -22,23 +23,6 @@ use Illuminate\Http\Request;
  */
 class NotificationPreferencesController extends Controller
 {
-    public const NOTIFICATION_TYPES = [
-        'leave_requested',
-        'leave_approved',
-        'leave_rejected',
-        'leave_changed',
-        'attendance_correction',
-        'overtime_request',
-        'attendance_anomaly',
-        'payslip_available',
-        'payroll_processed',
-        'announcement',
-        'approval_reminder',
-        'expiry_reminder',
-        'profile_update',
-        'employee_voice',
-    ];
-
     public const CHANNELS = ['in_app', 'email', 'sms'];
 
     private const DEFAULT_SMS_ENABLED = false;
@@ -46,7 +30,7 @@ class NotificationPreferencesController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json([
-            'notification_types' => self::NOTIFICATION_TYPES,
+            'notification_types' => $this->typeKeys(),
             'channels' => self::CHANNELS,
             'preferences' => $this->matrixFor($request->user()->id),
             // Which channels this deployment can actually deliver on. SMS depends
@@ -58,6 +42,20 @@ class NotificationPreferencesController extends Controller
                 'sms' => (bool) app(SmsSender::class)->isAvailable(),
             ],
         ]);
+    }
+
+    /**
+     * The notification types, as the keys preferences are stored under.
+     * The `@scramble-return` is for the API contract, which cannot type a list
+     * read from an enum.
+     *
+     * @return list<string>
+     *
+     * @scramble-return list<\App\Enums\NotificationType>
+     */
+    private function typeKeys(): array
+    {
+        return NotificationType::values();
     }
 
     /**
@@ -76,7 +74,7 @@ class NotificationPreferencesController extends Controller
             ->keyBy(fn ($p) => "{$p->notification_type}.{$p->channel}");
 
         $preferences = [];
-        foreach (self::NOTIFICATION_TYPES as $type) {
+        foreach (NotificationType::values() as $type) {
             $preferences[$type] = [];
             foreach (self::CHANNELS as $channel) {
                 $key = "{$type}.{$channel}";
@@ -102,7 +100,7 @@ class NotificationPreferencesController extends Controller
         $tenant = app(CurrentTenant::class)->get();
 
         foreach ($validated['preferences'] as $type => $channels) {
-            if (! in_array($type, self::NOTIFICATION_TYPES, true)) {
+            if (! in_array($type, NotificationType::values(), true)) {
                 continue;
             }
 

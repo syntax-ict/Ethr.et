@@ -37,6 +37,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { FormField } from "@/components/patterns/FormField";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
@@ -194,6 +196,22 @@ export default function UsersSettingsPage() {
     status: EditableStatus | null;
   }>({ username: "", role: "employee", status: "active" });
 
+  // The two dialogs are the forms: the invitation is dirty once anything is
+  // typed or the role is moved off the default, the edit once a field differs
+  // from the user it was opened on. Sending or closing either clears it.
+  useUnsavedChangesWarning(
+    (inviteOpen &&
+      (form.email !== "" ||
+        form.username !== "" ||
+        form.role !== "employee")) ||
+      (editUser !== null &&
+        (editForm.username !== (editUser.username ?? "") ||
+          editForm.role !== editUser.role ||
+          editForm.status !==
+            (editUser.status === "invited" ? null : editUser.status))),
+  );
+  const { announceSaved, announceError } = useSaveStatus();
+
   function openEdit(u: TenantUser) {
     setEditForm({
       username: u.username ?? "",
@@ -231,9 +249,11 @@ export default function UsersSettingsPage() {
         role: form.role,
       });
       toast.success(t("users_page.invited", "Invitation sent"));
+      announceSaved(t("users_page.invited", "Invitation sent"));
       setInviteOpen(false);
       setForm({ email: "", username: "", role: "employee" });
     } catch (e) {
+      announceError(e, t("users_page.invite_failed", "Could not invite user"));
       toastError(e, t("users_page.invite_failed", "Could not invite user"));
     }
   }
@@ -252,8 +272,10 @@ export default function UsersSettingsPage() {
         },
       });
       toast.success(t("users_page.updated", "User updated"));
+      announceSaved(t("users_page.updated", "User updated"));
       setEditUser(null);
     } catch (e) {
+      announceError(e, t("users_page.update_failed", "Could not update user"));
       toastError(e, t("users_page.update_failed", "Could not update user"));
     }
   }

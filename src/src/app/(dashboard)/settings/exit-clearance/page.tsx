@@ -25,6 +25,8 @@ import {
 } from "@/features/offboarding/api";
 import { useOwnerLabel } from "@/features/offboarding/components/exit-clearance-tab";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 
 const OWNERS: ExitClearanceOwner[] = ["hr", "supervisor", "finance"];
@@ -65,6 +67,7 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
   const { t } = useT();
   const ownerLabel = useOwnerLabel();
   const save = useSaveExitClearanceTemplate();
+  const { announceSaved, announceError } = useSaveStatus();
   const [lines, setLines] = useState<ExitClearanceTemplateLine[]>(
     template.items,
   );
@@ -76,6 +79,7 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
   const trimmed = lines.map((l) => ({ ...l, label: l.label.trim() }));
   // Live only once the lines differ from what is stored.
   const isDirty = JSON.stringify(trimmed) !== JSON.stringify(template.items);
+  useUnsavedChangesWarning(isDirty);
 
   function update(index: number, patch: Partial<ExitClearanceTemplateLine>) {
     setLines((prev) =>
@@ -94,18 +98,21 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
 
   function submit() {
     save.mutate(trimmed, {
-      onSuccess: () =>
-        toast.success(t("exit_clearance.template_saved", "Checklist saved")),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "exit_clearance.template_save_failed",
-              "The checklist could not be saved.",
-            ),
+      onSuccess: () => {
+        toast.success(t("exit_clearance.template_saved", "Checklist saved"));
+        announceSaved(t("exit_clearance.template_saved", "Checklist saved"));
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t(
+            "exit_clearance.template_save_failed",
+            "The checklist could not be saved.",
           ),
-        ),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

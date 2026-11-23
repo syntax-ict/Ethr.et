@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\AttendanceIntegrityFlag;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
@@ -25,9 +26,9 @@ class AttendanceHighRiskNotification extends Notification
         private readonly int $score,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'attendance_anomaly';
+        return NotificationType::ATTENDANCE_ANOMALY;
     }
 
     public function via(object $notifiable): array

@@ -33,7 +33,7 @@ function serveNewsPage(string $url, string $file): TestResponse
     if (! is_dir(dirname($page))) {
         mkdir(dirname($page), 0777, true);
     }
-    file_put_contents($page, '<!doctype html><html><head><meta charset="utf-8"><title>News | ETHR</title><meta name="robots" content="noindex, nofollow"><meta name="description" content="News."></head><body><main id="news"></main>'.portalPayload('noindex, nofollow').'</body></html>');
+    file_put_contents($page, '<!doctype html><html><head><meta charset="utf-8"><title>News | ETHR</title><meta name="robots" content="noindex, nofollow"><meta name="description" content="News."></head><body><main id="news"></main>'.portalPayload('noindex, nofollow', 'News and announcements.').'</body></html>');
 
     try {
         return test()->get($url);
@@ -212,4 +212,149 @@ it('lists a listed organisation\'s news page and articles in the sitemap, on its
         // and no news page: that page says `noindex` for the same reason.
         ->and($xml)->toContain('<loc>https://quietco.ethr.et/login</loc>')
         ->not->toContain('quietco.ethr.et/news');
+});
+
+/** The JSON-LD records of a page's head, decoded, keyed by their `@type`. */
+function headRecords(string $html): array
+{
+    preg_match_all('#<script type="application/ld\+json">(.*?)</script>#s', $html, $found);
+
+    $records = [];
+    foreach ($found[1] as $json) {
+        $record = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $records[$record['@type']] = $record;
+    }
+
+    return $records;
+}
+
+it('gives an article its modified time, its text, its author and a breadcrumb', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $article = publicArticle($tenant, ['body' => '<p>All shifts resume on Monday at 08:00.</p><p>Bring your badge.</p>']);
+    $article->timestamps = false;
+    $article->forceFill(['updated_at' => '2026-11-20 09:30:00'])->save();
+
+    $html = serveNewsPage("http://acme.ethr.et/news/{$article->public_id}", 'news/__id__.html')->assertOk()->getContent();
+    $records = headRecords($html);
+    $url = "https://acme.ethr.et/news/{$article->public_id}";
+
+    expect($html)->toContain('<meta property="article:modified_time" content="2026-11-20T09:30:00+00:00">')
+        ->and($records['NewsArticle']['articleBody'])->toBe('All shifts resume on Monday at 08:00.Bring your badge.')
+        ->and($records['NewsArticle']['author'])->toBe(['@type' => 'Organization', 'name' => 'Acme Manufacturing', 'url' => 'https://acme.ethr.et/login'])
+        ->and($records['NewsArticle']['inLanguage'])->toBe('en')
+        ->and(array_map(fn (array $crumb) => [$crumb['position'], $crumb['name'], $crumb['item']], $records['BreadcrumbList']['itemListElement']))->toBe([
+            [1, 'Acme Manufacturing', 'https://acme.ethr.et/login'],
+            [2, 'News', 'https://acme.ethr.et/news'],
+            [3, 'Plant reopens Monday', $url],
+        ]);
+});
+
+it('says an article\'s language only when the script and the organisation\'s language agree', function (string $locale, string $title, string $body, ?string $expected) {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $tenant->forceFill(['default_locale' => $locale])->save();
+    $article = publicArticle($tenant, ['title' => $title, 'body' => $body]);
+
+    $records = headRecords(serveNewsPage("http://acme.ethr.et/news/{$article->public_id}", 'news/__id__.html')->assertOk()->getContent());
+
+    expect($records['NewsArticle'])->when($expected === null, fn ($r) => $r->not->toHaveKey('inLanguage'))
+        ->when($expected !== null, fn ($r) => $r->inLanguage->toBe($expected));
+})->with([
+    'an Amharic story in an Amharic organisation' => ['am', 'ፋብሪካው ሰኞ ይከፈታል', 'ሁሉም ፈረቃዎች ሰኞ ከጠዋቱ ሁለት ሰዓት ይጀምራሉ።', 'am'],
+    'an Amharic story in an English organisation' => ['en', 'ፋብሪካው ሰኞ ይከፈታል', 'ሁሉም ፈረቃዎች ሰኞ ከጠዋቱ ሁለት ሰዓት ይጀምራሉ።', null],
+    'an English story in an English organisation' => ['en', 'Plant reopens Monday', 'All shifts resume.', 'en'],
+    'an English story in an Amharic organisation' => ['am', 'Plant reopens Monday', 'All shifts resume.', null],
+    'a Latin story in an Afaan Oromoo organisation' => ['om', 'Oduu haaraa', 'Hojiin guyyaa Wiixataa jalqaba.', 'om'],
+    'a story with no letters at all' => ['en', '2026', '12345', null],
+]);
+
+it('lists the first page of stories in the news head, in the order the page lists them', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    publicArticle($tenant, ['title' => 'Plain old', 'published_at' => now()->subDays(9)]);
+    publicArticle($tenant, ['title' => 'Plain new', 'published_at' => now()->subDays(1)]);
+    publicArticle($tenant, ['title' => 'Urgent', 'priority' => 'urgent', 'published_at' => now()->subDays(4)]);
+    publicArticle($tenant, ['title' => 'Featured', 'featured' => true, 'published_at' => now()->subDays(8)]);
+    publicArticle($tenant, ['title' => 'High', 'priority' => 'high', 'published_at' => now()->subDays(3)]);
+    publicArticle($tenant, ['title' => 'Hidden', 'show_on_landing' => false]);
+    foreach (range(1, 8) as $i) {
+        publicArticle($tenant, ['title' => "Filler {$i}", 'published_at' => now()->subDays(20 + $i)]);
+    }
+
+    $api = collect(test()->getJson('http://acme.ethr.et/api/v1/auth/tenant-landing/news')->assertOk()->json('data'));
+    $html = serveNewsPage('http://acme.ethr.et/news', 'news.html')->assertOk()->getContent();
+    $records = headRecords($html);
+    $items = collect($records['CollectionPage']['mainEntity']['itemListElement']);
+
+    // The same stories, in the same order, and the same number of them: the
+    // page's first page, which is nine of the fourteen public ones.
+    expect($items->map(fn (array $item) => basename($item['url']))->all())->toBe($api->pluck('public_id')->all())
+        ->and($items)->toHaveCount(9)
+        ->and($items->pluck('position')->all())->toBe(range(1, 9))
+        ->and($items->first()['name'])->toBe('Featured')
+        ->and($items->pluck('name')->all())->not->toContain('Hidden')
+        ->and($records['CollectionPage']['mainEntity']['@type'])->toBe('ItemList')
+        ->and($records['CollectionPage']['name'])->toBe('News · Acme Manufacturing')
+        ->and(array_map(fn (array $crumb) => $crumb['item'], $records['BreadcrumbList']['itemListElement']))->toBe(['https://acme.ethr.et/login', 'https://acme.ethr.et/news']);
+});
+
+it('gives a news page with no stories no list, and the same robots as before', function () {
+    newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+
+    $response = serveNewsPage('http://acme.ethr.et/news', 'news.html')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, follow');
+    $html = $response->getContent();
+
+    expect($html)->not->toContain('ItemList')
+        ->not->toContain('CollectionPage')
+        ->toContain('"@type":"BreadcrumbList"')
+        ->toContain('<meta name="robots" content="noindex, follow">');
+});
+
+it('says the news head\'s fixed words in the organisation\'s own language', function (string $locale, string $title, string $description) {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $tenant->forceFill(['default_locale' => $locale])->save();
+    publicArticle($tenant);
+
+    $html = serveNewsPage('http://acme.ethr.et/news', 'news.html')->assertOk()->getContent();
+
+    expect($html)->toContain("<title>{$title} · Acme Manufacturing</title>")
+        ->toContain('<meta name="description" content="'.$description.'">')
+        ->toContain('<meta property="og:title" content="'.$title.' · Acme Manufacturing">');
+    // The application's own locale is left as it was.
+    expect(app()->getLocale())->toBe('en');
+})->with([
+    'english' => ['en', 'News', 'News and announcements from Acme Manufacturing.'],
+    'amharic' => ['am', 'ዜና', 'ከAcme Manufacturing የወጡ ዜናዎችና ማስታወቂያዎች።'],
+    'afaan oromoo' => ['om', 'Oduu', 'Oduu fi ibsawwan Acme Manufacturing irraa.'],
+]);
+
+it('states the same description in the head and the payload of both news pages', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $article = publicArticle($tenant);
+
+    $list = serveNewsPage('http://acme.ethr.et/news', 'news.html')->getContent();
+    $story = serveNewsPage("http://acme.ethr.et/news/{$article->public_id}", 'news/__id__.html')->getContent();
+
+    expect(portalPayloadMeta($list, 'description'))->toBe(['News and announcements from Acme Manufacturing.'])
+        ->and($list)->toContain('<meta name="description" content="News and announcements from Acme Manufacturing.">')
+        ->and(portalPayloadMeta($story, 'description'))->toBe(['All shifts resume on Monday at 08:00.'])
+        ->and($story)->toContain('<meta name="description" content="All shifts resume on Monday at 08:00.">')
+        ->and($story)->not->toContain('News and announcements.');
+});
+
+it('dates the sitemap\'s news entries by when they last changed, and the sign-in entry not at all', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $older = publicArticle($tenant, ['title' => 'Older', 'published_at' => now()->subDays(5)]);
+    $newer = publicArticle($tenant, ['title' => 'Newer', 'published_at' => now()->subDays(2)]);
+    foreach ([[$older, '2026-11-18 08:00:00'], [$newer, '2026-11-10 10:15:00']] as [$story, $at]) {
+        $story->timestamps = false;
+        $story->forceFill(['updated_at' => $at])->save();
+    }
+
+    $xml = (string) test()->get('http://ethr.et/sitemap-organisations.xml')->assertOk()->getContent();
+
+    expect($xml)
+        ->toContain("<loc>https://acme.ethr.et/news/{$older->public_id}</loc><lastmod>2026-11-18T08:00:00+00:00</lastmod>")
+        ->toContain("<loc>https://acme.ethr.et/news/{$newer->public_id}</loc><lastmod>2026-11-10T10:15:00+00:00</lastmod>")
+        ->toContain('<loc>https://acme.ethr.et/news</loc><lastmod>2026-11-18T08:00:00+00:00</lastmod>')
+        ->toContain('<loc>https://acme.ethr.et/login</loc><xhtml:link')
+        ->and(substr_count($xml, '<lastmod>'))->toBe(3);
 });

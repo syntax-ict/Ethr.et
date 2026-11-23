@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Notifications\Concerns;
 
+use App\Enums\NotificationType;
 use App\Models\NotificationPreference;
+use App\Support\LiveUpdates;
 
 /**
  * Makes `via()` consult the per-user preference matrix.
@@ -27,19 +29,26 @@ trait RespectsNotificationPreferences
 {
     /**
      * The preference key this notification is filed under. Must be one of
-     * `NotificationPreferencesController::NOTIFICATION_TYPES`, otherwise the
+     * `NotificationType`, otherwise the
      * notification has no toggle and every channel stays enabled.
      */
-    abstract protected function preferenceType(): string;
+    abstract protected function preferenceType(): NotificationType;
 
     /**
      * Filter a default channel list down to what the notifiable has opted into.
      *
+     * Pass `broadcast: true` to add the `broadcast` channel when live updates are
+     * on; like `database`, it is never filtered out.
+     *
      * @param  array<int, string>  $channels  Laravel channel names
      * @return array<int, string>
      */
-    protected function filterChannels(object $notifiable, array $channels): array
+    protected function filterChannels(object $notifiable, array $channels, bool $broadcast = false): array
     {
+        if ($broadcast && LiveUpdates::enabled()) {
+            $channels[] = 'broadcast';
+        }
+
         $userId = $notifiable->getKey();
 
         if (! is_int($userId) && ! is_string($userId)) {
@@ -59,7 +68,7 @@ trait RespectsNotificationPreferences
         $stored = NotificationPreference::query()
             ->withoutGlobalScopes()
             ->where('user_id', $userId)
-            ->where('notification_type', $this->preferenceType())
+            ->where('notification_type', $this->preferenceType()->value)
             ->pluck('enabled', 'channel');
 
         return array_values(array_filter($channels, function (string $channel) use ($stored): bool {
