@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 vendor/
+# The published mail layout is source, not a dependency: it must be committed.
+!api/resources/views/vendor/
 
 # Build output
 .next/
