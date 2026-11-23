@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Concerns;
 
+use App\Support\LiveUpdates;
+
 /**
  * Laravel queues a BroadcastEvent job for every ShouldBroadcast event whatever
  * the driver, and production runs BROADCAST_CONNECTION=null — so without this,
@@ -14,6 +16,6 @@ trait BroadcastsWhenEnabled
 {
     public function broadcastWhen(): bool
     {
-        return config('broadcasting.default') !== 'null';
+        return LiveUpdates::enabled();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
@@ -28,9 +29,9 @@ class ApprovalEscalatedNotification extends Notification
         private readonly int $hours,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'approval_reminder';
+        return NotificationType::APPROVAL_REMINDER;
     }
 
     public function via(object $notifiable): array

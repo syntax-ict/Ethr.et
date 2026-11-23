@@ -7,10 +7,10 @@ namespace App\Listeners;
 use App\Enums\UserRole;
 use App\Events\PayrollProcessed;
 use App\Models\Tenant;
-use App\Models\User;
 use App\Notifications\PayrollProcessedNotification;
 use App\Notifications\PayslipAvailableNotification;
 use App\Services\CurrentTenant;
+use App\Support\TenantRecipients;
 use App\Traits\SendsNotifications;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -49,11 +49,7 @@ class NotifyPayrollProcessed implements ShouldQueue
             app(CurrentTenant::class)->set($tenant);
         }
 
-        $financeUsers = User::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->whereIn('role', [UserRole::FINANCE_ADMIN, UserRole::TENANT_ADMIN])
-            ->where('status', 'active')
-            ->get();
+        $financeUsers = TenantRecipients::withRoles($tenantId, [UserRole::FINANCE_ADMIN, UserRole::TENANT_ADMIN]);
 
         $this->notify($financeUsers, new PayrollProcessedNotification($run));
 
