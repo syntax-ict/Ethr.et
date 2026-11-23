@@ -209,8 +209,8 @@ open for the rest.*
 | W-30 | `app/(dashboard)/announcements/page.tsx:589` | The story title carries `break-words` |
 | W-40 | `features/dashboard/components/announcements-widget.tsx:137` | `transition-all` became `transition-[border-color,box-shadow]` |
 
-W-18's announcements site (`page.tsx:580`) is **not** closed: the list still
-fetches every page. It is PR A2's pager.
+W-18's announcements site (`page.tsx:580`) was closed on 2026-11-22 by PR A2:
+the list pages through `PaginationControls` instead of fetching every page.
 
 ## What this pass does not claim
 

@@ -73,6 +73,12 @@ import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
 import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
 import { DeductionCeilingBanner } from "@/features/payroll/components/deduction-ceiling-banner";
 import { IntegrityBanner } from "@/features/payroll/components/integrity-banner";
+import {
+  MissingTinBanner,
+  NoAttendanceBanner,
+  PayChangesBanner,
+  SharedBankAccountsBanner,
+} from "@/features/payroll/components/pre-approval-checks";
 import { PayDifferencesApprovalDialog } from "@/features/payroll/components/pay-differences-approval-dialog";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
@@ -764,6 +770,18 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
       )}
       {register?.integrity && run.status !== "voided" && (
         <IntegrityBanner integrity={register.integrity} />
+      )}
+      {register?.pay_changes && run.status !== "voided" && (
+        <PayChangesBanner changes={register.pay_changes} />
+      )}
+      {register?.shared_bank_accounts && run.status !== "voided" && (
+        <SharedBankAccountsBanner shared={register.shared_bank_accounts} />
+      )}
+      {register?.missing_tin && run.status !== "voided" && (
+        <MissingTinBanner missing={register.missing_tin} />
+      )}
+      {register?.no_attendance && run.status !== "voided" && (
+        <NoAttendanceBanner none={register.no_attendance} />
       )}
 
       {run.reprocessed_from_public_id && (

@@ -38,7 +38,8 @@ export function useQueryFilters<T extends Record<string, string>>(
   allowed: Partial<Record<keyof T, readonly string[]>> = {},
 ): {
   values: T;
-  set: (patch: Partial<T>) => void;
+  /** `push` adds a history entry, so Back undoes this change. */
+  set: (patch: Partial<T>, options?: { push?: boolean }) => void;
   clear: () => void;
   /** How many filters differ from their default: for a "Clear filters (2)" label. */
   activeCount: number;
@@ -69,7 +70,7 @@ export function useQueryFilters<T extends Record<string, string>>(
   }, [search, defaultsKey, allowedKey]);
 
   const write = useCallback(
-    (next: T) => {
+    (next: T, push = false) => {
       const params = new URLSearchParams(window.location.search);
       for (const key of Object.keys(defaults)) {
         const v = next[key];
@@ -82,7 +83,17 @@ export function useQueryFilters<T extends Record<string, string>>(
       const query = params.toString();
       const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
       // Keep the router's own state object: Next.js reads it on back/forward.
-      window.history.replaceState(window.history.state, "", url);
+      //
+      // Replacing by default is what a filter wants: no history entry per
+      // keystroke, and Back leaves the page rather than walking a typed word
+      // backwards. Something that opens — a panel reached by `?read=`, say —
+      // asks to push instead, so Back closes it, which is what a phone's
+      // gesture is for.
+      if (push) {
+        window.history.pushState(window.history.state, "", url);
+      } else {
+        window.history.replaceState(window.history.state, "", url);
+      }
       window.dispatchEvent(new Event(CHANGE_EVENT));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,7 +101,8 @@ export function useQueryFilters<T extends Record<string, string>>(
   );
 
   const set = useCallback(
-    (patch: Partial<T>) => write({ ...values, ...patch } as T),
+    (patch: Partial<T>, options?: { push?: boolean }) =>
+      write({ ...values, ...patch } as T, options?.push ?? false),
     [values, write],
   );
   const clear = useCallback(() => write({ ...defaults }), [write, defaults]);

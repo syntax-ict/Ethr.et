@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlanFeatures } from "@/features/auth/api";
 import { AllowanceRulesCard } from "@/features/payroll/components/allowance-rules-card";
 import { OvertimeRatesCard } from "@/features/payroll/components/overtime-rates-card";
+import { PayChangeChecksCard } from "@/features/payroll/components/pay-change-checks-card";
 import { PayrollScheduleCard } from "@/features/payroll/components/payroll-schedule-card";
 import { PrintedDocumentsCard } from "@/features/payroll/components/printed-documents-card";
 import { StatutoryDetailsCard } from "@/features/payroll/components/statutory-details-card";
@@ -54,7 +55,7 @@ export default function PayrollConfigPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="setup" className="mt-6 space-y-6">
-            {/* These three read and save the organisation's settings, which
+            {/* These four read and save the organisation's settings, which
                 take `settings.manage`: offered to anyone without it, they
                 would only fail to load. */}
             {can.manageSettings && (
@@ -62,6 +63,7 @@ export default function PayrollConfigPage() {
                 <PayrollScheduleCard />
                 <StatutoryDetailsCard />
                 <PrintedDocumentsCard />
+                <PayChangeChecksCard />
               </>
             )}
             <AllowanceRulesCard />
