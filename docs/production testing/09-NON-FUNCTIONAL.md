@@ -245,7 +245,7 @@ Application → Local Storage. The service worker's caches are named `ethr-v5-st
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | PWA-001 | P2 | R | Installable (#469) | Chrome: install prompt or Add to Home screen; iPhone: Add to Home Screen | Installs with the ETHR icon and the name "ETHR: Ethiopian Workforce OS" (a colon, no long dash); `/manifest.json` and icons load (`/app-icons/icon-192.png` 200) |
-| PWA-002 | P2 | R | Offline page (#466) | Installed app, airplane mode, open a page not cached; in English, then አማርኛ, then Afaan Oromoo | The offline page in the reader's language ("You are offline", «ከመስመር ውጪ ነዎት», "Toora ala jirtu") with "Try again", never "Something went wrong". After a release, the offline copy is renewed on an online visit once it is six hours old |
+| PWA-002 | P2 | R | Offline page (#466) | Installed app, airplane mode, open a page not cached; in English, then አማርኛ, then Afaan Oromoo | The offline page in the reader's language ("You are offline", «ከመስመር ውጭ ነዎት», "Toora ala jirtu") with "Try again", never "Something went wrong". After a release, the offline copy is renewed on an online visit once it is six hours old |
 | PWA-003 | P2 | W | Offline attendance | OFF-002 | As stated |
 | PWA-004 | P2 | R | Update after release | After a new release, reopen the installed app | The new version loads (no stale bundle); `release.json` matches |
 | PWA-005 | P2 | R | Offline banner | Lose network while using the app | A banner says the app is offline; actions that need the network say so |
