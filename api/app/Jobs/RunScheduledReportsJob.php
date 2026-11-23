@@ -199,7 +199,7 @@ class RunScheduledReportsJob implements ShouldQueue
             // Anonymous notifiable: recipients are free-text addresses on the
             // schedule, not necessarily user accounts in this tenant.
             $this->notify(
-                Notification::route('mail', $email),
+                Notification::route('mail', $email)->route('tenant', $schedule->tenant_id),
                 (new ScheduledReportNotification($saved->name, $rowCount, $csv, $filename, $periodText, $truncatedNote))->locale(self::organisationLocale($schedule->tenant_id)),
             );
         }
@@ -268,7 +268,7 @@ class RunScheduledReportsJob implements ShouldQueue
             }
 
             $this->notify(
-                Notification::route('mail', $email),
+                Notification::route('mail', $email)->route('tenant', $schedule->tenant_id),
                 (new ScheduledReportFailedNotification($name))->locale(self::organisationLocale($schedule->tenant_id)),
             );
         }
