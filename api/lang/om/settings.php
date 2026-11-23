@@ -29,5 +29,12 @@ return [
         'letterhead_email' => 'imeelii sanada irratti',
         'letterhead_po_box' => 'lakk. poostaa sanada irratti',
         'invitation_reminders' => 'yaadachiisota affeerraa',
+        'password_policy' => 'imaammata jecha iccitii',
+        'activation_code_hours' => 'yeroo koodii hojjechiisuu',
+        'password_policy_min_length' => 'dheerina gad aanaa',
+        'password_policy_require_uppercase' => 'seera qubee guddaa',
+        'password_policy_require_lowercase' => 'seera qubee xiqqaa',
+        'password_policy_require_number' => 'seera lakkoofsaa',
+        'password_policy_require_symbol' => 'seera mallattoo',
     ],
 ];

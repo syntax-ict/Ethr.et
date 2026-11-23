@@ -18,6 +18,8 @@ use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
+use App\Rules\PasswordPolicy;
+use App\Services\Auth\ActivationCodeService;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
@@ -134,6 +136,8 @@ class SettingsController extends Controller
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
                 'session_timeout_minutes' => $security->idleTimeoutMinutes(),
+                'password_policy' => $this->passwordPolicy($tenant),
+                'activation_code_hours' => ActivationCodeService::ttlHoursFor($tenant),
             ],
             'display' => [
                 'calendar' => $this->organisationCalendar($tenant),
@@ -196,12 +200,49 @@ class SettingsController extends Controller
         if (array_key_exists('employer_bank_name', $incoming) && ! array_key_exists('employer_bank_code', $incoming)) {
             $incoming['employer_bank_code'] = null;
         }
+        $before = $this->securityAudit($tenant);
+        if (array_key_exists('password_policy', $incoming)) {
+            $stored = data_get($currentSettings, 'password_policy', []);
+            $incoming['password_policy'] = array_merge(is_array($stored) ? $stored : [], $incoming['password_policy']);
+        }
         $newSettings = array_merge($currentSettings, $incoming);
         $tenant->update(['settings' => $newSettings]);
 
         AuditLog::record('settings.updated', $tenant);
 
+        $after = $this->securityAudit($tenant);
+        if ($before !== $after && (array_key_exists('password_policy', $incoming) || array_key_exists('activation_code_hours', $incoming))) {
+            AuditLog::record('settings.sign_in_rules_updated', $tenant, ['before' => $before, 'after' => $after]);
+        }
+
         return response()->json(['message' => 'Settings updated', 'settings' => $newSettings]);
+    }
+
+    /**
+     * The password policy and the single-code lifetime as enforced, for the
+     * audit trail: what the rules were, and what they now are.
+     *
+     * @return array{password_policy: array{min_length: int, require_uppercase: bool, require_lowercase: bool, require_number: bool, require_symbol: bool}, activation_code_hours: int}
+     */
+    private function securityAudit(Tenant $tenant): array
+    {
+        return [
+            'password_policy' => $this->passwordPolicy($tenant),
+            'activation_code_hours' => ActivationCodeService::ttlHoursFor($tenant),
+        ];
+    }
+
+    private function passwordPolicy(Tenant $tenant): array
+    {
+        $policy = PasswordPolicy::forTenant($tenant);
+
+        return [
+            'min_length' => (int) $policy['min_length'],
+            'require_uppercase' => (bool) $policy['require_uppercase'],
+            'require_lowercase' => (bool) $policy['require_lowercase'],
+            'require_number' => (bool) $policy['require_number'],
+            'require_symbol' => (bool) $policy['require_symbol'],
+        ];
     }
 
     public function updateOrganization(UpdateOrganizationRequest $request): JsonResponse
