@@ -437,28 +437,32 @@ final class EmployeeImportRow
     public static function column(string $cell, bool $parts = true): array
     {
         $key = self::key($cell);
+        $match = self::fold($key);
+        $partAliases = self::folded('parts');
+        $signInAliases = self::folded('sign_in');
+        $aliases = self::folded('aliases');
 
-        if ($parts && (isset(self::PART_ALIASES[$key]) || in_array($key, self::NAME_PARTS, true))) {
-            return [self::PART_ALIASES[$key] ?? $key, null];
+        if ($parts && (isset($partAliases[$match]) || in_array($key, self::NAME_PARTS, true))) {
+            return [$partAliases[$match] ?? $key, null];
         }
 
-        if ($parts && isset(self::SIGN_IN_ALIASES[$key])) {
-            return [self::SIGN_IN_ALIASES[$key], null];
+        if ($parts && isset($signInAliases[$match])) {
+            return [$signInAliases[$match], null];
         }
 
-        if (isset(self::ALIASES[$key]) || in_array($key, self::COLUMNS, true)) {
-            return [self::ALIASES[$key] ?? $key, null];
+        if (isset($aliases[$match]) || in_array($key, self::COLUMNS, true)) {
+            return [$aliases[$match] ?? $key, null];
         }
 
-        foreach (self::CALENDAR_MARKS as $mark => $calendar) {
-            if (! str_ends_with($key, '_'.$mark)) {
+        foreach (array_keys(self::folded('marks')) as $mark) {
+            if (! str_ends_with($match, '_'.$mark)) {
                 continue;
             }
 
-            $named = substr($key, 0, -strlen('_'.$mark));
-            $field = self::ALIASES[$named] ?? $named;
+            $named = substr($match, 0, -strlen('_'.$mark));
+            $field = $aliases[$named] ?? $named;
             if (in_array($field, self::DATES, true)) {
-                return [$field, $calendar];
+                return [$field, self::markOf($mark)];
             }
         }
 
@@ -469,6 +473,92 @@ final class EmployeeImportRow
     private static function key(string $value): string
     {
         return trim((string) preg_replace('/[^\p{L}\p{N}]+/u', '_', mb_strtolower(trim($value))), '_');
+    }
+
+    /** A column name as it is compared: key(), with Amharic letters that sound alike read as one (fold()). */
+    private static function matchKey(string $value): string
+    {
+        return self::fold(self::key($value));
+    }
+
+    /**
+     * Amharic writes several sounds with more than one letter, and a file may
+     * use either: "የሠራተኛ ቁጥር" and "የሰራተኛ ቁጥር" are the same column. Each
+     * of these families is read as one, in every vowel order: ሐ and ኀ as ሀ,
+     * ሠ as ሰ, ዐ as አ, ፀ as ጸ. The fourth order of ሀ and of አ stands for the
+     * first as often as not (ሃላፊ, ሀላፊ), so it is read as the first too.
+     * Only column names are compared this way; what a cell holds is kept as
+     * written.
+     */
+    private static function fold(string $key): string
+    {
+        return strtr($key, self::$foldMap ??= self::foldMap());
+    }
+
+    /** @var array<string, string>|null */
+    private static ?array $foldMap = null;
+
+    /** @var array<string, array<string, string>> */
+    private static array $folded = [];
+
+    /** @return array<string, string> */
+    private static function foldMap(): array
+    {
+        $map = [];
+        // The first letter of a family written either way, the first letter
+        // it is read as, and how many vowel orders the family has.
+        foreach ([[0x1210, 0x1200, 8], [0x1280, 0x1200, 8], [0x1220, 0x1230, 8], [0x12D0, 0x12A0, 7], [0x1340, 0x1338, 8]] as [$from, $to, $orders]) {
+            for ($order = 0; $order < $orders; $order++) {
+                $read = $order === 3 && ($to === 0x1200 || $to === 0x12A0) ? $to : $to + $order;
+                $map[(string) mb_chr($from + $order, 'UTF-8')] = (string) mb_chr($read, 'UTF-8');
+            }
+        }
+        $map[(string) mb_chr(0x1203, 'UTF-8')] = (string) mb_chr(0x1200, 'UTF-8');
+        $map[(string) mb_chr(0x12A3, 'UTF-8')] = (string) mb_chr(0x12A0, 'UTF-8');
+
+        return $map;
+    }
+
+    /**
+     * One of the spelling tables with its keys as matchKey() compares them.
+     * Two spellings that fold to one keep the first one's column.
+     *
+     * @param  'aliases'|'parts'|'sign_in'|'marks'  $table
+     * @return array<string, string>
+     */
+    private static function folded(string $table): array
+    {
+        if (isset(self::$folded[$table])) {
+            return self::$folded[$table];
+        }
+
+        $source = match ($table) {
+            'aliases' => self::ALIASES,
+            'parts' => self::PART_ALIASES,
+            'sign_in' => self::SIGN_IN_ALIASES,
+            'marks' => self::CALENDAR_MARKS,
+        };
+
+        $folded = [];
+        foreach ($source as $spelling => $column) {
+            $folded[self::fold($spelling)] ??= $column;
+        }
+
+        return self::$folded[$table] = $folded;
+    }
+
+    /**
+     * The calendar a folded mark names, or null for one that is not a mark.
+     *
+     * @return 'gregorian'|'ethiopian'|null
+     */
+    private static function markOf(string $mark): ?string
+    {
+        return match (self::folded('marks')[$mark] ?? null) {
+            'ethiopian' => 'ethiopian',
+            'gregorian' => 'gregorian',
+            default => null,
+        };
     }
 
     /**
@@ -493,7 +583,7 @@ final class EmployeeImportRow
      */
     public static function headerKey(string $cell): string
     {
-        return self::key($cell);
+        return self::matchKey($cell);
     }
 
     /**
@@ -504,11 +594,11 @@ final class EmployeeImportRow
      */
     public static function calendarMark(string $cell): ?string
     {
-        $key = self::key($cell);
+        $key = self::matchKey($cell);
 
-        foreach (self::CALENDAR_MARKS as $mark => $calendar) {
+        foreach (array_keys(self::folded('marks')) as $mark) {
             if (str_ends_with($key, '_'.$mark)) {
-                return $calendar;
+                return self::markOf($mark);
             }
         }
 
@@ -519,10 +609,13 @@ final class EmployeeImportRow
      * What a column ETHR does not know might be, from the words in its name.
      * Null when nothing in it is a hint. The reader decides; this only saves
      * them choosing the obvious ones.
+     *
+     * A name with no hint in it may still be a known word misspelled
+     * ("Departmnet", "Telephon"), and is suggested as that word's column.
      */
     public static function suggest(string $cell): ?string
     {
-        $key = self::key($cell);
+        $key = self::matchKey($cell);
         if ($key === '') {
             return null;
         }
@@ -530,6 +623,7 @@ final class EmployeeImportRow
         $words = explode('_', $key);
         foreach (self::HINTS as $column => $hints) {
             foreach ($hints as $hint) {
+                $hint = self::fold($hint);
                 // A short hint is a whole word ("no", "id", "nm"); a longer
                 // one may be part of one ("depart" in "department").
                 $found = mb_strlen($hint) <= 3 || str_contains($hint, '_')
@@ -541,7 +635,78 @@ final class EmployeeImportRow
             }
         }
 
-        return null;
+        return self::misspelled($words);
+    }
+
+    /**
+     * The column of the known word a word of a column name is closest to,
+     * when it is one or two letters out: one letter for a word of five to
+     * seven letters, two for a longer one. Words of Latin letters only, since
+     * the distance is counted in bytes, and shorter words are left alone:
+     * "tel" is one letter from "tin". The closest word wins; on a tie, the
+     * one listed first.
+     *
+     * @param  list<string>  $words
+     */
+    private static function misspelled(array $words): ?string
+    {
+        $best = null;
+        $closest = PHP_INT_MAX;
+        foreach ($words as $word) {
+            $length = strlen($word);
+            if ($length < 5 || preg_match('/^[a-z]+$/', $word) !== 1) {
+                continue;
+            }
+
+            $allowed = $length <= 7 ? 1 : 2;
+            foreach (self::knownWords() as [$known, $column]) {
+                if (abs(strlen($known) - $length) > $allowed) {
+                    continue;
+                }
+
+                $distance = levenshtein($word, $known);
+                if ($distance <= $allowed && $distance < $closest) {
+                    [$best, $closest] = [$column, $distance];
+                }
+            }
+        }
+
+        return $best;
+    }
+
+    /** @var list<array{0: string, 1: string}>|null */
+    private static ?array $knownWords = null;
+
+    /**
+     * Whole Latin words of five letters or more that name a column: the
+     * one-word spellings, then the columns. Not the hints: many are stems
+     * ("depart", "national") that a different word is one letter from.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private static function knownWords(): array
+    {
+        if (self::$knownWords !== null) {
+            return self::$knownWords;
+        }
+
+        $words = [];
+        $seen = [];
+        $add = function (string $word, string $column) use (&$words, &$seen): void {
+            if (strlen($word) >= 5 && preg_match('/^[a-z]+$/', $word) === 1 && ! isset($seen[$word])) {
+                $seen[$word] = true;
+                $words[] = [$word, $column];
+            }
+        };
+
+        foreach (self::ALIASES as $spelling => $column) {
+            $add($spelling, $column);
+        }
+        foreach (self::COLUMNS as $column) {
+            $add($column, $column);
+        }
+
+        return self::$knownWords = $words;
     }
 
     /**
@@ -967,25 +1132,17 @@ final class EmployeeImportRow
     {
         $written = $value;
 
-        if (preg_match('/^\d{5}$/', $value) === 1 && (int) $value >= self::SERIAL_DAYS[0] && (int) $value <= self::SERIAL_DAYS[1]) {
+        if (self::isSerialDay($value)) {
             return Carbon::create(1899, 12, 30)->addDays((int) $value)->toDateString();
         }
 
-        if (preg_match('/^(.*\d)\s*\(?([\p{L}.]+)\)?$/u', $value, $m) === 1) {
-            $named = self::CALENDAR_MARKS[self::key($m[2])] ?? null;
-            if ($named === null) {
-                return $written;
-            }
-            [$value, $calendar] = [trim($m[1]), $named];
-        }
-
-        if (preg_match('#^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$#', $value, $m) === 1) {
-            [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } elseif (preg_match('#^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$#', $value, $m) === 1) {
-            [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } else {
+        $parts = self::dateParts($value);
+        if ($parts === null) {
             return $written;
         }
+
+        [$year, $month, $day, $named] = $parts;
+        $calendar = $named ?? $calendar;
 
         if ($calendar === 'ethiopian') {
             $ethiopian = app(EthiopianCalendar::class);
@@ -999,5 +1156,41 @@ final class EmployeeImportRow
         return checkdate($month, $day, $year)
             ? sprintf('%04d-%02d-%02d', $year, $month, $day)
             : $written;
+    }
+
+    /** A bare five-digit number in the range Excel keeps a date as (see date()). */
+    public static function isSerialDay(string $value): bool
+    {
+        return preg_match('/^\d{5}$/', $value) === 1 && (int) $value >= self::SERIAL_DAYS[0] && (int) $value <= self::SERIAL_DAYS[1];
+    }
+
+    /**
+     * A written date as its year, month and day, in the two orders date()
+     * reads, and the calendar the date names itself when it does ("2011-10-30
+     * E.C."). Null for anything else, a mark ETHR does not know included.
+     * Whether the day exists in a calendar is not checked here.
+     *
+     * @return array{0: int, 1: int, 2: int, 3: 'gregorian'|'ethiopian'|null}|null
+     */
+    public static function dateParts(string $value): ?array
+    {
+        $named = null;
+        if (preg_match('/^(.*\d)\s*\(?([\p{L}.]+)\)?$/u', $value, $m) === 1) {
+            $named = self::markOf(self::matchKey($m[2]));
+            if ($named === null) {
+                return null;
+            }
+            $value = trim($m[1]);
+        }
+
+        if (preg_match('#^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$#', $value, $m) === 1) {
+            return [(int) $m[1], (int) $m[2], (int) $m[3], $named];
+        }
+
+        if (preg_match('#^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$#', $value, $m) === 1) {
+            return [(int) $m[3], (int) $m[2], (int) $m[1], $named];
+        }
+
+        return null;
     }
 }
