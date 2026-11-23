@@ -92,6 +92,7 @@ class ExportTenantDataJob implements ShouldQueue
         'mfa_recovery_codes',
         'mfa_secret',
         'national_id_hash',
+        'account_number_hash',
         'offline_private_key',
         'offline_token',
         'password',

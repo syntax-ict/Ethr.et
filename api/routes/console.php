@@ -2,6 +2,7 @@
 
 use App\Jobs\AccrueLeaveBalancesJob;
 use App\Jobs\ApplyDuePersonnelActionsJob;
+use App\Jobs\BackfillBankAccountHashesJob;
 use App\Jobs\CarryForwardLeaveBalancesJob;
 use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
@@ -21,6 +22,7 @@ use App\Services\Leave\LeaveYear;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -143,6 +145,20 @@ Schedule::call(function () {
         ApplyDuePersonnelActionsJob::dispatch($tenant->id)->onQueue('default');
     });
 })->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
+
+// Bank account hashes for the shared-account check before approval, on rows
+// saved before the hash existed (2026-11-22). Only operational organisations
+// with a row still to fill get a job, so once every row has one this queues
+// nothing.
+Schedule::call(function () {
+    DB::table('employee_bank_details')
+        ->whereNull('account_number_hash')
+        ->whereNotNull('account_number')
+        ->whereIn('tenant_id', Tenant::operational()->select('id'))
+        ->distinct()
+        ->pluck('tenant_id')
+        ->each(fn (mixed $tenantId) => BackfillBankAccountHashesJob::dispatch((int) $tenantId));
+})->hourlyAt(20)->name('backfill-bank-account-hashes')->withoutOverlapping();
 
 // Where each organisation is between sign-up and using ETHR, for the console
 // (docs/operations/TENANT-JOURNEY.md). Only snapshots older than fifty minutes

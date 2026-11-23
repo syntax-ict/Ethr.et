@@ -28335,6 +28335,40 @@
                                         "calendar_from_header": {
                                             "type": "boolean"
                                         },
+                                        "calendar_hints": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column": {
+                                                        "type": "string"
+                                                    },
+                                                    "calendar": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "ethiopian",
+                                                            "gregorian"
+                                                        ]
+                                                    },
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "line": {
+                                                        "type": "integer"
+                                                    },
+                                                    "from_header": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "column",
+                                                    "calendar",
+                                                    "value",
+                                                    "line",
+                                                    "from_header"
+                                                ]
+                                            }
+                                        },
                                         "without_hire_date": {
                                             "type": "integer"
                                         },
@@ -28448,6 +28482,7 @@
                                         "ignored",
                                         "calendar",
                                         "calendar_from_header",
+                                        "calendar_hints",
                                         "without_hire_date",
                                         "problems",
                                         "warnings",
@@ -36266,6 +36301,195 @@
                                                 "employees"
                                             ]
                                         },
+                                        "pay_changes": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "previous_period": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "first_payslip": {
+                                                    "type": "integer"
+                                                },
+                                                "percent": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "min_cents": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "previous_net_cents": {
+                                                                "type": "integer"
+                                                            },
+                                                            "net_cents": {
+                                                                "type": "integer"
+                                                            },
+                                                            "change_cents": {
+                                                                "type": "string"
+                                                            },
+                                                            "change_percent": {
+                                                                "type": [
+                                                                    "number",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": []
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name",
+                                                            "previous_net_cents",
+                                                            "net_cents",
+                                                            "change_cents",
+                                                            "change_percent",
+                                                            "reasons"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "previous_period",
+                                                "first_payslip",
+                                                "percent",
+                                                "min_cents",
+                                                "employees"
+                                            ]
+                                        },
+                                        "shared_bank_accounts": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "pending_hashes": {
+                                                    "type": "integer"
+                                                },
+                                                "support_session": {
+                                                    "type": "boolean"
+                                                },
+                                                "groups": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "banks": {
+                                                                "type": "array",
+                                                                "items": []
+                                                            },
+                                                            "employees": {
+                                                                "type": "array",
+                                                                "items": []
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "banks",
+                                                            "employees"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "pending_hashes",
+                                                "support_session",
+                                                "groups"
+                                            ]
+                                        },
+                                        "missing_tin": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "employees"
+                                            ]
+                                        },
+                                        "no_attendance": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "employees": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_public_id": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "employee_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "days": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_public_id",
+                                                            "employee_name",
+                                                            "days"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "count",
+                                                "employees"
+                                            ]
+                                        },
                                         "reconciliation": {
                                             "type": "object",
                                             "properties": {
@@ -36341,6 +36565,10 @@
                                         "absences",
                                         "integrity",
                                         "deduction_ceiling",
+                                        "pay_changes",
+                                        "shared_bank_accounts",
+                                        "missing_tin",
+                                        "no_attendance",
                                         "reconciliation"
                                     ]
                                 }
@@ -36546,7 +36774,8 @@
                                                     ]
                                                 },
                                                 "approved": {
-                                                    "type": "boolean"
+                                                    "type": "boolean",
+                                                    "description": "A user with no token at all (an actingAs() test, a console) reads as\nno abilities: the `??` is on a property of null, which is safe."
                                                 },
                                                 "basis": {
                                                     "type": "string"
@@ -39817,6 +40046,18 @@
                                                         "string",
                                                         "null"
                                                     ]
+                                                },
+                                                "pay_change_alert_percent": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "pay_change_alert_min_cents": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -39834,7 +40075,9 @@
                                                 "pension_registration_number",
                                                 "payout_method",
                                                 "employer_bank_name",
-                                                "employer_bank_code"
+                                                "employer_bank_code",
+                                                "pay_change_alert_percent",
+                                                "pay_change_alert_min_cents"
                                             ]
                                         },
                                         "documents": {
@@ -39956,6 +40199,12 @@
                                                         },
                                                         "metadata_url": {
                                                             "type": "string"
+                                                        },
+                                                        "configured": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "has_certificate": {
+                                                            "type": "boolean"
                                                         }
                                                     },
                                                     "required": [
@@ -39965,7 +40214,9 @@
                                                         "idp_sso_url",
                                                         "default_role",
                                                         "auto_provision",
-                                                        "metadata_url"
+                                                        "metadata_url",
+                                                        "configured",
+                                                        "has_certificate"
                                                     ]
                                                 },
                                                 {
@@ -39993,6 +40244,12 @@
                                                         },
                                                         "metadata_url": {
                                                             "type": "null"
+                                                        },
+                                                        "configured": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "has_certificate": {
+                                                            "type": "boolean"
                                                         }
                                                     },
                                                     "required": [
@@ -40002,7 +40259,9 @@
                                                         "idp_sso_url",
                                                         "default_role",
                                                         "auto_provision",
-                                                        "metadata_url"
+                                                        "metadata_url",
+                                                        "configured",
+                                                        "has_certificate"
                                                     ]
                                                 }
                                             ]

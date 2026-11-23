@@ -146,6 +146,7 @@ final class EmployeeImportGrid
         $warnings = [];
         $terminals = $this->terminalTypes();
         $firstSeen = [];
+        $namesSeen = [];
         $rules = EmployeeImportRow::stagedRules();
         $last = $at;
 
@@ -176,6 +177,7 @@ final class EmployeeImportGrid
             foreach ($found as $problem) {
                 $problems[] = ['line' => $line, ...$problem];
             }
+            $this->noteName($row, $namesSeen, $line, $found === []);
             if ($found === []) {
                 $rows[] = EmployeeImportRow::staged($row, $source);
                 foreach ($this->terminalWarnings($row, $terminals) as $warning) {
@@ -183,6 +185,9 @@ final class EmployeeImportGrid
                 }
             }
         }
+
+        $warnings = [...$warnings, ...$this->sameNameWarnings($namesSeen)];
+        usort($warnings, fn (array $a, array $b): int => $a['line'] <=> $b['line']);
 
         if (count($rows) > self::MAX_PEOPLE) {
             $problems[] = ['line' => $last, 'message' => __('onboarding.migration.too_many', [
@@ -206,7 +211,99 @@ final class EmployeeImportGrid
             headerLikely: $header === null && ! $none && $this->looksLikeNames($lines[$at]) && count($lines) > 1,
             warnings: $warnings,
             headerLine: $header !== null ? $at : null,
+            calendarHints: $this->calendarHints($lines, $keys, $calendar, $calendars),
         );
+    }
+
+    /**
+     * Date columns whose dates say they are in the other calendar than the
+     * one they are read in (DateColumnCalendar): a 13th month read as
+     * Gregorian, a 31st read as Ethiopian. Those lines are refused; this says
+     * why, once, and the reader chooses. Nothing is read differently for it.
+     *
+     * @param  array<int, list<string>>  $lines  the people's lines, column names left out
+     * @param  array<int, string|null>  $keys  the column each position is read as
+     * @param  'gregorian'|'ethiopian'  $calendar
+     * @param  array<string, 'gregorian'|'ethiopian'>  $calendars  what the column names said
+     * @return list<array{column: string, calendar: 'ethiopian'|'gregorian', value: string, line: int, from_header: bool}>
+     */
+    private function calendarHints(array $lines, array $keys, string $calendar, array $calendars): array
+    {
+        $hints = [];
+        foreach ($keys as $position => $key) {
+            if ($key === null || ! in_array($key, EmployeeImportRow::DATES, true) || isset($hints[$key])) {
+                continue;
+            }
+
+            $values = [];
+            foreach ($lines as $line => $cells) {
+                $values[$line] = $cells[$position] ?? '';
+            }
+
+            $found = DateColumnCalendar::detect($values);
+            $readIn = $calendars[$key] ?? $calendar;
+            if ($found !== null && $found['calendar'] !== $readIn) {
+                $hints[$key] = ['column' => $key, ...$found, 'from_header' => isset($calendars[$key])];
+            }
+        }
+
+        return array_values($hints);
+    }
+
+    /**
+     * The line a person is on, under their full name as two records are
+     * compared on it (PersonName), and whether that line is staged. A line
+     * with a problem still counts: once it is fixed, both are added.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, array{name: string, lines: list<int>, staged: list<int>}>  $namesSeen
+     */
+    private function noteName(array $row, array &$namesSeen, int $line, bool $staged): void
+    {
+        $name = is_string($row['name'] ?? null) ? $row['name'] : null;
+        $key = PersonName::normalised($name);
+        if ($name === null || $key === '') {
+            return;
+        }
+
+        $namesSeen[$key] ??= ['name' => $name, 'lines' => [], 'staged' => []];
+        $namesSeen[$key]['lines'][] = $line;
+        if ($staged) {
+            $namesSeen[$key]['staged'][] = $line;
+        }
+    }
+
+    /**
+     * Every line of a name that is on more than one line of the list. Names
+     * repeat, so they are all added: the reader is told in case one person
+     * was written twice. One message per name, so a screen that groups what
+     * a read found keeps each name's lines together. A warning is for a line
+     * that is staged; a line with a problem is listed with its problem, and
+     * its name still counts.
+     *
+     * @param  array<string, array{name: string, lines: list<int>, staged: list<int>}>  $namesSeen
+     * @return list<array{line: int, column: string, code: string, message: string}>
+     */
+    private function sameNameWarnings(array $namesSeen): array
+    {
+        $warnings = [];
+        foreach ($namesSeen as ['name' => $name, 'lines' => $lines, 'staged' => $staged]) {
+            if (count($lines) < 2) {
+                continue;
+            }
+
+            $message = __('onboarding.migration.same_name_in_list', ['name' => $name]);
+            foreach ($staged as $line) {
+                $warnings[] = [
+                    'line' => $line,
+                    'column' => EmployeeImportRow::templateColumn('name'),
+                    'code' => 'same_name_in_list',
+                    'message' => $message,
+                ];
+            }
+        }
+
+        return $warnings;
     }
 
     /**

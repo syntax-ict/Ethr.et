@@ -24,6 +24,7 @@ final readonly class PeopleRead
      * @param  list<array{line: int, column: string, code: string, message: string}>  $warnings  lines that are staged all the same, with what the reader should know about them
      * @param  int|null  $headerLine  the line of the list that held the column names, as the reader counts it; null when there were none
      * @param  bool  $needsName  the reader said which column is which and none of them is the name; nothing was read
+     * @param  list<array{column: string, calendar: 'ethiopian'|'gregorian', value: string, line: int, from_header: bool}>  $calendarHints  date columns whose dates are real only in the other calendar than the one they are read in: the column, that calendar, the first such date and its line, and whether the column name set the calendar
      */
     public function __construct(
         public array $rows,
@@ -39,5 +40,6 @@ final readonly class PeopleRead
         public bool $needsName = false,
         public array $warnings = [],
         public ?int $headerLine = null,
+        public array $calendarHints = [],
     ) {}
 }

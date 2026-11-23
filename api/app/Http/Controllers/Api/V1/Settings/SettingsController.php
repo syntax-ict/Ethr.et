@@ -23,11 +23,13 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
+use App\Services\Sso\SsoProviderInterface;
 use App\Services\Tenancy\OrganisationProfile;
 use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\PayChangeThresholds;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
@@ -59,6 +61,7 @@ class SettingsController extends Controller
         // its organisation type (StatutoryRules).
         $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
         $leaveYear = LeaveYear::forTenant($tenant);
+        $payChange = PayChangeThresholds::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -119,6 +122,8 @@ class SettingsController extends Controller
                 'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
                 'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
                 'employer_bank_code' => StatutorySchedules::setting($tenant, 'employer_bank_code'),
+                'pay_change_alert_percent' => $payChange->percent,
+                'pay_change_alert_min_cents' => $payChange->minCents,
             ],
             'documents' => [
                 'letterhead_address' => StatutorySchedules::setting($tenant, 'letterhead_address'),
@@ -408,6 +413,8 @@ class SettingsController extends Controller
                 'default_role' => 'employee',
                 'auto_provision' => false,
                 'metadata_url' => null,
+                'configured' => false,
+                'has_certificate' => false,
             ];
         }
 
@@ -419,6 +426,8 @@ class SettingsController extends Controller
             'default_role' => $sso->default_role ?? 'employee',
             'auto_provision' => $sso->auto_provision,
             'metadata_url' => config('app.url').'/api/v1/sso/saml/'.$tenant->subdomain.'/metadata',
+            'configured' => app(SsoProviderInterface::class)->isConfigured($tenant) === true,
+            'has_certificate' => $sso->getRawOriginal('idp_certificate') !== null,
         ];
     }
 
