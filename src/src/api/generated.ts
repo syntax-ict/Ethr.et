@@ -14154,6 +14154,14 @@ export interface components {
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
+                password_policy?: {
+                    min_length: number;
+                    require_uppercase: boolean;
+                    require_lowercase: boolean;
+                    require_number: boolean;
+                    require_symbol: boolean;
+                };
+                activation_code_hours?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
                 /** @enum {string} */
@@ -14209,13 +14217,10 @@ export interface components {
             idp_entity_id?: string | null;
             /** Format: uri */
             idp_sso_url?: string | null;
-            /** Format: uri */
-            idp_slo_url?: string | null;
             idp_certificate?: string | null;
             /** @enum {string|null} */
             default_role?: "employee" | "supervisor" | "dept_admin" | "hr_admin" | null;
             auto_provision?: boolean;
-            attribute_mapping?: string[] | null;
         };
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
@@ -36853,6 +36858,14 @@ export interface operations {
                         security: {
                             mfa_policy: string;
                             session_timeout_minutes: number;
+                            password_policy: {
+                                min_length: number;
+                                require_uppercase: boolean;
+                                require_lowercase: boolean;
+                                require_number: boolean;
+                                require_symbol: boolean;
+                            };
+                            activation_code_hours: number;
                         };
                         display: {
                             /** @enum {string} */

@@ -230,7 +230,7 @@ describe('the configuration step', function () {
         ])->assertUnprocessable()->assertJsonValidationErrors(['plan.settings.retirement_age']);
 
         $this->postJson(reviewHost($tenant).'/onboarding/configuration/apply', [
-            'plan' => ['settings' => ['password_policy' => ['min_length' => 1]]],
+            'plan' => ['settings' => ['login_identifiers' => ['phone']]],
         ])->assertUnprocessable()->assertJsonValidationErrors(['plan.settings']);
 
         expect($tenant->refresh()->settings['retirement_age'] ?? null)->toBeNull();

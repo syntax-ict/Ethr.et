@@ -50,7 +50,6 @@ test('keys owned by other endpoints cannot be written through PUT /settings', fu
     expect($tenant->fresh()->settings ?? [])->not->toHaveKey($key);
 })->with([
     'login identifiers' => ['login_identifiers', ['employee_number']],
-    'password policy' => ['password_policy', ['min_length' => 1]],
     'notification templates' => ['notification_templates', []],
 ]);
 

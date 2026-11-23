@@ -159,6 +159,65 @@ test('employee cannot update sso settings', function () {
     $response->assertForbidden();
 });
 
+test('the sso sign-in url must be https', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/sso', ['idp_sso_url' => 'http://idp.example.com/sso'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['idp_sso_url']);
+
+    $this->putJson('/api/v1/settings/sso', ['idp_sso_url' => 'https://idp.example.com/sso'])
+        ->assertOk();
+
+    expect(SsoSetting::query()->value('idp_sso_url'))->toBe('https://idp.example.com/sso');
+});
+
+test('the two sso settings nothing reads are no longer accepted', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $this->putJson('/api/v1/settings/sso', [
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_slo_url' => 'https://idp.example.com/slo',
+        'attribute_mapping' => ['email' => 'mail'],
+    ])->assertOk();
+
+    $row = SsoSetting::query()->where('tenant_id', $tenant->id)->first();
+    expect($row)->not->toBeNull();
+    expect($row->idp_entity_id)->toBe('https://idp.example.com/entity');
+    expect($row->idp_slo_url)->toBeNull();
+    expect($row->attribute_mapping)->toBeNull();
+});
+
+test('saving sso as one organisation leaves another organisation\'s row alone', function () {
+    $tenantA = createTenant();
+    $rowA = SsoSetting::create([
+        'tenant_id' => $tenantA->id,
+        'provider' => 'saml',
+        'is_enabled' => false,
+        'idp_entity_id' => 'https://a.example.com/entity',
+        'idp_sso_url' => 'https://a.example.com/sso',
+    ]);
+
+    $tenantB = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenantB);
+
+    $this->putJson('/api/v1/settings/sso', [
+        'idp_entity_id' => 'https://b.example.com/entity',
+        'idp_sso_url' => 'https://b.example.com/sso',
+    ])->assertOk();
+
+    $stored = SsoSetting::query()->withoutGlobalScopes()->where('id', $rowA->id)->first();
+    expect($stored->idp_entity_id)->toBe('https://a.example.com/entity');
+    expect($stored->idp_sso_url)->toBe('https://a.example.com/sso');
+
+    $rowB = SsoSetting::query()->withoutGlobalScopes()->where('tenant_id', $tenantB->id)->first();
+    expect($rowB)->not->toBeNull();
+    expect($rowB->idp_entity_id)->toBe('https://b.example.com/entity');
+    expect(SsoSetting::query()->withoutGlobalScopes()->count())->toBe(2);
+});
+
 test('sso settings stores idp certificate encrypted', function () {
     $tenant = createTenant();
 

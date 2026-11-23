@@ -6,7 +6,9 @@ namespace App\Http\Requests\Settings;
 
 use App\Http\Requests\Onboarding\ApplyConfigurationRequest;
 use App\Http\Requests\Payroll\Concerns\ValidatesPensionScheme;
+use App\Rules\PasswordPolicy;
 use App\Rules\ReferenceCode;
+use App\Services\Auth\ActivationCodeService;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
@@ -57,6 +59,13 @@ class UpdateSettingsRequest extends FormRequest
             'settings.leave_year' => ['sometimes', 'string', Rule::in(LeaveYear::CHOICES)],
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
+            'settings.password_policy' => ['sometimes', 'array:'.implode(',', PasswordPolicy::WRITABLE)],
+            'settings.password_policy.min_length' => ['required_with:settings.password_policy', 'integer', 'between:'.PasswordPolicy::MIN_LENGTH_FLOOR.','.PasswordPolicy::MIN_LENGTH_CEILING],
+            'settings.password_policy.require_uppercase' => ['required_with:settings.password_policy', 'boolean'],
+            'settings.password_policy.require_lowercase' => ['required_with:settings.password_policy', 'boolean'],
+            'settings.password_policy.require_number' => ['required_with:settings.password_policy', 'boolean'],
+            'settings.password_policy.require_symbol' => ['required_with:settings.password_policy', 'boolean'],
+            'settings.activation_code_hours' => ['sometimes', 'integer', 'between:1,'.ActivationCodeService::MAX_TTL_HOURS],
             'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
             'settings.clock' => ['sometimes', 'string', Rule::in(ClockPreference::CHOICES)],
             'settings.employee_number_format' => ['sometimes', 'string', 'max:40', 'regex:'.EmployeeNumbering::SHAPE],
@@ -95,6 +104,10 @@ class UpdateSettingsRequest extends FormRequest
         $names = [];
         foreach (self::writableKeys() as $key) {
             $names["settings.{$key}"] = __("settings.attributes.{$key}");
+        }
+
+        foreach (PasswordPolicy::WRITABLE as $field) {
+            $names["settings.password_policy.{$field}"] = __("settings.attributes.password_policy_{$field}");
         }
 
         return $names;
