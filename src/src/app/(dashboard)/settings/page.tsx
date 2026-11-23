@@ -112,6 +112,15 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   const [ssoDirty, setSsoDirty] = useState<SsoUpdate>({});
   // Server field errors for the SSO card, on the same terms as Security.
   const [ssoErrors, setSsoErrors] = useState<FieldErrors>({});
+  // Switched on in the saved settings but missing what a sign-in needs. The
+  // certificate is write-only, so the server says whether one is stored.
+  const ssoNotReady = data.sso.is_enabled && !data.sso.configured;
+  const ssoMissing = [
+    !data.sso.idp_entity_id && t("settings.idp_entity_id", "IdP entity ID"),
+    !data.sso.idp_sso_url && t("settings.idp_sso_url", "IdP SSO URL"),
+    !data.sso.has_certificate &&
+      t("settings.idp_certificate", "IdP certificate (PEM)"),
+  ].filter((x): x is string => typeof x === "string");
   // The display selects save as soon as they change; the chosen value is
   // shown at once rather than after the settings query refetches, which
   // read as the control snapping back for the round trip.
@@ -511,15 +520,38 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     {t("settings.sso_saml", "SAML single sign-on")}
                   </CardTitle>
                 </div>
-                {/* What is saved, not the draft: the switch below says the rest. */}
-                <Badge variant={data.sso.is_enabled ? "success" : "secondary"}>
-                  {data.sso.is_enabled
-                    ? t("settings.sso_enabled", "Enabled")
-                    : t("settings.sso_disabled", "Disabled")}
+                {/* What is saved, not the draft: the switch below says the rest.
+                    On but unable to work is "Not ready", never "Enabled". */}
+                <Badge
+                  variant={
+                    ssoNotReady
+                      ? "warning"
+                      : data.sso.is_enabled
+                        ? "success"
+                        : "secondary"
+                  }
+                >
+                  {ssoNotReady
+                    ? t("settings.sso_not_ready", "Not ready")
+                    : data.sso.is_enabled
+                      ? t("settings.sso_enabled", "Enabled")
+                      : t("settings.sso_disabled", "Disabled")}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {ssoNotReady && (
+                <p
+                  role="status"
+                  className="rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+                >
+                  {t(
+                    "settings.sso_not_ready_missing",
+                    "SSO is switched on but people cannot use it yet. Still missing: :items.",
+                    { items: ssoMissing.join(", ") },
+                  )}
+                </p>
+              )}
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="sso-toggle">

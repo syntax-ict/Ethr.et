@@ -6144,6 +6144,8 @@
   "settings.sp_metadata_url": "SP metadata URL",
   "settings.sso_disabled": "Disabled",
   "settings.sso_enabled": "Enabled",
+  "settings.sso_not_ready": "Not ready",
+  "settings.sso_not_ready_missing": "SSO is switched on but people cannot use it yet. Still missing: :items.",
   "settings.sso_saml": "SAML single sign-on",
   "settings.sso_save_failed": "Failed to save SSO settings",
   "settings.sso_saved": "SSO settings saved",
