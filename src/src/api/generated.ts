@@ -13954,8 +13954,10 @@ export interface components {
         UpdateNotificationTemplateRequest: {
             subject_en?: string | null;
             subject_am?: string | null;
+            subject_om?: string | null;
             body_en?: string | null;
             body_am?: string | null;
+            body_om?: string | null;
         };
         /** UpdateOrganizationRequest */
         UpdateOrganizationRequest: {
@@ -13967,7 +13969,7 @@ export interface components {
             cancel_pending_organization_type?: boolean;
             timezone?: string;
             /** @enum {string} */
-            locale?: "en" | "am" | "om" | "ti" | "so";
+            locale?: "en" | "am" | "om";
         };
         /**
          * UpdateOvertimeRatesRequest
@@ -37351,8 +37353,10 @@ export interface operations {
                             type: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "payslip_available" | "missing_punch" | "trial_expiring";
                             subject_en: string;
                             subject_am: string;
+                            subject_om: string;
                             body_en: string;
                             body_am: string;
+                            body_om: string;
                             is_customized: boolean;
                             variables: string[];
                         }[];

@@ -22,9 +22,10 @@ use Throwable;
  *
  * ## Shape
  *
- * Each type has a subject and a body per locale (`en`, `am`). A tenant may
- * override any of the four fields; a field it has not overridden (or left
- * empty) falls back to the built-in text below, field by field. The locale is
+ * Each type has a subject and a body per locale (`en`, `am`, `om`). A tenant may
+ * override any of the six fields; a field it has not overridden (or left
+ * empty) falls back to the built-in text below, field by field, and a locale
+ * with no built-in text for a field falls back to English. The locale is
  * the application locale at render time — the same locale `__()` would use in
  * the notification, which is how these e-mails chose their language before.
  *
@@ -60,14 +61,14 @@ use Throwable;
 final class NotificationTemplates
 {
     /**
-     * The languages an organisation can customise. Oromo is sent from the
-     * built-in text below: a reader's language wins over an organisation's
-     * wording in another one, exactly as an Amharic reader gets the Amharic
-     * text when only the English was edited.
+     * The languages an organisation can customise. A reader's language wins
+     * over an organisation's wording in another one: an Amharic or Afaan
+     * Oromoo reader gets the built-in text in their own language when only
+     * the English was edited.
      */
-    public const LOCALES = ['en', 'am'];
+    public const LOCALES = ['en', 'am', 'om'];
 
-    public const FIELDS = ['subject_en', 'subject_am', 'body_en', 'body_am'];
+    public const FIELDS = ['subject_en', 'subject_am', 'subject_om', 'body_en', 'body_am', 'body_om'];
 
     /**
      * Built-in text per type. This is what is sent when a tenant has not
@@ -76,10 +77,10 @@ final class NotificationTemplates
     public const DEFAULTS = [
         'leave_requested' => [
             'subject_en' => 'New leave request from {employee_name}',
-            'subject_am' => 'አዲስ የፈቃድ ጥያቄ — {employee_name}',
+            'subject_am' => 'አዲስ የፈቃድ ጥያቄ፦ {employee_name}',
             'body_en' => '{employee_name} has submitted a {leave_type} request from {start_date} to {end_date} ({days} days). It is waiting for your approval.',
             'body_am' => '{employee_name} ከ{start_date} እስከ {end_date} ({days} ቀናት) {leave_type} ጥያቄ አቅርበዋል። ፈቃድዎ ያስፈልጋል።',
-            'subject_om' => 'Gaaffii boqonnaa haaraa — {employee_name}',
+            'subject_om' => 'Gaaffii boqonnaa haaraa: {employee_name}',
             'body_om' => '{employee_name} gaaffii {leave_type} {start_date} irraa hanga {end_date} ({days} guyyaa) dhiyeesseera. Raggaasisa keessan eeggachaa jira.',
         ],
         'leave_approved' => [
@@ -108,18 +109,18 @@ final class NotificationTemplates
         ],
         'payslip_available' => [
             'subject_en' => 'Your payslip for {period} is ready',
-            'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው — {period}',
+            'subject_am' => 'የደመወዝ ሰነድዎ ዝግጁ ነው፦ {period}',
             'body_en' => 'Your payslip for {period} is now available. Log in to view and download it.',
             'body_am' => 'ለ{period} የደመወዝ ሰነድዎ አሁን ዝግጁ ነው። ለማየት እና ለማውረድ ይግቡ።',
             'subject_om' => "Waraqaan mindaa {period} keessanii qophaa'eera",
             'body_om' => 'Waraqaan mindaa {period} keessanii amma ni argama. Ilaaluu fi buusuuf seenaa.',
         ],
         'missing_punch' => [
-            'subject_en' => 'Missing {punch_type} — {date}',
-            'subject_am' => 'የ{punch_type} ምዝገባ ጉድለት — {date}',
+            'subject_en' => 'Missing {punch_type} on {date}',
+            'subject_am' => 'የ{punch_type} ምዝገባ ጉድለት፦ {date}',
             'body_en' => "{employee_name} is missing a {punch_type} for {date}.\nReview the attendance record and request a correction if needed.",
             'body_am' => "{employee_name}፦ ለ{date} የ{punch_type} ምዝገባ የለም።\nእባክዎ የሰዓት መዝገቡን ይመልከቱ፤ አስፈላጊ ከሆነ ማስተካከያ ይጠይቁ።",
-            'subject_om' => '{punch_type} hin galmoofne — {date}',
+            'subject_om' => '{punch_type} hin galmoofne: {date}',
             'body_om' => "{employee_name} guyyaa {date} {punch_type} hin galmeessine.\nGalmee argamaa ilaalaa; yoo barbaachise sirreeffama gaafadhaa.",
         ],
         'trial_expiring' => [
@@ -344,7 +345,7 @@ final class NotificationTemplates
      */
     private static function field(string $type, string $field, array $custom, array $values, ?int $tenantId): string
     {
-        $default = self::DEFAULTS[$type][$field];
+        $default = self::DEFAULTS[$type][$field] ?? self::DEFAULTS[$type][preg_replace('/_[a-z]+$/', '_en', $field)];
 
         if (isset($custom[$field])) {
             $rendered = self::substitute($type, $custom[$field], $values);

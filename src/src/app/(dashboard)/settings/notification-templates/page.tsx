@@ -29,7 +29,13 @@ import { toast } from "sonner";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 
-type TemplateField = "subject_en" | "subject_am" | "body_en" | "body_am";
+type TemplateField =
+  | "subject_en"
+  | "subject_am"
+  | "subject_om"
+  | "body_en"
+  | "body_am"
+  | "body_om";
 
 /**
  * Template type → label. Five reuse the notification-preference labels.
@@ -80,8 +86,10 @@ export default function NotificationTemplatesPage() {
   const [form, setForm] = useState<Record<TemplateField, string>>({
     subject_en: "",
     subject_am: "",
+    subject_om: "",
     body_en: "",
     body_am: "",
+    body_om: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -93,8 +101,10 @@ export default function NotificationTemplatesPage() {
     setForm({
       subject_en: template.subject_en,
       subject_am: template.subject_am,
+      subject_om: template.subject_om,
       body_en: template.body_en,
       body_am: template.body_am,
+      body_om: template.body_om,
     });
     setErrors({});
     setEditing(template);
@@ -130,7 +140,7 @@ export default function NotificationTemplatesPage() {
     );
   }
 
-  /** Label, input and server error for one of the four fields. */
+  /** Label, input and server error for one of the six fields. */
   function field(name: TemplateField, label: string, multiline: boolean) {
     const id = `template-${name.replace("_", "-")}`;
     const error = errors[name];
@@ -230,9 +240,9 @@ export default function NotificationTemplatesPage() {
                           Amharic reader saw the English subject even when an
                           Amharic one was set. */}
                       <p className="mt-1 text-sm text-muted-foreground truncate">
-                        {locale === "am" && template.subject_am
-                          ? template.subject_am
-                          : template.subject_en}
+                        {(locale === "am" && template.subject_am) ||
+                          (locale === "om" && template.subject_om) ||
+                          template.subject_en}
                       </p>
                       {template.variables.length > 0 && (
                         <div className="mt-2">
@@ -259,7 +269,7 @@ export default function NotificationTemplatesPage() {
         </QueryBoundary>
 
         <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {t("common.edit")}: {editing ? typeLabel(editing.type) : ""}
@@ -286,6 +296,11 @@ export default function NotificationTemplatesPage() {
                   t("settings.template_subject_am", "Subject (Amharic)"),
                   false,
                 )}
+                {field(
+                  "subject_om",
+                  t("settings.template_subject_om", "Subject (Afaan Oromoo)"),
+                  false,
+                )}
               </div>
               {field(
                 "body_en",
@@ -295,6 +310,11 @@ export default function NotificationTemplatesPage() {
               {field(
                 "body_am",
                 t("settings.template_body_am", "Body (Amharic)"),
+                true,
+              )}
+              {field(
+                "body_om",
+                t("settings.template_body_om", "Body (Afaan Oromoo)"),
                 true,
               )}
               <p className="text-xs text-muted-foreground">

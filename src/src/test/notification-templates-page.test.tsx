@@ -19,6 +19,9 @@ const TEMPLATE = {
   body_en:
     "Your {leave_type} request from {start_date} to {end_date} has been approved.",
   body_am: "ከ{start_date} እስከ {end_date} {leave_type} ጥያቄዎ ፀድቋል።",
+  subject_om: "Gaaffiin boqonnaa keessanii raggaasifameera",
+  body_om:
+    "Gaaffiin {leave_type} {start_date} irraa hanga {end_date} raggaasifameera.",
   is_customized: false,
   variables: [
     "employee_name",
@@ -74,7 +77,7 @@ describe("<NotificationTemplatesPage>", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByText("Leave Approved");
+    await screen.findByText("Leave approved");
     await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
 
@@ -99,6 +102,88 @@ describe("<NotificationTemplatesPage>", () => {
     expect(sent).toMatchObject({ subject_en: "Leave approved" });
   });
 
+  it("shows, edits and saves the Afaan Oromoo subject and body", async () => {
+    let sent: unknown = null;
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings/notification-templates", () =>
+        HttpResponse.json({ templates: [TEMPLATE] }),
+      ),
+      http.put(
+        "*/api/v1/settings/notification-templates/leave_approved",
+        async ({ request }) => {
+          sent = await request.json();
+          return HttpResponse.json({
+            message: "Template updated.",
+            type: "leave_approved",
+          });
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Leave approved");
+    await user.click(screen.getByRole("button", { name: /^Edit: / }));
+    const dialog = await screen.findByRole("dialog");
+
+    const subject = within(dialog).getByRole("textbox", {
+      name: "Subject (Afaan Oromoo)",
+    });
+    const body = within(dialog).getByRole("textbox", {
+      name: "Body (Afaan Oromoo)",
+    });
+    expect(subject).toHaveValue(TEMPLATE.subject_om);
+    expect(body).toHaveValue(TEMPLATE.body_om);
+
+    await user.clear(subject);
+    await user.type(subject, "Raggaasifameera");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(sent).not.toBeNull());
+    expect(sent).toMatchObject({
+      subject_om: "Raggaasifameera",
+      body_om: TEMPLATE.body_om,
+    });
+  });
+
+  it("shows the server's refusal under the Afaan Oromoo field that carries it", async () => {
+    const message = "This template cannot use {employe_name}.";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings/notification-templates", () =>
+        HttpResponse.json({ templates: [TEMPLATE] }),
+      ),
+      http.put("*/api/v1/settings/notification-templates/leave_approved", () =>
+        HttpResponse.json(
+          {
+            type: "validation_error",
+            title: "Validation Failed",
+            status: 422,
+            detail: "The given data was invalid.",
+            errors: { body_om: [message] },
+          },
+          {
+            status: 422,
+            headers: { "Content-Type": "application/problem+json" },
+          },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Leave approved");
+    await user.click(screen.getByRole("button", { name: /^Edit: / }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Body (Afaan Oromoo)" }),
+    ).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("lists the variables the template can use in the edit dialog", async () => {
     server.use(
       me(["settings.manage"]),
@@ -109,7 +194,7 @@ describe("<NotificationTemplatesPage>", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByText("Leave Approved");
+    await screen.findByText("Leave approved");
     await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
 
@@ -148,7 +233,7 @@ describe("<NotificationTemplatesPage>", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByText("Leave Approved");
+    await screen.findByText("Leave approved");
     await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
     const body = within(dialog).getByRole("textbox", {
