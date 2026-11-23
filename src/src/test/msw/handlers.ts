@@ -193,6 +193,15 @@ export const handlers = [
   http.get("*/onboarding/migration/sources", () =>
     HttpResponse.json({ data: [] }),
   ),
+  // Settings > Security reads the sign-in methods through the setup wizard's
+  // endpoint (LoginIdentifiersCard); email only, unless a test says otherwise.
+  http.get("*/onboarding/access", () =>
+    HttpResponse.json({
+      available: ["email", "phone", "employee_code", "username"],
+      login_identifiers: ["email"],
+      role_defaults: {},
+    }),
+  ),
   // ...and which lists are in progress (useMigrationListsInProgress); none, and none added.
   http.get("*/onboarding/migration/batches", () =>
     HttpResponse.json({ data: [], added: [] }),

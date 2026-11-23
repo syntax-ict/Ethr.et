@@ -29,5 +29,12 @@ return [
         'letterhead_email' => 'በሰነዶች ላይ የሚታተም ኢሜይል',
         'letterhead_po_box' => 'በሰነዶች ላይ የሚታተም ፖ.ሣ.ቁ.',
         'invitation_reminders' => 'የግብዣ ማስታወሻዎች',
+        'password_policy' => 'የይለፍ ቃል ፖሊሲ',
+        'activation_code_hours' => 'የማግበሪያ ኮድ ጊዜ',
+        'password_policy_min_length' => 'ዝቅተኛ ርዝመት',
+        'password_policy_require_uppercase' => 'የትልቅ ፊደል ደንብ',
+        'password_policy_require_lowercase' => 'የትንሽ ፊደል ደንብ',
+        'password_policy_require_number' => 'የቁጥር ደንብ',
+        'password_policy_require_symbol' => 'የምልክት ደንብ',
     ],
 ];
