@@ -40007,11 +40007,43 @@
                                                 },
                                                 "session_timeout_minutes": {
                                                     "type": "integer"
+                                                },
+                                                "password_policy": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "min_length": {
+                                                            "type": "integer"
+                                                        },
+                                                        "require_uppercase": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "require_lowercase": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "require_number": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "require_symbol": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "min_length",
+                                                        "require_uppercase",
+                                                        "require_lowercase",
+                                                        "require_number",
+                                                        "require_symbol"
+                                                    ]
+                                                },
+                                                "activation_code_hours": {
+                                                    "type": "integer"
                                                 }
                                             },
                                             "required": [
                                                 "mfa_policy",
-                                                "session_timeout_minutes"
+                                                "session_timeout_minutes",
+                                                "password_policy",
+                                                "activation_code_hours"
                                             ]
                                         },
                                         "display": {

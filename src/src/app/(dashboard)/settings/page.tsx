@@ -35,6 +35,9 @@ import { OrganizationCard } from "@/features/settings/components/organization-ca
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import { LandingCard } from "@/features/settings/components/landing-card";
 import { ShowcaseCard } from "@/features/settings/components/showcase-card";
+import { PasswordPolicyCard } from "@/features/settings/components/password-policy-card";
+import { ActivationCodeCard } from "@/features/settings/components/activation-code-card";
+import { LoginIdentifiersCard } from "@/features/settings/components/login-identifiers-card";
 import { EmployeeNumberCard } from "@/features/employees/components/employee-number-card";
 import {
   useSettings,
@@ -394,7 +397,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         <TabsContent
           value="security"
           forceMount={keep("security")}
-          className="mt-6 data-[state=inactive]:hidden"
+          className="mt-6 space-y-6 data-[state=inactive]:hidden"
         >
           <Card>
             <CardHeader>
@@ -504,6 +507,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               </div>
             </CardContent>
           </Card>
+          <LoginIdentifiersCard />
+          <PasswordPolicyCard policy={data.security.password_policy} />
+          <ActivationCodeCard hours={data.security.activation_code_hours} />
         </TabsContent>
 
         <TabsContent

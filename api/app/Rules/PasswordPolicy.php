@@ -36,6 +36,20 @@ class PasswordPolicy implements ValidationRule
         'expiry_days' => 0,
     ];
 
+    /** The platform floor: a tenant cannot configure itself below it. */
+    public const MIN_LENGTH_FLOOR = 8;
+
+    public const MIN_LENGTH_CEILING = 128;
+
+    /**
+     * The keys Settings may write. `expiry_days` is read here but deliberately
+     * not writable: it only sets an advisory `password_expired` flag at sign-in
+     * that nothing acts on, so a control for it would promise what nothing does.
+     *
+     * @var list<string>
+     */
+    public const WRITABLE = ['min_length', 'require_uppercase', 'require_lowercase', 'require_number', 'require_symbol'];
+
     public function __construct(private readonly ?Tenant $tenant = null) {}
 
     /**
@@ -56,7 +70,7 @@ class PasswordPolicy implements ValidationRule
         $merged = array_merge(self::DEFAULTS, array_intersect_key($policy, self::DEFAULTS));
 
         // A tenant cannot configure itself below the platform floor.
-        $merged['min_length'] = max(8, (int) $merged['min_length']);
+        $merged['min_length'] = max(self::MIN_LENGTH_FLOOR, (int) $merged['min_length']);
         $merged['expiry_days'] = max(0, (int) $merged['expiry_days']);
 
         return $merged;
