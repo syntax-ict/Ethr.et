@@ -23,6 +23,25 @@ export function useApiKeys() {
   });
 }
 
+const onlyScim = (all: ApiKey[]): ApiKey[] =>
+  all.filter((k) => k.abilities.includes("scim"));
+
+/**
+ * The SCIM tokens among the unrevoked keys. They are API keys with the `scim`
+ * ability (`SettingsController::generateScimToken`), so this reads the same
+ * list and shares its cache: revoking here or on the API keys page refreshes
+ * both. `enabled` stays false for a user without `apikey.manage`, whose
+ * request the server would refuse.
+ */
+export function useScimTokens(enabled: boolean) {
+  return useQuery<ApiKey[], Error, ApiKey[]>({
+    queryKey: keys.all,
+    queryFn: async () => (await apiClient.get("/api-keys")).data.keys,
+    select: onlyScim,
+    enabled,
+  });
+}
+
 /**
  * The response carries the plain key (`key`) exactly once — the server stores
  * only its hash, and the list never returns it. The page shows it from this
