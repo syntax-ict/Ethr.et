@@ -8062,5 +8062,11 @@
   "payroll_checks.min_help": "የትንሽ ደመወዝ ወረቀት ትልቅ መቶኛ እንዳይዘረዘር።",
   "payroll_checks.shared_support_session": "በድጋፍ ክፍለ ጊዜ ውስጥ ማን ወደየትኛው ሂሳብ እንደሚከፈል አይታይም። ድርጅቱ ይህን ምርመራ ራሱ ያየዋል።",
   "payroll_checks.show_all": "ሁሉንም :count አሳይ",
-  "payroll_checks.show_fewer": "ያነሰ አሳይ"
+  "payroll_checks.show_fewer": "ያነሰ አሳይ",
+  "setup2.calendar_hint_ec": "መስመር :line በ:column ስር :value አለው፤ ይህ ቀን ያለው በኢትዮጵያ አቆጣጠር ብቻ ነው። እነዚህ ቀኖች የኢትዮጵያ አቆጣጠር (ዓ.ም) ይመስላሉ።",
+  "setup2.calendar_hint_gc": "መስመር :line በ:column ስር :value አለው፤ ይህ ቀን በኢትዮጵያ አቆጣጠር የለም። እነዚህ ቀኖች የግሪጎሪያን አቆጣጠር (እ.ኤ.አ) ይመስላሉ።",
+  "setup2.calendar_hint_use_ec": "ቀኖቹን በኢትዮጵያ አቆጣጠር (ዓ.ም) አንብብ",
+  "setup2.calendar_hint_use_gc": "ቀኖቹን በግሪጎሪያን አቆጣጠር (እ.ኤ.አ) አንብብ",
+  "setup2.calendar_hint_header": "የአምዱ ስም ሌላውን አቆጣጠር ይላል። በፋይሉ ውስጥ የአምዱን ስም አስተካክለው እንደገና ያምጡት።",
+  "setup2.calendar_hint_every_column": "ይህ ስሙ (ዓ.ም) ወይም (እ.ኤ.አ) የማይል እያንዳንዱን የቀን አምድ ይለውጣል። በሌላው አቆጣጠር ያለው ይህ አምድ ብቻ ከሆነ፣ በምትኩ በፋይሉ ውስጥ በስሙ ላይ ያክሉት።"
 }
