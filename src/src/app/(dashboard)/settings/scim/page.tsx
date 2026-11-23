@@ -8,10 +8,15 @@ import {
   AlertTriangle,
   KeyRound,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
 import { useHydrated } from "@/lib/hooks/useHydrated";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
@@ -22,7 +27,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RoleGate } from "@/components/shared/role-gate";
+import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useGenerateScimToken } from "@/features/settings/api";
+import {
+  useRevokeApiKey,
+  useScimTokens,
+  type ApiKey,
+} from "@/features/api-keys/api";
+import { useFeatureOffReason } from "@/features/auth/api";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -52,6 +68,28 @@ export default function ScimSettingsPage() {
 
   const generateScimToken = useGenerateScimToken();
   const baseUrl = `${origin}${SCIM_PATH}`;
+
+  // SCIM tokens are API keys, listed and revoked through the API keys
+  // endpoints, which `apikey.manage` guards, not `settings.manage`.
+  const { formatDate } = useDateFormatters();
+  const { can } = usePermissions();
+  const canManageKeys = can.manageApiKeys;
+  const tokensQuery = useScimTokens(canManageKeys);
+  const revokeKey = useRevokeApiKey();
+  const [revoking, setRevoking] = useState<ApiKey | null>(null);
+  const scimOffReason = useFeatureOffReason("scim");
+
+  function confirmRevoke() {
+    if (!revoking) return;
+    revokeKey.mutate(revoking.public_id, {
+      onSuccess: () => {
+        toast.success(t("scim_page.token_revoked", "SCIM token revoked"));
+        setRevoking(null);
+      },
+      onError: (err) =>
+        toast.error(apiErrorMessage(err, t("common.action_failed"))),
+    });
+  }
 
   function generate() {
     generateScimToken.mutate(scimTokenName.trim(), {
@@ -108,6 +146,17 @@ export default function ScimSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {scimOffReason !== null && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  {t(
+                    "scim_page.off_title",
+                    "SCIM provisioning is off for your organisation. Your identity provider's requests are refused until it is back on.",
+                  )}
+                </p>
+                <PlanFeatureNotice feature="scim" />
+              </div>
+            )}
             <ol className="space-y-6">
               <li className="space-y-3">
                 <h3 className="text-heading">
@@ -202,12 +251,128 @@ export default function ScimSettingsPage() {
                     </div>
                   </div>
                 )}
-                <p className="text-caption text-muted-foreground">
-                  {t(
-                    "settings.scim_revoke_hint",
-                    "To revoke a token, contact support.",
-                  )}
-                </p>
+                {canManageKeys ? (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">
+                      {t("scim_page.tokens_title", "Tokens in use")}
+                    </h4>
+                    <QueryBoundary
+                      query={tokensQuery}
+                      loading={
+                        <div className="space-y-2">
+                          {Array.from({ length: 2 }).map((_, i) => (
+                            <Skeleton key={i} className="h-12 w-full" />
+                          ))}
+                        </div>
+                      }
+                      empty={
+                        <EmptyState
+                          icon={KeyRound}
+                          title={t("scim_page.no_tokens", "No SCIM tokens yet")}
+                          description={t(
+                            "scim_page.no_tokens_desc",
+                            "Generate one above, then enter it in your identity provider.",
+                          )}
+                        />
+                      }
+                    >
+                      {(tokens) => (
+                        <div className="rounded-lg border">
+                          <SimpleTable
+                            mobileCards
+                            caption={t(
+                              "scim_page.tokens_title",
+                              "Tokens in use",
+                            )}
+                            headers={[
+                              t("common.name"),
+                              t("api_keys_page.prefix"),
+                              t("api_keys_page.created", "Created"),
+                              t("scim_page.last_used", "Last used"),
+                              t("api_keys_page.expires"),
+                            ]}
+                            colClassName={[
+                              "",
+                              "",
+                              "hidden md:table-cell",
+                              "hidden sm:table-cell",
+                              "hidden md:table-cell",
+                            ]}
+                            rows={tokens.map((k) => ({
+                              key: k.public_id,
+                              cells: [
+                                <span
+                                  key="n"
+                                  className="flex items-center gap-2"
+                                >
+                                  <span className="font-medium">{k.name}</span>
+                                  {/* Expired tokens are still listed, but
+                                      the server no longer accepts them. */}
+                                  {!k.is_active && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-caption"
+                                    >
+                                      {t("common.inactive")}
+                                    </Badge>
+                                  )}
+                                </span>,
+                                <span
+                                  key="p"
+                                  className="font-mono text-muted-foreground"
+                                >
+                                  {k.key_prefix}...
+                                </span>,
+                                <span key="c" className="text-muted-foreground">
+                                  {k.created_at
+                                    ? formatDate(k.created_at)
+                                    : "—"}
+                                </span>,
+                                <span key="l" className="text-muted-foreground">
+                                  {k.last_used_at
+                                    ? formatDate(k.last_used_at)
+                                    : t(
+                                        "security_page.never_used",
+                                        "Not used yet",
+                                      )}
+                                </span>,
+                                <span key="e" className="text-muted-foreground">
+                                  {k.expires_at
+                                    ? formatDate(k.expires_at)
+                                    : t("api_keys_page.expiry_never")}
+                                </span>,
+                              ],
+                              actions: (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setRevoking(k)}
+                                  aria-label={t(
+                                    "api_keys_page.revoke_named",
+                                    "Revoke :name",
+                                    { name: k.name },
+                                  )}
+                                >
+                                  <Trash2
+                                    className="h-4 w-4 text-destructive"
+                                    aria-hidden="true"
+                                  />
+                                </Button>
+                              ),
+                            }))}
+                          />
+                        </div>
+                      )}
+                    </QueryBoundary>
+                  </div>
+                ) : (
+                  <p className="text-caption text-muted-foreground">
+                    {t(
+                      "settings.scim_revoke_hint",
+                      "To revoke a token, ask an administrator who has API key access.",
+                    )}
+                  </p>
+                )}
               </li>
 
               <li className="space-y-3">
@@ -305,6 +470,22 @@ export default function ScimSettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ConfirmDialog
+          open={!!revoking}
+          onOpenChange={(open) => !open && setRevoking(null)}
+          title={t("api_keys_page.revoke_confirm_title", "Revoke :name?", {
+            name: revoking?.name ?? "",
+          })}
+          description={t(
+            "scim_page.revoke_confirm_desc",
+            "Your identity provider stops provisioning users until you give it a new token. This cannot be undone.",
+          )}
+          confirmLabel={t("api_keys_page.revoke")}
+          variant="destructive"
+          loading={revokeKey.isPending}
+          onConfirm={confirmRevoke}
+        />
       </div>
     </RoleGate>
   );
