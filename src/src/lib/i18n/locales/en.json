@@ -8060,5 +8060,11 @@
   "payroll_checks.min_help": "So a large percent of a small payslip is not listed.",
   "payroll_checks.shared_support_session": "Who is paid into which account is not shown in a support session. The organisation sees this check on its own.",
   "payroll_checks.show_all": "Show all :count",
-  "payroll_checks.show_fewer": "Show fewer"
+  "payroll_checks.show_fewer": "Show fewer",
+  "setup2.calendar_hint_ec": "Line :line has :value under :column, a date only the Ethiopian calendar has. These dates look Ethiopian (E.C.).",
+  "setup2.calendar_hint_gc": "Line :line has :value under :column, a date the Ethiopian calendar does not have. These dates look Gregorian (G.C.).",
+  "setup2.calendar_hint_use_ec": "Read the dates as Ethiopian (E.C.)",
+  "setup2.calendar_hint_use_gc": "Read the dates as Gregorian (G.C.)",
+  "setup2.calendar_hint_header": "The column name says the other calendar. Correct the column name in the file and bring it again.",
+  "setup2.calendar_hint_every_column": "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead."
 }

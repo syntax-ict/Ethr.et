@@ -43,6 +43,7 @@ return [
         'profile_contract_end_before_start' => 'Guyyaan xumura waliigaltee, jalqaba waliigaltee irra booda ta’uu qaba. Jalqabni waliigaltee guyyaa qacarraa dha.',
         'profile_contract_needs_hire_date' => 'Waliigaltee guyyaa qacarraatti jalqaba, kanaaf toorri kun guyyaa qacarraa ni barbaada.',
         'duplicate_in_list' => ':field ":value" sarara :first irras jira. Namni tokkoon tokkoo kan mataa isaa barbaada.',
+        'same_name_in_list' => 'Maqaan ":name" sarara tokkoo ol irra jira. Sararri hundi ni dabalama; namoota adda addaa ta\'uu isaanii mirkaneessaa.',
         'terminal_number_digits_only' => 'Lakkoofsi ":value" lakkoofsa ol kan qabu qaba; meeshaan :types akka lakkoofsa nama tokkoo lakkoofsota qofa fudhata. Namichi ni dabalama; garuu meeshaa sanatti hin ergamu.',
         'device_id_too_long' => 'Lakkoofsi meeshaa ":value" lakkoofsa hojjetaa ta\'uu danda\'u caalaa dheeraa dha (arfii :max), kanaaf akka lakkoofsa meeshaatti qofa kuufama.',
         'device_id_not_badge' => 'Lakkoofsi meeshaa ":value" lakkoofsa baajii ETHR qabatu miti (arfii, lakkoofsaa fi sarara hamma 32), kanaaf akka lakkoofsa meeshaatti qofa kuufama.',

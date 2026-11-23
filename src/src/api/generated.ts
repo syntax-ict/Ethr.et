@@ -29442,6 +29442,14 @@ export interface operations {
                         ignored: string[];
                         calendar: string;
                         calendar_from_header: boolean;
+                        calendar_hints: {
+                            column: string;
+                            /** @enum {string} */
+                            calendar: "ethiopian" | "gregorian";
+                            value: string;
+                            line: number;
+                            from_header: boolean;
+                        }[];
                         without_hire_date: number;
                         problems: {
                             line: number;
