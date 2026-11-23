@@ -11543,6 +11543,12 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * NotificationType
+         * @description The notification types a user can set per-channel preferences for.
+         * @enum {string}
+         */
+        NotificationType: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "attendance_correction" | "overtime_request" | "attendance_anomaly" | "payslip_available" | "payroll_processed" | "announcement" | "approval_reminder" | "expiry_reminder" | "profile_update" | "employee_voice";
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
             records: {
@@ -28814,22 +28820,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: components["schemas"]["NotificationType"][];
                         channels: [
                             "in_app",
                             "email",
@@ -28875,22 +28866,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: components["schemas"]["NotificationType"][];
                         channels: [
                             "in_app",
                             "email",

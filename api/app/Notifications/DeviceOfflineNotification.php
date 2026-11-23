@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Device;
 use App\Support\FrontendUrl;
+use App\Support\LiveUpdates;
 use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -22,7 +23,7 @@ class DeviceOfflineNotification extends Notification
     public function via(object $notifiable): array
     {
         $channels = ['database', 'mail'];
-        if (config('broadcasting.default') === 'reverb') {
+        if (LiveUpdates::enabled()) {
             $channels[] = 'broadcast';
         }
 

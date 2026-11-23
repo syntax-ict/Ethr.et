@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\AttendanceRecord;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Notifications\Contracts\BulkMail;
@@ -27,19 +28,14 @@ class AttendanceAutoCheckedOutNotification extends Notification implements BulkM
         private readonly string $shiftEnd, // tenant wall clock, H:i
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'attendance_anomaly';
+        return NotificationType::ATTENDANCE_ANOMALY;
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database', 'mail'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database', 'mail'], broadcast: true);
     }
 
     public function toArray(object $notifiable): array

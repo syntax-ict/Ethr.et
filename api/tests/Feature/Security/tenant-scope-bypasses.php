@@ -11,6 +11,12 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-23, one lookup for "this organisation's users holding these roles":
+ * the four listeners that each wrote it (`NotifyDeviceOffline`,
+ * `NotifyDeviceSyncFailed`, `NotifyPayrollProcessed`, `NotifyPayrollRunFailed`)
+ * went, and `Support/TenantRecipients` joined, 205/80. It drops only the
+ * `tenant` scope and states `tenant_id` from the caller's device or payroll run,
+ * both tenant-owned; it returns active users only.)
  * (2026-11-21, device capture export: one more, in
  * `Admin/AdminDeviceCaptureController`, 208/83. The platform console finds one
  * terminal by its public id across organisations, behind `admin.manage` and the
@@ -346,10 +352,6 @@ return [
     'Jobs/RunDashboardDigestsJob.php' => 1,
     'Jobs/RunScheduledReportsJob.php' => 1,
     'Jobs/ScanMissingPunchesJob.php' => 1,
-    'Listeners/NotifyDeviceOffline.php' => 1,
-    'Listeners/NotifyDeviceSyncFailed.php' => 1,
-    'Listeners/NotifyPayrollProcessed.php' => 1,
-    'Listeners/NotifyPayrollRunFailed.php' => 1,
     'Listeners/PushDatabaseNotification.php' => 1,
     // Pre-authentication: the kiosk token (64 random hex, looked up by its
     // SHA-256 in the globally unique `token_hash` since 2026-11-09, and only
@@ -447,4 +449,5 @@ return [
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,
     'Support/EmployeeGaps.php' => 1,
+    'Support/TenantRecipients.php' => 1,
 ];
