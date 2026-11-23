@@ -151,6 +151,23 @@ apiClient.interceptors.request.use(async (config) => {
 export const MFA_ENROLMENT_REQUIRED =
   "https://ethr.et/errors/mfa-enrolment-required";
 
+/**
+ * The `type` the API answers with when a *platform* operator without MFA
+ * attempts a write (`RequirePlatformMfa`). That middleware is deliberately
+ * asymmetric - reads pass, writes are refused - so the console renders in
+ * full and every Save fails. Until this was listed here the refusal matched
+ * no redirect, and the operator got a dead button with no explanation on the
+ * screen they were working on; the only hint was a banner on the Admin
+ * Console home page they may never have opened.
+ */
+export const PLATFORM_MFA_REQUIRED = "https://ethr.et/errors/mfa-required";
+
+/** Both refusals that mean "enrol in two-factor before this will work". */
+const MFA_REDIRECT_TYPES: readonly string[] = [
+  MFA_ENROLMENT_REQUIRED,
+  PLATFORM_MFA_REQUIRED,
+];
+
 /** Where enrolment happens; the API leaves this screen's endpoints open. */
 export const MFA_ENROLMENT_PATH = "/profile/security";
 
@@ -164,9 +181,11 @@ export function mfaEnrolmentRedirect(
   error: Pick<AxiosError<ApiError>, "response">,
   pathname: string,
 ): string | null {
+  const type = error.response?.data?.type;
   if (
     error.response?.status !== 403 ||
-    error.response.data?.type !== MFA_ENROLMENT_REQUIRED
+    type === undefined ||
+    !MFA_REDIRECT_TYPES.includes(type)
   ) {
     return null;
   }

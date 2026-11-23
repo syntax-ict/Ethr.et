@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MFA_ENROLMENT_PATH,
   MFA_ENROLMENT_REQUIRED,
+  PLATFORM_MFA_REQUIRED,
   mfaEnrolmentRedirect,
 } from "@/api/client";
 import { BACKGROUND_HEADER, backgroundRequest } from "@/api/background";
@@ -22,6 +23,15 @@ describe("mfaEnrolmentRedirect", () => {
   it("sends an enrolment refusal to the two-factor setup screen", () => {
     expect(
       mfaEnrolmentRedirect(refusal(403, MFA_ENROLMENT_REQUIRED), "/employees"),
+    ).toBe(`${MFA_ENROLMENT_PATH}?mfa=required`);
+  });
+
+  it("sends a platform operator's write refusal to the same screen", () => {
+    // RequirePlatformMfa answers `mfa-required`, not the tenant enrolment
+    // type. While only the latter was listed, an operator without MFA saw
+    // the Plans page load and every Save do nothing (2026-11-23).
+    expect(
+      mfaEnrolmentRedirect(refusal(403, PLATFORM_MFA_REQUIRED), "/admin/plans"),
     ).toBe(`${MFA_ENROLMENT_PATH}?mfa=required`);
   });
 
@@ -51,6 +61,12 @@ describe("mfaEnrolmentRedirect", () => {
     ).toBeNull();
     expect(
       mfaEnrolmentRedirect(refusal(401, MFA_ENROLMENT_REQUIRED), "/employees"),
+    ).toBeNull();
+    expect(
+      mfaEnrolmentRedirect(
+        refusal(403, PLATFORM_MFA_REQUIRED),
+        "/profile/security",
+      ),
     ).toBeNull();
   });
 });
