@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { ErrorState } from "@/components/shared/error-state";
 
@@ -29,6 +31,7 @@ export function PrintedDocumentsCard() {
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const persisted: PrintedForm = {
     letterhead_address: data?.documents?.letterhead_address ?? "",
@@ -43,6 +46,7 @@ export function PrintedDocumentsCard() {
     (Object.keys(form) as (keyof PrintedForm)[]).some(
       (k) => form[k] !== persisted[k],
     );
+  useUnsavedChangesWarning(isDirty);
 
   function update(key: keyof PrintedForm, value: string) {
     setEdits({ ...form, [key]: value });
@@ -60,9 +64,13 @@ export function PrintedDocumentsCard() {
         onSuccess: () => {
           setEdits(null);
           toast.success(t("printed_docs.saved"));
+          announceSaved(t("printed_docs.saved"));
         },
-        onError: (err) =>
-          toast.error(apiErrorMessage(err, t("printed_docs.save_failed"))),
+        onError: (err) => {
+          const message = apiErrorMessage(err, t("printed_docs.save_failed"));
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

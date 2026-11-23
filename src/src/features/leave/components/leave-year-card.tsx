@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useSaveStatus } from "@/components/shared/save-status";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -31,6 +32,7 @@ export function LeaveYearCard() {
   const { can } = usePermissions();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const current = data?.leave?.leave_year ?? "ethiopian";
   const changeable = data?.leave?.leave_year_changeable ?? false;
@@ -41,20 +43,25 @@ export function LeaveYearCard() {
     save.mutate(
       { leave_year: value as LeaveYearKind },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             t("leave_types_page.leave_year_saved", "Leave year saved"),
-          ),
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "leave_types_page.leave_year_save_failed",
-                "Couldn't save the leave year",
-              ),
+          );
+          announceSaved(
+            t("leave_types_page.leave_year_saved", "Leave year saved"),
+          );
+        },
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "leave_types_page.leave_year_save_failed",
+              "Couldn't save the leave year",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

@@ -17,6 +17,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { ErrorState } from "@/components/shared/error-state";
 import { ReferenceSelect } from "@/components/shared/reference-select";
@@ -41,6 +43,7 @@ export function StatutoryDetailsCard() {
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const persisted: StatutoryForm = {
     employer_tin: data?.payroll?.employer_tin ?? "",
@@ -67,6 +70,7 @@ export function StatutoryDetailsCard() {
     (Object.keys(form) as (keyof StatutoryForm)[]).some(
       (k) => form[k] !== persisted[k],
     );
+  useUnsavedChangesWarning(isDirty);
 
   function update<K extends keyof StatutoryForm>(
     key: K,
@@ -101,9 +105,13 @@ export function StatutoryDetailsCard() {
         onSuccess: () => {
           setEdits(null);
           toast.success(t("statutory.saved"));
+          announceSaved(t("statutory.saved"));
         },
-        onError: (err) =>
-          toast.error(apiErrorMessage(err, t("statutory.save_failed"))),
+        onError: (err) => {
+          const message = apiErrorMessage(err, t("statutory.save_failed"));
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

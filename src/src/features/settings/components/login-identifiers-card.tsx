@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { toastError } from "@/lib/errors";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import {
   useAccessPolicy,
@@ -34,7 +36,19 @@ export function LoginIdentifiersCard() {
   const queryClient = useQueryClient();
   const update = useUpdateAccessPolicy();
   const { requestConfirm, confirmDialog } = useConfirm();
+  const { announceSaved, announceError } = useSaveStatus();
   const [selected, setSelected] = useState<LoginIdentifier[] | null>(null);
+  // The card renders inside QueryBoundary, so the saved list is read from the
+  // query here: a hook cannot be called inside the render function below.
+  const savedIdentifiers = policyQuery.data?.login_identifiers;
+  useUnsavedChangesWarning(
+    selected !== null &&
+      savedIdentifiers !== undefined &&
+      !(
+        selected.length === savedIdentifiers.length &&
+        selected.every((id) => savedIdentifiers.includes(id))
+      ),
+  );
 
   const label = (id: LoginIdentifier): string =>
     ({
@@ -119,12 +133,20 @@ export function LoginIdentifiersCard() {
                         "Sign-in methods saved",
                       ),
                     );
+                    announceSaved(
+                      t(
+                        "settings.login_identifiers_saved",
+                        "Sign-in methods saved",
+                      ),
+                    );
                   },
-                  onError: (error) =>
+                  onError: (error) => {
+                    announceError(error);
                     toastError(
                       error,
                       t("settings.save_failed", "Failed to save settings"),
-                    ),
+                    );
+                  },
                 },
               );
             }

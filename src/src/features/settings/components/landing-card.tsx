@@ -35,6 +35,8 @@ import {
   sectionOrder,
 } from "@/lib/auth/landing-text";
 import type { LandingBackground } from "@/lib/auth/landing-background";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -307,9 +309,14 @@ export function LandingCard({
   const { t } = useT();
   const updateLanding = useUpdateLanding();
   const linkLabel = useLinkLabel();
+  const { announceSaved, announceError } = useSaveStatus();
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const [form, setForm] = useState<LandingForm>(() => fromSettings(landing));
+  // What was loaded, then what was last saved: the form is dirty when it
+  // differs from this, so typing a value back is not a change.
+  const [baseline, setBaseline] = useState(() => JSON.stringify(form));
+  useUnsavedChangesWarning(JSON.stringify(form) !== baseline);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const set = <K extends keyof LandingForm>(key: K, value: LandingForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -356,9 +363,13 @@ export function LandingCard({
 
   function save() {
     setFieldErrors({});
+    const submitted = JSON.stringify(form);
     updateLanding.mutate(toUpdate(form), {
-      onSuccess: () =>
-        toast.success(t("settings.landing_saved", "Public website saved")),
+      onSuccess: () => {
+        setBaseline(submitted);
+        toast.success(t("settings.landing_saved", "Public website saved"));
+        announceSaved(t("settings.landing_saved", "Public website saved"));
+      },
       onError: (error: unknown) => {
         const errors = (
           error as {
@@ -373,6 +384,10 @@ export function LandingCard({
           );
         }
         toast.error(
+          t("settings.landing_save_failed", "Failed to save the sign-in page"),
+        );
+        announceError(
+          error,
           t("settings.landing_save_failed", "Failed to save the sign-in page"),
         );
       },
