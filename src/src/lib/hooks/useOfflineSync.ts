@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/api/client";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { splitIntoBatches, toSyncPayload } from "@/lib/offline-batch";
+import { syncFinished, syncStarted } from "@/lib/offline-sync-activity";
 import {
   clearSyncedRecords,
   getPendingRecords,
@@ -137,6 +138,8 @@ export function useOfflineSync(employeePublicId: string | null) {
     // Errors that may pass on a later try. A punch refused for good is not one.
     let retryable = 0;
     let foundNothing = false;
+    // Whether this run told the page it is sending, so it also says it ended.
+    let announced = false;
 
     // Sends one batch. "stop" means the rest of the run should not be tried:
     // the server did not answer, or answered that nothing will work for now.
@@ -211,6 +214,9 @@ export function useOfflineSync(employeePublicId: string | null) {
         return { synced: 0, errors: 0 };
       }
 
+      syncStarted("punches", pending.length);
+      announced = true;
+
       const clock = new Date().toISOString();
       const batches = splitIntoBatches(
         pending,
@@ -246,6 +252,7 @@ export function useOfflineSync(employeePublicId: string | null) {
       }
       syncInProgress = false;
       setSyncing(false);
+      if (announced) syncFinished("punches", synced);
     }
 
     return { synced, errors };

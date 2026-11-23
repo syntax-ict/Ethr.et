@@ -7,6 +7,10 @@ import {
 import { apiClient } from "@/api/client";
 import * as offlineQueue from "@/lib/offline-queue";
 import type { OfflineAttendanceRecord } from "@/lib/offline-queue";
+import {
+  getSyncActivity,
+  resetSyncActivityForTests,
+} from "@/lib/offline-sync-activity";
 
 /**
  * The offline attendance sync engine.
@@ -62,8 +66,39 @@ describe("useOfflineSync", () => {
 
   afterEach(() => {
     resetOfflineSyncForTests();
+    resetSyncActivityForTests();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("tells the page it sent the punch, so the banner can say so", async () => {
+    vi.spyOn(offlineQueue, "getPendingRecords").mockResolvedValue([record()]);
+    vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: { results: [{ idempotency_key: "key-1", status: "created" }] },
+    } as never);
+    const { result } = renderHook(() => useOfflineSync(EMP));
+
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    const activity = getSyncActivity();
+    expect(activity.sendingPunches).toBe(0);
+    expect(activity.lastSent).toMatchObject({ punches: 1, visits: 0 });
+  });
+
+  it("reports nothing sent when the network fails", async () => {
+    vi.spyOn(offlineQueue, "getPendingRecords").mockResolvedValue([record()]);
+    vi.spyOn(apiClient, "post").mockRejectedValue(new Error("Network Error"));
+    const { result } = renderHook(() => useOfflineSync(EMP));
+
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    const activity = getSyncActivity();
+    expect(activity.sendingPunches).toBe(0);
+    expect(activity.lastSent).toBeNull();
   });
 
   it("marks a created record synced so it is not sent twice", async () => {
