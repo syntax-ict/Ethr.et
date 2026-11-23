@@ -55,7 +55,18 @@ const SETTINGS = {
     pagumen_proration_strategy: "full_month",
     retirement_age: 60,
   },
-  security: { mfa_policy: "required", session_timeout_minutes: 30 },
+  security: {
+    mfa_policy: "required",
+    session_timeout_minutes: 30,
+    password_policy: {
+      min_length: 8,
+      require_uppercase: false,
+      require_lowercase: false,
+      require_number: false,
+      require_symbol: false,
+    },
+    activation_code_hours: 24,
+  },
   display: { calendar: "gregorian" },
   employees: { number_format: "EMP-{SEQ:4}", next_code: "EMP-0001" },
   sso: {
@@ -110,7 +121,9 @@ describe("<SettingsPage> security tab", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("spinbutton")).toHaveValue(30);
+    expect(
+      await screen.findByLabelText("Session timeout (minutes)"),
+    ).toHaveValue(30);
     expect(screen.getByRole("combobox")).toHaveTextContent("Required");
   });
 
@@ -127,10 +140,12 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "45");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Save security settings" }),
+    );
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toEqual({ settings: { session_timeout_minutes: 45 } });
@@ -163,10 +178,12 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "60");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Save security settings" }),
+    );
 
     expect(
       await screen.findByText(
@@ -195,7 +212,7 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "3");
 
@@ -203,7 +220,9 @@ describe("<SettingsPage> security tab", () => {
       screen.getByText("Enter a whole number from 5 to 480."),
     ).toBeInTheDocument();
     expect(timeout).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("button", { name: /Save/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save security settings" }),
+    ).toBeDisabled();
     expect(sent).toBe(false);
   });
 
@@ -214,7 +233,9 @@ describe("<SettingsPage> security tab", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("spinbutton")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Session timeout (minutes)"),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
   });
 });

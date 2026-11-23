@@ -29,5 +29,12 @@ return [
         'letterhead_email' => 'email on documents',
         'letterhead_po_box' => 'P.O. box on documents',
         'invitation_reminders' => 'invitation reminders',
+        'password_policy' => 'password policy',
+        'activation_code_hours' => 'activation code lifetime',
+        'password_policy_min_length' => 'minimum length',
+        'password_policy_require_uppercase' => 'uppercase rule',
+        'password_policy_require_lowercase' => 'lowercase rule',
+        'password_policy_require_number' => 'number rule',
+        'password_policy_require_symbol' => 'symbol rule',
     ],
 ];

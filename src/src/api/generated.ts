@@ -14154,6 +14154,14 @@ export interface components {
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
+                password_policy?: {
+                    min_length: number;
+                    require_uppercase: boolean;
+                    require_lowercase: boolean;
+                    require_number: boolean;
+                    require_symbol: boolean;
+                };
+                activation_code_hours?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
                 /** @enum {string} */
@@ -36850,6 +36858,14 @@ export interface operations {
                         security: {
                             mfa_policy: string;
                             session_timeout_minutes: number;
+                            password_policy: {
+                                min_length: number;
+                                require_uppercase: boolean;
+                                require_lowercase: boolean;
+                                require_number: boolean;
+                                require_symbol: boolean;
+                            };
+                            activation_code_hours: number;
                         };
                         display: {
                             /** @enum {string} */
