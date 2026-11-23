@@ -8060,5 +8060,11 @@
   "payroll_checks.min_help": "Akka dhibbeentaan guddaan waraqaa mindaa xiqqaa hin tarreeffamne.",
   "payroll_checks.shared_support_session": "Yeroo deeggarsaa keessatti eenyu herrega kamitti akka kaffalamu hin agarsiifamu. Dhaabbatichi qorannoo kana ofii isaatii ni arga.",
   "payroll_checks.show_all": "Hunda :count agarsiisi",
-  "payroll_checks.show_fewer": "Xiqqaa agarsiisi"
+  "payroll_checks.show_fewer": "Xiqqaa agarsiisi",
+  "setup2.calendar_hint_ec": "Sararri :line :column jala :value qaba; guyyaan kun Dhaha Itoophiyaa qofa keessa jira. Guyyoonni kun Dhaha Itoophiyaa (E.C.) fakkaatu.",
+  "setup2.calendar_hint_gc": "Sararri :line :column jala :value qaba; guyyaan kun Dhaha Itoophiyaa keessa hin jiru. Guyyoonni kun Dhaha Giregooriyaa (G.C.) fakkaatu.",
+  "setup2.calendar_hint_use_ec": "Guyyoota akka Dhaha Itoophiyaa (E.C.) tti dubbisi",
+  "setup2.calendar_hint_use_gc": "Guyyoota akka Dhaha Giregooriyaa (G.C.) tti dubbisi",
+  "setup2.calendar_hint_header": "Maqaan kolomii dhaha kaan ibsa. Faayilii keessatti maqaa kolomii sirreessiitii deebisii fidi.",
+  "setup2.calendar_hint_every_column": "Kun kolomii guyyaa maqaan isaa (E.C.) ykn (G.C.) hin jenne hunda jijjiira. Kolomiin kun qofti dhaha kaan yoo ta'e, qooda kanaa faayilii keessatti maqaa isaatti dabalaa."
 }
