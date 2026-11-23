@@ -40,6 +40,19 @@ final class MailBrand
         return $this->name;
     }
 
+    /**
+     * The name for a place Markdown is parsed (the sign-off sits in the message body):
+     * the characters that make a link, emphasis or code are backslash-escaped, so an
+     * organisation called `[click](https://example.test)` prints as text, not a link.
+     * Only those: the plain-text part shares the view and does not parse Markdown, so
+     * every other character, brackets in a name such as "Revenue (ERCA)" included,
+     * must stay as it is.
+     */
+    public function markdownName(): string
+    {
+        return (string) preg_replace('/([\\\\`*_\[\]])/', '\\\\$1', $this->name);
+    }
+
     /** @return list<string> */
     public function lines(): array
     {

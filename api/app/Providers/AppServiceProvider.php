@@ -197,8 +197,10 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
-        Event::listen(NotificationSending::class, HoldMailOverBudget::class);
+        // BrandMail first: it returns nothing, and a listener ahead of it that returned
+        // true would stop the rest, leaving the previous mail's brand on this one.
         Event::listen(NotificationSending::class, BrandMail::class);
+        Event::listen(NotificationSending::class, HoldMailOverBudget::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
         Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
         Event::listen(PayrollRunFailed::class, NotifyPayrollRunFailed::class);

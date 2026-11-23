@@ -40,7 +40,7 @@
 {{ $salutation }}
 @else
 @lang('Regards,')<br>
-{{ app(\App\Support\MailBrand::class)->name() }}
+{{ app(\App\Support\MailBrand::class)->markdownName() }}
 @endif
 
 {{-- Subcopy --}}

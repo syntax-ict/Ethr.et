@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Listeners\BrandMail;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -231,4 +232,24 @@ it('brands a report or digest sent to a free-text address with the organisation 
         ->not->toContain('Laravel');
     // The sign-off names the organisation, not the app.
     expect(preg_match('/Regards,.{0,80}Habru Woreda/su', $html))->toBe(1);
+});
+
+it('does not let an organisation name make a link in the sign-off, and leaves ordinary punctuation alone', function () {
+    $tenant = createTenant(['name' => '[Reset your password](https://phish.example) (ERCA)']);
+    $reader = brandedMemberOf($tenant);
+
+    $html = renderBranded($reader, new LeaveApprovedNotification(brandedLeave($tenant)));
+
+    expect($html)->not->toContain('href="https://phish.example"')
+        ->and($html)->toContain('[Reset your password]')
+        ->and($html)->toContain('(ERCA)');
+});
+
+it('runs BrandMail ahead of every other listener on the sending event', function () {
+    $listeners = collect(app('events')->getListeners(NotificationSending::class));
+
+    // Laravel stops at the first listener that returns a value, so BrandMail goes first.
+    expect($listeners)->not->toBeEmpty();
+    $first = new ReflectionFunction($listeners->first());
+    expect($first->getStaticVariables()['listener'] ?? null)->toBe(BrandMail::class);
 });
