@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Notifications\Contracts\BulkMail;
 use App\Support\FrontendUrl;
@@ -21,9 +22,9 @@ class ApprovalReminderNotification extends Notification implements BulkMail
         private readonly int $oldestHours,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'approval_reminder';
+        return NotificationType::APPROVAL_REMINDER;
     }
 
     public function via(object $notifiable): array
