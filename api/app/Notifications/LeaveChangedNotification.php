@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\LeaveRequest;
 use App\Notifications\Concerns\LeaveTemplateValues;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
@@ -27,19 +28,14 @@ class LeaveChangedNotification extends Notification
         private readonly string $reason,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'leave_changed';
+        return NotificationType::LEAVE_CHANGED;
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database', 'mail'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database', 'mail'], broadcast: true);
     }
 
     public function toArray(object $notifiable): array

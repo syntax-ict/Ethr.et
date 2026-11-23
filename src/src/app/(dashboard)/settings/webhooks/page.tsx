@@ -48,6 +48,8 @@ import {
 } from "@/features/webhooks/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -87,11 +89,16 @@ export default function WebhooksPage() {
     watch,
     setValue,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<WebhookValues>({
     schema: webhookSchema,
     defaultValues: { url: "", events: [] },
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(createOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
 
   const selectedEvents = watch("events");
 
@@ -116,12 +123,14 @@ export default function WebhooksPage() {
       });
       closeDialog();
       toast.success(t("webhooks_page.updated", "Webhook updated"));
+      announceSaved(t("webhooks_page.updated", "Webhook updated"));
       return;
     }
     const created = await createWebhook.mutateAsync(values);
     setNewSecret(created.secret);
     closeDialog();
     toast.success(t("webhooks_page.created"));
+    announceSaved(t("webhooks_page.created"));
   }
 
   function openEdit(webhook: WebhookEntry) {
@@ -142,14 +151,23 @@ export default function WebhooksPage() {
     updateWebhook.mutate(
       { publicId: webhook.public_id, is_active: isActive },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             isActive
               ? t("webhooks_page.enabled", "Webhook enabled")
               : t("webhooks_page.disabled", "Webhook disabled"),
-          ),
-        onError: (err) =>
-          toast.error(apiErrorMessage(err, t("common.action_failed"))),
+          );
+          announceSaved(
+            isActive
+              ? t("webhooks_page.enabled", "Webhook enabled")
+              : t("webhooks_page.disabled", "Webhook disabled"),
+          );
+        },
+        onError: (err) => {
+          const message = apiErrorMessage(err, t("common.action_failed"));
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }
@@ -161,18 +179,28 @@ export default function WebhooksPage() {
     deleteWebhook.mutate(deleting.public_id, {
       onSuccess: () => {
         toast.success(t("webhooks_page.deleted"));
+        announceSaved(t("webhooks_page.deleted"));
         setDeleting(null);
       },
-      onError: (err) =>
-        toast.error(apiErrorMessage(err, t("common.action_failed"))),
+      onError: (err) => {
+        const message = apiErrorMessage(err, t("common.action_failed"));
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 
   function sendTest(publicId: string) {
     testWebhook.mutate(publicId, {
-      onSuccess: () => toast.success(t("webhooks_page.test_dispatched")),
-      onError: (err) =>
-        toast.error(apiErrorMessage(err, t("webhooks_page.test_failed"))),
+      onSuccess: () => {
+        toast.success(t("webhooks_page.test_dispatched"));
+        announceSaved(t("webhooks_page.test_dispatched"));
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(err, t("webhooks_page.test_failed"));
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

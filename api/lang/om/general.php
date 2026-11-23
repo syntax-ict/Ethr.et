@@ -8,4 +8,8 @@ return [
     'not_found' => ':resource hin argamne.',
     'tenant_delete_requires_cancelled' => 'Dhaabbata kana haquu dura maallaqa hirmaannaa isaa addaan kutaa.',
     'tenant_required' => 'Fuulli kun kan dhaabbata tokkooti. Herregni waltajjii dhaabbata hin qabu: qooda kanaa dhaabbata sana konsoolii irraa banaa.',
+    // The fixed words of an organisation's news page head (PortalHead), said
+    // in the organisation's own language.
+    'portal_news_title' => 'Oduu',
+    'portal_news_description' => 'Oduu fi ibsawwan :name irraa.',
 ];

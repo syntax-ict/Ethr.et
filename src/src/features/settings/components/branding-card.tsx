@@ -9,6 +9,8 @@ import {
   type BrandAssets,
   type BrandColorKey,
 } from "@/features/settings/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +57,7 @@ export function BrandingCard({
 }: BrandingCardProps) {
   const { t } = useT();
   const updateBranding = useUpdateBranding();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const [colors, setColors] = useState<Record<ColorKey, string>>({
     primary_color: theme?.primary_color ?? DEFAULT_COLORS.primary_color,
@@ -73,6 +76,7 @@ export function BrandingCard({
   const dirty = (Object.keys(colors) as ColorKey[]).some(
     (key) => colors[key].toLowerCase() !== saved[key].toLowerCase(),
   );
+  useUnsavedChangesWarning(dirty);
 
   // The hook refreshes /auth/me as well as the settings query: it carries the
   // theme TenantBrandingProvider applies, so without it the saved colors only
@@ -82,15 +86,22 @@ export function BrandingCard({
     updateBranding.mutate(
       { ...colors },
       {
-        onSuccess: () =>
-          toast.success(t("settings.branding_saved", "Branding saved")),
-        onError: (err) =>
+        onSuccess: () => {
+          toast.success(t("settings.branding_saved", "Branding saved"));
+          announceSaved(t("settings.branding_saved", "Branding saved"));
+        },
+        onError: (err) => {
           toast.error(
             apiErrorMessage(
               err,
               t("settings.branding_save_failed", "Failed to save branding"),
             ),
-          ),
+          );
+          announceError(
+            err,
+            t("settings.branding_save_failed", "Failed to save branding"),
+          );
+        },
       },
     );
   }

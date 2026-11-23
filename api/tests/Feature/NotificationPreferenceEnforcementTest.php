@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -146,4 +147,15 @@ test('in_app cannot be switched off through the endpoint', function () {
     ])->assertOk();
 
     expect((new LeaveApprovedNotification($lr))->via($user->fresh()))->toContain('database');
+});
+
+test('the preferences endpoint lists exactly the NotificationType cases, in order', function () {
+    [$tenant, , $user] = prefFixture();
+
+    test()->actingAs($user);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/notifications/preferences")->assertOk();
+
+    expect($response->json('notification_types'))->toBe(array_map(fn (NotificationType $t) => $t->value, NotificationType::cases()))
+        ->and(array_keys($response->json('preferences')))->toBe(NotificationType::values());
 });

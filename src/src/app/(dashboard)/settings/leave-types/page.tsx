@@ -44,6 +44,8 @@ import {
   type AccrualType,
   type LeaveType,
 } from "@/features/leave/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
@@ -122,11 +124,16 @@ export default function LeaveTypesPage() {
     submit,
     reset,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<LeaveTypeValues>({
     schema: leaveTypeSchema,
     defaultValues: EMPTY_LEAVE_TYPE,
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(dialogOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
 
   function openNew() {
     setEditingId(null);
@@ -191,11 +198,13 @@ export default function LeaveTypesPage() {
         payload: { ...payload, is_active: values.is_active },
       });
       toast.success(t("leave_types_page.updated"));
+      announceSaved(t("leave_types_page.updated"));
       setDialogOpen(false);
       setEditingId(null);
     } else {
       await createLeaveType.mutateAsync(payload);
       toast.success(t("leave_types_page.created"));
+      announceSaved(t("leave_types_page.created"));
       setDialogOpen(false);
       reset(EMPTY_LEAVE_TYPE);
     }
@@ -221,15 +230,18 @@ export default function LeaveTypesPage() {
     });
     if (!ok) return;
     deleteLeaveType.mutate(lt.public_id, {
-      onSuccess: () =>
-        toast.success(t("leave_types_page.deleted", "Leave type deleted")),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t("leave_types_page.delete_failed", "Failed to delete leave type"),
-          ),
-        ),
+      onSuccess: () => {
+        toast.success(t("leave_types_page.deleted", "Leave type deleted"));
+        announceSaved(t("leave_types_page.deleted", "Leave type deleted"));
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t("leave_types_page.delete_failed", "Failed to delete leave type"),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 
@@ -243,8 +255,14 @@ export default function LeaveTypesPage() {
             { name: copy.name },
           ),
         ),
-      onError: (err) =>
-        toast.error(apiErrorMessage(err, t("leave_types_page.create_failed"))),
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t("leave_types_page.create_failed"),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 

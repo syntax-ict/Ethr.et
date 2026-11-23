@@ -44,6 +44,8 @@ import {
 } from "@/features/roles/api";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -183,6 +185,7 @@ function RoleCard({
   const { t } = useT();
   const { requestConfirm, confirmDialog } = useConfirm();
   const deleteRole = useDeleteCustomRole();
+  const { announceSaved, announceError } = useSaveStatus();
 
   async function handleDelete() {
     if (
@@ -194,13 +197,22 @@ function RoleCard({
     )
       return;
     deleteRole.mutate(role.public_id, {
-      onSuccess: () =>
+      onSuccess: () => {
         toast.success(
           t("roles_page.role_deleted", "Role :name deleted", {
             name: role.name,
           }),
-        ),
-      onError: (err) => toastError(err, t("roles_page.delete_failed")),
+        );
+        announceSaved(
+          t("roles_page.role_deleted", "Role :name deleted", {
+            name: role.name,
+          }),
+        );
+      },
+      onError: (err) => {
+        announceError(err, t("roles_page.delete_failed"));
+        toastError(err, t("roles_page.delete_failed"));
+      },
     });
   }
 
@@ -281,7 +293,7 @@ function RoleDialog({
     watch,
     setValue,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<RoleValues>({
     schema: roleSchema,
     defaultValues: {
@@ -291,6 +303,11 @@ function RoleDialog({
       permissions: [],
     },
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(open && isDirty);
+  const { announceSaved } = useSaveStatus();
 
   // The permission tree toggles by name and asks "is this one on?" thousands of
   // times per render, so a Set stays the right structure for the UI. It is
@@ -403,6 +420,15 @@ function RoleDialog({
       : createRole.mutateAsync(values));
 
     toast.success(
+      isEditing
+        ? t("roles_page.role_updated", "Role :name updated", {
+            name: values.name,
+          })
+        : t("roles_page.role_created", "Role :name created", {
+            name: values.name,
+          }),
+    );
+    announceSaved(
       isEditing
         ? t("roles_page.role_updated", "Role :name updated", {
             name: values.name,

@@ -13,7 +13,6 @@ use App\Models\Vacancy;
 use App\Services\CurrentTenant;
 use App\Support\PlainExcerpt;
 use App\Support\TenantLanding;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -42,8 +41,6 @@ class LandingFeedController extends Controller
     private const HOLIDAYS = 4;
 
     private const BRANCHES = 12;
-
-    private const NEWS_PER_PAGE = 9;
 
     private const RELATED = 3;
 
@@ -86,7 +83,7 @@ class LandingFeedController extends Controller
             : null;
 
         $announcements = $sections['announcements']
-            ? self::newsOrder(Announcement::query()->publiclyListed())
+            ? Announcement::query()->publiclyListed()->newsOrder()
                 ->limit(self::ANNOUNCEMENTS)
                 ->get()
                 ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
@@ -167,7 +164,7 @@ class LandingFeedController extends Controller
             ->pluck('category')
             ->all();
 
-        $page = self::newsOrder($query)->paginate(self::NEWS_PER_PAGE);
+        $page = $query->newsOrder()->paginate(Announcement::NEWS_PER_PAGE);
 
         return response()->json([
             'data' => collect($page->items())->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))->all(),
@@ -202,15 +199,14 @@ class LandingFeedController extends Controller
             throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement]);
         }
 
-        $related = self::newsOrder(
-            Announcement::query()
-                ->publiclyListed()
-                ->whereKeyNot($model->getKey())
-                ->when(
-                    $model->category !== null,
-                    fn ($q) => $q->orderByRaw('CASE WHEN category = ? THEN 0 ELSE 1 END', [$model->category]),
-                ),
-        )
+        $related = Announcement::query()
+            ->publiclyListed()
+            ->whereKeyNot($model->getKey())
+            ->when(
+                $model->category !== null,
+                fn ($q) => $q->orderByRaw('CASE WHEN category = ? THEN 0 ELSE 1 END', [$model->category]),
+            )
+            ->newsOrder()
             ->limit(self::RELATED)
             ->get()
             ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
@@ -222,21 +218,6 @@ class LandingFeedController extends Controller
             'attachments' => $model->attachmentsPresented($tenant->public_id),
             'related' => $related,
         ]);
-    }
-
-    /**
-     * Featured first, then urgent and important, then newest.
-     *
-     * @param  Builder<Announcement>  $query
-     * @return Builder<Announcement>
-     */
-    private static function newsOrder(Builder $query): Builder
-    {
-        return $query
-            ->orderByDesc('featured')
-            ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")
-            ->orderByDesc('published_at')
-            ->orderByDesc('id');
     }
 
     /**

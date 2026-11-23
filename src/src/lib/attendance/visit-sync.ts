@@ -6,6 +6,7 @@ import {
   queuedVisits,
   visitBody,
 } from "@/lib/attendance/visit-queue";
+import { syncFinished, syncStarted } from "@/lib/offline-sync-activity";
 
 /** One send at a time on this page, however many places ask for one. */
 let inFlight = false;
@@ -70,10 +71,17 @@ export async function flushQueuedVisits(
   if (!employeePublicId || inFlight) return { sent: 0 };
   inFlight = true;
   let sent = 0;
+  let announced = false;
   try {
     const tenant = tenantHeaderValue();
-    for (const entry of queuedVisits()) {
-      if (!isSendableBy(entry, employeePublicId, tenant)) continue;
+    const mine = queuedVisits().filter((entry) =>
+      isSendableBy(entry, employeePublicId, tenant),
+    );
+    if (mine.length > 0) {
+      syncStarted("visits", mine.length);
+      announced = true;
+    }
+    for (const entry of mine) {
       const body = visitBody(entry);
       let outcome = await attempt(body);
       if (outcome === "too_large" && body.photo) {
@@ -89,6 +97,7 @@ export async function flushQueuedVisits(
     }
   } finally {
     inFlight = false;
+    if (announced) syncFinished("visits", sent);
   }
   return { sent };
 }

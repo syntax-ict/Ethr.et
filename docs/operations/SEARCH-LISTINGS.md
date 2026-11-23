@@ -193,6 +193,22 @@ fixture test cannot: `statePayloadRobots()` reports any page that still says
 DOM check after the release — `curl` cannot see this, which is how it survived
 three weeks.
 
+**The description is stated in the payload as well (2026-11-23).** The same
+mechanism left a second defect, smaller and quieter. The exports carry a
+generic description in their payload ("Sign in to your ETHR workspace." on
+`/login`, "News and announcements." on `/news` and each article), so after
+hydration every organisation page held two description tags, the
+organisation's and the export's. Measured on production at `0a6150d0a4` on
+`/login`, `/news` and an article. A crawler that reads the rendered DOM has to
+choose between them. `PortalHead::inject()` now writes the organisation's
+description over the payload's entry too, read back out of the head it is about
+to insert so the two cannot differ. Unlike the robots line it is free text, so
+it is encoded (`statePayloadDescription()`) and the end of the old value is
+found by counting backslashes, not by looking for the next quote. The same sweep
+idea applies: a description entry that was not rewritten is logged as an
+unrecognised export shape. The rendered-DOM check below should now find one
+description tag, as well as one robots tag.
+
 **An empty news page is now `noindex, follow` and is left out of the sitemap.**
 Nine of the ten news pages in the sitemap had no articles; once the robots line
 was honest, they would have become a shelf of identical empty pages on one

@@ -121,7 +121,40 @@ function switchFeature(Feature $feature, FeatureState $state = FeatureState::Dis
  * hydration, so a `robots` entry left saying `noindex` reaches Google even
  * when the head says otherwise — the defect `PortalHead::inject()` describes.
  */
-function portalPayload(string $robots): string
+function portalPayload(string $robots, ?string $description = null): string
 {
-    return '<script>self.__next_f.push([1,"b:[[\\"$\\",\\"link\\",\\"2\\",{\\"rel\\":\\"manifest\\",\\"href\\":\\"/manifest.json\\",\\"crossOrigin\\":\\"$undefined\\"}],[\\"$\\",\\"meta\\",\\"3\\",{\\"name\\":\\"robots\\",\\"content\\":\\"'.$robots.'\\"}],[\\"$\\",\\"meta\\",\\"4\\",{\\"name\\":\\"mobile-web-app-capable\\",\\"content\\":\\"yes\\"}]]\n"]);</script>';
+    $entry = $description === null ? '' : '[\\"$\\",\\"meta\\",\\"2\\",{\\"name\\":\\"description\\",\\"content\\":\\"'.$description.'\\"}],';
+
+    return '<script>self.__next_f.push([1,"b:['.$entry.'[\\"$\\",\\"link\\",\\"2\\",{\\"rel\\":\\"manifest\\",\\"href\\":\\"/manifest.json\\",\\"crossOrigin\\":\\"$undefined\\"}],[\\"$\\",\\"meta\\",\\"3\\",{\\"name\\":\\"robots\\",\\"content\\":\\"'.$robots.'\\"}],[\\"$\\",\\"meta\\",\\"4\\",{\\"name\\":\\"mobile-web-app-capable\\",\\"content\\":\\"yes\\"}]]\n"]);</script>';
+}
+
+/**
+ * What the page's React payload says for a `<meta name="$name">`, read the
+ * way the browser reads it: the JavaScript string, then the JSON inside it.
+ * Not through `PortalHead`, so a test of what it wrote does not borrow its
+ * own idea of where a value ends.
+ *
+ * @return list<string>
+ */
+function portalPayloadMeta(string $html, string $name): array
+{
+    expect(preg_match('#<script>self\.__next_f\.push\(\[1,("[^
+]*?")\]\);</script>#s', $html, $found))->toBe(1);
+
+    $text = json_decode($found[1], true, 512, JSON_THROW_ON_ERROR);
+    $tree = json_decode(substr($text, 2), true, 512, JSON_THROW_ON_ERROR);
+
+    $values = [];
+    $walk = function (mixed $node) use (&$walk, &$values, $name): void {
+        if (! is_array($node)) {
+            return;
+        }
+        if (($node['name'] ?? null) === $name && isset($node['content'])) {
+            $values[] = $node['content'];
+        }
+        array_map($walk, $node);
+    };
+    $walk($tree);
+
+    return $values;
 }

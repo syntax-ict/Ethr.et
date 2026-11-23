@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\Concern;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
@@ -24,9 +25,9 @@ class ConcernRaisedNotification extends Notification implements ShouldQueue
 
     public function __construct(private readonly Concern $concern) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'employee_voice';
+        return NotificationType::EMPLOYEE_VOICE;
     }
 
     public function via(object $notifiable): array

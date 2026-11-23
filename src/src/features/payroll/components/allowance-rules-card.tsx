@@ -33,6 +33,8 @@ import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules as rulesLib, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { centsToETB, etbToCents, formatETB } from "@/lib/utils/currency";
@@ -121,11 +123,16 @@ export function AllowanceRulesCard() {
     reset,
     watch,
     rootError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useZodForm<AllowanceValues>({
     schema: allowanceSchema,
     defaultValues: EMPTY_FORM,
   });
+
+  // The dialog is the form. Saving or closing it resets the form, so what is
+  // left unsaved is exactly what a reload would lose.
+  useUnsavedChangesWarning(dialogOpen && isDirty);
+  const { announceSaved, announceError } = useSaveStatus();
 
   const type = watch("type");
 
@@ -175,6 +182,11 @@ export function AllowanceRulesCard() {
         ? t("payroll_config.allowance_updated", "Allowance updated")
         : t("payroll_config.allowance_created", "Allowance created"),
     );
+    announceSaved(
+      editingId
+        ? t("payroll_config.allowance_updated", "Allowance updated")
+        : t("payroll_config.allowance_created", "Allowance created"),
+    );
     setDialogOpen(false);
     setEditingId(null);
   }
@@ -193,20 +205,25 @@ export function AllowanceRulesCard() {
     )
       return;
     deleteRule.mutate(rule.public_id, {
-      onSuccess: () =>
+      onSuccess: () => {
         toast.success(
           t("payroll_config.allowance_deleted", "Allowance removed"),
-        ),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "payroll_config.allowance_delete_failed",
-              "Could not remove allowance",
-            ),
+        );
+        announceSaved(
+          t("payroll_config.allowance_deleted", "Allowance removed"),
+        );
+      },
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t(
+            "payroll_config.allowance_delete_failed",
+            "Could not remove allowance",
           ),
-        ),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 
