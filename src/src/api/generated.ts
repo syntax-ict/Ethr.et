@@ -13967,7 +13967,7 @@ export interface components {
             cancel_pending_organization_type?: boolean;
             timezone?: string;
             /** @enum {string} */
-            locale?: "en" | "am" | "om" | "ti" | "so";
+            locale?: "en" | "am" | "om";
         };
         /**
          * UpdateOvertimeRatesRequest
