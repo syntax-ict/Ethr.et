@@ -12,6 +12,7 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\PayChangeThresholds;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,8 @@ class UpdateSettingsRequest extends FormRequest
             'settings.payout_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYOUT_METHODS)],
             'settings.employer_bank_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'settings.employer_bank_code' => ['sometimes', 'nullable', 'string', 'max:60', new ReferenceCode(['bank'])],
+            'settings.pay_change_alert_percent' => ['sometimes', 'integer', 'between:'.PayChangeThresholds::PERCENT_MIN.','.PayChangeThresholds::PERCENT_MAX],
+            'settings.pay_change_alert_min_cents' => ['sometimes', 'integer', 'between:0,'.PayChangeThresholds::MIN_CENTS_MAX],
             'settings.letterhead_address' => ['sometimes', 'nullable', 'string', 'max:200'],
             'settings.letterhead_phone' => ['sometimes', 'nullable', 'string', 'max:40'],
             'settings.letterhead_email' => ['sometimes', 'nullable', 'email', 'max:120'],

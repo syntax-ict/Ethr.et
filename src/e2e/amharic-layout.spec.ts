@@ -19,6 +19,7 @@
  *     npx playwright test amharic-layout.spec.ts --project=chromium-desktop
  */
 import { test, expect, type Page } from "@playwright/test";
+import { api } from "./helpers";
 
 interface Route {
   path: string;
@@ -41,6 +42,7 @@ const ROUTES: Route[] = [
   { path: "/organization", role: "admin" },
   { path: "/billing", role: "admin" },
   { path: "/profile", role: "employee" },
+  { path: "/announcements", role: "hr" },
 ];
 
 /** Narrow enough to expose clipping, wide enough to be a real target. */
@@ -133,6 +135,66 @@ function format(items: Clipped[]): string {
     )
     .join("\n");
 }
+
+/**
+ * The reading panel, in Amharic, at both widths.
+ *
+ * The loop below cannot reach it: the panel exists only once a story has been
+ * published and opened, and Amharic is where a panel built around English
+ * labels gives way first.
+ */
+test.describe("Amharic layout: the announcement reading panel", () => {
+  test.use({ storageState: "e2e/.auth/hr.json" });
+
+  test("renders Amharic without clipping text", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("locale", "am");
+      localStorage.setItem("theme", "light");
+    });
+
+    await page.goto("/dashboard");
+    const title = `QA am ${Date.now()}`;
+    const created = await api<{
+      public_id?: string;
+      data?: { public_id: string };
+    }>(page, "POST", "/announcements", {
+      title,
+      body: "የመጀመሪያው አንቀጽ።\n\nሁለተኛው አንቀጽ፣ ዝርዝሩ ሙሉ በሙሉ የማያሳየው።",
+      priority: "high",
+      publish_now: true,
+    });
+    expect(created.status).toBe(201);
+    const publicId =
+      created.data.public_id ?? created.data.data?.public_id ?? "";
+
+    const failures: string[] = [];
+    try {
+      for (const vp of VIEWPORTS) {
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+        await page.goto(`/announcements?read=${publicId}`);
+        await page
+          .waitForFunction(
+            () => document.documentElement.lang === "am",
+            undefined,
+            { timeout: 5000 },
+          )
+          .catch(() => {});
+        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15000 });
+
+        const clipped = await findClippedText(page);
+        if (clipped.length > 0) {
+          failures.push(`  ${vp.width}px:\n${format(clipped)}`);
+        }
+      }
+    } finally {
+      if (publicId) await api(page, "DELETE", `/announcements/${publicId}`);
+    }
+
+    expect(failures.join("\n"), "the reading panel clips Amharic text").toBe(
+      "",
+    );
+  });
+});
 
 test.describe("Amharic layout", () => {
   for (const route of ROUTES) {
