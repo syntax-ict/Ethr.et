@@ -25167,7 +25167,8 @@
                     "read"
                 ],
                 "operationId": "navigation.navigationBadges",
-                "summary": "Navigation badge counts.\r\n\r\nPending approvals and attendance punches waiting for review, the two\r\nnumbers the sidebar and the phone tab bar draw. Each is null when the\r\ncaller may not see that queue",
+                "description": "Pending approvals and attendance punches waiting for review, the two\nnumbers the sidebar and the phone tab bar draw. Each is null when the\ncaller may not see that queue.",
+                "summary": "Navigation badge counts",
                 "tags": [
                     "Navigation Badges"
                 ],

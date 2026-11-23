@@ -4989,11 +4989,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Navigation badge counts.
-         *
-         *     Pending approvals and attendance punches waiting for review, the two
+         * Navigation badge counts
+         * @description Pending approvals and attendance punches waiting for review, the two
          *     numbers the sidebar and the phone tab bar draw. Each is null when the
-         *     caller may not see that queue
+         *     caller may not see that queue.
          */
         get: operations["navigation.navigationBadges"];
         put?: never;
