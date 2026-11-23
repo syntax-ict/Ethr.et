@@ -214,7 +214,7 @@ it('gives the email a real subject line in every locale', function () {
 
     app()->setLocale('en');
     expect((new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in'))->toMail($user)->subject)
-        ->toBe('Missing check-in — Meskerem 25, 2019');
+        ->toBe('Missing check-in on Meskerem 25, 2019');
 });
 
 it('uses only translation keys that exist in both locales, in every notification', function () {
