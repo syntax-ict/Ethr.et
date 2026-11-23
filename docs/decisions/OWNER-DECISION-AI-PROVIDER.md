@@ -62,6 +62,16 @@ The import lacked four things:
 
 D2 to D4 apply only if D1 is reopened.
 
+## 2026-11-23: answers by rule approved, D1 unchanged
+
+The owner asked again for an AI feature and approved **Stage A** of
+[`docs/ai/ASK-ETHR-PLAN.md`](../ai/ASK-ETHR-PLAN.md): a person types a question and gets the
+answer from their own records, worked out by rule. It calls no model, costs nothing and sends
+nothing out of the country, so it needs no exception and D1 stands.
+
+Stage B of that plan (a model that reads the question, and only the question) is **not
+approved**. It waits for D1, and the plan lists what would have to be settled first.
+
 ## If D1 is reopened
 
 What the 2026-11-22 read of the codebase says an AI layer would have to respect:
