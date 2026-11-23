@@ -208,17 +208,21 @@ describe('archiving what the list added', function () {
 
     it('does not count what the list wrote, or what the system writes, as use', function () {
         [$tenant, $user] = Undo::admin();
-        $rows = array_map(fn (array $person): array => [
+        $people = Undo::people(['Abebe Kebede', 'Sara Tesfaye']);
+        // Each person's bank account and external id differ by position. A random
+        // value could land two people on the same id, and the import then reads
+        // them as one person, so the undo archives one and not two.
+        $rows = array_map(fn (array $person, int $i): array => [
             ...$person,
             'hire_date' => '2026-01-15',
             'bank_name' => 'Commercial Bank',
-            'bank_account' => '10001'.random_int(10000, 99999),
+            'bank_account' => '1000112'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
             'contract_type' => 'permanent',
             'emergency_name' => 'Hana Bekele',
             'emergency_relationship' => 'Sister',
             'emergency_phone' => '0911223344',
-            'external_id' => 'HR-'.random_int(100, 999),
-        ], Undo::people(['Abebe Kebede', 'Sara Tesfaye']));
+            'external_id' => 'HR-'.(101 + $i),
+        ], $people, array_keys($people));
 
         $batch = Undo::committed($tenant, $user, $rows);
         $person = Undo::who($tenant, 'Abebe Kebede');
