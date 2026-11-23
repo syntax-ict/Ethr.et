@@ -8,6 +8,7 @@ import {
   phrasesKey,
   QUICK_ACTIONS,
   resolveHref,
+  SETTINGS_DESTINATIONS,
   sidebarSectionOf,
   visibleDestinations,
 } from "@/lib/navigation/registry";
@@ -48,7 +49,7 @@ function allDestinations() {
       else out.push(...entry.children);
     }
   }
-  out.push(...MORE_DESTINATIONS);
+  out.push(...MORE_DESTINATIONS, ...SETTINGS_DESTINATIONS);
   return out;
 }
 
