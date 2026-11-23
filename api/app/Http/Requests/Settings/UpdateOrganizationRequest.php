@@ -7,6 +7,7 @@ namespace App\Http\Requests\Settings;
 use App\Models\OrganizationType;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\Locales;
 use App\Support\OrganisationSectors;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,7 @@ class UpdateOrganizationRequest extends FormRequest
             'effective_from' => ['sometimes', 'nullable', 'date'],
             'cancel_pending_organization_type' => ['sometimes', 'boolean'],
             'timezone' => ['sometimes', 'string', 'max:50', 'timezone:all'],
-            'locale' => ['sometimes', 'string', 'in:en,am,om,ti,so'],
+            'locale' => ['sometimes', 'string', Locales::rule()],
         ];
     }
 
