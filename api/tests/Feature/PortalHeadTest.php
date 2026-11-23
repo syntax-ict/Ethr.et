@@ -53,7 +53,7 @@ function servePortal(string $url = 'http://ethr.et/acme', ?string $payload = nul
     $page = public_path('login.html');
     $existed = is_file($page);
     $original = $existed ? file_get_contents($page) : null;
-    file_put_contents($page, '<!doctype html><html lang="am"><head><meta charset="utf-8"><title>Sign in | ETHR</title><meta name="description" content="Sign in to your ETHR workspace."><meta name="robots" content="noindex, follow"><meta name="theme-color" content="#0F4C75" media="(prefers-color-scheme: light)"><link rel="icon" href="/favicon.ico"></head><body><main id="login"></main>'.($payload ?? portalPayload('noindex, follow')).'</body></html>');
+    file_put_contents($page, '<!doctype html><html lang="am"><head><meta charset="utf-8"><title>Sign in | ETHR</title><meta name="description" content="Sign in to your ETHR workspace."><meta name="robots" content="noindex, follow"><meta name="theme-color" content="#0F4C75" media="(prefers-color-scheme: light)"><link rel="icon" href="/favicon.ico"></head><body><main id="login"></main>'.($payload ?? portalPayload('noindex, follow', 'Sign in to your ETHR workspace.')).'</body></html>');
 
     try {
         return test()->get($url);
@@ -332,3 +332,101 @@ it('serves the page as exported on the apex, the console host, an unknown host a
     'a stranger domain' => 'http://stranger.example/login',
     'a suspended organisation' => 'http://acme.ethr.et/login',
 ]);
+
+it('states the organisation\'s description in the page payload too, so hydration cannot add a second one', function () {
+    portalTenant(['message' => 'Check in when you arrive at the plant.']);
+    Log::spy();
+
+    $html = servePortal()->getContent();
+
+    // The head and the payload agree, and the export's own line is gone from
+    // both: React renders the payload's tag into the DOM at hydration.
+    expect(portalPayloadMeta($html, 'description'))->toBe(['Check in when you arrive at the plant.'])
+        ->and(substr_count($html, 'name="description"'))->toBe(1)
+        ->and($html)->not->toContain('Sign in to your ETHR workspace.');
+    Log::shouldNotHaveReceived('error');
+});
+
+it('writes a description a person wrote into the payload so that it reads back exactly, and cannot close its script', function () {
+    $written = "He said \"stop\" at C:\plant\ & <b>left</b> </script><script>alert(1)</script>\nትምህርት 'quoted'";
+    $head = '<meta name="description" content="'.htmlspecialchars($written, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">';
+    $page = '<html><head><title>x</title></head><body>'.portalPayload('noindex, follow', 'Sign in.').'</body></html>';
+
+    $html = PortalHead::inject($page, $head, false, 'index, follow');
+
+    expect(portalPayloadMeta($html, 'description'))->toBe([$written])
+        // Nothing in the value can end the payload's own script: the only
+        // closing tag in the page is the payload's, and its only `<` and `&`
+        // are the page's own markup.
+        ->and(substr_count($html, '</script>'))->toBe(1)
+        ->and(substr_count($html, '<script>'))->toBe(1);
+});
+
+it('replaces a payload value whole when it holds an escaped quote or ends in a backslash', function (string $exported) {
+    $head = '<meta name="description" content="Our own words">';
+    $page = '<html><head></head><body>'.portalPayload('noindex, follow', $exported).'</body></html>';
+
+    $html = PortalHead::inject($page, $head, false, 'index, follow');
+
+    // Equal to the page as it would have been exported with our words in it:
+    // everything around the value is byte for byte what it was.
+    expect($html)->toBe('<html><head><meta name="description" content="Our own words">'."\n".'</head><body>'.portalPayload('index, follow', 'Our own words').'</body></html>');
+})->with([
+    'a quote inside the value' => ['He said \\\\\\"hi\\\\\\" twice'],
+    'a backslash at the end' => ['ends here\\\\\\\\'],
+    'a quote after a backslash' => ['a\\\\\\\\\\\\\\"b'],
+    'plain' => ['News and announcements.'],
+]);
+
+it('leaves a payload with no description entry as it is, and states none when the head has none', function () {
+    $page = '<html><head></head><body>'.portalPayload('noindex, follow').'</body></html>';
+
+    expect(PortalHead::inject($page, '<meta name="robots" content="index, follow">', false, 'index, follow'))
+        ->toContain(portalPayload('index, follow'))
+        ->and(PortalHead::inject('<html><head></head><body>'.portalPayload('noindex, follow', 'Old').'</body></html>', '<title>x</title>', false, 'index, follow'))
+        ->toContain(portalPayload('index, follow', 'Old'));
+});
+
+it('reports a payload whose description it cannot recognise, and still serves the page', function () {
+    Log::spy();
+    portalTenant(['message' => 'Check in when you arrive at the plant.']);
+
+    // The same two keys, the other way round, as a changed export might write them.
+    $unknown = '<script>self.__next_f.push([1,"[\\"$\\",\\"meta\\",\\"3\\",{\\"content\\":\\"Sign in.\\",\\"name\\":\\"description\\"}]"]);</script>';
+
+    servePortal(payload: $unknown)->assertOk();
+
+    Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message): bool => str_contains($message, 'description'));
+});
+
+it('follows the organisation\'s own language in og:locale, and lists the other two as alternates', function (string $locale, string $primary, array $others) {
+    portalTenant([], ['default_locale' => $locale]);
+
+    $html = servePortal()->getContent();
+
+    expect($html)->toContain('<meta property="og:locale" content="'.$primary.'">')
+        ->and(substr_count($html, 'property="og:locale"'))->toBe(1);
+    foreach ($others as $other) {
+        expect($html)->toContain('<meta property="og:locale:alternate" content="'.$other.'">');
+    }
+    expect(substr_count($html, 'og:locale:alternate'))->toBe(2);
+})->with([
+    'english' => ['en', 'en_US', ['am_ET', 'om_ET']],
+    'amharic' => ['am', 'am_ET', ['en_US', 'om_ET']],
+    'afaan oromoo' => ['om', 'om_ET', ['en_US', 'am_ET']],
+    'a language not shipped' => ['ti', 'en_US', ['am_ET', 'om_ET']],
+]);
+
+it('doubles a leading dollar sign in the payload, as the payload writes a literal one', function () {
+    $head = '<meta name="description" content="$5 off every Friday">';
+    $page = '<html><head></head><body>'.portalPayload('noindex, follow', 'Sign in.').'</body></html>';
+
+    expect(portalPayloadMeta(PortalHead::inject($page, $head, false, 'index, follow'), 'description'))->toBe(['$$5 off every Friday']);
+});
+
+it('names an Open Graph locale of its own for every shipped language, so a new one cannot be forgotten', function () {
+    foreach (Locales::SHIPPED as $locale) {
+        expect(PortalHead::ogLocale($locale))->toStartWith($locale.'_');
+    }
+    expect(PortalHead::ogLocale('xx'))->toBe('en_US');
+});
