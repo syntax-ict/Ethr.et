@@ -13,11 +13,16 @@ import { api } from "./helpers";
  */
 const APPROVERS = ["e2e/.auth/hr.json", "e2e/.auth/admin.json"];
 
-/** A Monday far enough out that no earlier run's request overlaps it. */
-function aFarMonday(): string {
+/**
+ * A Monday far enough out that no earlier run's request overlaps it, worked out
+ * in UTC so the weekday does not depend on the machine's zone. The demo
+ * organisation's holidays make some Mondays carry no leave days, so the journey
+ * asks again for the next Monday when the API refuses one.
+ */
+function aFarMonday(skipWeeks: number): string {
   const day = new Date();
-  day.setDate(day.getDate() + 120 + Math.floor(Math.random() * 200));
-  day.setDate(day.getDate() + ((8 - day.getDay()) % 7));
+  day.setUTCDate(day.getUTCDate() + 120 + Math.floor(Math.random() * 200));
+  day.setUTCDate(day.getUTCDate() + ((8 - day.getUTCDay()) % 7) + 7 * skipWeeks);
   return day.toISOString().slice(0, 10);
 }
 
@@ -44,14 +49,18 @@ test("a leave request reaches the approver's bell, opens its page, and reads bac
     "/leave-types?filter[is_active]=1",
   );
   expect(types.status).toBe(200);
-  const day = aFarMonday();
-  const filed = await api(ep, "POST", "/leave/request", {
-    leave_type_public_id: types.data.data.find((t) => !t.gender_restriction)!
-      .public_id,
-    start_date: day,
-    end_date: day,
-    reason: "QA inbox journey",
-  });
+  const leaveType = types.data.data.find((t) => !t.gender_restriction)!;
+  let filed!: Awaited<ReturnType<typeof api>>;
+  for (let skip = 0; skip < 6; skip++) {
+    const day = aFarMonday(skip);
+    filed = await api(ep, "POST", "/leave/request", {
+      leave_type_public_id: leaveType.public_id,
+      start_date: day,
+      end_date: day,
+      reason: "QA inbox journey",
+    });
+    if (filed.status === 201) break;
+  }
   expect(filed.status).toBe(201);
   const requestId: string = (filed.data.data ?? filed.data).public_id;
 
@@ -94,10 +103,8 @@ test("a leave request reaches the approver's bell, opens its page, and reads bac
     const bell = page.getByRole("button", { name: /^Notifications, \d+ unread$/ });
     await expect(bell).toBeVisible({ timeout: 15000 });
     await bell.click();
-    await page
-      .getByRole("button", { name: /asked for leave|leave request/i })
-      .first()
-      .click();
+    // The bell lists newest first, and this request is the newest.
+    await page.locator("[data-radix-popper-content-wrapper] .max-h-80 button").first().click();
 
     // Opening it lands on the page it links to.
     expect(item.data.url).toBe("/approvals");

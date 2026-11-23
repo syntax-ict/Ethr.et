@@ -222,9 +222,10 @@ function seamDeclaredChannels(): array
                 }
             }
 
-            if ($channels === [] && $text($i) === 'filterChannels' && $text($i + 1) === '(') {
-                for ($j = $i; $text($j) !== '['; $j++);
-                for ($j++; $text($j) !== ']'; $j++) {
+            // Only `filterChannels($notifiable, [literal, ...])` is read. A channel list built in
+            // a variable leaves $channels empty, and the test then fails by name below.
+            if ($channels === [] && $text($i) === 'filterChannels' && $text($i + 1) === '(' && $text($i + 4) === '[') {
+                for ($j = $i + 5; $j < count($tokens) && $text($j) !== ']'; $j++) {
                     if (is_array($tokens[$j]) && $tokens[$j][0] === T_CONSTANT_ENCAPSED_STRING) {
                         $channels[] = match (trim($tokens[$j][1], '\'"')) {
                             'database' => 'in_app',

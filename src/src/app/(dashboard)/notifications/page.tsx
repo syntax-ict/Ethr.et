@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,13 @@ export default function NotificationsPage() {
     unread,
   });
   const markAllRead = useMarkAllAsRead();
+
+  // Marking items read on the Unread view can leave the page past the last one;
+  // step back to it, or the page would say there is nothing while pages remain.
+  const lastPage = data?.meta?.last_page;
+  useEffect(() => {
+    if (lastPage && page > lastPage) set({ page: String(lastPage) });
+  }, [lastPage, page, set]);
 
   function handleMarkAllRead() {
     markAllRead.mutate(undefined, {
