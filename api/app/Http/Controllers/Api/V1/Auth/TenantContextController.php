@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\SsoSetting;
 use App\Services\Auth\AuthIdentifierResolver;
 use App\Services\Auth\OtpService;
 use App\Services\CurrentTenant;
+use App\Services\Sso\SsoProviderInterface;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +26,7 @@ use Illuminate\Http\JsonResponse;
  */
 class TenantContextController extends Controller
 {
-    public function __invoke(CurrentTenant $currentTenant, OtpService $otp): JsonResponse
+    public function __invoke(CurrentTenant $currentTenant, OtpService $otp, SsoProviderInterface $sso): JsonResponse
     {
         $tenant = $currentTenant->get();
 
@@ -55,7 +55,7 @@ class TenantContextController extends Controller
                     'paused' => TenantLanding::paused($tenant),
                 ],
                 'sign_in' => [
-                    'sso' => SsoSetting::query()->where('is_enabled', true)->exists(),
+                    'sso' => $sso->isConfigured($tenant),
                     'otp' => $otp->isAvailable(),
                     'email_code' => $otp->isAvailable(OtpService::CHANNEL_EMAIL),
                     'identifiers' => $identifiers,

@@ -66,6 +66,8 @@ const SETTINGS = {
     default_role: "employee",
     auto_provision: false,
     metadata_url: "https://api.ethr.et/api/v1/sso/saml/abay/metadata",
+    configured: true,
+    has_certificate: true,
   },
 };
 
@@ -275,5 +277,83 @@ describe("<SettingsPage> SSO tab", () => {
       await screen.findByText(SETTINGS.sso.metadata_url),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  });
+
+  it("says Enabled when SSO is on and complete", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Enabled")).toBeInTheDocument();
+    expect(screen.queryByText("Not ready")).not.toBeInTheDocument();
+  });
+
+  it("says Not ready, and what is missing, when SSO is on but cannot work", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: {
+            ...SETTINGS.sso,
+            idp_entity_id: null,
+            idp_sso_url: null,
+            configured: false,
+            has_certificate: false,
+          },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Not ready")).toBeInTheDocument();
+    expect(screen.queryByText("Enabled")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Still missing: IdP entity ID, IdP SSO URL, IdP certificate (PEM).",
+    );
+  });
+
+  it("names only the certificate when it is the one thing missing", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: { ...SETTINGS.sso, configured: false, has_certificate: false },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Still missing: IdP certificate (PEM).",
+    );
+  });
+
+  it("says Disabled, not Not ready, when SSO is off and incomplete", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: {
+            ...SETTINGS.sso,
+            is_enabled: false,
+            configured: false,
+            has_certificate: false,
+          },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Disabled")).toBeInTheDocument();
+    expect(screen.queryByText("Not ready")).not.toBeInTheDocument();
   });
 });

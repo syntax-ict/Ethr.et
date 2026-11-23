@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\Auth\OtpService;
 
@@ -144,4 +145,41 @@ it('lets the browser reuse the answer briefly, never a shared cache', function (
         ->and($response->headers->get('Cache-Control'))->toContain('max-age=60')
         ->and($response->headers->get('Cache-Control'))->not->toContain('public')
         ->and($response->headers->get('Vary'))->toContain('X-Tenant');
+});
+
+it('offers sso on the sign-in page only when it can work', function () {
+    $tenant = Tenant::factory()->create(['subdomain' => 'acme']);
+
+    $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.sign_in.sso', false);
+
+    $sso = SsoSetting::create([
+        'tenant_id' => $tenant->id,
+        'provider' => 'saml',
+        'is_enabled' => true,
+    ]);
+
+    $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.sign_in.sso', false);
+
+    $sso->update([
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_sso_url' => 'https://idp.example.com/sso',
+    ]);
+
+    $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.sign_in.sso', false);
+
+    $sso->update([
+        'idp_entity_id' => 'https://idp.example.com/entity',
+        'idp_sso_url' => 'https://idp.example.com/sso',
+        'idp_certificate' => 'cert-data',
+    ]);
+
+    $this->getJson('http://acme.ethr.et/api/v1/auth/tenant-context')
+        ->assertOk()
+        ->assertJsonPath('tenant.sign_in.sso', true);
 });
