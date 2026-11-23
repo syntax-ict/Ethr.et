@@ -346,6 +346,12 @@ final class PortalHead
         return Locales::orDefault($tenant->default_locale);
     }
 
+    /** The Open Graph locale of a shipped language; English when none is named. */
+    public static function ogLocale(string $locale): string
+    {
+        return self::OG_LOCALES[$locale] ?? self::OG_LOCALES[Locales::DEFAULT];
+    }
+
     /**
      * `og:locale` for the organisation's language and the other two as
      * alternates: one place, for the sign-in portal's head and the news heads.
@@ -354,10 +360,10 @@ final class PortalHead
      */
     private static function localeTags(Tenant $tenant): string
     {
-        $primary = self::locale($tenant);
-        $tags = ['<meta property="og:locale" content="'.self::OG_LOCALES[$primary].'">'];
-        foreach (self::OG_LOCALES as $locale => $og) {
-            if ($locale !== $primary) {
+        $primary = self::ogLocale(self::locale($tenant));
+        $tags = ['<meta property="og:locale" content="'.$primary.'">'];
+        foreach (self::OG_LOCALES as $og) {
+            if ($og !== $primary) {
                 $tags[] = '<meta property="og:locale:alternate" content="'.$og.'">';
             }
         }

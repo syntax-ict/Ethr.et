@@ -423,3 +423,10 @@ it('doubles a leading dollar sign in the payload, as the payload writes a litera
 
     expect(portalPayloadMeta(PortalHead::inject($page, $head, false, 'index, follow'), 'description'))->toBe(['$$5 off every Friday']);
 });
+
+it('names an Open Graph locale of its own for every shipped language, so a new one cannot be forgotten', function () {
+    foreach (Locales::SHIPPED as $locale) {
+        expect(PortalHead::ogLocale($locale))->toStartWith($locale.'_');
+    }
+    expect(PortalHead::ogLocale('xx'))->toBe('en_US');
+});
