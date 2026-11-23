@@ -131,8 +131,8 @@ describe("attendance anomaly count", () => {
   it("shows punches waiting for review on the closed group, and on Integrity once open", async () => {
     signedInAs("hr_admin", ["attendance.viewAll", "attendance.viewConflicts"]);
     server.use(
-      http.get("*/api/v1/attendance/integrity/summary", () =>
-        HttpResponse.json({ open: 4, accepted: 0, rejected: 0 }),
+      http.get("*/api/v1/navigation/badges", () =>
+        HttpResponse.json({ approvals: null, attendance_integrity: 4 }),
       ),
     );
     const user = userEvent.setup();
@@ -156,14 +156,46 @@ describe("attendance anomaly count", () => {
     const hits: string[] = [];
     signedInAs("employee", []);
     server.use(
-      http.get("*/api/v1/attendance/integrity/summary", ({ request }) => {
+      http.get("*/api/v1/navigation/badges", ({ request }) => {
         hits.push(request.url);
-        return HttpResponse.json({ open: 9 });
+        return HttpResponse.json({ approvals: 9, attendance_integrity: 9 });
       }),
     );
     renderNav();
     await screen.findByRole("link", { name: /^leave$/i });
     await new Promise((r) => setTimeout(r, 200));
     expect(hits).toEqual([]);
+  });
+});
+
+describe("badge counts", () => {
+  it("come from the small badges endpoint, never the manager dashboard or the integrity queue", async () => {
+    const hits: string[] = [];
+    signedInAs("hr_admin", [
+      "attendance.viewAll",
+      "attendance.viewConflicts",
+      "leave.viewTeam",
+    ]);
+    server.use(
+      http.get("*/api/v1/navigation/badges", ({ request }) => {
+        hits.push(new URL(request.url).pathname);
+        return HttpResponse.json({ approvals: 3, attendance_integrity: 4 });
+      }),
+      http.get("*/api/v1/dashboard/manager", ({ request }) => {
+        hits.push(new URL(request.url).pathname);
+        return HttpResponse.json({ pending_approvals: { total: 3 } });
+      }),
+      http.get("*/api/v1/attendance/integrity/summary", ({ request }) => {
+        hits.push(new URL(request.url).pathname);
+        return HttpResponse.json({ open: 4 });
+      }),
+    );
+    renderNav();
+
+    const approvals = await screen.findByRole("link", { name: /approvals/i });
+    expect(await within(approvals).findByText("3")).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(hits).toEqual(["/api/v1/navigation/badges"]);
   });
 });
