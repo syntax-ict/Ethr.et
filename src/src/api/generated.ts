@@ -36870,6 +36870,8 @@ export interface operations {
                             default_role: string;
                             auto_provision: boolean;
                             metadata_url: string;
+                            configured: boolean;
+                            has_certificate: boolean;
                         } | {
                             is_enabled: boolean;
                             /** @constant */
@@ -36880,6 +36882,8 @@ export interface operations {
                             default_role: "employee";
                             auto_provision: boolean;
                             metadata_url: null;
+                            configured: boolean;
+                            has_certificate: boolean;
                         };
                     };
                 };
@@ -37272,6 +37276,8 @@ export interface operations {
                             default_role: string;
                             auto_provision: boolean;
                             metadata_url: string;
+                            configured: boolean;
+                            has_certificate: boolean;
                         } | {
                             is_enabled: boolean;
                             /** @constant */
@@ -37282,6 +37288,8 @@ export interface operations {
                             default_role: "employee";
                             auto_provision: boolean;
                             metadata_url: null;
+                            configured: boolean;
+                            has_certificate: boolean;
                         };
                     };
                 };
