@@ -73,7 +73,7 @@ final class StatutorySchedules
      */
     public function build(PayrollRun $run, string $schedule): array
     {
-        $register = $this->register->register($run);
+        $register = $this->register->register($run, checks: false);
         $employees = Employee::withTrashed()
             ->whereIn('public_id', array_filter(array_column($register['rows'], 'employee_public_id')))
             ->get()

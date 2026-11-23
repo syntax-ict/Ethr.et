@@ -7,6 +7,8 @@ return [
     'template_unknown_variables' => 'This template cannot use :variables. Available variables: :allowed.',
     'leave_year_locked' => 'The leave year can\'t change once leave has been used, requested or carried over. Those balances belong to the current leave year.',
     'attributes' => [
+        'pay_change_alert_percent' => 'pay change alert percent',
+        'pay_change_alert_min_cents' => 'pay change alert minimum',
         'fiscal_year_start_month' => 'fiscal year start month',
         'pagumen_proration_strategy' => 'Pagumen proration',
         'retirement_age' => 'retirement age',

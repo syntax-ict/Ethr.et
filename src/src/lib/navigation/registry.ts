@@ -730,7 +730,7 @@ export const MORE_DESTINATIONS: Destination[] = [
     labelKey: "nav.payroll_config",
     labelFallback: "Payroll Rules",
     icon: Wallet,
-    show: (c) => c.isTenantAdmin && !c.isSuperAdmin,
+    show: (c) => c.can.viewPayrollConfig && !c.isSuperAdmin,
   },
   {
     id: "api_keys",

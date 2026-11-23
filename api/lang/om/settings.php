@@ -7,6 +7,8 @@ return [
     'template_unknown_variables' => 'Tempileetiin kun :variables fayyadamuu hin danda\'u. Jijjiiramoota jiran: :allowed.',
     'leave_year_locked' => 'Erga boqonnaan itti fayyadamame, gaafatame ykn dabarfame booda waggaan boqonnaa jijjiiramuu hin danda\'u. Hafteen sun kan waggaa boqonnaa amma jiruuti.',
     'attributes' => [
+        'pay_change_alert_percent' => 'dhibbeentaa beeksisa jijjiirama mindaa',
+        'pay_change_alert_min_cents' => 'xiqqaa beeksisa jijjiirama mindaa',
         'fiscal_year_start_month' => 'ji\'a jalqaba bara maallaqaa',
         'pagumen_proration_strategy' => 'qoodinsa Qaammee',
         'retirement_age' => 'umurii soorama ba\'uu',

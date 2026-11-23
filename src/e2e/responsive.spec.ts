@@ -16,6 +16,8 @@ const PAGES = [
   { path: "/leave", name: "leave" },
   { path: "/payroll", name: "payroll" },
   { path: "/settings", name: "settings" },
+  // Everyone reads announcements, and most of them on a phone.
+  { path: "/announcements", name: "announcements" },
 ];
 
 test.describe("Responsive layout verification", () => {

@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
-import { fetchAllPages } from "@/api/fetch-all-pages";
 import { saveBlob } from "@/lib/utils/csv-export";
 
 // Shapes come from the generated contract. The hand-written ones they replace
@@ -24,39 +23,55 @@ const keys = {
     ["announcements", "list", params] as const,
 };
 
-/** Published, unexpired announcements — the API applies both rules. */
-/**
- * Every live announcement, all pages. The page has no pager and the API pages
- * at 25, ordered by priority before date, so once there were more than 25 a
- * recent normal one could fall behind older urgent ones and be unreachable
- * (audit N70).
- */
-export function useAllAnnouncements() {
-  return useQuery<Announcement[]>({
-    queryKey: [...keys.list(undefined), "all"],
-    queryFn: () => fetchAllPages<Announcement>("/announcements"),
-  });
-}
-
 /**
  * Every announcement in any state (draft, scheduled, published, archived),
  * newest first: the publishing view, for whoever may manage announcements.
  * The API refuses it to anyone else.
+ *
+ * A page at a time, like the reading list. It fetched every page at once until
+ * 2026-11-22, so an organisation with a long history rendered its whole
+ * archive into the DOM on every visit (interface audit W-18).
  */
-export function useManagedAnnouncements(enabled: boolean) {
-  return useQuery<Announcement[]>({
-    queryKey: [...keys.all, "manage"],
-    queryFn: () => fetchAllPages<Announcement>("/announcements", { manage: 1 }),
+export function useManagedAnnouncements(enabled: boolean, page = 1) {
+  return useQuery<PaginatedResponse<Announcement>>({
+    queryKey: [...keys.all, "manage", page],
+    queryFn: async () =>
+      (await apiClient.get("/announcements", { params: { manage: 1, page } }))
+        .data,
     enabled,
   });
 }
 
-/** One page, for the dashboard widget, which shows only the top few. */
+/**
+ * One page of live announcements, in the server's order. The reading list and
+ * the dashboard widget both read it; the list pages through it rather than
+ * fetching every page at once.
+ */
 export function useAnnouncements(params?: { page?: number }) {
   return useQuery<PaginatedResponse<Announcement>>({
     queryKey: keys.list(params),
     queryFn: async () =>
       (await apiClient.get("/announcements", { params })).data,
+  });
+}
+
+/**
+ * One announcement, for the reading pane.
+ *
+ * `GET /announcements/{id}` re-runs the same two scopes the list applies, so a
+ * draft, a story scheduled for later, an expired one or one addressed to
+ * another department answers 404 — the same body a missing id gets, which is
+ * what stops a public id being confirmed across that line. A manager may read
+ * every one, since they write and edit them.
+ */
+export function useAnnouncement(publicId: string | null) {
+  return useQuery<Announcement>({
+    queryKey: [...keys.all, "one", publicId],
+    queryFn: async () =>
+      (await apiClient.get(`/announcements/${publicId}`)).data,
+    enabled: publicId !== null,
+    // A story the reader may not see is a settled answer, not a hiccup.
+    retry: false,
   });
 }
 

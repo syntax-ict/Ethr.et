@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, Globe, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -16,7 +16,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   downloadAnnouncementFile,
-  useAllAnnouncements,
+  useAnnouncements,
   useDeleteAnnouncement,
   useManagedAnnouncements,
   useUpdateAnnouncement,
@@ -24,10 +24,7 @@ import {
   type UpdateAnnouncementPayload,
 } from "@/features/announcements/api";
 import { AnnouncementEditor } from "@/features/announcements/components/announcement-editor";
-import {
-  AnnouncementPreviewDialog,
-  articleOf,
-} from "@/features/announcements/components/announcement-preview-dialog";
+import { AnnouncementReadingPane } from "@/features/announcements/components/announcement-reading-pane";
 import {
   AnnouncementRowActions,
   type Status,
@@ -36,6 +33,8 @@ import { fileSize } from "@/features/news/news-format";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { NewsMeta } from "@/features/news/components/news-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
  * Announcements: the reading list for everyone, and the publishing desk for
@@ -54,12 +53,70 @@ export default function AnnouncementsPage() {
   const [editor, setEditor] = useState<Announcement | null | undefined>(
     undefined,
   );
-  const [preview, setPreview] = useState<Announcement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null);
+  const [pendingPublish, setPendingPublish] = useState<Announcement | null>(
+    null,
+  );
 
-  const reading = useAllAnnouncements();
-  const managed = useManagedAnnouncements(manager);
-  const { data, isLoading, isError, refetch } = manager ? managed : reading;
+  // The open story and the page live in the address, so a reader can be sent
+  // straight to one and the back button closes the panel. `useQueryFilters`
+  // reads the address through `useSyncExternalStore` rather than
+  // `useSearchParams`, which is what keeps this page prerenderable for the
+  // static export without a Suspense boundary.
+  const { values, set } = useQueryFilters({ read: "", page: "1" });
+  const reading = values.read === "" ? null : values.read;
+  const page = Math.max(1, Number(values.page) || 1);
+
+  // Opening a story adds a history entry, so Back closes the panel. Closing it
+  // by the X or Escape must undo that entry rather than replace it: replacing
+  // would leave two entries for the same list, and the next Back press would
+  // visibly do nothing. Someone who arrived straight on `?read=` has no entry
+  // of ours to undo, so for them the address is rewritten in place and Back
+  // still leaves the page.
+  const openedHere = useRef(false);
+  // What the reader was on when they opened it, so closing puts them back
+  // there. Read from the document rather than passed in: a click and an Enter
+  // both leave the control focused, and every opener on this page is a button.
+  const opener = useRef<HTMLElement | null>(null);
+  const openStory = useCallback(
+    (publicId: string) => {
+      opener.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      openedHere.current = true;
+      set({ read: publicId }, { push: true });
+    },
+    [set],
+  );
+  const closeStory = useCallback(() => {
+    if (openedHere.current) {
+      openedHere.current = false;
+      window.history.back();
+      return;
+    }
+    set({ read: "" });
+  }, [set]);
+
+  // Put focus back on the story that was opened, by Escape, by the X and by
+  // the back button alike. The panel closes a step after the address changes,
+  // so the dialog's own focus restore has already run against a page state
+  // that no longer holds it, and a keyboard reader was left at the top of the
+  // list having to find their place again.
+  const wasReading = useRef<string | null>(null);
+  useEffect(() => {
+    const closed = wasReading.current !== null && reading === null;
+    wasReading.current = reading;
+    if (!closed) return;
+    const target = opener.current;
+    opener.current = null;
+    if (target !== null && target.isConnected) target.focus();
+  }, [reading]);
+
+  const live = useAnnouncements({ page });
+  const managed = useManagedAnnouncements(manager, page);
+  const query = manager ? managed : live;
+  const { data, isLoading, isError, refetch } = query;
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
 
@@ -101,7 +158,7 @@ export default function AnnouncementsPage() {
     });
   }
 
-  const announcements: Announcement[] = data ?? [];
+  const announcements: Announcement[] = data?.data ?? [];
   const statusLabel = (a: Announcement): string => {
     switch (a.status as Status) {
       case "draft":
@@ -142,10 +199,17 @@ export default function AnnouncementsPage() {
         <EmptyState
           icon={Megaphone}
           title={t("announcements.empty_title", "No announcements")}
-          description={t(
-            "announcements.empty_desc",
-            "No announcements published yet",
-          )}
+          description={
+            // A reader is told there is nothing to read; a manager is told
+            // what to do about it. One sentence served both and spoke to
+            // neither.
+            manager
+              ? t(
+                  "announcements.empty_desc_manager",
+                  "Write the first one with New Announcement. It reaches everyone you address it to.",
+                )
+              : t("announcements.empty_desc", "No announcements published yet")
+          }
         />
       ) : (
         <ul className="space-y-3">
@@ -162,7 +226,20 @@ export default function AnnouncementsPage() {
                         />
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           <h3 className="min-w-0 break-words text-sm font-semibold text-foreground">
-                            {a.title}
+                            {/*
+                             * The title opens the story. A button rather than
+                             * a link: the panel is a query on this same page,
+                             * and `useQueryFilters` writes the address itself.
+                             * The whole row is not the target, because a
+                             * manager's row carries its own buttons.
+                             */}
+                            <button
+                              type="button"
+                              onClick={() => openStory(a.public_id)}
+                              className="rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              {a.title}
+                            </button>
                           </h3>
                           {manager && (
                             <StatusBadge
@@ -226,7 +303,8 @@ export default function AnnouncementsPage() {
                           status={status}
                           busy={updateAnnouncement.isPending}
                           onAct={act}
-                          onPreview={setPreview}
+                          onPublish={setPendingPublish}
+                          onPreview={(story) => openStory(story.public_id)}
                           onEdit={setEditor}
                           onDelete={setPendingDelete}
                         />
@@ -238,6 +316,14 @@ export default function AnnouncementsPage() {
             );
           })}
         </ul>
+      )}
+
+      {!isLoading && !isError && (
+        <PaginationControls
+          meta={data?.meta}
+          onPageChange={(next) => set({ page: String(next) })}
+          disabled={query.isFetching}
+        />
       )}
 
       <ConfirmDialog
@@ -256,10 +342,36 @@ export default function AnnouncementsPage() {
         onConfirm={() => pendingDelete && remove(pendingDelete.public_id)}
       />
 
-      <AnnouncementPreviewDialog
-        article={preview ? articleOf(preview) : null}
-        onClose={() => setPreview(null)}
+      {/*
+       * Publishing is the one row action that cannot be taken back: the
+       * audience is notified exactly once (`notified_at`), so unpublishing
+       * afterwards hides the story but unsends nothing. Unpublish, archive and
+       * restore stay one click, because each of them reverses.
+       */}
+      <ConfirmDialog
+        open={pendingPublish !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPublish(null);
+        }}
+        title={t("announcements.confirm_publish_title", "Publish now?")}
+        description={t(
+          "announcements.confirm_publish_desc",
+          "Everyone it is addressed to is notified once. Taking it down afterwards does not unsend that.",
+        )}
+        confirmLabel={t("announcements.publish", "Publish")}
+        loading={updateAnnouncement.isPending}
+        onConfirm={() => {
+          if (!pendingPublish) return;
+          act(
+            pendingPublish,
+            { published_at: new Date().toISOString() },
+            t("announcements.published", "Announcement published"),
+          );
+          setPendingPublish(null);
+        }}
       />
+
+      <AnnouncementReadingPane publicId={reading} onClose={closeStory} />
 
       {editor !== undefined && (
         <AnnouncementEditor
