@@ -33,6 +33,7 @@ class AnnouncementController extends Controller
 
             return AnnouncementResource::collection(
                 Announcement::query()
+                    ->with(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name'])
                     ->orderByRaw('published_at IS NULL DESC')
                     ->orderByDesc('published_at')
                     ->orderByDesc('id')
@@ -41,6 +42,7 @@ class AnnouncementController extends Controller
         }
 
         $query = Announcement::query()
+            ->with(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name'])
             ->published()
             ->notExpired()
             ->visibleTo($request->user())
@@ -81,7 +83,7 @@ class AnnouncementController extends Controller
             throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement->public_id]);
         }
 
-        return new AnnouncementResource($announcement);
+        return new AnnouncementResource($announcement->load(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name']));
     }
 
     public function store(StoreAnnouncementRequest $request): JsonResponse

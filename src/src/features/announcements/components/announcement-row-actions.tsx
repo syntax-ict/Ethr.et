@@ -28,6 +28,7 @@ export function AnnouncementRowActions({
   status,
   busy,
   onAct,
+  onPublish,
   onPreview,
   onEdit,
   onDelete,
@@ -40,6 +41,8 @@ export function AnnouncementRowActions({
     payload: UpdateAnnouncementPayload,
     done: string,
   ) => void;
+  /** Asks first: publishing notifies the audience once and cannot be recalled. */
+  onPublish: (a: Announcement) => void;
   onPreview: (a: Announcement) => void;
   onEdit: (a: Announcement) => void;
   onDelete: (a: Announcement) => void;
@@ -53,13 +56,7 @@ export function AnnouncementRowActions({
           variant="outline"
           size="sm"
           disabled={busy}
-          onClick={() =>
-            onAct(
-              a,
-              { published_at: new Date().toISOString() },
-              t("announcements.published", "Announcement published"),
-            )
-          }
+          onClick={() => onPublish(a)}
         >
           <Send className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           {t("announcements.publish_now", "Publish now")}
@@ -119,7 +116,7 @@ export function AnnouncementRowActions({
       <Button
         variant="ghost"
         size="sm"
-        aria-label={`${t("announcements.preview", "Preview")}: ${a.title}`}
+        aria-label={`${t("announcements.open", "Open")}: ${a.title}`}
         onClick={() => onPreview(a)}
       >
         <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

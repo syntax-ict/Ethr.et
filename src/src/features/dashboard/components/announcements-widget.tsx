@@ -128,7 +128,7 @@ export function AnnouncementsWidget() {
             return (
               <Link
                 key={ann.public_id}
-                href="/announcements"
+                href={`/announcements?read=${ann.public_id}`}
                 className={cn(
                   "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm",
                   edge.border,

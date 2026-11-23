@@ -71,7 +71,7 @@ describe("ProductFlow (hero illustration)", () => {
         screen.getByRole("heading", { name: "የትም ቦታ ይግቡ" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "መገኘት ከመስመር ውጭ ይሰራል" }),
+        screen.getByRole("heading", { name: "መገኘት ኢንተርኔት ባይኖርም ይሰራል" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "ደመወዝ በኢትዮጵያ ሕግ መሠረት" }),

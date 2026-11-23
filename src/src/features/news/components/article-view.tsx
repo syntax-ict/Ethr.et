@@ -35,7 +35,20 @@ export interface ArticleContent {
  * nothing a story contains can become markup. Links open in a new tab and
  * carry no referrer and no endorsement (`nofollow ugc`).
  */
-export function ArticleView({ article }: { article: ArticleContent }) {
+export function ArticleView({
+  article,
+  onDownload,
+}: {
+  article: ArticleContent;
+  /**
+   * How to fetch a document that has no public address. In the app a story's
+   * documents carry `url: null` — `attachmentsPresented()` fills one only when
+   * the organisation is named, and a signed-in reader downloads through the
+   * API as a blob — so without this the reading pane listed documents nobody
+   * could open. The public article page passes nothing and keeps its links.
+   */
+  onDownload?: (file: { id: string; name: string }) => void;
+}) {
   const { t } = useT();
 
   return (
@@ -114,20 +127,30 @@ export function ArticleView({ article }: { article: ArticleContent }) {
                   </span>
                 </>
               );
+              const row =
+                "flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
               return (
                 <li key={file.id}>
                   {file.url ? (
-                    <a
-                      href={file.url}
-                      download={file.name}
-                      className="flex min-h-11 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                    >
+                    <a href={file.url} download={file.name} className={row}>
                       {body}
                       <span className="sr-only">
                         {" "}
                         {t("news.download", "Download")}
                       </span>
                     </a>
+                  ) : onDownload ? (
+                    <button
+                      type="button"
+                      onClick={() => onDownload(file)}
+                      className={row}
+                    >
+                      {body}
+                      <span className="sr-only">
+                        {" "}
+                        {t("news.download", "Download")}
+                      </span>
+                    </button>
                   ) : (
                     <div className="flex min-h-11 items-center gap-3 px-4 py-2.5">
                       {body}
