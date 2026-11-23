@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -165,6 +165,94 @@ describe("<HolidaysPage>", () => {
     expect(body).toMatchObject({
       name: "Ethiopian Christmas",
       date: "2026-01-07",
+    });
+  });
+
+  // Eid al-Fitr, Eid al-Adha and Mawlid carry `is_estimated: true` and the
+  // table showed nothing (settings review F5, O-3).
+  describe("estimated dates", () => {
+    it("marks only the estimated holidays", async () => {
+      serveHolidays([
+        holiday(1, { name: "Genna", date: "2027-01-07" }),
+        holiday(2, {
+          name: "Eid al-Fitr",
+          date: "2027-03-10",
+          is_estimated: true,
+        }),
+      ]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Eid al-Fitr");
+      expect(screen.getAllByText("Estimated")).toHaveLength(1);
+      const row = screen.getByText("Eid al-Fitr").closest("tr") as HTMLElement;
+      expect(within(row).getByText("Estimated")).toBeInTheDocument();
+      expect(screen.getByText(/follow the moon/i)).toBeInTheDocument();
+    });
+
+    it("shows neither the badge nor the helper line when none are estimated", async () => {
+      serveHolidays([holiday(1, { name: "Genna", date: "2027-01-07" })]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Genna");
+      expect(screen.queryByText("Estimated")).not.toBeInTheDocument();
+      expect(screen.queryByText(/follow the moon/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // Holidays stopped at 2027-09-28 and nothing prompted for 2028 (F5).
+  describe("next year's holidays", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Only `Date` is faked: msw and react-query still need real timers.
+    function today(iso: string) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(`${iso}T09:00:00Z`));
+    }
+
+    it("warns when the last holiday is within 90 days", async () => {
+      today("2027-07-15");
+      serveHolidays([holiday(1, { name: "Meskel", date: "2027-09-28" })]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Meskel");
+      expect(
+        screen.getByText("Holidays for 2028 have not been added yet"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/HR admins and organisation admins can add them/),
+      ).toBeInTheDocument();
+    });
+
+    it("stays quiet when the list reaches further than 90 days", async () => {
+      today("2027-06-01");
+      serveHolidays([holiday(1, { name: "Meskel", date: "2027-09-28" })]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Meskel");
+      expect(
+        screen.queryByText(/have not been added yet/),
+      ).not.toBeInTheDocument();
+    });
+
+    it("stays quiet once a later year is listed", async () => {
+      today("2027-09-01");
+      serveHolidays([
+        holiday(1, { name: "Meskel", date: "2027-09-28" }),
+        holiday(2, { name: "Genna 2028", date: "2028-01-07" }),
+      ]);
+      server.use(me("hr_admin", HR_ADMIN));
+      renderPage();
+
+      await screen.findByText("Genna 2028");
+      expect(
+        screen.queryByText(/have not been added yet/),
+      ).not.toBeInTheDocument();
     });
   });
 
