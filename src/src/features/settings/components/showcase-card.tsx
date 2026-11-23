@@ -58,7 +58,7 @@ export function ShowcaseCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle as="h2" className="flex items-center gap-2 text-base">
           <Globe2 className="h-4 w-4" aria-hidden />
           {t("settings.showcase.title", "ETHR website")}
         </CardTitle>

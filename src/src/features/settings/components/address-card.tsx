@@ -181,7 +181,7 @@ export function AddressCard({ address }: AddressCardProps) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Globe className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.address_title", "Address")}
           </CardTitle>
         </div>
