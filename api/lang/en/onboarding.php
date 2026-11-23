@@ -41,6 +41,7 @@ return [
         'profile_contract_end_before_start' => 'The contract end date must be after the contract start, which is the hire date.',
         'profile_contract_needs_hire_date' => 'A contract starts on the hire date, so this row needs a hire date.',
         'duplicate_in_list' => ':field ":value" is also on line :first. Each person needs their own.',
+        'same_name_in_list' => 'The name ":name" is on more than one line. Each line is added, so check they are different people.',
         'terminal_number_digits_only' => 'The number ":value" has more than digits, and a :types terminal takes digits only as a person number. The person is still added, and that terminal will not be sent them.',
         'device_id_too_long' => 'The terminal\'s number ":value" is longer than an employee number can be (:max characters), so it is kept as the terminal\'s number only.',
         'device_id_not_badge' => 'The terminal\'s number ":value" is not one ETHR keeps as a badge number (at most 32 letters, digits and hyphens), so it is kept as the terminal\'s number only.',

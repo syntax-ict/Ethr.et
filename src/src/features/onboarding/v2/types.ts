@@ -207,6 +207,18 @@ export interface PeopleRead {
   calendar: "ethiopian" | "gregorian";
   /** True when the column name said which calendar, over the choice. */
   calendar_from_header: boolean;
+  /**
+   * Date columns whose dates are real only in the other calendar than the
+   * one they are read in: the first such date and its line, and whether the
+   * column name set the calendar (then only the file can change it).
+   */
+  calendar_hints?: {
+    column: string;
+    calendar: "ethiopian" | "gregorian";
+    value: string;
+    line: number;
+    from_header: boolean;
+  }[];
   /** People ready who bring no hire date, so the day they are added is used. */
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
