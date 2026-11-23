@@ -23,6 +23,7 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
+use App\Services\Sso\SsoProviderInterface;
 use App\Services\Tenancy\OrganisationProfile;
 use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
@@ -412,6 +413,8 @@ class SettingsController extends Controller
                 'default_role' => 'employee',
                 'auto_provision' => false,
                 'metadata_url' => null,
+                'configured' => false,
+                'has_certificate' => false,
             ];
         }
 
@@ -423,6 +426,8 @@ class SettingsController extends Controller
             'default_role' => $sso->default_role ?? 'employee',
             'auto_provision' => $sso->auto_provision,
             'metadata_url' => config('app.url').'/api/v1/sso/saml/'.$tenant->subdomain.'/metadata',
+            'configured' => app(SsoProviderInterface::class)->isConfigured($tenant) === true,
+            'has_certificate' => $sso->getRawOriginal('idp_certificate') !== null,
         ];
     }
 
