@@ -25161,6 +25161,51 @@
                 }
             }
         },
+        "/navigation/badges": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "navigation.navigationBadges",
+                "summary": "Navigation badge counts.\r\n\r\nPending approvals and attendance punches waiting for review, the two\r\nnumbers the sidebar and the phone tab bar draw. Each is null when the\r\ncaller may not see that queue",
+                "tags": [
+                    "Navigation Badges"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "approvals": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
+                                        },
+                                        "attendance_integrity": {
+                                            "type": [
+                                                "integer",
+                                                "null"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "approvals",
+                                        "attendance_integrity"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/next-steps": {
             "get": {
                 "x-abilities": [

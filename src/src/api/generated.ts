@@ -4981,6 +4981,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/navigation/badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Navigation badge counts.
+         *
+         *     Pending approvals and attendance punches waiting for review, the two
+         *     numbers the sidebar and the phone tab bar draw. Each is null when the
+         *     caller may not see that queue
+         */
+        get: operations["navigation.navigationBadges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/announcements": {
         parameters: {
             query?: never;
@@ -28421,6 +28444,29 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "navigation.navigationBadges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approvals: number | null;
+                        attendance_integrity: number | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "announcement.index": {

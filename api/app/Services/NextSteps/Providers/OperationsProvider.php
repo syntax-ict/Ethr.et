@@ -47,7 +47,7 @@ final class OperationsProvider implements StepProvider
             return [];
         }
 
-        $open = AttendanceIntegrityFlag::query()->visibleTo($user)->where('status', 'open')->count();
+        $open = AttendanceIntegrityFlag::openFor($user)->count();
 
         return $open > 0
             ? [new NextStep(NextStepId::Integrity, '/attendance/integrity', (string) $open, $open)]

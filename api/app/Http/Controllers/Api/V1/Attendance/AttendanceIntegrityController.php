@@ -62,7 +62,7 @@ class AttendanceIntegrityController extends Controller
     {
         Gate::authorize('attendance.viewConflicts');
 
-        $open = $this->visible($request->user())->where('status', 'open');
+        $open = AttendanceIntegrityFlag::openFor($request->user());
 
         return response()->json([
             'open' => (clone $open)->count(),

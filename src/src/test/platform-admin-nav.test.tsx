@@ -89,14 +89,14 @@ describe("sidebar navigation for the platform super admin", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("never asks the tenant manager dashboard for approval badges", async () => {
+  it("never asks the tenant badge counts endpoint for approval badges", async () => {
     // isSupervisor is a level check, and a super admin clears it while belonging
     // to no tenant: the badge query fired and the API answered 403 on every page
     // of the console (local production rehearsal, 2026-10-06). Same shape as the
     // onboarding query above it in sidebar-nav.tsx.
     let calls = 0;
     server.use(
-      http.get("*/api/v1/dashboard/manager", () => {
+      http.get("*/api/v1/navigation/badges", () => {
         calls += 1;
         return HttpResponse.json({}, { status: 403 });
       }),
@@ -112,9 +112,9 @@ describe("sidebar navigation for the platform super admin", () => {
     role.value = "tenant_admin";
     let calls = 0;
     server.use(
-      http.get("*/api/v1/dashboard/manager", () => {
+      http.get("*/api/v1/navigation/badges", () => {
         calls += 1;
-        return HttpResponse.json({ pending_approvals: { total: 0 } });
+        return HttpResponse.json({ approvals: 0, attendance_integrity: null });
       }),
     );
 

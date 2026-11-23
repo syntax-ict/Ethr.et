@@ -87,6 +87,18 @@ class AttendanceIntegrityFlag extends Model
         return $query;
     }
 
+    /**
+     * The flags still waiting for a decision that this user's org scope
+     * reaches. The queue's summary, the sidebar badge and the Next Steps count
+     * all start here, so the three cannot disagree.
+     *
+     * @return Builder<self>
+     */
+    public static function openFor(User $user): Builder
+    {
+        return static::query()->visibleTo($user)->where('status', 'open');
+    }
+
     /** @return BelongsTo<AttendanceRecord, $this> */
     public function record(): BelongsTo
     {

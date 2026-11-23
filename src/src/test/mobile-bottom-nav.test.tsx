@@ -93,8 +93,8 @@ describe("MobileBottomNav for approvers", () => {
           permissions: ["attendance.viewTeam"],
         }),
       ),
-      http.get("*/api/v1/dashboard/manager", () =>
-        HttpResponse.json({ pending_approvals: { total: 4 } }),
+      http.get("*/api/v1/navigation/badges", () =>
+        HttpResponse.json({ approvals: 4, attendance_integrity: null }),
       ),
     );
     renderWithProviders();
