@@ -8121,5 +8121,14 @@
   "setup2.calendar_hint_use_ec": "ቀኖቹን በኢትዮጵያ አቆጣጠር (ዓ.ም) አንብብ",
   "setup2.calendar_hint_use_gc": "ቀኖቹን በግሪጎሪያን አቆጣጠር (እ.ኤ.አ) አንብብ",
   "setup2.calendar_hint_header": "የአምዱ ስም ሌላውን አቆጣጠር ይላል። በፋይሉ ውስጥ የአምዱን ስም አስተካክለው እንደገና ያምጡት።",
-  "setup2.calendar_hint_every_column": "ይህ ስሙ (ዓ.ም) ወይም (እ.ኤ.አ) የማይል እያንዳንዱን የቀን አምድ ይለውጣል። በሌላው አቆጣጠር ያለው ይህ አምድ ብቻ ከሆነ፣ በምትኩ በፋይሉ ውስጥ በስሙ ላይ ያክሉት።"
+  "setup2.calendar_hint_every_column": "ይህ ስሙ (ዓ.ም) ወይም (እ.ኤ.አ) የማይል እያንዳንዱን የቀን አምድ ይለውጣል። በሌላው አቆጣጠር ያለው ይህ አምድ ብቻ ከሆነ፣ በምትኩ በፋይሉ ውስጥ በስሙ ላይ ያክሉት።",
+  "notification_prefs_page.type_letter": "ደብዳቤዎች",
+  "notification_prefs_page.desc_letter": "የሥራ ደብዳቤ ሲጠየቅ፣ እና የእርስዎ ሲሰጥ ወይም ውድቅ ሲደረግ",
+  "notification_prefs_page.not_sent_this_way": "በዚህ መንገድ አይላክም",
+  "notification_prefs_page.this_device": "በዚህ መሣሪያ ላይ ያሉ ማሳወቂያዎች",
+  "common.notifications_unread": "ማሳወቂያዎች፣ :count ያልተነበቡ",
+  "notifications.filter_all": "ሁሉም",
+  "notifications.filter_unread": "ያልተነበቡ",
+  "notifications.filter_label": "አሳይ",
+  "notifications.no_unread": "ያልተነበበ ማሳወቂያ የለም"
 }

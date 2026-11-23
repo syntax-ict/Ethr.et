@@ -8121,5 +8121,14 @@
   "setup2.calendar_hint_use_ec": "Read the dates as Ethiopian (E.C.)",
   "setup2.calendar_hint_use_gc": "Read the dates as Gregorian (G.C.)",
   "setup2.calendar_hint_header": "The column name says the other calendar. Correct the column name in the file and bring it again.",
-  "setup2.calendar_hint_every_column": "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead."
+  "setup2.calendar_hint_every_column": "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead.",
+  "notification_prefs_page.type_letter": "Letters",
+  "notification_prefs_page.desc_letter": "When an employment letter is requested, and when yours is issued or declined",
+  "notification_prefs_page.not_sent_this_way": "Not sent this way",
+  "notification_prefs_page.this_device": "Notifications on this device",
+  "common.notifications_unread": "Notifications, :count unread",
+  "notifications.filter_all": "All",
+  "notifications.filter_unread": "Unread",
+  "notifications.filter_label": "Show",
+  "notifications.no_unread": "No unread notifications"
 }

@@ -11570,7 +11570,7 @@ export interface components {
          * @description The notification types a user can set per-channel preferences for.
          * @enum {string}
          */
-        NotificationType: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "attendance_correction" | "overtime_request" | "attendance_anomaly" | "payslip_available" | "payroll_processed" | "announcement" | "approval_reminder" | "expiry_reminder" | "profile_update" | "employee_voice";
+        NotificationType: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "attendance_correction" | "overtime_request" | "attendance_anomaly" | "payslip_available" | "payroll_processed" | "announcement" | "approval_reminder" | "expiry_reminder" | "profile_update" | "employee_voice" | "letter";
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
             records: {
@@ -28886,6 +28886,9 @@ export interface operations {
                             email: boolean;
                             sms: boolean;
                         };
+                        type_channels: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };
@@ -28931,6 +28934,9 @@ export interface operations {
                             in_app: boolean;
                             email: boolean;
                             sms: boolean;
+                        };
+                        type_channels: {
+                            [key: string]: string[];
                         };
                     };
                 };
