@@ -164,6 +164,30 @@ test('the limits of the activation code lifetime are accepted and what is saved 
     expect(ActivationCodeService::ttlHoursFor($tenant->fresh()))->toBe($hours);
 })->with([1, ActivationCodeService::MAX_TTL_HOURS]);
 
+test('an Amharic refusal names the field once, without a doubled የ', function (array $settings, string $field, string $name) {
+    // The templates read "የ:attribute መስክ", and every Amharic field name
+    // already starts with የ, so the message said "የየ…" (native review,
+    // 2026-11-23). The template now leaves the የ to the name.
+    $tenant = secRulesAdmin();
+    app()->setLocale('am');
+
+    $message = test()->withHeader('Accept-Language', 'am')
+        ->putJson(secRulesUrl($tenant), ['settings' => $settings])
+        ->assertUnprocessable()
+        ->json('errors')[$field][0];
+
+    expect($message)->toStartWith("{$name} መስክ")
+        ->and($message)->not->toContain('የየ');
+})->with([
+    'activation hours' => [['activation_code_hours' => 0], 'settings.activation_code_hours', 'የማግበሪያ ኮድ የአገልግሎት ጊዜ'],
+    'minimum length' => [['password_policy' => ['min_length' => 7, 'require_uppercase' => true, 'require_lowercase' => true, 'require_number' => true, 'require_symbol' => true]], 'settings.password_policy.min_length', 'ዝቅተኛ ርዝመት'],
+    'session timeout' => [['session_timeout_minutes' => 3], 'settings.session_timeout_minutes', 'የክፍለ ጊዜ ማብቂያ'],
+]);
+
+test('no Amharic validation template puts የ in front of the field name', function () {
+    expect(file_get_contents(lang_path('am/validation.php')))->not->toContain('የ:attribute');
+});
+
 test('an activation code lifetime out of range is refused', function (mixed $hours) {
     $tenant = secRulesAdmin();
 
