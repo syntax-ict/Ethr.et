@@ -574,6 +574,52 @@ pick another. "Column names are on line N." is shown when they were found below
 the first line, with a choice of another line or "There are no column names".
 The lines to fix are written under the line the names were on.
 
+### Accepting differences for many rows (2026-11-24)
+
+Correcting three hundred people meant three hundred rows of ticks. `POST
+/batches/{batch}/accept-differences` takes `fields` (at least one, distinct,
+each a field a reviewer may accept on one row: `StagedChanges::acceptable()`)
+and accepts the differences of those fields on every row that may take them.
+The review screen's "Accept differences" button opens a dialog that counts the
+people each field would change.
+
+A file whose employee numbers are shifted by one line matches every row to the
+wrong person by number, and "accept everything" would rename them into each
+other. Two guards:
+
+- **Only the fields named are accepted.** Identity and hidden fields (name,
+  Amharic name, employee number, national ID, date of birth, hire date, TIN,
+  salary) start unticked on the screen, so they are accepted only when someone
+  ticks them. A locked or taken difference is never accepted, as on one row.
+- **A row that may be someone else is left out.** A row set to merge into a
+  person whose name shares no word with it carries the warning
+  `maybe_other_person` (name against name and Amharic name against Amharic name,
+  the same script only, and only when a pair can be compared; the rule is
+  `PersonName::overlap()`, the one the resolver uses). It is counted in `held`
+  and decided on its own row. The warning is recomputed whenever a row's action
+  or person changes. A name ETHR made up ("Device user 17") is not compared
+  at all, so a person made from a terminal's number is not flagged and a list
+  that completes people merges into them as before.
+  The row also **waits for a reviewer**: its default action is `defer`, never
+  `merge`, in a list that completes people as in any other. Committing the list
+  writes nothing to that person unless the reviewer chooses merge on that row
+  (the matched person and candidates are kept, so it is one choice), and the
+  warning stays on the row, deferred or merged, until the action moves to skip
+  or create or the person changes to one the name fits. The row's number is
+  the matched person's, so no `number_held` warning is added to it.
+
+It is stateless between requests: rows are walked in id order after `cursor`, in
+chunks of 50 for the commit's time budget, and the answer carries the next
+`cursor` and `done`; the browser sends again until `done`. Counts are per
+request: `rows` (rows that had something accepted), `by_field`, `out_of_reach`
+(the viewer may not edit that person: nothing changed), `pay_refused` (the row
+lost salary and TIN because the viewer lacks `employee.updateFinancial`, and
+kept the rest) and `held`. The acceptance is stored by
+`StagedChanges::withAccepted()`, the same code a per-row accept uses, and the
+commit's rule that both values are unchanged since is untouched. Needs
+`employee.create`; 409 unless the list is `reviewing`. Each slice that changed
+something writes `migration.differences_accepted` (`fields`, `rows`).
+
 ## Endpoints (`/api/v1/onboarding/migration`)
 
 | method | path | purpose |
@@ -589,6 +635,7 @@ The lines to fix are written under the line the names were on.
 | GET | `/batches/{batch}` | review queue with verdicts and summary; also `undone_at` and `undo_archived` (below) |
 | DELETE | `/batches/{batch}` | discard a list that has not begun to be added (below). 204; 409 once it is `committing` or `committed`. Needs `employee.create` |
 | PATCH | `/rows/{row}` | set a row's action, the employee it is, and the differences accepted |
+| POST | `/batches/{batch}/accept-differences` | accept the differences of the named `fields` on many rows, a slice at a time, from the `cursor` the last answer gave until `done` (above). 409 unless the list is `reviewing`. Needs `employee.create`; has the `migration-commit` rate limit |
 | POST | `/batches/{batch}/commit` | apply the actions, a slice at a time; once `committed` the answer also carries the two fields below |
 | GET | `/batches/{batch}/undo` | preview of undoing what a committed list added: who would be archived, who kept and why. Writes nothing. 409 unless the list is `committed`. Needs `employee.delete` (below) |
 | POST | `/batches/{batch}/undo` | undo it, with `confirm: true`, a slice at a time; the same request is sent again while `done` is false. 409 unless `committed`; 422 without `confirm`. Needs `employee.delete`; has the `migration-commit` rate limit (below) |

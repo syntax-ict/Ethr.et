@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Onboarding;
 use App\Enums\OnboardingStep;
 use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Migration\AcceptDifferencesRequest;
 use App\Http\Requests\Migration\CommitMigrationRequest;
 use App\Http\Requests\Migration\ReadPeopleRequest;
 use App\Http\Requests\Migration\StageRowsRequest;
@@ -24,6 +25,7 @@ use App\Models\User;
 use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
+use App\Services\Migration\AcceptProgress;
 use App\Services\Migration\HeldNumbers;
 use App\Services\Migration\ListUndo;
 use App\Services\Migration\MigrationTerminals;
@@ -572,6 +574,66 @@ class MigrationController extends Controller
     }
 
     /**
+     * Accept the differences of the named `fields` for every row set to merge
+     * that may take them, as much as fits in one request.
+     *
+     * A person who corrected a list would otherwise open each row. Only the
+     * fields named are accepted, so a name, a number or a salary is never
+     * accepted by default. A row that may be someone else
+     * (`maybe_other_person`) is left for the reviewer and counted in `held`;
+     * a person the viewer may not edit is counted in `out_of_reach`; a row
+     * whose TIN or salary the viewer may not change keeps the rest and is
+     * counted in `pay_refused`.
+     *
+     * While `done` is false the same request is sent again with the `cursor`
+     * it answered. Every count is for this request alone; `rows` is how many
+     * rows had something accepted and `by_field` says how many for each
+     * field. Nothing is written to any employee until the list is added.
+     *
+     * @response array{done: bool, cursor: int, rows: int, by_field: array<string, int>, out_of_reach: int, pay_refused: int, held: int}
+     */
+    public function acceptDifferences(AcceptDifferencesRequest $request, MigrationBatch $batch): JsonResponse
+    {
+        Gate::authorize('employee.create');
+
+        abort_if($batch->isStaging(), 409, __('onboarding.migration.still_staging'));
+        abort_unless($batch->isReviewing(), 409, __('onboarding.migration.already_committing'));
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $fields = $request->fields();
+        abort_if(array_diff($fields, StagedChanges::acceptable($batch->isCompleting())) !== [], 422, __('onboarding.migration.accept_locked'));
+
+        $progress = $this->migration->acceptDifferences($batch, $user, $fields, $request->cursor());
+
+        if ($progress->rows > 0) {
+            $changed = array_keys($progress->byField);
+            sort($changed);
+
+            AuditLog::record('migration.differences_accepted', $batch, ['fields' => $changed, 'rows' => $progress->rows]);
+        }
+
+        return response()->json($this->acceptedPayload($progress));
+    }
+
+    /**
+     * @return array{done: bool, cursor: int, rows: int, by_field: array<string, int>, out_of_reach: int, pay_refused: int, held: int}
+     */
+    private function acceptedPayload(AcceptProgress $progress): array
+    {
+        return [
+            'done' => $progress->done,
+            'cursor' => $progress->cursor,
+            'rows' => $progress->rows,
+            'by_field' => $progress->byField,
+            'out_of_reach' => $progress->outOfReach,
+            'pay_refused' => $progress->payRefused,
+            'held' => $progress->held,
+        ];
+    }
+
+    /**
      * Add the list's people, as much as fits in one request.
      *
      * A long list is added a slice at a time. While `status` is `committing`,
@@ -772,6 +834,10 @@ class MigrationController extends Controller
     private function warningMessage(array $warning, array $holders): string
     {
         $code = (string) ($warning['code'] ?? '');
+
+        if ($code === WorkforceMigrationService::MAYBE_OTHER_PERSON) {
+            return __('onboarding.migration.maybe_other_person');
+        }
 
         if (! in_array($code, [WorkforceMigrationService::NUMBER_HELD, WorkforceMigrationService::BADGE_HELD], true) || ! isset($warning['holder'], $warning['value'])) {
             return (string) ($warning['message'] ?? '');

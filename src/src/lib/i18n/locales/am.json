@@ -8227,5 +8227,18 @@
   "notifications.filter_all": "ሁሉም",
   "notifications.filter_unread": "ያልተነበቡ",
   "notifications.filter_label": "አሳይ",
-  "notifications.no_unread": "ያልተነበበ ማሳወቂያ የለም"
+  "notifications.no_unread": "ያልተነበበ ማሳወቂያ የለም",
+  "accept_differences.button": "ልዩነቶችን ተቀበል",
+  "accept_differences.title": "ለብዙ ሰዎች ልዩነቶችን ተቀበል",
+  "accept_differences.desc": "ከዚህ ዝርዝር ጋር ለተመሳሰሉ ሁሉ የሚወሰዱትን ዝርዝሮች ይምረጡ። ዝርዝሩ እስኪጨመር ድረስ ለማንም ምንም አይጻፍም።",
+  "accept_differences.people_one": "1 ሰው",
+  "accept_differences.people": ":count ሰዎች",
+  "accept_differences.sensitive": "መጀመሪያ ላይ አልተመረጠም። በአንድ መስመር የተሸጋገረ ቁጥር የአንድን ሰው ዝርዝር በሌላ ሰው ላይ ያደርጋል።",
+  "accept_differences.held_one": "1 መስመር ሌላ ሰው ሊሆን ይችላል። በራሱ መስመር ላይ እንዲወስኑ ተትቷል።",
+  "accept_differences.held": ":count መስመሮች ሌላ ሰው ሊሆኑ ይችላሉ። በራሳቸው መስመር ላይ እንዲወስኑ ተትተዋል።",
+  "accept_differences.confirm": "ተቀበል",
+  "accept_differences.running": "በመቀበል ላይ",
+  "accept_differences.result": "ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።",
+  "accept_differences.result_pay": "ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።",
+  "accept_differences.failed": "መቀበሉ ቆሟል። አንዳንድ ልዩነቶች ቀድሞ ተቀብለው ሊሆን ይችላል። እንደገና ይሞክሩ።"
 }
