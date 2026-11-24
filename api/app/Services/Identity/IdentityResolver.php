@@ -378,82 +378,11 @@ final class IdentityResolver
 
         if ($identifiers !== []
             && array_diff($identifiers, $deviceNumbers) === []
-            && $this->namesShareNothing($employee, $signals->name)) {
+            && PersonName::shareNothing($signals->name, [$employee->name, $employee->name_am])) {
             $conflicts[] = 'name_differs';
         }
 
         return $conflicts;
-    }
-
-    /**
-     * The two names are written in the same script and have no word in common.
-     *
-     * Deliberately not a similarity score. A terminal holds "ABEBE", "Abebe K."
-     * or "Abebe 2" for Abebe Kebede Tesfaye, and each of those scores below any
-     * useful threshold while plainly being him; what marks a different person
-     * is that nothing overlaps at all. An Amharic name against a record that
-     * has only a Latin one cannot be compared, and is not called different.
-     */
-    private function namesShareNothing(Employee $employee, ?string $name): bool
-    {
-        $incoming = $this->nameWords($name);
-        if ($incoming === []) {
-            return false;
-        }
-
-        $compared = false;
-
-        foreach ([$employee->name, $employee->name_am] as $known) {
-            $words = $this->nameWords($known);
-            if ($words === [] || $this->isEthiopic($known) !== $this->isEthiopic($name)) {
-                continue;
-            }
-
-            $compared = true;
-
-            foreach ($incoming as $a) {
-                foreach ($words as $b) {
-                    if ($this->sameWord($a, $b)) {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return $compared;
-    }
-
-    /** @return list<string> */
-    private function nameWords(?string $name): array
-    {
-        if ($name === null) {
-            return [];
-        }
-
-        $words = preg_split('/[^\p{L}\p{M}]+/u', mb_strtolower($name), -1, PREG_SPLIT_NO_EMPTY);
-
-        return $words === false ? [] : $words;
-    }
-
-    private function isEthiopic(?string $text): bool
-    {
-        return $text !== null && preg_match('/\p{Ethiopic}/u', $text) === 1;
-    }
-
-    /** Equal, an initial or truncation of the other, or one transliteration apart. */
-    private function sameWord(string $a, string $b): bool
-    {
-        if ($a === $b || str_starts_with($a, $b) || str_starts_with($b, $a)) {
-            return true;
-        }
-
-        if (mb_strlen($a) < 4 || mb_strlen($b) < 4) {
-            return false;
-        }
-
-        similar_text($a, $b, $percent);
-
-        return $percent >= 80.0;
     }
 
     /**
