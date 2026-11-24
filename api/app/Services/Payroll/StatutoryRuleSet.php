@@ -63,6 +63,12 @@ final class StatutoryRuleSet
         return is_array($value) ? $value : throw PayrollRunRefused::noRuleInForce($code);
     }
 
+    /** The value, or null when no row is in force: for rules whose absence is an answer (the employment domain), where get() would wrongly raise a payroll refusal. */
+    public function find(string $code): mixed
+    {
+        return $this->rules[$code]['value'] ?? null;
+    }
+
     /** @return array{value: mixed, source: string, layer: string, enforcement: string, floor_direction: string|null, legal_reference: string|null, confirmed: bool, effective_from: string|null, version: string|null, parameter: string|null}|null */
     public function describe(string $code): ?array
     {

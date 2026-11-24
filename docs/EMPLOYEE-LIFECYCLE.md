@@ -103,6 +103,8 @@ Each step is a separate, reviewable change with its own tests. Acceptance criter
 
 **Next priority: 1a**, the employment framework per organisation, now that 1b is done.
 
+**1a, organisation half, recorded 2026-11-23.** The framework is a dated rule per organisation kind (`employment.framework`, read through `StatutoryRules::framework()`), not a column: see the table in [`EMPLOYMENT-LAW-REGISTER.md`](EMPLOYMENT-LAW-REGISTER.md). It has history through its dates and an organisation's own row replaces it. Still open from 1a: showing it on lifecycle screens, letting an organisation set its own in Settings, choosing it at onboarding, a regional civil service naming its region, and the employee who differs from their organisation (a managerial employee, a public enterprise's mixed staff). No rule reads it yet, as the acceptance criteria require.
+
 ## Scheduled personnel actions (step 1b, 2026-10-27)
 
 Until then every personnel action wrote its new grade, position, unit or salary to the employee when it was recorded, so a promotion effective next month raised this month's pay.

@@ -30,7 +30,21 @@ The first decision for any lifecycle rule is which framework governs the employe
 | Private-sector pension | Private Organization Employees' Pension Proclamation No. 1268/2022 (repeals 715/2011 and 908/2015) | Ethiopian employees of private organisations | Domestic workers, international organisations, sole owners (Art. 3) |
 | Electronic documents | Electronic Transaction Proclamation No. 1205/2020; Electronic Signature Proclamation No. 1072/2018 as amended by No. 1358/2024 | Legal effect of electronic records and signatures | Personal status, wills, court process, immovable property, powers of attorney (1205 Art. 3(2)) |
 
-**Product consequence:** a framework is a property of the organisation, and occasionally of an employee (a public enterprise can employ under labour law). ETHR records the industry and workforce profile at onboarding (`docs/INDUSTRY_TEMPLATES.md`) but has **no field that says which employment framework governs an organisation**. Until it does, no lifecycle rule in ETHR may be framework-specific, and the recruitment slice built on 2026-10-27 deliberately encodes none: probation length, notice periods and selection rules are chosen by HR, not computed. Adding the framework field is step 1 of the plan in [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md).
+**Product consequence:** a framework is a property of the organisation, and occasionally of an employee (a public enterprise can employ under labour law; a managerial employee of a private company is outside the Labour Proclamation). ETHR records the industry and workforce profile at onboarding (`docs/INDUSTRY_TEMPLATES.md`), and until 2026-11-23 had no record of which employment framework governs an organisation, so no lifecycle rule could be framework-specific: the recruitment slice built on 2026-10-27 deliberately encodes none, and probation length, notice periods and selection rules are chosen by HR, not computed.
+
+**Since 2026-11-23 the framework is a dated rule, not a field.** `employment.framework` is a row per organisation kind in `statutory_parameters`, in the `employment` domain, read through `App\Services\Payroll\StatutoryRules::framework()` ([`payroll/STATUTORY-PARAMETERS.md`](payroll/STATUTORY-PARAMETERS.md), *Domains*). The values are the cases of `App\Enums\EmploymentFramework`:
+
+| Organisation kind (and the kinds that inherit it) | Framework | Basis | Class |
+|---|---|---|---|
+| `private` | `labour_proclamation` | 1156/2019 Art. 3 | 1 |
+| `ngo` | `labour_proclamation` | 1156/2019 Art. 3. Art. 3(3) lets the Council of Ministers exclude religious or charitable organisations by regulation; whether one exists was not checked | 1 / 3 |
+| `public_enterprise` | `labour_proclamation` | A reading: 1353 defines a government office as a budget-financed federal office, which a public enterprise is not. No express text found | 2 |
+| `government` | `federal_civil_service` | 1353 Arts. 2 and 3 | 1 |
+| `regional_government` | `regional_civil_service` | 1353 covers federal offices only. The one regional law seen, Amhara 171/2010, was read from a secondary copy of unknown status (see *Amhara National Regional State* below), so **the product relies on no rule for this framework** | 1 / 3 |
+| `defence_police` | `unspecified` | 1156/2019 Art. 3(2)(e): special laws, not read | 3 |
+| `international_organization` | `unspecified` | Nothing read | 3 |
+
+Every row is `advisory` and unconfirmed, and an organisation's own row replaces it. A seeded row is ETHR's reading, not something the organisation recorded: a screen that shows the framework must show that it is unconfirmed. Each row starts on the date of the law it cites (the labour kinds on 5 September 2019, the two government kinds on 9 January 2025), so a kind with no row, and a date before its row begins, has **no framework**: the product then asks HR and computes nothing. Only `labour_proclamation` and `federal_civil_service` have rules this register treats as read; the Amhara rows come from a secondary copy and nothing may rely on them. The framework of an individual employee who differs from their organisation is not recorded yet; it is step 1a of the plan in [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md).
 
 ## Labour Proclamation No. 1156/2019 (private employers)
 
@@ -46,7 +60,7 @@ The first decision for any lifecycle rule is which framework governs the employe
 | 12(8) | On termination, or whenever asked, give a free certificate of the type of work, length of service and wage | Certificate on exit and on request | 1 | Partial: employment letters exist (`EmploymentLetters`); not tied to exit |
 | 23–25 | Termination only by law, collective agreement or agreement; agreed termination binds the worker only in writing | Written record of mutual termination | 1 | Not built |
 | 26(2) | Union activity, nation, sex, religion, political view, marital status, pregnancy, disability and similar are never valid grounds | The reason list must not offer them | 1 | Not built (reasons are free text) |
-| 27 | Exhaustive grounds for dismissal without notice; written reasons and date; the right lapses 30 working days after the employer knew | Countdown from the date the employer knew | 1 | Not built |
+| 27 | Exhaustive grounds for dismissal without notice; written reasons and date; the right lapses 30 working days after the employer knew. The absence and lateness grounds are set out in [*Absence from work*](#absence-from-work-and-returning-with-a-reason) below | Countdown from the date the employer knew | 1 | Not built |
 | 31 | After probation, a worker resigns with 30 days' notice | Default resignation notice for this framework only | 1 | Not built |
 | 34, 35 | Notice is written, with reasons and effective date. Employer notice is 1, 2 or 3 months by length of service | Notice calculator for this framework | 1 | Not built |
 | 36–38 | Final pay within 7 working days; late payment can cost up to 3 months' wages | Final-pay deadline alert | 1 | Partial: payroll now includes a leaver up to the termination date (`PayrollEngine`, blueprint D3); no 7-working-day alert |
@@ -72,6 +86,56 @@ The first decision for any lifecycle rule is which framework governs the employe
 | 135 | Resignation on 2 months' notice; release may be delayed up to 4 months | Different from the private 30 days | 1 | Not built |
 | 141 | Retirement takes effect on the last day of the month of retirement age, with 3 months' written notice | Retirement notice at minus 3 months | 1 | Partial: `RetirementCase` exists |
 | 143 | Certificate of service; may be withheld until clearance if a training bond or debt is outstanding | Certificate tied to exit clearance | 1 | Not built |
+
+## Absence from work, and returning with a reason
+
+*Read 2026-11-23, for the long-absence follow-up plan. Nothing in ETHR applies any row here yet. Each is to become a dated, advisory, unconfirmed rule in the `employment` domain, never a number in code, and each stays marked unconfirmed on screen until counsel signs the row.*
+
+**How these were read, which decides the class.** The Labour Proclamation rows come from a re-typeset copy of the Gazette on abyssinialaw.com, **English column only**: the Amharic was not readable, and the justice.gov.et and ILO copies could not be fetched. That is a secondary copy, so those rows are class 2 even where the wording is plain. The civil service rows come from the Gazette PDFs on justice.gov.et, **Amharic and English**, and are class 1 except where the two languages disagree.
+
+**A correction worth keeping.** The absence ground usually quoted for private employers, *five consecutive working days, or ten in a month, or thirty in a year*, is **not in 1156/2019**. It appears to be the repealed 377/2003 wording (not verified). A feature built from memory would have encoded repealed law.
+
+### Private employers: Labour Proclamation No. 1156/2019
+
+| Article | What it says (paraphrased) | Product implication | Class |
+|---|---|---|---|
+| 27(1)(b) | Absence from duty for a total of five days in a six-month period, while being warned in writing, where the absence cannot be classified as any leave under the Proclamation | **The written warning is part of the ground.** Count absent days in a rolling six months; an absence settled as any leave does not count; record each warning | 2 |
+| 27(1)(b), case law | The Cassation Bench (File No. 271726, seven judges, one dissent) is reported to hold that five or more consecutive working days outside recognised leave allow termination without a prior warning, overruling File 249795 (1 August 2024), which had required a warning for each day | A second, separate ground. **Neither judgment was read**; both are known only from law firm reports | 3 |
+| 27(1)(a) | Lateness eight times in six months while warned in writing, unless justified by collective agreement, work rule or contract | Same shape as the absence ground; not planned yet | 2 |
+| 27(1)(j) | Absence due to a court sentence of more than thirty days is itself a ground | Not a good cause; HR decides | 2 |
+| 27(2), 27(3) | Written statement of the reasons and the date; the right lapses thirty working days after the employer knew | Show the countdown; never act on it | 1 (already in the table above) |
+| 27 chapeau, 27(1)(k), 134(1), 135(2) | "Unless otherwise determined by a collective agreement"; further grounds by collective agreement only; a term less favourable to workers than the Proclamation is void, and the more favourable of the two applies | An organisation may record its own, more lenient rule and name its source. Never a stricter one | 2 |
+| 2(6), 15 | Work rules cover disciplinary measures and their enforcement, subject to the Proclamation | The organisation's own warning steps are work rules | 2 |
+| 17(2), 18, 22 | Suspension interrupts the duty to work and to pay; it is not termination. Grounds include unpaid leave granted at the worker's request, and detention of up to 30 days where the employer is told within 10 days or should know. The worker reports the working day after it ends | **An unauthorised absence must never be recorded as unpaid leave**: that is a suspension the employer granted, and it removes the day from 27(1)(b). Detention is a good cause | 2 |
+| 34(2), 34(4) | A termination notice is handed to the worker; if the worker cannot be found or refuses it, it is posted on the workplace notice board for ten consecutive days. A notice issued while the contract is suspended is void | Record how a notice was delivered, with posting dates. Warn before issuing anything to someone whose contract may be suspended | 2 |
+| 81, 83, 84 | Three working days paid for marriage or the death of a listed relative; up to five days unpaid for exceptional events, twice a budget year; paid time to appear before a labour body, to vote or to be a witness. The worker gives supporting evidence when the employer asks | Good causes, each with its evidence | 2 |
+| 85, 86 | After probation only. Six months in any twelve from the first day of sickness: one month full pay, two months half, three months unpaid. The worker tells the employer the day after the absence unless that is impractical; a valid certificate from a recognised medical facility | Built (`SickLeaveTiers`), but applied to every organisation kind, which is wrong for civil servants. The next-day notice and the probation limit are not applied | 2 |
+| 59 | Deductions only by law, collective agreement, work rules, court order or written agreement; without written consent, at most one third at one time. **No article on recovering wages already overpaid was found** | Pay for a month already released cannot be taken back by the product. Counsel and the accountant decide | 2 / 3 |
+| 3(2)(c) | Managerial employees are outside the Proclamation | An employee can be outside their organisation's framework | 2 |
+
+### Federal civil servants: Proclamation No. 1353/2024
+
+| Article | What it says (paraphrased) | Product implication | Class |
+|---|---|---|---|
+| 138(4) | A servant past probation who is absent seven consecutive working days for unknown reasons may be terminated after being called to report by two consecutive notices of seven days each. The Amharic says the servant *is dismissed*; the English says *may* | Two call notices, seven days apart, after the seventh working day. **Under 1064/2017 Art. 86(4) it was ten days and two ten-day notices.** | 1 (may or must: 3) |
+| 138(4), medium | The article says only "by notice" | Notice board, newspaper or letter is the office's choice; record which | 2 |
+| 138(5) | Reports within one month of the first day of absence: reinstated to the same position, subject to whatever measure the head takes after examining the reason | Show the one-month date on the case | 1 |
+| 138(6) | Already dismissed, but reports within three months with sufficient evidence of force majeure: may be reinstated to a similar vacant post, on the head's authorisation | Show the three-month date; evidence required; discretionary | 1 |
+| 138(7) | A probationer absent fifteen days for unknown reasons is terminated without further formality | A separate rule for probation | 1 |
+| 138(1) to (3) | Force majeure: tell the institution within one month; once verified, the post is held for three months. Detention over three months with evidence of acquittal: reinstated to any vacant post at the previous salary | Good causes with their own deadlines | 1 |
+| 98(1), 98(4) | Tardiness is named. Unjustified absence of three or more days, or not keeping office hours, is a rigorous offence where the servant has not reformed after simple penalties | The disciplinary route, separate from 138 | 1 |
+| 97, 99, 101, 102 | Penalty scale, committee, suspension, limitation: already in the table above. Add: the head may reject the committee's recommendation (99(3)); 102(4) makes the official liable after one year in the English and six months in the Amharic | Record the committee's recommendation beside the head's decision | 1 (102(4): 3) |
+| 66 | **The two languages disagree.** Amharic: six months in twelve from the first day of sickness (or twelve months in four years), the first four months on full pay and the next two on half. English: eight months, six on full pay and two on half. The English is word for word 1064/2017 Art. 43. Neither has an unpaid tier. A probationer has one month with pay | **Today these servants are computed on the Labour Proclamation tiers.** Which language prevails needs counsel before any row is confirmed | 3 |
+| 66(5), 67 | Tell the office as soon as possible. A certificate from a licensed medical institution is required for more than three consecutive days (Amharic), and uncertified sick days are limited to six in a budget year | Evidence rule differs from the private one | 1 / 3 |
+| 68, 69 | Seven days a year in total for mourning, a wedding and examinations. Paid leave for the time a court or other summons takes | Good causes | 1 |
+| 11 | Salary is paid monthly to servants found on the job. Deductions only on written consent, a court order or a provision of law; under a court order or law, at most one third | The nearest text to "no work, no pay". No day-by-day deduction rule was found | 1 |
+
+### What follows for the product
+
+- **Two frameworks, two different shapes.** One has a cumulative ground with a warning and a consecutive ground from case law; the other has a consecutive ground, call notices and two return windows. A rule therefore has to be a list of entries with a shape, not a threshold.
+- **A person decides.** Every row above gives the employer or the head a discretion. Nothing is to be issued, deducted or ended by a timer ([`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md), rule 3).
+- **An unauthorised absence is not leave.** It needs its own outcome: unpaid, still counted toward a ground, never called leave.
+- **Returning with evidence is settled by the cause**, and the cause decides the pay through the leave type: sick leave by its tiers, a summons or a family event paid, detention unpaid and suspended.
 
 ## Personal Data Protection Proclamation No. 1321/2024
 
@@ -120,6 +184,14 @@ Proclamation 1353/2024 Arts. 96–106 and 130 now set the core rules (class 1). 
 - PDPP registration rules, the read-log retention period, and whether ETHR itself must register as a processor (Authority directives not read).
 - Any amendment to 1156/2019 after 2019: none listed on its justice.gov.et page; not independently confirmed.
 - Eight directives counted but not shown on the Ministry of Justice labour listing (29 counted, 21 listed).
+- **The Amharic text of 1156/2019**, anywhere. Every Labour Proclamation row in *Absence from work* rests on the English column of a re-typeset copy.
+- **Cassation Files 271726 and 249795.** Known only from two law firm reports; the decision date of 271726 was not given.
+- Whether the Amharic prevails where the two languages of 1353 disagree (Arts. 66, 102(4), 138(4)), and which Gazette print is authoritative (No. 9 of 10 December 2024 or No. 13 of 9 January 2025).
+- The medium of the 1353 Art. 138(4) call notices, and the hearing procedure: Art. 94(3) leaves procedure to a regulation that was not read.
+- Salary during a civil servant's detention, back pay on acquittal, and any day-by-day deduction for unauthorised absence.
+- Whether "five days" in 1156/2019 Art. 27(1)(b) and "fifteen days" in 1353 Art. 138(7) are working days or calendar days.
+- Whether a regulation under 1156/2019 Art. 3(3) excludes religious or charitable organisations.
+- That public enterprise employees fall under the Labour Proclamation: inferred from the definitions, not read as an express rule.
 
 ## Sources read
 
@@ -135,3 +207,8 @@ Proclamation 1353/2024 Arts. 96–106 and 130 now set the core rules (class 1). 
 | Reg. 77/2002 | justice.gov.et listing and its PDF (poor scan) |
 | Labour and employment listing | justice.gov.et/en/sector/labor-employment-sector-specific-regulations/ |
 | Amhara 171/2010 | chilot.wordpress.com (secondary host) |
+| 1156/2019, absence and leave articles (2026-11-23) | abyssinialaw.com/dds/new-labour-proclamation-proclamation-no-1156-2019/download (re-typeset Gazette copy, English column) |
+| 1353, two prints (2026-11-23) | justice.gov.et/wp-content/uploads/2025/07/1353.pdf (English); justice.gov.et/wp-content/uploads/2025/01/አዋጅ-ቁጥር-1353-2017.pdf (Amharic and English, Gazette 31st Year No. 13) |
+| 1064/2017, for comparison only: repealed | justice.gov.et/wp-content/uploads/2025/02/አዋጅ-ቁጥር-1064-2010.pdf |
+| Cassation File 271726, as reported | dablolawfirm.com/ethiopian-cassation-court-clarifies-dismissal-rules-for-five-days-absence/ |
+| Cassation File 249795, as reported | dmethiolawyers.com (article on written warnings for each day of absence under Art. 27(1)(b)) |
