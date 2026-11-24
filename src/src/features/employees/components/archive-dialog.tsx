@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
+  ARCHIVE_CONFIRM_SLICE,
   ARCHIVE_SLICE,
   combineArchive,
   postBulkArchive,
@@ -92,7 +93,7 @@ export function ArchiveDialog({
     const sent = await sendInSlices(
       selectedIds,
       (slice) => postBulkArchive(slice, true),
-      ARCHIVE_SLICE,
+      ARCHIVE_CONFIRM_SLICE,
     );
     setRunning(false);
     // The list, not this dialog's own preview: that answer is done with.

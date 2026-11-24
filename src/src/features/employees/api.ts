@@ -235,6 +235,14 @@ export type BulkRestoreResult =
 export const ARCHIVE_SLICE = 200;
 
 /**
+ * People per request when archiving for real. Each one is re-checked for use
+ * under a row lock (about 35 queries), so 200 in one request would be several
+ * thousand queries against a 30-second limit; the import undo chunks at 50 too.
+ * A preview writes nothing and keeps ARCHIVE_SLICE.
+ */
+export const ARCHIVE_CONFIRM_SLICE = 50;
+
+/**
  * One request: what archiving these people would do (`confirm` false, which
  * writes nothing), or doing it.
  */

@@ -254,7 +254,7 @@ describe("The archive dialog", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("sends a selection above 200 in slices and shows one combined answer", async () => {
+  it("previews in slices of 200, archives in slices of 50, and shows one combined answer", async () => {
     server.use(me(["employee.delete"]), ...organisation());
     const sent = servesArchive();
     const { user } = await open(ids(450));
@@ -276,9 +276,7 @@ describe("The archive dialog", () => {
       await screen.findByText("450 people were archived."),
     ).toBeInTheDocument();
     expect(sent.slice(3).map((s) => [s.ids.length, s.confirm])).toEqual([
-      [200, true],
-      [200, true],
-      [50, true],
+      ...Array.from({ length: 9 }, () => [50, true]),
     ]);
   });
 
@@ -306,10 +304,10 @@ describe("The archive dialog", () => {
     );
 
     expect(
-      await screen.findByText("200 people were archived."),
+      await screen.findByText("50 people were archived."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/stopped before 250 people were sent/),
+      screen.getByText(/stopped before 400 people were sent/),
     ).toBeInTheDocument();
     expect(toast.error).toHaveBeenCalled();
   });
