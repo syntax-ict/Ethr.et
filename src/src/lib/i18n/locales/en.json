@@ -852,6 +852,7 @@
   "announcements.show_on_landing_help": "Anyone who opens your sign-in page can read it, before signing in. Leave off for anything internal.",
   "announcements.show_on_website": "Show on the organisation's public website",
   "announcements.show_on_website_hint": "Anyone can read it on your news page once it is published.",
+  "announcements.target_all": "Whole organisation",
   "announcements.show_on_website_targeted": "Only announcements for the whole organisation can be public.",
   "announcements.status_archived": "Archived",
   "announcements.status_draft": "Draft",

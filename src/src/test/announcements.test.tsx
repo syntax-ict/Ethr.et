@@ -460,6 +460,34 @@ describe("<AnnouncementsPage> publishing", () => {
     expect(button).toHaveTextContent("2.3 MB");
   });
 
+  it("fills the editor from the stored text, not the cleaned reading copy", async () => {
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(
+          page([
+            {
+              ...ANNOUNCEMENT,
+              status: "published",
+              body: "Budget<2000 birr para",
+              body_source: "Budget<2000 birr <b>para</b>",
+            },
+          ]),
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /^Edit: Office closed/ }),
+    );
+
+    expect(await screen.findByLabelText(/^Content/)).toHaveValue(
+      "Budget<2000 birr <b>para</b>",
+    );
+  });
+
   it("keeps an announcement for one department off the website", async () => {
     server.use(
       me(["announcement.manage"]),

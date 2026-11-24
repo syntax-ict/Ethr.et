@@ -60,7 +60,7 @@ final class PortalPage
      */
     public static function news(Tenant $tenant, string $file): Response
     {
-        if (! TenantLanding::publicSections($tenant)['announcements']) {
+        if (! TenantLanding::showsNews($tenant)) {
             return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
@@ -89,7 +89,7 @@ final class PortalPage
      */
     public static function article(Tenant $tenant, string $file, string $publicId): Response
     {
-        if (! TenantLanding::publicSections($tenant)['announcements']) {
+        if (! TenantLanding::showsNews($tenant)) {
             return self::plain($file, self::missingStatus($tenant, 'announcements'));
         }
 
