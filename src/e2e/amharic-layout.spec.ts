@@ -19,7 +19,7 @@
  *     npx playwright test amharic-layout.spec.ts --project=chromium-desktop
  */
 import { test, expect, type Page } from "@playwright/test";
-import { api } from "./helpers";
+import { api, publicNewsPath, publishPublicStory } from "./helpers";
 
 interface Route {
   path: string;
@@ -191,6 +191,60 @@ test.describe("Amharic layout: the announcement reading panel", () => {
     }
 
     expect(failures.join("\n"), "the reading panel clips Amharic text").toBe(
+      "",
+    );
+  });
+});
+
+/**
+ * The public news pages, in Amharic, signed out, at both widths. They are
+ * public routes, so the loop below (which signs in) cannot reach them, and a
+ * story card is the densest piece of Amharic text on the public site.
+ */
+test.describe("Amharic layout: the public news pages", () => {
+  test.use({ storageState: "e2e/.auth/hr.json" });
+
+  test("renders Amharic without clipping text", async ({ page, browser }) => {
+    const publicId = await publishPublicStory(page, `QA am news ${Date.now()}`, {
+      body: "የመጀመሪያው አንቀጽ።\n\nሁለተኛው አንቀጽ፣ ዝርዝሩ ሙሉ በሙሉ የማያሳየው።",
+    });
+    const visitor = await browser.newContext();
+    const failures: string[] = [];
+    try {
+      const reader = await visitor.newPage();
+      await reader.addInitScript(() => {
+        localStorage.setItem("locale", "am");
+        localStorage.setItem("theme", "light");
+      });
+
+      for (const vp of VIEWPORTS) {
+        await reader.setViewportSize({ width: vp.width, height: vp.height });
+        for (const path of [publicNewsPath(), publicNewsPath(publicId)]) {
+          await reader.goto(path);
+          await expect(reader.getByRole("heading", { level: 1 })).toBeVisible({
+            timeout: 15000,
+          });
+          await reader.waitForLoadState("networkidle");
+          await reader
+            .waitForFunction(
+              () => document.documentElement.lang === "am",
+              undefined,
+              { timeout: 5000 },
+            )
+            .catch(() => {});
+
+          const clipped = await findClippedText(reader);
+          if (clipped.length > 0) {
+            failures.push(`  ${path} at ${vp.width}px:\n${format(clipped)}`);
+          }
+        }
+      }
+    } finally {
+      await visitor.close();
+      await api(page, "DELETE", `/announcements/${publicId}`);
+    }
+
+    expect(failures.join("\n"), "the public news pages clip Amharic text").toBe(
       "",
     );
   });
