@@ -18,6 +18,22 @@ class EmployeeResource extends JsonResource
 {
     use ExposesPhotoUrls;
 
+    private bool $withEmploymentLaw = false;
+
+    /**
+     * Asks for the employment-law exemption fields. They are the employee's
+     * own record, read by its edit form, and never part of an employee embedded
+     * in another record or listed: they are a legal characterisation, and a
+     * paid entry must read the same to everyone who may see it. Even when
+     * asked, only a viewer who may update the employee gets them.
+     */
+    public function withEmploymentLaw(): static
+    {
+        $this->withEmploymentLaw = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $photoPath = $this->photo_path;
@@ -31,7 +47,7 @@ class EmployeeResource extends JsonResource
             && ($viewer->hasPermission('employee.viewFinancial')
                 || ($viewer->employee_id !== null && (int) $viewer->employee_id === (int) $this->id));
 
-        $mayUpdate = $this->viewerMayUpdate($viewer);
+        $mayUpdate = $this->withEmploymentLaw && $this->viewerMayUpdate($viewer);
 
         $signIn = array_key_exists('sign_in_status', $this->resource->getAttributes())
             ? EmployeeSignIn::of(

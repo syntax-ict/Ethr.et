@@ -6,9 +6,12 @@ use App\Enums\EmploymentFramework;
 use App\Enums\UserRole;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\LeaveRequestResource;
+use App\Http\Resources\PayrollEntryResource;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\Employment\EmploymentFrameworks;
 use App\Services\Payroll\StatutoryRules;
@@ -530,26 +533,63 @@ describe('who sees an employee outside the framework', function () {
             ->assertJsonPath('public_id', $employee->public_id);
     });
 
-    it('hides it inside an embedded employee, and shows it to HR', function () {
+    it('gives it to HR on the employee\'s own endpoints and to nobody inside another record or a list', function () {
         $tenant = createTenant();
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'outside_employment_framework' => true, 'employment_framework_note' => 'Special law']);
         $type = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
         $leave = LeaveRequest::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'leave_type_id' => $type->id]);
         $leave->load('employee');
+        $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+        $entry = PayrollEntry::factory()->create(['tenant_id' => $tenant->id, 'payroll_run_id' => $run->id, 'employee_id' => $employee->id]);
+        $entry->load('employee');
 
-        $render = function ($user) use ($leave): array {
+        $embedded = function ($user, $resource, $record) {
             // Nested resources read the application's own request, as they do over HTTP.
             $request = request();
             $request->setUserResolver(fn () => $user);
 
-            return json_decode((new LeaveRequestResource($leave))->toResponse($request)->getContent(), true)['employee'];
+            return json_decode((new $resource($record))->toResponse($request)->getContent(), true)['employee'];
         };
 
         $supervisor = createUser(['role' => UserRole::SUPERVISOR], $tenant);
         $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
 
-        expect($render($supervisor))->not->toHaveKey('outside_employment_framework')->not->toHaveKey('employment_framework_note')
-            ->and($render($hr))->toMatchArray(['outside_employment_framework' => true, 'employment_framework_note' => 'Special law']);
+        foreach ([$supervisor, $hr] as $user) {
+            foreach ([[LeaveRequestResource::class, $leave], [PayrollEntryResource::class, $entry]] as [$resource, $record]) {
+                expect($embedded($user, $resource, $record))
+                    ->not->toHaveKey('outside_employment_framework')
+                    ->not->toHaveKey('employment_framework_note');
+            }
+        }
+
+        $this->actingAs($hr);
+        $this->getJson('/api/v1/employees')->assertOk()
+            ->assertJsonMissingPath('data.0.outside_employment_framework')
+            ->assertJsonMissingPath('data.0.employment_framework_note');
+        $this->getJson("/api/v1/employees/{$employee->public_id}")->assertOk()
+            ->assertJsonPath('outside_employment_framework', true)
+            ->assertJsonPath('employment_framework_note', 'Special law');
+    });
+
+    it('reads one paid entry the same to a finance user and to an admin', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'outside_employment_framework' => true, 'employment_framework_note' => 'Executive']);
+        $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+        $entry = PayrollEntry::factory()->create(['tenant_id' => $tenant->id, 'payroll_run_id' => $run->id, 'employee_id' => $employee->id]);
+        $entry->load('employee');
+
+        $read = function ($user) use ($entry): array {
+            $request = request();
+            $request->setUserResolver(fn () => $user);
+
+            return json_decode((new PayrollEntryResource($entry))->toResponse($request)->getContent(), true);
+        };
+
+        $finance = createUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+        $admin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        expect(array_keys($read($finance)['employee']))->toBe(array_keys($read($admin)['employee']))
+            ->and($read($finance))->toEqual($read($admin));
     });
 
     it('does not report false for an employee loaded without the column', function () {
