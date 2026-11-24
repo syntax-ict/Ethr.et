@@ -40,4 +40,6 @@ return [
     'cannot_review_filed_profile' => 'You filed this change, so someone else must review it.',
     'invalid_transition' => 'Cannot change status from :from to :to.',
     'bulk_update_failed' => 'This employee could not be updated. Try again, or change them from their profile.',
+    'bulk_archive_failed' => 'This person could not be archived. Try again.',
+    'bulk_restore_failed' => 'This person could not be restored. Try again.',
 ];

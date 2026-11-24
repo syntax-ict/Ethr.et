@@ -21,6 +21,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Employees\EmployeeRestorer;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentitySignals;
@@ -84,6 +85,13 @@ class EmployeeController extends Controller
 
         if ($request->filled('search')) {
             $query->search($request->input('search'));
+        }
+
+        // The archived people, and only them. Seeing who was archived is the
+        // permission to archive and restore them, not the permission to list.
+        if ($request->boolean('filter.archived')) {
+            Gate::authorize('employee.delete');
+            $query->onlyTrashed();
         }
 
         if ($request->has('filter.status')) {
@@ -390,26 +398,15 @@ class EmployeeController extends Controller
      * employees. The person takes a seat again, so the plan's employee limit
      * applies. An employee who is not deleted is returned unchanged.
      */
-    public function restore(Employee $employee, PlanLimitService $planLimits): EmployeeResource
+    public function restore(Employee $employee, EmployeeRestorer $restorer): EmployeeResource
     {
         // Whoever may delete may undo it. This is the other answer to the 409
         // EmployeeIntake gives when the person being added is one whose
-        // record was deleted. Counted under the seat lock, as a new employee is.
+        // record was deleted. The seat is counted under the seat lock, as a
+        // new employee is, by the restorer the bulk restore shares.
         $this->authorize('delete', $employee);
 
-        if ($employee->trashed()) {
-            $tenant = app(CurrentTenant::class)->get();
-            $seats = $planLimits->lock($tenant, 'employees');
-            try {
-                $planLimits->assertCanAdd($tenant, 'employees');
-                $employee->restore();
-            } finally {
-                $seats->release();
-            }
-
-            AuditLog::record('employee.restored', $employee);
-            $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
-        }
+        $restorer->restore($employee);
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 

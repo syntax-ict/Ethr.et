@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, GitBranch, KeyRound, Loader2, UserCog } from "lucide-react";
+import {
+  Archive,
+  Building2,
+  GitBranch,
+  KeyRound,
+  Loader2,
+  UserCog,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useBulkUpdateEmployees } from "@/features/employees/api";
+import { ArchiveDialog } from "@/features/employees/components/archive-dialog";
 import { GiveSignInDialog } from "@/features/employees/components/give-sign-in-dialog";
 import type { SignInPerson } from "@/features/employees/sign-in";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -78,6 +86,7 @@ export function BulkActionsBar({
   // The endpoint needs both: it makes logins and it edits the employee.
   const maySignIn = can.inviteUsers && hasPermission("employee.update");
   const [signInOpen, setSignInOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const timeZone = useTenantTimezone();
   // Today where the organisation is, not the UTC date `toISOString()` gives.
   const today = () => todayIn(timeZone);
@@ -194,6 +203,16 @@ export function BulkActionsBar({
               {t("employees.bulk.sign_in.button", "Give a way to sign in")}
             </Button>
           )}
+          {can.deleteEmployees && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setArchiveOpen(true)}
+            >
+              <Archive className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+              {t("employees.bulk.archive", "Archive")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -204,6 +223,17 @@ export function BulkActionsBar({
           selectedIds={selectedIds}
           people={people}
           onComplete={onComplete}
+        />
+      )}
+
+      {/* Mounted only while open, so its preview is asked afresh each time. */}
+      {can.deleteEmployees && archiveOpen && (
+        <ArchiveDialog
+          selectedIds={selectedIds}
+          onClose={(done) => {
+            setArchiveOpen(false);
+            if (done) onComplete();
+          }}
         />
       )}
 
