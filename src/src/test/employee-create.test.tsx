@@ -44,6 +44,15 @@ function renderPage() {
   // Ethiopian entry is three parts and has its own tests.
   localStorage.setItem("ethr.calendar", "gregorian");
   server.use(
+    // The salary is pay data: the form offers it only to someone holding
+    // employee.updateFinancial, as the API requires.
+    http.get("*/api/v1/auth/me", () =>
+      HttpResponse.json({
+        user: { public_id: "U1", role: "hr_admin" },
+        permissions: ["employee.create", "employee.updateFinancial"],
+        tenant: { timezone: "Africa/Addis_Ababa" },
+      }),
+    ),
     http.get("*/api/v1/employees/next-code", () =>
       HttpResponse.json({ employee_code: "EMP-0042", format: "EMP-{SEQ:4}" }),
     ),
@@ -117,7 +126,7 @@ describe("New employee form", () => {
     fireEvent.change(document.getElementById("hire_date")!, {
       target: { value: "2026-10-01" },
     });
-    fireEvent.change(screen.getByLabelText(/Monthly Salary/), {
+    fireEvent.change(await screen.findByLabelText(/Monthly Salary/), {
       target: { value: "5000.50" },
     });
 

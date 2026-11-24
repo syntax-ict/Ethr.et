@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Clock, CalendarDays, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionBoundary } from "@/components/shared/section-boundary";
 
 /**
  * Charts are the heaviest thing on this page (recharts, ~435 KB uncompressed,
@@ -351,7 +352,12 @@ function DeferredCharts() {
       margin="600px"
       placeholder={<Skeleton className={CHART_PLACEHOLDER} />}
     >
-      <InteractiveCharts />
+      {/* Opened offline before the charts' code was ever fetched, the import
+          fails; without this the route's error page took the whole
+          dashboard with it (production, 2026-11-24). */}
+      <SectionBoundary>
+        <InteractiveCharts />
+      </SectionBoundary>
     </Deferred>
   );
 }
