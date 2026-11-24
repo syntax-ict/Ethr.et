@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Enums\EmploymentFramework;
 use App\Models\ProfileVersion;
 use App\Models\StatutoryParameter;
 use App\Models\Tenant;
@@ -29,6 +30,12 @@ use Illuminate\Support\Carbon;
  * Every value carries where it came from: the layer, the enforcement, the
  * legal reference, the published batch (profile version) and the row.
  *
+ * Every rule has a domain. Payroll, its calculation log and the settings
+ * page read the payroll domain, which is the default everywhere; employment
+ * rules are read only through employment() and framework(), with find(),
+ * describe() or framework(), which answer null for a missing rule and never
+ * default it. get() and the typed accessors are payroll's and refuse.
+ *
  * Nothing here has a default. A code with no row in force is absent from the
  * set, and asking for it refuses the run by name (StatutoryRuleSet::get).
  */
@@ -42,9 +49,9 @@ final class StatutoryRules
 
     public function __construct(private readonly ProfileContext $profiles) {}
 
-    public function for(Tenant $tenant, CarbonInterface $asOf): StatutoryRuleSet
+    public function for(Tenant $tenant, CarbonInterface $asOf, string $domain = StatutoryParameter::DOMAIN_PAYROLL): StatutoryRuleSet
     {
-        $key = $tenant->id.'@'.$asOf->format('Y-m-d');
+        $key = $domain.':'.$tenant->id.'@'.$asOf->format('Y-m-d');
 
         if (isset($this->cache[$key])) {
             return $this->cache[$key];
@@ -52,15 +59,29 @@ final class StatutoryRules
 
         $profile = $this->profiles->for($tenant->id, $asOf);
 
-        return $this->cache[$key] = $this->resolve($tenant->id, $profile['organization_type'], $profile['lineage'], $profile['sector'], $asOf);
+        return $this->cache[$key] = $this->resolve($tenant->id, $profile['organization_type'], $profile['lineage'], $profile['sector'], $asOf, $domain);
     }
 
     /** The platform's values alone, for a type or for every type: what an organisation that overrides nothing gets. */
-    public function platform(CarbonInterface $asOf, ?string $organizationType = null, ?string $sector = null): StatutoryRuleSet
+    public function platform(CarbonInterface $asOf, ?string $organizationType = null, ?string $sector = null, string $domain = StatutoryParameter::DOMAIN_PAYROLL): StatutoryRuleSet
     {
-        $key = 'platform:'.($organizationType ?? '*').':'.($sector ?? '*').'@'.$asOf->format('Y-m-d');
+        $key = $domain.':platform:'.($organizationType ?? '*').':'.($sector ?? '*').'@'.$asOf->format('Y-m-d');
 
-        return $this->cache[$key] ??= $this->resolve(null, $organizationType, $this->profiles->lineage($organizationType), $sector, $asOf);
+        return $this->cache[$key] ??= $this->resolve(null, $organizationType, $this->profiles->lineage($organizationType), $sector, $asOf, $domain);
+    }
+
+    /** The employment-law rules in force for an organisation on a date. */
+    public function employment(Tenant $tenant, CarbonInterface $asOf): StatutoryRuleSet
+    {
+        return $this->for($tenant, $asOf, StatutoryParameter::DOMAIN_EMPLOYMENT);
+    }
+
+    /** The body of law governing the organisation's staff on a date, or null when none is on file. */
+    public function framework(Tenant $tenant, CarbonInterface $asOf): ?EmploymentFramework
+    {
+        $value = $this->employment($tenant, $asOf)->find('employment.framework');
+
+        return is_string($value) ? EmploymentFramework::tryFrom($value) : null;
     }
 
     /** @return list<string> the pension schemes in force today, for validation */
@@ -80,12 +101,13 @@ final class StatutoryRules
     /**
      * @param  list<string>  $lineage  the type, then its parent
      */
-    private function resolve(?int $tenantId, ?string $organizationType, array $lineage, ?string $sector, CarbonInterface $asOf): StatutoryRuleSet
+    private function resolve(?int $tenantId, ?string $organizationType, array $lineage, ?string $sector, CarbonInterface $asOf, string $domain): StatutoryRuleSet
     {
         $on = $asOf->format('Y-m-d');
 
         $rows = StatutoryParameter::query()
             ->withoutGlobalScope('tenant')
+            ->where('domain', $domain)
             ->where(fn ($q) => $tenantId === null
                 ? $q->whereNull('tenant_id')
                 : $q->whereNull('tenant_id')->orWhere('tenant_id', $tenantId))
