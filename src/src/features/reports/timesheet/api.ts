@@ -4,6 +4,7 @@ import { apiClient } from "@/api/client";
 import type { operations } from "@/api/generated";
 import type { CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toEthiopian } from "@/lib/calendar/ethiopian";
+import { saveBlob } from "@/lib/utils/csv-export";
 import {
   currentReportMonth,
   reportMonthRange,
@@ -125,6 +126,46 @@ export function periodOf(
 }
 
 const PER_PAGE = 25;
+
+/**
+ * The same sheet as an A4 landscape PDF: the filters of the screen, none of
+ * its paging. A list too long for one printed sheet comes back as a 422 that
+ * names the way to narrow it; with `responseType: "blob"` that body is a Blob,
+ * so it is read here, and thrown as the message a person can act on.
+ */
+export async function downloadTimesheetPdf(
+  filters: TimesheetFilters,
+  period: { from: string; to: string },
+): Promise<void> {
+  try {
+    const { data } = await apiClient.get("/reports/timesheet/pdf", {
+      params: {
+        ...period,
+        department: filters.department || undefined,
+        branch: filters.branch || undefined,
+        shift: filters.shift || undefined,
+        employment_status: filters.employment_status || undefined,
+      },
+      responseType: "blob",
+    });
+    saveBlob(`timesheet-${period.from}.pdf`, data);
+  } catch (error) {
+    const body = (error as { response?: { data?: unknown } }).response?.data;
+    if (body instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await body.text()) as {
+          detail?: string;
+          errors?: Record<string, string[]>;
+        };
+        const first = Object.values(parsed.errors ?? {})[0]?.[0];
+        throw new Error(first ?? parsed.detail ?? "");
+      } catch (inner) {
+        if (inner instanceof Error && inner.message) throw inner;
+      }
+    }
+    throw error;
+  }
+}
 
 export function useTimesheet(
   filters: TimesheetFilters,

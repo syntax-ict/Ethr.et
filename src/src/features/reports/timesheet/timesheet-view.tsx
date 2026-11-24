@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Download, Lock } from "lucide-react";
+import { AlertTriangle, Download, FileText, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,8 +25,10 @@ import {
   type ReportMonth,
 } from "@/features/reports/components/report-month-picker";
 import {
+  downloadTimesheetPdf,
   monthOf,
   periodOf,
+  type TimesheetFilters,
   useTimesheet,
   useTimesheetFilters,
   type Timesheet,
@@ -114,7 +117,11 @@ export function TimesheetView() {
       <PageActions
         actions={
           <>
-            <TimesheetDownload data={sheet.data} />
+            <TimesheetDownload
+              data={sheet.data}
+              filters={filters}
+              period={period}
+            />
             <PrintAction />
           </>
         }
@@ -811,23 +818,57 @@ export function timesheetCsv(data: Timesheet, t: T, locale: string): string {
   return buildCsv(rows);
 }
 
-export function TimesheetDownload({ data }: { data: Timesheet | undefined }) {
+export function TimesheetDownload({
+  data,
+  filters,
+  period,
+}: {
+  data: Timesheet | undefined;
+  filters: TimesheetFilters;
+  period: { from: string; to: string };
+}) {
   const { t, locale } = useT();
+  const [busy, setBusy] = useState(false);
   const body = useMemo(
     () => (data ? timesheetCsv(data, t, locale) : ""),
     [data, t, locale],
   );
   if (!data || data.data.length === 0) return null;
+
+  async function pdf() {
+    setBusy(true);
+    try {
+      await downloadTimesheetPdf(filters, period);
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t(
+              "reports_page.timesheet.pdf_failed",
+              "The PDF could not be made. Try again, or choose a department.",
+            ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() =>
-        saveCsv(`timesheet-${data.period?.from ?? "month"}.csv`, body)
-      }
-    >
-      <Download className="mr-2 h-4 w-4" aria-hidden />
-      {t("reports_page.timesheet.download_csv", "Download CSV")}
-    </Button>
+    <>
+      <Button variant="outline" size="sm" onClick={pdf} disabled={busy}>
+        <FileText className="mr-2 h-4 w-4" aria-hidden />
+        {t("reports_page.timesheet.download_pdf", "Download PDF")}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          saveCsv(`timesheet-${data?.period?.from ?? "month"}.csv`, body)
+        }
+      >
+        <Download className="mr-2 h-4 w-4" aria-hidden />
+        {t("reports_page.timesheet.download_csv", "Download CSV")}
+      </Button>
+    </>
   );
 }
