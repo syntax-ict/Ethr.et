@@ -83,6 +83,8 @@ class UpdateEmployeeRequest extends FormRequest
             ...EmployeeAddress::rules(),
             'hire_date' => ['sometimes', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date'],
+            'outside_employment_framework' => ['sometimes', 'boolean'],
+            'employment_framework_note' => ['nullable', 'string', 'max:255'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'salary_effective_date' => ['nullable', 'date'],
             'tin' => ['nullable', 'string', 'max:20'],

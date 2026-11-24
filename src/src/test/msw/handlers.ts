@@ -115,6 +115,8 @@ export function buildEmployee(
     probation_end_date: "2024-04-01",
     confirmation_date: "2024-04-01",
     termination_date: "",
+    outside_employment_framework: false,
+    employment_framework_note: null,
     // Kept internally consistent: a photo_path implies presigned URLs, which
     // EmployeeResource always returns alongside it.
     photo_path: "employees/01HZEMPLOYEE0000000000001.jpg",

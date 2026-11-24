@@ -11,6 +11,7 @@ use App\Support\EmployeeAddress;
 use App\Support\EmployeeAuditMask;
 use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
+use App\Support\FrameworkExemption;
 use App\Support\SalaryChangeContext;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -77,6 +78,7 @@ final class EmployeeUpdater
             Gate::forUser($actor)->authorize('updateFinancial', $employee);
         }
 
+        $data = FrameworkExemption::normalise($data, (bool) $employee->outside_employment_framework);
         $data = EmployeeRelations::resolveIds($data);
         $data = EmployeeAddress::normalize($data, $employee);
 
