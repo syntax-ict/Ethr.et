@@ -50,6 +50,7 @@ import {
   useResendInvite,
   useResetUserMfa,
   useSendInvitations,
+  useApplyTitleAccess,
   type TenantUser,
   type UpdateUserPayload,
   type UserRole,
@@ -136,14 +137,17 @@ export default function UsersSettingsPage() {
   // screen read only the first page, so accounts past the 25th could not be
   // edited, re-invited or removed (audit N68).
   const [page, setPage] = useState(1);
-  const filters = useQueryFilters({ q: "", status: "" });
+  const filters = useQueryFilters({ q: "", status: "", title: "" });
   const search = filters.values.q;
   const notActivatedOnly = filters.values.status === "invited";
+  const differsOnly = filters.values.title === "held";
   const usersQuery = useUsers({
     page,
     search: search || undefined,
     status: notActivatedOnly ? "invited" : undefined,
+    titleAccess: differsOnly ? "held" : undefined,
   });
+  const applyTitle = useApplyTitleAccess();
   const invite = useInviteUser();
   const update = useUpdateUser();
   const remove = useDeleteUser();
@@ -194,7 +198,8 @@ export default function UsersSettingsPage() {
     username: string;
     role: UserRole;
     status: EditableStatus | null;
-  }>({ username: "", role: "employee", status: "active" });
+    follows: boolean;
+  }>({ username: "", role: "employee", status: "active", follows: false });
 
   // The two dialogs are the forms: the invitation is dirty once anything is
   // typed or the role is moved off the default, the edit once a field differs
@@ -208,7 +213,8 @@ export default function UsersSettingsPage() {
         (editForm.username !== (editUser.username ?? "") ||
           editForm.role !== editUser.role ||
           editForm.status !==
-            (editUser.status === "invited" ? null : editUser.status))),
+            (editUser.status === "invited" ? null : editUser.status) ||
+          editForm.follows !== editUser.role_follows_position)),
   );
   const { announceSaved, announceError } = useSaveStatus();
 
@@ -217,6 +223,7 @@ export default function UsersSettingsPage() {
       username: u.username ?? "",
       role: u.role,
       status: u.status === "invited" ? null : u.status,
+      follows: u.role_follows_position,
     });
     setEditUser(u);
   }
@@ -265,7 +272,14 @@ export default function UsersSettingsPage() {
         publicId: editUser.public_id,
         payload: {
           username: editForm.username || null,
-          role: editForm.role,
+          ...(editForm.follows
+            ? { role_follows_position: true }
+            : {
+                role: editForm.role,
+                ...(editUser.role_follows_position
+                  ? { role_follows_position: false }
+                  : {}),
+              }),
           ...(editForm.status !== null && editForm.status !== editUser.status
             ? { status: editForm.status }
             : {}),
@@ -277,6 +291,17 @@ export default function UsersSettingsPage() {
     } catch (e) {
       announceError(e, t("users_page.update_failed", "Could not update user"));
       toastError(e, t("users_page.update_failed", "Could not update user"));
+    }
+  }
+
+  async function applyTitleRole(u: TenantUser) {
+    try {
+      await applyTitle.mutateAsync(u.public_id);
+      toast.success(
+        t("users_page.title_applied", "Role updated from the job title"),
+      );
+    } catch (e) {
+      toastError(e, t("common.error", "Something went wrong"));
     }
   }
 
@@ -342,6 +367,17 @@ export default function UsersSettingsPage() {
             }}
           >
             {t("users_page.not_activated", "Not activated")}
+          </Button>
+          <Button
+            variant={differsOnly ? "default" : "outline"}
+            size="sm"
+            aria-pressed={differsOnly}
+            onClick={() => {
+              filters.set({ title: differsOnly ? "" : "held" });
+              setPage(1);
+            }}
+          >
+            {t("users_page.differs_from_title", "Differs from job title")}
           </Button>
         </FilterBar>
 
@@ -417,9 +453,38 @@ export default function UsersSettingsPage() {
                         {t("common.not_set", "Not set")}
                       </span>
                     ),
-                    <span key="r" className="text-muted-foreground">
-                      {t(`role.${u.role}`, u.role.replace(/_/g, " "))}
-                    </span>,
+                    <div key="r">
+                      <span className="text-muted-foreground">
+                        {t(`role.${u.role}`, u.role.replace(/_/g, " "))}
+                      </span>
+                      {u.role_follows_position && (
+                        <span className="block text-xs text-muted-foreground">
+                          {t("users_page.from_title", "From job title")}
+                        </span>
+                      )}
+                      {u.title_role && u.title_role !== u.role && (
+                        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {t(
+                            "users_page.title_gives",
+                            "Job title gives :role. Waiting for someone who may give that role.",
+                            {
+                              role: t(
+                                `role.${u.title_role}`,
+                                u.title_role.replace(/_/g, " "),
+                              ),
+                            },
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={applyTitle.isPending}
+                            onClick={() => applyTitleRole(u)}
+                          >
+                            {t("users_page.apply_title", "Apply")}
+                          </Button>
+                        </span>
+                      )}
+                    </div>,
                     <div key="s">
                       <Badge
                         variant="outline"
@@ -637,9 +702,40 @@ export default function UsersSettingsPage() {
                   placeholder="abebe.k"
                 />
               </div>
+              {editUser?.employee && (
+                <div>
+                  <Label id="edit-source-label">
+                    {t("users_page.role_source", "Where the role comes from")}
+                  </Label>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="edit-source-label"
+                    className="mt-1 flex flex-wrap gap-2"
+                  >
+                    {[true, false].map((follows) => (
+                      <Button
+                        key={String(follows)}
+                        type="button"
+                        size="sm"
+                        role="radio"
+                        aria-checked={editForm.follows === follows}
+                        variant={
+                          editForm.follows === follows ? "default" : "outline"
+                        }
+                        onClick={() => setEditForm({ ...editForm, follows })}
+                      >
+                        {follows
+                          ? t("users_page.follows_title", "Follows job title")
+                          : t("users_page.set_by_hand", "Set by hand")}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <Label htmlFor="edit-role">{t("common.role", "Role")}</Label>
                 <Select
+                  disabled={editForm.follows}
                   value={editForm.role}
                   onValueChange={(v) =>
                     setEditForm({ ...editForm, role: v as UserRole })
