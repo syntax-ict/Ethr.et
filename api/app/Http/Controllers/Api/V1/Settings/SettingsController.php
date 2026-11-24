@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Settings;
 
+use App\Enums\EmploymentFramework;
 use App\Enums\TenantAddressMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
@@ -22,6 +23,7 @@ use App\Rules\PasswordPolicy;
 use App\Services\Auth\ActivationCodeService;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Employment\EmploymentFrameworks;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
@@ -35,6 +37,7 @@ use App\Support\PayChangeThresholds;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
+use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,7 +48,7 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
-    public function index(TenantAddressService $addresses, EmployeeNumbering $numbering): JsonResponse
+    public function index(TenantAddressService $addresses, EmployeeNumbering $numbering, EmploymentFrameworks $frameworks): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -84,6 +87,7 @@ class SettingsController extends Controller
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
                 'organization_type_pending' => $this->pendingType($tenant),
                 'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
+                'employment_framework' => $frameworks->describe($tenant, TenantTime::today($tenant)),
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
@@ -245,7 +249,7 @@ class SettingsController extends Controller
         ];
     }
 
-    public function updateOrganization(UpdateOrganizationRequest $request): JsonResponse
+    public function updateOrganization(UpdateOrganizationRequest $request, EmploymentFrameworks $frameworks): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -284,6 +288,16 @@ class SettingsController extends Controller
             app(OrganisationProfile::class)->cancelPending($tenant, $request->user()?->id);
         }
 
+        if (array_key_exists('employment_framework', $validated)) {
+            $chosen = $validated['employment_framework'];
+
+            if ($chosen === null) {
+                $frameworks->resetOwn($tenant);
+            } elseif (is_string($chosen)) {
+                $frameworks->setOwn($tenant, EmploymentFramework::from($chosen));
+            }
+        }
+
         // Mirror into the settings JSON as well: it was the only store before
         // this endpoint wrote the real columns, so keeping both in step means a
         // tenant is never left with two disagreeing values.
@@ -310,6 +324,7 @@ class SettingsController extends Controller
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
                 'organization_type_pending' => $this->pendingType($tenant),
                 'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
+                'employment_framework' => $frameworks->describe($tenant, TenantTime::today($tenant)),
             ],
         ]);
     }

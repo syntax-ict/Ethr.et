@@ -15,6 +15,10 @@ import {
   EDUCATION_LEVELS,
   educationLevelLabel,
 } from "@/lib/options/education-level";
+import {
+  EMPLOYMENT_FRAMEWORKS,
+  employmentFrameworkLabel,
+} from "@/lib/options/employment-framework";
 import { GENDERS, genderOptionLabel } from "@/lib/options/gender";
 import {
   MARITAL_STATUSES,
@@ -42,6 +46,7 @@ const LISTS = [
   ["relationship", RELATIONSHIPS, relationshipLabel],
   ["education level", EDUCATION_LEVELS, educationLevelLabel],
   ["notification type", NOTIFICATION_TYPES, notificationTypeLabel],
+  ["employment framework", EMPLOYMENT_FRAMEWORKS, employmentFrameworkLabel],
   ["announcement priority", ANNOUNCEMENT_PRIORITIES, announcementPriorityLabel],
   ["announcement category", ANNOUNCEMENT_CATEGORIES, announcementCategoryLabel],
   ["announcement audience", ANNOUNCEMENT_TARGETS, announcementTargetLabel],

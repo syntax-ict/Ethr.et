@@ -140,6 +140,52 @@ Child kinds inherit through their parent, except `regional_government`, which
 has its own row. The law behind each rule is traced in
 [`../EMPLOYMENT-LAW-REGISTER.md`](../EMPLOYMENT-LAW-REGISTER.md).
 
+### An organisation's own framework (since 2026-11-24)
+
+An organisation sees ETHR's reading in Settings (`GET /settings`,
+`organization.employment_framework`: `framework`, `confirmed`, `source`,
+`legal_reference`, `has_statutory_rules`, `ethr_reading`) and records its own
+with `PUT /settings/organization` and `employment_framework`: a value sets it,
+`null` goes back to ETHR's reading, an absent key changes nothing. The
+organisation's own row is `confirmed` (it recorded it) and, unlike ETHR's, has
+no legal reference. `App\Services\Employment\EmploymentFrameworks` writes it.
+
+The write is dated and never edits history. A row that started before today is
+closed the day before and a new one starts today, in the organisation's own
+zone, so `StatutoryRules::framework()` for an earlier date still answers what
+it did then. Only a row that started today is changed in place (a same-day
+change) or deleted (a same-day reset), and that is audited too. Every real
+change is audited as `statutory_parameter.overridden` or
+`statutory_parameter.reset`; saying what is already recorded writes no
+statutory row and no such entry, though the request itself is still recorded as
+`settings.organization_updated`. A write takes the organisation's row lock and
+ends every own row open on the day, so two saves cannot leave two open and a
+duplicate cannot survive a reset.
+
+The change is refused with a 422 on `employment_framework` when ETHR's rule for
+the organisation's kind is `locked`, because the resolver would ignore an own
+row. It is refused in a support session (`BlockImpersonatedActions`), for the
+organisation and for the employee exemption alike. Changing the organisation's
+kind leaves its own row in force.
+
+Because ETHR may have no row for a kind, the resolver lets an organisation's own
+**employment** row stand alone when no platform row exists for the code. A
+payroll code with no platform row stays absent, as before.
+
+`EmploymentFrameworks::forEmployee($employee, $on)` answers which framework
+governs one person: null when `employees.outside_employment_framework` is set
+(a managerial employee of a private company, mixed staff of a public
+enterprise; the optional `employment_framework_note` says why), otherwise the
+organisation's. A model loaded without that column is read from the database,
+so an unread column never means "covered". A feature that needs a person's
+framework must call it and treat null as "ask", never as a default.
+
+The exemption is a legal characterisation of a person, so `EmployeeResource`
+shows `outside_employment_framework` and `employment_framework_note` only to a
+viewer who holds `employee.update` and reaches that employee, and only when the
+columns were loaded. Everyone else, including a supervisor who may view the
+employee and every resource that embeds one, gets neither key.
+
 ## Organisation types
 
 A global catalogue (`organization_types`), written by migrations: there is
