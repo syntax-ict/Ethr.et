@@ -26,6 +26,8 @@ here (limits, rates, messages) were read from the source, with file references, 
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
 
+**Since the seventh edition (2026-11-24)** the settings review's fixes, #838 to #872 (live on `1eecdaed20`), have cases in files 03, 05, 07, 08 and 09 (SSO-006 to SSO-008, PWD-016, ACT-014, AUTH-043, TEN-028, HOL-006, HOL-007, PAY-042, PAY-043, NOT-008 to NOT-010, SCIM-004 to SCIM-006 and UI-015 to UI-020), listed in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition). Five existing cases were corrected where those fixes made them wrong (SSO-002, HOL-001, PAY-001, PAY-007, UI-005). The baseline marker below does not move: the pack as a whole was not re-audited.
+
 ## Read in this order
 
 | # | Document | Who it is for | What it gives you |
