@@ -25,6 +25,13 @@ export const VISIT_QUEUE_CHANGED_EVENT = "ethr-visit-queue-changed";
 export type QueuedVisit = LogVisit & {
   owner?: string | null;
   tenant?: string | null;
+  /**
+   * Set when the server refused this visit for good. It is never sent again,
+   * and it is kept so the person can be told: until 2026-11-24 a refused
+   * visit was dropped from the queue and nobody learned it had not counted,
+   * where a refused punch was listed with its reason.
+   */
+  refused?: { reason: string | null; at: string } | null;
 };
 
 function read(): QueuedVisit[] {
@@ -58,11 +65,12 @@ export function queuedVisits(): QueuedVisit[] {
   return read();
 }
 
-/** The request body of a queued visit: exactly LogVisit, no owner, no tenant. */
+/** The request body of a queued visit: exactly LogVisit, none of the phone's own fields. */
 export function visitBody(entry: QueuedVisit): LogVisit {
   const body: QueuedVisit = { ...entry };
   delete body.owner;
   delete body.tenant;
+  delete body.refused;
   return body;
 }
 
@@ -83,6 +91,7 @@ export function isSendableBy(
   owner: string,
   tenant: string | null,
 ): boolean {
+  if (entry.refused) return false;
   if (entry.owner != null && entry.owner !== owner) return false;
   if (entry.tenant != null && tenant != null && entry.tenant !== tenant) {
     return false;
@@ -90,10 +99,50 @@ export function isSendableBy(
   return true;
 }
 
-/** Entries that belong to `owner`, plus unowned old ones. */
-export function visitsOwnedBy(owner: string | null): QueuedVisit[] {
+function ownedBy(owner: string | null): QueuedVisit[] {
   if (!owner) return [];
   return read().filter((v) => v.owner == null || v.owner === owner);
+}
+
+/** Entries still waiting to be sent that belong to `owner`, plus unowned old ones. */
+export function visitsOwnedBy(owner: string | null): QueuedVisit[] {
+  return ownedBy(owner).filter((v) => !v.refused);
+}
+
+/** This person's visits the server refused for good, kept to be shown. */
+export function refusedVisitsOwnedBy(owner: string | null): QueuedVisit[] {
+  return ownedBy(owner).filter((v) => Boolean(v.refused));
+}
+
+/**
+ * When a queued visit was logged. The body carries no time of its own (the
+ * server stamps a visit when it arrives), but the key is made from the moment
+ * it was logged: `visit-<milliseconds>-<random>`.
+ */
+export function loggedAt(idempotencyKey: string): string | null {
+  const match = /^visit-(\d{10,})-/.exec(idempotencyKey);
+  if (!match) return null;
+  const at = new Date(Number(match[1]));
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
+/** The server will never accept this visit: keep it, stop sending it. */
+export function markVisitRefused(
+  idempotencyKey: string,
+  reason: string | null,
+): void {
+  write(
+    read().map((v) =>
+      v.idempotency_key === idempotencyKey
+        ? {
+            ...v,
+            photo: null,
+            refused: { reason, at: new Date().toISOString() },
+          }
+        : v,
+    ),
+  );
+  notify();
 }
 
 /** Queue a visit; returns false only if not even the text could be kept. */
