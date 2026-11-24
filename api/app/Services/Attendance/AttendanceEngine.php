@@ -1079,7 +1079,7 @@ final class AttendanceEngine
     }
 
     /** From the shift's start to a `late` record's check-in. */
-    private function lateMinutes(AttendanceRecord $record, ?string $zone): int
+    public function lateMinutes(AttendanceRecord $record, ?string $zone): int
     {
         if (! $record->shift || ! $record->check_in || $record->status !== AttendanceStatus::LATE) {
             return 0;
@@ -1092,7 +1092,7 @@ final class AttendanceEngine
     }
 
     /** From an early departure's check-out to the shift's end. */
-    private function earlyMinutes(AttendanceRecord $record, ?string $zone): int
+    public function earlyMinutes(AttendanceRecord $record, ?string $zone): int
     {
         if (! $record->shift || ! $record->check_out || ! $this->isEarlyDeparture($record, $zone)) {
             return 0;
