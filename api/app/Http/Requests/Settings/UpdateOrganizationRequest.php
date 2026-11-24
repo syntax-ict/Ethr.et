@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Enums\EmploymentFramework;
 use App\Models\OrganizationType;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationProfile;
@@ -11,6 +12,8 @@ use App\Support\Locales;
 use App\Support\OrganisationSectors;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Validator;
 
 class UpdateOrganizationRequest extends FormRequest
@@ -20,7 +23,7 @@ class UpdateOrganizationRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, array<int, string>> */
+    /** @return array<string, array<int, string|Enum>> */
     public function rules(): array
     {
         return [
@@ -31,6 +34,7 @@ class UpdateOrganizationRequest extends FormRequest
             'cancel_pending_organization_type' => ['sometimes', 'boolean'],
             'timezone' => ['sometimes', 'string', 'max:50', 'timezone:all'],
             'locale' => ['sometimes', 'string', Locales::rule()],
+            'employment_framework' => ['sometimes', 'nullable', 'string', Rule::enum(EmploymentFramework::class)],
         ];
     }
 

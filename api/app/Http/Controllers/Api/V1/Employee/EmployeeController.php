@@ -32,6 +32,7 @@ use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
 use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
+use App\Support\FrameworkExemption;
 use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
@@ -190,6 +191,9 @@ class EmployeeController extends Controller
         $confirmedNew = (bool) ($data['confirm_new'] ?? false);
         unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
+        $data = FrameworkExemption::normalise($data, false);
+        $data['outside_employment_framework'] ??= false;
+        $data['employment_framework_note'] ??= null;
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
         // Unset means the column default, Ethiopian — never a null.
@@ -283,7 +287,7 @@ class EmployeeController extends Controller
 
         // Resources render flat (withoutWrapping). Merge the provisioning result
         // as a top-level `meta` key without re-introducing a `data` wrapper.
-        $response = (new EmployeeResource($employee))->response()->setStatusCode(201);
+        $response = (new EmployeeResource($employee))->withEmploymentLaw()->response()->setStatusCode(201);
         $payload = $response->getData(true);
         $payload['meta'] = ['login_invited' => $loginInvited, 'activation_code_pending' => $activationCodePending];
         $response->setData($payload);
@@ -348,7 +352,7 @@ class EmployeeController extends Controller
             'emergencyContacts', 'bankDetails', 'education', 'transitions',
         ]);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee, EmployeeUpdater $updater): EmployeeResource
@@ -363,7 +367,7 @@ class EmployeeController extends Controller
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function destroy(Employee $employee): JsonResponse
