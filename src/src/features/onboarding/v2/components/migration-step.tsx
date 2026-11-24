@@ -94,6 +94,10 @@ import { matchReasonLabel } from "@/features/employees/likeness";
 
 const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
 
+// Another record holds the row's employee number, so it cannot be added as new.
+const numberHeld = (row: { warnings?: { code: string }[] | null }) =>
+  row.warnings?.some((w) => w.code === "number_held") === true;
+
 const reasonLabel = matchReasonLabel;
 
 function outcomeTone(outcome: MatchOutcome | null): string {
@@ -1826,7 +1830,7 @@ export function MigrationStep({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(batch.mode === "complete"
+                          {(batch.mode === "complete" || numberHeld(row)
                             ? ACTIONS.filter((a) => a !== "create")
                             : ACTIONS
                           ).map((a) => (
