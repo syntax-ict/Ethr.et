@@ -43,10 +43,13 @@ import {
 import { DataTable } from "@/components/patterns/DataTable";
 import { ArchivedBulkBar } from "@/features/employees/components/archived-bulk-bar";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
+import { BulkResultDialog } from "@/features/employees/components/bulk-result-dialog";
 import { SignInBadge } from "@/features/employees/components/sign-in-badge";
 import { HeadcountCharts } from "@/features/employees/components/headcount-charts";
 import {
   exportEmployees,
+  fetchMatchingEmployeeIds,
+  type BulkUpdateRun,
   fetchEmployeeImportTemplate,
   useEmployees,
 } from "@/features/employees/api";
@@ -181,6 +184,20 @@ export default function EmployeesPage() {
   // (internally-managed) row selection — column visibility survives the
   // remount because it's now lifted to this page (see below), not internal.
   const [selectionResetKey, setSelectionResetKey] = useState(0);
+  // The people the list names. Changing any of these remounts the table too, so
+  // a ticked row, or "select all matching", cannot outlive the filter it was
+  // made under. Sort and page do not change who matches, so they are left out.
+  const selectionFilterKey = JSON.stringify([
+    search,
+    status,
+    department,
+    branch,
+    reviewOnly,
+    missing,
+  ]);
+  // What a bulk update did to each person it did not simply change. Held here,
+  // not in the bar, because clearing the selection removes the bar.
+  const [bulkResult, setBulkResult] = useState<BulkUpdateRun | null>(null);
   // Same key DataTable would use internally, so existing persisted
   // visibility carries over now that saved views need to read/apply it.
   const [columnVisibility, setColumnVisibility] =
@@ -662,7 +679,7 @@ export default function EmployeesPage() {
         </FilterBar>
 
         <DataTable
-          key={`${selectionResetKey}-${archivedView ? "archived" : "live"}`}
+          key={`${selectionResetKey}-${archivedView ? "archived" : "live"}-${selectionFilterKey}`}
           tableId="employees"
           columns={columns}
           data={data?.data ?? []}
@@ -718,7 +735,14 @@ export default function EmployeesPage() {
               <BulkActionsBar
                 selectedIds={selectedIds}
                 people={data?.data ?? []}
-                onComplete={() => setSelectionResetKey((k) => k + 1)}
+                totalMatching={total}
+                fetchAllMatching={() =>
+                  fetchMatchingEmployeeIds({ search, ...listFilters })
+                }
+                onComplete={(result) => {
+                  setSelectionResetKey((k) => k + 1);
+                  if (result) setBulkResult(result);
+                }}
               />
             )
           }
@@ -763,6 +787,12 @@ export default function EmployeesPage() {
             />
           }
         />
+        {bulkResult && (
+          <BulkResultDialog
+            result={bulkResult}
+            onClose={() => setBulkResult(null)}
+          />
+        )}
       </div>
     </RoleGate>
   );
