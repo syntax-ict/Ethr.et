@@ -66,7 +66,7 @@ final class PayrollEngine
         private readonly LoanService $loanService,
         private readonly CostSharingService $costSharingService,
         private readonly AllowanceService $allowanceService,
-        private readonly OvertimeClassifier $overtimeClassifier,
+        private readonly PeriodOvertime $periodOvertime,
         private readonly HolidayService $holidayService,
         private readonly LeaveDayCalculator $leaveDayCalculator,
         private readonly EthiopianCalendar $calendar,
@@ -1500,7 +1500,7 @@ final class PayrollEngine
      * (half-day aware) is used; a request spanning the period boundary is
      * clipped and recounted against holidays/weekends.
      */
-    private function gatherUnpaidLeaveDays(Employee $employee, Carbon $periodStart, Carbon $periodEnd): float
+    public function gatherUnpaidLeaveDays(Employee $employee, Carbon $periodStart, Carbon $periodEnd): float
     {
         $requests = LeaveRequest::query()
             ->withoutGlobalScope('tenant')
@@ -1639,7 +1639,7 @@ final class PayrollEngine
         return $absent;
     }
 
-    private function attendanceInUse(int $tenantId, string $first, string $last): bool
+    public function attendanceInUse(int $tenantId, string $first, string $last): bool
     {
         return $this->attendanceInUse["{$tenantId}|{$first}|{$last}"] ??= AttendanceRecord::query()
             ->where('tenant_id', $tenantId)
@@ -1665,19 +1665,12 @@ final class PayrollEngine
      * the ones passed over on the period's own days. Overtime is never held back
      * for being unapproved or over a limit; this only stops one shift paying twice.
      *
-     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>, skipped: list<array{record: string, kept: string, date: string}>}
+     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>, by_day_type: array<string, array<string, int>>, skipped: list<array{record: string, kept: string, date: string}>}
      */
     public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
-        $limitedTypes = $rules->list('overtime.limited_types');
-        $nightWindow = $rules->list('overtime.night_window');
-        $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
-        $byDay = [];
-
         $windowStart = $periodStart->copy()->startOfWeek(Carbon::MONDAY);
         $windowEnd = $periodEnd->copy()->endOfWeek(Carbon::SUNDAY);
-        $firstPaid = $periodStart->format('Y-m-d');
-        $lastPaid = $periodEnd->format('Y-m-d');
 
         $holidayDates = $this->holidayService->getHolidayDates(
             $employee->tenant_id,
@@ -1710,42 +1703,15 @@ final class PayrollEngine
         // normal day, and a Sunday at a six-day one as a rest day.
         $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
-        $overlapping = OverlappingAttendance::skipped($records);
-        $byId = $records->keyBy('id');
-        $skipped = [];
-
-        foreach ($records as $record) {
-            $date = Carbon::parse($record->date);
-            $day = $date->format('Y-m-d');
-            $paid = $day >= $firstPaid && $day <= $lastPaid;
-
-            if (isset($overlapping[$record->id])) {
-                if ($paid) {
-                    $skipped[] = ['record' => $record->public_id, 'kept' => $byId[$overlapping[$record->id]]->public_id, 'date' => $day];
-                }
-
-                continue;
-            }
-
-            $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
-            $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
-                ?? ($record->shift !== null
-                    ? ! $record->shift->isWorkingDay($date)
-                    : ! in_array($date->dayOfWeekIso, $workingWeek, true));
-
-            foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay, $nightWindow) as $type => $minutes) {
-                if ($paid) {
-                    $buckets[$type] += $minutes;
-                }
-                if (in_array($type, $limitedTypes, true)) {
-                    $byDay[$day] = ($byDay[$day] ?? 0) + $minutes;
-                }
-            }
-        }
-
-        ksort($byDay);
-
-        return ['buckets' => $buckets, 'by_day' => $byDay, 'skipped' => $skipped];
+        return $this->periodOvertime->tally(
+            $records,
+            $holidayDates,
+            $rotationRestDays,
+            $workingWeek,
+            $periodStart,
+            $periodEnd,
+            $rules,
+        );
     }
 
     /**
