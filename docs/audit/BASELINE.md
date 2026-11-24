@@ -5342,7 +5342,7 @@ A role was only ever set by hand on Settings > Users, so a promotion in the job-
 
 **Not done.** The plan limit is still counted over every `create` row before the chunk, so a held row is counted for a seat it will not use. That can only refuse early, never overfill. The setup wizard shows the same warnings through the same payload; its own screen was not opened.
 
-### 25ax. Accepting differences for many rows: built 2026-11-24
+### 25az. Accepting differences for many rows: built 2026-11-24
 
 **What was wrong.** A difference between a corrected file and ETHR is written only where it is accepted on that row, so correcting 300 people took 300 rows of ticks. The shortcut has a failure to design against: a file whose numbers are shifted by a line matches every row to the wrong person, and a bulk accept would rename them into each other.
 
