@@ -171,12 +171,14 @@ export function DeviceActionsMenu({
   ]);
 
   add("address", t("devices_page.actions_group_address"), [
-    device.has_webhook_token === true && canUpdate && (
-      <DropdownMenuItem key="regen" onSelect={() => setConfirmRegen(true)}>
-        <RotateCw className={icon} aria-hidden="true" />
-        {t("device_detail_page.regenerate_token")}
-      </DropdownMenuItem>
-    ),
+    device.has_webhook_token === true &&
+      device.uses_webhook_token === true &&
+      canUpdate && (
+        <DropdownMenuItem key="regen" onSelect={() => setConfirmRegen(true)}>
+          <RotateCw className={icon} aria-hidden="true" />
+          {t("device_detail_page.regenerate_token")}
+        </DropdownMenuItem>
+      ),
   ]);
 
   add("staff", t("devices_page.actions_group_staff"), [

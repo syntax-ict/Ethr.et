@@ -43,7 +43,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -63,6 +62,7 @@ import {
   SyncErrorHint,
   syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
+import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
 import { PushSetup } from "@/features/devices/components/push-setup";
 import { RegenerateTokenDialog } from "@/features/devices/components/regenerate-token-dialog";
 import {
@@ -433,48 +433,46 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         <AdmsSetupCard device={device} />
 
         {/* Webhook URL */}
-        {device.has_webhook_token &&
-          device.adapter_type !== "mock" &&
-          device.adapter_type !== "zkteco_adms" && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">
-                  {t("device_detail_page.webhook_config")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {device.receives_only && device.webhook_url_masked && (
-                    <PushSetup url={device.webhook_url_masked} masked />
-                  )}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      {t("device_token.masked_label")}
-                    </Label>
-                    <code
-                      data-testid="masked-address"
-                      className="mt-1 block rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all"
-                    >
-                      {device.webhook_url_masked ?? t("common.none", "None")}
-                    </code>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("device_token.masked_hint")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfirmRegen(true)}
-                    >
-                      <RotateCw className="mr-2 h-3 w-3" />
-                      {t("device_token.regenerate_to_see")}
-                    </Button>
-                  </div>
+        {device.has_webhook_token && device.uses_webhook_token && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">
+                {t("device_detail_page.webhook_config")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {device.receives_only && device.webhook_url_masked && (
+                  <PushSetup url={device.webhook_url_masked} masked />
+                )}
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {t("device_token.masked_label")}
+                  </Label>
+                  <code
+                    data-testid="masked-address"
+                    className="mt-1 block rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all"
+                  >
+                    {device.webhook_url_masked ?? t("common.none", "None")}
+                  </code>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("device_token.masked_hint")}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmRegen(true)}
+                  >
+                    <RotateCw className="mr-2 h-3 w-3" />
+                    {t("device_token.regenerate_to_see")}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <QuarantineCard deviceId={device.public_id} canUpdate={canUpdate} />
 
@@ -734,34 +732,12 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           onOpenChange={setConfirmRegen}
         />
 
-        {/* Delete Confirmation */}
-        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
-              <DialogDescription>
-                {t("devices_page.delete_confirm_prefix")}{" "}
-                <strong>{device.name}</strong>?{" "}
-                {t("device_detail_page.delete_desc_suffix")}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={remove}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("common.delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteDeviceDialog
+          deviceName={deleteOpen ? device.name : null}
+          pending={deleteMutation.isPending}
+          onConfirm={remove}
+          onClose={() => setDeleteOpen(false)}
+        />
       </div>
     </RoleGate>
   );

@@ -41,6 +41,8 @@ class DeviceResource extends JsonResource
             'accepts_commands' => (bool) app(DeviceCommandQueue::class)->supports($this->resource),
             'receives_only' => DeviceManager::hasNoRoster($this->resource),
             'pulled' => ! DeviceManager::receivesOnly($this->resource),
+            'connection_mode' => DeviceManager::connectionMode($this->resource),
+            'uses_webhook_token' => DeviceManager::usesWebhookToken($this->resource),
             'sync_interval_minutes' => $this->sync_interval_minutes,
             'timezone' => $this->timezone,
             'webhook_ip_allowlist' => $this->when(
@@ -81,11 +83,11 @@ class DeviceResource extends JsonResource
                 ],
             ),
             'webhook_rejected' => $this->when(
-                $this->showsToken($request) && in_array($this->adapter_type, ['hikvision', 'zkteco', 'suprema'], true),
+                $this->showsToken($request) && DeviceManager::usesWebhookToken($this->resource),
                 fn () => WebhookRejections::last($this->resource),
             ),
             'last_keepalive_at' => $this->when(
-                $this->showsToken($request) && in_array($this->adapter_type, ['hikvision', 'zkteco', 'suprema'], true) && DeviceManager::receivesOnly($this->resource),
+                $this->showsToken($request) && DeviceManager::usesWebhookToken($this->resource) && DeviceManager::receivesOnly($this->resource),
                 fn () => TerminalKeepAlive::last($this->resource),
             ),
             'branch' => new BranchResource($this->whenLoaded('branch')),
