@@ -55936,7 +55936,11 @@
                         "format": "date-time"
                     },
                     "created_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -56350,7 +56354,10 @@
                         "type": "boolean"
                     },
                     "access_role": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "employees_count": {
                         "type": "integer"
