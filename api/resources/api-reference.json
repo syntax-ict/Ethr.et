@@ -55076,6 +55076,12 @@
                     "is_active": {
                         "type": "boolean"
                     },
+                    "access_role": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "employees_count": {
                         "type": "integer"
                     },
@@ -55101,6 +55107,7 @@
                     "code",
                     "description",
                     "is_active",
+                    "access_role",
                     "created_at",
                     "updated_at"
                 ],
@@ -59163,6 +59170,19 @@
                             "boolean",
                             "null"
                         ]
+                    },
+                    "access_role": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "supervisor",
+                            "dept_admin",
+                            "hr_admin",
+                            "finance_admin",
+                            null
+                        ]
                     }
                 },
                 "required": [
@@ -61303,6 +61323,19 @@
                         "type": [
                             "boolean",
                             "null"
+                        ]
+                    },
+                    "access_role": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "supervisor",
+                            "dept_admin",
+                            "hr_admin",
+                            "finance_admin",
+                            null
                         ]
                     }
                 },

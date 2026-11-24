@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\User;
+use App\Services\Access\PositionAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,6 +22,8 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'phone' => $this->phone,
             'role' => $this->role,
+            'role_follows_position' => (bool) $this->role_follows_position,
+            'title_role' => app(PositionAccess::class)->titleRole($this->resource)?->value,
             'status' => $this->status,
             'locale' => $this->locale,
             'mfa_enabled' => (bool) $this->mfa_enabled,

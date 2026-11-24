@@ -40,6 +40,7 @@ class UpdateUserRequest extends FormRequest
                     ->withoutTrashed(),
             ],
             'role' => ['sometimes', 'string', Rule::enum(UserRole::class)],
+            'role_follows_position' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'suspended'])],
             'custom_role_id' => ['sometimes', 'nullable', 'string', 'exists:custom_roles,public_id'],
             'locale' => ['sometimes', 'string', Locales::rule()],
@@ -59,8 +60,14 @@ class UpdateUserRequest extends FormRequest
             // the organisation admin's: an HR admin could lock a Finance admin
             // out, which `users.delete` (tenant admins only) was meant to keep
             // from them. Seniors are refused by UserController (403).
-            $changesRole = $target instanceof User && $this->has('role')
+            // Turning "follows the job title" on may move the role, so it is
+            // checked as a role change; with it on, a role in the same payload
+            // is ignored.
+            $followsOn = $target instanceof User && $this->boolean('role_follows_position')
+                && $this->has('role_follows_position');
+            $changesRole = $target instanceof User && ! $followsOn && $this->has('role')
                 && $this->input('role') !== $target->role->value;
+            $movesRole = $changesRole || ($followsOn && ! $target->role_follows_position);
             $changesStatus = $target instanceof User && $this->has('status')
                 && $this->input('status') !== $target->status;
             // A custom role replaces its holder's permissions, so giving a peer
@@ -72,17 +79,17 @@ class UpdateUserRequest extends FormRequest
             // handed on: ETHR's support calls them, and only they may give
             // it away (OrganisationOwnership). A custom role replaces their
             // permissions, so it is refused the same way.
-            if (($changesRole || $changesCustomRole || ($changesStatus && $this->input('status') !== 'active'))
+            if (($movesRole || $changesCustomRole || ($changesStatus && $this->input('status') !== 'active'))
                 && OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
-                $v->errors()->add($changesRole ? 'role' : ($changesCustomRole ? 'custom_role_id' : 'status'), __('user.errors.owner_transfer_first'));
+                $v->errors()->add($changesRole ? 'role' : ($movesRole ? 'role_follows_position' : ($changesCustomRole ? 'custom_role_id' : 'status')), __('user.errors.owner_transfer_first'));
 
                 return;
             }
 
-            if (($changesRole || $changesStatus || $changesCustomRole) && $actor !== null
+            if (($movesRole || $changesStatus || $changesCustomRole) && $actor !== null
                 && ! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
                 && $target->id !== $actor->id && $target->role->level() === $actor->role->level()) {
-                $v->errors()->add($changesRole ? 'role' : ($changesStatus ? 'status' : 'custom_role_id'), __('user.errors.account_at_your_level'));
+                $v->errors()->add($changesRole ? 'role' : ($movesRole ? 'role_follows_position' : ($changesStatus ? 'status' : 'custom_role_id')), __('user.errors.account_at_your_level'));
 
                 return;
             }

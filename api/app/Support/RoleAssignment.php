@@ -6,6 +6,8 @@ namespace App\Support;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\CurrentTenant;
+use App\Services\Tenancy\OrganisationOwnership;
 
 /**
  * Who may hand out which built-in role, in one place.
@@ -54,5 +56,39 @@ final class RoleAssignment
         }
 
         return null;
+    }
+
+    /**
+     * Whether $actor may give $target the role $to by hand, which is exactly
+     * what `PATCH /users/{user}` with `role` allows: not their own account,
+     * not the organisation owner's, not someone who outranks them, not a peer
+     * at their own level below the organisation admin, and only a role
+     * `refusal()` lets them hand out. A job-title change asks this too, so it
+     * does automatically only what the person could have done by hand.
+     */
+    public static function mayChange(User $actor, User $target, UserRole $to): bool
+    {
+        if ($actor->id === $target->id) {
+            return false;
+        }
+
+        if (OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
+            return false;
+        }
+
+        if ($actor->isSuperAdmin()) {
+            return self::refusal($actor, $to) === null;
+        }
+
+        if ($target->role->level() > $actor->role->level()) {
+            return false;
+        }
+
+        if ($actor->role->level() < UserRole::TENANT_ADMIN->level()
+            && $target->role->level() === $actor->role->level()) {
+            return false;
+        }
+
+        return self::refusal($actor, $to) === null;
     }
 }
