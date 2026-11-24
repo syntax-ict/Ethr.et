@@ -680,3 +680,23 @@ reminded before it ends.
 - `employee.probation_end_hint`: ቀኑ ገና ካላለፈ ሰውየው በሙከራ ጊዜ ይጀምራል፤ ሙከራው ከመጠናቀቁ በፊት የሰው ሀብት ክፍሉ ማሳሰቢያ ይደርሰዋል።
 
 What to check first: that "የሰው ሀብት ክፍሉ" ("the human resources unit") is the term HR staff use for themselves.
+
+### Accept differences for many people (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: accept differences dialog | `src/src/lib/i18n/locales/{am,om}.json`, `accept_differences.button`, `title`, `desc`, `people_one`, `people`, `sensitive`, `held_one`, `held`, `confirm`, `running`, `result`, `result_pay`, `failed` | 13 each |
+| Row warning: may be someone else | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person` | 1 each |
+
+The Amharic drafts:
+
+- `accept_differences.button`: ልዩነቶችን ተቀበል
+- `accept_differences.title`: ለብዙ ሰዎች ልዩነቶችን ተቀበል
+- `accept_differences.desc`: ከዚህ ዝርዝር ጋር ለተመሳሰሉ ሁሉ የሚወሰዱትን ዝርዝሮች ይምረጡ። ዝርዝሩ እስኪጨመር ድረስ ለማንም ምንም አይጻፍም።
+- `accept_differences.sensitive`: መጀመሪያ ላይ አልተመረጠም። በአንድ መስመር የተሸጋገረ ቁጥር የአንድን ሰው ዝርዝር በሌላ ሰው ላይ ያደርጋል።
+- `accept_differences.held_one`: 1 መስመር ሌላ ሰው ሊሆን ይችላል። በራሱ መስመር ላይ እንዲወስኑ ተትቷል።
+- `accept_differences.result`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።
+- `accept_differences.result_pay`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።
+- `migration.maybe_other_person` (changed 2026-11-24: the row now waits for the reviewer): በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ለዚያ ሰው ምንም አይጻፍም። ያረጋግጡ፣ እሱ ከሆነ አዋህድን ይምረጡ።
+
+What to check first: that "ተቀበል" ("accept") is the verb the list screens already use for taking a value from the list, that "ተሸጋገረ" ("shifted") reads as a number moved down by one line, and that "ተትቷል" ("left") reads as left for the reviewer rather than abandoned. The Afaan Oromoo lines are drafts and unread.
