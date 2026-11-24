@@ -42,5 +42,6 @@ export type Employee = Pick<
   | "team"
   | "cost_center"
   | "supervisor"
+  | "archived_at"
   | "created_at"
 >;

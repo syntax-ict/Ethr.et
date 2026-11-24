@@ -799,9 +799,10 @@ not be finished.
 
 **Limits.** A list is deleted 30 days after its last activity
 (`MigrationBatch::RETENTION_DAYS`), and with it the record of who it created, so an undo exists
-only inside that window. No screen lists archived employees: one is restored through the API
-route above, or by adding the person again, where the likeness dialog offers "Restore their
-record". Archiving removes a person from the attendance terminals of their branch and revokes
+only inside that window. Archived employees are listed under the Employees page's status filter,
+"Archived" (`GET /employees?filter[archived]=1`, for whoever may delete employees), where they can be
+restored one at a time or in bulk (`POST /employees/bulk-restore`); adding the person again also
+offers "Restore their record" in the likeness dialog. Archiving removes a person from the attendance terminals of their branch and revokes
 their registered phones, as any archive does, and a restore does not put those back. The Amharic
 and Afaan Oromoo wording has not been read by a native speaker. The derivation for a list
 committed before 2026-11-20 has been exercised only by tests, not against production data.

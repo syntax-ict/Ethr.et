@@ -26,6 +26,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useArchiveReasonText } from "@/features/employees/use-archive-reasons";
 import { UndoStalled, useUndoMigration, useUndoPreview } from "../api";
 import type { MigrationBatch, UndoPerson, UndoPreview } from "../types";
 
@@ -239,28 +240,14 @@ function PreviewBody({ preview }: { preview: UndoPreview }) {
   const moreArchive = preview.archive_count - preview.archive.length;
   const moreKeep = preview.keep_count - preview.keep.length;
 
-  const reasonLabels: Record<string, string> = {
-    attendance: t("migration_undo.reason_attendance", "Has attendance records"),
-    signed_in: t("migration_undo.reason_signed_in", "Has signed in"),
-    payroll: t("migration_undo.reason_payroll", "Has been in a payroll"),
-    leave: t("migration_undo.reason_leave", "Has leave records"),
-    overtime: t("migration_undo.reason_overtime", "Has overtime records"),
-    documents: t("migration_undo.reason_documents", "Has documents"),
-    hr_records: t("migration_undo.reason_hr_records", "Has HR records"),
-    in_charge: t("migration_undo.reason_in_charge", "Is in charge of others"),
-    assigned: t("migration_undo.reason_assigned", "Has been assigned work"),
+  // The reasons are shared with archiving a selection of people; only "not
+  // certain this list added them" belongs to this screen.
+  const reasonText = useArchiveReasonText({
     unsure_origin: t(
       "migration_undo.reason_unsure_origin",
       "Not certain this list added them",
     ),
-  };
-  const unknownReason = t("migration_undo.reason_unknown", "Has been used");
-
-  // A code this screen does not know is "used", never a raw code.
-  const reasonText = (reasons: string[]) =>
-    Array.from(
-      new Set(reasons.map((r) => reasonLabels[r] ?? unknownReason)),
-    ).join(", ");
+  });
 
   return (
     <div className="min-w-0 space-y-4">

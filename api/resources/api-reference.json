@@ -16146,6 +16146,387 @@
                 }
             }
         },
+        "/employees/bulk-archive": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employeeBulk.bulkArchive",
+                "description": "Without `confirm` this only says what would happen and writes nothing.\nWith `confirm: true` it archives everyone who has no history, each in\ntheir own transaction, asking again whether they have been used at that\nmoment. Someone with attendance, pay, leave, a sign-in or any other\nhistory is kept, with the reasons, and leaves through a status change\ninstead. Nobody archives their own record (`self`). Anyone already\narchived is reported as such, not refused, so the same request twice\nchanges nothing the second time.\n\nAn id outside the requester's org scope refuses the whole request with\nthe 422 an id that exists nowhere gets. Archived people can be brought\nback with `POST /employees/bulk-restore`.",
+                "summary": "Archive people who should not have a record: added by mistake, or twice",
+                "tags": [
+                    "Employees"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkArchiveRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "confirmed": {
+                                            "type": "boolean"
+                                        },
+                                        "archive_count": {
+                                            "type": "integer"
+                                        },
+                                        "keep_count": {
+                                            "type": "integer"
+                                        },
+                                        "already_archived": {
+                                            "type": "integer"
+                                        },
+                                        "failed": {
+                                            "type": "integer"
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "already_archived"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "kept",
+                                                                    "keep"
+                                                                ]
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "archive"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "failed"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "archived"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "kept"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "reasons",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "confirmed",
+                                        "archive_count",
+                                        "keep_count",
+                                        "already_archived",
+                                        "failed",
+                                        "results"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/employees/bulk-restore": {
+            "post": {
+                "x-abilities": [
+                    "write",
+                    "employees"
+                ],
+                "operationId": "employeeBulk.bulkRestore",
+                "summary": "Bring archived people back, each as `POST /employees/{employee}/restore`\ndoes: the plan's employee limit is counted under the seat lock, the\nrestore is audited and the webhook is sent. `results` reports each id as\n`restored`, `unchanged` (not archived) or `failed`, with the reason, for\nexample that the plan has no seat left. One refusal does not stop the\nothers. A restore does not reopen a login that archiving closed",
+                "tags": [
+                    "Employees"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkRestoreRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "restored": {
+                                            "type": "integer"
+                                        },
+                                        "failed": {
+                                            "type": "integer"
+                                        },
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "const": "failed"
+                                                            },
+                                                            "error": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "error"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "restored",
+                                                                    "unchanged"
+                                                                ]
+                                                            },
+                                                            "error": {
+                                                                "type": "null"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "employee_id",
+                                                            "name",
+                                                            "outcome",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "restored",
+                                        "failed",
+                                        "results"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/employees/bulk-update": {
             "post": {
                 "x-abilities": [
@@ -49438,6 +49819,46 @@
                 ],
                 "title": "BranchResource"
             },
+            "BulkArchiveRequest": {
+                "type": "object",
+                "properties": {
+                    "employee_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1,
+                        "maxItems": 200
+                    },
+                    "confirm": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "employee_ids"
+                ],
+                "title": "BulkArchiveRequest"
+            },
+            "BulkRestoreRequest": {
+                "type": "object",
+                "properties": {
+                    "employee_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1,
+                        "maxItems": 200
+                    }
+                },
+                "required": [
+                    "employee_ids"
+                ],
+                "title": "BulkRestoreRequest"
+            },
             "BulkUpdateRequest": {
                 "type": "object",
                 "properties": {
@@ -51762,6 +52183,13 @@
                             "$ref": "#/components/schemas/EmployeeTransitionResource"
                         }
                     },
+                    "archived_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -51811,6 +52239,7 @@
                     "photo_path",
                     "photo_url",
                     "photo_thumb_url",
+                    "archived_at",
                     "created_at",
                     "updated_at"
                 ],

@@ -3461,6 +3461,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/bulk-archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive people who should not have a record: added by mistake, or twice
+         * @description Without `confirm` this only says what would happen and writes nothing.
+         *     With `confirm: true` it archives everyone who has no history, each in
+         *     their own transaction, asking again whether they have been used at that
+         *     moment. Someone with attendance, pay, leave, a sign-in or any other
+         *     history is kept, with the reasons, and leaves through a status change
+         *     instead. Nobody archives their own record (`self`). Anyone already
+         *     archived is reported as such, not refused, so the same request twice
+         *     changes nothing the second time.
+         *
+         *     An id outside the requester's org scope refuses the whole request with
+         *     the 422 an id that exists nowhere gets. Archived people can be brought
+         *     back with `POST /employees/bulk-restore`.
+         */
+        post: operations["employeeBulk.bulkArchive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/bulk-restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring archived people back, each as `POST /employees/{employee}/restore`
+         *     does: the plan's employee limit is counted under the seat lock, the
+         *     restore is audited and the webhook is sent. `results` reports each id as
+         *     `restored`, `unchanged` (not archived) or `failed`, with the reason, for
+         *     example that the plan has no seat left. One refusal does not stop the
+         *     others. A restore does not reopen a login that archiving closed
+         */
+        post: operations["employeeBulk.bulkRestore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/logins": {
         parameters: {
             query?: never;
@@ -10215,6 +10270,15 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** BulkArchiveRequest */
+        BulkArchiveRequest: {
+            employee_ids: string[];
+            confirm?: boolean | null;
+        };
+        /** BulkRestoreRequest */
+        BulkRestoreRequest: {
+            employee_ids: string[];
+        };
         /** BulkUpdateRequest */
         BulkUpdateRequest: {
             employee_ids: string[];
@@ -10814,6 +10878,8 @@ export interface components {
             bank_details?: components["schemas"]["BankDetailResource"][];
             education?: components["schemas"]["EducationResource"][];
             transitions?: components["schemas"]["EmployeeTransitionResource"][];
+            /** Format: date-time */
+            archived_at: string | null;
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -24181,6 +24247,123 @@ export interface operations {
                             employee_id: string;
                             /** @constant */
                             outcome: "unchanged";
+                            error: null;
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeBulk.bulkArchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkArchiveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        confirmed: boolean;
+                        archive_count: number;
+                        keep_count: number;
+                        already_archived: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "already_archived";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @enum {string} */
+                            outcome: "kept" | "keep";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "archive";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "failed";
+                            reasons: string[];
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "archived";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "kept";
+                            reasons: string[];
+                            error: null;
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeBulk.bulkRestore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRestoreRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        restored: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "failed";
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @enum {string} */
+                            outcome: "restored" | "unchanged";
                             error: null;
                         })[];
                     };

@@ -628,6 +628,20 @@ What to check first: that "የተከፈሉ ቀኖች" ("split days") is understo
 that "አዋህድ" ("join") matches the verb the Conflicts page already uses for a merged record (`ተዋህዷል`), and that
 "ሊታዩ ይቀራሉ" ("still to look at") reads naturally in the progress line.
 
+### Archive and restore people (2026-11-24)
+
+Drafts written without a native speaker; the wording reuses the Undo dialog's "ወደ ማህደር ውሰድ" for "archive".
+
+- `employees.bulk.archive`: ወደ ማህደር ውሰድ
+- `employees.filter_archived`: ወደ ማህደር የተወሰዱ
+- `employees.archive.desc`: ወደ ማህደር መውሰድ በስህተት ለተጨመሩ መዝገቦች ነው፤ ለምሳሌ ሁለት ጊዜ ለተጨመረ ሰው። ድርጅቱን የለቀቀ ሰው መዝገቡ እንዲቀር በምትኩ የመልቀቅ ሁኔታ ሊሰጠው ይገባል። ወደ ማህደር የተወሰደ መዝገብ «ወደ ማህደር የተወሰዱ» ከሚለው እይታ መመለስ ይችላል።
+- `employees.archive.keep_hint`: ታሪክ ስላላቸው በምትኩ በሁኔታ ለውጥ ይለቃሉ።
+- `employees.archive.reason_self`: ይህ የራስዎ መዝገብ ነው
+- `employees.restore.button`: መልስ; `employees.restore.desc`: የተመለሰ ሰው ከመዝገቡና ከታሪኩ ጋር ይመለሳል፤ በእቅድዎ ውስጥ አንድ መቀመጫም ይይዛል። ወደ ማህደር ሲወሰድ የተዘጋ መግቢያ እንደተዘጋ ይቀራል።
+- The other `employees.archive.*` and `employees.restore.*` lines, `audit.action.employee.bulk_archived` and `audit.action.employee.restored`; backend `employee.bulk_archive_failed` and `employee.bulk_restore_failed`.
+
+What to check first: that "መቀመጫ" ("seat") is how a plan's employee limit is said, and that "በምትኩ የመልቀቅ ሁኔታ" ("a leaving status instead") reads as the status an employee is given when they leave, not as a place.
+
 ### Accept differences for many people (2026-11-24)
 
 | What | Where | Strings |
