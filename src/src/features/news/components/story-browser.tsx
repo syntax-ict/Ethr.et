@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
@@ -58,7 +58,7 @@ export function useStoryFilters<
       set(patch, { push: options?.push ?? push }),
     clear,
     /** Changes the list's own filters, scrolling to the top on a new page. */
-    change(patch: Partial<NewsQuery>) {
+    change(patch: Partial<NewsQuery>, options?: { push?: boolean }) {
       const next = { ...query, ...patch };
       set(
         {
@@ -66,7 +66,7 @@ export function useStoryFilters<
           category: next.category ?? "",
           page: String(next.page),
         } as Parameters<typeof set>[0],
-        { push },
+        { push: options?.push ?? push },
       );
       if (next.page !== query.page) window.scrollTo({ top: 0 });
     },
@@ -146,6 +146,17 @@ export function StoryBrowser<
         NEWS_CATEGORIES.includes(c as NewsCategory),
       )
     : [];
+
+  // An answer with fewer pages than the address asks for (a stale link, or
+  // the last row of the last page just removed) would say there is nothing
+  // while pages remain; step back to the last one, replacing the entry.
+  const lastPage = query.data?.meta?.last_page;
+  useEffect(() => {
+    if (lastPage && current.page > lastPage)
+      filters.change({ page: lastPage }, { push: false });
+    // `filters.change` is a new function every render; the page is the cue.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastPage, current.page]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -271,19 +282,19 @@ export function StoryBrowser<
                     </li>
                   ))}
                 </ul>
-                {page.meta && page.meta.last_page > 1 && (
-                  <div className="mt-6">
-                    <PaginationControls
-                      meta={page.meta}
-                      onPageChange={(next) => filters.change({ page: next })}
-                      disabled={query.isFetching}
-                    />
-                  </div>
-                )}
               </>
             );
           }}
         </NewsBoundary>
+        {!query.isLoading && !query.isError && query.data?.meta && (
+          <div className={cn(query.data.meta.last_page > 1 && "mt-6")}>
+            <PaginationControls
+              meta={query.data.meta}
+              onPageChange={(next) => filters.change({ page: next })}
+              disabled={query.isLoading}
+            />
+          </div>
+        )}
       </div>
     </>
   );

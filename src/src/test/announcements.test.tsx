@@ -330,10 +330,48 @@ describe("<AnnouncementsPage> publishing", () => {
     });
   });
 
-  it("previews the body as a reader will get it: markup removed, a lone < kept", async () => {
+  it("steps back to the last page when the address asks for one past it", async () => {
+    window.history.replaceState(null, "", "/announcements?page=3");
+    const asked: string[] = [];
+    server.use(
+      me([]),
+      http.get("*/api/v1/announcements", ({ request }) => {
+        const pageNumber = new URL(request.url).searchParams.get("page");
+        asked.push(String(pageNumber));
+        return HttpResponse.json({
+          data: pageNumber === "2" ? [ANNOUNCEMENT] : [],
+          meta: {
+            current_page: Number(pageNumber),
+            last_page: 2,
+            per_page: 25,
+            total: 26,
+          },
+          links: {},
+        });
+      }),
+    );
+    renderWithQuery(<AnnouncementsPage />);
+
+    expect(
+      await screen.findByText("Office closed on Meskel"),
+    ).toBeInTheDocument();
+    expect(asked).toEqual(["3", "2"]);
+    expect(window.location.search).toBe("?page=2");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("previews the body as a reader will get it, and saves it exactly as typed", async () => {
+    let posted: Record<string, unknown> | null = null;
     server.use(
       me(["announcement.manage"]),
       http.get("*/api/v1/announcements", () => HttpResponse.json(page([]))),
+      http.post("*/api/v1/announcements", async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...ANNOUNCEMENT, public_id: "ANN3" },
+          { status: 201 },
+        );
+      }),
     );
     const user = userEvent.setup();
     renderWithQuery(<AnnouncementsPage />);
@@ -348,10 +386,16 @@ describe("<AnnouncementsPage> publishing", () => {
 
     expect(await screen.findByText("Second para")).toBeInTheDocument();
     expect(screen.getByText("Budget<2000 birr")).toBeInTheDocument();
-    // The form's own textarea still holds what was typed.
     expect(
       screen.queryByText(/<b>/, { ignore: "textarea" }),
     ).not.toBeInTheDocument();
+
+    // Closing the preview and saving sends what was typed, tags and all: the
+    // preview's cleaning is for the eye, never for the stored text.
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /^Publish$/ }));
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted!.body).toBe("Budget<2000 birr\n\nSecond <b>para</b>");
   });
 
   it("uploads a chosen cover photo once the new story is saved, and previews it", async () => {

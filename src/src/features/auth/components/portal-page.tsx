@@ -41,7 +41,7 @@ export function usePortalPage({
 }
 
 /**
- * The document's title for a portal page: "{title} � {organisation}" once
+ * The document's title for a portal page: "{title} · {organisation}" once
  * the organisation's name is known, and what it was before when the page
  * is left. Nothing while `title` is empty (a story still loading).
  */
@@ -52,7 +52,7 @@ export function usePortalTitle(
   useEffect(() => {
     if (!title) return;
     const previous = document.title;
-    document.title = organisation ? `${title} � ${organisation}` : title;
+    document.title = organisation ? `${title} · ${organisation}` : title;
     return () => {
       document.title = previous;
     };

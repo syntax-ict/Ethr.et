@@ -64,6 +64,12 @@ export function NewsBoundary<T>({
 
   if (query.isPending) return <>{loading}</>;
 
+  // A refetch that fails (a connection blip) leaves what already loaded
+  // on screen; the error state is for a first load that failed.
+  if (query.isError && query.data !== undefined) {
+    return <>{isEmpty?.(query.data) ? empty : children(query.data)}</>;
+  }
+
   return (
     <QueryBoundary
       query={query}
