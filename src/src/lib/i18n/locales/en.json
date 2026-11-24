@@ -2910,6 +2910,7 @@
   "employee.nationality_status_hint": "Decides pension coverage. Ethiopian nationals are covered; others are not, and foreign nationals of Ethiopian origin are treated as not covered until the law on them is confirmed.",
   "employee.personal_info": "Personal Information",
   "employee.probation_end_date": "Probation end date",
+  "employee.probation_end_hint": "With a date that has not passed, the person starts on probation and HR is reminded before it ends.",
   "employee.required_note": "Fields marked * are required.",
   "employee.badge_replay_failed": "The employee was added, but the held punches were not recorded. The badge is still under Unrecognised badges on Devices, where they can be recorded.",
   "employee.badge_replayed_some": ":replayed held punches were recorded for them. :refused were refused and not recorded.",

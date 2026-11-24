@@ -656,3 +656,13 @@ The Amharic drafts:
 
 What to check first: that "ክፍያን በሚያስተዳድር ሰው" ("someone who manages pay") names the role HR and finance
 staff recognise, and that "የሙከራ ጊዜ" matches the probation wording used on the employee profile.
+
+### Probation end hint on the Add employee form (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+One line under Probation end date: with a date that has not passed, the person starts on probation and HR is
+reminded before it ends.
+
+- `employee.probation_end_hint`: ቀኑ ገና ካላለፈ ሰውየው በሙከራ ጊዜ ይጀምራል፤ ሙከራው ከመጠናቀቁ በፊት የሰው ሀብት ክፍሉ ማሳሰቢያ ይደርሰዋል።
+
+What to check first: that "የሰው ሀብት ክፍሉ" ("the human resources unit") is the term HR staff use for themselves.

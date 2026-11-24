@@ -31,6 +31,8 @@ import { apiErrorDetail } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirm } from "@/components/shared/use-confirm";
+import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import {
   AlertTriangle,
   BadgeHelp,
@@ -197,6 +199,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   // with a 403 unless the caller holds `employee.updateFinancial`, so a role
   // without it is not offered them, and a blank one is never sent.
   const canPay = can.updateEmployeeFinancial === true;
+  const timeZone = useTenantTimezone();
   // The held punches are replayed by whoever may assign a badge, the same
   // check the assign endpoint makes.
   const canReplay = origin !== null && hasPermission("attendance.manage");
@@ -404,6 +407,13 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       ...addressToPayload(address),
       hire_date: form.hire_date,
       probation_end_date: form.probation_end_date || null,
+      // Reminders and the dashboard read status, not the date alone, so a
+      // probation that has not ended starts the person on probation. Any
+      // other case sends no status and the server records hired.
+      ...(form.probation_end_date &&
+      form.probation_end_date >= todayIn(timeZone)
+        ? { status: "probation" as const }
+        : {}),
       // Already integer cents — CurrencyInput does the ETB conversion, so
       // this page no longer hand-rolls it (`parseInt` once turned 5000.50
       // into 500000). Left out when blank, as an API call that omits it:
@@ -947,6 +957,10 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
             <FormField
               id="probation_end_date"
               label={t("employee.probation_end_date", "Probation end date")}
+              hint={t(
+                "employee.probation_end_hint",
+                "With a date that has not passed, the person starts on probation and HR is reminded before it ends.",
+              )}
               error={errors.probation_end_date}
             >
               <DualCalendarDateInput

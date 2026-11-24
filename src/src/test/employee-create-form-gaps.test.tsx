@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { buildEmployee } from "./msw/handlers";
+import { todayIn } from "@/lib/utils/date";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import NewEmployeePage from "@/app/(dashboard)/employees/new/page";
 import {
@@ -206,6 +207,50 @@ describe("New employee form, grade and probation end", () => {
     await waitFor(() => expect(seen.body).toBeDefined());
     expect(seen.body?.grade_id ?? null).toBeNull();
     expect(seen.body?.probation_end_date ?? null).toBeNull();
+  });
+});
+
+describe("New employee form, probation status", () => {
+  async function sendWith(probationEnd: string) {
+    const seen = capture();
+    const { container } = renderPage(PAY);
+    await screen.findByLabelText(/Monthly Salary/);
+    fillRequired();
+    if (probationEnd) type("probation_end_date", probationEnd);
+    submit(container);
+    await waitFor(() => expect(seen.body).toBeDefined());
+    return seen.body!;
+  }
+
+  it("starts the person on probation when the end date is ahead", async () => {
+    expect(await sendWith("2099-01-01")).toMatchObject({
+      status: "probation",
+      probation_end_date: "2099-01-01",
+    });
+  });
+
+  it("starts the person on probation when the end date is today", async () => {
+    const today = todayIn("Africa/Addis_Ababa");
+    expect(await sendWith(today)).toMatchObject({ status: "probation" });
+  });
+
+  it("sends no status when the end date has passed", async () => {
+    const body = await sendWith("2026-10-15");
+    expect(body).not.toHaveProperty("status");
+    expect(body).toMatchObject({ probation_end_date: "2026-10-15" });
+  });
+
+  it("sends no status without an end date", async () => {
+    expect(await sendWith("")).not.toHaveProperty("status");
+  });
+
+  it("says what a date does, always", async () => {
+    renderPage(PAY);
+    expect(
+      await screen.findByText(
+        /the person starts on probation and HR is reminded/,
+      ),
+    ).toBeInTheDocument();
   });
 });
 

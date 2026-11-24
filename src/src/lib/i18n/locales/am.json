@@ -2910,6 +2910,7 @@
   "employee.nationality_status_hint": "የጡረታ ሽፋንን ይወስናል። የኢትዮጵያ ዜጎች ይሸፈናሉ፤ ሌሎች አይሸፈኑም፤ ትውልደ ኢትዮጵያውያን የውጭ ዜጎች በእነርሱ ላይ ያለው ሕግ እስኪረጋገጥ ድረስ እንዳልተሸፈኑ ይቆጠራሉ።",
   "employee.personal_info": "የግል መረጃ",
   "employee.probation_end_date": "የሙከራ ጊዜ ማብቂያ ቀን",
+  "employee.probation_end_hint": "ቀኑ ገና ካላለፈ ሰውየው በሙከራ ጊዜ ይጀምራል፤ ሙከራው ከመጠናቀቁ በፊት የሰው ሀብት ክፍሉ ማሳሰቢያ ይደርሰዋል።",
   "employee.required_note": "* ምልክት ያላቸው መስኮች ግዴታ ናቸው።",
   "employee.badge_replay_failed": "ሠራተኛው ተጨምሯል፤ ነገር ግን የተያዙት መዝገቦች አልተመዘገቡም። ባጁ አሁንም በመሣሪያዎች ገጽ ያልታወቁ ባጆች ውስጥ ነው፤ ከዚያ መመዝገብ ይቻላል።",
   "employee.badge_replayed_some": ":replayed የተያዙ መዝገቦች ለእነሱ ተመዝግበዋል። :refused ውድቅ ተደርገዋል፤ አልተመዘገቡም።",
