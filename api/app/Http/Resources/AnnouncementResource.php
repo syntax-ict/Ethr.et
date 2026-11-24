@@ -7,7 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Announcement;
 use App\Models\User;
 use App\Services\CurrentTenant;
-use App\Support\PlainExcerpt;
+use App\Support\Story;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,19 +33,14 @@ class AnnouncementResource extends JsonResource
         }
 
         return [
-            'public_id' => $this->public_id,
+            ...Story::summary($this->resource, (string) app(CurrentTenant::class)->publicId()),
             'title' => $this->title,
-            'body' => $this->body,
-            'excerpt' => PlainExcerpt::of($this->body, 280),
-            'category' => $this->category,
-            'priority' => $this->priority,
+            'body' => Story::body($this->resource),
+            'body_source' => $request->user()?->hasPermission('announcement.manage') ? $this->body : null,
             'target_type' => $this->target_type,
             'status' => $this->status(),
-            'published_at' => $this->published_at,
             'expires_at' => $this->expires_at,
             'show_on_landing' => (bool) $this->show_on_landing,
-            'featured' => (bool) $this->featured,
-            'cover' => $this->resource->coverPresented((string) app(CurrentTenant::class)->publicId()),
             'attachments' => $this->resource->attachmentsPresented(),
             'author' => $authorName === '' ? null : ['name' => $authorName],
             'created_at' => $this->created_at,

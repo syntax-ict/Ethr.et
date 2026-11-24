@@ -1,5 +1,10 @@
 import type { components } from "@/api/generated";
 
+import type {
+  AnnouncementCategoryValue,
+  AnnouncementPriorityValue,
+  AnnouncementTargetValue,
+} from "./announcement";
 import type { EducationLevelValue } from "./education-level";
 import type { GenderValue } from "./gender";
 import type { MaritalStatusValue } from "./marital-status";
@@ -13,7 +18,15 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
  * of these lines stops compiling until the list in `lib/options` follows. The
  * relationship list has no line because the server does not enforce it.
  */
-export const OPTION_LISTS_MATCH_THE_CONTRACT: [true, true, true, true] = [
+export const OPTION_LISTS_MATCH_THE_CONTRACT: [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+] = [
   true satisfies Same<GenderValue, components["schemas"]["Gender"]>,
   true satisfies Same<
     MaritalStatusValue,
@@ -26,5 +39,17 @@ export const OPTION_LISTS_MATCH_THE_CONTRACT: [true, true, true, true] = [
   true satisfies Same<
     NotificationTypeValue,
     components["schemas"]["NotificationType"]
+  >,
+  true satisfies Same<
+    AnnouncementPriorityValue,
+    components["schemas"]["AnnouncementPriority"]
+  >,
+  true satisfies Same<
+    AnnouncementCategoryValue,
+    components["schemas"]["AnnouncementCategory"]
+  >,
+  true satisfies Same<
+    AnnouncementTargetValue,
+    components["schemas"]["AnnouncementTarget"]
   >,
 ];

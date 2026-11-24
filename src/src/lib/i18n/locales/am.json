@@ -852,6 +852,7 @@
   "announcements.show_on_landing_help": "የመግቢያ ገጽዎን የሚከፍት ማንኛውም ሰው ከመግባቱ በፊት ሊያነበው ይችላል። ውስጣዊ ለሆነ ነገር አያብሩት።",
   "announcements.show_on_website": "በድርጅቱ ይፋዊ ድረ ገጽ ላይ አሳይ",
   "announcements.show_on_website_hint": "ከወጣ በኋላ ማንኛውም ሰው በዜና ገጽዎ ላይ ሊያነበው ይችላል።",
+  "announcements.target_all": "መላው ድርጅት",
   "announcements.show_on_website_targeted": "ይፋዊ ሊሆኑ የሚችሉት ለመላው ድርጅት የተላኩ ማስታወቂያዎች ብቻ ናቸው።",
   "announcements.status_archived": "በማህደር",
   "announcements.status_draft": "ረቂቅ",

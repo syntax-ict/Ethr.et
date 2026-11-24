@@ -249,6 +249,22 @@ it('gives an article its modified time, its text, its author and a breadcrumb', 
         ]);
 });
 
+it('escapes a title and a body that hold a less-than sign and quotes, in every tag and record', function () {
+    $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
+    $article = publicArticle($tenant, ['title' => 'Q&A: a<b "quoted"', 'body' => 'Budget<2000 birr and "quoted" <b>bold</b>']);
+
+    $html = serveNewsPage("http://acme.ethr.et/news/{$article->public_id}", 'news/__id__.html')->assertOk()->getContent();
+    $records = headRecords($html);
+
+    expect($html)->toContain('<title>Q&amp;A: a&lt;b &quot;quoted&quot; · Acme Manufacturing</title>')
+        ->and($html)->toContain('<meta name="description" content="Budget&lt;2000 birr and &quot;quoted&quot; bold">')
+        ->and($html)->toContain('<meta property="og:title" content="Q&amp;A: a&lt;b &quot;quoted&quot; · Acme Manufacturing">')
+        ->and($html)->not->toContain('content="Budget<2000')
+        ->and($html)->toContain('Budget\u003C2000')
+        ->and($records['NewsArticle']['articleBody'])->toBe('Budget<2000 birr and "quoted" bold')
+        ->and($records['NewsArticle']['headline'])->toBe('Q&A: a<b "quoted"');
+});
+
 it('says an article\'s language only when the script and the organisation\'s language agree', function (string $locale, string $title, string $body, ?string $expected) {
     $tenant = newsTenant('acme', 'Acme Manufacturing', ['listed' => true]);
     $tenant->forceFill(['default_locale' => $locale])->save();

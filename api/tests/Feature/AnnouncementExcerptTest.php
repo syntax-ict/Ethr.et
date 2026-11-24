@@ -17,6 +17,24 @@ it('shortens to plain text, without markup or runs of spaces', function () {
         ->and(PlainExcerpt::of(str_repeat('a', 400), 280))->toEndWith('...');
 });
 
+it('removes markup and nothing else', function (string $text, string $expected) {
+    expect(PlainExcerpt::of($text, 1000))->toBe($expected)
+        ->and(PlainExcerpt::of($expected, 1000))->toBe($expected);
+})->with([
+    'a less-than before a digit' => ["Budget<2000 birr\n\nSecond <b>para</b>", "Budget<2000 birr\n\nSecond para"],
+    'a heart' => ['I <3 you, ok', 'I <3 you, ok'],
+    'a less-than before a letter, never closed' => ['x<y and more', 'x<y and more'],
+    'a spaced less-than' => ['a < b', 'a < b'],
+    'a script tag' => ['<script>alert(1)</script>hi', 'alert(1)hi'],
+    'paragraphs' => ['<p>one</p>', 'one'],
+    'a comment' => ['a<!-- hidden -->b', 'ab'],
+    'a tag made by removing another' => ['<<b>script>x', 'x'],
+]);
+
+it('keeps a meta description on one line without losing a less-than sign', function () {
+    expect(PlainExcerpt::line("Budget<2000 birr\n\n<b>now</b>", 100))->toBe('Budget<2000 birr now');
+});
+
 it('gives the announcements list the excerpt the public feed gives', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

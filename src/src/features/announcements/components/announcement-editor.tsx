@@ -42,6 +42,11 @@ import {
 } from "@/features/auth/landing-feed";
 import type { NewsCoverImage } from "@/features/news/components/news-card";
 import { fileSize } from "@/features/news/news-format";
+import {
+  ANNOUNCEMENT_PRIORITIES,
+  useAnnouncementCategoryLabel,
+  useAnnouncementPriorityLabel,
+} from "@/lib/options/announcement";
 import { useUploadLimit } from "@/features/auth/api";
 import {
   overServerLimit,
@@ -111,7 +116,9 @@ function formFor(a: Announcement | null): Form {
   if (!a) return EMPTY_FORM;
   return {
     title: a.title,
-    body: a.body,
+    // The stored text, as written: `body` is the cleaned reading copy, and
+    // saving that would rewrite the story. Only a manager is sent the source.
+    body: a.body_source ?? a.body,
     // The resource types these as plain strings; the request rules only
     // ever store one of the listed values.
     priority: a.priority as AnnouncementPriority,
@@ -143,6 +150,8 @@ export function AnnouncementEditor({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const categoryLabel = useAnnouncementCategoryLabel();
+  const priorityLabel = useAnnouncementPriorityLabel();
   const [editing, setEditing] = useState<Announcement | null>(initial);
   const [form, setForm] = useState<Form>(() => formFor(initial));
   const [previewing, setPreviewing] = useState(false);
@@ -656,7 +665,7 @@ export function AnnouncementEditor({
                     </SelectItem>
                     {NEWS_CATEGORIES.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {t(`news.category_${c}`, c)}
+                        {categoryLabel(c)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -679,18 +688,11 @@ export function AnnouncementEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">
-                      {t("common.low", "Low")}
-                    </SelectItem>
-                    <SelectItem value="normal">
-                      {t("common.normal", "Normal")}
-                    </SelectItem>
-                    <SelectItem value="high">
-                      {t("landing.important", "Important")}
-                    </SelectItem>
-                    <SelectItem value="urgent">
-                      {t("common.urgent", "Urgent")}
-                    </SelectItem>
+                    {ANNOUNCEMENT_PRIORITIES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {priorityLabel(p)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
