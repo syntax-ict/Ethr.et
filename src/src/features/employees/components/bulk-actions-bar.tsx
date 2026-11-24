@@ -174,8 +174,9 @@ export function BulkActionsBar({
   const bulkUpdate = useBulkUpdateEmployees();
 
   // "Select everyone matching": the ids the server named, good only while the
-  // page's own selection is the one they were asked for. Unticking a row, or
-  // moving to another page, ends it.
+  // page's own selection is the one they were asked for. Unticking a row ends
+  // it. A change of search or filter ends it too, but not here: the employees
+  // page remounts its table (and so this bar) when the filter changes.
   const [matching, setMatching] = useState<{
     key: string;
     result: EmployeeIdsResult;

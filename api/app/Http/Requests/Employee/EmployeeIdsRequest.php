@@ -17,7 +17,7 @@ class EmployeeIdsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'search' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string'],
             'filter' => ['nullable', 'array'],
             'filter.status' => ['nullable', 'string', 'max:32'],
             'filter.archived' => ['nullable', 'boolean'],

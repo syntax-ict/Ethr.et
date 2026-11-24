@@ -15641,14 +15641,6 @@
                 ],
                 "parameters": [
                     {
-                        "name": "filter[missing]",
-                        "in": "query",
-                        "description": "The \"records to fix\" list a Next Steps row opens. It is the set the\n row counted, through EmployeeGaps.\n Pay data needs the permission that edits pay data, so the list\n cannot be used to learn who has no TIN or bank account.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
                         "name": "search",
                         "in": "query",
                         "schema": {
@@ -15658,6 +15650,14 @@
                     {
                         "name": "filter[status]",
                         "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter[missing]",
+                        "in": "query",
+                        "description": "The \"records to fix\" list a Next Steps row opens. It is the set the\n row counted, through EmployeeGaps.\n Pay data needs the permission that edits pay data, so the list\n cannot be used to learn who has no TIN or bank account.",
                         "schema": {
                             "type": "string"
                         }
@@ -16584,7 +16584,7 @@
                                                                 "type": "null"
                                                             },
                                                             "access_held": {
-                                                                "type": "string"
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
@@ -17091,8 +17091,8 @@
                     "employees"
                 ],
                 "operationId": "employeeBulk.ids",
-                "description": "Takes the list's own `search` and `filter[...]` parameters, through the\nsame code (`EmployeeListFilters`) and the same org scope as\n`GET /employees`. At most 2,000 ids come back; `total` is the full count\nand `capped` is true when `ids` holds fewer than `total`.",
-                "summary": "The public ids of everyone the employees list matches, for \"select all\n     * matching this filter\". A read only: nothing is changed by filter. The\nscreen sends these ids to the bulk endpoints, which check each person\nagainst the requester's reach again",
+                "description": "For \"select all matching this filter\". A read only: nothing is changed by\nfilter. The screen sends these ids to the bulk endpoints, which check each\nperson against the requester's reach again.\n\nTakes the list's own `search` and `filter[...]` parameters, through the\nsame code (`EmployeeListFilters`) and the same org scope as\n`GET /employees`. At most 2,000 ids come back; `total` is the full count\nand `capped` is true when `ids` holds fewer than `total`.",
+                "summary": "The public ids of everyone the employees list matches",
                 "tags": [
                     "Employees"
                 ],
@@ -17104,8 +17104,7 @@
                             "type": [
                                 "string",
                                 "null"
-                            ],
-                            "maxLength": 255
+                            ]
                         }
                     },
                     {
@@ -17193,11 +17192,13 @@
                                     "type": "object",
                                     "properties": {
                                         "ids": {
-                                            "type": "object",
-                                            "additionalProperties": []
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
                                         },
                                         "total": {
-                                            "type": "string"
+                                            "type": "integer"
                                         },
                                         "capped": {
                                             "type": "boolean"

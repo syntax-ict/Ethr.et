@@ -3038,7 +3038,7 @@
   "employees.bulk.result.summary": ":updated changed, :unchanged already as asked, :failed not changed.",
   "employees.bulk.result.title": "What happened",
   "employees.bulk.result.unchanged": "Already as asked",
-  "employees.bulk.result.unsent": ":count people were not sent because a request failed. Select them and try again.",
+  "employees.bulk.result.unsent": "A request failed, so :count people were not changed. The selection was cleared. Find them in the list and run the action again.",
   "employees.bulk.select_all_failed": "The list of people could not be loaded.",
   "employees.bulk.select_all_matching": "Select all :total people matching this filter",
   "employees.bulk.supervisor_rules": "A person cannot be their own supervisor, or report to someone who reports to them. Anyone this would affect keeps their current supervisor.",

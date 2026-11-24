@@ -242,11 +242,11 @@ describe("<BulkActionsBar> job fields and select all matching", () => {
   const answer = (sent: string[]) => ({
     updated: sent.length,
     failed: 0,
-    results: sent.map((id) => ({
+    results: sent.map((id): { [key: string]: unknown } => ({
       employee_id: id,
       name: id,
       outcome: "updated",
-      error: null,
+      error: null as string | null,
       access_held: false,
     })),
   });

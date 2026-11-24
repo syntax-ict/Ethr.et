@@ -3038,7 +3038,7 @@
   "employees.bulk.result.summary": ":updated ተቀይረዋል፣ :unchanged አስቀድመው እንደተጠየቀው ነበሩ፣ :failed አልተቀየሩም።",
   "employees.bulk.result.title": "የሆነው",
   "employees.bulk.result.unchanged": "አስቀድሞ እንደተጠየቀው ነው",
-  "employees.bulk.result.unsent": "ጥያቄው ስለወደቀ :count ሰዎች አልተላኩም። ይምረጧቸው እና እንደገና ይሞክሩ።",
+  "employees.bulk.result.unsent": "ጥያቄው ስለወደቀ :count ሰዎች አልተቀየሩም። ምርጫው ጸድቷል። በዝርዝሩ ውስጥ ያግኟቸው እና እርምጃውን እንደገና ያካሂዱ።",
   "employees.bulk.select_all_failed": "የሰዎቹን ዝርዝር መጫን አልተቻለም።",
   "employees.bulk.select_all_matching": "ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉንም :total ሰዎች ምረጥ",
   "employees.bulk.supervisor_rules": "ሰው የራሱ ተቆጣጣሪ መሆን ወይም ለሚቆጣጠረው ሰው መታዘዝ አይችልም። ይህ የሚነካው ሰው አሁን ያለውን ተቆጣጣሪ ይዞ ይቆያል።",

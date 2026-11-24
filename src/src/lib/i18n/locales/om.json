@@ -3038,7 +3038,7 @@
   "employees.bulk.result.summary": ":updated jijjiiramaniiru, :unchanged duraan akkuma gaafatametti turan, :failed hin jijjiiramne.",
   "employees.bulk.result.title": "Wanti ta'e",
   "employees.bulk.result.unchanged": "Duraan akkuma gaafatametti",
-  "employees.bulk.result.unsent": "Gaaffiin kufeef namoonni :count hin ergamne. Isaan filadhaatii irra deebi'aa yaalaa.",
+  "employees.bulk.result.unsent": "Gaaffiin kufeef namoonni :count hin jijjiirramne. Filannoon haqameera. Tarree keessatti isaan barbaadaatii tarkaanfii sana irra deebi'aa raawwadhaa.",
   "employees.bulk.select_all_failed": "Tarreen namootaa fe'amuu hin dandeenye.",
   "employees.bulk.select_all_matching": "Namoota calluqisiisaa kanaan walgitan :total hunda filadhu",
   "employees.bulk.supervisor_rules": "Namni hoogganaa of ofii ta'uu, ykn nama isa to'atuuf gabaasuu hin danda'u. Namni kun tuqu hoogganaa isaa ammaa qabatee hafa.",

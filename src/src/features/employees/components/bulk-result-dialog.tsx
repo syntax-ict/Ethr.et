@@ -75,7 +75,7 @@ export function BulkResultDialog({
           <p role="alert" className="text-sm text-destructive">
             {t(
               "employees.bulk.result.unsent",
-              ":count people were not sent because a request failed. Select them and try again.",
+              "A request failed, so :count people were not changed. The selection was cleared. Find them in the list and run the action again.",
               { count: result.unsent.length },
             )}
           </p>

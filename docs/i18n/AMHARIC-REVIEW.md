@@ -723,6 +723,6 @@ Drafts written without a native speaker. The action names reuse the labels the e
 - `employees.bulk.result.failed`: አልተቀየረም
 - `employees.bulk.result.unchanged`: አስቀድሞ እንደተጠየቀው ነው
 - `employees.bulk.result.access_held`: ተቀይሯል። የመግቢያ ሚናቸው በተጠቃሚዎች ገጽ ላይ ይጠብቃል።
-- `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተላኩም። ይምረጧቸው እና እንደገና ይሞክሩ።
+- `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተቀየሩም። ምርጫው ጸድቷል። በዝርዝሩ ውስጥ ያግኟቸው እና እርምጃውን እንደገና ያካሂዱ።
 
 What to check first: that "ለሚቆጣጠረው ሰው መታዘዝ" ("report to the person they supervise") reads as a reporting line and not as obedience, and that "ማጣሪያውን ያጥብቡ" ("narrow the filter") is how a list filter is narrowed in the screens already shipped.

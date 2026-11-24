@@ -3369,11 +3369,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The public ids of everyone the employees list matches, for "select all
-         *          * matching this filter". A read only: nothing is changed by filter. The
-         *     screen sends these ids to the bulk endpoints, which check each person
-         *     against the requester's reach again
-         * @description Takes the list's own `search` and `filter[...]` parameters, through the
+         * The public ids of everyone the employees list matches
+         * @description For "select all matching this filter". A read only: nothing is changed by
+         *     filter. The screen sends these ids to the bulk endpoints, which check each
+         *     person against the requester's reach again.
+         *
+         *     Takes the list's own `search` and `filter[...]` parameters, through the
          *     same code (`EmployeeListFilters`) and the same org scope as
          *     `GET /employees`. At most 2,000 ids come back; `total` is the full count
          *     and `capped` is true when `ids` holds fewer than `total`.
@@ -24294,10 +24295,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        ids: {
-                            [key: string]: unknown;
-                        };
-                        total: string;
+                        ids: string[];
+                        total: number;
                         capped: boolean;
                         /** @constant */
                         cap: 2000;
@@ -24481,7 +24480,7 @@ export interface operations {
                             /** @constant */
                             outcome: "updated";
                             error: null;
-                            access_held: string;
+                            access_held: boolean;
                         } | {
                             employee_id: string;
                             name: string;
@@ -24772,6 +24771,8 @@ export interface operations {
     "employees.index": {
         parameters: {
             query?: {
+                search?: string;
+                "filter[status]"?: string;
                 /**
                  * @description The "records to fix" list a Next Steps row opens. It is the set the
                  *      row counted, through EmployeeGaps.
@@ -24779,8 +24780,6 @@ export interface operations {
                  *      cannot be used to learn who has no TIN or bank account.
                  */
                 "filter[missing]"?: string;
-                search?: string;
-                "filter[status]"?: string;
                 "filter[department_id]"?: string;
                 "filter[branch_id]"?: string;
                 "filter[position_id]"?: string;

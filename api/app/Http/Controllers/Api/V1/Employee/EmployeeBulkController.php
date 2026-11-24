@@ -568,9 +568,13 @@ class EmployeeBulkController extends Controller
             'position_id' => $request->input('filter.position_id'),
         ]);
 
-        $total = (clone $query)->count();
+        $total = (int) (clone $query)->count();
+
         /** @var list<string> $ids */
-        $ids = $query->orderBy('id')->limit(self::IDS_CAP)->pluck('public_id')->all();
+        $ids = [];
+        foreach ($query->orderBy('id')->limit(self::IDS_CAP)->pluck('public_id') as $publicId) {
+            $ids[] = (string) $publicId;
+        }
 
         return response()->json($this->idsAnswer($ids, $total));
     }
