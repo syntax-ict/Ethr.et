@@ -597,17 +597,17 @@ function NavLink({
           )}
           title={
             pinned
-              ? t("nav.unpin_favorites", "Unpin from favorites")
+              ? t("nav.unpin_favorites", "Unpin from favourites")
               : favoritesAtLimit
-                ? t("nav.favorites_full", "Favorites full (max 5)")
-                : t("nav.pin_favorites", "Pin to favorites")
+                ? t("nav.favorites_full", "Favourites full (max 5)")
+                : t("nav.pin_favorites", "Pin to favourites")
           }
           aria-label={`${
             pinned
-              ? t("nav.unpin_favorites", "Unpin from favorites")
+              ? t("nav.unpin_favorites", "Unpin from favourites")
               : favoritesAtLimit
-                ? t("nav.favorites_full", "Favorites full (max 5)")
-                : t("nav.pin_favorites", "Pin to favorites")
+                ? t("nav.favorites_full", "Favourites full (max 5)")
+                : t("nav.pin_favorites", "Pin to favourites")
           }: ${fullLabel}`}
           aria-pressed={pinned}
         >
@@ -628,8 +628,8 @@ function NavLink({
               onTogglePin();
             }}
             className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-brand-accent group-hover/pin:opacity-100"
-            title={t("nav.pin_favorites", "Pin to favorites")}
-            aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${fullLabel}`}
+            title={t("nav.pin_favorites", "Pin to favourites")}
+            aria-label={`${t("nav.pin_favorites", "Pin to favourites")}: ${fullLabel}`}
           >
             <Star className="h-3 w-3" />
           </button>

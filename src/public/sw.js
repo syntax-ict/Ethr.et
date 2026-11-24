@@ -273,6 +273,53 @@ async function pruneStatic() {
   }
 }
 
+// ── Keep what a first visit had already loaded ────────────────────────────────
+// On a first visit the page's files arrive before this worker controls it, so
+// the fetch handler above never sees them. The shell pages name most of them
+// and cacheShell stores those. A file loaded on demand is named nowhere the
+// worker reads: the Afaan Oromoo dictionary is a chunk of its own (English is
+// the built-in text and Amharic is inlined), so on a first visit in that
+// language the offline page came up in English until the app had been opened
+// a second time (measured on production, 2026-11-24). The page now sends the
+// list once this worker takes control (useServiceWorker), and whatever is
+// missing is fetched again, from the browser's own cache as a rule.
+//
+// Only this origin's /_next/static files are accepted, the same ones the fetch
+// handler keeps, so a page cannot make the worker store anything else.
+const KEEP_ASSETS_MAX = 200;
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'KEEP_ASSETS' || !Array.isArray(data.urls)) return;
+  event.waitUntil(keepAssets(data.urls).catch(() => {}));
+});
+
+async function keepAssets(urls) {
+  const origin = self.location.origin;
+  const paths = new Set();
+  for (const value of urls) {
+    if (typeof value !== 'string') continue;
+    let url;
+    try {
+      url = new URL(value, origin);
+    } catch {
+      continue;
+    }
+    if (url.origin !== origin || !url.pathname.startsWith('/_next/static/')) continue;
+    paths.add(url.pathname);
+    if (paths.size >= KEEP_ASSETS_MAX) break;
+  }
+  if (paths.size === 0) return;
+
+  const cache = await caches.open(STATIC_CACHE);
+  await Promise.allSettled([...paths].map(async (path) => {
+    if (await cache.match(path)) return;
+    const fetched = await fetch(path);
+    if (!fetched.ok) return;
+    await cache.put(path, await stamped(fetched));
+  }));
+}
+
 // ── Background Sync: flush offline attendance queue ───────────────────────────
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-attendance') {

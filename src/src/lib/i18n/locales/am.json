@@ -3140,6 +3140,7 @@
   "exit_clearance.remove": "መስመር :nን አስወግድ",
   "exit_clearance.save_template": "ዝርዝሩን አስቀምጥ",
   "exit_clearance.shows_balance": "ቀሪ ሂሳቡን ያሳያል",
+  "exit_clearance.shows_balance_line": "ቀሪ ሂሳቡን ያሳያል፣ መስመር :n",
   "exit_clearance.start": "የመልቀቂያ ማጣሪያ ጀምር",
   "exit_clearance.start_failed": "የመልቀቂያ ማጣሪያው መጀመር አልተቻለም።",
   "exit_clearance.status_complete": "ተጠናቋል",

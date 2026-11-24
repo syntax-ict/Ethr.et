@@ -63,7 +63,7 @@ export function LoginIdentifiersCard() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.login_identifiers_title", "Sign-in methods")}
           </CardTitle>
         </div>
