@@ -40127,7 +40127,10 @@
                                             "additionalProperties": []
                                         },
                                         "status": {
-                                            "type": "object",
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
                                             "properties": {
                                                 "code": {
                                                     "type": "string"
@@ -40148,6 +40151,9 @@
                                                 "locked_days",
                                                 "employed_days"
                                             ]
+                                        },
+                                        "with_pay": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": [
@@ -40162,7 +40168,8 @@
                                         "department_subtotals",
                                         "rate_columns",
                                         "rules_applied",
-                                        "status"
+                                        "status",
+                                        "with_pay"
                                     ]
                                 }
                             }

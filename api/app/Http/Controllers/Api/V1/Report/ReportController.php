@@ -77,7 +77,7 @@ class ReportController extends Controller
      * over everyone matched, department subtotals, the overtime rate columns,
      * the rules applied and the period's status.
      *
-     * @scramble-return array{period: array{from: string, to: string}|null, days: list<array{date: string, iso_weekday: int}>, data: list<array{public_id: string, employee_code: string|null, name: string, name_am: string|null, badge_number: string|null, position: string|null, department: array{public_id: string, name: string, name_am: string|null}|null, shift: array{public_id: string, name: string, name_am: string|null}|null, cells: list<array{date: string, code: string|null, short: string|null, kind: string, worked: bool, late: bool, early: bool, worked_minutes: int, scheduled_minutes: int, late_minutes: int, early_minutes: int, overtime: array<string, int>, records: list<string>, locked: bool, exception: array{type: string, state: string}|null}>, totals: array<string, mixed>, check_ok: bool}>, meta: array{current_page: int, last_page: int, per_page: int, total: int}, links: array{next: string|null, prev: string|null}, complete: bool, max_people: int, totals: array<string, mixed>|null, department_subtotals: list<array{department: array{public_id: string, name: string, name_am: string|null}|null, employees: int, totals: array<string, mixed>}>, rate_columns: list<array{rate: float, types: list<string>}>, rules_applied: array<string, mixed>, status: array{code: string, blocking: int, locked_days: int, employed_days: int}}
+     * @scramble-return array{period: array{from: string, to: string}|null, days: list<array{date: string, iso_weekday: int}>, data: list<array{public_id: string, employee_code: string|null, name: string, name_am: string|null, badge_number: string|null, position: string|null, department: array{public_id: string, name: string, name_am: string|null}|null, shift: array{public_id: string, name: string, name_am: string|null}|null, cells: list<array{date: string, code: string|null, short: string|null, kind: string, worked: bool, late: bool, early: bool, worked_minutes: int, scheduled_minutes: int, late_minutes: int, early_minutes: int, overtime: array<string, int>, records: list<string>, locked: bool, exception: array{type: string, state: string}|null}>, totals: array<string, mixed>, check_ok: bool}>, meta: array{current_page: int, last_page: int, per_page: int, total: int}, links: array{next: string|null, prev: string|null}, complete: bool, max_people: int, totals: array<string, mixed>|null, department_subtotals: list<array{department: array{public_id: string, name: string, name_am: string|null}|null, employees: int, totals: array<string, mixed>}>, rate_columns: list<array{rate: float, types: list<string>}>, rules_applied: array<string, mixed>, status: array{code: string, blocking: int, locked_days: int, employed_days: int}|null, with_pay: bool}
      */
     public function timesheet(TimesheetRequest $request, TimesheetReport $timesheet): JsonResponse
     {
@@ -87,7 +87,7 @@ class ReportController extends Controller
         $page = (int) $request->validated('page', 1);
         $perPage = (int) $request->validated('per_page', 25);
 
-        $grid = $timesheet->grid($tenant, $request->user(), $request->validated(), $page, $perPage);
+        $grid = $timesheet->grid($tenant, $request->user(), $request->validated(), $page, $perPage, Gate::allows('payroll.viewAll'));
 
         $total = (int) $grid['total'];
         $lastPage = max(1, (int) ceil($total / $perPage));
@@ -111,7 +111,8 @@ class ReportController extends Controller
             ], $grid['department_subtotals'] ?? []),
             'rate_columns' => $grid['rate_columns'] ?? [],
             'rules_applied' => $grid['rules_applied'] ?? [],
-            'status' => $grid['status'] ?? ['code' => 'open', 'blocking' => 0, 'locked_days' => 0, 'employed_days' => 0],
+            'status' => $grid['status'] ?? null,
+            'with_pay' => $grid['with_pay'] ?? false,
         ]);
     }
 

@@ -20,6 +20,7 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Report\TimesheetReport;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Lang;
 
 /*
  * The monthly timesheet as a report source and as a grid.
@@ -183,7 +184,7 @@ test('the grid gives a cell for every day, each with the code the rules decide',
 
 test('the grid carries the figures payroll reads, with payable days defined as payroll does', function () {
     ['tenant' => $tenant] = mtFortnight();
-    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     $totals = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25'))->assertOk()->json('data.0.totals');
 
@@ -385,4 +386,80 @@ test('the grid names a person\'s position and department, with their Amharic nam
     expect($response->json('data.0.position'))->toBe('Accountant')
         ->and($response->json('data.0.department'))->toMatchArray(['name' => 'Finance', 'name_am' => 'ፋይናንስ'])
         ->and($response->json('department_subtotals.0.department.name'))->toBe('Finance');
+});
+
+test('whoever may not see payroll is not shown the figures that move pay, nor how much was paid', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $response = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25'))->assertOk();
+
+    expect($response->json('with_pay'))->toBeFalse()
+        ->and($response->json('data.0.totals'))->not->toHaveKeys(['unpaid_leave_days', 'sick_half_days', 'sick_unpaid_days', 'payable_days'])
+        ->and($response->json('totals'))->not->toHaveKey('payable_days')
+        ->and($response->json('data.0.totals.present_days'))->toBe(5);
+});
+
+test('people who left before the month, or arrive after it, neither fill the size limit nor appear', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    Employee::factory()->count(TimesheetReport::MAX_PEOPLE)->create([
+        'tenant_id' => $tenant->id, 'hire_date' => '2020-01-01', 'termination_date' => '2024-06-30', 'status' => EmployeeStatus::TERMINATED,
+    ]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2027-01-05']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $grid = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25'))->assertOk();
+    $source = test()->postJson(mtUrl($tenant, 'generate'), ['source' => 'timesheet', 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']])->assertOk();
+
+    expect($grid->json('meta.total'))->toBe(1)
+        ->and($grid->json('complete'))->toBeTrue()
+        ->and($source->json('truncated'))->toBeFalse()
+        ->and($source->json('matched'))->toBe(1);
+});
+
+test('the status counts what the people listed have open, not the whole organisation', function () {
+    ['tenant' => $tenant, 'shift' => $shift] = mtFortnight();
+    $finance = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $quiet = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'department_id' => $finance->id]);
+    foreach (['2026-10-12', '2026-10-13'] as $day) {
+        AttendanceRecord::factory()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $quiet->id, 'shift_id' => $shift->id, 'date' => $day,
+            'check_in' => mtAt($day, '08:30'), 'check_out' => mtAt($day, '17:30'), 'status' => AttendanceStatus::PRESENT,
+        ]);
+    }
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    // The first person has an open punch and an absence; the finance department has none.
+    $everyone = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-22'))->assertOk()->json('status');
+    $department = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-22&department='.$finance->public_id))->assertOk();
+
+    expect($everyone['code'])->toBe('exceptions')
+        ->and($everyone['blocking'])->toBeGreaterThan(0)
+        ->and($department->json('status.blocking'))->toBeLessThan($everyone['blocking']);
+});
+
+test('past the size limit there is no status, since it would speak for people it did not read', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    Employee::factory()->count(TimesheetReport::MAX_PEOPLE)->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $response = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25'))->assertOk();
+
+    expect($response->json('complete'))->toBeFalse()
+        ->and($response->json('status'))->toBeNull();
+});
+
+test('an end date with no start date is a 422, not a silently different month', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->getJson(mtUrl($tenant, 'timesheet', 'to=2026-10-25'))->assertStatus(422);
+});
+
+test('the exports name the new columns in the reader\'s language', function () {
+    foreach (['en', 'am', 'om'] as $locale) {
+        foreach (['rest_days', 'missing_days', 'late_minutes', 'scheduled_hours', 'short_hours', 'overtime_night_hours', 'overtime_holiday_night_hours', 'overtime_unapproved_hours', 'overtime_limit_days'] as $field) {
+            expect(Lang::has('report.fields.'.$field, $locale))->toBeTrue("$locale is missing report.fields.$field");
+        }
+    }
 });

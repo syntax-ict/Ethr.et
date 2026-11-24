@@ -22572,7 +22572,8 @@ export interface operations {
                             blocking: number;
                             locked_days: number;
                             employed_days: number;
-                        };
+                        } | null;
+                        with_pay: boolean;
                     };
                 };
             };

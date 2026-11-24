@@ -23,7 +23,7 @@ class TimesheetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from' => ['nullable', 'date_format:Y-m-d'],
+            'from' => ['nullable', 'required_with:to', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'month' => ['nullable', 'date_format:Y-m'],
             'department' => ['nullable', 'string', 'max:64'],

@@ -104,16 +104,23 @@ final class TimesheetReport
 
     /**
      * The people a timesheet lists, in name order, limited to what the viewer
-     * may see. Department and branch take a unit's `public_id`;
-     * `employment_status` takes an `EmployeeStatus`.
+     * may see, and who is on the books at some point in the span. Department
+     * and branch take a unit's `public_id`; `employment_status` takes an
+     * `EmployeeStatus`.
      *
      * @param  array<string, mixed>  $filters
      * @return Builder<Employee>
      */
-    public function employees(int $tenantId, array $filters, User $viewer): Builder
+    public function employees(int $tenantId, array $filters, User $viewer, Carbon $from, Carbon $to): Builder
     {
         $query = Employee::query()->where('tenant_id', $tenantId);
         UnitFilter::apply($query, $filters);
+
+        // Someone hired after the span, or who left before it, has no day on it:
+        // the same window ExpectedDays reads. Without it a thousand people who
+        // left years ago fill the size limit and push the people at work off it.
+        $query->where(fn (Builder $hired) => $hired->whereNull('hire_date')->orWhereDate('hire_date', '<=', $to->format('Y-m-d')))
+            ->where(fn (Builder $left) => $left->whereNull('termination_date')->orWhereDate('termination_date', '>=', $from->format('Y-m-d')));
 
         $status = $filters['employment_status'] ?? null;
         if (is_string($status) && EmployeeStatus::tryFrom($status) !== null) {
@@ -283,11 +290,21 @@ final class TimesheetReport
      * pending, reconciled once the days are over and nothing is, open before.
      *
      * @param  array<string, mixed>  $totals  the grand totals over everyone listed
+     * @param  list<string>  $listed  the public ids of everyone the totals cover: only what they have open counts
      * @return array{code: string, blocking: int, locked_days: int, employed_days: int}
      */
-    public function status(Tenant $tenant, Carbon $from, Carbon $to, array $totals): array
+    public function status(Tenant $tenant, Carbon $from, Carbon $to, array $totals, array $listed): array
     {
-        $blocking = $this->reconciliation->forPeriod($tenant, $from, $to)['totals']['blocking'];
+        $blocking = 0;
+        $listed = array_flip($listed);
+        foreach ($this->reconciliation->forPeriod($tenant, $from, $to)['employees'] as $row) {
+            if (! isset($listed[$row['employee_public_id']])) {
+                continue;
+            }
+            foreach ($row['exceptions'] as $exception) {
+                $blocking += $exception['state'] === AttendanceReconciliation::STATE_RESOLVED ? 0 : 1;
+            }
+        }
 
         $code = match (true) {
             ($totals['employed_days'] ?? 0) > 0 && ($totals['locked_days'] ?? 0) >= $totals['employed_days'] => 'paid',
@@ -315,7 +332,7 @@ final class TimesheetReport
      * @param  array<string, mixed>  $filters  from, to, month, department, branch, shift, employment_status
      * @return array<string, mixed>
      */
-    public function grid(Tenant $tenant, User $viewer, array $filters, int $page, int $perPage): array
+    public function grid(Tenant $tenant, User $viewer, array $filters, int $page, int $perPage, bool $withPay): array
     {
         $today = Carbon::parse(TenantTime::today($tenant)->format('Y-m-d'));
         $span = $this->span($filters, $today, self::MAX_DAYS);
@@ -325,14 +342,17 @@ final class TimesheetReport
         }
         [$from, $to] = $span;
 
-        $employees = $this->employees($tenant->id, $filters, $viewer)
+        $employees = $this->employees($tenant->id, $filters, $viewer, $from, $to)
             ->with(['department:id,public_id,name,name_am', 'position:id,title,title_am'])
             ->orderBy('name')
             ->get();
 
-        $shiftByEmployee = $this->dominantShifts($employees, $from, $to);
+        // A shift filter needs everyone's shift. Without one only the people
+        // shown need it, so the work grows with the page and not the organisation.
+        $shiftByEmployee = [];
         $wanted = $filters['shift'] ?? null;
         if (is_string($wanted) && $wanted !== '') {
+            $shiftByEmployee = $this->dominantShifts($employees, $from, $to);
             $employees = $employees->filter(fn (Employee $e): bool => (isset($shiftByEmployee[$e->id]) ? $shiftByEmployee[$e->id]->public_id : null) === $wanted)->values();
         }
 
@@ -346,18 +366,21 @@ final class TimesheetReport
         $first = $complete ? ($page - 1) * $perPage : 0;
         $last = $complete ? $first + $perPage : PHP_INT_MAX;
         $scope = $complete ? $employees : $employees->slice(($page - 1) * $perPage, $perPage)->values();
+        $shiftByEmployee += $this->dominantShifts($scope->reject(fn (Employee $e): bool => array_key_exists($e->id, $shiftByEmployee))->values(), $from, $to);
 
         $kept = [];
+        $listed = [];
         $grand = [];
         $byDepartment = [];
         $usedShifts = [];
         $index = 0;
 
-        foreach ($this->rows($scope, $from, $to, $rules, withPay: true) as $row) {
+        foreach ($this->rows($scope, $from, $to, $rules, withPay: $withPay) as $row) {
             $employee = $row['employee'];
-            $summary = $this->summary($row, $rateColumns);
+            $summary = $this->summary($row, $rateColumns, $withPay);
 
             $this->add($grand, $summary);
+            $listed[] = $employee->public_id;
             $departmentKey = $employee->department === null ? '' : $employee->department->public_id;
             $byDepartment[$departmentKey]['department'] ??= $employee->department;
             $byDepartment[$departmentKey]['employees'] = ($byDepartment[$departmentKey]['employees'] ?? 0) + 1;
@@ -403,7 +426,8 @@ final class TimesheetReport
             ], $byDepartment)) : [],
             'rate_columns' => $rateColumns,
             'rules_applied' => $this->rulesApplied($tenant, $from, $rules, array_values($usedShifts)),
-            'status' => $this->status($tenant, $from, $to, $complete ? $grand : []),
+            'status' => $complete ? $this->status($tenant, $from, $to, $grand, $listed) : null,
+            'with_pay' => $withPay,
         ];
     }
 
@@ -413,21 +437,24 @@ final class TimesheetReport
      *
      * @param  array{employee: Employee, cells: array<string, array<string, mixed>>, totals: array<string, mixed>, check_ok: bool, limits: array<string, mixed>}  $row
      * @param  list<array{rate: float, types: list<string>}>  $rateColumns
+     * @param  bool  $withPay  the viewer may see the pay-moving figures (payroll.viewAll)
      * @return array<string, mixed>
      */
-    private function summary(array $row, array $rateColumns): array
+    private function summary(array $row, array $rateColumns, bool $withPay): array
     {
         $totals = $row['totals'];
 
         return [
             ...$this->figures($totals, $row['limits']),
             'pending_days' => $totals['pending_days'],
-            'locked_days' => $totals['locked_days'] ?? 0,
-            'employed_days' => $totals['employed_days'] ?? 0,
-            'unpaid_leave_days' => $totals['unpaid_leave_days'],
-            'sick_half_days' => $totals['sick_half_days'],
-            'sick_unpaid_days' => $totals['sick_unpaid_days'],
-            'payable_days' => $this->payableDays($totals),
+            'locked_days' => $totals['locked_days'],
+            'employed_days' => $totals['employed_days'],
+            ...($withPay ? [
+                'unpaid_leave_days' => $totals['unpaid_leave_days'],
+                'sick_half_days' => $totals['sick_half_days'],
+                'sick_unpaid_days' => $totals['sick_unpaid_days'],
+                'payable_days' => $this->payableDays($totals),
+            ] : []),
             'overtime_limit_weeks' => count($row['limits']['weeks_over_legal_weekly_limit']),
             'leave_by_code' => $totals['leave_by_code'],
             'overtime_by_rate' => array_map(

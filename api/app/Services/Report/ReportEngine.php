@@ -509,7 +509,7 @@ final class ReportEngine
         [$from, $to] = $span;
         $this->period = ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')];
 
-        $employees = $report->employees($tenantId, $filters, $viewer)
+        $employees = $report->employees($tenantId, $filters, $viewer, $from, $to)
             ->with(['department:id,name', 'branch:id,name'])
             ->orderBy('name')
             ->get();
