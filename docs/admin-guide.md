@@ -422,8 +422,8 @@ The cards below are open to every holder of `payroll.viewConfig`, and change onl
 Finance → Payroll Runs → Process Payroll → select the pay period → confirm.
 
 The engine:
-1. Pulls confirmed attendance for each employee
-2. Deducts leave days
+1. Reads each employee's attendance and leave for the period: the overtime worked by rate, unpaid leave days, the Art. 85 sick-leave days and, when lateness deductions are on, the lateness minutes an approved correction decided. Absences are listed on the run and never deducted
+2. Deducts unpaid leave days
 3. Calculates basic salary (with proration for new hires/exits)
 4. Adds overtime and allowances
 5. Deducts income tax, pension, loans
@@ -474,6 +474,18 @@ Schedule a saved report from the **Saved** tab for automatic email delivery, dai
 - A schedule set up before 15 November 2026 on a report somebody else saved keeps running with that person's reach. Delete it and have the report's owner schedule it again if that is not intended.
 
 A saved report can be run, scheduled or deleted, and a schedule can be deleted; neither can be edited. Saving and scheduling depend on your plan.
+
+### Monthly timesheet
+
+The monthly timesheet reads the same figures payroll reads, so the two cannot disagree. Each row is one person for a month in your calendar (an Ethiopian month, Pagume included, or a Gregorian one):
+
+- **Days**: workdays, present (late and early days are kinds of present), absent, leave, holidays, rest days and missing-punch days. An absence is a workday with no record, up to yesterday, in an organization that records attendance at all. Payroll flags absences on the run and never deducts them, so they are not taken off payable days.
+- **Late and early**: the count of days and the minutes observed. The minutes payroll will deduct are the ones an approved lateness correction decided, and are shown apart.
+- **Hours**: scheduled, worked, and short. Short hours are counted day by day, so a long day does not make up for a short one.
+- **Overtime by rate**: one column for each rate the organization pays (1.5× day, 1.75× night, 2.0× rest day, 2.5× holiday are the legal minimums). Overtime worked is paid whether or not it was approved in advance; the timesheet shows how much was unapproved, and the days over the legal limits of 4 hours a day and 12 hours a week, from the rules in Payroll rules.
+- **Status**: shown, never set by hand. Open, exceptions (a punch is still open or pending), reconciled, part-paid or paid (payroll has released the days). A day payroll has paid cannot be edited; a later fix goes into the next run.
+
+Through the API, `GET /reports/timesheet` returns a page of people with one cell per day, the totals over everyone the filters match, department subtotals, the rules applied and the status. The Builder's "Monthly timesheet" source carries the same figures as columns.
 
 ### Quick Reports
 

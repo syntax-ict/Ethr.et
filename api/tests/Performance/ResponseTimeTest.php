@@ -20,7 +20,12 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Models\Shift;
+use App\Services\Report\TimesheetReport;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Runs the request 3 times and returns the fastest, to filter out transient
@@ -214,4 +219,96 @@ test('leave balance calculation responds under 100ms', function () {
 
     $response->assertOk();
     assertWithinBudget($ms, 100, 'leave balance calculation');
+});
+
+/**
+ * A month of attendance for a thousand people: a record on each of the 22
+ * weekdays of 2026-10, inserted in bulk. The host's limits are 30 seconds and
+ * 128 MB a request, and the timesheet reads everyone in one pass (the page is
+ * 25 people, the totals are over all 1,000), so this is the figure that says
+ * whether a month of an organisation of that size fits.
+ */
+function seedTimesheetMonth(int $people): array
+{
+    $tenant = createTenant();
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    $employees = Employee::factory()->count($people)->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+
+    $rows = [];
+    foreach ($employees as $employee) {
+        for ($day = Carbon::parse('2026-10-01'); $day->lessThanOrEqualTo(Carbon::parse('2026-10-30')); $day = $day->copy()->addDay()) {
+            if ($day->isWeekend()) {
+                continue;
+            }
+            $date = $day->format('Y-m-d');
+            $rows[] = [
+                'public_id' => (string) Str::ulid(),
+                'tenant_id' => $tenant->id,
+                'employee_id' => $employee->id,
+                'shift_id' => $shift->id,
+                'date' => $date,
+                'check_in' => Carbon::parse("$date 08:25", 'Africa/Addis_Ababa')->utc()->format('Y-m-d H:i:s'),
+                'check_out' => Carbon::parse("$date 17:45", 'Africa/Addis_Ababa')->utc()->format('Y-m-d H:i:s'),
+                'source' => 'web',
+                'confidence_score' => 75,
+                'status' => 'present',
+                'idempotency_key' => (string) Str::uuid(),
+                'created_at' => now()->format('Y-m-d H:i:s'),
+                'updated_at' => now()->format('Y-m-d H:i:s'),
+            ];
+        }
+    }
+
+    foreach (array_chunk($rows, 500) as $chunk) {
+        DB::table('attendance_records')->insert($chunk);
+    }
+
+    return [$tenant, count($rows)];
+}
+
+test('the monthly timesheet grid pages through 1000 people by a month inside the host limit', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-02 10:00', 'Africa/Addis_Ababa'));
+    [$tenant, $records] = seedTimesheetMonth(1000);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    Cache::flush();
+
+    $start = hrtime(true);
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/timesheet?from=2026-10-01&to=2026-10-31&per_page=25");
+    $ms = (hrtime(true) - $start) / 1_000_000;
+
+    $response->assertOk();
+    expect($response->json('meta.total'))->toBe(1000)
+        ->and($response->json('complete'))->toBeFalse();
+
+    fwrite(STDERR, sprintf("    timesheet grid: %d people, %d records, peak memory %.0f MB\n", 1000, $records, memory_get_peak_usage(true) / 1_048_576));
+    assertWithinBudget($ms, 30_000, 'timesheet grid page of 25, of 1000 people x 31 days');
+    Carbon::setTestNow();
+});
+
+test('the monthly timesheet with totals, at the size limit, fits the host', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-02 10:00', 'Africa/Addis_Ababa'));
+    [$tenant] = seedTimesheetMonth(TimesheetReport::MAX_PEOPLE);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    Cache::flush();
+
+    $start = hrtime(true);
+    $grid = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/timesheet?from=2026-10-01&to=2026-10-31&per_page=25");
+    $gridMs = (hrtime(true) - $start) / 1_000_000;
+    $grid->assertOk();
+    expect($grid->json('complete'))->toBeTrue();
+    assertWithinBudget($gridMs, 30_000, 'timesheet grid with totals, '.TimesheetReport::MAX_PEOPLE.' people x 31 days');
+
+    Cache::flush();
+    $start = hrtime(true);
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/generate", [
+        'source' => 'timesheet',
+        'filters' => ['from' => '2026-10-01', 'to' => '2026-10-31'],
+    ]);
+    $ms = (hrtime(true) - $start) / 1_000_000;
+
+    $response->assertOk();
+    expect($response->json('total'))->toBe(TimesheetReport::MAX_PEOPLE);
+
+    assertWithinBudget($ms, 30_000, 'timesheet report source, '.TimesheetReport::MAX_PEOPLE.' people x 31 days');
+    Carbon::setTestNow();
 });
