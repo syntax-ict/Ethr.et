@@ -465,6 +465,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::post('/{user}/title-access', [UserController::class, 'titleAccess']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Services\Access\PositionAccess;
 use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\BackgroundWork;
@@ -56,6 +57,8 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $probation_end_date
  * @property Carbon|null $confirmation_date
  * @property Carbon|null $termination_date
+ * @property bool $outside_employment_framework
+ * @property string|null $employment_framework_note
  */
 class Employee extends Model
 {
@@ -100,6 +103,8 @@ class Employee extends Model
         'probation_end_date',
         'confirmation_date',
         'termination_date',
+        'outside_employment_framework',
+        'employment_framework_note',
         'salary_cents',
         'salary_step',
         'photo_path',
@@ -133,6 +138,7 @@ class Employee extends Model
             'probation_end_date' => 'date',
             'confirmation_date' => 'date',
             'termination_date' => 'date',
+            'outside_employment_framework' => 'boolean',
             'salary_cents' => 'integer',
             'tin' => 'encrypted',
             'nationality_status' => NationalityStatus::class,
@@ -169,6 +175,12 @@ class Employee extends Model
         static::updated(function (Employee $employee): void {
             if ($employee->wasChanged('salary_cents')) {
                 $employee->recordSalaryHistory(created: false);
+            }
+
+            // A new job title may give the login a different role, by the same
+            // rules as setting it by hand (PositionAccess).
+            if ($employee->wasChanged('position_id')) {
+                app(PositionAccess::class)->syncEmployee($employee, PositionAccess::currentActor());
             }
 
             // A leaving date moved: every released month from the earlier of

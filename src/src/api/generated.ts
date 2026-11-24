@@ -9198,6 +9198,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user}/title-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring an account's role to the one its job title gives, now, as the
+         *     signed-in person. Refused with 422 when they may not give that role
+         */
+        post: operations["user.titleAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}/mfa/reset": {
         parameters: {
             query?: never;
@@ -10797,6 +10817,8 @@ export interface components {
             probation_end_date: string | null;
             confirmation_date: string | null;
             termination_date: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number;
             /** @enum {string|null} */
             sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;
@@ -10846,6 +10868,12 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * EmploymentFramework
+         * @description The body of employment law an organisation's staff are governed by, held as the `employment.framework` rule of the employment domain (docs/payroll/STATUTORY-PARAMETERS.md, "Domains"). LABOUR_PROCLAMATION is the private-sector Labour Proclamation, FEDERAL_CIVIL_SERVICE the Federal Civil Servants Proclamation, REGIONAL_CIVIL_SERVICE the civil service law of each region, and UNSPECIFIED a kind whose governing law has not been read.  The codes carry no proclamation number because laws are replaced; the number lives in the rule's legal reference, which a new row can change.
+         * @enum {string}
+         */
+        EmploymentFramework: "labour_proclamation" | "federal_civil_service" | "regional_civil_service" | "unspecified";
         /** EnableMfaRequest */
         EnableMfaRequest: {
             secret: string;
@@ -12002,6 +12030,7 @@ export interface components {
             code: string | null;
             description: string | null;
             is_active: boolean;
+            access_role: string | null;
             employees_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -13024,6 +13053,8 @@ export interface components {
             hire_date: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
             tin?: string | null;
             department_id?: string | null;
@@ -13281,6 +13312,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** StoreProfileEmergencyContactRequest */
         StoreProfileEmergencyContactRequest: {
@@ -13822,6 +13855,8 @@ export interface components {
             hire_date?: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
             /** Format: date-time */
             salary_effective_date?: string | null;
@@ -14076,6 +14111,7 @@ export interface components {
             timezone?: string;
             /** @enum {string} */
             locale?: "en" | "am" | "om";
+            employment_framework?: components["schemas"]["EmploymentFramework"] | null;
         };
         /**
          * UpdateOvertimeRatesRequest
@@ -14177,6 +14213,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** UpdatePreferencesRequest */
         UpdatePreferencesRequest: {
@@ -14408,6 +14446,7 @@ export interface components {
             /** @description Unique per tenant, ignoring this user's own row so a no-op save passes. */
             username?: string | null;
             role?: components["schemas"]["UserRole"];
+            role_follows_position?: boolean;
             /** @enum {string} */
             status?: "active" | "inactive" | "suspended";
             custom_role_id?: string | null;
@@ -14526,6 +14565,8 @@ export interface components {
             username: string | null;
             phone: string | null;
             role: components["schemas"]["UserRole"];
+            role_follows_position: boolean;
+            title_role: string | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -36930,6 +36971,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                         address: {
                             mode: string;
@@ -37193,6 +37243,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                     };
                 };
@@ -40410,6 +40469,54 @@ export interface operations {
                         status: 422;
                         /** @constant */
                         detail: "This user is not pending activation.";
+                    };
+                };
+            };
+        };
+    };
+    "user.titleAccess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "You may not give that role, so the account was left as it was.";
                     };
                 };
             };

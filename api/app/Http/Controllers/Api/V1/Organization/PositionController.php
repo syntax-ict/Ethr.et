@@ -11,6 +11,7 @@ use App\Http\Requests\Organization\UpdatePositionRequest;
 use App\Http\Resources\PositionResource;
 use App\Models\AuditLog;
 use App\Models\Position;
+use App\Services\Access\PositionAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -59,6 +60,10 @@ class PositionController extends Controller
 
         AuditLog::record('position.created', $position);
 
+        if ($position->access_role !== null) {
+            AuditLog::record('position.access_changed', $position, ['before' => null, 'after' => $position->access_role]);
+        }
+
         return (new PositionResource($position))
             ->response()
             ->setStatusCode(201);
@@ -73,13 +78,25 @@ class PositionController extends Controller
         return new PositionResource($position);
     }
 
-    public function update(UpdatePositionRequest $request, Position $position): PositionResource
+    public function update(UpdatePositionRequest $request, Position $position, PositionAccess $access): PositionResource
     {
         Gate::authorize('org.update');
 
+        $before = $position->access_role;
         $position->update($request->validated());
 
         AuditLog::record('position.updated', $position);
+
+        if ($position->access_role !== $before) {
+            $outcome = $access->syncPosition($position, $request->user());
+
+            AuditLog::record('position.access_changed', $position, [
+                'before' => $before,
+                'after' => $position->access_role,
+                'applied' => $outcome['applied'],
+                'held' => $outcome['held'],
+            ]);
+        }
 
         return new PositionResource($position);
     }

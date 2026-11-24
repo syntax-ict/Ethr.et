@@ -99,6 +99,46 @@ describe("useOfflineSync", () => {
     const activity = getSyncActivity();
     expect(activity.sendingPunches).toBe(0);
     expect(activity.lastSent).toBeNull();
+    // And says why the punch is still here, so the banner can.
+    expect(activity.punchesWaitingBecause).toBe("unreachable");
+  });
+
+  it.each([
+    [500, "server"],
+    [429, "busy"],
+  ] as const)("says the server answered %i", async (status, why) => {
+    vi.spyOn(offlineQueue, "getPendingRecords").mockResolvedValue([record()]);
+    vi.spyOn(apiClient, "post").mockRejectedValue(
+      Object.assign(new Error("failed"), { response: { status } }),
+    );
+    const { result } = renderHook(() => useOfflineSync(EMP));
+
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(getSyncActivity().punchesWaitingBecause).toBe(why);
+  });
+
+  it("clears the reason when the next run sends the punch", async () => {
+    vi.spyOn(offlineQueue, "getPendingRecords").mockResolvedValue([record()]);
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockRejectedValueOnce(new Error("Network Error"));
+    const { result } = renderHook(() => useOfflineSync(EMP));
+    await act(async () => {
+      await result.current.syncNow();
+    });
+    expect(getSyncActivity().punchesWaitingBecause).toBe("unreachable");
+
+    post.mockResolvedValue({
+      data: { results: [{ idempotency_key: "key-1", status: "created" }] },
+    } as never);
+    await act(async () => {
+      await result.current.syncNow();
+    });
+
+    expect(getSyncActivity().punchesWaitingBecause).toBeNull();
   });
 
   it("marks a created record synced so it is not sent twice", async () => {
