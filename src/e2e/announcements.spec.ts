@@ -66,6 +66,28 @@ test.describe("Announcements: one presentation", () => {
     await expect(story.getByText("Important", { exact: true })).toBeVisible();
     await anonymous.close();
   });
+
+  test("reads the same title, excerpt and body from the public article and the in-app read", async ({
+    page,
+  }) => {
+    // One story contract: both endpoints build the story from the same
+    // presenter, so what the public reads is what the app reads.
+    const article = await api(
+      page,
+      "GET",
+      `/auth/tenant-landing/announcements/${publicId}`,
+    );
+    const inApp = await api(page, "GET", `/announcements/${publicId}`);
+    expect(article.status).toBe(200);
+    expect(inApp.status).toBe(200);
+
+    const read = inApp.data.data ?? inApp.data;
+    expect(read.title).toBe(TITLE);
+    expect(article.data.title).toBe(read.title);
+    expect(article.data.excerpt).toBe(read.excerpt);
+    expect(article.data.body).toBe(read.body);
+    expect(read.body).toContain("A second paragraph.");
+  });
 });
 
 /**

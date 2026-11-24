@@ -12,11 +12,11 @@ use App\Models\Holiday;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
 use App\Support\PlainExcerpt;
+use App\Support\Story;
 use App\Support\TenantLanding;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * The public side of an organisation's sign-in page (ethr.et/{slug}): what it
@@ -44,7 +44,7 @@ class LandingFeedController extends Controller
 
     private const RELATED = 3;
 
-    // The feed and the news list are cached briefly in the browser: the
+    // The feed, the news list and an article are cached briefly in the browser: the
     // portal is read far more often than news is published. Private, because
     // the stateful API can set cookies on these responses and a shared cache
     // must not keep those; Vary still separates one tenant's feed from
@@ -86,7 +86,7 @@ class LandingFeedController extends Controller
             ? Announcement::query()->publiclyListed()->newsOrder()
                 ->limit(self::ANNOUNCEMENTS)
                 ->get()
-                ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
+                ->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))
                 ->all()
             : [];
 
@@ -137,7 +137,7 @@ class LandingFeedController extends Controller
     public function news(LandingNewsRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
-        if ($tenant === null || ! TenantLanding::publicSections($tenant)['announcements']) {
+        if ($tenant === null || ! TenantLanding::showsNews($tenant)) {
             throw (new ModelNotFoundException)->setModel(Announcement::class);
         }
 
@@ -167,7 +167,7 @@ class LandingFeedController extends Controller
         $page = $query->newsOrder()->paginate(Announcement::NEWS_PER_PAGE);
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))->all(),
+            'data' => collect($page->items())->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))->all(),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -188,7 +188,7 @@ class LandingFeedController extends Controller
     public function announcement(CurrentTenant $currentTenant, string $announcement): JsonResponse
     {
         $tenant = $currentTenant->get();
-        $model = $tenant === null || ! TenantLanding::publicSections($tenant)['announcements']
+        $model = $tenant === null || ! TenantLanding::showsNews($tenant)
             ? null
             : Announcement::query()
                 ->publiclyListed()
@@ -209,32 +209,13 @@ class LandingFeedController extends Controller
             ->newsOrder()
             ->limit(self::RELATED)
             ->get()
-            ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
+            ->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))
             ->all();
 
         return response()->json([
-            ...self::newsSummary($model, $tenant->public_id),
-            'body' => PlainExcerpt::of($model->body, 10000),
-            'attachments' => $model->attachmentsPresented($tenant->public_id),
+            ...Story::article($model, $tenant->public_id),
             'related' => $related,
-        ]);
-    }
-
-    /**
-     * @return array{public_id: string, title: string, excerpt: string, category: string|null, featured: bool, priority: string, published_at: string|null, cover: array{url: string, srcset: string, width: int, height: int}|null}
-     */
-    private static function newsSummary(Announcement $a, string $tenantPublicId): array
-    {
-        return [
-            'public_id' => $a->public_id,
-            'title' => Str::limit($a->title, 150),
-            'excerpt' => PlainExcerpt::of($a->body, 280),
-            'category' => $a->category,
-            'featured' => (bool) $a->featured,
-            'priority' => $a->priority,
-            'published_at' => Carbon::make($a->published_at)?->toIso8601String(),
-            'cover' => $a->coverPresented($tenantPublicId),
-        ];
+        ])->withHeaders(['Cache-Control' => self::CACHE, 'Vary' => 'Host, X-Tenant']);
     }
 
     /**

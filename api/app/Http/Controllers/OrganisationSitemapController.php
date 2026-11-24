@@ -76,7 +76,7 @@ class OrganisationSitemapController extends Controller
      */
     private static function news(Tenant $tenant): array
     {
-        if (! TenantLanding::publicSections($tenant)['announcements']
+        if (! TenantLanding::showsNews($tenant)
             || FrontendUrl::canonicalOrigin($tenant) === null) {
             return [];
         }
