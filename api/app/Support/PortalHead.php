@@ -186,8 +186,7 @@ final class PortalHead
         $landing = TenantLanding::present($tenant);
         $brand = TenantBrand::present($tenant);
         $url = self::newsUrl($tenant, $article->public_id);
-        $text = trim((string) preg_replace('/\s+/u', ' ', strip_tags($article->body)));
-        $description = Str::limit($text, self::DESCRIPTION_MAX, '…');
+        $description = PlainExcerpt::line($article->body, self::DESCRIPTION_MAX, '…');
         $published = Carbon::make($article->published_at);
         $modified = Carbon::make($article->updated_at);
         $cover = $article->coverPresented($tenant->public_id);
