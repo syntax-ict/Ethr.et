@@ -78,6 +78,49 @@ else
   todo "built from main@$SRC, $BEHIND_MAIN commit(s) behind. Quality gates and the Plesk release are running, or one failed: check the Actions tab"
 fi
 
+# What pressing Deploy would put live, said BEFORE it is pressed.
+#
+# Deploy and migrate are one step, and nothing told the person at the button
+# that the waiting release carried a migration. On 2026-11-23 and again on
+# 2026-11-24 a release went live with its migration unrun and the code read a
+# column that did not exist: both times the release had been checked earlier,
+# and the production branch had moved on to one with a migration by the time
+# Deploy was pressed. Run this again right before pressing it.
+waiting_release() {
+  local live="$1" src="$2" full count
+  full="$(git rev-parse --verify -q "$src^{commit}")" || { unk "cannot read the waiting release ($src) from this checkout"; return; }
+  if ! git cat-file -e "$live^{commit}" 2>/dev/null; then
+    unk "the live commit ${live:0:12} is not in this checkout, so the waiting release cannot be compared with it"
+    return
+  fi
+  if ! git merge-base --is-ancestor "$live" "$full" 2>/dev/null; then
+    unk "the live commit ${live:0:12} is not an ancestor of the waiting release; compare them by hand before deploying"
+    return
+  fi
+
+  count="$(git rev-list --count "$live".."$full")"
+  echo "    Deploy would add $count commit(s):"
+  git log --format='      %h %s' "$live".."$full" | cut -c1-110 | head -12
+  [ "$count" -gt 12 ] && echo "      ... and $((count - 12)) more"
+
+  local migrations seeders
+  migrations="$(git diff --name-only --diff-filter=A "$live".."$full" -- api/database/migrations)"
+  seeders="$(git diff --name-only "$live".."$full" -- api/database/seeders)"
+  if [ -n "$migrations" ]; then
+    todo "THIS RELEASE ADDS $(printf '%s
+' "$migrations" | wc -l | tr -d ' ') MIGRATION(S). Deploy and migrate are one step: set MAINTENANCE_TOKEN before pressing Deploy and run migrate straight after it (docs/deployment/PLESK-GO-LIVE.md Part 5)"
+    printf '%s
+' "$migrations" | sed 's|.*/|      |'
+  else
+    ok "the waiting release adds no migration: Deploy alone is enough"
+  fi
+  if [ -n "$seeders" ]; then
+    echo "    seeders changed, so run seed after migrate:"
+    printf '%s
+' "$seeders" | sed 's|.*/|      |'
+  fi
+}
+
 # 3 — the running site
 echo
 if [ -z "$URL" ]; then
@@ -99,6 +142,7 @@ else
       ok "running the latest release"
     else
       todo "running an older release than production: press Deploy in Plesk Git, then do the release steps (docs/deployment/PLESK-GO-LIVE.md)"
+      waiting_release "$LIVE" "$SRC"
     fi
   fi
 
