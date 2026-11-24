@@ -22,6 +22,35 @@ export function shouldRegisterServiceWorker(
   return !LOOPBACK_HOSTS.includes(hostname);
 }
 
+/**
+ * The files under /_next/static this page has loaded, as paths.
+ *
+ * On a first visit they arrived before the worker controlled the page, so the
+ * worker never saw them. Most are named by the shell pages it stores anyway;
+ * one loaded on demand is not, which is how a first visit in Afaan Oromoo got
+ * an English offline page: that dictionary is a chunk of its own. The page
+ * sends this list once the worker takes control and the worker keeps what it
+ * lacks (`KEEP_ASSETS` in public/sw.js).
+ */
+export function loadedStaticAssets(
+  entries: readonly { name: string }[],
+  origin: string,
+): string[] {
+  const paths = new Set<string>();
+  for (const entry of entries) {
+    let url: URL;
+    try {
+      url = new URL(entry.name, origin);
+    } catch {
+      continue;
+    }
+    if (url.origin !== origin) continue;
+    if (!url.pathname.startsWith("/_next/static/")) continue;
+    paths.add(url.pathname);
+  }
+  return [...paths];
+}
+
 export function useServiceWorker() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator))
@@ -52,9 +81,36 @@ export function useServiceWorker() {
       }
     }
 
+    // A page that started with no worker in charge tells the worker, the
+    // moment it takes over, what had already been loaded without it.
+    const startedUncontrolled = navigator.serviceWorker.controller === null;
+    function onControllerChange() {
+      if (!startedUncontrolled) return;
+      try {
+        navigator.serviceWorker.controller?.postMessage({
+          type: "KEEP_ASSETS",
+          urls: loadedStaticAssets(
+            performance.getEntriesByType("resource"),
+            window.location.origin,
+          ),
+        });
+      } catch {
+        // The worker keeps these as they are next requested instead.
+      }
+    }
+
     navigator.serviceWorker.addEventListener("message", onMessage);
-    return () =>
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      onControllerChange,
+    );
+    return () => {
       navigator.serviceWorker.removeEventListener("message", onMessage);
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+    };
   }, []);
 }
 
