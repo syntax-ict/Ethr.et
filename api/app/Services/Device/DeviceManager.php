@@ -9,6 +9,15 @@ use App\Models\Device;
 
 final class DeviceManager
 {
+    /**
+     * The adapters whose terminals are found by a webhook token. ZKTeco ADMS
+     * is found by its serial and the IP allowlist, and the mock and generic
+     * adapters carry no terminal address, so the token means nothing to them.
+     *
+     * @var list<string>
+     */
+    public const WEBHOOK_TOKEN_ADAPTERS = ['hikvision', 'zkteco', 'suprema'];
+
     /** @var array<string, class-string<DeviceAdapter>> */
     private array $adapters = [
         'hikvision' => HikvisionAdapter::class,
@@ -56,6 +65,32 @@ final class DeviceManager
         }
 
         return ! self::hasAddress($device);
+    }
+
+    /**
+     * Whether a webhook token is part of how this device connects, so a page
+     * may show its address or offer a new one. Display only: every device is
+     * still issued a token when it is registered.
+     */
+    public static function usesWebhookToken(Device $device): bool
+    {
+        return in_array($device->adapter_type, self::WEBHOOK_TOKEN_ADAPTERS, true);
+    }
+
+    /**
+     * How the terminal and ETHR reach each other, for the page that sets it
+     * up: `adms` (the terminal calls ETHR, found by serial), `push` (the
+     * terminal calls ETHR with its token) or `pull` (ETHR calls the terminal).
+     *
+     * @return 'adms'|'push'|'pull'
+     */
+    public static function connectionMode(Device $device): string
+    {
+        if ($device->adapter_type === AdmsDeviceResolver::ADAPTER) {
+            return 'adms';
+        }
+
+        return self::receivesOnly($device) ? 'push' : 'pull';
     }
 
     /**

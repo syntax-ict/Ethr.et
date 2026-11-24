@@ -160,6 +160,7 @@ describe("device detail for a terminal that sends to ETHR", () => {
           adapter_type: "hikvision",
           receives_only: true,
           has_webhook_token: true,
+          uses_webhook_token: true,
           webhook_token_prefix: "tok123ab",
           webhook_url_masked:
             "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
@@ -215,6 +216,7 @@ describe("device detail for a terminal that has not been heard from", () => {
     status: "pending",
     auto_sync: false,
     has_webhook_token: true,
+    uses_webhook_token: true,
     webhook_token_prefix: "tok123ab",
     webhook_url_masked:
       "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
@@ -554,6 +556,7 @@ describe("device detail: regenerating the webhook token", () => {
           adapter_type: "hikvision",
           receives_only: true,
           has_webhook_token: true,
+          uses_webhook_token: true,
           webhook_token_prefix: "tok123ab",
           webhook_url_masked:
             "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",

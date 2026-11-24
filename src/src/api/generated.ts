@@ -10554,6 +10554,9 @@ export interface components {
             accepts_commands: boolean;
             receives_only: boolean;
             pulled: boolean;
+            /** @enum {string} */
+            connection_mode: "push" | "pull" | "adms";
+            uses_webhook_token: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
