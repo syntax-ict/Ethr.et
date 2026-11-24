@@ -71,7 +71,7 @@ export function OwnershipCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">
+        <CardTitle as="h2" className="text-base">
           {t("settings_ownership.title", "Owner of the organisation")}
         </CardTitle>
       </CardHeader>

@@ -128,7 +128,7 @@ export function PasswordPolicyCard({ policy }: { policy: PasswordPolicy }) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <LockKeyhole className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.password_rules_title", "Password rules")}
           </CardTitle>
         </div>

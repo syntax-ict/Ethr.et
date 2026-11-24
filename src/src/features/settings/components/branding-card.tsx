@@ -149,7 +149,7 @@ export function BrandingCard({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Palette className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.branding", "Logo and colours")}
           </CardTitle>
         </div>

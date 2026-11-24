@@ -84,7 +84,7 @@ export function EmployeeNumberCard({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Hash className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.employee_numbers", "Employee numbers")}
           </CardTitle>
         </div>

@@ -179,6 +179,11 @@ function TemplateEditor({ template }: { template: ExitClearanceTemplate }) {
                       <Checkbox
                         checked={line.kind === "obligations"}
                         disabled={balanceTaken}
+                        aria-label={t(
+                          "exit_clearance.shows_balance_line",
+                          "Shows what is owed, line :n",
+                          { n },
+                        )}
                         aria-describedby={
                           balanceTaken ? balanceHintId : undefined
                         }

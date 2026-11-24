@@ -487,7 +487,7 @@ export function LandingCard({
       <CardHeader>
         <div className="flex items-center gap-2">
           <LogIn className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.landing_title", "Public website")}
           </CardTitle>
         </div>
