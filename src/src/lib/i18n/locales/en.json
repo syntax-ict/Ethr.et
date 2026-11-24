@@ -8005,7 +8005,7 @@
   "devices_page.last_heard": "Last heard :time",
   "devices_page.last_heard_label": "Last heard",
   "devices_page.never_heard": "Nothing received from this terminal yet.",
-  "devices_page.never_heard_hint": "Enter the address shown on the device page into the terminal. It reads Online as soon as the terminal sends anything, its regular heartbeat included.",
+  "devices_page.never_heard_hint": "Enter the settings shown on the device page into the terminal. It reads Online as soon as the terminal sends anything, its regular heartbeat included.",
   "devices_page.show_setup": "Show the setup steps",
   "devices_page.quiet": "Quiet",
   "devices_page.quiet_hint": "Last heard :time. ETHR cannot call this terminal, so it cannot tell whether it is switched off or just not in use.",
