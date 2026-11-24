@@ -627,3 +627,32 @@ The Amharic drafts:
 What to check first: that "የተከፈሉ ቀኖች" ("split days") is understood as one working day recorded in two parts,
 that "አዋህድ" ("join") matches the verb the Conflicts page already uses for a merged record (`ተዋህዷል`), and that
 "ሊታዩ ይቀራሉ" ("still to look at") reads naturally in the progress line.
+
+### Add employee form: grade, probation end, pay line, leaving, inline checks (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+On the Add employee form: a Grade picker and a Probation end date field in the Job card, one line that takes
+the place of Salary and TIN for someone who may not set pay, a question before a link drops an unsaved form, and
+four messages shown under a field that breaks a rule the API also checks.
+
+| What | Where | Strings |
+|---|---|---|
+| Form labels, pay line, leave question | `src/src/lib/i18n/locales/{am,om}.json`, `employee.grade`, `employee.probation_end_date`, `employee.pay_added_by_pay_manager`, `employee.leave_unsaved_title`, `_desc`, `_leave`, `_stay` | 7 each |
+| Messages under a field | `validation.badge_format`, `validation.dob_future`, `validation.dob_minimum_age`, `validation.hire_date_too_far` | 4 each |
+
+The Amharic drafts:
+
+- `employee.grade`: ደረጃ
+- `employee.probation_end_date`: የሙከራ ጊዜ ማብቂያ ቀን
+- `employee.pay_added_by_pay_manager`: ደመወዝና የግብር ከፋይ መለያ ቁጥር (TIN) የሚጨመሩት ክፍያን በሚያስተዳድር ሰው ነው።
+- `employee.leave_unsaved_title`: ሳያስቀምጡ ይውጡ?
+- `employee.leave_unsaved_desc`: ይህ ሠራተኛ አልተቀመጠም። ያስገቡት መረጃ ይጠፋል።
+- `employee.leave_unsaved_leave`: ውጣ
+- `employee.leave_unsaved_stay`: አርትዖቱን ቀጥል
+- `validation.badge_format`: ፊደላትን፣ ቁጥሮችንና ሰረዝን ብቻ ይጠቀሙ
+- `validation.dob_future`: የትውልድ ቀን ያለፈ ቀን መሆን አለበት
+- `validation.dob_minimum_age`: ሰው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት
+- `validation.hire_date_too_far`: የቅጥር ቀን ከአንድ ዓመት በላይ ወደፊት መሆን አይችልም
+
+What to check first: that "ክፍያን በሚያስተዳድር ሰው" ("someone who manages pay") names the role HR and finance
+staff recognise, and that "የሙከራ ጊዜ" matches the probation wording used on the employee profile.

@@ -4,13 +4,21 @@ import {
   NationalityStatusSelect,
   type NationalityStatus,
 } from "@/features/employees/components/nationality-status-select";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   branchesApi,
   departmentsApi,
   positionsApi,
   teamsApi,
   costCentersApi,
+  gradesApi,
 } from "@/features/organization/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -22,6 +30,7 @@ import {
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirm } from "@/components/shared/use-confirm";
 import {
   AlertTriangle,
   BadgeHelp,
@@ -78,6 +87,26 @@ import {
   employeeLikeness,
   type EmployeeLikeness,
 } from "@/features/employees/likeness";
+import {
+  validateEmployeeField,
+  validateEmployeeForm,
+  type ValidatedEmployeeFields,
+} from "@/features/employees/new-employee-validation";
+
+/** The fields in the order they appear, so the first message gets the focus. */
+const FIELD_ORDER = [
+  "name",
+  "name_am",
+  "date_of_birth",
+  "nationality",
+  "email",
+  "hire_date",
+  "probation_end_date",
+  "employee_code",
+  "badge_number",
+  "tin",
+  "national_id",
+] as const satisfies readonly (keyof ValidatedEmployeeFields)[];
 
 const EMPTY_FORM = {
   name: "",
@@ -94,6 +123,7 @@ const EMPTY_FORM = {
   tin: "",
   marital_status: "single",
   hire_date: "",
+  probation_end_date: "",
   salary_cents: "",
   // The API's own field names, so a 422's `errors` keys land on these
   // controls. They were `*_public_id`, which StoreEmployeeRequest does not
@@ -101,6 +131,7 @@ const EMPTY_FORM = {
   department_id: "",
   branch_id: "",
   position_id: "",
+  grade_id: "",
   // No screen set these three, so the reporting chart was flat and teams
   // and cost centres were never assigned (audit N73).
   supervisor_id: "",
@@ -161,7 +192,11 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const router = useRouter();
   const createEmployee = useCreateEmployee();
   const nextCode = useNextEmployeeCode();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, can } = usePermissions();
+  // Salary and TIN are pay data: `EmployeeController::store` refuses them
+  // with a 403 unless the caller holds `employee.updateFinancial`, so a role
+  // without it is not offered them, and a blank one is never sent.
+  const canPay = can.updateEmployeeFinancial === true;
   // The held punches are replayed by whoever may assign a badge, the same
   // check the assign endpoint makes.
   const canReplay = origin !== null && hasPermission("attendance.manage");
@@ -184,6 +219,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const { data: positions } = positionsApi.useList();
   const { data: teams } = teamsApi.useList();
   const { data: costCenters } = costCentersApi.useList();
+  const { data: grades } = gradesApi.useList();
   const { data: employeeOptions } = useEmployeeOptions();
 
   const [form, setForm] = useState<EmployeeForm>(() =>
@@ -225,7 +261,25 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const [sendLogin, setSendLogin] = useState(false);
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  useUnsavedChangesWarning(hasUnsavedChanges);
+  // Also asks before a link inside the app (Cancel, the sidebar) drops a form
+  // that has input in it; Next's router gives no other hook for that.
+  const { requestConfirm, confirmDialog } = useConfirm();
+  const leaveTo = useCallback(
+    async (href: string) => {
+      const leave = await requestConfirm({
+        title: t("employee.leave_unsaved_title", "Leave without saving?"),
+        description: t(
+          "employee.leave_unsaved_desc",
+          "This employee has not been saved. What you entered will be lost.",
+        ),
+        confirmLabel: t("employee.leave_unsaved_leave", "Leave"),
+        cancelLabel: t("employee.leave_unsaved_stay", "Keep editing"),
+      });
+      if (leave) router.push(href);
+    },
+    [requestConfirm, router, t],
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges, leaveTo);
 
   /** Per-field messages from the API's RFC-7807 `errors` map. */
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -249,11 +303,41 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
     setHasUnsavedChanges(true);
     // Clear this field's error as soon as the user edits it — leaving a stale
     // message under a field they have already corrected reads as broken.
+    // The hire date moves what two other dates are checked against, so a
+    // message under either is re-read against the new one.
+    const next = { ...form, [field]: value };
     setErrors((prev) => {
-      if (!prev[field]) return prev;
-      const { [field]: _removed, ...rest } = prev;
-      return rest;
+      const rest = { ...prev };
+      delete rest[field];
+      if (field === "hire_date") {
+        for (const dependent of [
+          "date_of_birth",
+          "probation_end_date",
+        ] as const) {
+          if (!prev[dependent]) continue;
+          const message = validateEmployeeField(dependent, next, t);
+          if (message) rest[dependent] = message;
+          else delete rest[dependent];
+        }
+      }
+      const same =
+        Object.keys(rest).length === Object.keys(prev).length &&
+        Object.keys(rest).every((k) => rest[k] === prev[k]);
+      return same ? prev : rest;
     });
+  }
+
+  /** The API's rule for a field, shown when the person leaves it. */
+  function checkOnBlur(e: React.FocusEvent<HTMLElement>) {
+    const id = e.target.id as keyof ValidatedEmployeeFields;
+    if (!(FIELD_ORDER as readonly string[]).includes(id)) return;
+    // Only ever adds a message: one already showing (a required field left
+    // empty, a server answer) goes when the person edits the field.
+    const message = validateEmployeeField(id, form, t);
+    if (!message) return;
+    setErrors((prev) =>
+      prev[id] === message ? prev : { ...prev, [id]: message },
+    );
   }
 
   function startNext(savedName: string) {
@@ -264,6 +348,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       branch_id: form.branch_id,
       department_id: form.department_id,
       position_id: form.position_id,
+      grade_id: form.grade_id,
     });
     // An address is the person's own, not where the next hire starts.
     setAddress(EMPTY_ADDRESS);
@@ -283,12 +368,20 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
 
     // The two fields the API requires are checked here first, so a missing
     // one is named under its field, in its section, without a round trip.
+    // The API's other rules a person can break while typing are read here
+    // too, with the same messages they get on leaving a field.
     const missing: FieldErrors = {};
+    for (const [field, message] of Object.entries(
+      validateEmployeeForm(form, t),
+    )) {
+      if (message) missing[field] = message;
+    }
     if (!form.name.trim()) missing.name = t("validation.required");
     if (!form.hire_date) missing.hire_date = t("validation.required");
     if (Object.keys(missing).length > 0) {
       setErrors(missing);
-      document.getElementById(Object.keys(missing)[0])?.focus();
+      const first = FIELD_ORDER.find((f) => missing[f]);
+      if (first) document.getElementById(first)?.focus();
       return;
     }
     setErrors({});
@@ -305,18 +398,24 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       nationality: form.nationality || null,
       nationality_status: form.nationality_status,
       national_id: form.national_id || null,
-      tin: form.tin || null,
+      ...(canPay && form.tin.trim() ? { tin: form.tin } : {}),
       marital_status: (form.marital_status ||
         null) as CreateEmployeePayload["marital_status"],
       ...addressToPayload(address),
       hire_date: form.hire_date,
+      probation_end_date: form.probation_end_date || null,
       // Already integer cents — CurrencyInput does the ETB conversion, so
       // this page no longer hand-rolls it (`parseInt` once turned 5000.50
-      // into 500000).
-      salary_cents: Number(form.salary_cents) || 0,
+      // into 500000). Left out when blank, as an API call that omits it:
+      // the server stores 0 either way, and only a key that is present asks
+      // for the pay permission.
+      ...(canPay && Number(form.salary_cents) > 0
+        ? { salary_cents: Number(form.salary_cents) }
+        : {}),
       department_id: form.department_id || null,
       branch_id: branchId || null,
       position_id: form.position_id || null,
+      grade_id: form.grade_id || null,
       supervisor_id: form.supervisor_id || null,
       team_id: form.team_id || null,
       cost_center_id: form.cost_center_id || null,
@@ -486,10 +585,12 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
       label: t("employee.section_job", "Job"),
       fields: [
         "hire_date",
+        "probation_end_date",
         "employee_code",
         "branch_id",
         "department_id",
         "position_id",
+        "grade_id",
         "supervisor_id",
         "team_id",
         "cost_center_id",
@@ -500,7 +601,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
     {
       id: "section-pay",
       label: t("employee.section_pay", "Pay and identity"),
-      fields: ["salary_cents", "tin", "national_id"],
+      fields: canPay ? ["salary_cents", "tin", "national_id"] : ["national_id"],
       required: [],
     },
   ];
@@ -608,7 +709,7 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
         {/* Every control's `id` is the API field name so a 422's `errors` key
             maps straight onto it — that is also what lets the submit handler
             focus the first invalid field. */}
-        <div key={formKey} className="space-y-6">
+        <div key={formKey} className="space-y-6" onBlur={checkOnBlur}>
           <Section
             id="section-person"
             icon={<UserRound className="h-4 w-4" />}
@@ -771,7 +872,10 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               <Checkbox
                 id="send_login"
                 checked={sendLogin && (!!form.email || !form.phone)}
-                onCheckedChange={(v) => setSendLogin(v === true)}
+                onCheckedChange={(v) => {
+                  setSendLogin(v === true);
+                  setHasUnsavedChanges(true);
+                }}
                 disabled={!form.email && !!form.phone}
                 aria-describedby="send_login-hint"
               />
@@ -837,6 +941,17 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
                 value={form.hire_date}
                 onChange={(v) => updateField("hire_date", v)}
                 required
+              />
+            </FormField>
+
+            <FormField
+              id="probation_end_date"
+              label={t("employee.probation_end_date", "Probation end date")}
+              error={errors.probation_end_date}
+            >
+              <DualCalendarDateInput
+                value={form.probation_end_date}
+                onChange={(v) => updateField("probation_end_date", v)}
               />
             </FormField>
 
@@ -938,6 +1053,24 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               </Select>
             </FormField>
 
+            {(grades?.data?.length ?? 0) > 0 && (
+              <FormField
+                id="grade_id"
+                label={t("employee.grade", "Grade")}
+                error={errors.grade_id}
+              >
+                <RelationPicker
+                  id="grade_id"
+                  value={form.grade_id}
+                  options={(grades?.data ?? []).map((g) => ({
+                    value: g.public_id,
+                    label: g.name,
+                  }))}
+                  onChange={(v) => updateField("grade_id", v)}
+                />
+              </FormField>
+            )}
+
             <FormField
               id="supervisor_id"
               label={t("employee.supervisor", "Supervisor")}
@@ -1012,42 +1145,53 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
               "Used by payroll and the statutory schedules. You can add these later.",
             )}
           >
-            <FormField
-              id="salary_cents"
-              label={t("employee.monthly_salary", "Monthly Salary (ETB)")}
-              hint={t(
-                "employee.salary_optional_hint",
-                "Monthly gross pay. Leave it empty if you set pay later.",
-              )}
-              error={errors.salary_cents}
-            >
-              <CurrencyInput
-                value={Number(form.salary_cents) || 0}
-                onChange={(cents) =>
-                  updateField("salary_cents", cents ? String(cents) : "")
-                }
-                placeholder="5000.00"
-              />
-            </FormField>
+            {canPay ? (
+              <>
+                <FormField
+                  id="salary_cents"
+                  label={t("employee.monthly_salary", "Monthly Salary (ETB)")}
+                  hint={t(
+                    "employee.salary_optional_hint",
+                    "Monthly gross pay. Leave it empty if you set pay later.",
+                  )}
+                  error={errors.salary_cents}
+                >
+                  <CurrencyInput
+                    value={Number(form.salary_cents) || 0}
+                    onChange={(cents) =>
+                      updateField("salary_cents", cents ? String(cents) : "")
+                    }
+                    placeholder="5000.00"
+                  />
+                </FormField>
 
-            <FormField
-              id="tin"
-              label={t("employee.tin", "TIN")}
-              hint={t(
-                "employee.tin_hint",
-                "Taxpayer identification number. The tax schedule needs it.",
-              )}
-              error={errors.tin}
-            >
-              <Input
-                value={form.tin}
-                onChange={(e) => updateField("tin", e.target.value)}
-                inputMode="numeric"
-                maxLength={20}
-                className="font-mono"
-                autoComplete="off"
-              />
-            </FormField>
+                <FormField
+                  id="tin"
+                  label={t("employee.tin", "TIN")}
+                  hint={t(
+                    "employee.tin_hint",
+                    "Taxpayer identification number. The tax schedule needs it.",
+                  )}
+                  error={errors.tin}
+                >
+                  <Input
+                    value={form.tin}
+                    onChange={(e) => updateField("tin", e.target.value)}
+                    inputMode="numeric"
+                    maxLength={20}
+                    className="font-mono"
+                    autoComplete="off"
+                  />
+                </FormField>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground sm:col-span-2">
+                {t(
+                  "employee.pay_added_by_pay_manager",
+                  "Salary and TIN are added by someone who manages pay.",
+                )}
+              </p>
+            )}
 
             <FormField
               id="national_id"
@@ -1108,6 +1252,8 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
           </Button>
         </div>
       </form>
+
+      {confirmDialog}
 
       <ExistingEmployeeDialog
         likeness={likeness}
