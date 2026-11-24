@@ -32,6 +32,8 @@ export type Employee = Pick<
   | "photo_url"
   | "photo_thumb_url"
   | "hire_date"
+  | "outside_employment_framework"
+  | "employment_framework_note"
   | "salary_cents"
   | "sign_in"
   | "department"
@@ -40,5 +42,6 @@ export type Employee = Pick<
   | "team"
   | "cost_center"
   | "supervisor"
+  | "archived_at"
   | "created_at"
 >;

@@ -465,6 +465,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::post('/{user}/title-access', [UserController::class, 'titleAccess']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
@@ -607,6 +608,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/bulk-archive', [EmployeeBulkController::class, 'bulkArchive']);
+    Route::post('/employees/bulk-restore', [EmployeeBulkController::class, 'bulkRestore']);
     Route::get('/employees/possible-duplicates', PossibleDuplicatesController::class);
     Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/starting-password', [StartingPasswordController::class, 'store']);

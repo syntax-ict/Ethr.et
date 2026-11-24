@@ -31,13 +31,16 @@ export function useUsers(params?: {
   search?: string;
   /** `invited` lists the people who have not activated yet. */
   status?: UserStatus;
+  /** `held` lists accounts whose role differs from what their job title gives. */
+  titleAccess?: "held";
 }) {
   return useQuery<PaginatedResponse<TenantUser>>({
     queryKey: ["users", params],
     queryFn: async () => {
-      const { status, ...rest } = params ?? {};
+      const { status, titleAccess, ...rest } = params ?? {};
       const query: Record<string, string | number | undefined> = { ...rest };
       if (status) query["filter[status]"] = status;
+      if (titleAccess) query["filter[title_access]"] = titleAccess;
       return (await apiClient.get("/users", { params: query })).data;
     },
   });
@@ -82,6 +85,19 @@ export function useUpdateUser() {
         qc.invalidateQueries({ queryKey: ["auth", "me"] });
       }
     },
+  });
+}
+
+/**
+ * Gives an account the role its job title gives, as the signed-in person. The
+ * API refuses (422) when they may not give that role.
+ */
+export function useApplyTitleAccess() {
+  const qc = useQueryClient();
+  return useMutation<TenantUser, unknown, string>({
+    mutationFn: async (publicId) =>
+      (await apiClient.post(`/users/${publicId}/title-access`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 

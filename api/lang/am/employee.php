@@ -41,4 +41,6 @@ return [
     'cannot_review_filed_profile' => 'ይህን ለውጥ ያቀረቡት እርስዎ ስለሆኑ ሌላ ሰው መገምገም አለበት።',
     'invalid_transition' => 'ሁኔታን ከ:from ወደ :to መቀየር አይቻልም።',
     'bulk_update_failed' => 'ይህን ሰራተኛ ማዘመን አልተቻለም። እንደገና ይሞክሩ፣ ወይም ከመገለጫው ይቀይሩ።',
+    'bulk_archive_failed' => 'ይህን ሰው በማህደር ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።',
+    'bulk_restore_failed' => 'ይህን ሰው ከማህደር መመለስ አልተቻለም። እንደገና ይሞክሩ።',
 ];

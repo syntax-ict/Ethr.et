@@ -6,6 +6,7 @@ import type {
   AnnouncementTargetValue,
 } from "./announcement";
 import type { EducationLevelValue } from "./education-level";
+import type { EmploymentFrameworkValue } from "./employment-framework";
 import type { GenderValue } from "./gender";
 import type { MaritalStatusValue } from "./marital-status";
 import type { NotificationTypeValue } from "./notification-type";
@@ -26,6 +27,7 @@ export const OPTION_LISTS_MATCH_THE_CONTRACT: [
   true,
   true,
   true,
+  true,
 ] = [
   true satisfies Same<GenderValue, components["schemas"]["Gender"]>,
   true satisfies Same<
@@ -39,6 +41,10 @@ export const OPTION_LISTS_MATCH_THE_CONTRACT: [
   true satisfies Same<
     NotificationTypeValue,
     components["schemas"]["NotificationType"]
+  >,
+  true satisfies Same<
+    EmploymentFrameworkValue,
+    components["schemas"]["EmploymentFramework"]
   >,
   true satisfies Same<
     AnnouncementPriorityValue,

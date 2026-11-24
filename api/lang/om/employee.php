@@ -40,4 +40,6 @@ return [
     'cannot_review_filed_profile' => 'Jijjiirama kana isin galchitaniittu, kanaaf nama biraatu ilaaluu qaba.',
     'invalid_transition' => 'Haala :from irraa gara :to jijjiiruun hin danda\'amu.',
     'bulk_update_failed' => 'Hojjetaan kun haaromfamuu hin dandeenye. Irra deebi\'aa yaalaa, ykn piroofaayilii isaa irraa jijjiiraa.',
+    'bulk_archive_failed' => 'Nama kana kuusuu hin dandeenye. Irra deebi\'aa yaalaa.',
+    'bulk_restore_failed' => 'Nama kana deebisuu hin dandeenye. Irra deebi\'aa yaalaa.',
 ];

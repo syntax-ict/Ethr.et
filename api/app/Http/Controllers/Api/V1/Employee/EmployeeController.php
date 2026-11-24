@@ -21,6 +21,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Employees\EmployeeRestorer;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentitySignals;
@@ -32,6 +33,7 @@ use App\Support\EmployeeGaps;
 use App\Support\EmployeeRelations;
 use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
+use App\Support\FrameworkExemption;
 use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
@@ -83,6 +85,13 @@ class EmployeeController extends Controller
 
         if ($request->filled('search')) {
             $query->search($request->input('search'));
+        }
+
+        // The archived people, and only them. Seeing who was archived is the
+        // permission to archive and restore them, not the permission to list.
+        if ($request->boolean('filter.archived')) {
+            Gate::authorize('employee.delete');
+            $query->onlyTrashed();
         }
 
         if ($request->has('filter.status')) {
@@ -190,6 +199,9 @@ class EmployeeController extends Controller
         $confirmedNew = (bool) ($data['confirm_new'] ?? false);
         unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
+        $data = FrameworkExemption::normalise($data, false);
+        $data['outside_employment_framework'] ??= false;
+        $data['employment_framework_note'] ??= null;
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
         // Unset means the column default, Ethiopian — never a null.
@@ -244,6 +256,7 @@ class EmployeeController extends Controller
                 role: $this->resolveAssignableRole($request->user(), $requestedRole),
                 employee: $employee,
                 invitedBy: $request->user()->id,
+                followsPosition: $requestedRole === null || $requestedRole === UserRole::EMPLOYEE->value,
             ) !== null;
 
             if (! $loginInvited) {
@@ -283,7 +296,7 @@ class EmployeeController extends Controller
 
         // Resources render flat (withoutWrapping). Merge the provisioning result
         // as a top-level `meta` key without re-introducing a `data` wrapper.
-        $response = (new EmployeeResource($employee))->response()->setStatusCode(201);
+        $response = (new EmployeeResource($employee))->withEmploymentLaw()->response()->setStatusCode(201);
         $payload = $response->getData(true);
         $payload['meta'] = ['login_invited' => $loginInvited, 'activation_code_pending' => $activationCodePending];
         $response->setData($payload);
@@ -348,7 +361,7 @@ class EmployeeController extends Controller
             'emergencyContacts', 'bankDetails', 'education', 'transitions',
         ]);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee, EmployeeUpdater $updater): EmployeeResource
@@ -363,7 +376,7 @@ class EmployeeController extends Controller
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function destroy(Employee $employee): JsonResponse
@@ -385,26 +398,15 @@ class EmployeeController extends Controller
      * employees. The person takes a seat again, so the plan's employee limit
      * applies. An employee who is not deleted is returned unchanged.
      */
-    public function restore(Employee $employee, PlanLimitService $planLimits): EmployeeResource
+    public function restore(Employee $employee, EmployeeRestorer $restorer): EmployeeResource
     {
         // Whoever may delete may undo it. This is the other answer to the 409
         // EmployeeIntake gives when the person being added is one whose
-        // record was deleted. Counted under the seat lock, as a new employee is.
+        // record was deleted. The seat is counted under the seat lock, as a
+        // new employee is, by the restorer the bulk restore shares.
         $this->authorize('delete', $employee);
 
-        if ($employee->trashed()) {
-            $tenant = app(CurrentTenant::class)->get();
-            $seats = $planLimits->lock($tenant, 'employees');
-            try {
-                $planLimits->assertCanAdd($tenant, 'employees');
-                $employee->restore();
-            } finally {
-                $seats->release();
-            }
-
-            AuditLog::record('employee.restored', $employee);
-            $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
-        }
+        $restorer->restore($employee);
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 

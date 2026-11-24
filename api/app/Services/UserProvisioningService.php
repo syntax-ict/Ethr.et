@@ -11,6 +11,7 @@ use App\Models\InvitationSend;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\AccountActivationNotification;
+use App\Services\Access\PositionAccess;
 use App\Support\Mail\CriticalMail;
 use App\Support\PasswordTokens;
 use Illuminate\Support\Carbon;
@@ -65,6 +66,7 @@ class UserProvisioningService
         bool $sendActivation = true,
         ?string $locale = null,
         ?string $username = null,
+        bool $followsPosition = false,
     ): ?User {
         $tenant = $this->currentTenant->get();
         if ($tenant === null) {
@@ -103,6 +105,7 @@ class UserProvisioningService
             'password' => $this->unusablePassword(),
             'role' => $role,
             'custom_role_id' => $customRoleId,
+            'role_follows_position' => $followsPosition && $employee !== null && $customRoleId === null,
             'status' => 'invited',
             'invited_by' => $invitedBy,
             'invited_at' => now(),
@@ -122,11 +125,33 @@ class UserProvisioningService
             'invited_by' => $invitedBy,
         ]);
 
+        $this->followTitle($user, $invitedBy);
+
         if ($sendActivation) {
             $this->sendActivationLink($user, $invitedBy);
         }
 
         return $user;
+    }
+
+    /**
+     * Give a login that follows its employee's job title the role the title
+     * gives, when whoever is creating it may give that role by hand. The
+     * signed-in person is the actor; a run with none falls back to whoever
+     * invited, and holds when neither is known.
+     */
+    private function followTitle(User $user, ?int $invitedBy): void
+    {
+        if (! $user->role_follows_position) {
+            return;
+        }
+
+        $actor = PositionAccess::currentActor();
+        if ($actor === null && $invitedBy !== null && ! PositionAccess::isIntegration()) {
+            $actor = User::query()->find($invitedBy);
+        }
+
+        app(PositionAccess::class)->sync($user, $actor);
     }
 
     /**
@@ -147,6 +172,7 @@ class UserProvisioningService
             'email' => null,
             'password' => $this->unusablePassword(),
             'role' => UserRole::EMPLOYEE,
+            'role_follows_position' => true,
             'status' => 'invited',
             'invited_by' => $invitedBy,
             'invited_at' => now(),
@@ -161,6 +187,8 @@ class UserProvisioningService
             'employee_id' => $employee->public_id,
             'invited_by' => $invitedBy,
         ]);
+
+        $this->followTitle($user, $invitedBy);
 
         return $user;
     }
@@ -200,6 +228,7 @@ class UserProvisioningService
             'email' => null,
             'password' => $passwordHash,
             'role' => UserRole::EMPLOYEE,
+            'role_follows_position' => true,
             'status' => 'active',
             'invited_by' => $invitedBy,
             'invited_at' => now(),
@@ -211,6 +240,8 @@ class UserProvisioningService
         if ($employee->user_id === null) {
             $employee->update(['user_id' => $user->id]);
         }
+
+        $this->followTitle($user, $invitedBy);
 
         return $user;
     }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
 use App\Http\Controllers\Api\V1\Employee\BankDetailController;
+use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController;
 use App\Http\Controllers\Api\V1\Onboarding\MigrationController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
@@ -60,7 +61,8 @@ class BlockImpersonatedActions
      * Actions an operator may use, except for the fields named here.
      *
      * The organisation's kind in law decides which statutory rules apply and so
-     * who its pension schedule is addressed to; the four statutory settings
+     * who its pension schedule is addressed to, and the employment framework is
+     * the law the organisation says governs its staff; the four statutory settings
      * decide how pay is worked out. An operator fixing a name, a timezone or a
      * language for a customer who asked must still be able to, so these are
      * refused by what the request carries, not by the action: a request that
@@ -78,11 +80,14 @@ class BlockImpersonatedActions
                 'organization_type',
                 'effective_from',
                 'cancel_pending_organization_type',
+                'employment_framework',
             ],
             SettingsController::class.'@update' => array_map(
                 static fn (string $key): string => 'settings.'.$key,
                 array_values(StatutorySettingsBridge::SETTINGS),
             ),
+            EmployeeController::class.'@store' => ['outside_employment_framework', 'employment_framework_note'],
+            EmployeeController::class.'@update' => ['outside_employment_framework', 'employment_framework_note'],
             ProfileController::class.'@update' => ['bank_name', 'bank_account_number'],
             // The setup wizard's apply writes the same two things by another
             // route: the kind, and plan.settings, which is held to what

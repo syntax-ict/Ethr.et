@@ -8,19 +8,26 @@ use App\Enums\ContractStatus;
 use App\Enums\EmployeeStatus;
 use App\Exceptions\InvalidEmployeeTransition;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Employee\BulkArchiveRequest;
+use App\Http\Requests\Employee\BulkRestoreRequest;
 use App\Http\Requests\Employee\BulkUpdateRequest;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Models\User;
+use App\Services\Employees\EmployeeArchiver;
+use App\Services\Employees\EmployeeRestorer;
 use App\Services\EmployeeTransitionService;
 use App\Support\Csv;
 use App\Support\EmployeeGaps;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 class EmployeeBulkController extends Controller
@@ -204,6 +211,231 @@ class EmployeeBulkController extends Controller
         }
 
         return $fields;
+    }
+
+    /**
+     * Archive people who should not have a record: added by mistake, or twice.
+     *
+     * Without `confirm` this only says what would happen and writes nothing.
+     * With `confirm: true` it archives everyone who has no history, each in
+     * their own transaction, asking again whether they have been used at that
+     * moment. Someone with attendance, pay, leave, a sign-in or any other
+     * history is kept, with the reasons, and leaves through a status change
+     * instead. Nobody archives their own record (`self`). Anyone already
+     * archived is reported as such, not refused, so the same request twice
+     * changes nothing the second time.
+     *
+     * An id outside the requester's org scope refuses the whole request with
+     * the 422 an id that exists nowhere gets. Archived people can be brought
+     * back with `POST /employees/bulk-restore`.
+     */
+    public function bulkArchive(BulkArchiveRequest $request, EmployeeArchiver $archiver): JsonResponse
+    {
+        Gate::authorize('employee.delete');
+
+        $actor = $request->user();
+        $confirmed = $request->boolean('confirm');
+
+        /** @var list<string> $publicIds */
+        $publicIds = array_values(array_unique($request->validated('employee_ids')));
+
+        $query = Employee::withTrashed()->whereIn('public_id', $publicIds);
+        $actor->scopeAccessibleEmployees($query);
+        $people = $query->get()->keyBy('public_id');
+
+        $request->refuseEmployeesOutOfReach($people->keys()->all());
+
+        $live = $people->filter(fn (Employee $person): bool => ! $person->trashed());
+        $used = $live->isEmpty()
+            ? []
+            : $archiver->reasons((int) $live->first()->tenant_id, $live->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        $results = [];
+        foreach ($publicIds as $publicId) {
+            $person = $people->get($publicId);
+
+            if ($person->trashed()) {
+                $results[] = $this->archiveResult($person, 'already_archived');
+
+                continue;
+            }
+
+            $why = $this->keepReasons($person, $actor, $used[$person->id] ?? []);
+
+            if ($why !== []) {
+                $results[] = $this->archiveResult($person, $confirmed ? 'kept' : 'keep', $why);
+            } elseif (! $confirmed) {
+                $results[] = $this->archiveResult($person, 'archive');
+            } else {
+                $results[] = $this->archiveOne($person, $actor, $archiver);
+            }
+        }
+
+        $archived = count(array_filter($results, fn (array $r): bool => in_array($r['outcome'], ['archive', 'archived'], true)));
+        $kept = count(array_filter($results, fn (array $r): bool => in_array($r['outcome'], ['keep', 'kept'], true)));
+        $already = count(array_filter($results, fn (array $r): bool => $r['outcome'] === 'already_archived'));
+        $failed = count(array_filter($results, fn (array $r): bool => $r['outcome'] === 'failed'));
+
+        if ($confirmed && $archived > 0) {
+            AuditLog::record('employee.bulk_archived', null, [
+                'requested' => count($publicIds),
+                'archived' => $archived,
+                'kept' => $kept,
+                'already_archived' => $already,
+                'failed' => $failed,
+            ]);
+        }
+
+        return response()->json([
+            'confirmed' => $confirmed,
+            'archive_count' => $archived,
+            'keep_count' => $kept,
+            'already_archived' => $already,
+            'failed' => $failed,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * One person's share of a confirmed archive, in its own transaction. The
+     * row is locked and read again, so someone archived, or used, since the
+     * preview a moment ago is not archived on the strength of it.
+     *
+     * @return array{employee_id: string, name: string, outcome: 'archive'|'keep'|'archived'|'kept'|'already_archived'|'failed', reasons: list<string>, error: string|null}
+     */
+    private function archiveOne(Employee $person, User $actor, EmployeeArchiver $archiver): array
+    {
+        try {
+            return DB::transaction(function () use ($person, $actor, $archiver): array {
+                $fresh = Employee::withTrashed()->whereKey($person->id)->lockForUpdate()->first();
+
+                if (! $fresh instanceof Employee || $fresh->trashed()) {
+                    return $this->archiveResult($person, 'already_archived');
+                }
+
+                $used = $archiver->reasons((int) $fresh->tenant_id, [$fresh->id]);
+                $why = $this->keepReasons($fresh, $actor, $used[$fresh->id] ?? []);
+                if ($why !== []) {
+                    return $this->archiveResult($fresh, 'kept', $why);
+                }
+
+                $done = $archiver->archive(
+                    new EloquentCollection([$fresh]),
+                    $actor,
+                    ['via' => 'bulk_archive'],
+                    ['reason' => 'bulk_archive'],
+                    $used,
+                );
+
+                return $done === []
+                    ? $this->archiveResult($fresh, 'failed', error: (string) __('employee.bulk_archive_failed'))
+                    : $this->archiveResult($fresh, 'archived');
+            });
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->archiveResult($person, 'failed', error: (string) __('employee.bulk_archive_failed'));
+        }
+    }
+
+    /**
+     * Why this person is not archived, if they are not: what they have been
+     * used for (AdditionUse), or that the record is the actor's own.
+     *
+     * @param  list<string>  $used
+     * @return list<string>
+     */
+    private function keepReasons(Employee $person, User $actor, array $used): array
+    {
+        $own = ($actor->employee_id !== null && (int) $actor->employee_id === (int) $person->id)
+            || ($person->user_id !== null && (int) $person->user_id === (int) $actor->id);
+
+        return $own ? ['self', ...$used] : $used;
+    }
+
+    /**
+     * One entry of a bulk archive's `results`, built in one place so the
+     * published contract reads `outcome` and `reasons` the same on every path.
+     *
+     * @param  'archive'|'keep'|'archived'|'kept'|'already_archived'|'failed'  $outcome
+     * @param  list<string>  $reasons
+     * @return array{employee_id: string, name: string, outcome: 'archive'|'keep'|'archived'|'kept'|'already_archived'|'failed', reasons: list<string>, error: string|null}
+     */
+    private function archiveResult(Employee $employee, string $outcome, array $reasons = [], ?string $error = null): array
+    {
+        $codes = [];
+        foreach ($reasons as $reason) {
+            $codes[] = (string) $reason;
+        }
+
+        return [
+            'employee_id' => $employee->public_id,
+            'name' => $employee->name,
+            'outcome' => $outcome,
+            'reasons' => $codes,
+            'error' => $error,
+        ];
+    }
+
+    /**
+     * Bring archived people back, each as `POST /employees/{employee}/restore`
+     * does: the plan's employee limit is counted under the seat lock, the
+     * restore is audited and the webhook is sent. `results` reports each id as
+     * `restored`, `unchanged` (not archived) or `failed`, with the reason, for
+     * example that the plan has no seat left. One refusal does not stop the
+     * others. A restore does not reopen a login that archiving closed.
+     */
+    public function bulkRestore(BulkRestoreRequest $request, EmployeeRestorer $restorer): JsonResponse
+    {
+        Gate::authorize('employee.delete');
+
+        /** @var list<string> $publicIds */
+        $publicIds = array_values(array_unique($request->validated('employee_ids')));
+
+        $query = Employee::withTrashed()->whereIn('public_id', $publicIds);
+        $request->user()->scopeAccessibleEmployees($query);
+        $people = $query->get()->keyBy('public_id');
+
+        $request->refuseEmployeesOutOfReach($people->keys()->all());
+
+        $results = [];
+        foreach ($publicIds as $publicId) {
+            $results[] = $this->restoreOne($people->get($publicId), $restorer);
+        }
+
+        $restored = count(array_filter($results, fn (array $r): bool => $r['outcome'] === 'restored'));
+        $failed = count(array_filter($results, fn (array $r): bool => $r['outcome'] === 'failed'));
+
+        return response()->json([
+            'restored' => $restored,
+            'failed' => $failed,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * @return array{employee_id: string, name: string, outcome: 'restored'|'unchanged'|'failed', error: string|null}
+     */
+    private function restoreOne(Employee $person, EmployeeRestorer $restorer): array
+    {
+        try {
+            return $this->restoreResult($person, $restorer->restore($person) ? 'restored' : 'unchanged');
+        } catch (HttpException $e) {
+            return $this->restoreResult($person, 'failed', $e->getMessage());
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->restoreResult($person, 'failed', (string) __('employee.bulk_restore_failed'));
+        }
+    }
+
+    /**
+     * @param  'restored'|'unchanged'|'failed'  $outcome
+     * @return array{employee_id: string, name: string, outcome: 'restored'|'unchanged'|'failed', error: string|null}
+     */
+    private function restoreResult(Employee $employee, string $outcome, ?string $error = null): array
+    {
+        return ['employee_id' => $employee->public_id, 'name' => $employee->name, 'outcome' => $outcome, 'error' => $error];
     }
 
     public function export(Request $request): JsonResponse

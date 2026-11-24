@@ -491,6 +491,38 @@ match that appeared afterwards (an earlier row of the same list naming the same
 person, or someone adding them meanwhile). That row is linked to the person's
 record, unverified, and counted under `merged`; it is not made a second time.
 
+**A number another record holds** (2026-11-24). `employees` is unique on
+`(tenant_id, employee_code)` over every row the table keeps, and an employee is soft
+deleted, so an archived person still holds their number. A row whose number another
+record holds, archived or current, cannot be added as a new person; the insert would fail
+inside the chunk's transaction, and the chunk, its cursor and its status would roll back
+with it, on every retry (`HeldNumbers`, one query for a chunk, comparing codes through
+`employee_code_normalized` and badges case-insensitively, the organisation stated on the
+query).
+
+- **At staging** the row carries a warning `number_held` and its default action is `defer`
+  where it would have been `create`. A row that merges into the holder is not warned: the
+  number is theirs. The warning is stored as the number and whether its holder is archived
+  or current, and its message is made when the row is read: it names the holder only to a
+  viewer who may open that person (`employee.view` and reach), and never one outside the
+  organisation. The row's `warnings` keep their shape, `code` and `message`.
+- **At `PATCH /rows/{row}`** an action of `create` on such a row answers 422
+  (`onboarding.migration.number_held`).
+- **At commit**, for a `create` row, under the lock: a number now held leaves the row
+  `deferred` and unprocessed, and nothing is thrown. The one exception is the row that
+  would have been linked, not made, because the person turned up since the review (above).
+  A unique violation on the employee number that still gets through (a record made a moment
+  ago by another request) is caught around the insert, inside a savepoint, and treated the
+  same way. A list stuck in `committing` on such a row finishes at its next commit request.
+- **A badge number** is not unique, but the form refuses one another record holds, archived
+  included. A row that brings one carries the warning `badge_held`, and the person is
+  added without the badge, as the form would have refused it.
+
+So the usual correction works: add a wrong file, undo its additions, add the corrected
+file. Every row that reuses an archived person's number is left for review ("Archived"),
+the others are added, and the list reaches `committed`. To bring one of those people back,
+restore them (`POST /employees/{employee}/restore`) and merge the row into them.
+
 ### A list that comes out of other software (2026-11-16)
 
 Attendance and HR systems shape a list their own way: a title above the column
@@ -712,11 +744,18 @@ can be undone from there. The card above the list box has a second
 group, "Lists added recently", each list with "Open", the badge "Added" or "Additions undone",
 and "N people added".
 
+**Adding the corrected list afterwards.** The people an undo archived still hold their
+employee numbers, so a corrected list that reuses them finds each one as an archived person
+and leaves the row for review: "A number another record holds", above. Until 2026-11-24 such
+a row could be set to "add as new", and the commit then failed on the unique index and could
+not be finished.
+
 **Limits.** A list is deleted 30 days after its last activity
 (`MigrationBatch::RETENTION_DAYS`), and with it the record of who it created, so an undo exists
-only inside that window. No screen lists archived employees: one is restored through the API
-route above, or by adding the person again, where the likeness dialog offers "Restore their
-record". Archiving removes a person from the attendance terminals of their branch and revokes
+only inside that window. Archived employees are listed under the Employees page's status filter,
+"Archived" (`GET /employees?filter[archived]=1`, for whoever may delete employees), where they can be
+restored one at a time or in bulk (`POST /employees/bulk-restore`); adding the person again also
+offers "Restore their record" in the likeness dialog. Archiving removes a person from the attendance terminals of their branch and revokes
 their registered phones, as any archive does, and a restore does not put those back. The Amharic
 and Afaan Oromoo wording has not been read by a native speaker. The derivation for a list
 committed before 2026-11-20 has been exercised only by tests, not against production data.

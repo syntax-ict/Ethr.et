@@ -8,7 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\User;
-use App\Services\Auth\ActivationCodeService;
+use App\Services\Employees\EmployeeArchiver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -44,7 +44,7 @@ final class ListUndo
     public function __construct(
         private readonly ListAdditions $additions,
         private readonly AdditionUse $use,
-        private readonly ActivationCodeService $codes,
+        private readonly EmployeeArchiver $archiver,
         private readonly float $sliceSeconds = WorkforceMigrationService::SLICE_SECONDS,
         private readonly int $chunk = WorkforceMigrationService::CHUNK,
     ) {}
@@ -158,61 +158,20 @@ final class ListUndo
         }
 
         $people = Employee::query()->where('tenant_id', $batch->tenant_id)->whereIn('id', $ids)->get();
-        $reasons = $this->use->reasons($batch->tenant_id, $people->pluck('id')->map(fn ($id): int => (int) $id)->all());
-        $gate = Gate::forUser($actor);
 
-        $archived = [];
-        foreach ($people as $person) {
-            if (isset($reasons[$person->id]) || ! $gate->allows('delete', $person)) {
-                continue;
-            }
-
-            $person->delete();
-            AuditLog::record('employee.deleted', $person, ['via' => 'migration.undo', 'batch' => $locked->public_id]);
-            $archived[] = $person;
-        }
+        $archived = $this->archiver->archive(
+            $people,
+            $actor,
+            ['via' => 'migration.undo', 'batch' => $locked->public_id],
+            ['reason' => 'migration.undo', 'batch' => $locked->public_id],
+        );
 
         if ($archived === []) {
             return;
         }
 
-        $this->closeLogins($archived, $locked, $actor);
-
         $totals = $this->totals($locked);
         $locked->update(['undo_totals' => [...$totals, 'pending' => $totals['pending'] + count($archived)]]);
-    }
-
-    /**
-     * Close the login of a person archived, when nobody ever signed in to it:
-     * it is made inactive, keeps its record and its role, and its sessions,
-     * tokens and activation code are ended. An account that is used is never
-     * here, because its owner would have been kept.
-     *
-     * @param  list<Employee>  $archived
-     */
-    private function closeLogins(array $archived, MigrationBatch $batch, User $actor): void
-    {
-        $ids = array_map(fn (Employee $employee): int => $employee->id, $archived);
-        $linked = array_values(array_filter(array_map(fn (Employee $employee): ?int => $employee->user_id === null ? null : (int) $employee->user_id, $archived)));
-
-        $accounts = User::query()
-            ->where('tenant_id', $batch->tenant_id)
-            ->where(function ($q) use ($ids, $linked): void {
-                $q->whereIn('employee_id', $ids);
-                if ($linked !== []) {
-                    $q->orWhereIn('id', $linked);
-                }
-            })
-            ->whereIn('status', ['active', 'invited'])
-            ->get();
-
-        foreach ($accounts as $account) {
-            $account->update(['status' => 'inactive']);
-            $account->tokens()->delete();
-            $this->codes->revoke($account, $actor);
-
-            AuditLog::record('user.deactivated', $account, ['reason' => 'migration.undo', 'batch' => $batch->public_id]);
-        }
     }
 
     /**
