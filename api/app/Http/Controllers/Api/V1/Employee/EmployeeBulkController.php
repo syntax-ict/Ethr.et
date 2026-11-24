@@ -11,18 +11,25 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\BulkArchiveRequest;
 use App\Http\Requests\Employee\BulkRestoreRequest;
 use App\Http\Requests\Employee\BulkUpdateRequest;
+use App\Http\Requests\Employee\EmployeeIdsRequest;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
+use App\Services\Access\PositionAccess;
 use App\Services\Employees\EmployeeArchiver;
 use App\Services\Employees\EmployeeRestorer;
 use App\Services\EmployeeTransitionService;
+use App\Services\EmployeeUpdater;
 use App\Support\Csv;
 use App\Support\EmployeeGaps;
+use App\Support\EmployeeListFilters;
+use App\Support\EmployeeRelations;
+use App\Support\SupervisorChain;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,18 +39,43 @@ use Throwable;
 
 class EmployeeBulkController extends Controller
 {
-    public function __construct(private readonly EmployeeTransitionService $transitions) {}
+    /** The most people `GET /employees/ids` names. A longer match is capped and says so. */
+    public const IDS_CAP = 2000;
 
     /**
-     * Move employees to a department or branch, or change their status.
+     * The job fields a bulk update may set, and the relation each is read back
+     * through for the audit entry and the access check.
+     */
+    private const JOB_RELATIONS = [
+        'position_id' => 'position',
+        'team_id' => 'team',
+        'cost_center_id' => 'costCenter',
+        'supervisor_id' => 'supervisor',
+    ];
+
+    public function __construct(
+        private readonly EmployeeTransitionService $transitions,
+        private readonly EmployeeUpdater $updater,
+    ) {}
+
+    /**
+     * Move employees to a department or branch, set their job title, team,
+     * cost centre or supervisor, or change their status.
      *
      * The selection is all or nothing: an id outside the requester's org scope
      * refuses the whole request with 422 before anything is written, with the
      * message an id that exists nowhere gets. The changes are per employee: a
      * status change goes through the same transition rules as
-     * `POST /employees/{employee}/transition`, and `results` reports each id as
-     * `updated`, `unchanged` (already in that status) or `failed`, with the
-     * reason. One refused transition does not stop the others.
+     * `POST /employees/{employee}/transition`, the job fields go through the
+     * same `EmployeeUpdater` as `PUT /employees/{employee}` (so a job title
+     * moves the account's access by the same rule, limited to what the person
+     * making the change could do by hand), and `results` reports each id as
+     * `updated`, `unchanged` (already as asked) or `failed`, with the reason.
+     * A supervisor who is the person themselves, or who would make a loop, is
+     * a `failed` for that person only. `access_held` says the person's login
+     * follows its job title and could not be moved to the new title's role by
+     * the person making the change, so it waits on the Users page. One refused
+     * change does not stop the others.
      */
     public function bulkUpdate(BulkUpdateRequest $request): JsonResponse
     {
@@ -77,7 +109,20 @@ class EmployeeBulkController extends Controller
             }
         }
 
-        if ($moves === [] && $toStatus === null) {
+        // Resolved through EmployeeRelations::MAP, the tenant-scoped models the
+        // single edit resolves them through. The request has already refused a
+        // public id that is not this organisation's.
+        $job = [];
+        foreach (array_keys(self::JOB_RELATIONS) as $field) {
+            if ($request->filled($field)) {
+                $model = EmployeeRelations::MAP[$field]::where('public_id', $request->validated($field))->first();
+                if ($model !== null) {
+                    $job[$field] = $model;
+                }
+            }
+        }
+
+        if ($moves === [] && $job === [] && $toStatus === null) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/no-update-fields',
                 'title' => 'No Update Fields',
@@ -92,7 +137,7 @@ class EmployeeBulkController extends Controller
         // The same org scope as the employee list and the export. Without it a
         // manager scoped to one department, holding employee.update, changed
         // anyone in the tenant.
-        $query = Employee::query()->with(['department', 'branch'])->whereIn('public_id', $publicIds);
+        $query = Employee::query()->with(['department', 'branch', ...array_values(self::JOB_RELATIONS)])->whereIn('public_id', $publicIds);
         $request->user()->scopeAccessibleEmployees($query);
         $employees = $query->get()->keyBy('public_id');
 
@@ -103,7 +148,7 @@ class EmployeeBulkController extends Controller
         $results = [];
 
         foreach ($publicIds as $publicId) {
-            $results[] = $this->updateOne($employees->get($publicId), $moves, $department, $branch, $toStatus, $effectiveDate, $reason);
+            $results[] = $this->updateOne($employees->get($publicId), $moves, $job, $department, $branch, $toStatus, $effectiveDate, $reason, $request->user());
         }
 
         $updated = count(array_filter($results, fn (array $r): bool => $r['outcome'] === 'updated'));
@@ -122,27 +167,47 @@ class EmployeeBulkController extends Controller
      * the others alone.
      *
      * @param  array<string, int>  $moves
-     * @return array{employee_id: string, outcome: 'updated'|'unchanged'|'failed', error: string|null}
+     * @param  array<string, Model>  $job  the job fields asked for, each the tenant's own record
+     * @return array{employee_id: string, name: string, outcome: 'updated'|'unchanged'|'failed', error: string|null, access_held: bool}
      */
     private function updateOne(
         Employee $employee,
         array $moves,
+        array $job,
         ?Department $department,
         ?Branch $branch,
         ?EmployeeStatus $toStatus,
         string $effectiveDate,
         ?string $reason,
+        User $actor,
     ): array {
         $changesStatus = $toStatus !== null && $employee->status !== $toStatus;
 
-        if ($moves === [] && ! $changesStatus) {
+        // Only what differs from now: a title or supervisor the person already
+        // has is not a change, and not a reason to run the supervisor rule.
+        $jobChanges = array_filter(
+            $job,
+            fn (Model $model, string $field): bool => (int) $employee->{$field} !== (int) $model->getKey(),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ($moves === [] && $jobChanges === [] && ! $changesStatus) {
             return $this->result($employee, 'unchanged');
         }
 
-        $before = $this->auditedFields($employee, $moves, $toStatus);
+        // The edit form's rule, shared (SupervisorChain): not themselves, and
+        // not someone who supervises them further up.
+        if (isset($jobChanges['supervisor_id'])) {
+            $refusal = SupervisorChain::refusal($employee, (string) $jobChanges['supervisor_id']->getAttribute('public_id'));
+            if ($refusal !== null) {
+                return $this->result($employee, 'failed', (string) __($refusal));
+            }
+        }
+
+        $before = $this->auditedFields($employee, $moves, $toStatus, $jobChanges);
 
         try {
-            DB::transaction(function () use ($employee, $moves, $department, $branch, $toStatus, $changesStatus, $effectiveDate, $reason, $before): void {
+            DB::transaction(function () use ($employee, $moves, $jobChanges, $department, $branch, $toStatus, $changesStatus, $effectiveDate, $reason, $before, $actor): void {
                 if ($moves !== []) {
                     $employee->fill($moves)->save();
 
@@ -155,13 +220,26 @@ class EmployeeBulkController extends Controller
                     }
                 }
 
+                // The edit the form makes, by the one class that makes it: the
+                // stored values, the `employee.updated` audit row and the
+                // webhook. A new job title reaches the person's login through
+                // the model's own hook (PositionAccess), as an edit's does.
+                if ($jobChanges !== []) {
+                    $this->updater->update(
+                        $employee,
+                        array_map(fn (Model $model): string => (string) $model->getAttribute('public_id'), $jobChanges),
+                        $actor,
+                    );
+                    $employee->load(array_map(fn (string $field): string => self::JOB_RELATIONS[$field], array_keys($jobChanges)));
+                }
+
                 if ($changesStatus) {
                     $this->transitions->transition($employee, $toStatus, $effectiveDate, $reason, auth()->id());
                 }
 
                 AuditLog::record('employee.bulk_updated', $employee, [
                     'before' => $before,
-                    'after' => $this->auditedFields($employee, $moves, $toStatus),
+                    'after' => $this->auditedFields($employee, $moves, $toStatus, $jobChanges),
                 ]);
             });
         } catch (InvalidEmployeeTransition $e) {
@@ -172,7 +250,26 @@ class EmployeeBulkController extends Controller
             return $this->result($employee, 'failed', (string) __('employee.bulk_update_failed'));
         }
 
-        return $this->result($employee, 'updated');
+        $held = isset($jobChanges['position_id']) ? $this->accessHeld($employee) : false;
+
+        return $this->result($employee, 'updated', accessHeld: $held);
+    }
+
+    /**
+     * Whether this person's login follows its job title and holds a role other
+     * than the title's: the title changed, and the person making the change
+     * could not have given the role by hand (PositionAccess::sync holds it).
+     */
+    private function accessHeld(Employee $employee): bool
+    {
+        $login = User::query()->where('employee_id', $employee->id)->first();
+        if (! $login instanceof User) {
+            return false;
+        }
+
+        $to = app(PositionAccess::class)->titleRole($login);
+
+        return $to !== null && $login->role !== $to;
     }
 
     /**
@@ -180,11 +277,11 @@ class EmployeeBulkController extends Controller
      * reads `error` as a string, not as the English text of one message.
      *
      * @param  'updated'|'unchanged'|'failed'  $outcome
-     * @return array{employee_id: string, outcome: 'updated'|'unchanged'|'failed', error: string|null}
+     * @return array{employee_id: string, name: string, outcome: 'updated'|'unchanged'|'failed', error: string|null, access_held: bool}
      */
-    private function result(Employee $employee, string $outcome, ?string $error = null): array
+    private function result(Employee $employee, string $outcome, ?string $error = null, bool $accessHeld = false): array
     {
-        return ['employee_id' => $employee->public_id, 'outcome' => $outcome, 'error' => $error];
+        return ['employee_id' => $employee->public_id, 'name' => $employee->name, 'outcome' => $outcome, 'error' => $error, 'access_held' => $accessHeld];
     }
 
     /**
@@ -192,9 +289,10 @@ class EmployeeBulkController extends Controller
      * audit entry reads as what changed without joining back to internal keys.
      *
      * @param  array<string, int>  $moves
+     * @param  array<string, Model>  $jobChanges
      * @return array<string, string|null>
      */
-    private function auditedFields(Employee $employee, array $moves, ?EmployeeStatus $toStatus): array
+    private function auditedFields(Employee $employee, array $moves, ?EmployeeStatus $toStatus, array $jobChanges = []): array
     {
         $fields = [];
 
@@ -204,6 +302,11 @@ class EmployeeBulkController extends Controller
 
         if (array_key_exists('branch_id', $moves)) {
             $fields['branch_id'] = $employee->branch?->public_id;
+        }
+
+        foreach (array_keys($jobChanges) as $field) {
+            $related = $employee->getRelation(self::JOB_RELATIONS[$field]);
+            $fields[$field] = $related instanceof Model ? (string) $related->getAttribute('public_id') : null;
         }
 
         if ($toStatus !== null) {
@@ -436,6 +539,49 @@ class EmployeeBulkController extends Controller
     private function restoreResult(Employee $employee, string $outcome, ?string $error = null): array
     {
         return ['employee_id' => $employee->public_id, 'name' => $employee->name, 'outcome' => $outcome, 'error' => $error];
+    }
+
+    /**
+     * The public ids of everyone the employees list matches
+     *
+     * For "select all matching this filter". A read only: nothing is changed by
+     * filter. The screen sends these ids to the bulk endpoints, which check each
+     * person against the requester's reach again.
+     *
+     * Takes the list's own `search` and `filter[...]` parameters, through the
+     * same code (`EmployeeListFilters`) and the same org scope as
+     * `GET /employees`. At most 2,000 ids come back; `total` is the full count
+     * and `capped` is true when `ids` holds fewer than `total`.
+     */
+    public function ids(EmployeeIdsRequest $request): JsonResponse
+    {
+        Gate::authorize('employee.viewAny');
+
+        $query = Employee::query();
+        $request->user()->scopeAccessibleEmployees($query);
+        EmployeeListFilters::apply($query, $request, [
+            'search' => $request->input('search'),
+            'status' => $request->input('filter.status'),
+            'missing' => $request->input('filter.missing'),
+            'department_id' => $request->input('filter.department_id'),
+            'branch_id' => $request->input('filter.branch_id'),
+            'position_id' => $request->input('filter.position_id'),
+        ]);
+
+        $total = (clone $query)->count();
+        /** @var list<string> $ids */
+        $ids = $query->orderBy('id')->limit(self::IDS_CAP)->pluck('public_id')->all();
+
+        return response()->json($this->idsAnswer($ids, $total));
+    }
+
+    /**
+     * @param  list<string>  $ids
+     * @return array{ids: list<string>, total: int, capped: bool, cap: int}
+     */
+    private function idsAnswer(array $ids, int $total): array
+    {
+        return ['ids' => $ids, 'total' => $total, 'capped' => $total > self::IDS_CAP, 'cap' => self::IDS_CAP];
     }
 
     public function export(Request $request): JsonResponse

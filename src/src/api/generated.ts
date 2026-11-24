@@ -3361,6 +3361,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The public ids of everyone the employees list matches, for "select all
+         *          * matching this filter". A read only: nothing is changed by filter. The
+         *     screen sends these ids to the bulk endpoints, which check each person
+         *     against the requester's reach again
+         * @description Takes the list's own `search` and `filter[...]` parameters, through the
+         *     same code (`EmployeeListFilters`) and the same org scope as
+         *     `GET /employees`. At most 2,000 ids come back; `total` is the full count
+         *     and `capped` is true when `ids` holds fewer than `total`.
+         */
+        get: operations["employeeBulk.ids"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/next-code": {
         parameters: {
             query?: never;
@@ -3467,14 +3493,22 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Move employees to a department or branch, or change their status
+         * Move employees to a department or branch, set their job title, team,
+         *     cost centre or supervisor, or change their status
          * @description The selection is all or nothing: an id outside the requester's org scope
          *     refuses the whole request with 422 before anything is written, with the
          *     message an id that exists nowhere gets. The changes are per employee: a
          *     status change goes through the same transition rules as
-         *     `POST /employees/{employee}/transition`, and `results` reports each id as
-         *     `updated`, `unchanged` (already in that status) or `failed`, with the
-         *     reason. One refused transition does not stop the others.
+         *     `POST /employees/{employee}/transition`, the job fields go through the
+         *     same `EmployeeUpdater` as `PUT /employees/{employee}` (so a job title
+         *     moves the account's access by the same rule, limited to what the person
+         *     making the change could do by hand), and `results` reports each id as
+         *     `updated`, `unchanged` (already as asked) or `failed`, with the reason.
+         *     A supervisor who is the person themselves, or who would make a loop, is
+         *     a `failed` for that person only. `access_held` says the person's login
+         *     follows its job title and could not be moved to the new title's role by
+         *     the person making the change, so it waits on the Users page. One refused
+         *     change does not stop the others.
          */
         post: operations["employeeBulk.bulkUpdate"];
         delete?: never;
@@ -10306,6 +10340,10 @@ export interface components {
             employee_ids: string[];
             department_id?: string | null;
             branch_id?: string | null;
+            position_id?: string | null;
+            team_id?: string | null;
+            cost_center_id?: string | null;
+            supervisor_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             effective_date?: string | null;
@@ -24232,6 +24270,45 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "employeeBulk.ids": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                "filter[status]"?: string | null;
+                "filter[archived]"?: boolean | null;
+                "filter[nationality_needs_review]"?: boolean | null;
+                "filter[missing]"?: string | null;
+                "filter[department_id]"?: string | null;
+                "filter[branch_id]"?: string | null;
+                "filter[position_id]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ids: {
+                            [key: string]: unknown;
+                        };
+                        total: string;
+                        capped: boolean;
+                        /** @constant */
+                        cap: 2000;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "employee.nextCode": {
         parameters: {
             query?: never;
@@ -24400,19 +24477,25 @@ export interface operations {
                         failed: number;
                         results: ({
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "updated";
                             error: null;
+                            access_held: string;
                         } | {
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "failed";
                             error: string;
+                            access_held: boolean;
                         } | {
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "unchanged";
                             error: null;
+                            access_held: boolean;
                         })[];
                     };
                 };
@@ -24689,8 +24772,6 @@ export interface operations {
     "employees.index": {
         parameters: {
             query?: {
-                search?: string;
-                "filter[status]"?: string;
                 /**
                  * @description The "records to fix" list a Next Steps row opens. It is the set the
                  *      row counted, through EmployeeGaps.
@@ -24698,6 +24779,8 @@ export interface operations {
                  *      cannot be used to learn who has no TIN or bank account.
                  */
                 "filter[missing]"?: string;
+                search?: string;
+                "filter[status]"?: string;
                 "filter[department_id]"?: string;
                 "filter[branch_id]"?: string;
                 "filter[position_id]"?: string;

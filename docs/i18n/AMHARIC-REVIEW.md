@@ -700,3 +700,29 @@ The Amharic drafts:
 - `migration.maybe_other_person` (changed 2026-11-24: the row now waits for the reviewer): በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ለዚያ ሰው ምንም አይጻፍም። ያረጋግጡ፣ እሱ ከሆነ አዋህድን ይምረጡ።
 
 What to check first: that "ተቀበል" ("accept") is the verb the list screens already use for taking a value from the list, that "ተሸጋገረ" ("shifted") reads as a number moved down by one line, and that "ተትቷል" ("left") reads as left for the reviewer rather than abandoned. The Afaan Oromoo lines are drafts and unread.
+
+### Bulk job title, supervisor, team and cost centre; select all matching (2026-11-24)
+
+Drafts written without a native speaker. The action names reuse the labels the employee form already carries ("የስራ መደብ", "ተቆጣጣሪ", "ቡድን", "የወጪ ማዕከል") and the verb of the existing "ክፍል ቀይር".
+
+- `employees.bulk.change_position`: የስራ መደብ ቀይር
+- `employees.bulk.change_supervisor`: ተቆጣጣሪ ቀይር
+- `employees.bulk.change_team`: ቡድን ቀይር
+- `employees.bulk.change_cost_center`: የወጪ ማዕከል ቀይር
+- `employees.bulk.page_all_selected`: በዚህ ገጽ ላይ ያሉ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.select_all_matching`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉንም :total ሰዎች ምረጥ
+- `employees.bulk.all_matching_selected`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.all_matching_capped`: ከዚህ ማጣሪያ ጋር ከሚዛመዱ :total ሰዎች መካከል የመጀመሪያዎቹ :cap ብቻ ተመርጠዋል። የቀሩትን ለመድረስ ማጣሪያውን ያጥብቡ።
+- `employees.bulk.clear_all_matching`: ይህን ገጽ ብቻ ያዝ
+- `employees.bulk.select_all_failed`: የሰዎቹን ዝርዝር መጫን አልተቻለም።
+- `employees.bulk.position_rules`: የስራ መደብ የሰውየውን መግቢያ ሌላ ሚና ሊሰጠው ይችላል። በተጠቃሚዎች ገጽ ላይ በእጅ መስጠት የሚችሉትን ሚና ብቻ ይሰጣሉ፤ የቀሩት እዚያ ይጠብቃሉ።
+- `employees.bulk.supervisor_rules`: ሰው የራሱ ተቆጣጣሪ መሆን ወይም ለሚቆጣጠረው ሰው መታዘዝ አይችልም። ይህ የሚነካው ሰው አሁን ያለውን ተቆጣጣሪ ይዞ ይቆያል።
+- `employees.bulk.partial_unsent`: :updated ሰራተኞች ተዘምነዋል። ጥያቄው ስለወደቀ :count አልተላኩም።
+- `employees.bulk.result.title`: የሆነው
+- `employees.bulk.result.summary`: :updated ተቀይረዋል፣ :unchanged አስቀድመው እንደተጠየቀው ነበሩ፣ :failed አልተቀየሩም።
+- `employees.bulk.result.failed`: አልተቀየረም
+- `employees.bulk.result.unchanged`: አስቀድሞ እንደተጠየቀው ነው
+- `employees.bulk.result.access_held`: ተቀይሯል። የመግቢያ ሚናቸው በተጠቃሚዎች ገጽ ላይ ይጠብቃል።
+- `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተላኩም። ይምረጧቸው እና እንደገና ይሞክሩ።
+
+What to check first: that "ለሚቆጣጠረው ሰው መታዘዝ" ("report to the person they supervise") reads as a reporting line and not as obedience, and that "ማጣሪያውን ያጥብቡ" ("narrow the filter") is how a list filter is narrowed in the screens already shipped.

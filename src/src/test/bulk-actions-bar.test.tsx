@@ -190,3 +190,197 @@ describe("<BulkActionsBar>", () => {
     expect(confirm).toBeEnabled();
   });
 });
+
+describe("<BulkActionsBar> job fields and select all matching", () => {
+  const pageRows = ["emp-1", "emp-2"].map((id) => ({
+    public_id: id,
+    email: null,
+    phone: null,
+    sign_in: "active",
+    status: "confirmed",
+  })) as unknown as NonNullable<
+    React.ComponentProps<typeof BulkActionsBar>["people"]
+  >;
+
+  function renderWide(
+    props: Partial<React.ComponentProps<typeof BulkActionsBar>> = {},
+  ) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <CalendarProvider>{children}</CalendarProvider>
+      </QueryClientProvider>
+    );
+    server.use(
+      http.get("*/api/v1/organization/departments", () =>
+        HttpResponse.json(paginated([])),
+      ),
+      http.get("*/api/v1/organization/branches", () =>
+        HttpResponse.json(paginated([])),
+      ),
+      http.get("*/api/v1/organization/teams", () =>
+        HttpResponse.json(paginated([{ public_id: "team-a", name: "Team A" }])),
+      ),
+    );
+    const onComplete = vi.fn();
+    render(
+      <BulkActionsBar
+        selectedIds={["emp-1", "emp-2"]}
+        people={pageRows}
+        onComplete={onComplete}
+        {...props}
+      />,
+      { wrapper: Wrapper },
+    );
+    return { onComplete };
+  }
+
+  const ids = (n: number) =>
+    Array.from({ length: n }, (_, i) => `emp-${i + 1}`);
+  const answer = (sent: string[]) => ({
+    updated: sent.length,
+    failed: 0,
+    results: sent.map((id) => ({
+      employee_id: id,
+      name: id,
+      outcome: "updated",
+      error: null,
+      access_held: false,
+    })),
+  });
+
+  it("offers every match only when the whole page is ticked and there are more", () => {
+    const fetchAll = vi.fn();
+    renderWide({ totalMatching: 250, fetchAllMatching: fetchAll });
+    expect(
+      screen.getByRole("button", {
+        name: "Select all 250 people matching this filter",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer it when the page is all there is, or a row is unticked", () => {
+    renderWide({ totalMatching: 2, fetchAllMatching: vi.fn() });
+    expect(screen.queryByText(/matching this filter/i)).not.toBeInTheDocument();
+  });
+
+  it("sends the matching ids in slices of at most 100 and adds the answers up", async () => {
+    const sent: string[][] = [];
+    server.use(
+      http.post("*/api/v1/employees/bulk-update", async ({ request }) => {
+        const body = (await request.json()) as {
+          employee_ids: string[];
+          team_id: string;
+        };
+        expect(body.team_id).toBe("team-a");
+        sent.push(body.employee_ids);
+        return HttpResponse.json(answer(body.employee_ids));
+      }),
+    );
+    const { onComplete } = renderWide({
+      totalMatching: 250,
+      fetchAllMatching: async () => ({
+        ids: ids(250),
+        total: 250,
+        capped: false,
+        cap: 2000,
+      }),
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 people matching this filter",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "All 250 people matching this filter are selected.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("250 selected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /change team/i }));
+    fireEvent.click(screen.getAllByRole("combobox")[0]);
+    fireEvent.click(await screen.findByRole("option", { name: "Team A" }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(sent.map((s) => s.length)).toEqual([100, 100, 50]);
+    expect(sent.flat()).toEqual(ids(250));
+    expect(toast.success).toHaveBeenCalledWith("Updated 250 employees");
+    // Everyone changed plainly: nothing to list person by person.
+    expect(onComplete).toHaveBeenCalledWith(undefined);
+  });
+
+  it("says when the match was capped", async () => {
+    renderWide({
+      totalMatching: 5000,
+      fetchAllMatching: async () => ({
+        ids: ids(2000),
+        total: 5000,
+        capped: true,
+        cap: 2000,
+      }),
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 5000 people matching this filter",
+      }),
+    );
+
+    expect(
+      await screen.findByText(/Only the first 2000 of 5000 people/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2000 selected")).toBeInTheDocument();
+  });
+
+  it("hands back the combined answer, refusals included, and what a failed slice left unsent", async () => {
+    let call = 0;
+    server.use(
+      http.post("*/api/v1/employees/bulk-update", async ({ request }) => {
+        const body = (await request.json()) as { employee_ids: string[] };
+        call += 1;
+        if (call === 2) return HttpResponse.json({}, { status: 500 });
+        const out = answer(body.employee_ids);
+        out.results[0] = {
+          ...out.results[0],
+          outcome: "failed",
+          error: "An employee cannot be their own supervisor.",
+        };
+        out.updated -= 1;
+        out.failed = 1;
+        return HttpResponse.json(out);
+      }),
+    );
+    const { onComplete } = renderWide({
+      totalMatching: 250,
+      fetchAllMatching: async () => ({
+        ids: ids(250),
+        total: 250,
+        capped: false,
+        cap: 2000,
+      }),
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Select all 250 people matching this filter",
+      }),
+    );
+    await screen.findByText("250 selected");
+    fireEvent.click(screen.getByRole("button", { name: /change team/i }));
+    fireEvent.click(screen.getAllByRole("combobox")[0]);
+    fireEvent.click(await screen.findByRole("option", { name: "Team A" }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    const result = onComplete.mock.calls[0][0];
+    expect(result.updated).toBe(99);
+    expect(result.failed).toBe(1);
+    expect(result.results).toHaveLength(100);
+    expect(result.unsent).toEqual(ids(250).slice(100));
+  });
+});
