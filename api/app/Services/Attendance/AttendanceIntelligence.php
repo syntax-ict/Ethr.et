@@ -88,8 +88,11 @@ final class AttendanceIntelligence
     {
         $date ??= now()->format('Y-m-d');
 
+        // A voided duplicate has no check-out by design: it is not a punch
+        // the person forgot, and telling them so would be wrong.
         return AttendanceRecord::query()
             ->whereDate('date', $date)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->with('employee')
