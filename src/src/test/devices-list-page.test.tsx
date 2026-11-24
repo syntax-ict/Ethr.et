@@ -231,3 +231,89 @@ describe("<DevicesPage> register dialog", () => {
     }
   });
 });
+
+/*
+ * The dialog after registering follows how the terminal connects: the server
+ * says which (connection_mode), and the page shows that mode's setup instead
+ * of always showing the Hikvision push address (device setup upgrade, PR 1).
+ */
+describe("<DevicesPage> after registering", () => {
+  const REGISTERED = {
+    ...base,
+    public_id: "NEW1",
+    name: "Front door",
+    adapter_type: "hikvision",
+    status: "pending",
+    receives_only: false,
+    pulled: true,
+    connection_mode: "pull",
+    uses_webhook_token: true,
+    webhook_url:
+      "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=issued-once",
+    webhook_ip_allowlist: [],
+  };
+
+  async function registerAs(created: object) {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    server.use(
+      http.post("*/api/v1/devices", () =>
+        HttpResponse.json(created, { status: 201 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      (await screen.findAllByRole("button", { name: /add device/i }))[0],
+    );
+    const form = await screen.findByRole("dialog");
+    await user.type(within(form).getByLabelText(/device name/i), "Front door");
+    await user.type(within(form).getByLabelText(/ip address/i), "203.0.113.10");
+    await user.click(within(form).getByRole("button", { name: /^register$/i }));
+  }
+
+  it("tells a pulled terminal ETHR will call it, and shows no address", async () => {
+    await registerAs(REGISTERED);
+
+    expect(
+      await screen.findByText("ETHR will call the terminal"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("issued-address")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /test connection/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a push terminal the address it must be given", async () => {
+    await registerAs({
+      ...REGISTERED,
+      receives_only: true,
+      pulled: false,
+      connection_mode: "push",
+    });
+
+    expect(await screen.findByTestId("issued-address")).toHaveTextContent(
+      "token=issued-once",
+    );
+    expect(screen.getByText("Enter these on the terminal")).toBeInTheDocument();
+  });
+
+  it("shows an ADMS terminal the server and serial, and no token", async () => {
+    await registerAs({
+      ...REGISTERED,
+      adapter_type: "zkteco_adms",
+      serial_number: "CQZ7232460001",
+      receives_only: false,
+      pulled: false,
+      connection_mode: "adms",
+      uses_webhook_token: false,
+      adms: { server: "ethr.et", last_rejected: null },
+    });
+
+    const box = await screen.findByTestId("adms-setup");
+    expect(box).toHaveTextContent("CQZ7232460001");
+    expect(box).toHaveTextContent("ethr.et");
+    expect(screen.queryByTestId("issued-address")).not.toBeInTheDocument();
+    expect(screen.queryByText(/token=/)).not.toBeInTheDocument();
+  });
+});

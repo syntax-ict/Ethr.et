@@ -51,6 +51,7 @@ const SENDS = {
   ...PULLED,
   receives_only: true,
   has_webhook_token: true,
+  uses_webhook_token: true,
 } as unknown as Device;
 
 const handlers = {
@@ -157,6 +158,32 @@ describe("<DeviceActionsMenu>", () => {
     renderMenu(SENDS);
     await openMenu(user);
     expect(item(/copy webhook url/i)).not.toBeInTheDocument();
+    expect(item(/regenerate token/i)).toBeInTheDocument();
+  });
+
+  it("offers no regenerate item for an ADMS terminal, which is found by its serial and not by a token", async () => {
+    const user = userEvent.setup();
+    renderMenu({
+      ...SENDS,
+      adapter_type: "zkteco_adms",
+      has_webhook_token: true,
+      uses_webhook_token: false,
+      connection_mode: "adms",
+    } as unknown as Device);
+    await openMenu(user);
+    expect(item(/regenerate token/i)).not.toBeInTheDocument();
+    expect(item(/edit/i)).toBeInTheDocument();
+  });
+
+  it("still offers it for a pulled Hikvision terminal, whose address can also be pushed to", async () => {
+    const user = userEvent.setup();
+    renderMenu({
+      ...PULLED,
+      has_webhook_token: true,
+      uses_webhook_token: true,
+      connection_mode: "pull",
+    } as unknown as Device);
+    await openMenu(user);
     expect(item(/regenerate token/i)).toBeInTheDocument();
   });
 
@@ -295,7 +322,11 @@ describe("<DeviceActionsMenu>", () => {
   it("leaves out update and delete items the viewer may not use", async () => {
     granted.abilities = ["device.viewAny", "device.view"];
     const user = userEvent.setup();
-    renderMenu({ ...PULLED, has_webhook_token: true } as unknown as Device);
+    renderMenu({
+      ...PULLED,
+      has_webhook_token: true,
+      uses_webhook_token: true,
+    } as unknown as Device);
     await openMenu(user);
 
     for (const name of [

@@ -127,8 +127,11 @@ export function RegenerateTokenDialog({
         </DialogContent>
       </Dialog>
       <IssuedAddressDialog
-        url={issued?.url ?? null}
-        graceHours={issued?.graceHours}
+        setup={
+          issued
+            ? { mode: "push", url: issued.url, graceHours: issued.graceHours }
+            : null
+        }
         onClose={() => setIssued(null)}
       />
     </>

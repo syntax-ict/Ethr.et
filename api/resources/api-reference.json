@@ -50593,6 +50593,17 @@
                     "pulled": {
                         "type": "boolean"
                     },
+                    "connection_mode": {
+                        "type": "string",
+                        "enum": [
+                            "push",
+                            "pull",
+                            "adms"
+                        ]
+                    },
+                    "uses_webhook_token": {
+                        "type": "boolean"
+                    },
                     "sync_interval_minutes": {
                         "type": "integer"
                     },
@@ -50828,6 +50839,8 @@
                     "accepts_commands",
                     "receives_only",
                     "pulled",
+                    "connection_mode",
+                    "uses_webhook_token",
                     "sync_interval_minutes",
                     "timezone",
                     "last_sync_at",

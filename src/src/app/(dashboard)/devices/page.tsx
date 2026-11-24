@@ -35,14 +35,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
 import { IssuedAddressDialog } from "@/features/devices/components/issued-address-dialog";
+import {
+  issuedSetupFor,
+  type IssuedSetup,
+} from "@/features/devices/issued-setup";
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
@@ -117,8 +121,9 @@ export default function DevicesPage() {
   const { data: branches } = branchesApi.useList();
 
   const createMutation = useCreateDevice();
-  // The new terminal's address, shown once: the server keeps only a hash.
-  const [issuedUrl, setIssuedUrl] = useState<string | null>(null);
+  // What to do on the new terminal, by how it connects. A push terminal's
+  // address is shown once: the server keeps only a hash.
+  const [issuedSetup, setIssuedSetup] = useState<IssuedSetup | null>(null);
   const updateMutation = useUpdateDevice();
   const deleteMutation = useDeleteDevice();
   const pullMutation = usePullDeviceEvents();
@@ -129,7 +134,7 @@ export default function DevicesPage() {
     createMutation.mutate(buildDevicePayload(form, "create"), {
       onSuccess: (created) => {
         toast.success(t("devices_page.registered"));
-        if (created.webhook_url) setIssuedUrl(created.webhook_url);
+        setIssuedSetup(issuedSetupFor(created));
         setCreateOpen(false);
         setForm({ ...EMPTY_DEVICE_FORM });
       },
@@ -406,8 +411,8 @@ export default function DevicesPage() {
         />
 
         <IssuedAddressDialog
-          url={issuedUrl}
-          onClose={() => setIssuedUrl(null)}
+          setup={issuedSetup}
+          onClose={() => setIssuedSetup(null)}
         />
 
         {/* Edit Dialog */}
@@ -432,41 +437,14 @@ export default function DevicesPage() {
           submitLabel={t("leave_types_page.save_changes")}
         />
 
-        {/* Delete Confirmation */}
-        <Dialog
-          open={!!deleteDevice}
-          onOpenChange={(open) => {
-            if (!open) setDeleteDevice(null);
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
-              <DialogDescription>
-                {t("devices_page.delete_confirm_prefix")}{" "}
-                <strong>{deleteDevice?.name}</strong>?{" "}
-                {t("devices_page.delete_confirm_suffix")}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDevice(null)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() =>
-                  deleteDevice && confirmDelete(deleteDevice.public_id)
-                }
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("common.delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteDeviceDialog
+          deviceName={deleteDevice?.name ?? null}
+          pending={deleteMutation.isPending}
+          onConfirm={() =>
+            deleteDevice && confirmDelete(deleteDevice.public_id)
+          }
+          onClose={() => setDeleteDevice(null)}
+        />
 
         {/* Workforce discovery + attendance-history backfill */}
         <DeviceEnrollmentsDialog
