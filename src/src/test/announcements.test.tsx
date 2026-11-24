@@ -330,6 +330,30 @@ describe("<AnnouncementsPage> publishing", () => {
     });
   });
 
+  it("previews the body as a reader will get it: markup removed, a lone < kept", async () => {
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () => HttpResponse.json(page([]))),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /New Announcement/ }),
+    );
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Budget");
+    await user.click(screen.getByRole("textbox", { name: "Content" }));
+    await user.paste("Budget<2000 birr\n\nSecond <b>para</b>");
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(await screen.findByText("Second para")).toBeInTheDocument();
+    expect(screen.getByText("Budget<2000 birr")).toBeInTheDocument();
+    // The form's own textarea still holds what was typed.
+    expect(
+      screen.queryByText(/<b>/, { ignore: "textarea" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uploads a chosen cover photo once the new story is saved, and previews it", async () => {
     const created = vi.fn();
     const uploaded = vi.fn();
