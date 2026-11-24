@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type {
+  AcceptDifferencesResult,
   AccessPolicy,
   ApplyConfigurationResult,
   ArrivalStatus,
@@ -531,6 +532,74 @@ export function useConfirmSameName() {
           `/onboarding/migration/batches/${batchId}/confirm-same-name`,
         )
       ).data,
+  });
+}
+
+/** A run of accepting that kept answering without moving on. */
+export class AcceptStalled extends Error {
+  constructor() {
+    super("Accepting stopped moving.");
+    this.name = "AcceptStalled";
+  }
+}
+
+/**
+ * Accept the differences of `fields` for every merge row that may take them.
+ * The server works in slices and answers `done: false` with the cursor to
+ * carry on from, so the request is sent again until it answers `done`. Every
+ * count is for one slice; they are added up here. Asking again is harmless:
+ * a difference already accepted is not counted twice.
+ */
+export async function acceptDifferences(
+  batchId: string,
+  fields: string[],
+): Promise<AcceptDifferencesResult> {
+  const total: AcceptDifferencesResult = {
+    done: true,
+    cursor: 0,
+    rows: 0,
+    by_field: {},
+    out_of_reach: 0,
+    pay_refused: 0,
+    held: 0,
+  };
+
+  for (;;) {
+    const slice: AcceptDifferencesResult = (
+      await apiClient.post(
+        `/onboarding/migration/batches/${batchId}/accept-differences`,
+        { fields, cursor: total.cursor },
+      )
+    ).data;
+
+    total.rows += slice.rows;
+    total.out_of_reach += slice.out_of_reach;
+    total.pay_refused += slice.pay_refused;
+    total.held += slice.held;
+    for (const [field, count] of Object.entries(slice.by_field)) {
+      total.by_field[field] = (total.by_field[field] ?? 0) + count;
+    }
+
+    if (slice.done) return total;
+
+    // The cursor is the last row looked at: it must move forward.
+    if (slice.cursor <= total.cursor) throw new AcceptStalled();
+    total.cursor = slice.cursor;
+  }
+}
+
+export function useAcceptDifferences() {
+  const qc = useQueryClient();
+  return useMutation<
+    AcceptDifferencesResult,
+    unknown,
+    { batchId: string; fields: string[] }
+  >({
+    mutationFn: ({ batchId, fields }) => acceptDifferences(batchId, fields),
+    // Settled, not only succeeded: a stopped run has still accepted rows.
+    onSettled: (_data, _error, { batchId }) => {
+      qc.invalidateQueries({ queryKey: ["onboarding", "migration", batchId] });
+    },
   });
 }
 

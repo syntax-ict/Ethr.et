@@ -396,6 +396,22 @@ export interface UndoPreview {
   undone_at: string | null;
 }
 
+/** One slice of accepting differences for many rows, or the sum of them. */
+export interface AcceptDifferencesResult {
+  done: boolean;
+  /** The last row looked at; sent back to carry on after it. */
+  cursor: number;
+  /** Rows that had something accepted. */
+  rows: number;
+  by_field: Record<string, number>;
+  /** Rows left alone: the viewer may not edit the person. */
+  out_of_reach: number;
+  /** Rows that lost salary and TIN: the viewer may not change pay. */
+  pay_refused: number;
+  /** Rows left for the reviewer: they may be someone else. */
+  held: number;
+}
+
 export interface UndoResult {
   done: boolean;
   archived: number;

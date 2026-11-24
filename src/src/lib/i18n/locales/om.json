@@ -8169,5 +8169,18 @@
   "notifications.filter_all": "Hunda",
   "notifications.filter_unread": "Kan hin dubbifamne",
   "notifications.filter_label": "Agarsiisi",
-  "notifications.no_unread": "Beeksisni hin dubbifamne hin jiru"
+  "notifications.no_unread": "Beeksisni hin dubbifamne hin jiru",
+  "accept_differences.button": "Garaagarummaa fudhadhu",
+  "accept_differences.title": "Garaagarummaa namoota baay'eef fudhadhu",
+  "accept_differences.desc": "Tarree kana irraa, namoota wal-simatan hundaaf bal'ina fudhatamu filadhaa. Hanga tarreen dabalamutti nama tokkoof wanti barreeffamu hin jiru.",
+  "accept_differences.people_one": "Nama 1",
+  "accept_differences.people": "Namoota :count",
+  "accept_differences.sensitive": "Jalqabarratti hin filatamne. Lakkoofsi sarara tokkoon jijjiirame bal'ina nama tokkoo nama biraatti kaa'a.",
+  "accept_differences.held_one": "Sarara 1 nama biraa ta'uu danda'a. Sarara mataa isaa irratti akka murteessitan hafeera.",
+  "accept_differences.held": "Sararoonni :count nama biraa ta'uu danda'u. Sarara mataa isaanii irratti akka murteessitan hafaniiru.",
+  "accept_differences.confirm": "Fudhadhu",
+  "accept_differences.running": "Fudhachaa jira",
+  "accept_differences.result": "Namoota :accepted tiif fudhatameera. :out_of_reach sirreessuu hin dandeessan. :held siif hafeera.",
+  "accept_differences.result_pay": "Namoota :accepted tiif fudhatameera. :out_of_reach sirreessuu hin dandeessan. :held siif hafeera. Mindaan fi TIN namoota :pay_refused tiif hafeera, sababni isaas kaffaltii jijjiiruu hin dandeessan.",
+  "accept_differences.failed": "Fudhachuun dhaabbateera. Garaagarummaan tokko tokko duraan fudhatamee jiraachuu danda'a. Irra deebi'ii yaalaa."
 }

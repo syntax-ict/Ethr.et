@@ -26997,6 +26997,140 @@
                 }
             }
         },
+        "/onboarding/migration/batches/{batch}/accept-differences": {
+            "post": {
+                "x-abilities": [
+                    "write"
+                ],
+                "operationId": "migration.acceptDifferences",
+                "description": "A person who corrected a list would otherwise open each row. Only the\nfields named are accepted, so a name, a number or a salary is never\naccepted by default. A row that may be someone else\n(`maybe_other_person`) is left for the reviewer and counted in `held`;\na person the viewer may not edit is counted in `out_of_reach`; a row\nwhose TIN or salary the viewer may not change keeps the rest and is\ncounted in `pay_refused`.\n\nWhile `done` is false the same request is sent again with the `cursor`\nit answered. Every count is for this request alone; `rows` is how many\nrows had something accepted and `by_field` says how many for each\nfield. Nothing is written to any employee until the list is added.",
+                "summary": "Accept the differences of the named `fields` for every row set to merge\nthat may take them, as much as fits in one request",
+                "tags": [
+                    "Onboarding"
+                ],
+                "parameters": [
+                    {
+                        "name": "batch",
+                        "in": "path",
+                        "required": true,
+                        "description": "The batch public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptDifferencesRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "done": {
+                                            "type": "boolean"
+                                        },
+                                        "cursor": {
+                                            "type": "integer"
+                                        },
+                                        "rows": {
+                                            "type": "integer"
+                                        },
+                                        "by_field": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "out_of_reach": {
+                                            "type": "integer"
+                                        },
+                                        "pay_refused": {
+                                            "type": "integer"
+                                        },
+                                        "held": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "done",
+                                        "cursor",
+                                        "rows",
+                                        "by_field",
+                                        "out_of_reach",
+                                        "pay_refused",
+                                        "held"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error\n\nAn error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is still being matched. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "description": "Error overview.",
+                                                    "examples": [
+                                                        "This list is already being added. Wait for it to finish."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/onboarding/migration/batches/{batch}/commit": {
             "post": {
                 "x-abilities": [
@@ -46764,6 +46898,48 @@
             }
         },
         "schemas": {
+            "AcceptDifferencesRequest": {
+                "type": "object",
+                "description": "Accepting the differences of the named fields for many rows at once. The\nfields are the ones a reviewer may accept on one row, from the same list.\nNothing is accepted that is not named.",
+                "properties": {
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "email",
+                                "phone",
+                                "employee_code",
+                                "badge_number",
+                                "national_id",
+                                "tin",
+                                "hire_date",
+                                "department",
+                                "salary_cents",
+                                "name_am",
+                                "gender",
+                                "date_of_birth",
+                                "marital_status",
+                                "nationality",
+                                "nationality_status"
+                            ]
+                        },
+                        "minItems": 1
+                    },
+                    "cursor": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "fields"
+                ],
+                "title": "AcceptDifferencesRequest"
+            },
             "AccrualType": {
                 "type": "string",
                 "enum": [

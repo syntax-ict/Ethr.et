@@ -52,6 +52,7 @@ return [
         'number_held_archived_named' => 'Lakkoofsi hojjetaa ":value" kan :name ETHR irraa haqamee waan ta\'eef, tarreen kun akka nama haaraatti dabalamuu hin danda\'u.',
         'number_held_current' => 'Lakkoofsi hojjetaa ":value" kan hojjetaa biraati waan ta\'eef, tarreen kun akka nama haaraatti dabalamuu hin danda\'u.',
         'number_held_current_named' => 'Lakkoofsi hojjetaa ":value" kan :name waan ta\'eef, tarreen kun akka nama haaraatti dabalamuu hin danda\'u.',
+        'maybe_other_person' => 'Maqaan sarara kanaa nama wajjin walitti fufame waliin jecha tokkollee hin qabu, kanaaf nama biraa ta\'uu danda\'a. Mirkaneessaa, achiis sarara kana irratti murteessaa.',
         'badge_held_archived' => 'Lakkoofsi baajii ":value" kan nama ETHR irraa haqame waan ta\'eef, namichi isa malee ni dabalama.',
         'badge_held_current' => 'Lakkoofsi baajii ":value" kan hojjetaa biraati waan ta\'eef, namichi isa malee ni dabalama.',
         'mapping_needs_name' => 'Tarree maqaan namichaa keessa jiru filadhaa. Isa malee wanti dubbifamu hin jiru.',

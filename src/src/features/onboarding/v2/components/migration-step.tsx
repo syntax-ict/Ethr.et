@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
+import { AcceptDifferences } from "./accept-differences";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
@@ -1639,6 +1640,12 @@ export function MigrationStep({
               </span>
             </div>
           )}
+
+          <AcceptDifferences
+            batchId={batchId}
+            batch={batch}
+            onDone={() => batchQuery.refetch()}
+          />
 
           <div className="rounded-lg border">
             <SimpleTable

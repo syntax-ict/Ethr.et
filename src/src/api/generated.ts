@@ -5600,6 +5600,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/batches/{batch}/accept-differences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept the differences of the named `fields` for every row set to merge
+         *     that may take them, as much as fits in one request
+         * @description A person who corrected a list would otherwise open each row. Only the
+         *     fields named are accepted, so a name, a number or a salary is never
+         *     accepted by default. A row that may be someone else
+         *     (`maybe_other_person`) is left for the reviewer and counted in `held`;
+         *     a person the viewer may not edit is counted in `out_of_reach`; a row
+         *     whose TIN or salary the viewer may not change keeps the rest and is
+         *     counted in `pay_refused`.
+         *
+         *     While `done` is false the same request is sent again with the `cursor`
+         *     it answered. Every count is for this request alone; `rows` is how many
+         *     rows had something accepted and `by_field` says how many for each
+         *     field. Nothing is written to any employee until the list is added.
+         */
+        post: operations["migration.acceptDifferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/batches/{batch}/commit": {
         parameters: {
             query?: never;
@@ -9494,6 +9526,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptDifferencesRequest
+         * @description Accepting the differences of the named fields for many rows at once. The
+         *     fields are the ones a reviewer may accept on one row, from the same list.
+         *     Nothing is accepted that is not named.
+         */
+        AcceptDifferencesRequest: {
+            fields: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents" | "name_am" | "gender" | "date_of_birth" | "marital_status" | "nationality" | "nationality_status")[];
+            cursor?: number | null;
+        };
         /**
          * AccrualType
          * @enum {string}
@@ -30099,6 +30141,71 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "migration.acceptDifferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptDifferencesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: boolean;
+                        cursor: number;
+                        rows: number;
+                        by_field: {
+                            [key: string]: number;
+                        };
+                        out_of_reach: number;
+                        pay_refused: number;
+                        held: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /**
+             * @description An error
+             *
+             *     An error
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example This list is already being added. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
         };
     };
     "migration.commit": {

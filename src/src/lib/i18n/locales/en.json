@@ -8169,5 +8169,18 @@
   "notifications.filter_all": "All",
   "notifications.filter_unread": "Unread",
   "notifications.filter_label": "Show",
-  "notifications.no_unread": "No unread notifications"
+  "notifications.no_unread": "No unread notifications",
+  "accept_differences.button": "Accept differences",
+  "accept_differences.title": "Accept differences for many people",
+  "accept_differences.desc": "Choose the details to take from this list for everyone it matched. Nothing is written to anyone until the list is added.",
+  "accept_differences.people_one": "1 person",
+  "accept_differences.people": ":count people",
+  "accept_differences.sensitive": "Not ticked at first. A number shifted by a line would put one person's details on another.",
+  "accept_differences.held_one": "1 row may be someone else. It is left for you to decide on its own row.",
+  "accept_differences.held": ":count rows may be someone else. They are left for you to decide on their own rows.",
+  "accept_differences.confirm": "Accept",
+  "accept_differences.running": "Accepting",
+  "accept_differences.result": "Accepted for :accepted people. :out_of_reach you may not edit. :held left for you.",
+  "accept_differences.result_pay": "Accepted for :accepted people. :out_of_reach you may not edit. :held left for you. Salary and TIN were left for :pay_refused people, because you may not change pay.",
+  "accept_differences.failed": "Accepting stopped. Some differences may already be accepted. Try again."
 }

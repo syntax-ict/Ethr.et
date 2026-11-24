@@ -32,6 +32,7 @@ use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
+use App\Support\PersonName;
 use App\Support\RelationMatch;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -79,6 +80,9 @@ final class WorkforceMigrationService
     public const NUMBER_HELD = 'number_held';
 
     public const BADGE_HELD = 'badge_held';
+
+    /** The warning on a row set to merge into someone whose name shares no word with it. */
+    public const MAYBE_OTHER_PERSON = 'maybe_other_person';
 
     private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
 
@@ -367,15 +371,15 @@ final class WorkforceMigrationService
         }
 
         if ($accept !== null) {
-            $attributes['changes'] = array_map(
-                fn (array $change): array => [
-                    ...$change,
-                    'accepted' => ($change['kind'] ?? null) === StagedChanges::CONFLICT
-                        && ($change['taken'] ?? false) !== true
-                        && in_array($change['field'] ?? null, $accept, true),
-                ],
-                $attributes['changes'] ?? $row->changes ?? [],
-            );
+            $attributes['changes'] = $this->changes->withAccepted($attributes['changes'] ?? $row->changes ?? [], $accept);
+        }
+
+        // Who the row merges into, and whether it still looks like them, is
+        // asked again whenever the action or the person moves.
+        $raw = $this->rawOf($row);
+        $flagged = $this->withOtherPersonWarning($raw, $action, $resolvedEmployee ?? $row->resolvedEmployee);
+        if ($flagged !== $raw) {
+            $attributes['raw'] = $flagged;
         }
 
         $row->update($attributes);
@@ -880,7 +884,7 @@ final class WorkforceMigrationService
     {
         $attributes = $this->verdictAttributes($tenantId, $raw, $displayName, $departments, $names, $completing);
 
-        return $completing ? $attributes : $this->flagHeldNumbers($attributes, $raw, $held);
+        return $completing ? $attributes : $this->flagHeldNumbers($attributes, is_array($attributes['raw'] ?? null) ? $attributes['raw'] : $raw, $held);
     }
 
     /**
@@ -965,21 +969,199 @@ final class WorkforceMigrationService
         }
 
         $employee = $match->employee;
+        $action = $completing && $match->outcome === IdentityMatch::NEW
+            ? MigrationStagingRow::ACTION_SKIP
+            : $this->suggestedAction($match, $displayName);
 
-        return [
+        $attributes = [
             'match_outcome' => $match->outcome,
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $employee?->id,
             // Nobody is added by a list that completes people: a row that
             // matches no one is left out, and the reviewer is told so.
-            'action' => $completing && $match->outcome === IdentityMatch::NEW
-                ? MigrationStagingRow::ACTION_SKIP
-                : $this->suggestedAction($match, $displayName),
+            'action' => $action,
             'changes' => $employee !== null && ! $employee->trashed()
                 ? $this->changes->between($employee, $raw, $departments, [], $completing)
                 : null,
         ];
+
+        $flagged = $this->withOtherPersonWarning($raw, $action, $employee);
+
+        return $flagged === $raw ? $attributes : [...$attributes, 'raw' => $flagged];
+    }
+
+    /**
+     * A row set to merge into someone whose name shares no word with it may be
+     * someone else: a list whose numbers are shifted by a line matches every
+     * row to the wrong person by number. Name is compared with name and the
+     * Amharic name with the Amharic name (the same script, PersonName), and
+     * only when a pair can be compared at all; one pair that shares a word is
+     * enough to clear the row.
+     *
+     * The row is left out of accepting differences for many rows at once and
+     * decided on its own. The warning is recomputed whenever the action or the
+     * person it names changes, and removed when it no longer applies.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed> the row's raw details, with the warning as it now stands
+     */
+    private function withOtherPersonWarning(array $raw, string $action, ?Employee $target): array
+    {
+        $warnings = array_values(array_filter(
+            is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
+            static fn (mixed $warning): bool => is_array($warning) && ($warning['code'] ?? null) !== self::MAYBE_OTHER_PERSON,
+        ));
+
+        if ($action === MigrationStagingRow::ACTION_MERGE && $target !== null && ! $target->trashed() && $this->maybeOtherPerson($raw, $target)) {
+            $warnings[] = [
+                'code' => self::MAYBE_OTHER_PERSON,
+                'message' => __('onboarding.migration.maybe_other_person'),
+            ];
+        }
+
+        if ($warnings === ($raw['warnings'] ?? [])) {
+            return $raw;
+        }
+
+        return $warnings === [] ? array_diff_key($raw, ['warnings' => true]) : [...$raw, 'warnings' => $warnings];
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private function maybeOtherPerson(array $raw, Employee $target): bool
+    {
+        $known = [$target->name, $target->name_am];
+        $text = static fn (string $key): ?string => isset($raw[$key]) && is_scalar($raw[$key]) ? (string) $raw[$key] : null;
+
+        $compared = [PersonName::overlap($text('name'), $known), PersonName::overlap($text('name_am'), $known)];
+
+        return in_array(false, $compared, true) && ! in_array(true, $compared, true);
+    }
+
+    /**
+     * Accept the differences of the named fields on every merge row that may
+     * take them, a slice at a time, for a reviewer who would otherwise open
+     * each row. Nothing is written to any employee: the acceptance is stored
+     * on the row as a per-row one is (StagedChanges::withAccepted), and the
+     * commit still writes a field only while both values are those shown.
+     *
+     * Stateless between requests: it walks rows in id order after `$cursor`,
+     * for `sliceSeconds` and a chunk at a time (at least one chunk), and says
+     * where it stopped. The caller sends the cursor back until `done`.
+     *
+     * Rows it passes over, and why they are counted:
+     *  - `held`: a row that may be someone else (MAYBE_OTHER_PERSON) is left
+     *    for the reviewer to decide on its own row;
+     *  - `outOfReach`: the actor may not edit the person, nothing is changed;
+     *  - `payRefused`: the row lost its TIN or salary, for want of the pay
+     *    permission, and kept the rest.
+     * Each is counted only for a row that had a difference to accept among
+     * the fields named.
+     *
+     * @param  list<string>  $fields  the fields to accept, by staged name
+     */
+    public function acceptDifferences(MigrationBatch $batch, User $actor, array $fields, int $cursor = 0): AcceptProgress
+    {
+        $fields = array_values(array_intersect($fields, StagedChanges::acceptable($batch->isCompleting())));
+        $gate = Gate::forUser($actor);
+        $started = microtime(true);
+        $rows = $outOfReach = $payRefused = $held = 0;
+        $byField = [];
+
+        do {
+            $chunk = $batch->rows()
+                ->where('id', '>', $cursor)
+                ->whereNull('processed_at')
+                ->where('action', MigrationStagingRow::ACTION_MERGE)
+                ->whereNotNull('resolved_employee_id')
+                ->orderBy('id')
+                ->limit($this->chunk)
+                ->get();
+
+            $targets = Employee::query()
+                ->where('tenant_id', $batch->tenant_id)
+                ->whereIn('id', $chunk->pluck('resolved_employee_id')->all())
+                ->get()
+                ->keyBy('id');
+
+            foreach ($chunk as $row) {
+                $cursor = (int) $row->getKey();
+                $stored = is_array($row->changes) ? $row->changes : [];
+
+                $open = [];
+                foreach ($stored as $change) {
+                    if (($change['kind'] ?? null) === StagedChanges::CONFLICT
+                        && ($change['taken'] ?? false) !== true
+                        && ($change['accepted'] ?? false) !== true
+                        && in_array($change['field'] ?? null, $fields, true)) {
+                        $open[] = (string) $change['field'];
+                    }
+                }
+
+                if ($open === []) {
+                    continue;
+                }
+
+                if ($this->hasWarning($row, self::MAYBE_OTHER_PERSON)) {
+                    $held++;
+
+                    continue;
+                }
+
+                $target = $targets->get($row->resolved_employee_id);
+                if (! $target instanceof Employee) {
+                    continue;
+                }
+
+                if (! $gate->allows('update', $target)) {
+                    $outOfReach++;
+
+                    continue;
+                }
+
+                if (array_intersect($open, StagedChanges::PAY) !== [] && ! $gate->inspect('updateFinancial', $target)->allowed()) {
+                    $open = array_values(array_diff($open, StagedChanges::PAY));
+                    $payRefused++;
+
+                    if ($open === []) {
+                        continue;
+                    }
+                }
+
+                $accepted = [];
+                foreach ($stored as $change) {
+                    if (($change['accepted'] ?? false) === true) {
+                        $accepted[] = (string) $change['field'];
+                    }
+                }
+
+                $row->update(['changes' => $this->changes->withAccepted($stored, [...$accepted, ...$open])]);
+
+                $rows++;
+                foreach ($open as $field) {
+                    $byField[$field] = ($byField[$field] ?? 0) + 1;
+                }
+            }
+
+            $more = $chunk->count() === $this->chunk;
+        } while ($more && microtime(true) - $started < $this->sliceSeconds);
+
+        return new AcceptProgress(! $more, $cursor, $rows, $byField, $outOfReach, $payRefused, $held);
+    }
+
+    private function hasWarning(MigrationStagingRow $row, string $code): bool
+    {
+        $raw = $this->rawOf($row);
+
+        foreach (is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [] as $warning) {
+            if (is_array($warning) && ($warning['code'] ?? null) === $code) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

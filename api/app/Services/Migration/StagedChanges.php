@@ -218,6 +218,34 @@ final class StagedChanges
     }
 
     /**
+     * The list with exactly the differences of `$accept` marked as accepted: a
+     * conflict that is not taken, whose field is named. Every other change is
+     * left unaccepted, a locked one and one somebody else holds included.
+     *
+     * The one place an acceptance is stored, for a reviewer's choice on one
+     * row (WorkforceMigrationService::setAction) and for many rows at once
+     * (WorkforceMigrationService::acceptDifferences), so the two cannot drift.
+     * It says only what was chosen: the commit still writes a field only while
+     * both of its values are the ones shown (wasAccepted).
+     *
+     * @param  list<array<string, mixed>>  $changes
+     * @param  list<string>  $accept
+     * @return list<array<string, mixed>>
+     */
+    public function withAccepted(array $changes, array $accept): array
+    {
+        return array_map(
+            fn (array $change): array => [
+                ...$change,
+                'accepted' => ($change['kind'] ?? null) === self::CONFLICT
+                    && ($change['taken'] ?? false) !== true
+                    && in_array($change['field'] ?? null, $accept, true),
+            ],
+            $changes,
+        );
+    }
+
+    /**
      * The fields of a list of changes that committing would write: every fill,
      * and every conflict a reviewer accepted. Never one somebody else holds,
      * and never a locked one.
