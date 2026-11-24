@@ -27,6 +27,8 @@ return [
     // Approval routing
     'review_request' => 'Review Request',
     'device_offline_subject' => 'A biometric device has gone offline',
+    'device_silent_adms_subject' => 'A biometric device is not connected: :name',
+    'device_silent_push_subject' => 'No punches from a biometric device today: :name',
     'device_sync_failed_subject' => 'Biometric device sync failed: :name',
     'device_sync_failed_body' => 'Sync for device ":name" failed after every retry and no attendance events are being collected from it. The device reported: :reason',
     'device_action' => 'View device status',
@@ -53,6 +55,8 @@ return [
         'phone_revoked' => 'Your attendance phone was revoked. Register the phone you use now.',
         'phone_revoked_reason' => 'Your attendance phone was revoked: :reason. Register the phone you use now.',
         'device_offline' => 'Device ":name" has gone offline.',
+        'device_silent_adms' => 'Device ":name" is not connected.',
+        'device_silent_push' => 'No punches from device ":name" today.',
         'leave_approved' => 'Your leave request was approved.',
         'leave_changed' => 'Your approved leave was changed by HR.',
         'leave_rejected' => 'Your leave request was rejected.',
@@ -69,5 +73,9 @@ return [
     'approval_reminder_action' => 'Review approvals',
     'device_offline_line' => 'The device ":name" at :location has gone offline.',
     'device_offline_action' => 'View device status',
+    'device_silent_adms_line' => 'The device ":name" at :location has not connected to ETHR for a while during working hours.',
+    'device_silent_push_line' => 'The device ":name" at :location has sent no punches today, though people there have badge numbers.',
+    'device_silent_hint' => 'If the office is closed today, nothing needs doing. Otherwise check that the terminal is switched on and can reach the internet.',
+    'device_silent_action' => 'View device',
     'unknown_location' => 'an unnamed location',
 ];

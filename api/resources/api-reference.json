@@ -13432,6 +13432,32 @@
                                                 "devices"
                                             ]
                                         },
+                                        "silent": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "device_public_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string"
+                                                    },
+                                                    "since": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "device_public_id",
+                                                    "name",
+                                                    "kind",
+                                                    "since"
+                                                ]
+                                            }
+                                        },
                                         "unmatched": {
                                             "type": "object",
                                             "properties": {
@@ -13488,6 +13514,7 @@
                                         "events_today",
                                         "punches_today",
                                         "quarantined",
+                                        "silent",
                                         "unmatched",
                                         "last_sync_at",
                                         "sync_stats_24h"
@@ -41490,6 +41517,31 @@
                                                 "invitation_reminders"
                                             ]
                                         },
+                                        "devices": {
+                                            "type": "object",
+                                            "properties": {
+                                                "silence_alerts": {
+                                                    "type": "boolean"
+                                                },
+                                                "silence_adms_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "silence_push_grace_minutes": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "silence_alerts",
+                                                "silence_adms_minutes",
+                                                "silence_push_grace_minutes"
+                                            ]
+                                        },
                                         "sso": {
                                             "anyOf": [
                                                 {
@@ -41600,6 +41652,7 @@
                                         "security",
                                         "display",
                                         "employees",
+                                        "devices",
                                         "sso"
                                     ]
                                 }
