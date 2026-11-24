@@ -70,7 +70,7 @@ starts with `https://` becomes a link that opens in a new tab with
 `rel="noopener noreferrer nofollow ugc"`. Markup is stripped by the server and
 rendered as text by the page, so nothing in a story can run or style the page.
 
-**One story contract (2026-11-24).** A story is turned into data in one place, `AppSupportStory`
+**One story contract (2026-11-24).** A story is turned into data in one place, `App\Support\Story`
 (`summary()`, `article()`, `body()`), and the public feed, the news list, the public article and the
 signed-in list and reading pane all read it. Every reader gets the same excerpt (280 characters) and a
 body with markup removed. A public card cuts the title at 150 characters; the signed-in list keeps the
@@ -79,8 +79,12 @@ stored title, because the editor saves what it is given. The editor also fills i
 opening a story and saving it changes nothing. The signed-in list is ordered urgent, important, normal,
 low and then newest, and the public order is the same with featured stories first
 (`Announcement::scopeReadingOrder()` and `scopeNewsOrder()`, over one rank). The three closed lists,
-priority, category and audience, are enums (`AppEnumsAnnouncementPriority`, `AnnouncementCategory`,
-`AnnouncementTarget`), and a value outside them is refused with a 422. The public article is cached in
+priority, category and audience, are enums (`App\Enums\AnnouncementPriority`, `AnnouncementCategory`,
+`AnnouncementTarget`), and a value outside them is refused with a 422. Markup is removed from a
+story's text and nothing else: a `<` that opens no tag, as in "under <2000 birr", stays as written,
+on the public pages as well as in the app. The editor's Preview shows the form's own text, so a
+manager who types real tags previews them while readers get them removed; that is a known limit,
+and N2 closes it. The public article is cached in
 the browser for two minutes, like the feed and the list, so an unpublished story can stay readable for
 that long to a visitor who had already opened it.
 

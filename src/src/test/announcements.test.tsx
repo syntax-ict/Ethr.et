@@ -469,7 +469,7 @@ describe("<AnnouncementsPage> publishing", () => {
             {
               ...ANNOUNCEMENT,
               status: "published",
-              body: "Budget para",
+              body: "Budget<2000 birr para",
               body_source: "Budget<2000 birr <b>para</b>",
             },
           ]),

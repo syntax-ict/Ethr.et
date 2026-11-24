@@ -42,18 +42,30 @@ function storyWritesPriorityCase(string $source): bool
     return false;
 }
 
-/** Whether PHP source asks the news question by reading the section map, comments aside. */
+/**
+ * Whether PHP source reads the news section out of a section map: an
+ * `['announcements']` index, however the map was got, comments aside. The
+ * string token between `[` and `]` is what is looked for, so a two-step read
+ * and a nested call are seen as well as `publicSections($t)['announcements']`.
+ */
 function storyReadsNewsSection(string $source): bool
 {
-    $code = '';
-    foreach (token_get_all($source) as $token) {
-        if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
-            continue;
+    $tokens = array_values(array_filter(
+        token_get_all($source),
+        fn ($t) => ! is_array($t) || ! in_array($t[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true),
+    ));
+
+    foreach ($tokens as $i => $token) {
+        if (is_array($token)
+            && $token[0] === T_CONSTANT_ENCAPSED_STRING
+            && trim($token[1], '\'"') === 'announcements'
+            && ($tokens[$i - 1] ?? null) === '['
+            && ($tokens[$i + 1] ?? null) === ']') {
+            return true;
         }
-        $code .= is_array($token) ? $token[1] : $token;
     }
 
-    return preg_match('/publicSections\([^)]*\)\[[\'"]announcements[\'"]\]/', $code) === 1;
+    return false;
 }
 
 it('writes the priority rank in the model and nowhere else', function () {
@@ -78,13 +90,21 @@ it('asks whether an organisation shows news in TenantLanding and nowhere else', 
 
     $askers = array_values(array_filter($files, fn (string $f): bool => storyReadsNewsSection((string) file_get_contents($f))));
 
-    expect($askers)->toBe([$home]);
+    // The feed already holds the whole section map it computed for the
+    // sign-in page's other sections, so it reads the one key from it. Nothing
+    // else may: every other caller asks TenantLanding::showsNews().
+    $pinned = [str_replace('\\', '/', base_path('app/Http/Controllers/Api/V1/Auth/LandingFeedController.php'))];
+
+    expect(array_values(array_diff($askers, $pinned)))->toBe([$home])
+        ->and(array_values(array_intersect($askers, $pinned)))->toBe($pinned);
 });
 
 it('recognises the copies it forbids, and not a comment about them', function () {
     expect(storyWritesPriorityCase('<?php $q->orderByRaw("CASE priority WHEN \'urgent\' THEN 1 END");'))->toBeTrue()
         ->and(storyWritesPriorityCase("<?php // CASE priority WHEN 'urgent'\n/* CASE priority */ \$q->orderBy('id');"))->toBeFalse()
         ->and(storyReadsNewsSection('<?php if (! TenantLanding::publicSections($t)["announcements"]) {}'))->toBeTrue()
+        ->and(storyReadsNewsSection('<?php $m = TenantLanding::publicSections($t); if ($m[\'announcements\']) {}'))->toBeTrue()
+        ->and(storyReadsNewsSection('<?php foo(bar($t)["announcements"]);'))->toBeTrue()
         ->and(storyReadsNewsSection("<?php // publicSections(\$t)['announcements']\n\$x = TenantLanding::showsNews(\$t);"))->toBeFalse();
 });
 

@@ -156,8 +156,7 @@ it('hands the editor the stored title and body, so saving a story changes nothin
 
     expect(mb_strlen($read['title']))->toBe(200)
         ->and($read['title'])->toBe($title)
-        ->and($read['body'])->not->toBe($body)
-        ->and($read['body'])->not->toContain('<')
+        ->and($read['body'])->toBe("Budget<2000 birr\n\nSecond para")
         ->and($read['body_source'])->toBe($body);
 
     test()->putJson(contractUrl($tenant, "/announcements/{$story->public_id}"), [
