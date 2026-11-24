@@ -37,6 +37,10 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
 import { orgKindName } from "@/features/settings/org-kind";
+import {
+  EmploymentLawField,
+  type EmploymentFrameworkState,
+} from "@/features/settings/components/employment-law-field";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -88,6 +92,7 @@ export interface OrganizationCardProps {
       effective_from: string;
     } | null;
     organization_type_earliest_change?: string | null;
+    employment_framework?: EmploymentFrameworkState | null;
   } | null;
 }
 
@@ -369,6 +374,9 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 </Button>
               </p>
             )}
+          </div>
+          <div className="sm:col-span-2">
+            <EmploymentLawField state={organization?.employment_framework} />
           </div>
           <div>
             <Label htmlFor="org-type">

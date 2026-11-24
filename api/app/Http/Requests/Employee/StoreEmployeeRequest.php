@@ -79,6 +79,8 @@ class StoreEmployeeRequest extends FormRequest
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
             'hire_date' => ['required', 'date', 'before_or_equal:'.now()->addYear()->toDateString()],
             'probation_end_date' => ['nullable', 'date', 'after_or_equal:hire_date'],
+            'outside_employment_framework' => ['sometimes', 'boolean'],
+            'employment_framework_note' => ['nullable', 'string', 'max:255'],
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'tin' => ['nullable', 'string', 'max:20'],
             ...$this->relationRules(),

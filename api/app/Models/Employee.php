@@ -56,6 +56,8 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $probation_end_date
  * @property Carbon|null $confirmation_date
  * @property Carbon|null $termination_date
+ * @property bool $outside_employment_framework
+ * @property string|null $employment_framework_note
  */
 class Employee extends Model
 {
@@ -100,6 +102,8 @@ class Employee extends Model
         'probation_end_date',
         'confirmation_date',
         'termination_date',
+        'outside_employment_framework',
+        'employment_framework_note',
         'salary_cents',
         'salary_step',
         'photo_path',
@@ -133,6 +137,7 @@ class Employee extends Model
             'probation_end_date' => 'date',
             'confirmation_date' => 'date',
             'termination_date' => 'date',
+            'outside_employment_framework' => 'boolean',
             'salary_cents' => 'integer',
             'tin' => 'encrypted',
             'nationality_status' => NationalityStatus::class,
