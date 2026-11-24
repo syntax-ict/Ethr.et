@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
 use App\Services\Invitations\EmployeeLogins;
+use App\Services\Migration\HeldNumbers;
 use App\Services\Migration\ListUndo;
 use App\Services\Migration\MigrationTerminals;
 use App\Services\Migration\SignInChoices;
@@ -52,6 +53,7 @@ class MigrationController extends Controller
         private readonly EmployeeLogins $logins,
         private readonly MigrationTerminals $terminals,
         private readonly SignInChoices $signIn,
+        private readonly HeldNumbers $heldNumbers,
     ) {}
 
     public function stageFromDevice(Device $device): JsonResponse
@@ -415,6 +417,14 @@ class MigrationController extends Controller
         // A list that completes people adds nobody.
         abort_if($batch->isCompleting() && $request->validated('action') === MigrationStagingRow::ACTION_CREATE, 422, __('onboarding.migration.complete_adds_nobody'));
 
+        // A person cannot be made with an employee number another record holds,
+        // archived or current: the commit would fail on it.
+        if ($request->validated('action') === MigrationStagingRow::ACTION_CREATE) {
+            $raw = $row->getAttribute('raw');
+            $code = is_array($raw) && is_scalar($raw['employee_code'] ?? null) ? trim((string) $raw['employee_code']) : '';
+            abort_if($this->heldNumbers->among($batch->tenant_id, [$code])->code($code) !== null, 422, __('onboarding.migration.number_held', ['value' => $code]));
+        }
+
         // Accepting a difference is deciding to edit that employee, so it
         // takes what editing them takes: employee.update with reach over the
         // person, and the pay permission for salary or TIN. Without them the
@@ -436,7 +446,7 @@ class MigrationController extends Controller
 
         $row = $row->refresh()->load('resolvedEmployee');
 
-        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row]), $this->candidateCodes([$row])));
+        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row]), $this->candidateCodes([$row]), $this->holderNames([$row])));
     }
 
     /**
@@ -685,6 +695,7 @@ class MigrationController extends Controller
         $rows = $batch->rows()->with('resolvedEmployee')->get();
         $scheduled = $this->scheduledAmong($rows->all());
         $codes = $this->candidateCodes($rows->all());
+        $holders = $this->holderNames($rows->all());
 
         return [
             'public_id' => $batch->public_id,
@@ -698,15 +709,16 @@ class MigrationController extends Controller
             'undo_archived' => $this->undoArchived($batch),
             'summary' => $this->summarize($batch),
             'sign_in_plan' => $this->signIn->plan($batch, $rows),
-            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled, $codes))->all(),
+            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled, $codes, $holders))->all(),
         ];
     }
 
     /**
      * @param  list<int>  $scheduled  employees with a change waiting for its date
      * @param  array<string, string|null>  $codes  candidates' employee numbers (candidateCodes)
+     * @param  array<int, string|null>  $holders  the name of each holder a warning names, for those the viewer may open (holderNames)
      */
-    private function rowPayload(MigrationStagingRow $row, array $scheduled = [], array $codes = []): array
+    private function rowPayload(MigrationStagingRow $row, array $scheduled = [], array $codes = [], array $holders = []): array
     {
         $processedAt = $row->getAttribute('processed_at');
         $employee = $row->resolvedEmployee;
@@ -723,7 +735,7 @@ class MigrationController extends Controller
             'resolved_employee_code' => $mayView ? $this->codeOf($employee) : null,
             'action' => $row->action,
             'changes' => $this->changesPayload($row, $employee, $mayView),
-            'warnings' => $this->warningsPayload($row),
+            'warnings' => $this->warningsPayload($row, $holders),
             'can_apply_changes' => $this->mayEdit($employee),
             'scheduled_action' => $this->isScheduled($employee, $scheduled),
             'processed_at' => $processedAt instanceof \DateTimeInterface ? $processedAt->format('c') : null,
@@ -731,20 +743,79 @@ class MigrationController extends Controller
     }
 
     /**
-     * What staging noted about the row: a number that did not fit, each as a
-     * code and a message. Read from the row's own details.
+     * What staging noted about the row: a number that did not fit, a number
+     * another record holds, each as a code and a message. Read from the row's
+     * own details.
      *
+     * A held number is told as the row stored it (the number, and whether its
+     * holder is archived or current) and says who holds it only to a viewer
+     * who may open that person.
+     *
+     * @param  array<int, string|null>  $holders
      * @return list<array{code: string, message: string}>
      */
-    private function warningsPayload(MigrationStagingRow $row): array
+    private function warningsPayload(MigrationStagingRow $row, array $holders = []): array
     {
         $raw = $row->getAttribute('raw');
         $warnings = is_array($raw) && is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [];
 
         return array_values(array_map(
-            fn (mixed $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => (string) ($w['message'] ?? '')],
+            fn (array $w): array => ['code' => (string) ($w['code'] ?? ''), 'message' => $this->warningMessage($w, $holders)],
             array_filter($warnings, 'is_array'),
         ));
+    }
+
+    /**
+     * @param  array<mixed>  $warning
+     * @param  array<int, string|null>  $holders
+     */
+    private function warningMessage(array $warning, array $holders): string
+    {
+        $code = (string) ($warning['code'] ?? '');
+
+        if (! in_array($code, [WorkforceMigrationService::NUMBER_HELD, WorkforceMigrationService::BADGE_HELD], true) || ! isset($warning['holder'], $warning['value'])) {
+            return (string) ($warning['message'] ?? '');
+        }
+
+        $state = $warning['holder'] === 'archived' ? 'archived' : 'current';
+        $name = $code === WorkforceMigrationService::NUMBER_HELD && is_int($warning['holder_id'] ?? null) ? ($holders[$warning['holder_id']] ?? null) : null;
+
+        return $name === null
+            ? __("onboarding.migration.{$code}_{$state}", ['value' => (string) $warning['value']])
+            : __("onboarding.migration.{$code}_{$state}_named", ['value' => (string) $warning['value'], 'name' => $name]);
+    }
+
+    /**
+     * The name of the person each held-number warning of these rows points at,
+     * for those the viewer may open, and null for the rest. One query for the
+     * list. The lookup carries the tenant scope, so an id that is not this
+     * organisation's finds nobody.
+     *
+     * @param  array<int, MigrationStagingRow>  $rows
+     * @return array<int, string|null>
+     */
+    private function holderNames(array $rows): array
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            $raw = $row->getAttribute('raw');
+            foreach (is_array($raw) && is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [] as $warning) {
+                if (is_array($warning) && ($warning['code'] ?? null) === WorkforceMigrationService::NUMBER_HELD && is_int($warning['holder_id'] ?? null)) {
+                    $ids[] = $warning['holder_id'];
+                }
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $names = [];
+        foreach (Employee::withTrashed()->whereIn('id', array_values(array_unique($ids)))->get() as $employee) {
+            $names[(int) $employee->id] = Gate::allows('view', $employee) ? (string) $employee->name : null;
+        }
+
+        return $names;
     }
 
     /**
