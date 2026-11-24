@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { api, DEMO_TENANT } from "./helpers";
 
 /**
@@ -65,6 +65,54 @@ test.describe("Announcements: one presentation", () => {
     await expect(story).toBeVisible({ timeout: 15000 });
     await expect(story.getByText("Important", { exact: true })).toBeVisible();
     await anonymous.close();
+  });
+
+  test("reads the same on /news, in the list and on the dashboard card: a heading and one priority word", async ({
+    page,
+    browser,
+  }) => {
+    // One story, one card (N2). Each surface draws the story through
+    // `NewsCard`, so its title is a heading and its priority word is the
+    // same word. Asserted on what each page reads back, not on a toast.
+    const heading = (from: Page | Locator) =>
+      from.getByRole("heading", { name: TITLE, exact: true });
+    const priorityWord = (from: Page | Locator) =>
+      from.getByText(/^(Urgent|Important)$/);
+    const read = async (card: Locator) => ({
+      title: (await heading(card).innerText()).trim(),
+      priority: (await priorityWord(card).innerText()).trim(),
+    });
+
+    await page.goto("/announcements");
+    const row = page
+      .getByRole("listitem")
+      .filter({ has: heading(page) })
+      .first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+    const inList = await read(row);
+
+    await page.goto("/dashboard");
+    const tile = page
+      .getByRole("link")
+      .filter({ has: heading(page) })
+      .first();
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    const onCard = await read(tile);
+
+    const anonymous = await browser.newContext();
+    const news = await anonymous.newPage();
+    await news.goto(`/news?org=${DEMO_TENANT}`);
+    const story = news
+      .getByRole("link")
+      .filter({ has: heading(news) })
+      .first();
+    await expect(story).toBeVisible({ timeout: 15000 });
+    const onNews = await read(story);
+    await anonymous.close();
+
+    expect(inList).toEqual({ title: TITLE, priority: "Important" });
+    expect(onCard).toEqual(inList);
+    expect(onNews).toEqual(inList);
   });
 
   test("reads the same title, excerpt and body from the public article and the in-app read", async ({

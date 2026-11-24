@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Globe, Megaphone, Plus } from "lucide-react";
+import { Globe, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PageActions } from "@/components/shared/page-actions";
@@ -29,12 +28,14 @@ import {
   AnnouncementRowActions,
   type Status,
 } from "@/features/announcements/components/announcement-row-actions";
-import { fileSize } from "@/features/news/news-format";
+import { AttachmentList } from "@/features/news/components/attachment-list";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
-import { NewsMeta } from "@/features/news/components/news-card";
+import { NewsCard } from "@/features/news/components/news-card";
+import {
+  StoryBrowser,
+  useStoryFilters,
+} from "@/features/news/components/story-browser";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { PaginationControls } from "@/components/shared/pagination-controls";
-import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 
 /**
  * Announcements: the reading list for everyone, and the publishing desk for
@@ -60,12 +61,14 @@ export default function AnnouncementsPage() {
 
   // The open story and the page live in the address, so a reader can be sent
   // straight to one and the back button closes the panel. `useQueryFilters`
-  // reads the address through `useSyncExternalStore` rather than
-  // `useSearchParams`, which is what keeps this page prerenderable for the
-  // static export without a Suspense boundary.
-  const { values, set } = useQueryFilters({ read: "", page: "1" });
-  const reading = values.read === "" ? null : values.read;
-  const page = Math.max(1, Number(values.page) || 1);
+  // (under `useStoryFilters`) reads the address through
+  // `useSyncExternalStore` rather than `useSearchParams`, which is what keeps
+  // this page prerenderable for the static export without a Suspense
+  // boundary.
+  const filters = useStoryFilters({ extra: { read: "" } });
+  const { set } = filters;
+  const reading = filters.values.read === "" ? null : filters.values.read;
+  const page = filters.query.page;
 
   // Opening a story adds a history entry, so Back closes the panel. Closing it
   // by the X or Escape must undo that entry rather than replace it: replacing
@@ -116,7 +119,6 @@ export default function AnnouncementsPage() {
   const live = useAnnouncements({ page });
   const managed = useManagedAnnouncements(manager, page);
   const query = manager ? managed : live;
-  const { data, isLoading, isError, refetch } = query;
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
 
@@ -158,7 +160,6 @@ export default function AnnouncementsPage() {
     });
   }
 
-  const announcements: Announcement[] = data?.data ?? [];
   const statusLabel = (a: Announcement): string => {
     switch (a.status as Status) {
       case "draft":
@@ -187,144 +188,107 @@ export default function AnnouncementsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorState onRetry={() => refetch()} />
-      ) : announcements.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title={t("announcements.empty_title", "No announcements")}
-          description={
-            // A reader is told there is nothing to read; a manager is told
-            // what to do about it. One sentence served both and spoke to
-            // neither.
-            manager
-              ? t(
-                  "announcements.empty_desc_manager",
-                  "Write the first one with New Announcement. It reaches everyone you address it to.",
+      <StoryBrowser
+        filters={filters}
+        query={query}
+        layout="list"
+        loading={
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        }
+        error={<ErrorState onRetry={() => query.refetch()} />}
+        empty={() => (
+          <EmptyState
+            icon={Megaphone}
+            title={t("announcements.empty_title", "No announcements")}
+            description={
+              // A reader is told there is nothing to read; a manager is told
+              // what to do about it. One sentence served both and spoke to
+              // neither.
+              manager
+                ? t(
+                    "announcements.empty_desc_manager",
+                    "Write the first one with New Announcement. It reaches everyone you address it to.",
+                  )
+                : t(
+                    "announcements.empty_desc",
+                    "No announcements published yet",
+                  )
+            }
+          />
+        )}
+        renderItem={(a) => {
+          const status = (a.status ?? "published") as Status;
+          const files = a.attachments ?? [];
+          return (
+            <NewsCard
+              item={{ ...a, featured: manager && a.featured }}
+              density="row"
+              // The title opens the story. A button rather than a link: the
+              // panel is a query on this same page, and the filters hook
+              // writes the address itself. The whole row is not the target,
+              // because a manager's row carries its own buttons.
+              onOpen={() => openStory(a.public_id)}
+              badges={
+                manager && (
+                  <>
+                    <StatusBadge
+                      status={status}
+                      domain="announcement"
+                      label={statusLabel(a)}
+                      className="text-[11px]"
+                    />
+                    {a.show_on_landing && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-0 bg-primary-soft text-[11px] text-primary-on-soft"
+                      >
+                        <Globe className="h-3 w-3" aria-hidden="true" />
+                        {t("announcements.on_website", "On website")}
+                      </Badge>
+                    )}
+                  </>
                 )
-              : t("announcements.empty_desc", "No announcements published yet")
-          }
-        />
-      ) : (
-        <ul className="space-y-3">
-          {announcements.map((a) => {
-            const status = (a.status ?? "published") as Status;
-            return (
-              <li key={a.public_id}>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-3 @container sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <NewsMeta
-                          item={{ ...a, featured: manager && a.featured }}
-                        />
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <h3 className="min-w-0 break-words text-sm font-semibold text-foreground">
-                            {/*
-                             * The title opens the story. A button rather than
-                             * a link: the panel is a query on this same page,
-                             * and `useQueryFilters` writes the address itself.
-                             * The whole row is not the target, because a
-                             * manager's row carries its own buttons.
-                             */}
-                            <button
-                              type="button"
-                              onClick={() => openStory(a.public_id)}
-                              className="rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                              {a.title}
-                            </button>
-                          </h3>
-                          {manager && (
-                            <StatusBadge
-                              status={status}
-                              domain="announcement"
-                              label={statusLabel(a)}
-                              className="text-[11px]"
-                            />
-                          )}
-                          {manager && a.show_on_landing && (
-                            <Badge
-                              variant="outline"
-                              className="gap-1 border-0 bg-primary-soft text-[11px] text-primary-on-soft"
-                            >
-                              <Globe className="h-3 w-3" aria-hidden="true" />
-                              {t("announcements.on_website", "On website")}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
-                          {a.excerpt}
-                        </p>
-                        {(a.attachments ?? []).length > 0 && (
-                          <ul className="mt-2 flex flex-wrap gap-2">
-                            {(a.attachments ?? []).map((f) => (
-                              <li key={f.id}>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    downloadAnnouncementFile(
-                                      a.public_id,
-                                      f,
-                                    ).catch(() =>
-                                      toast.error(
-                                        t(
-                                          "announcements.download_failed",
-                                          "The document could not be downloaded",
-                                        ),
-                                      ),
-                                    )
-                                  }
-                                  className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                  <FileText
-                                    className="h-3.5 w-3.5 shrink-0 text-primary"
-                                    aria-hidden="true"
-                                  />
-                                  <span className="truncate">{f.name}</span>
-                                  <span className="shrink-0 text-muted-foreground">
-                                    {fileSize(f.size)}
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      {manager && (
-                        <AnnouncementRowActions
-                          a={a}
-                          status={status}
-                          busy={updateAnnouncement.isPending}
-                          onAct={act}
-                          onPublish={setPendingPublish}
-                          onPreview={(story) => openStory(story.public_id)}
-                          onEdit={setEditor}
-                          onDelete={setPendingDelete}
-                        />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {!isLoading && !isError && (
-        <PaginationControls
-          meta={data?.meta}
-          onPageChange={(next) => set({ page: String(next) })}
-          disabled={query.isFetching}
-        />
-      )}
+              }
+              footer={
+                files.length > 0 && (
+                  <AttachmentList
+                    variant="chips"
+                    files={files}
+                    onDownload={(file) =>
+                      downloadAnnouncementFile(a.public_id, file).catch(() =>
+                        toast.error(
+                          t(
+                            "announcements.download_failed",
+                            "The document could not be downloaded",
+                          ),
+                        ),
+                      )
+                    }
+                  />
+                )
+              }
+              actions={
+                manager && (
+                  <AnnouncementRowActions
+                    a={a}
+                    status={status}
+                    busy={updateAnnouncement.isPending}
+                    onAct={act}
+                    onPublish={setPendingPublish}
+                    onPreview={(story) => openStory(story.public_id)}
+                    onEdit={setEditor}
+                    onDelete={setPendingDelete}
+                  />
+                )
+              }
+            />
+          );
+        }}
+      />
 
       <ConfirmDialog
         open={pendingDelete !== null}

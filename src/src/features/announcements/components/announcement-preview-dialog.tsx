@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArticleView,
-  type ArticleContent,
+  type StoryArticle,
 } from "@/features/news/components/article-view";
 
 /**
@@ -22,7 +22,7 @@ export function AnnouncementPreviewDialog({
   article,
   onClose,
 }: {
-  article: ArticleContent | null;
+  article: StoryArticle | null;
   onClose: () => void;
 }) {
   const { t } = useT();
@@ -41,7 +41,7 @@ export function AnnouncementPreviewDialog({
         </DialogHeader>
         {article && (
           <div className="@container rounded-lg border border-border p-5">
-            <ArticleView article={article} />
+            <ArticleView article={article} headingLevel={3} />
           </div>
         )}
       </DialogContent>
