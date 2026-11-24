@@ -282,6 +282,24 @@ describe('staging says when a merge may be someone else', function () {
             ->and(warningCodes($batch))->toBe(['maybe_other_person']);
     });
 
+    it('does not flag a person ETHR named with a placeholder', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant, ['name' => 'Device user E-1', 'name_am' => null]);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1']]);
+
+        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_MERGE)
+            ->and(warningCodes($batch))->toBe([]);
+    });
+
+    it('still flags a placeholder-named person whose Amharic name shares nothing', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant, ['name' => 'Device user E-1', 'name_am' => 'አበበ ከበደ']);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'name_am' => 'ዳዊት ኃይሌ', 'employee_code' => 'E-1']]);
+
+        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_DEFER)
+            ->and(warningCodes($batch))->toBe(['maybe_other_person']);
+    });
+
     it('still merges a number match whose name agrees', function () {
         [$tenant] = Staging::organisation();
         Staging::employee($tenant);

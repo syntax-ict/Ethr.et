@@ -540,6 +540,17 @@ final class StagedChanges
     }
 
     /**
+     * Whether the employee's name (or Amharic name) is one ETHR made up, a
+     * "Device user 17", which is a placeholder and not somebody's name.
+     */
+    public function isMadeUpName(Employee $employee, string $field): bool
+    {
+        $value = $field === 'name' || $field === 'name_am' ? $employee->{$field} : null;
+
+        return is_string($value) && $this->madeUp($field === 'name_am' ? 'name' : $field, $employee, $value);
+    }
+
+    /**
      * ETHR has a value, and ETHR invented it: a "Device user 17" name, or a
      * hire date that is the day an earlier list was committed because that
      * list gave none. The second is known only while that list is kept

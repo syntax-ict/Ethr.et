@@ -83,10 +83,9 @@ describe('a matched row fills what ETHR has blank', function () {
         expect(Staging::change($changes, 'name'))->toMatchArray(['kind' => StagedChanges::FILL])
             ->and(Staging::change($changes, 'hire_date'))->toMatchArray(['kind' => StagedChanges::FILL]);
 
-        // "Device user D-17" shares no word with the name on the list, so the
-        // row waits for a reviewer; choosing merge is theirs.
-        expect(Staging::firstRow($second)->action)->toBe(MigrationStagingRow::ACTION_DEFER);
-        Staging::service()->setAction(Staging::firstRow($second), MigrationStagingRow::ACTION_MERGE);
+        expect(Staging::firstRow($second)->action)->toBe(MigrationStagingRow::ACTION_MERGE)
+            ->and(collect(Staging::firstRow($second)->raw['warnings'] ?? [])->pluck('code')->all())->not->toContain('maybe_other_person');
+
         Staging::service()->commit($second, $user);
 
         expect($person->refresh()->name)->toBe('Sara Tesfaye')

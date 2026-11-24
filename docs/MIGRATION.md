@@ -597,8 +597,9 @@ other. Two guards:
   the same script only, and only when a pair can be compared; the rule is
   `PersonName::overlap()`, the one the resolver uses). It is counted in `held`
   and decided on its own row. The warning is recomputed whenever a row's action
-  or person changes. A person ETHR named "Device user 17" has no name to share,
-  so such a row is held too; that is the safe direction.
+  or person changes. A name ETHR made up ("Device user 17") is not compared
+  at all, so a person made from a terminal's number is not flagged and a list
+  that completes people merges into them as before.
   The row also **waits for a reviewer**: its default action is `defer`, never
   `merge`, in a list that completes people as in any other. Committing the list
   writes nothing to that person unless the reviewer chooses merge on that row

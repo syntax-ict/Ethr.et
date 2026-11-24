@@ -1055,7 +1055,12 @@ final class WorkforceMigrationService
      */
     private function maybeOtherPerson(array $raw, Employee $target): bool
     {
-        $known = [$target->name, $target->name_am];
+        // A name ETHR made up is not a name to compare: a person made from a
+        // terminal's number is exactly who a list completes.
+        $known = array_values(array_filter([
+            $this->changes->isMadeUpName($target, 'name') ? null : $target->name,
+            $this->changes->isMadeUpName($target, 'name_am') ? null : $target->name_am,
+        ]));
         $text = static fn (string $key): ?string => isset($raw[$key]) && is_scalar($raw[$key]) ? (string) $raw[$key] : null;
 
         $compared = [PersonName::overlap($text('name'), $known), PersonName::overlap($text('name_am'), $known)];
