@@ -89,6 +89,20 @@ class Shift extends Model
         return [$start, $end];
     }
 
+    /**
+     * The minutes this shift schedules on $date: the window between its start
+     * and end, less the break the shift deducts from worked time
+     * (`AttendanceRecord::workedMinutes` takes the same break off). The one
+     * answer for "scheduled hours", so the timesheet's figure and a person's
+     * worked minutes are measured the same way.
+     */
+    public function scheduledMinutesOn(string $date, string $zone): int
+    {
+        [$start, $end] = $this->windowOn($date, $zone);
+
+        return max(0, (int) $start->diffInMinutes($end) - (int) $this->break_minutes);
+    }
+
     /** @return HasMany<ShiftAssignment, $this> */
     public function assignments(): HasMany
     {
