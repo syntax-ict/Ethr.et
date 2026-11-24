@@ -146,12 +146,12 @@ class UserProvisioningService
             return;
         }
 
-        $actor = auth()->user();
-        if (! $actor instanceof User && $invitedBy !== null) {
+        $actor = PositionAccess::currentActor();
+        if ($actor === null && $invitedBy !== null) {
             $actor = User::query()->find($invitedBy);
         }
 
-        app(PositionAccess::class)->sync($user, $actor instanceof User ? $actor : null);
+        app(PositionAccess::class)->sync($user, $actor);
     }
 
     /**

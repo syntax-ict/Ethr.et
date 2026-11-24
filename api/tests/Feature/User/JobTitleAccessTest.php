@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
 use App\Services\UserProvisioningService;
+use App\Support\BackgroundWork;
 
 // An account's access follows its person's job title, by one rule: a title
 // change does automatically only what the person making it could have done by
@@ -220,6 +221,18 @@ describe('moving a person to another job title', function () {
         moveTo($holder, titleOf($tenant, 'supervisor', 'Sup'));
 
         expect($holder->fresh()->role)->toBe(UserRole::EMPLOYEE);
+    });
+
+    it('holds inside background work even with an administrator signed in', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $holder = holderOf($tenant, titleOf($tenant));
+        $supervisor = titleOf($tenant, 'supervisor', 'Sup');
+
+        BackgroundWork::run(fn () => $holder->employee->update(['position_id' => $supervisor->id]));
+
+        expect($holder->fresh()->role)->toBe(UserRole::EMPLOYEE)
+            ->and(app(PositionAccess::class)->heldQuery()->pluck('users.id')->all())->toBe([$holder->id]);
     });
 
     it('holds when nobody is signed in, as a queue run is', function () {

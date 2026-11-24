@@ -80,6 +80,10 @@ final class RoleAssignment
             return self::refusal($actor, $to) === null;
         }
 
+        if ($actor->tenant_id !== $target->tenant_id) {
+            return false;
+        }
+
         if ($target->role->level() > $actor->role->level()) {
             return false;
         }

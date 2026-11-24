@@ -273,7 +273,9 @@ export default function UsersSettingsPage() {
         payload: {
           username: editForm.username || null,
           ...(editForm.follows
-            ? { role_follows_position: true }
+            ? editUser.role_follows_position
+              ? {}
+              : { role_follows_position: true }
             : {
                 role: editForm.role,
                 ...(editUser.role_follows_position

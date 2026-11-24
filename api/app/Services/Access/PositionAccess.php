@@ -11,6 +11,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationOwnership;
+use App\Support\BackgroundWork;
 use App\Support\RoleAssignment;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -98,13 +99,30 @@ final class PositionAccess
      * The login of an employee whose job title just changed. The signed-in
      * person is the actor; a queue or console run has none, so it holds.
      */
-    public function syncEmployee(Employee $employee, mixed $actor): void
+    public function syncEmployee(Employee $employee, ?User $actor): void
     {
         $user = User::query()->where('employee_id', $employee->id)->first();
 
         if ($user !== null) {
-            $this->sync($user, $actor instanceof User ? $actor : null);
+            $this->sync($user, $actor);
         }
+    }
+
+    /**
+     * The signed-in person, or nobody. Inside a queue drain or the scheduler
+     * the signed-in person is whoever happened to load a page that ran the
+     * work after the response, and the job may be another organisation's, so
+     * there is no actor (App\Support\BackgroundWork, as AuditLog does).
+     */
+    public static function currentActor(): ?User
+    {
+        if (BackgroundWork::active()) {
+            return null;
+        }
+
+        $user = auth()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     /**

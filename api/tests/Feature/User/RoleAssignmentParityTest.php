@@ -56,6 +56,15 @@ it('answers the same for the organisation owner', function () {
     $this->patchJson('/api/v1/users/'.$owner->public_id, ['role' => 'hr_admin'])->assertUnprocessable();
 });
 
+it('refuses an administrator of another organisation', function () {
+    $a = createTenant();
+    $b = createTenant();
+    $outsider = User::factory()->create(['tenant_id' => $b->id, 'role' => UserRole::TENANT_ADMIN]);
+    $target = User::factory()->create(['tenant_id' => $a->id, 'role' => UserRole::EMPLOYEE]);
+
+    expect(RoleAssignment::mayChange($outsider, $target, UserRole::SUPERVISOR))->toBeFalse();
+});
+
 it('never lets someone change their own role', function () {
     $tenant = createTenant();
 

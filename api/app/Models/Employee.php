@@ -180,7 +180,7 @@ class Employee extends Model
             // A new job title may give the login a different role, by the same
             // rules as setting it by hand (PositionAccess).
             if ($employee->wasChanged('position_id')) {
-                app(PositionAccess::class)->syncEmployee($employee, auth()->user());
+                app(PositionAccess::class)->syncEmployee($employee, PositionAccess::currentActor());
             }
 
             // A leaving date moved: every released month from the earlier of
