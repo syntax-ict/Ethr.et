@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
@@ -84,6 +85,9 @@ class AutoCheckoutCommand extends Command
 
         AttendanceRecord::query()
             ->where('tenant_id', $tenant->id)
+            // A voided duplicate keeps its check-in and has no check-out; it
+            // is not an open day, and closing it would count it again.
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->whereNotNull('shift_id')
