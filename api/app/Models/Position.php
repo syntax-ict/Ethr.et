@@ -23,6 +23,7 @@ class Position extends Model
         'code',
         'description',
         'is_active',
+        'access_role',
     ];
 
     protected $hidden = [
