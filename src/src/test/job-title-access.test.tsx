@@ -62,7 +62,7 @@ function wrap() {
   return Wrapper;
 }
 
-describe("Users: the role that follows a job title", () => {
+describe("Users: the role that follows a position", () => {
   it("tags a following account and offers Apply when the title gives another role", async () => {
     let applied = false;
     server.use(
@@ -78,10 +78,10 @@ describe("Users: the role that follows a job title", () => {
     );
     render(<UsersSettingsPage />, { wrapper: wrap() });
 
-    expect((await screen.findAllByText("From job title"))[0]).toBeVisible();
+    expect((await screen.findAllByText("From position"))[0]).toBeVisible();
     expect(
       screen.getAllByText(
-        /Job title gives Finance admin\. Waiting for someone who may give that role\./,
+        /Position gives Finance admin\. Waiting for someone who may give that role\./,
       )[0],
     ).toBeVisible();
 
@@ -97,7 +97,7 @@ describe("Users: the role that follows a job title", () => {
     );
     render(<UsersSettingsPage />, { wrapper: wrap() });
 
-    await screen.findAllByText("From job title");
+    await screen.findAllByText("From position");
     expect(screen.queryByText(/Waiting for someone/)).toBeNull();
   });
 
@@ -112,7 +112,7 @@ describe("Users: the role that follows a job title", () => {
     render(<UsersSettingsPage />, { wrapper: wrap() });
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "Differs from job title" }),
+      await screen.findByRole("button", { name: "Differs from position" }),
     );
     await waitFor(() =>
       expect(
@@ -121,7 +121,7 @@ describe("Users: the role that follows a job title", () => {
     );
   });
 
-  it("sends the flag, not a role, when the choice is Follows job title, and disables the role", async () => {
+  it("sends the flag, not a role, when the choice is Follows position, and disables the role", async () => {
     let body: Record<string, unknown> | null = null;
     server.use(
       http.get("*/api/v1/users", () =>
@@ -143,7 +143,7 @@ describe("Users: the role that follows a job title", () => {
     );
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(
-      within(dialog).getByRole("radio", { name: "Follows job title" }),
+      within(dialog).getByRole("radio", { name: "Follows position" }),
     );
     expect(within(dialog).getAllByRole("combobox")[0]).toBeDisabled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -183,7 +183,7 @@ describe("Users: the role that follows a job title", () => {
   });
 });
 
-describe("Job titles: the access a title gives", () => {
+describe("Positions: the access a position gives", () => {
   const position = (over: Record<string, unknown> = {}) => ({
     public_id: "01HZPOS0001",
     title: "Accountant",
@@ -216,7 +216,7 @@ describe("Job titles: the access a title gives", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /edit/i }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByText(/people hold this job title/)).toBeNull();
+    expect(within(dialog).queryByText(/people hold this position/)).toBeNull();
 
     await userEvent.click(
       within(dialog).getByRole("combobox", { name: "Access" }),
@@ -226,7 +226,7 @@ describe("Job titles: the access a title gives", () => {
     );
     expect(
       within(dialog).getByText(
-        "4 people hold this job title. Accounts that follow the job title change when you save. Accounts given a role by hand stay as they are.",
+        "4 people hold this position. Accounts that follow the position change when you save. Accounts given a role by hand stay as they are.",
       ),
     ).toBeVisible();
   });
@@ -244,7 +244,7 @@ describe("Job titles: the access a title gives", () => {
     await userEvent.click(await screen.findByRole("button", { name: /edit/i }));
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Give this job title Supervisor access?"),
+      within(dialog).getByText("Give this position Supervisor access?"),
     ).toBeVisible();
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
