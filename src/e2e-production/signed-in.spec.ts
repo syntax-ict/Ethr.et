@@ -116,27 +116,27 @@ test.describe("S-10 one read per module, as TA", () => {
  */
 const SETTINGS_PAGES: { path: string; h1: string; parent?: string }[] = [
   { path: "/settings", h1: "General settings" },
-  { path: "/settings/attendance", h1: "Attendance Rules" },
-  { path: "/settings/leave-types", h1: "Leave Types" },
+  { path: "/settings/attendance", h1: "Attendance rules" },
+  { path: "/settings/leave-types", h1: "Leave types" },
   { path: "/settings/opening-balances", h1: "Opening balances" },
   { path: "/settings/approval-chains", h1: "Approval chains" },
   { path: "/settings/exit-clearance", h1: "Exit checklist" },
   { path: "/settings/holidays", h1: "Holidays" },
-  { path: "/settings/payroll", h1: "Payroll Rules" },
-  { path: "/settings/roles", h1: "Roles & Permissions" },
-  { path: "/settings/users", h1: "Users & Access" },
-  { path: "/settings/api-keys", h1: "API Keys" },
+  { path: "/settings/payroll", h1: "Payroll rules" },
+  { path: "/settings/roles", h1: "Roles & permissions" },
+  { path: "/settings/users", h1: "Users & access" },
+  { path: "/settings/api-keys", h1: "API keys" },
   {
     path: "/settings/api-keys/reference",
     h1: "API reference",
-    parent: "API Keys",
+    parent: "API keys",
   },
   { path: "/settings/webhooks", h1: "Webhooks" },
   { path: "/settings/accounting", h1: "Accounting" },
-  { path: "/settings/notification-templates", h1: "Notification Templates" },
-  { path: "/settings/audit-logs", h1: "Audit Log" },
+  { path: "/settings/notification-templates", h1: "Notification templates" },
+  { path: "/settings/audit-logs", h1: "Audit log" },
   { path: "/settings/data-export", h1: "Data export" },
-  { path: "/settings/scim", h1: "SCIM Provisioning" },
+  { path: "/settings/scim", h1: "SCIM provisioning" },
 ];
 
 /** The General page's tabs, reached with `?tab=`. Each card title is an h2. */
@@ -198,7 +198,10 @@ test.describe("S-14 settings, one read per page, as TA", () => {
         await opens(page, `${orgURL}/settings?tab=${tab}`, pageErrors);
         await settingsPageShows(page, "General settings");
         await expect(
-          page.getByRole("tab", { selected: true }),
+          page
+            .getByRole("tablist")
+            .first()
+            .getByRole("tab", { selected: true }),
           "the tab that opened",
         ).toHaveAttribute("id", new RegExp(`trigger-${tab}$`));
         for (const title of h2) {
@@ -216,16 +219,14 @@ test.describe("S-14 settings, one read per page, as TA", () => {
     { tag: ["@smoke", "@P1", "@R"] },
     async ({ page, orgURL, pageErrors }, testInfo) => {
       await opens(page, `${orgURL}/settings?tab=sso`, pageErrors);
-      const card = page
-        .locator("div")
-        .filter({
-          has: page.getByRole("heading", {
-            level: 2,
-            name: "SAML single sign-on",
-          }),
-        })
-        .last();
-      const badge = card.getByText(/^(Not ready|Enabled|Disabled)$/).first();
+      await expect(
+        page.getByRole("heading", { level: 2, name: "SAML single sign-on" }),
+      ).toBeVisible();
+      // Only the SSO tab is mounted, so these three words are on screen once.
+      const badge = page
+        .locator("main")
+        .getByText(/^(Not ready|Enabled|Disabled)$/)
+        .first();
       await expect(badge, "SSO's status badge").toBeVisible();
       const status = (await badge.textContent())?.trim() ?? "";
       testInfo.annotations.push({ type: "sso-status", description: status });
