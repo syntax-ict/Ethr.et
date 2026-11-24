@@ -50,7 +50,7 @@ return [
         'number_held_archived_named' => 'The employee number ":value" belongs to :name, who is archived, so this row cannot be added as a new person.',
         'number_held_current' => 'The employee number ":value" belongs to another employee, so this row cannot be added as a new person.',
         'number_held_current_named' => 'The employee number ":value" belongs to :name, so this row cannot be added as a new person.',
-        'maybe_other_person' => 'No word of the name on this line matches the person it was matched to, so it may be someone else. Check it, then decide on this line.',
+        'maybe_other_person' => 'No word of the name on this line matches the person it was matched to by number, so this line is waiting for you and nothing is written to that person. Check it, then choose merge if it is them.',
         'badge_held_archived' => 'The badge number ":value" belongs to someone who is archived, so this person is added without it.',
         'badge_held_current' => 'The badge number ":value" belongs to another employee, so this person is added without it.',
         'mapping_needs_name' => 'Choose which column holds the person\'s name. Nothing can be read without it.',

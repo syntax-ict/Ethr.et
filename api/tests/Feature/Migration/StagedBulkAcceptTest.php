@@ -223,8 +223,80 @@ describe('staging says when a merge may be someone else', function () {
 
         $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1', 'phone' => '0922000001']]);
 
-        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_MERGE)
+        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_DEFER)
+            ->and(Staging::firstRow($batch)->resolved_employee_id)->not->toBeNull()
             ->and(warningCodes($batch))->toBe(['maybe_other_person']);
+    });
+
+    it('waits for a reviewer: committing the list leaves the matched person untouched', function () {
+        [$tenant, $user] = Staging::organisation();
+        $abebe = Staging::employee($tenant, ['phone' => null]);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1', 'phone' => '0922000001']]);
+
+        $totals = Staging::service()->commit($batch, $user);
+
+        expect($totals['deferred'])->toBe(1)
+            ->and($totals['merged'])->toBe(0)
+            ->and($abebe->refresh()->phone)->toBeNull()
+            ->and($abebe->name)->toBe('Abebe Kebede');
+    });
+
+    it('fills the blanks once the reviewer chooses merge', function () {
+        [$tenant, $user] = Staging::organisation();
+        $abebe = Staging::employee($tenant, ['phone' => null]);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1', 'phone' => '0922000001']]);
+
+        Staging::service()->setAction(Staging::firstRow($batch), MigrationStagingRow::ACTION_MERGE);
+        expect(warningCodes($batch))->toBe(['maybe_other_person']);
+        Staging::service()->commit($batch->refresh(), $user);
+
+        expect($abebe->refresh()->phone)->not->toBeNull();
+    });
+
+    it('keeps the reason on a deferred row and drops it for skip or create', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1']]);
+        $row = Staging::firstRow($batch);
+
+        Staging::service()->setAction($row, MigrationStagingRow::ACTION_DEFER);
+        expect(warningCodes($batch))->toBe(['maybe_other_person']);
+
+        Staging::service()->setAction($row, MigrationStagingRow::ACTION_MERGE);
+        expect(warningCodes($batch))->toBe(['maybe_other_person']);
+
+        Staging::service()->setAction($row, MigrationStagingRow::ACTION_SKIP);
+        expect(warningCodes($batch))->toBe([]);
+
+        Staging::service()->setAction($row, MigrationStagingRow::ACTION_DEFER);
+        Staging::service()->setAction($row, MigrationStagingRow::ACTION_CREATE);
+        expect(warningCodes($batch))->toBe([]);
+    });
+
+    it('waits for a reviewer on a list that completes people too', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1']], MigrationBatch::MODE_COMPLETE);
+
+        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_DEFER)
+            ->and(warningCodes($batch))->toBe(['maybe_other_person']);
+    });
+
+    it('still merges a number match whose name agrees', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant);
+        $batch = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+
+        expect(Staging::firstRow($batch)->action)->toBe(MigrationStagingRow::ACTION_MERGE)
+            ->and(warningCodes($batch))->toBe([]);
+    });
+
+    it('does not tell the reviewer the number is held by another record', function () {
+        [$tenant] = Staging::organisation();
+        Staging::employee($tenant);
+        $batch = Staging::stage($tenant, [['name' => 'Dawit Haile', 'employee_code' => 'E-1']]);
+
+        expect(warningCodes($batch))->not->toContain('number_held');
     });
 
     it('does not flag a row that shares a word, or an initial, with the person', function () {
@@ -262,7 +334,8 @@ describe('staging says when a merge may be someone else', function () {
         Staging::employee($tenant, ['name' => 'Sara Tesfaye', 'employee_code' => 'E-5', 'name_am' => 'አበበ ከበደ']);
         $amharicOnly = Staging::stage($tenant, [['name_am' => 'ዳዊት ኃይሌ', 'employee_code' => 'E-5']]);
 
-        expect(warningCodes($amharicOnly))->toBe(['maybe_other_person']);
+        expect(warningCodes($amharicOnly))->toBe(['maybe_other_person'])
+            ->and(Staging::firstRow($amharicOnly)->action)->toBe(MigrationStagingRow::ACTION_DEFER);
     });
 
     it('keeps the other warnings a row carries', function () {

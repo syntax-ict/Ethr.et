@@ -599,6 +599,13 @@ other. Two guards:
   and decided on its own row. The warning is recomputed whenever a row's action
   or person changes. A person ETHR named "Device user 17" has no name to share,
   so such a row is held too; that is the safe direction.
+  The row also **waits for a reviewer**: its default action is `defer`, never
+  `merge`, in a list that completes people as in any other. Committing the list
+  writes nothing to that person unless the reviewer chooses merge on that row
+  (the matched person and candidates are kept, so it is one choice), and the
+  warning stays on the row, deferred or merged, until the action moves to skip
+  or create or the person changes to one the name fits. The row's number is
+  the matched person's, so no `number_held` warning is added to it.
 
 It is stateless between requests: rows are walked in id order after `cursor`, in
 chunks of 50 for the commit's time budget, and the answer carries the next

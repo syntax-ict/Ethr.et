@@ -377,7 +377,8 @@ final class WorkforceMigrationService
         // Who the row merges into, and whether it still looks like them, is
         // asked again whenever the action or the person moves.
         $raw = $this->rawOf($row);
-        $flagged = $this->withOtherPersonWarning($raw, $action, $resolvedEmployee ?? $row->resolvedEmployee);
+        $target = $resolvedEmployee ?? $row->resolvedEmployee;
+        $flagged = $this->withOtherPersonWarning($raw, in_array($action, [MigrationStagingRow::ACTION_MERGE, MigrationStagingRow::ACTION_DEFER], true) && $this->flagsOtherPerson($raw, $target));
         if ($flagged !== $raw) {
             $attributes['raw'] = $flagged;
         }
@@ -914,8 +915,15 @@ final class WorkforceMigrationService
         $warnings = $kept;
 
         if (($attributes['action'] ?? null) !== MigrationStagingRow::ACTION_MERGE) {
+            // A row waiting because it may be someone else (MAYBE_OTHER_PERSON)
+            // was matched to the holder by this very number: the number is
+            // theirs, as on a merge, and the row says so with its own warning.
+            $mine = static fn (?array $holder): bool => $holder !== null
+                && ($attributes['resolved_employee_id'] ?? null) === $holder['id']
+                && in_array(self::MAYBE_OTHER_PERSON, array_column(is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [], 'code'), true);
+
             $holder = $held->code($raw['employee_code'] ?? null);
-            if ($holder !== null) {
+            if ($holder !== null && ! $mine($holder)) {
                 $warnings[] = self::heldWarning(self::NUMBER_HELD, $raw['employee_code'], $holder);
 
                 if (($attributes['action'] ?? null) === MigrationStagingRow::ACTION_CREATE) {
@@ -924,7 +932,7 @@ final class WorkforceMigrationService
             }
 
             $holder = $held->badge($raw['badge_number'] ?? null);
-            if ($holder !== null) {
+            if ($holder !== null && ! $mine($holder)) {
                 $warnings[] = self::heldWarning(self::BADGE_HELD, $raw['badge_number'], $holder);
             }
         }
@@ -986,34 +994,49 @@ final class WorkforceMigrationService
                 : null,
         ];
 
-        $flagged = $this->withOtherPersonWarning($raw, $action, $employee);
+        $other = $action === MigrationStagingRow::ACTION_MERGE && $this->flagsOtherPerson($raw, $employee);
+        if ($other) {
+            $attributes['action'] = MigrationStagingRow::ACTION_DEFER;
+        }
+
+        $flagged = $this->withOtherPersonWarning($raw, $other);
 
         return $flagged === $raw ? $attributes : [...$attributes, 'raw' => $flagged];
     }
 
     /**
-     * A row set to merge into someone whose name shares no word with it may be
-     * someone else: a list whose numbers are shifted by a line matches every
-     * row to the wrong person by number. Name is compared with name and the
-     * Amharic name with the Amharic name (the same script, PersonName), and
-     * only when a pair can be compared at all; one pair that shares a word is
-     * enough to clear the row.
+     * A row matched to someone whose name shares no word with it may be someone
+     * else: a list whose numbers are shifted by a line matches every row to the
+     * wrong person by number. Such a row waits for a reviewer (its action is
+     * defer, never merge) and keeps the reason on it; choosing merge is theirs.
+     * Name is compared with name and the Amharic name with the Amharic name
+     * (the same script, PersonName), and only when a pair can be compared at
+     * all; one pair that shares a word is enough to clear the row.
      *
-     * The row is left out of accepting differences for many rows at once and
-     * decided on its own. The warning is recomputed whenever the action or the
-     * person it names changes, and removed when it no longer applies.
+     * Accepting differences for many rows at once still leaves the row alone
+     * if the reviewer sets it to merge. The warning is recomputed whenever the
+     * action or the person it names changes, and removed when it no longer
+     * applies.
      *
+     * @param  array<string, mixed>  $raw
+     */
+    private function flagsOtherPerson(array $raw, ?Employee $target): bool
+    {
+        return $target !== null && ! $target->trashed() && $this->maybeOtherPerson($raw, $target);
+    }
+
+    /**
      * @param  array<string, mixed>  $raw
      * @return array<string, mixed> the row's raw details, with the warning as it now stands
      */
-    private function withOtherPersonWarning(array $raw, string $action, ?Employee $target): array
+    private function withOtherPersonWarning(array $raw, bool $flagged): array
     {
         $warnings = array_values(array_filter(
             is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
             static fn (mixed $warning): bool => is_array($warning) && ($warning['code'] ?? null) !== self::MAYBE_OTHER_PERSON,
         ));
 
-        if ($action === MigrationStagingRow::ACTION_MERGE && $target !== null && ! $target->trashed() && $this->maybeOtherPerson($raw, $target)) {
+        if ($flagged) {
             $warnings[] = [
                 'code' => self::MAYBE_OTHER_PERSON,
                 'message' => __('onboarding.migration.maybe_other_person'),

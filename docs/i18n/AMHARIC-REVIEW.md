@@ -644,6 +644,6 @@ The Amharic drafts:
 - `accept_differences.held_one`: 1 መስመር ሌላ ሰው ሊሆን ይችላል። በራሱ መስመር ላይ እንዲወስኑ ተትቷል።
 - `accept_differences.result`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።
 - `accept_differences.result_pay`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።
-- `migration.maybe_other_person`: በዚህ መስመር ያለው ስም ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ሌላ ሰው ሊሆን ይችላል። ያረጋግጡ፣ ከዚያም በዚህ መስመር ላይ ይወስኑ።
+- `migration.maybe_other_person` (changed 2026-11-24: the row now waits for the reviewer): በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ለዚያ ሰው ምንም አይጻፍም። ያረጋግጡ፣ እሱ ከሆነ አዋህድን ይምረጡ።
 
 What to check first: that "ተቀበል" ("accept") is the verb the list screens already use for taking a value from the list, that "ተሸጋገረ" ("shifted") reads as a number moved down by one line, and that "ተትቷል" ("left") reads as left for the reviewer rather than abandoned. The Afaan Oromoo lines are drafts and unread.
