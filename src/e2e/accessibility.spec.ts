@@ -10,7 +10,7 @@
  */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { api } from './helpers';
+import { api, publicNewsPath, publishPublicStory } from './helpers';
 
 // Helper: run axe and assert no critical/serious violations.
 //
@@ -259,6 +259,44 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
       );
       expect(insideMain, 'the Tab after the skip link stays inside main').toBe(true);
     });
+  });
+
+  // ── Public news pages ───────────────────────────────────────────────────────
+  //
+  // Read as a visitor reads them: signed out, in a context of their own, in
+  // English and in Amharic. A story is published first, so the list has a story
+  // card (a heading inside a link) and the article page exists.
+
+  test.describe('Public news pages', () => {
+    test.use({ storageState: 'e2e/.auth/hr.json' });
+
+    for (const locale of ['en', 'am']) {
+      test(`/news and a story have no critical a11y violations in ${locale}`, async ({
+        page,
+        browser,
+      }) => {
+        const publicId = await publishPublicStory(page, `QA news a11y ${locale} ${Date.now()}`);
+        const visitor = await browser.newContext();
+        try {
+          const reader = await visitor.newPage();
+          await reader.addInitScript((value) => localStorage.setItem('locale', value), locale);
+
+          await reader.goto(publicNewsPath());
+          await expect(reader.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
+          await expect(reader.getByRole('list').getByRole('heading', { level: 2 }).first()).toBeVisible({
+            timeout: 15000,
+          });
+          await assertNoA11yViolations(reader);
+
+          await reader.goto(publicNewsPath(publicId));
+          await expect(reader.getByRole('article')).toBeVisible({ timeout: 15000 });
+          await assertNoA11yViolations(reader);
+        } finally {
+          await visitor.close();
+          await api(page, 'DELETE', `/announcements/${publicId}`);
+        }
+      });
+    }
   });
 
   // ── Mobile a11y ──────────────────────────────────────────────────────────────

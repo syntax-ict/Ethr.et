@@ -1,16 +1,19 @@
 "use client";
 
+import type { ComponentType, ElementType, ReactNode } from "react";
 import { Star } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import type { LandingNewsItem } from "@/features/auth/landing-feed";
 import { newsDate } from "../news-format";
 
-type NewsSummary = Pick<
-  LandingNewsItem,
-  "public_id" | "title" | "excerpt" | "published_at" | "priority"
-> &
-  Partial<Pick<LandingNewsItem, "category" | "featured" | "cover">>;
+/** What the date, category and flags above a title need. */
+type NewsMetaItem = Pick<LandingNewsItem, "published_at" | "priority"> &
+  Partial<Pick<LandingNewsItem, "category" | "featured">>;
+
+type NewsSummary = NewsMetaItem &
+  Pick<LandingNewsItem, "public_id" | "title" | "excerpt"> &
+  Partial<Pick<LandingNewsItem, "cover">>;
 
 /** A story's cover photo as the API gives it: sized, with narrower copies. */
 export type NewsCoverImage = NonNullable<LandingNewsItem["cover"]>;
@@ -51,7 +54,7 @@ export function NewsCoverPicture({
  * The date, category and flags above a story's title, shared by every place
  * a story is listed.
  */
-export function NewsMeta({ item }: { item: NewsSummary }) {
+export function NewsMeta({ item }: { item: NewsMetaItem }) {
   const { t, locale } = useT();
 
   return (
@@ -91,40 +94,148 @@ export function NewsMeta({ item }: { item: NewsSummary }) {
 }
 
 /**
- * One story as a card: on the portal's news section, the news page and an
- * article's related list. A link to its article page; inert (no href) in the
- * settings preview, where nothing should navigate away.
+ * How much of a story a card shows, and how it sits:
+ * - `card`: a grid cell on the public pages, with its cover above.
+ * - `feature`: the news page's lead story, wide, with a larger title.
+ * - `row`: one line of a list a person works in: no cover, no clamp, room
+ *   for badges beside the title and actions beside the card.
+ * - `compact`: a dashboard tile: no cover, two lines of text.
  *
- * `size="feature"` is the news page's lead story: the same content, given
- * the width and a larger title. With a cover, a feature card wide enough
- * (its own width, not the page's) sets the photo beside the words.
+ * The clamp lives here, once per density, over the server's excerpt (which
+ * is already cut to one length for every reader).
+ */
+export type NewsDensity = "card" | "feature" | "row" | "compact";
+
+const DENSITY: Record<
+  NewsDensity,
+  { title: string; text: string; pad: string }
+> = {
+  feature: {
+    title: "text-xl leading-snug @lg:text-2xl",
+    text: "line-clamp-5 text-base leading-relaxed",
+    pad: "p-6 @lg:p-8",
+  },
+  card: { title: "text-sm", text: "line-clamp-4 text-sm", pad: "p-4" },
+  row: { title: "text-sm break-words", text: "text-sm", pad: "p-4" },
+  compact: {
+    title: "text-sm break-words",
+    text: "line-clamp-2 text-xs leading-relaxed",
+    pad: "p-3.5",
+  },
+};
+
+const TITLE_BUTTON =
+  "rounded-sm text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/**
+ * One story, drawn the same wherever it is listed: the public news pages,
+ * the portal's news section, an article's related stories, the signed-in
+ * list and the dashboard.
+ *
+ * Its title is a heading (`headingLevel`, chosen to fit the page's outline).
+ * How it opens:
+ * - `href`: the whole card is a link (`linkComponent` where the app's own
+ *   router should draw it).
+ * - `onOpen`: the title is a button, so the card can carry its own buttons
+ *   (`actions`) without nesting one control in another.
+ * - neither: inert, as in the settings preview, where nothing should
+ *   navigate away.
+ *
+ * `badges` sit beside the title, `footer` below the text, `actions` beside
+ * the card, on the `row` density.
  */
 export function NewsCard({
   item,
-  href,
-  size = "card",
+  href = null,
+  linkComponent,
+  onOpen,
+  density = "card",
+  headingLevel = 2,
+  badges,
+  footer,
+  actions,
+  className,
 }: {
   item: NewsSummary;
-  href: string | null;
-  size?: "card" | "feature";
+  href?: string | null;
+  /** Draws the link, for an in-app address that should not reload the page. */
+  linkComponent?: ComponentType<{
+    href: string;
+    className?: string;
+    children?: ReactNode;
+  }>;
+  onOpen?: () => void;
+  density?: NewsDensity;
+  headingLevel?: 2 | 3 | 4;
+  badges?: ReactNode;
+  footer?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
 }) {
   const { t } = useT();
-  const feature = size === "feature";
-  const cover = item.cover ?? null;
-  const className = cn(
-    "group @container/news flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors",
-    href &&
-      "hover:border-border-strong hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  const look = DENSITY[density];
+  const feature = density === "feature";
+  const row = density === "row";
+  const cover = density === "card" || feature ? (item.cover ?? null) : null;
+  const Heading: ElementType = `h${headingLevel}`;
+  const link = href !== null;
+
+  const heading = (
+    <Heading
+      className={cn(
+        "font-semibold text-foreground",
+        row ? "min-w-0" : "mt-2",
+        look.title,
+      )}
+    >
+      {onOpen && !link ? (
+        <button type="button" onClick={onOpen} className={TITLE_BUTTON}>
+          {item.title}
+        </button>
+      ) : (
+        item.title
+      )}
+    </Heading>
   );
+
+  const words = (
+    <div className={cn("min-w-0", row && "flex-1")}>
+      <NewsMeta item={item} />
+      {row ? (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {heading}
+          {badges}
+        </div>
+      ) : (
+        heading
+      )}
+      <p
+        className={cn(
+          "mt-1 whitespace-pre-line text-muted-foreground",
+          look.text,
+        )}
+      >
+        {item.excerpt}
+      </p>
+      {footer && <div className="mt-2">{footer}</div>}
+      {link && (density === "card" || feature) && (
+        <span className="mt-3 block text-xs font-medium text-primary group-hover:underline">
+          {t("landing.read_more", "Read more")}
+          <span className="sr-only">: {item.title}</span>
+        </span>
+      )}
+    </div>
+  );
+
   const body = (
-    <span
+    <div
       className={cn(
         "flex min-w-0 flex-1 flex-col",
         feature && cover && "@4xl/news:flex-row",
       )}
     >
       {cover && (
-        <span
+        <div
           className={cn(
             "block aspect-[16/9] shrink-0 overflow-hidden bg-muted",
             feature && "@4xl/news:aspect-auto @4xl/news:w-1/2",
@@ -139,48 +250,35 @@ export function NewsCard({
             }
             className="h-full transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
-        </span>
+        </div>
       )}
-      <span
+      <div
         className={cn(
           "flex min-w-0 flex-1 flex-col",
-          feature ? "p-6 @lg:p-8" : "p-4",
+          look.pad,
+          row && "gap-3 sm:flex-row sm:items-start sm:justify-between",
         )}
       >
-        <NewsMeta item={item} />
-        <span
-          className={cn(
-            "mt-2 font-semibold text-foreground",
-            feature ? "text-xl leading-snug @lg:text-2xl" : "text-sm",
-          )}
-        >
-          {item.title}
-        </span>
-        <span
-          className={cn(
-            "mt-1 whitespace-pre-line text-muted-foreground",
-            feature
-              ? "line-clamp-5 text-base leading-relaxed"
-              : "line-clamp-4 text-sm",
-          )}
-        >
-          {item.excerpt}
-        </span>
-        {href && (
-          <span className="mt-3 text-xs font-medium text-primary group-hover:underline">
-            {t("landing.read_more", "Read more")}
-            <span className="sr-only">: {item.title}</span>
-          </span>
-        )}
-      </span>
-    </span>
+        {words}
+        {actions}
+      </div>
+    </div>
   );
 
-  return href ? (
-    <a href={href} className={className}>
+  const root = cn(
+    "group @container/news flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-colors",
+    link &&
+      "hover:border-border-strong hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    className,
+  );
+
+  const Anchor: ElementType = linkComponent ?? "a";
+
+  return link ? (
+    <Anchor href={href} className={root}>
       {body}
-    </a>
+    </Anchor>
   ) : (
-    <div className={className}>{body}</div>
+    <div className={root}>{body}</div>
   );
 }

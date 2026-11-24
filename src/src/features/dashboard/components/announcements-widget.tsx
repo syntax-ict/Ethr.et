@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Megaphone } from "lucide-react";
-import { NewsMeta } from "@/features/news/components/news-card";
+import { NewsCard } from "@/features/news/components/news-card";
 import { cn } from "@/lib/utils";
 import { WidgetError } from "./widget-error";
 
@@ -108,7 +108,11 @@ export function AnnouncementsWidget() {
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <div className="flex items-center gap-2">
           <Megaphone className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">
+          <CardTitle
+            role="heading"
+            aria-level={2}
+            className="text-sm font-semibold"
+          >
             {t("nav.announcements", "Announcements")}
           </CardTitle>
         </div>
@@ -120,38 +124,35 @@ export function AnnouncementsWidget() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {announcements.map((ann) => {
             const edge =
               priorityEdge[ann.priority as keyof typeof priorityEdge] ??
               priorityEdge.normal;
             return (
-              <Link
-                key={ann.public_id}
-                href={`/announcements?read=${ann.public_id}`}
-                className={cn(
-                  "group block rounded-xl border border-border/60 border-l-[3px] p-3.5 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm",
-                  edge.border,
-                  edge.bg,
-                )}
-              >
+              <li key={ann.public_id}>
                 {/*
                  * `featured` is publishing metadata: it means "first on the
                  * public website", which is the publisher's business and not
                  * the reader's. Everyone sees this card, so the star is left
                  * off here; the announcements page shows it to managers only.
                  */}
-                <NewsMeta item={{ ...ann, featured: false }} />
-                <p className="mt-1 break-words text-sm font-semibold text-foreground">
-                  {ann.title}
-                </p>
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                  {ann.excerpt}
-                </p>
-              </Link>
+                <NewsCard
+                  item={{ ...ann, featured: false }}
+                  href={`/announcements?read=${ann.public_id}`}
+                  linkComponent={Link}
+                  density="compact"
+                  headingLevel={3}
+                  className={cn(
+                    "border-border/60 border-l-[3px] transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm",
+                    edge.border,
+                    edge.bg,
+                  )}
+                />
+              </li>
             );
           })}
-        </div>
+        </ul>
       </CardContent>
     </Card>
   );
