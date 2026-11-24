@@ -387,9 +387,9 @@ Who can approve: anyone holding the `leave.approve` permission whose reach cover
 
 ### Ethiopian Calendar
 
-Settings → General → **Calendar System** → choose Ethiopian or Gregorian. This controls how dates are displayed across the application; date inputs show the other calendar's date beneath them.
+Settings → General → **Display** → **Calendar system** → choose Ethiopian or Gregorian. This is the default for everyone in the organisation; each person can choose their own under Profile → Preferences. It controls how dates are displayed across the application, and date inputs show the other calendar's date beneath them. **Time of day** on the same card sets the default clock the same way.
 
-Public holidays are managed at Settings → Holidays, which can auto-detect Ethiopian public holidays (Ethiopian New Year, Timkat, Meskel, etc.). Holidays are skipped when counting leave days.
+Public holidays are managed at Settings → Holidays, which can add the Ethiopian public holidays in one step (Ethiopian New Year, Timkat, Meskel, etc.). Holidays are skipped when counting leave days. The [Settings Reference](#settings-reference) explains the Estimated mark and the next-year warning.
 
 ---
 
@@ -397,13 +397,25 @@ Public holidays are managed at Settings → Holidays, which can auto-detect Ethi
 
 ### Configuration
 
-Settings → Payroll Rules. Anyone with the **View payroll configuration** permission (the Finance Admin has it) can read the rules; changing them takes **Manage payroll configuration**, which only the Tenant Admin holds by default. A viewer sees the same page with no Add, Edit, Delete or Save. The payroll schedule, statutory details and printed-documents cards also need **settings.manage**, so they show for the Tenant Admin only:
-- **Payroll Schedule** — payroll run day, fiscal-year start month (Ethiopian months, Meskerem to Pagume), Pagume pay (a full month, or its days at the daily rate of annual salary ÷ 365), and retirement age (45–75). The pay period is shown read-only.
-- **Tax brackets** — Ethiopian income tax rates (pre-loaded, update when government changes them)
-- **Overtime rates** — defaults are the statutory minimums: 1.5× daytime, 1.75× night, 2.0× weekly rest day, 2.5× public holiday
-- **Allowances**
+Settings → Payroll Rules. The page and its sidebar row follow the **View payroll configuration** permission (`payroll.viewConfig`), not a role name. The Finance Admin and the Tenant Admin hold it, and so does any custom role you give it. A viewer sees the same page with no Add, Edit, Delete or Save, and a note saying that changing the rules needs the **Manage payroll configuration** permission (`payroll.manageConfig`), which only the Tenant Admin holds by default. A platform operator signed in as a super admin does not see the row.
 
-**Pension** is fixed at the statutory 7% employee + 11% employer and is not configurable.
+The page has two tabs, **Payroll setup** and **Statutory rules**, and `?tab=rules` opens the second. A plan without payroll shows the plan notice at the top.
+
+Four cards on **Payroll setup** read and save the organisation's own settings, so they need **settings.manage** (the Tenant Admin) as well. Without it they are left out of the page rather than shown and failing to load:
+- **Payroll schedule**: payroll run day, fiscal-year start month (Ethiopian months, Meskerem to Pagume), Pagume pay (a full month, or its days at the daily rate of annual salary ÷ 365), working days per month, and retirement age (45 to 75). The pay period is shown read-only.
+- **Statutory filing**: the employer TIN, the tax centre and the pension scheme, printed at the top of the monthly income tax and pension schedules each run exports.
+- **On printed documents**: the lines shown under the organisation name and logo on payslips, employment letters, schedules and report exports. Leave a line empty to leave it out.
+- **Checks before approval**: a run lists each employee whose net pay moved by at least the percentage (1 to 100) and at least the amount (0 to 1,000,000 ETB) set here since their last released payslip. Approval is never blocked by it.
+
+The cards below are open to every holder of `payroll.viewConfig`, and change only with `payroll.manageConfig`:
+- **Allowances**
+- **Income tax brackets**: the ladder the law sets, read-only for everyone. Payroll applies it as it stands and an organisation cannot change it.
+- **Pension rules**: the contribution rates the law sets for each scheme (7% employee and 11% employer for the private and public schemes), read-only for everyone.
+- **Overtime rates**: defaults are the statutory minimums: 1.5× daytime, 1.75× night, 2.0× weekly rest day, 2.5× public holiday. Lower values are refused.
+
+**Statutory rules** lists what payroll applies today and where each rule comes from: the law for every organisation, your kind of organisation, or your own. **Change** leads back to Payroll setup, where the saving cards need `settings.manage`, so it is for the Tenant Admin.
+
+**Accounting** (Settings → Accounting) follows the same split: anyone who can view all payroll data can read the chart of accounts and download the journal, and saving the chart takes `payroll.manageConfig`. Without it the page is read-only. A Finance Admin therefore reads the mapping and cannot rewrite it.
 
 ### Running Payroll
 
@@ -473,27 +485,109 @@ The statutory outputs are on each payroll run, not in Reports: open the run and 
 
 ## Settings Reference
 
-The **Settings** item in the sidebar is shown to holders of `settings.manage` (Tenant Admin). Inside it, each page appears only to those allowed to use it.
+The **Settings** row in the sidebar is one row, and the settings pages have a navigation of their own on the left. **Each person sees only the pages their permissions allow**, so Settings is not only for the Tenant Admin: the HR Admin and the Finance Admin see it too, with fewer pages. The row opens the first settings page the person may use. Someone who holds none of the permissions below sees no Settings row.
+
+### Who sees which page
+
+The left navigation and the command palette read the same list, so a page that is in one is in the other. A page and the API behind it ask for the same permission.
+
+| Page | Permission it follows | Built-in roles that have it |
+|------|-----------------------|-----------------------------|
+| General (organisation, address, display, employee numbers) and its Branding, Security and SSO tabs | `settings.manage` | Tenant Admin |
+| Attendance rules | `attendance.manage` | HR Admin, Tenant Admin |
+| Shift rules (opens Shifts & Schedules, outside the settings pages) | `shift.create` | HR Admin, Tenant Admin |
+| Leave types | `leave.manageTypes` | HR Admin, Tenant Admin |
+| Holidays | `holiday.create` to add, `holiday.update` to edit, `holiday.delete` to delete | Add and edit: HR Admin, Tenant Admin. Delete: Tenant Admin |
+| Approval chains, Exit checklist | `settings.manage` | Tenant Admin |
+| Payroll rules | `payroll.viewConfig` to read, `payroll.manageConfig` to change | Read: Finance Admin, Tenant Admin. Change: Tenant Admin |
+| Opening balances | `leave.adjustBalance` (leave balances) or `payroll.manageLoan` (loans) | HR Admin, Finance Admin, Tenant Admin |
+| Users & access | `users.viewAny` | HR Admin, Tenant Admin |
+| Roles & permissions, Notification templates, SCIM provisioning, Audit log, Data export | `settings.manage` | Tenant Admin |
+| API keys | `apikey.manage` | Tenant Admin |
+| Webhooks | `webhook.manage` | Tenant Admin |
+| Accounting | `payroll.viewAll` to read, `payroll.manageConfig` to save the chart | Read: Finance Admin, Tenant Admin. Save: Tenant Admin |
+
+A custom role changes this at once: give a role `payroll.viewConfig` and its holders see Payroll rules, read-only. Roles are built at **Settings → Roles & Permissions**; see [`PERMISSIONS.md`](PERMISSIONS.md) for the full list. The platform operator's console is separate and is not part of Settings.
+
+### General: organisation, address, display and employee numbers
+
+**Settings → General** opens on four tabs: **General**, **Branding**, **Security** and **SSO**. Each card title on the page is a heading.
+
+- **Organisation**: organisation name, address name, kind of organisation in law (with the date a change applies from), industry, timezone and default language. The language is one of the shipped languages: English, Amharic or Afaan Oromoo; any other language code is refused when saved.
+- **Address**: how the organisation is reached, and the name in it. Changing the name keeps the old address working and forwards it. If you sign in with SSO, give your identity provider the new addresses after a change.
+- **Display**: the default **Calendar system** (Ethiopian or Gregorian) and **Time of day** for everyone. Each person can override both under Profile → Preferences.
+- **Employee numbers**: the format a new employee, or an imported row with no code, receives. The number replaces `{SEQ:n}`, padded to at least `n` digits, and the card shows the next code and an example.
+- **Branding** tab: logo, colours, **Public website** (what people see before they sign in; everything there is public) and the **ETHR website** listing.
+
+### Security
+
+**Settings → General → Security** (`?tab=security`) holds the organisation's sign-in rules. Each card saves on its own.
+
+- **Sign-in security**: the two-factor policy and the session timeout. *Required*: anyone without two-factor is sent to set it up and can use nothing else until they do. *Disabled*: no new set-ups, existing ones kept. *Optional* leaves it to each person. The session timeout is 5 to 480 minutes without activity; background refreshes do not count.
+- **Sign-in methods**: what people may type to sign in: email address, mobile number, employee number or username. Choose at least one. Removing one asks you to confirm, because people who sign in with it must use another. The order is kept: at sign-in the first method that finds exactly one person wins.
+- **Password rules**: a minimum length from **8 to 128** characters (8 is the lowest ETHR allows) and four switches: **Require an uppercase letter**, **a lowercase letter**, **a number** and **a symbol**. Saving always sends all five values together, so a partial save cannot reset the rest. **A stricter rule applies to the next password someone sets**; passwords already set are not checked again, so nobody is signed out or forced to change. There is no password-expiry setting, because nothing would act on it.
+- **Activation codes**: **Code lifetime (hours)**, from **1 to 72**, for a code you issue for one person (in-person activation). A change applies to codes issued from now on. Printed activation sheets set their own lifetime and ignore this setting.
+
+Changes to the password rules and the code lifetime are recorded in the audit log as "Password and activation code rules updated", with the values before and after, and only when something really changed.
+
+### SSO (SAML)
+
+**Settings → General → SSO** (`?tab=sso`). The badge on the card reads **Enabled**, **Disabled** or **Not ready**.
+
+- **Not ready** means SSO is switched on but cannot work yet. The card lists what is missing: **IdP entity ID**, **IdP SSO URL** and **IdP certificate (PEM)**. All three are needed. The URL must start with `https://`. The certificate is stored encrypted and never shown again; a save that leaves the box empty keeps the stored one, and pasting a new one replaces it.
+- SSO can be switched on only when all three are present. A save that would switch it on without them is refused, and so is a save that removes the URL or the certificate while SSO is on. Switch SSO off first to clear them.
+- The **sign-in page offers SSO only when it is ready**. An organisation that is switched on but not ready shows no SSO button, so nobody is sent to a sign-in that would fail.
+- **Default role for SSO users** (Employee, Supervisor, Department admin or HR admin) and **Auto-provision** (create the account the first time someone signs in through SSO).
+- **SP metadata URL**: give it to your identity provider.
+- ETHR reads fixed attribute names from the assertion: the email from `email`, `mail` or the standard email-address claim (the NameID when none is sent), and the name from `firstName` and `lastName` or the standard given-name and surname claims. There is **no attribute mapping and no sign-out (single logout) URL**: neither exists in ETHR. The API used to accept settings with those names, nothing read them, and since the 2026 settings review it no longer does.
+
+### Holidays
+
+**Settings → Holidays** lists the organisation's public holidays. **Add Ethiopian public holidays** adds the standard set in one step and can be pressed again without duplicates.
+
+- A date marked **Estimated** follows the moon (the Islamic feasts: Eid al-Fitr, Eid al-Adha and Mawlid) and may move by a day. Edit the date once it is announced.
+- When the **last one-time holiday on the list is within 90 days of today, or already past**, a warning reads "Holidays for 2028 have not been added yet" (the year after the last one on the list). Recurring holidays repeat by themselves and are not counted.
+- HR can add and edit holidays; only the Tenant Admin can delete one.
+
+### Approval chains and the exit checklist
+
+**Approval chains** set who decides leave requests, attendance corrections, overtime requests and profile changes, in up to five steps. Without a chain, a request is decided in one step by anyone who may approve it for that employee. Each step names the person's supervisor, their department head, anyone with a role, one named person or anyone who may approve; a chain can be limited to some branches, departments or leave types, and when two match the higher priority wins. Nobody approves their own request or two steps of the same one. A change applies to requests submitted afterwards; requests already waiting keep the steps they started with.
+
+**Exit checklist** is the list of lines every exit clearance starts with when someone resigns, is terminated or retires. For each line you choose who ticks it (HR can tick any line, finance its own, the leaver's supervisor theirs). It is a record and does not hold up the exit or the final pay. Changes apply to clearances started afterwards.
+
+### Opening balances
+
+**Settings → Opening balances** brings over leave balances and loans from a previous system by CSV. Download the template, fill it, and check the preview: nothing is imported unless every row is valid. A leave-balance row replaces the existing balance for that employee, leave type and year; a loan row that matches a loan already on file is skipped.
+
+### Users, roles and integrations
 
 | Section | What it controls |
 |---------|-----------------|
-| General | Organization name, organization type, timezone, default language; calendar system (Ethiopian or Gregorian) |
-| Branding | Logo URL, primary/secondary/accent colors |
-| Security | MFA policy — *required*: anyone without two-factor is sent to set it up and can use nothing else until they do; *disabled*: no new set-ups, existing ones kept. Session timeout (5–480 minutes without activity; background refreshes do not count) |
-| SSO | SAML single sign-on |
-| Attendance Rules | Enabled attendance methods, geofence, GPS accuracy, photo/PIN requirements, QR and offline sync options |
-| Shift Rules | Shifts and their working days, grace and break minutes |
-| Leave Types | Leave types, and the organization's working week |
-| Holidays | Public holidays, including auto-detection |
-| Payroll Rules | Payroll schedule, fiscal year, Pagume pay, retirement age, allowances, tax brackets, overtime rates (view: View payroll configuration; change: Manage payroll configuration, Tenant Admin by default) |
-| Users & Access | Login accounts and their roles. A tenant admin can **reset two-factor authentication** for someone who lost their authenticator (the shield icon on a user with **2FA**). That person signs in with their password and sets it up again, is emailed that it happened, and their trusted browsers are forgotten. It cannot be used on your own account or on a higher role. For a platform super admin, or an organisation's only tenant admin, run `ethr:reset-mfa <email>` (add `--tenant=<slug>` for a tenant's user) from the Laravel Toolkit's Artisan tab |
-| Roles & Permissions | Custom roles (Tenant Admin) |
-| API Keys, Webhooks, Accounting, Notification Templates, SCIM Provisioning | Integrations. Accounting: anyone who can view all payroll data (the Finance Admin) can read the chart of accounts and download the journal; changing the chart takes **Manage payroll configuration** (Tenant Admin by default) |
-| Audit Log | View all actions (Tenant Admin) |
+| Attendance rules | Enabled attendance methods, geofence, GPS accuracy, photo/PIN requirements, QR and offline sync options |
+| Leave types | Leave types, the organisation's working week and the leave year |
+| Users & access | Login accounts and their roles. A tenant admin can **reset two-factor authentication** for someone who lost their authenticator (the shield icon on a user with **2FA**). That person signs in with their password and sets it up again, is emailed that it happened, and their trusted browsers are forgotten. It cannot be used on your own account or on a higher role. For a platform super admin, or an organisation's only tenant admin, run `ethr:reset-mfa <email>` (add `--tenant=<slug>` for a tenant's user) from the Laravel Toolkit's Artisan tab. The page also names the owner of the organisation. A person with no username shows "Not set" |
+| Roles & permissions | Custom roles (Tenant Admin) |
+| API keys, Webhooks | Integrations; see [API Integration](#api-integration) |
+| Accounting | The chart of accounts and journal export; see [Payroll](#payroll) for who may read and who may save |
+| Notification templates | The wording of the emails ETHR sends; see [Notifications](#notifications) |
+| SCIM provisioning | See below |
+| Audit log | Every recorded action, with filters (Tenant Admin) |
 
-A Tenant Admin can export the organization's whole data set from **Settings → Data export**: the export is prepared in the background and can be downloaded for 7 days. Employee lists, reports and payroll bank files can also be exported individually; full backups are taken by the platform administrator.
+**SCIM provisioning** (Settings → SCIM provisioning) lets your identity provider create, update and deactivate ETHR users. Generate a bearer token (it is shown once), then enter the **Base URL** and the token in your identity provider.
 
----
+- Under **Tokens in use** the page lists the organisation's own SCIM tokens with name, prefix, created date, last used and expiry. A token you no longer want can be revoked there, after a confirmation; the identity provider stops provisioning until you give it a new token. This cannot be undone.
+- Listing and revoking need **API keys** access (`apikey.manage`), because a SCIM token is an API key with the `scim` ability. Someone without it sees a line saying to ask an administrator who has it.
+- If the platform has switched SCIM off for your organisation, the page says so and the identity provider's requests are refused until it is back on.
+
+A Tenant Admin can export the organisation's whole data set from **Settings → Data export**: the export is prepared in the background and can be downloaded for 7 days. Employee lists, reports and payroll bank files can also be exported individually; full backups are taken by the platform administrator.
+
+### Finding things in Settings
+
+- **Tabs have addresses.** `?tab=` is written to the address when you choose a tab, so a link can point at Security (`/settings?tab=security`), SSO (`?tab=sso`), Branding (`?tab=branding`) or the Statutory rules tab (`/settings/payroll?tab=rules`). Reloading keeps the tab, and Back leaves the page in one step instead of walking back through every tab you opened. An unknown `?tab=` opens the first tab.
+- **Search from anywhere.** Press **Ctrl+K** and type what you want: "sso", "password rules", "tax brackets", "webhooks", "holidays" or "directory sync". Every settings page, and the Branding, Security and SSO tabs, is in the list and filed under Settings; the list shows only what you may open. It searches in English, Amharic and Afaan Oromoo.
+- **Unsaved changes.** The settings forms warn before you close the tab, reload or type another address while a change is unsaved. The warning is the browser's own and **does not appear when you click another page inside ETHR**, so save before you move on. Typing a value back to what was saved is not a change.
+- **Saves are announced.** A screen reader hears "Settings saved", or the reason a save failed, from one status line on every settings page. The toast on screen is unchanged.
+- **Breadcrumbs.** Every settings page other than General shows Admin, then **Settings**, then the page's own name.
 
 ## User Management
 
@@ -534,7 +628,12 @@ A custom role cannot be deleted while any user holds it; reassign those users fi
 
 Every approval action, payroll event, and anomaly triggers a notification. Employees control their own preferences at **Notifications → Preferences**.
 
-Tenant Admins customize email template wording (English and Amharic subject and body) at **Settings → Notification Templates**.
+Tenant Admins change the wording of the emails ETHR sends at **Settings → Notification Templates**. There are seven: leave requested, approved, rejected and changed, payslip available, missing punch and trial expiring. Each has a subject and a body in **English, Amharic and Afaan Oromoo**, and the page shows the built-in text as the starting point.
+
+- A placeholder such as `{employee_name}` is replaced when the email is sent. A placeholder the template does not provide is refused when you save, so a typo is caught before an employee sees it.
+- Subjects are limited to 200 characters and bodies to 2,000.
+- **The reader's language decides.** For each of the six fields, ETHR uses your edited text in the reader's language if you wrote one, otherwise the built-in text in the reader's language, and only then English. Editing only the English text therefore changes nothing for someone who reads Amharic or Afaan Oromoo. Edit each language you want to change.
+- Leaving a field empty brings the built-in text back for it.
 
 ---
 

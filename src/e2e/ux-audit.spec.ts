@@ -19,6 +19,9 @@
  * Screenshots are evidence for `docs/audits/UX_PHASE_XX.md`, not golden-image
  * assertions — there is no baseline to drift, so this never fails on a
  * legitimate design change. The assertions above are what gate the phase.
+ *
+ * `UX_PHASE=settings` runs the settings exit checklist instead: one light test
+ * per settings page (see the end of this file).
  */
 import fs from "fs";
 import { test, expect, type Page } from "@playwright/test";
@@ -701,6 +704,128 @@ for (const phase of phases) {
           });
         });
       }
+    }
+  });
+}
+
+/**
+ * The settings exit checklist (settings review, 2026-11-22, PR 15).
+ *
+ * One light, fast test per settings page, as the tenant admin at 1280px in
+ * English, where the phase tests above are the full theme and breakpoint
+ * matrix. Each page must:
+ *
+ *   1. render and not be a RoleGate denial,
+ *   2. have exactly one h1 (the title bar's),
+ *   3. name its breadcrumb parent "Settings" (and /settings itself, which is
+ *      the hub and the General page at once, "General settings" with no
+ *      parent link),
+ *   4. show no em dash anywhere in its visible text. `innerText` leaves out
+ *      what is hidden, so a tab not yet opened does not count.
+ *
+ * Select it with `UX_PHASE=settings`. Like the phases it runs under `all`, and
+ * its title starts "UX audit" so `gates.sh e2e` leaves it out and the manual
+ * UX audit workflow runs it. It needs a running stack with the seeded
+ * organisation: `UX_PHASE=settings npx playwright test ux-audit.spec.ts
+ * --project=chromium-desktop`.
+ *
+ * Some empty cells are still drawn as an em dash (the audit log's entity, user
+ * and address columns, the API keys, SCIM and accounting tables, and the
+ * statutory rules card). Check 4 fails on a page that renders one. That is the
+ * checklist doing its job; the fix is a word such as "Not set" in that
+ * component, not a looser check.
+ */
+interface SettingsPage {
+  path: string;
+  name: string;
+}
+
+const SETTINGS_HUB: SettingsPage = { path: "/settings", name: "general" };
+
+/** Every page in `SETTINGS_GROUPS` that lives under /settings, in its order. */
+const SETTINGS_SUBPAGES: SettingsPage[] = [
+  { path: "/settings/attendance", name: "attendance-rules" },
+  { path: "/settings/leave-types", name: "leave-types" },
+  { path: "/settings/holidays", name: "holidays" },
+  { path: "/settings/approval-chains", name: "approval-chains" },
+  { path: "/settings/exit-clearance", name: "exit-checklist" },
+  { path: "/settings/payroll", name: "payroll-rules" },
+  { path: "/settings/opening-balances", name: "opening-balances" },
+  { path: "/settings/users", name: "users" },
+  { path: "/settings/roles", name: "roles" },
+  { path: "/settings/api-keys", name: "api-keys" },
+  { path: "/settings/webhooks", name: "webhooks" },
+  { path: "/settings/accounting", name: "accounting" },
+  { path: "/settings/notification-templates", name: "notification-templates" },
+  { path: "/settings/scim", name: "scim" },
+  { path: "/settings/audit-logs", name: "audit-log" },
+  { path: "/settings/data-export", name: "data-export" },
+];
+
+if (
+  selected === "all" ||
+  selected.split(",").some((s) => s.trim() === "settings")
+) {
+  test.describe("UX audit: settings exit checklist", () => {
+    test.use({ storageState: "e2e/.auth/admin.json" });
+
+    for (const entry of [SETTINGS_HUB, ...SETTINGS_SUBPAGES]) {
+      test(`${entry.name}: one h1, Settings as the breadcrumb parent, no em dash`, async ({
+        page,
+      }) => {
+        test.setTimeout(60_000);
+
+        await applyPreferences(page, "light");
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto(entry.path);
+        await page.waitForLoadState("networkidle");
+
+        // A denial screen has a heading and a breadcrumb too: rule it out
+        // first so the checks below are about the page, not about the refusal.
+        await expect(
+          page.getByTestId("role-gate-denied"),
+          `${entry.path} rendered RoleGate's "Access Denied" for the tenant admin`,
+        ).toHaveCount(0);
+
+        await expect(
+          page.locator("h1"),
+          `${entry.path} must have exactly one h1`,
+        ).toHaveCount(1);
+
+        const trail = page
+          .getByRole("navigation", { name: "Breadcrumb" })
+          .locator("li");
+        const count = await trail.count();
+        expect(count, `${entry.path} has no breadcrumb`).toBeGreaterThan(1);
+
+        if (entry === SETTINGS_HUB) {
+          // The hub is the General page: it names itself, with no parent link.
+          await expect(trail.nth(count - 1)).toHaveText("General settings");
+          await expect(
+            page
+              .getByRole("navigation", { name: "Breadcrumb" })
+              .locator('a[href="/settings"]'),
+          ).toHaveCount(0);
+        } else {
+          const parent = trail.nth(count - 2);
+          await expect(
+            parent,
+            `${entry.path}: the breadcrumb parent must read "Settings"`,
+          ).toHaveText("Settings");
+          await expect(parent.locator("a")).toHaveAttribute(
+            "href",
+            "/settings",
+          );
+        }
+
+        const withDash = (await page.evaluate(() => document.body.innerText))
+          .split("\n")
+          .filter((line) => line.includes("—"));
+        expect(
+          withDash,
+          `${entry.path} shows an em dash in its visible text (house style: none)`,
+        ).toEqual([]);
+      });
     }
   });
 }
