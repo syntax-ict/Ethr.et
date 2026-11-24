@@ -4,6 +4,14 @@ import am from "@/lib/i18n/locales/am.json";
 import en from "@/lib/i18n/locales/en.json";
 import om from "@/lib/i18n/locales/om.json";
 import {
+  ANNOUNCEMENT_CATEGORIES,
+  ANNOUNCEMENT_PRIORITIES,
+  ANNOUNCEMENT_TARGETS,
+  announcementCategoryLabel,
+  announcementPriorityLabel,
+  announcementTargetLabel,
+} from "@/lib/options/announcement";
+import {
   EDUCATION_LEVELS,
   educationLevelLabel,
 } from "@/lib/options/education-level";
@@ -34,6 +42,9 @@ const LISTS = [
   ["relationship", RELATIONSHIPS, relationshipLabel],
   ["education level", EDUCATION_LEVELS, educationLevelLabel],
   ["notification type", NOTIFICATION_TYPES, notificationTypeLabel],
+  ["announcement priority", ANNOUNCEMENT_PRIORITIES, announcementPriorityLabel],
+  ["announcement category", ANNOUNCEMENT_CATEGORIES, announcementCategoryLabel],
+  ["announcement audience", ANNOUNCEMENT_TARGETS, announcementTargetLabel],
 ] as const;
 
 const LOCALES: Record<string, Record<string, string>> = { en, am, om };

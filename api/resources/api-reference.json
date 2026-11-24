@@ -46765,6 +46765,28 @@
                 ],
                 "title": "AllowDeviceAddressRequest"
             },
+            "AnnouncementCategory": {
+                "type": "string",
+                "description": "What a public reader can filter the organisation's news by: a fixed list rather than free text, so the filter is short, translated and the same for every organisation.\n",
+                "enum": [
+                    "news",
+                    "notice",
+                    "event",
+                    "deadline"
+                ],
+                "title": "AnnouncementCategory"
+            },
+            "AnnouncementPriority": {
+                "type": "string",
+                "description": "How much an announcement matters; it decides where a story sorts.\n",
+                "enum": [
+                    "low",
+                    "normal",
+                    "high",
+                    "urgent"
+                ],
+                "title": "AnnouncementPriority"
+            },
             "AnnouncementResource": {
                 "type": "object",
                 "properties": {
@@ -46772,9 +46794,6 @@
                         "type": "string"
                     },
                     "title": {
-                        "type": "string"
-                    },
-                    "body": {
                         "type": "string"
                     },
                     "excerpt": {
@@ -46786,34 +46805,17 @@
                             "null"
                         ]
                     },
+                    "featured": {
+                        "type": "boolean"
+                    },
                     "priority": {
-                        "type": "string"
-                    },
-                    "target_type": {
-                        "type": "string"
-                    },
-                    "status": {
                         "type": "string"
                     },
                     "published_at": {
                         "type": [
                             "string",
                             "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "expires_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "show_on_landing": {
-                        "type": "boolean"
-                    },
-                    "featured": {
-                        "type": "boolean"
+                        ]
                     },
                     "cover": {
                         "type": [
@@ -46840,6 +46842,31 @@
                             "width",
                             "height"
                         ]
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "body_source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "target_type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "show_on_landing": {
+                        "type": "boolean"
                     },
                     "attachments": {
                         "type": "array",
@@ -46902,23 +46929,34 @@
                 "required": [
                     "public_id",
                     "title",
-                    "body",
                     "excerpt",
                     "category",
+                    "featured",
                     "priority",
+                    "published_at",
+                    "cover",
+                    "body",
+                    "body_source",
                     "target_type",
                     "status",
-                    "published_at",
                     "expires_at",
                     "show_on_landing",
-                    "featured",
-                    "cover",
                     "attachments",
                     "author",
                     "created_at",
                     "updated_at"
                 ],
                 "title": "AnnouncementResource"
+            },
+            "AnnouncementTarget": {
+                "type": "string",
+                "description": "Who an announcement is addressed to: everyone, or one department or branch.\n",
+                "enum": [
+                    "all",
+                    "department",
+                    "branch"
+                ],
+                "title": "AnnouncementTarget"
             },
             "ApplyConfigurationRequest": {
                 "type": "object",
@@ -57289,21 +57327,10 @@
                         "maxLength": 10000
                     },
                     "priority": {
-                        "type": "string",
-                        "enum": [
-                            "low",
-                            "normal",
-                            "high",
-                            "urgent"
-                        ]
+                        "$ref": "#/components/schemas/AnnouncementPriority"
                     },
                     "target_type": {
-                        "type": "string",
-                        "enum": [
-                            "all",
-                            "department",
-                            "branch"
-                        ]
+                        "$ref": "#/components/schemas/AnnouncementTarget"
                     },
                     "target_id": {
                         "type": [
@@ -57312,16 +57339,13 @@
                         ]
                     },
                     "category": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "news",
-                            "notice",
-                            "event",
-                            "deadline",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "publish_now": {
@@ -59840,21 +59864,10 @@
                         "maxLength": 10000
                     },
                     "priority": {
-                        "type": "string",
-                        "enum": [
-                            "low",
-                            "normal",
-                            "high",
-                            "urgent"
-                        ]
+                        "$ref": "#/components/schemas/AnnouncementPriority"
                     },
                     "target_type": {
-                        "type": "string",
-                        "enum": [
-                            "all",
-                            "department",
-                            "branch"
-                        ]
+                        "$ref": "#/components/schemas/AnnouncementTarget"
                     },
                     "target_id": {
                         "type": [
@@ -59863,16 +59876,13 @@
                         ]
                     },
                     "category": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "news",
-                            "notice",
-                            "event",
-                            "deadline",
-                            null
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AnnouncementCategory"
+                            },
+                            {
+                                "type": "null"
+                            }
                         ]
                     },
                     "published_at": {

@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { operations } from "@/api/generated";
 import type { TenantRequest } from "@/lib/auth/use-auth-host-context";
+import { ANNOUNCEMENT_CATEGORIES } from "@/lib/options/announcement";
 
 /** `GET /auth/tenant-landing/feed`: what the organisation shows the public. */
 export type LandingFeed =
@@ -18,12 +19,7 @@ export type LandingNewsItem = LandingNewsPage["data"][number];
 export type NewsCategory = NonNullable<
   NonNullable<operations["landingFeed.news"]["parameters"]["query"]>["category"]
 >;
-export const NEWS_CATEGORIES: readonly NewsCategory[] = [
-  "news",
-  "notice",
-  "event",
-  "deadline",
-];
+export const NEWS_CATEGORIES: readonly NewsCategory[] = ANNOUNCEMENT_CATEGORIES;
 
 /**
  * A public request to the organisation the sign-in page is for, asked the
