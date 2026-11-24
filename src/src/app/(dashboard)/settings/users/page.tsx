@@ -300,7 +300,7 @@ export default function UsersSettingsPage() {
     try {
       await applyTitle.mutateAsync(u.public_id);
       toast.success(
-        t("users_page.title_applied", "Role updated from the job title"),
+        t("users_page.title_applied", "Role updated from the position"),
       );
     } catch (e) {
       toastError(e, t("common.error", "Something went wrong"));
@@ -379,7 +379,7 @@ export default function UsersSettingsPage() {
               setPage(1);
             }}
           >
-            {t("users_page.differs_from_title", "Differs from job title")}
+            {t("users_page.differs_from_title", "Differs from position")}
           </Button>
         </FilterBar>
 
@@ -461,14 +461,14 @@ export default function UsersSettingsPage() {
                       </span>
                       {u.role_follows_position && (
                         <span className="block text-xs text-muted-foreground">
-                          {t("users_page.from_title", "From job title")}
+                          {t("users_page.from_title", "From position")}
                         </span>
                       )}
                       {u.title_role && u.title_role !== u.role && (
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {t(
                             "users_page.title_gives",
-                            "Job title gives :role. Waiting for someone who may give that role.",
+                            "Position gives :role. Waiting for someone who may give that role.",
                             {
                               role: t(
                                 `role.${u.title_role}`,
@@ -727,7 +727,7 @@ export default function UsersSettingsPage() {
                         onClick={() => setEditForm({ ...editForm, follows })}
                       >
                         {follows
-                          ? t("users_page.follows_title", "Follows job title")
+                          ? t("users_page.follows_title", "Follows position")
                           : t("users_page.set_by_hand", "Set by hand")}
                       </Button>
                     ))}
