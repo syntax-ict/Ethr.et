@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/api/client";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { splitIntoBatches, toSyncPayload } from "@/lib/offline-batch";
-import { syncFinished, syncStarted } from "@/lib/offline-sync-activity";
+import {
+  syncFinished,
+  syncStarted,
+  type SyncFailure,
+} from "@/lib/offline-sync-activity";
 import {
   clearSyncedRecords,
   getPendingRecords,
@@ -140,6 +144,8 @@ export function useOfflineSync(employeePublicId: string | null) {
     let foundNothing = false;
     // Whether this run told the page it is sending, so it also says it ended.
     let announced = false;
+    // Why punches were left behind, when it is the connection or the server.
+    let failure: SyncFailure | null = null;
 
     // Sends one batch. "stop" means the rest of the run should not be tried:
     // the server did not answer, or answered that nothing will work for now.
@@ -173,6 +179,14 @@ export function useOfflineSync(employeePublicId: string | null) {
         // fault: all may pass. Keep the records and leave the later batches
         // (a check-out must not overtake its check-in).
         const e = err as { message?: string };
+        failure =
+          status === null
+            ? "unreachable"
+            : status === 429
+              ? "busy"
+              : status >= 500
+                ? "server"
+                : null;
         for (const r of batch) {
           if (r.id) await markSyncError(r.id, e.message ?? "Network error");
         }
@@ -252,7 +266,9 @@ export function useOfflineSync(employeePublicId: string | null) {
       }
       syncInProgress = false;
       setSyncing(false);
-      if (announced) syncFinished("punches", synced);
+      if (announced) {
+        syncFinished("punches", synced, retryable > 0 ? failure : null);
+      }
     }
 
     return { synced, errors };

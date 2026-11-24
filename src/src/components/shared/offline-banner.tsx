@@ -13,6 +13,7 @@ import {
 import { getPendingCount, getRefusedRecords } from "@/lib/offline-queue";
 import {
   VISIT_QUEUE_CHANGED_EVENT,
+  refusedVisitsOwnedBy,
   visitsOwnedBy,
 } from "@/lib/attendance/visit-queue";
 import { readOfflineIdentity } from "@/features/auth/offline-identity";
@@ -59,8 +60,10 @@ export function OfflineBanner() {
   const refresh = useCallback(async () => {
     const owner = readOfflineIdentity()?.user.employee_public_id ?? null;
     let visits = 0;
+    let refusedVisits = 0;
     try {
       visits = visitsOwnedBy(owner).length;
+      refusedVisits = refusedVisitsOwnedBy(owner).length;
     } catch {
       // localStorage may not be available in some contexts
     }
@@ -70,10 +73,11 @@ export function OfflineBanner() {
         getRefusedRecords(owner),
       ]);
       setWaiting(punches + visits);
-      setRefused(refusedRows.length);
+      setRefused(refusedRows.length + refusedVisits);
     } catch {
       // IndexedDB may not be available in some contexts
       setWaiting(visits);
+      setRefused(refusedVisits);
     }
   }, []);
 
@@ -111,6 +115,44 @@ export function OfflineBanner() {
   }, [lastSent]);
 
   const onPunchScreen = (pathname ?? "").startsWith(PUNCH_SCREEN);
+
+  // Said in two places: on its own, and beside "sent" when one run did both.
+  const refusedLine =
+    refused === 1
+      ? t("offline.refused_one", ":count record was not accepted.", {
+          count: refused,
+        })
+      : t("offline.refused_many", ":count records were not accepted.", {
+          count: refused,
+        });
+  const seeWhy = (
+    <Link href={PUNCH_SCREEN} className="underline underline-offset-2">
+      {t("offline.see_why", "See why")}
+    </Link>
+  );
+
+  // Why what is waiting has not gone, when the last run could say. Without
+  // this "waiting to be sent" read the same whether ETHR was down, busy, or
+  // phone attendance had been switched off, and only the last is the
+  // person's to act on.
+  const because =
+    activity.punchesWaitingBecause ?? activity.visitsWaitingBecause;
+  const becauseLine =
+    because === "unreachable"
+      ? t(
+          "offline.because_unreachable",
+          "ETHR could not be reached. Trying again soon.",
+        )
+      : because === "server"
+        ? t("offline.because_server", "ETHR had a problem. Trying again soon.")
+        : because === "busy"
+          ? t("offline.because_busy", "Too many requests. Trying again soon.")
+          : because === "off"
+            ? t(
+                "offline.because_off",
+                "Phone attendance is switched off. Ask HR.",
+              )
+            : null;
 
   let tone: "warning" | "neutral" | "success" = "warning";
   let body: ReactNode = null;
@@ -153,6 +195,24 @@ export function OfflineBanner() {
         </span>
       </>
     );
+  } else if (lastSent && refused > 0 && !onPunchScreen) {
+    // One run sent some and had others refused: one line says both, so the
+    // good news does not hide the bad for four seconds.
+    const sent = lastSent.punches + lastSent.visits;
+    body = (
+      <>
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span>
+          {sent === 1
+            ? t("offline.sent_short_one", ":count record sent", { count: sent })
+            : t("offline.sent_short_many", ":count records sent", {
+                count: sent,
+              })}
+        </span>
+        <span>&middot; {refusedLine}</span>
+        {seeWhy}
+      </>
+    );
   } else if (lastSent && !onPunchScreen) {
     const sent = lastSent.punches + lastSent.visits;
     tone = "success";
@@ -178,20 +238,8 @@ export function OfflineBanner() {
     body = (
       <>
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span>
-          {refused === 1
-            ? t("offline.refused_one", ":count punch could not be recorded.", {
-                count: refused,
-              })
-            : t(
-                "offline.refused_many",
-                ":count punches could not be recorded.",
-                { count: refused },
-              )}
-        </span>
-        <Link href={PUNCH_SCREEN} className="underline underline-offset-2">
-          {t("offline.see_why", "See why")}
-        </Link>
+        <span>{refusedLine}</span>
+        {seeWhy}
       </>
     );
   } else if (waiting > 0) {
@@ -207,6 +255,7 @@ export function OfflineBanner() {
                 count: waiting,
               })}
         </span>
+        {becauseLine && <span>&middot; {becauseLine}</span>}
       </>
     );
   }
