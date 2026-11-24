@@ -168,6 +168,8 @@ browser, never in Chrome.
 | REP-030 | P2 | R | A list too long for one sheet is refused, not cut | HR: the grid for everyone in an organisation of more than 50 people, "Download PDF"; then choose a department of 50 or fewer and again | The first says that a printed sheet holds up to 50 people and to choose a department, branch or shift; no file is saved; the second saves the PDF |
 | REP-031 | P2 | R | The PDF follows the pay rule | HR (no `payroll.viewAll`) downloads; then FIN or TA | HR's sheet has no "Payable days" column or note; FIN's has both |
 | REP-032 | P3 | R | The payroll schedule still signs the same way | FIN: a payroll run → Export → the income tax schedule as PDF | It still ends with "Prepared by", "Checked by" and "Authorised signature and stamp", now from the shared signature lines |
+| REP-033 | P2 | R | The four related reports run and agree with the timesheet (timesheet upgrade PR 5) | HR in QA Audit: Reports → Quick reports → pick the month; run Late and early leave, Overtime by rate, Missing punches and Attendance by department. Beside them the timesheet grid for the same month | Each runs and downloads as CSV; a person's late and early minutes, overtime hours per rate and missing-punch days equal the timesheet's; Attendance by department's group totals equal the sum of its rows; the cards read in Amharic and Afaan Oromoo |
+| REP-034 | P3 | R | Pay-moving figures stay out of them | HR (no `payroll.viewAll`) runs Late and early leave | The columns include "Late minutes to deduct" (what an approved correction decided) and no payable days or unpaid-leave figure appears in any of the four |
 
 ## 5a. Dashboards
 

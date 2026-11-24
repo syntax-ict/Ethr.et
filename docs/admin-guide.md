@@ -503,6 +503,8 @@ Through the API, `GET /reports/timesheet` returns a page of people with one cell
 
 The **Quick Reports** tab lists ready-made reports: the standard ones, and those recommended for the organization's type and working pattern (for example staffing by grade for a government office, overtime by department for a factory on shifts). A month picker in your calendar applies to the timesheet, attendance, absence and payroll reports. Each can be downloaded as CSV.
 
+Four reports built on the monthly timesheet's figures are standard for every organization, each for the month chosen above them: **Late and early leave** (late days and early departures with their minutes, and the lateness payroll will deduct), **Overtime by rate** (hours in each rate payroll pays, the unapproved hours and the days over the legal limit), **Missing punches** (who has a day with a punch still to fix, and who has no attendance), and **Attendance by department** (present, late, absent and leave days and the hours short, totalled per department). They read the same figures as the timesheet and payroll, so they agree with both. Daily attendance is the Attendance page, the absences and leave balances reports are above, and a raw punch log per device is on the Devices page.
+
 The statutory outputs are on each payroll run, not in Reports: open the run and use **Export** for the payroll register, the bank file, the journal, and the income tax and pension schedules.
 
 ---
