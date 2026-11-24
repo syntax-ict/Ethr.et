@@ -32,6 +32,14 @@ Artisan::command('inspire', function () {
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 
+// A terminal that only sends to ETHR (ADMS, Hikvision push, ZKTeco or Suprema
+// with no address) goes quiet while its organisation is at work: tell the
+// tenant and HR admins, at most once a day per device. Every fifteen minutes,
+// a multiple of the five the external scheduler caller ticks at; the limits
+// (30 and 60 minutes) already allow for that caller running 10 to 20 minutes
+// late. Skips pulled terminals, which PullDeviceEventsJob already reports.
+Schedule::command('devices:watch-silence')->everyFifteenMinutes()->name('devices-watch-silence')->withoutOverlapping();
+
 // Close check-ins left open past the shift's end, at the shift's end, for
 // organisations that turned auto check-out on (AttendanceSetting). Every five
 // minutes; ScheduleCatchUpCommand runs it once for any number of missed ticks,

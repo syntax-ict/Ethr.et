@@ -35,6 +35,7 @@ return [
     'AttendancePhotosDueForDeletionNotification' => 'the notice the retention policy promises before a photo is deleted',
     'DashboardDigestFailedNotification' => 'failure notice; a digest that silently stopped looks like one nobody opened',
     'DeviceOfflineNotification' => 'monitoring alert to admins; always delivered',
+    'DeviceSilentNotification' => 'monitoring alert to admins; always delivered',
     'DeviceSyncFailedNotification' => 'monitoring alert to admins; always delivered',
     'PayrollRunFailedNotification' => 'a crashed payroll run must reach a human; muting the success notice must not mute it',
     'ScheduledReportFailedNotification' => 'failure notice to free-text addresses, not users with preferences',
