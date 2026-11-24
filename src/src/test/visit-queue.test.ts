@@ -10,14 +10,20 @@ vi.mock("@/api/client", () => ({
 import {
   VISIT_QUEUE_CHANGED_EVENT,
   isSendableBy,
+  loggedAt,
   queueVisit,
   queuedVisits,
+  refusedVisitsOwnedBy,
   visitsOwnedBy,
 } from "@/lib/attendance/visit-queue";
 import {
   flushQueuedVisits,
   resetVisitSyncForTests,
 } from "@/lib/attendance/visit-sync";
+import {
+  getSyncActivity,
+  resetSyncActivityForTests,
+} from "@/lib/offline-sync-activity";
 
 const ME = "01HME";
 const OTHER = "01HOTHER";
@@ -40,8 +46,15 @@ function problem(status: number, data: unknown) {
   return Object.assign(new Error("refused"), { response: { status, data } });
 }
 
+/** Visits still waiting to be sent; a refused one is kept but is not one of these. */
 function keys() {
-  return queuedVisits().map((v) => v.idempotency_key);
+  return queuedVisits()
+    .filter((v) => !v.refused)
+    .map((v) => v.idempotency_key);
+}
+
+function refusedKeys() {
+  return refusedVisitsOwnedBy(ME).map((v) => v.idempotency_key);
 }
 
 beforeEach(() => {
@@ -49,6 +62,20 @@ beforeEach(() => {
   post.mockReset().mockResolvedValue({ data: {} });
   tenant.value = "acme";
   resetVisitSyncForTests();
+  resetSyncActivityForTests();
+});
+
+describe("loggedAt", () => {
+  it("reads the moment a visit was logged from its key", () => {
+    expect(loggedAt("visit-1795400000000-k3x9")).toBe(
+      new Date(1795400000000).toISOString(),
+    );
+  });
+
+  it("is null for a key that carries no time", () => {
+    expect(loggedAt("bad")).toBeNull();
+    expect(loggedAt("visit-abc-1")).toBeNull();
+  });
 });
 
 describe("queueVisit", () => {
@@ -107,26 +134,95 @@ describe("flushQueuedVisits", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it.each([422, 404])("drops a visit the server refuses with %i", async (s) => {
-    queueVisit(visit("bad"), ME, "acme");
-    queueVisit(visit("good"), ME, "acme");
-    post.mockRejectedValueOnce(refusal(s));
+  it.each([422, 404])(
+    "stops sending a visit the server refuses with %i, and keeps it to be shown",
+    async (s) => {
+      queueVisit(visit("bad"), ME, "acme");
+      queueVisit(visit("good"), ME, "acme");
+      post.mockRejectedValueOnce(refusal(s));
 
-    const { sent } = await flushQueuedVisits(ME);
+      const { sent } = await flushQueuedVisits(ME);
 
-    expect(sent).toBe(1);
-    expect(keys()).toEqual([]);
-  });
+      expect(sent).toBe(1);
+      expect(keys()).toEqual([]);
+      // It used to be dropped here, and nobody learned it had not counted.
+      expect(refusedKeys()).toEqual(["bad"]);
+    },
+  );
 
-  it("drops a 422 with validation errors and no Method Disabled title", async () => {
+  it("keeps the server's reason beside a refused visit", async () => {
     queueVisit(visit("bad"), ME, "acme");
     post.mockRejectedValueOnce(
-      problem(422, { title: "Validation Failed", errors: { note: ["x"] } }),
+      problem(422, {
+        title: "Validation Failed",
+        detail: "This visit is older than seven days.",
+        errors: { note: ["x"] },
+      }),
     );
 
     await flushQueuedVisits(ME);
 
     expect(keys()).toEqual([]);
+    expect(refusedVisitsOwnedBy(ME)[0].refused?.reason).toBe(
+      "This visit is older than seven days.",
+    );
+  });
+
+  it("never sends a refused visit again, and does not count it as waiting", async () => {
+    queueVisit(visit("bad"), ME, "acme");
+    post.mockRejectedValueOnce(refusal(422));
+    await flushQueuedVisits(ME);
+    post.mockClear();
+
+    const { sent } = await flushQueuedVisits(ME);
+
+    expect(post).not.toHaveBeenCalled();
+    expect(sent).toBe(0);
+    expect(visitsOwnedBy(ME)).toEqual([]);
+    expect(isSendableBy(refusedVisitsOwnedBy(ME)[0], ME, "acme")).toBe(false);
+  });
+
+  it("drops the photo of a refused visit, which nobody will look at", async () => {
+    queueVisit(visit("bad", "data:image/jpeg;base64,AAAA"), ME, "acme");
+    post.mockRejectedValueOnce(refusal(422));
+
+    await flushQueuedVisits(ME);
+
+    expect(refusedVisitsOwnedBy(ME)[0].photo).toBeNull();
+  });
+
+  it.each([
+    ["no answer", new Error("Network Error"), "unreachable"],
+    ["429", refusal(429), "busy"],
+    ["500", refusal(500), "server"],
+    ["a session that ended", refusal(401), null],
+  ])("says why visits are still waiting after %s", async (_n, err, why) => {
+    queueVisit(visit("first"), ME, "acme");
+    post.mockRejectedValueOnce(err);
+
+    await flushQueuedVisits(ME);
+
+    expect(getSyncActivity().visitsWaitingBecause).toBe(why);
+  });
+
+  it("says phone attendance is off when that is why a visit is kept", async () => {
+    queueVisit(visit("first"), ME, "acme");
+    post.mockRejectedValueOnce(problem(422, { title: "Method Disabled" }));
+
+    await flushQueuedVisits(ME);
+
+    expect(getSyncActivity().visitsWaitingBecause).toBe("off");
+  });
+
+  it("clears the reason once a run goes through", async () => {
+    queueVisit(visit("first"), ME, "acme");
+    post.mockRejectedValueOnce(refusal(500));
+    await flushQueuedVisits(ME);
+    expect(getSyncActivity().visitsWaitingBecause).toBe("server");
+
+    await flushQueuedVisits(ME);
+
+    expect(getSyncActivity().visitsWaitingBecause).toBeNull();
   });
 
   it("keeps a Method Disabled 422 and still tries the next visit", async () => {

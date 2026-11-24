@@ -138,12 +138,100 @@ describe("OfflineBanner while the phone is sending", () => {
     ]);
     render(<OfflineBanner />);
     expect(
-      await screen.findByText("1 punch could not be recorded."),
+      await screen.findByText("1 record was not accepted."),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See why" })).toHaveAttribute(
       "href",
       "/attendance/mobile",
     );
+  });
+
+  it("counts a refused visit with the refused punches", async () => {
+    vi.spyOn(offlineQueue, "getRefusedRecords").mockResolvedValue([
+      { id: 1 } as offlineQueue.OfflineAttendanceRecord,
+    ]);
+    localStorage.setItem(
+      "ethr.offline-identity",
+      JSON.stringify({
+        v: 1,
+        user: { public_id: "U1", employee_public_id: "E9" },
+        permissions: [],
+        plan_features: null,
+        tenant: null,
+      }),
+    );
+    localStorage.setItem(
+      "ethr-visit-queue",
+      JSON.stringify([
+        {
+          idempotency_key: "visit-1795400000000-a",
+          owner: "E9",
+          refused: { reason: "Too old.", at: "2026-11-24T05:00:00Z" },
+        },
+      ]),
+    );
+    render(<OfflineBanner />);
+
+    expect(
+      await screen.findByText("2 records were not accepted."),
+    ).toBeInTheDocument();
+
+    localStorage.removeItem("ethr.offline-identity");
+    localStorage.removeItem("ethr-visit-queue");
+  });
+
+  it("says sent and refused in one line when a run did both", async () => {
+    vi.spyOn(offlineQueue, "getRefusedRecords").mockResolvedValue([
+      { id: 1 } as offlineQueue.OfflineAttendanceRecord,
+    ]);
+    render(<OfflineBanner />);
+    await screen.findByText("1 record was not accepted.");
+
+    act(() => {
+      syncStarted("punches", 3);
+      syncFinished("punches", 2);
+    });
+
+    expect(await screen.findByText("2 records sent")).toBeInTheDocument();
+    expect(screen.getByText(/1 record was not accepted\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See why" })).toBeInTheDocument();
+    // Good news with bad news beside it is not a green banner.
+    expect(screen.getByTestId("offline-banner")).toHaveAttribute(
+      "data-tone",
+      "warning",
+    );
+  });
+
+  it.each([
+    ["unreachable", "ETHR could not be reached. Trying again soon."],
+    ["server", "ETHR had a problem. Trying again soon."],
+    ["busy", "Too many requests. Trying again soon."],
+    ["off", "Phone attendance is switched off. Ask HR."],
+  ] as const)("says why records are still waiting: %s", async (why, text) => {
+    vi.spyOn(offlineQueue, "getPendingCount").mockResolvedValue(1);
+    render(<OfflineBanner />);
+    await screen.findByText("1 record waiting to be sent");
+
+    act(() => {
+      syncStarted("punches", 1);
+      syncFinished("punches", 0, why);
+    });
+
+    expect(await screen.findByText(new RegExp(text))).toBeInTheDocument();
+  });
+
+  it("says only that records are waiting when the run could not say why", async () => {
+    vi.spyOn(offlineQueue, "getPendingCount").mockResolvedValue(1);
+    render(<OfflineBanner />);
+    await screen.findByText("1 record waiting to be sent");
+
+    act(() => {
+      syncStarted("punches", 1);
+      syncFinished("punches", 0, null);
+    });
+
+    expect(screen.queryByText(/Trying again soon/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ask HR/)).not.toBeInTheDocument();
   });
 });
 
