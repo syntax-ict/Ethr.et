@@ -124,13 +124,31 @@ final class TimesheetLedger
         $workingWeek = WorkingWeek::of($tenant);
         $closed = $this->lock->closedDays($tenantId, $ids, $from, $to);
 
+        // Only the columns a cell reads: `metadata` carries up to thirty punches
+        // a record and is read separately, for the few records with a decided
+        // deduction.
         $recordsByEmployee = AttendanceRecord::query()
+            ->select(['id', 'public_id', 'tenant_id', 'employee_id', 'shift_id', 'date', 'check_in', 'check_out', 'status'])
             ->where('tenant_id', $tenantId)
             ->whereIn('employee_id', $ids)
             ->whereDate('date', '>=', $windowStart->format('Y-m-d'))
             ->whereDate('date', '<=', $windowEnd->format('Y-m-d'))
             ->where('status', '!=', AttendanceStatus::VOIDED)
             ->with('shift')
+            ->get()
+            ->groupBy('employee_id');
+
+        // What payroll will deduct for lateness is the minutes an approved
+        // correction decided, not the minutes observed: the same predicate and
+        // the same sum as PayrollEngine::decidedLateness().
+        $decidedByEmployee = AttendanceRecord::query()
+            ->select(['id', 'tenant_id', 'employee_id', 'date', 'metadata'])
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $ids)
+            ->whereDate('date', '>=', $fromDay)
+            ->whereDate('date', '<=', $toDay)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
+            ->whereNotNull('metadata->pay_deduct_minutes')
             ->get()
             ->groupBy('employee_id');
 
@@ -167,6 +185,10 @@ final class TimesheetLedger
                 ->filter(fn (AttendanceRecord $r): bool => $r->date !== null)
                 ->groupBy(fn (AttendanceRecord $r): string => $r->date->format('Y-m-d'));
 
+            // A record that overlaps another's punches is one shift recorded
+            // twice: overtime pays it once, so its hours are shown once too.
+            $duplicates = array_fill_keys(array_column($tally['skipped'], 'record'), true);
+
             $cells = [];
             foreach ($days as $day) {
                 $cells[$day] = $this->cell(
@@ -174,6 +196,7 @@ final class TimesheetLedger
                     $kinds[$day][$id] ?? ExpectedDay::NOT_EMPLOYED,
                     $leave[$id][$day] ?? null,
                     $recordsByDay->get($day, collect()),
+                    $duplicates,
                     $shiftsByEmployee[$id][$day] ?? null,
                     $tally['by_day_type'][$day] ?? [],
                     isset($closed[$id][$day]),
@@ -184,6 +207,10 @@ final class TimesheetLedger
             }
 
             $totals = $this->totals($cells, $tally);
+
+            $decided = PayrollEngine::decidedLatenessOf($decidedByEmployee->get($id, collect()));
+            $totals['lateness_deduct_minutes'] = $decided['minutes'];
+            $totals['lateness_corrections'] = $decided['corrections'];
 
             if ($withPay) {
                 $sick = $this->sickLeave->inPeriod($employee, $from, $to, $rules->int('payroll.working_days_per_month'));
@@ -196,7 +223,7 @@ final class TimesheetLedger
                 'employee' => $employee,
                 'cells' => $cells,
                 'totals' => $totals,
-                'check_ok' => $this->consistent($totals, count($days)),
+                'check_ok' => $this->consistent($cells, $totals, $tally, $kinds, $id, $recordsByDay, $duplicates),
             ];
         }
 
@@ -206,15 +233,17 @@ final class TimesheetLedger
     /**
      * @param  array<string, mixed>|null  $leave
      * @param  Collection<int, AttendanceRecord>  $records  this employee's non-voided records dated $day
+     * @param  array<string, true>  $duplicates  public ids of records overtime passes over as one shift recorded twice
      * @param  array<string, int>  $overtime  minutes by overtime type on $day
      * @param  array{type: string, state: string}|null  $exception
-     * @return array{code: TimesheetCode|null, kind: ExpectedDay, worked: bool, worked_minutes: int, scheduled_minutes: int, late_minutes: int, early_minutes: int, overtime: array<string, int>, records: list<string>, locked: bool, exception: array{type: string, state: string}|null}
+     * @return array{code: TimesheetCode|null, kind: ExpectedDay, worked: bool, late: bool, early: bool, worked_minutes: int, scheduled_minutes: int, late_minutes: int, early_minutes: int, overtime: array<string, int>, records: list<string>, locked: bool, exception: array{type: string, state: string}|null}
      */
     private function cell(
         string $day,
         ExpectedDay $kind,
         ?array $leave,
         Collection $records,
+        array $duplicates,
         ?Shift $shift,
         array $overtime,
         bool $locked,
@@ -225,15 +254,25 @@ final class TimesheetLedger
         $attended = $records->filter(fn (AttendanceRecord $r): bool => $r->check_in !== null || $r->check_out !== null);
         $worked = $attended->isNotEmpty();
 
-        $workedMinutes = (int) $attended->sum(fn (AttendanceRecord $r): int => $r->workedMinutes());
-        $late = (int) $attended->sum(fn (AttendanceRecord $r): int => $this->attendance->lateMinutes($r, $zone));
-        $early = (int) $attended->sum(fn (AttendanceRecord $r): int => $this->attendance->earlyMinutes($r, $zone));
+        // Hours and minutes are counted once per shift: the record kept from a
+        // group of overlapping duplicates, as overtime does. Every record is
+        // still listed, so the drill-down shows what was punched.
+        $counted = $attended->reject(fn (AttendanceRecord $r): bool => isset($duplicates[$r->public_id]));
 
-        // Late and early minutes belong to a workday only: a punch on a rest
-        // day or a holiday is paid as overtime, never rated late.
+        $workedMinutes = (int) $counted->sum(fn (AttendanceRecord $r): int => $r->workedMinutes());
+        $late = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->lateMinutes($r, $zone));
+        $early = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->earlyMinutes($r, $zone));
+
+        $isLate = $counted->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::LATE);
+        $isEarly = $early > 0 || $counted->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::EARLY_LEAVE);
+
+        // Late and early belong to a workday only: a punch on a rest day or a
+        // holiday is paid as overtime, never rated late.
         if ($kind !== ExpectedDay::WORKDAY) {
             $late = 0;
             $early = 0;
+            $isLate = false;
+            $isEarly = false;
         }
 
         $code = match ($kind) {
@@ -243,13 +282,15 @@ final class TimesheetLedger
             ExpectedDay::ON_LEAVE => $leave === null
                 ? TimesheetCode::OTHER_LEAVE
                 : TimesheetCode::forLeave($leave['kind'], $leave['follows_art85'], $leave['type_code'], $leave['half_day']),
-            ExpectedDay::WORKDAY => $this->workdayCode($attended, $exception, $late, $early, $absenceCountable),
+            ExpectedDay::WORKDAY => $this->workdayCode($worked, $exception, $isLate, $isEarly, $absenceCountable),
         };
 
         return [
             'code' => $code,
             'kind' => $kind,
             'worked' => $worked,
+            'late' => $isLate,
+            'early' => $isEarly,
             'worked_minutes' => $workedMinutes,
             'scheduled_minutes' => $kind === ExpectedDay::WORKDAY && $shift !== null ? $shift->scheduledMinutesOn($day, $zone) : 0,
             'late_minutes' => $late,
@@ -262,12 +303,15 @@ final class TimesheetLedger
     }
 
     /**
-     * @param  Collection<int, AttendanceRecord>  $attended
+     * The one code for a workday. A missing punch outranks late, and late
+     * outranks early, so each day shows one letter; the late and early flags
+     * stay on the cell, so a day that is both is still counted as both.
+     *
      * @param  array{type: string, state: string}|null  $exception
      */
-    private function workdayCode(Collection $attended, ?array $exception, int $late, int $early, bool $absenceCountable): ?TimesheetCode
+    private function workdayCode(bool $attended, ?array $exception, bool $late, bool $early, bool $absenceCountable): ?TimesheetCode
     {
-        if ($attended->isEmpty()) {
+        if (! $attended) {
             return $absenceCountable ? TimesheetCode::ABSENT : null;
         }
 
@@ -279,15 +323,11 @@ final class TimesheetLedger
             return TimesheetCode::MISSING_PUNCH;
         }
 
-        if ($attended->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::LATE)) {
+        if ($late) {
             return TimesheetCode::LATE;
         }
 
-        if ($early > 0 || $attended->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::EARLY_LEAVE)) {
-            return TimesheetCode::EARLY_LEAVE;
-        }
-
-        return TimesheetCode::PRESENT;
+        return $early ? TimesheetCode::EARLY_LEAVE : TimesheetCode::PRESENT;
     }
 
     /**
@@ -342,8 +382,8 @@ final class TimesheetLedger
                     } else {
                         $totals['present_days']++;
                         $totals['missing_days'] += $code === TimesheetCode::MISSING_PUNCH ? 1 : 0;
-                        $totals['late_days'] += $code === TimesheetCode::LATE || $cell['late_minutes'] > 0 ? 1 : 0;
-                        $totals['early_days'] += $cell['early_minutes'] > 0 || $code === TimesheetCode::EARLY_LEAVE ? 1 : 0;
+                        $totals['late_days'] += $cell['late'] ? 1 : 0;
+                        $totals['early_days'] += $cell['early'] ? 1 : 0;
                     }
                     break;
                 case ExpectedDay::ON_LEAVE:
@@ -367,21 +407,59 @@ final class TimesheetLedger
     }
 
     /**
-     * The row's two identities, written against ETHR's own classification: a
-     * leave day is never also a workday, and a workday is attended, absent or
-     * still to come. A row that fails is a bug in this class or in a rule it
-     * reads, never a reason to hide the row.
+     * Whether the row agrees with facts the cell codes were not built from.
      *
+     * Counting the cells back into the totals can only agree with itself, so
+     * each test here goes to a different source: the workdays are what
+     * ExpectedDays said, the present days are the workdays that have an
+     * attended record in the records themselves, an absent day has none, the
+     * overtime across the days is what the period's tally pays, and the worked
+     * minutes are those of the records, counted once per shift. A row that
+     * fails is a bug in this class or in a rule it reads, never a reason to
+     * hide the row.
+     *
+     * @param  array<string, array<string, mixed>>  $cells
      * @param  array<string, mixed>  $totals
+     * @param  array{buckets: array<string, int>}  $tally
+     * @param  array<string, array<int, ExpectedDay>>  $kinds  ExpectedDays::between(), day => employee id => kind
+     * @param  Collection<string, Collection<int, AttendanceRecord>>  $recordsByDay
+     * @param  array<string, true>  $duplicates
      */
-    private function consistent(array $totals, int $dayCount): bool
+    private function consistent(array $cells, array $totals, array $tally, array $kinds, int $employeeId, Collection $recordsByDay, array $duplicates): bool
     {
-        $workdaysAccountedFor = $totals['scheduled_days'] === $totals['present_days'] + $totals['absent_days'] + $totals['pending_days'];
+        $workdays = 0;
+        $attendedWorkdays = 0;
+        $absentWithRecords = 0;
+        $workedMinutes = 0;
+        $overtime = array_fill_keys(self::OVERTIME_TYPES, 0);
 
-        $everyDayAccountedFor = $dayCount === $totals['scheduled_days'] + $totals['leave_days'] + $totals['holiday_days']
-            + $totals['rest_days'] + $totals['not_employed_days'];
+        foreach ($cells as $day => $cell) {
+            $kind = $kinds[$day][$employeeId] ?? ExpectedDay::NOT_EMPLOYED;
+            $attended = $recordsByDay->get($day, collect())
+                ->filter(fn (AttendanceRecord $r): bool => $r->check_in !== null || $r->check_out !== null);
 
-        return $workdaysAccountedFor && $everyDayAccountedFor;
+            if ($kind === ExpectedDay::WORKDAY) {
+                $workdays++;
+                $attendedWorkdays += $attended->isNotEmpty() ? 1 : 0;
+                $absentWithRecords += $cell['code'] === TimesheetCode::ABSENT && $attended->isNotEmpty() ? 1 : 0;
+            }
+
+            $workedMinutes += (int) $attended
+                ->reject(fn (AttendanceRecord $r): bool => isset($duplicates[$r->public_id]))
+                ->sum(fn (AttendanceRecord $r): int => $r->workedMinutes());
+
+            foreach ($cell['overtime'] as $type => $minutes) {
+                $overtime[$type] += $minutes;
+            }
+        }
+
+        return $totals['scheduled_days'] === $workdays
+            && $totals['present_days'] === $attendedWorkdays
+            && $absentWithRecords === 0
+            && $totals['worked_minutes'] === $workedMinutes
+            && $overtime === $tally['buckets']
+            && count($cells) === $totals['scheduled_days'] + $totals['leave_days'] + $totals['holiday_days']
+                + $totals['rest_days'] + $totals['not_employed_days'];
     }
 
     /**

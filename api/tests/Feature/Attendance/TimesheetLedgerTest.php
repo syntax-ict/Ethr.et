@@ -360,6 +360,7 @@ it('reads a period across Pagume and the Ethiopian new year without losing a day
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
     $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'date' => '2026-09-11', 'name' => 'Enkutatash', 'branch_id' => null, 'is_active' => true, 'recurring' => false]);
     foreach (['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-14'] as $day) {
         tlRecord($tenant, $employee, $shift, $day, '08:30', '17:30');
     }
@@ -371,5 +372,103 @@ it('reads a period across Pagume and the Ethiopian new year without losing a day
     expect($ledger['days'])->toHaveCount(10)
         ->and($row['check_ok'])->toBeTrue()
         ->and($row['totals']['present_days'])->toBe(5)
-        ->and($row['cells']['2026-09-11']['kind'])->not->toBe(ExpectedDay::NOT_EMPLOYED);
+        ->and($row['cells']['2026-09-11']['code'])->toBe(TimesheetCode::HOLIDAY)
+        ->and($row['cells']['2026-09-10']['kind'])->toBe(ExpectedDay::WORKDAY);
+});
+
+// ── What the review found ──
+
+it('counts the hours of a shift recorded twice once, and still lists both records', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+
+    // A device punch and a phone punch of the same morning, neither voided.
+    $first = tlRecord($tenant, $employee, $shift, '2026-10-13', '08:30', '18:00');
+    $second = tlRecord($tenant, $employee, $shift, '2026-10-13', '08:31', '17:59');
+
+    $row = tlRow(tlLedger($tenant, [$employee], withPay: false), $employee);
+    $cell = $row['cells']['2026-10-13'];
+
+    expect($cell['records'])->toEqualCanonicalizing([$first->public_id, $second->public_id])
+        ->and($cell['worked_minutes'])->toBe(570 - 60) // the longer record: 08:30-18:00 less the break
+        ->and($cell['overtime'])->toBe(['normal' => 30])
+        ->and($row['totals']['present_days'])->toBe(1)
+        ->and($row['check_ok'])->toBeTrue();
+});
+
+it('counts a late day that is also a missing punch as both, and as one present day', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    $record = tlRecord($tenant, $employee, $shift, '2026-10-13', '09:10', '17:30', AttendanceStatus::LATE);
+    $record->update(['metadata' => ['auto_checkout' => true]]);
+
+    $row = tlRow(tlLedger($tenant, [$employee], withPay: false), $employee);
+
+    // One letter in the grid, two flags in the totals: late, early and missing
+    // are reasons about a present day, not a partition of the days.
+    expect($row['cells']['2026-10-13']['code'])->toBe(TimesheetCode::MISSING_PUNCH)
+        ->and($row['totals']['present_days'])->toBe(1)
+        ->and($row['totals']['missing_days'])->toBe(1)
+        ->and($row['totals']['late_days'])->toBe(1)
+        ->and($row['totals']['late_minutes'])->toBe(40);
+});
+
+it('shows the lateness payroll will deduct apart from the lateness observed', function () {
+    ['tenant' => $tenant, 'employee' => $employee] = tlFortnight();
+
+    // An approved lateness correction decided 25 of the 40 observed minutes.
+    AttendanceRecord::query()->where('employee_id', $employee->id)->whereDate('date', '2026-10-13')
+        ->firstOrFail()->update(['metadata' => ['pay_deduct_minutes' => 25, 'lateness_correction_id' => 'corr-1']]);
+
+    $from = Carbon::parse(TL_FROM);
+    $to = Carbon::parse(TL_TO);
+    $rules = app(StatutoryRules::class)->for($tenant, $from);
+    $totals = tlRow(tlLedger($tenant, [$employee], withPay: false), $employee)['totals'];
+
+    expect($totals['late_minutes'])->toBe(40)
+        ->and($totals['lateness_deduct_minutes'])->toBe(25)
+        ->and($totals['lateness_corrections'])->toBe(['corr-1'])
+        ->and($totals['lateness_deduct_minutes'])->toBe(
+            app(PayrollEngine::class)->attendanceFigures($employee, $from, $to, $rules, true)['lateness_minutes'],
+        );
+});
+
+it('fails its check when a total disagrees with the records, so a green row means something', function () {
+    ['tenant' => $tenant, 'employee' => $employee] = tlFortnight();
+    $row = tlRow(tlLedger($tenant, [$employee], withPay: false), $employee);
+    expect($row['check_ok'])->toBeTrue();
+
+    $consistent = new ReflectionMethod(TimesheetLedger::class, 'consistent');
+    $kinds = [];
+    foreach (array_keys($row['cells']) as $day) {
+        $kinds[$day][$employee->id] = $row['cells'][$day]['kind'];
+    }
+    $recordsByDay = AttendanceRecord::query()->with('shift')->where('employee_id', $employee->id)->get()
+        ->groupBy(fn (AttendanceRecord $r): string => $r->date->format('Y-m-d'));
+    $tally = ['buckets' => $row['totals']['overtime']];
+    $ledger = app(TimesheetLedger::class);
+
+    $call = fn (array $totals) => $consistent->invoke($ledger, $row['cells'], $totals, $tally, $kinds, $employee->id, $recordsByDay, []);
+
+    expect($call($row['totals']))->toBeTrue()
+        ->and($call([...$row['totals'], 'present_days' => $row['totals']['present_days'] + 1]))->toBeFalse()
+        ->and($call([...$row['totals'], 'worked_minutes' => $row['totals']['worked_minutes'] + 1]))->toBeFalse()
+        ->and($call([...$row['totals'], 'scheduled_days' => $row['totals']['scheduled_days'] - 1]))->toBeFalse();
+});
+
+it('takes the leave that started first when two requests cover one day', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    $annual = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'annual']);
+    $other = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'study']);
+    tlLeave($tenant, $employee, $other, '2026-10-14', '2026-10-14', 0.5);
+    tlLeave($tenant, $employee, $annual, '2026-10-13', '2026-10-15', 3);
+
+    $cells = tlRow(tlLedger($tenant, [$employee], withPay: false), $employee)['cells'];
+
+    expect($cells['2026-10-13']['code'])->toBe(TimesheetCode::ANNUAL_LEAVE)
+        ->and($cells['2026-10-14']['code'])->toBe(TimesheetCode::ANNUAL_LEAVE);
 });

@@ -1819,6 +1819,20 @@ final class PayrollEngine
             ->whereNotNull('metadata->pay_deduct_minutes')
             ->get(['metadata']);
 
+        return self::decidedLatenessOf($records);
+    }
+
+    /**
+     * The sum behind decidedLateness(), for records already read with that
+     * method's predicate (not voided, `metadata->pay_deduct_minutes` present).
+     * The monthly timesheet reads the whole organisation in one query and sums
+     * each person's with this, so it shows the minutes payroll will deduct.
+     *
+     * @param  Collection<int, AttendanceRecord>  $records
+     * @return array{minutes: int, corrections: list<string>}
+     */
+    public static function decidedLatenessOf(Collection $records): array
+    {
         $minutes = 0;
         $corrections = [];
         foreach ($records as $record) {
