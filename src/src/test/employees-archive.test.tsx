@@ -481,3 +481,54 @@ describe("Restoring from the Archived view", () => {
     expect(sent).toEqual([200, 30]);
   });
 });
+
+describe("Select all matching, on the employees page", () => {
+  it("ends when the search changes, and says nothing about the old filter any more", async () => {
+    window.history.replaceState(null, "", "/employees");
+    const rows = [
+      buildEmployee({ public_id: "E1", name: "Abel Tesfaye" }),
+      buildEmployee({ public_id: "E2", name: "Bete Girma" }),
+    ];
+    server.use(
+      me(["employee.viewAny", "employee.create", "employee.update"]),
+      ...organisation(),
+      http.get("*/api/v1/employees", () =>
+        HttpResponse.json({
+          data: rows,
+          meta: { current_page: 1, last_page: 12, per_page: 2, total: 300 },
+          links: { first: null, last: null, prev: null, next: null },
+        }),
+      ),
+      http.get("*/api/v1/employees/ids", () =>
+        HttpResponse.json({
+          ids: ids(300),
+          total: 300,
+          capped: false,
+          cap: 2000,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(wrap(<EmployeesPage />));
+
+    await screen.findByText("Abel Tesfaye");
+    await user.click(screen.getByRole("checkbox", { name: "Select all rows" }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Select all 300 people matching this filter",
+      }),
+    );
+    expect(await screen.findByText("300 selected")).toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name, email, or code..."),
+      "x",
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText("300 selected")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/matching this filter/i)).toBeNull();
+    expect(screen.queryByText(/\d+ selected/)).toBeNull();
+  });
+});

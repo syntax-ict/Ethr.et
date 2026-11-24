@@ -594,6 +594,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Employees
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/export', [EmployeeBulkController::class, 'export']);
+    Route::get('/employees/ids', [EmployeeBulkController::class, 'ids']);
     Route::get('/employees/next-code', [EmployeeController::class, 'nextCode']);
 
     // Tenant-wide expiring-document watchlist. Declared before the
