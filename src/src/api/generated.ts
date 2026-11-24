@@ -9579,28 +9579,40 @@ export interface components {
         AllowDeviceAddressRequest: {
             ip: string;
         };
+        /**
+         * AnnouncementCategory
+         * @description What a public reader can filter the organisation's news by: a fixed list rather than free text, so the filter is short, translated and the same for every organisation.
+         * @enum {string}
+         */
+        AnnouncementCategory: "news" | "notice" | "event" | "deadline";
+        /**
+         * AnnouncementPriority
+         * @description How much an announcement matters; it decides where a story sorts.
+         * @enum {string}
+         */
+        AnnouncementPriority: "low" | "normal" | "high" | "urgent";
         /** AnnouncementResource */
         AnnouncementResource: {
             public_id: string;
             title: string;
-            body: string;
             excerpt: string;
             category: string | null;
-            priority: string;
-            target_type: string;
-            status: string;
-            /** Format: date-time */
-            published_at: string | null;
-            /** Format: date-time */
-            expires_at: string | null;
-            show_on_landing: boolean;
             featured: boolean;
+            priority: string;
+            published_at: string | null;
             cover: {
                 url: string;
                 srcset: string;
                 width: number;
                 height: number;
             } | null;
+            body: string;
+            body_source: string | null;
+            target_type: string;
+            status: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            show_on_landing: boolean;
             attachments: {
                 id: string;
                 name: string;
@@ -9615,6 +9627,12 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * AnnouncementTarget
+         * @description Who an announcement is addressed to: everyone, or one department or branch.
+         * @enum {string}
+         */
+        AnnouncementTarget: "all" | "department" | "branch";
         /**
          * ApplyConfigurationRequest
          * @description Accepts a (possibly edited) configuration plan for provisioning. Item shapes
@@ -12660,13 +12678,10 @@ export interface components {
         StoreAnnouncementRequest: {
             title: string;
             body: string;
-            /** @enum {string} */
-            priority?: "low" | "normal" | "high" | "urgent";
-            /** @enum {string} */
-            target_type?: "all" | "department" | "branch";
+            priority?: components["schemas"]["AnnouncementPriority"];
+            target_type?: components["schemas"]["AnnouncementTarget"];
             target_id?: string | null;
-            /** @enum {string|null} */
-            category?: "news" | "notice" | "event" | "deadline" | null;
+            category?: components["schemas"]["AnnouncementCategory"] | null;
             publish_now?: boolean;
             /** Format: date-time */
             published_at?: string | null;
@@ -13496,13 +13511,10 @@ export interface components {
         UpdateAnnouncementRequest: {
             title?: string;
             body?: string;
-            /** @enum {string} */
-            priority?: "low" | "normal" | "high" | "urgent";
-            /** @enum {string} */
-            target_type?: "all" | "department" | "branch";
+            priority?: components["schemas"]["AnnouncementPriority"];
+            target_type?: components["schemas"]["AnnouncementTarget"];
             target_id?: string | null;
-            /** @enum {string|null} */
-            category?: "news" | "notice" | "event" | "deadline" | null;
+            category?: components["schemas"]["AnnouncementCategory"] | null;
             /** Format: date-time */
             published_at?: string | null;
             /** Format: date-time */
@@ -27090,7 +27102,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
-                category?: "news" | "notice" | "event" | "deadline" | null;
+                category?: components["schemas"]["AnnouncementCategory"] | null;
                 page?: number | null;
             };
             header?: never;

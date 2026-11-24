@@ -21,4 +21,14 @@ final class PlainExcerpt
 
         return Str::limit($plain, $max);
     }
+
+    /**
+     * The same text on one line, for a meta description: every run of
+     * whitespace, newlines included, becomes one space, and the cut ends in
+     * $end.
+     */
+    public static function line(string $text, int $max, string $end = '...'): string
+    {
+        return Str::limit(trim((string) preg_replace('/\s+/u', ' ', strip_tags($text))), $max, $end);
+    }
 }

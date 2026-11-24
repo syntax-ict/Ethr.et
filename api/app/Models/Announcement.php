@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AnnouncementPriority;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,13 +31,6 @@ use Illuminate\Support\Carbon;
 class Announcement extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId;
-
-    /**
-     * What a public reader can filter the organisation's news by. A fixed list
-     * rather than free text, so the filter is short, translated and the same
-     * for every organisation.
-     */
-    public const CATEGORIES = ['news', 'notice', 'event', 'deadline'];
 
     /** How many stories the public news page lists at a time. */
     public const NEWS_PER_PAGE = 9;
@@ -230,7 +224,7 @@ class Announcement extends Model
 
     /**
      * The order the public news page lists stories in, and the one place it
-     * is written: featured first, then urgent and important, then newest. The
+     * is written: featured first, then urgent, important, normal and low, then newest. The
      * feed, the news list, a story's related stories and the server-rendered
      * head of the news page all read through this, so the list a crawler is
      * given is the list a visitor sees.
@@ -242,9 +236,37 @@ class Announcement extends Model
     {
         return $query
             ->orderByDesc('featured')
-            ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")
+            ->orderByRaw(self::priorityRank())
             ->orderByDesc('published_at')
             ->orderByDesc('id');
+    }
+
+    /**
+     * The order the signed-in list reads in: urgent first, then high, normal
+     * and low, newest within each. The same rank the public order uses.
+     *
+     * @param  Builder<Announcement>  $query
+     * @return Builder<Announcement>
+     */
+    public function scopeReadingOrder(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw(self::priorityRank())
+            ->orderByDesc('published_at');
+    }
+
+    /**
+     * Where a priority sorts, as SQL, 1 first. The one place the rank is
+     * written; a stored value outside the list sorts last.
+     */
+    private static function priorityRank(): string
+    {
+        $when = '';
+        foreach (AnnouncementPriority::cases() as $priority) {
+            $when .= " WHEN '{$priority->value}' THEN {$priority->rank()}";
+        }
+
+        return 'CASE priority'.$when.' ELSE '.(count(AnnouncementPriority::cases()) + 1).' END';
     }
 
     public function publisher(): BelongsTo
@@ -289,6 +311,25 @@ class Announcement extends Model
                     ->where('target_id', $employee->branch_id));
             }
         });
+    }
+
+    /**
+     * What a signed-in reader may open: published, not expired, and addressed
+     * to them. The one definition behind the reading list, the single read and
+     * a document download, so none of them can come to disagree.
+     *
+     * @param  Builder<Announcement>  $query
+     * @return Builder<Announcement>
+     */
+    public function scopeReadableBy(Builder $query, ?User $user): Builder
+    {
+        return $query->published()->notExpired()->visibleTo($user);
+    }
+
+    /** Whether this story is one the reader's list would show them. */
+    public function isReadableBy(?User $user): bool
+    {
+        return self::query()->readableBy($user)->whereKey($this->getKey())->exists();
     }
 
     public function scopeNotExpired($query)

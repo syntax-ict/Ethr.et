@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
-use App\Models\Announcement;
+use App\Enums\AnnouncementCategory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +25,7 @@ class LandingNewsRequest extends FormRequest
     {
         return [
             'q' => ['nullable', 'string', 'max:100'],
-            'category' => ['nullable', 'string', Rule::in(Announcement::CATEGORIES)],
+            'category' => ['nullable', Rule::enum(AnnouncementCategory::class)],
             'page' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ];
     }

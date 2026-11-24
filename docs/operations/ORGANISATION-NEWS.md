@@ -70,6 +70,20 @@ starts with `https://` becomes a link that opens in a new tab with
 `rel="noopener noreferrer nofollow ugc"`. Markup is stripped by the server and
 rendered as text by the page, so nothing in a story can run or style the page.
 
+**One story contract (2026-11-24).** A story is turned into data in one place, `AppSupportStory`
+(`summary()`, `article()`, `body()`), and the public feed, the news list, the public article and the
+signed-in list and reading pane all read it. Every reader gets the same excerpt (280 characters) and a
+body with markup removed. A public card cuts the title at 150 characters; the signed-in list keeps the
+stored title, because the editor saves what it is given. The editor also fills its text box from
+`body_source`, the body as written, which the API sends only to someone who manages announcements, so
+opening a story and saving it changes nothing. The signed-in list is ordered urgent, important, normal,
+low and then newest, and the public order is the same with featured stories first
+(`Announcement::scopeReadingOrder()` and `scopeNewsOrder()`, over one rank). The three closed lists,
+priority, category and audience, are enums (`AppEnumsAnnouncementPriority`, `AnnouncementCategory`,
+`AnnouncementTarget`), and a value outside them is refused with a 422. The public article is cached in
+the browser for two minutes, like the feed and the list, so an unpublished story can stay readable for
+that long to a visitor who had already opened it.
+
 ### One announcement, one presentation
 
 *Added 2026-11-22.* A story is drawn by the same three components wherever it
@@ -203,7 +217,7 @@ their news pages carry no head of their own.
 What the heads carry (2026-11-23). The news page's head lists the first page of
 public stories, nine, as a `CollectionPage` with an `ItemList`, in the order the
 page itself shows them (`Announcement::scopeNewsOrder()`, one definition for the
-page, the feed and this head), and a `BreadcrumbList` from the organisation's
+page, the feed and this head, ranking low priority after normal), and a `BreadcrumbList` from the organisation's
 home to News. An organisation with no stories has the breadcrumb and no list.
 An article's head carries `article:modified_time`, the story's text as
 `articleBody`, the organisation as `author`, a breadcrumb of three steps, and

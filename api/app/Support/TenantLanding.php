@@ -168,6 +168,16 @@ final class TenantLanding
     }
 
     /**
+     * Whether the organisation's public website shows its news: its own choice,
+     * less the platform's switch. The one place the question is asked, for the
+     * feed, the news list, an article, the page head, a document and the sitemap.
+     */
+    public static function showsNews(Tenant $tenant): bool
+    {
+        return self::publicSections($tenant)['announcements'];
+    }
+
+    /**
      * The sections the organisation shows that the platform has switched off,
      * so a page can say "temporarily unavailable" instead of looking missing
      * (owner decision D7).
