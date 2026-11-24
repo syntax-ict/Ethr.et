@@ -216,6 +216,30 @@ describe("<DevicesPage> register dialog", () => {
       within(dialog).getByRole("button", { name: /^register$/i }),
     ).toBeEnabled();
   });
+  it("offers no Auto-Sync switch once the ZKTeco ADMS adapter is chosen", async () => {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    renderPage();
+
+    await userEvent.click(
+      (await screen.findAllByRole("button", { name: /add device/i }))[0],
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("switch", { name: /auto-sync/i }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      within(dialog).getByRole("combobox", { name: /adapter|device type/i }),
+    );
+    await userEvent.click(
+      await screen.findByRole("option", { name: /ZKTeco \(ADMS/ }),
+    );
+
+    expect(
+      within(dialog).queryByRole("switch", { name: /auto-sync/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens by itself when the address ends in #add, as the health dashboard's button sends it", async () => {
     serve([], [{ public_id: "B1", name: "Head office" }]);
     window.location.hash = "#add";
