@@ -360,11 +360,11 @@ describe('a new login', function () {
         ];
 
         $this->postJson('/api/v1/employees', $body('a@acme.test', 'EMP-9001'))->assertCreated();
-        $this->postJson('/api/v1/employees', $body('b@acme.test', 'EMP-9002') + ['user_role' => 'employee'])->assertCreated();
+        $this->postJson('/api/v1/employees', $body('b@acme.test', 'EMP-9002') + ['user_role' => 'dept_admin'])->assertCreated();
 
         $a = User::where('email', 'a@acme.test')->first();
         $b = User::where('email', 'b@acme.test')->first();
         expect($a->role)->toBe(UserRole::SUPERVISOR)->and($a->role_follows_position)->toBeTrue()
-            ->and($b->role)->toBe(UserRole::EMPLOYEE)->and($b->role_follows_position)->toBeFalse();
+            ->and($b->role)->toBe(UserRole::DEPT_ADMIN)->and($b->role_follows_position)->toBeFalse();
     });
 });

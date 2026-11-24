@@ -147,7 +147,7 @@ class UserProvisioningService
         }
 
         $actor = PositionAccess::currentActor();
-        if ($actor === null && $invitedBy !== null) {
+        if ($actor === null && $invitedBy !== null && ! PositionAccess::isIntegration()) {
             $actor = User::query()->find($invitedBy);
         }
 

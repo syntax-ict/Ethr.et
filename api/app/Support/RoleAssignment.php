@@ -61,7 +61,7 @@ final class RoleAssignment
     /**
      * Whether $actor may give $target the role $to by hand, which is exactly
      * what `PATCH /users/{user}` with `role` allows: not their own account,
-     * not the organisation owner's, not someone who outranks them, not a peer
+     * not the organisation owner's, not someone without `users.update`, not someone who outranks them, not a peer
      * at their own level below the organisation admin, and only a role
      * `refusal()` lets them hand out. A job-title change asks this too, so it
      * does automatically only what the person could have done by hand.
@@ -73,6 +73,12 @@ final class RoleAssignment
         }
 
         if (OrganisationOwnership::owns($target, app(CurrentTenant::class)->get())) {
+            return false;
+        }
+
+        // The Users page needs users.update, so a title change made by someone
+        // without it (a custom role that may edit employees, say) gives no role.
+        if (! $actor->hasPermission('users.update')) {
             return false;
         }
 

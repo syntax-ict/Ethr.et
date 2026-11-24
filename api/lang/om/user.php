@@ -45,5 +45,6 @@ return [
         'mfa_not_enabled' => 'Fayyadamaan kun mirkaneessa tarkaanfii lamaa hin banne.',
         'title_access_needs_users' => 'Seensa maqaan hojii kennu jijjiiruuf hayyama fayyadamtoota bulchuu qabaachuu qabdu.',
         'title_access_held' => 'Gahee kana kennuu hin dandeessan; kanaaf herregni akkuma ture hafe.',
+        'own_access_follows_title' => 'Hayyamni keessan gita hojii keessan hordofa. Bulchaa dhaabbata keessanii akka jijjiiru gaafadhaa.',
     ],
 ];

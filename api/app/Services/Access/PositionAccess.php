@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Access;
 
 use App\Enums\UserRole;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Position;
@@ -109,6 +110,15 @@ final class PositionAccess
     }
 
     /**
+     * Whether the request being served is an API key's. The key signs its
+     * creator in, but an integration is not a person at the Users page.
+     */
+    public static function isIntegration(): bool
+    {
+        return request()->attributes->has(AuthenticateApiKey::ATTRIBUTE);
+    }
+
+    /**
      * The signed-in person, or nobody. Inside a queue drain or the scheduler
      * the signed-in person is whoever happened to load a page that ran the
      * work after the response, and the job may be another organisation's, so
@@ -116,7 +126,7 @@ final class PositionAccess
      */
     public static function currentActor(): ?User
     {
-        if (BackgroundWork::active()) {
+        if (BackgroundWork::active() || self::isIntegration()) {
             return null;
         }
 

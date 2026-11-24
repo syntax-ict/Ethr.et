@@ -60,20 +60,32 @@ class UpdateUserRequest extends FormRequest
             // the organisation admin's: an HR admin could lock a Finance admin
             // out, which `users.delete` (tenant admins only) was meant to keep
             // from them. Seniors are refused by UserController (403).
-            // Turning "follows the job title" on may move the role, so it is
-            // checked as a role change; with it on, a role in the same payload
-            // is ignored.
-            $followsOn = $target instanceof User && $this->boolean('role_follows_position')
-                && $this->has('role_follows_position');
+            // Switching "follows the job title" either way is a role change:
+            // on may move the role, off pins it. With it on, a role in the
+            // same payload is ignored.
+            $hasFlag = $target instanceof User && $this->has('role_follows_position');
+            $followsOn = $hasFlag && $this->boolean('role_follows_position');
+            $changesFlag = $hasFlag && $this->boolean('role_follows_position') !== $target->role_follows_position;
             $changesRole = $target instanceof User && ! $followsOn && $this->has('role')
                 && $this->input('role') !== $target->role->value;
-            $movesRole = $changesRole || ($followsOn && ! $target->role_follows_position);
+            $movesRole = $changesRole || $changesFlag;
             $changesStatus = $target instanceof User && $this->has('status')
                 && $this->input('status') !== $target->status;
             // A custom role replaces its holder's permissions, so giving a peer
             // a narrow one locks them out as surely as a status change does.
             $changesCustomRole = $target instanceof User && $this->has('custom_role_id')
                 && $this->input('custom_role_id') !== $target->customRole?->public_id;
+
+            // Your own access follows your job title, and only the
+            // organisation admin may pin it: otherwise an HR admin could keep
+            // a role after losing the title that gave it.
+            if ($target instanceof User && $actor !== null && $target->id === $actor->id
+                && ! $actor->isSuperAdmin() && $actor->role->level() < UserRole::TENANT_ADMIN->level()
+                && ($changesFlag || ($changesRole && $target->role_follows_position))) {
+                $v->errors()->add($changesFlag ? 'role_follows_position' : 'role', __('user.errors.own_access_follows_title'));
+
+                return;
+            }
 
             // The owner stays an active administrator until ownership is
             // handed on: ETHR's support calls them, and only they may give

@@ -10,6 +10,12 @@ use App\Support\RoleAssignment;
 // Users page. RoleAssignment::mayChange is that question asked in one place;
 // this proves it answers what PATCH /users/{user} with `role` actually allows,
 // for every actor, target and new role, so the two cannot drift apart.
+//
+// The PATCH route also needs `users.update` (a permission, not a rule about two
+// roles), and mayChange asks for it too: the table's expectation is mayChange
+// alone, so an actor without the permission must be refused by both. Actors
+// are the built-in roles; a custom role without the permission is covered in
+// JobTitleAccessAuthorityTest.
 
 it('answers exactly what PATCH /users/{user} with a role allows', function () {
     $tenant = createTenant();
@@ -31,7 +37,7 @@ it('answers exactly what PATCH /users/{user} with a role allows', function () {
                 }
 
                 $target = User::factory()->create(['tenant_id' => $tenant->id, 'role' => $targetRole]);
-                $expected = RoleAssignment::mayChange($actor, $target, $to) && $actor->hasPermission('users.update');
+                $expected = RoleAssignment::mayChange($actor, $target, $to);
                 $status = $this->patchJson('/api/v1/users/'.$target->public_id, ['role' => $to->value])->status();
                 $checked++;
 
