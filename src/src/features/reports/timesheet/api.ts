@@ -150,20 +150,25 @@ export async function downloadTimesheetPdf(
     });
     saveBlob(`timesheet-${period.from}.pdf`, data);
   } catch (error) {
-    const body = (error as { response?: { data?: unknown } }).response?.data;
-    if (body instanceof Blob) {
+    // The message is the API's own sentence for a refusal that says how to
+    // put it right (a list too long for one sheet is a 422). Anything else, a
+    // 500, a busy host, a network failure, is empty, and the screen says it
+    // in the reader's language instead of axios's English.
+    const response = (
+      error as { response?: { status?: number; data?: unknown } }
+    ).response;
+    let message = "";
+    if (response?.status === 422 && response.data instanceof Blob) {
       try {
-        const parsed = JSON.parse(await body.text()) as {
-          detail?: string;
+        const parsed = JSON.parse(await response.data.text()) as {
           errors?: Record<string, string[]>;
         };
-        const first = Object.values(parsed.errors ?? {})[0]?.[0];
-        throw new Error(first ?? parsed.detail ?? "");
-      } catch (inner) {
-        if (inner instanceof Error && inner.message) throw inner;
+        message = Object.values(parsed.errors ?? {})[0]?.[0] ?? "";
+      } catch {
+        message = "";
       }
     }
-    throw error;
+    throw new Error(message);
   }
 }
 

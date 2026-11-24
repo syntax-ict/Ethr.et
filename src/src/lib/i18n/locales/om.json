@@ -5550,6 +5550,8 @@
   "reports_page.timesheet.grand_total": "Waliigala guutuu",
   "reports_page.timesheet.legend": "Koodiiwwan",
   "reports_page.timesheet.download_csv": "CSV buufadhu",
+  "reports_page.timesheet.download_csv_page": "Fuula kana akka CSV buufadhu",
+  "reports_page.timesheet.first_page": "Gara fuula jalqabaatti deebi'i",
   "reports_page.timesheet.download_pdf": "PDF buufadhu",
   "reports_page.timesheet.pdf_failed": "PDF qopheessuun hin danda'amne. Irra deebi'ii yaali ykn damee filadhu.",
   "reports_page.timesheet.rules": "Akkamitti akka lakkaa'ame",

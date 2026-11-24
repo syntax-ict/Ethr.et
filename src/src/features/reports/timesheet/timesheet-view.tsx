@@ -121,6 +121,7 @@ export function TimesheetView() {
               data={sheet.data}
               filters={filters}
               period={period}
+              stale={sheet.isPlaceholderData}
             />
             <PrintAction />
           </>
@@ -175,12 +176,26 @@ export function TimesheetView() {
         }
         isEmpty={(data) => data.data.length === 0}
         empty={
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            {t(
-              "reports_page.timesheet.empty",
-              "No one has a day on the timesheet for this month and these filters.",
-            )}
-          </p>
+          <div className="space-y-3 py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "reports_page.timesheet.empty",
+                "No one has a day on the timesheet for this month and these filters.",
+              )}
+            </p>
+            {filters.page > 1 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ page: 1 })}
+              >
+                {t(
+                  "reports_page.timesheet.first_page",
+                  "Back to the first page",
+                )}
+              </Button>
+            ) : null}
+          </div>
         }
       >
         {(data) => (
@@ -809,10 +824,36 @@ export function timesheetCsv(data: Timesheet, t: T, locale: string): string {
       row.cells.map((cell) => [cell.date, cell.short ?? ""]),
     ),
     ...Object.fromEntries(
-      [...SUMMARY_FIELDS, ...MINUTE_FIELDS, ...HOUR_FIELDS].map((key) => [
-        reportFieldLabel(t, key),
+      [
+        ...SUMMARY_FIELDS,
+        ...(data.with_pay ? (["payable_days"] as const) : []),
+        ...MINUTE_FIELDS,
+        ...HOUR_FIELDS,
+      ].map((key) => [
+        key === "payable_days"
+          ? t("reports_page.timesheet.payable_days", "Payable days")
+          : reportFieldLabel(t, key),
         figure(row.totals, key),
       ]),
+    ),
+    // One column for each overtime rate, as the sheet has them.
+    ...Object.fromEntries(
+      data.rate_columns.map((rate, index) => [
+        t("reports_page.timesheet.overtime_rate", "Overtime ×:rate", {
+          rate: rate.rate,
+        }),
+        String(
+          (row.totals.overtime_by_rate as number[] | undefined)?.[index] ?? 0,
+        ),
+      ]),
+    ),
+    [reportFieldLabel(t, "overtime_unapproved_hours")]: figure(
+      row.totals,
+      "overtime_unapproved_hours",
+    ),
+    [reportFieldLabel(t, "overtime_limit_days")]: figure(
+      row.totals,
+      "overtime_limit_days",
     ),
   }));
   return buildCsv(rows);
@@ -822,10 +863,13 @@ export function TimesheetDownload({
   data,
   filters,
   period,
+  stale = false,
 }: {
   data: Timesheet | undefined;
   filters: TimesheetFilters;
   period: { from: string; to: string };
+  /** The rows are the previous filter's while the new ones load. */
+  stale?: boolean;
 }) {
   const { t, locale } = useT();
   const [busy, setBusy] = useState(false);
@@ -834,6 +878,8 @@ export function TimesheetDownload({
     [data, t, locale],
   );
   if (!data || data.data.length === 0) return null;
+  // A CSV is the rows on screen: say so when they are one page of several.
+  const onePage = data.meta.last_page <= 1;
 
   async function pdf() {
     setBusy(true);
@@ -862,12 +908,21 @@ export function TimesheetDownload({
       <Button
         variant="outline"
         size="sm"
+        disabled={stale}
         onClick={() =>
-          saveCsv(`timesheet-${data?.period?.from ?? "month"}.csv`, body)
+          saveCsv(
+            `timesheet-${data?.period?.from ?? "month"}${onePage ? "" : `-page-${data.meta.current_page}`}.csv`,
+            body,
+          )
         }
       >
         <Download className="mr-2 h-4 w-4" aria-hidden />
-        {t("reports_page.timesheet.download_csv", "Download CSV")}
+        {onePage
+          ? t("reports_page.timesheet.download_csv", "Download CSV")
+          : t(
+              "reports_page.timesheet.download_csv_page",
+              "Download this page as CSV",
+            )}
       </Button>
     </>
   );

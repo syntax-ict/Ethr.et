@@ -475,4 +475,71 @@ describe("Monthly timesheet screen", () => {
     );
     expect(saved.blob).not.toHaveBeenCalled();
   });
+
+  it("says the PDF could not be made in the reader's language, not axios's English", async () => {
+    serve(sheet());
+    server.use(
+      http.get("*/api/v1/reports/timesheet/pdf", () =>
+        HttpResponse.json(
+          { type: "server_error", status: 500 },
+          { status: 500 },
+        ),
+      ),
+    );
+    toasts.error.mockClear();
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "The PDF could not be made. Try again, or choose a department.",
+      ),
+    );
+  });
+
+  it("says a CSV is one page when there are several, and carries every column of the sheet", async () => {
+    serve(
+      sheet({
+        meta: { current_page: 2, last_page: 3, per_page: 25, total: 60 },
+        with_pay: true,
+        data: [{ ...sheet().data[0], totals: { ...TOTALS, payable_days: 3 } }],
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&page=2",
+    );
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    expect(
+      screen.getByRole("button", { name: "Download this page as CSV" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download CSV" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers a way back when the page asked for is past the last", async () => {
+    serve(
+      sheet({
+        data: [],
+        meta: { current_page: 9, last_page: 1, per_page: 25, total: 1 },
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&page=9",
+    );
+    render(<TimesheetView />, { wrapper: Wrap });
+
+    expect(
+      await screen.findByRole("button", { name: "Back to the first page" }),
+    ).toBeInTheDocument();
+  });
 });

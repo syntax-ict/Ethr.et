@@ -130,3 +130,44 @@ describe("apiClient and a host that is out of workers", () => {
     expect(hits).toBe(1);
   });
 });
+
+describe("apiClient and a file download on a busy host", () => {
+  // A download asks for a Blob, and a Blob's own `type` is its MIME type. That
+  // is not a problem+json type, so a busy host's HTML page is still congestion.
+  it("sends a read for a file again when the host turned it away", async () => {
+    server.use(
+      http.get("*/api/v1/busy-file", () => {
+        hits += 1;
+        return hits === 1
+          ? busyPage()
+          : new HttpResponse("%PDF-1.4", {
+              headers: { "Content-Type": "application/pdf" },
+            });
+      }),
+    );
+
+    const response = await apiClient.get("/busy-file", {
+      responseType: "blob",
+    });
+
+    expect(response.status).toBe(200);
+    expect(hits).toBe(2);
+  });
+
+  it("still takes a deliberate answer for a file as an answer", async () => {
+    server.use(
+      http.get("*/api/v1/refused-file", () => {
+        hits += 1;
+        return HttpResponse.json(
+          { type: "service_unavailable", status: 503 },
+          { status: 503 },
+        );
+      }),
+    );
+
+    await expect(
+      apiClient.get("/refused-file", { responseType: "blob" }),
+    ).rejects.toBeTruthy();
+    expect(hits).toBe(1);
+  });
+});

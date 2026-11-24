@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Report\TimesheetPdf;
 use App\Support\ReaderDates;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /*
  * The monthly timesheet on A4 landscape. "Now" is Friday 2026-10-23 in Addis
@@ -197,4 +198,26 @@ test('the signatures partial prints its lines and the stamp box, and the payroll
         ->and($html)->not->toContain('class="stamp"');
 
     expect(view('pdf.partials.signatures', ['labels' => ['A'], 'stamp' => 'Stamp'])->render())->toContain('class="stamp"');
+});
+
+test('a list too long for a sheet is refused before the grid is built, not after', function () {
+    ['tenant' => $tenant] = tpTenant();
+    Employee::factory()->count(TimesheetPdf::MAX_PEOPLE)->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    DB::enableQueryLog();
+    test()->getJson(tpUrl($tenant))->assertStatus(422);
+    $queries = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    // Building the grid for 51 people is hundreds of queries; counting them is a handful.
+    expect($queries)->toBeLessThan(60);
+});
+
+test('payable days sit after the early-leave days, where the screen has them', function () {
+    ['tenant' => $tenant] = tpTenant();
+
+    $keys = array_column(tpData($tenant, 'en', 'gregorian', true)['columns'], 'key');
+
+    expect($keys[array_search('early_days', $keys, true) + 1])->toBe('payable_days');
 });

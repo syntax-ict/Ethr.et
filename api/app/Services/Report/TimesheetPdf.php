@@ -14,6 +14,7 @@ use App\Services\Calendar\EthiopianCalendar;
 use App\Support\Letterhead;
 use App\Support\PdfPages;
 use App\Support\ReaderDates;
+use App\Support\TenantTime;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
@@ -88,13 +89,24 @@ final class TimesheetPdf
      */
     public function data(Tenant $tenant, User $viewer, array $filters, ReaderDates $reader, bool $withPay): array
     {
-        $grid = $this->report->grid($tenant, $viewer, $filters, 1, self::MAX_PEOPLE, $withPay);
         $locale = $reader->locale;
+        $tooMany = fn (): ValidationException => ValidationException::withMessages([
+            'department' => (string) __('report.timesheet.too_many_for_pdf', ['max' => self::MAX_PEOPLE], $locale),
+        ]);
 
+        // Refuse before the work: counting the people costs a query, and the grid
+        // behind the sheet costs a ledger pass over everyone up to the screen's
+        // own limit. A shift filter is decided inside the grid, so it is checked
+        // after, as well.
+        $span = $this->report->span($filters, Carbon::parse(TenantTime::today($tenant)->format('Y-m-d')), TimesheetReport::MAX_DAYS);
+        if ($span !== null && empty($filters['shift'])
+            && $this->report->employees($tenant->id, $filters, $viewer, $span[0], $span[1])->count() > self::MAX_PEOPLE) {
+            throw $tooMany();
+        }
+
+        $grid = $this->report->grid($tenant, $viewer, $filters, 1, self::MAX_PEOPLE, $withPay);
         if (($grid['total'] ?? 0) > self::MAX_PEOPLE) {
-            throw ValidationException::withMessages([
-                'department' => (string) __('report.timesheet.too_many_for_pdf', ['max' => self::MAX_PEOPLE], $locale),
-            ]);
+            throw $tooMany();
         }
 
         $t = fn (string $key, array $replace = []): string => (string) __('report.timesheet.'.$key, $replace, $locale);
@@ -107,7 +119,8 @@ final class TimesheetPdf
 
         $columns = array_map(fn (string $key): array => ['key' => $key, 'label' => self::label($key, $locale)], self::SUMMARY);
         if ($withPay) {
-            array_splice($columns, 7, 0, [['key' => 'payable_days', 'label' => $t('payable_days')]]);
+            // After the early-leave days, where the screen has it.
+            array_splice($columns, array_search('early_days', self::SUMMARY, true) + 1, 0, [['key' => 'payable_days', 'label' => $t('payable_days')]]);
         }
         $rates = $grid['rate_columns'] ?? [];
         foreach ($rates as $rate) {
