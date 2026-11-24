@@ -85,6 +85,7 @@ return array(
     'App\\Enums\\DisciplinarySanctionType' => $baseDir . '/app/Enums/DisciplinarySanctionType.php',
     'App\\Enums\\EducationLevel' => $baseDir . '/app/Enums/EducationLevel.php',
     'App\\Enums\\EmployeeStatus' => $baseDir . '/app/Enums/EmployeeStatus.php',
+    'App\\Enums\\EmploymentFramework' => $baseDir . '/app/Enums/EmploymentFramework.php',
     'App\\Enums\\ExpectedDay' => $baseDir . '/app/Enums/ExpectedDay.php',
     'App\\Enums\\Feature' => $baseDir . '/app/Enums/Feature.php',
     'App\\Enums\\FeatureKind' => $baseDir . '/app/Enums/FeatureKind.php',

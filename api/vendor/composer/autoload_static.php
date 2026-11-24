@@ -819,6 +819,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Enums\\DisciplinarySanctionType' => __DIR__ . '/../..' . '/app/Enums/DisciplinarySanctionType.php',
         'App\\Enums\\EducationLevel' => __DIR__ . '/../..' . '/app/Enums/EducationLevel.php',
         'App\\Enums\\EmployeeStatus' => __DIR__ . '/../..' . '/app/Enums/EmployeeStatus.php',
+        'App\\Enums\\EmploymentFramework' => __DIR__ . '/../..' . '/app/Enums/EmploymentFramework.php',
         'App\\Enums\\ExpectedDay' => __DIR__ . '/../..' . '/app/Enums/ExpectedDay.php',
         'App\\Enums\\Feature' => __DIR__ . '/../..' . '/app/Enums/Feature.php',
         'App\\Enums\\FeatureKind' => __DIR__ . '/../..' . '/app/Enums/FeatureKind.php',
