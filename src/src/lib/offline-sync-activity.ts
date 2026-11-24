@@ -3,6 +3,13 @@
 import { useSyncExternalStore } from "react";
 
 /**
+ * Why work is still on the phone after a run, where the cause is one a person
+ * can be told in a line. A cause that is the record's own (it waits for its
+ * owner, the session ended) is left out: "waiting" is all there is to say.
+ */
+export type SyncFailure = "unreachable" | "server" | "busy" | "off";
+
+/**
  * What this page is sending to the server right now, and what it last sent.
  *
  * Punches and field visits saved on the phone are sent from any page by
@@ -21,6 +28,10 @@ export interface SyncActivity {
   sendingVisits: number;
   /** The last runs that sent something, until the banner has shown it. */
   lastSent: { punches: number; visits: number; at: number } | null;
+  /** Why the last punch run left punches behind; null when it did not, or cannot say. */
+  punchesWaitingBecause: SyncFailure | null;
+  /** The same for visits. */
+  visitsWaitingBecause: SyncFailure | null;
 }
 
 /** How long "sent" is worth saying; a later run inside it adds to the same line. */
@@ -30,6 +41,8 @@ const IDLE: SyncActivity = {
   sendingPunches: 0,
   sendingVisits: 0,
   lastSent: null,
+  punchesWaitingBecause: null,
+  visitsWaitingBecause: null,
 };
 
 let state: SyncActivity = IDLE;
@@ -52,12 +65,20 @@ export function syncStarted(kind: Kind, count: number) {
   );
 }
 
-/** The run that called syncStarted is over; `sent` is how many the server took. */
-export function syncFinished(kind: Kind, sent: number) {
+/**
+ * The run that called syncStarted is over; `sent` is how many the server took,
+ * and `failure` why the rest are still here, when that can be said. Each run
+ * replaces the last run's reason, so one that goes through clears it.
+ */
+export function syncFinished(
+  kind: Kind,
+  sent: number,
+  failure: SyncFailure | null = null,
+) {
   const cleared: SyncActivity =
     kind === "punches"
-      ? { ...state, sendingPunches: 0 }
-      : { ...state, sendingVisits: 0 };
+      ? { ...state, sendingPunches: 0, punchesWaitingBecause: failure }
+      : { ...state, sendingVisits: 0, visitsWaitingBecause: failure };
   if (sent <= 0) {
     set(cleared);
     return;
