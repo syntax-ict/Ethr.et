@@ -14,10 +14,7 @@ use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeReportingNodeResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\AuditLog;
-use App\Models\Branch;
-use App\Models\Department;
 use App\Models\Employee;
-use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
@@ -29,7 +26,7 @@ use App\Services\Identity\IntakeResult;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
-use App\Support\EmployeeGaps;
+use App\Support\EmployeeListFilters;
 use App\Support\EmployeeRelations;
 use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
@@ -83,55 +80,27 @@ class EmployeeController extends Controller
 
         $request->user()->scopeAccessibleEmployees($query);
 
-        if ($request->filled('search')) {
-            $query->search($request->input('search'));
-        }
-
-        // The archived people, and only them. Seeing who was archived is the
-        // permission to archive and restore them, not the permission to list.
-        if ($request->boolean('filter.archived')) {
-            Gate::authorize('employee.delete');
-            $query->onlyTrashed();
-        }
-
-        if ($request->has('filter.status')) {
-            $query->where('status', $request->input('filter.status'));
-        }
-
-        // The "check nationality" list: employees the 2026-10-14 backfill
-        // mapped to foreign from a free-text value nobody has confirmed.
-        if ($request->boolean('filter.nationality_needs_review')) {
-            $query->where('nationality_needs_review', true);
-        }
+        $search = $request->input('search');
+        $status = $request->input('filter.status');
 
         // The "records to fix" list a Next Steps row opens. It is the set the
         // row counted, through EmployeeGaps.
         // Pay data needs the permission that edits pay data, so the list
         // cannot be used to learn who has no TIN or bank account.
         $missing = $request->input('filter.missing');
-        EmployeeGaps::restrict($query, $missing);
+
+        // The list's narrowing is shared with the ids endpoint
+        // (EmployeeListFilters); the values are read here, where the contract
+        // is derived from.
+        EmployeeListFilters::apply($query, $request, [
+            'search' => $search,
+            'status' => $status,
+            'missing' => $missing,
+            'department_id' => $request->input('filter.department_id'),
+            'branch_id' => $request->input('filter.branch_id'),
+            'position_id' => $request->input('filter.position_id'),
+        ]);
         EmployeeSignIn::withState($query);
-
-        if ($request->has('filter.department_id')) {
-            $dept = Department::where('public_id', $request->input('filter.department_id'))->first();
-            if ($dept) {
-                $query->where('department_id', $dept->id);
-            }
-        }
-
-        if ($request->has('filter.branch_id')) {
-            $branch = Branch::where('public_id', $request->input('filter.branch_id'))->first();
-            if ($branch) {
-                $query->where('branch_id', $branch->id);
-            }
-        }
-
-        if ($request->has('filter.position_id')) {
-            $position = Position::where('public_id', $request->input('filter.position_id'))->first();
-            if ($position) {
-                $query->where('position_id', $position->id);
-            }
-        }
 
         $sortField = $request->input('sort', 'name');
         $sortDir = str_starts_with($sortField, '-') ? 'desc' : 'asc';

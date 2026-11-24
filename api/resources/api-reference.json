@@ -16561,8 +16561,8 @@
                     "employees"
                 ],
                 "operationId": "employeeBulk.bulkUpdate",
-                "description": "The selection is all or nothing: an id outside the requester's org scope\nrefuses the whole request with 422 before anything is written, with the\nmessage an id that exists nowhere gets. The changes are per employee: a\nstatus change goes through the same transition rules as\n`POST /employees/{employee}/transition`, and `results` reports each id as\n`updated`, `unchanged` (already in that status) or `failed`, with the\nreason. One refused transition does not stop the others.",
-                "summary": "Move employees to a department or branch, or change their status",
+                "description": "The selection is all or nothing: an id outside the requester's org scope\nrefuses the whole request with 422 before anything is written, with the\nmessage an id that exists nowhere gets. The changes are per employee: a\nstatus change goes through the same transition rules as\n`POST /employees/{employee}/transition`, the job fields go through the\nsame `EmployeeUpdater` as `PUT /employees/{employee}` (so a job title\nmoves the account's access by the same rule, limited to what the person\nmaking the change could do by hand), and `results` reports each id as\n`updated`, `unchanged` (already as asked) or `failed`, with the reason.\nA supervisor who is the person themselves, or who would make a loop, is\na `failed` for that person only. `access_held` says the person's login\nfollows its job title and could not be moved to the new title's role by\nthe person making the change, so it waits on the Users page. One refused\nchange does not stop the others.",
+                "summary": "Move employees to a department or branch, set their job title, team,\ncost centre or supervisor, or change their status",
                 "tags": [
                     "Employees"
                 ],
@@ -16600,24 +16600,35 @@
                                                             "employee_id": {
                                                                 "type": "string"
                                                             },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
                                                             "outcome": {
                                                                 "type": "string",
                                                                 "const": "updated"
                                                             },
                                                             "error": {
                                                                 "type": "null"
+                                                            },
+                                                            "access_held": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "employee_id",
+                                                            "name",
                                                             "outcome",
-                                                            "error"
+                                                            "error",
+                                                            "access_held"
                                                         ]
                                                     },
                                                     {
                                                         "type": "object",
                                                         "properties": {
                                                             "employee_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
                                                                 "type": "string"
                                                             },
                                                             "outcome": {
@@ -16626,12 +16637,17 @@
                                                             },
                                                             "error": {
                                                                 "type": "string"
+                                                            },
+                                                            "access_held": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "employee_id",
+                                                            "name",
                                                             "outcome",
-                                                            "error"
+                                                            "error",
+                                                            "access_held"
                                                         ]
                                                     },
                                                     {
@@ -16640,18 +16656,26 @@
                                                             "employee_id": {
                                                                 "type": "string"
                                                             },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
                                                             "outcome": {
                                                                 "type": "string",
                                                                 "const": "unchanged"
                                                             },
                                                             "error": {
                                                                 "type": "null"
+                                                            },
+                                                            "access_held": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
                                                             "employee_id",
+                                                            "name",
                                                             "outcome",
-                                                            "error"
+                                                            "error",
+                                                            "access_held"
                                                         ]
                                                     }
                                                 ]
@@ -17083,6 +17107,152 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/employees/ids": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "employees"
+                ],
+                "operationId": "employeeBulk.ids",
+                "description": "For \"select all matching this filter\". A read only: nothing is changed by\nfilter. The screen sends these ids to the bulk endpoints, which check each\nperson against the requester's reach again.\n\nTakes the list's own `search` and `filter[...]` parameters, through the\nsame code (`EmployeeListFilters`) and the same org scope as\n`GET /employees`. At most 2,000 ids come back; `total` is the full count\nand `capped` is true when `ids` holds fewer than `total`.",
+                "summary": "The public ids of everyone the employees list matches",
+                "tags": [
+                    "Employees"
+                ],
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "filter[status]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 32
+                        }
+                    },
+                    {
+                        "name": "filter[archived]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "filter[nationality_needs_review]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "filter[missing]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 32
+                        }
+                    },
+                    {
+                        "name": "filter[department_id]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 26
+                        }
+                    },
+                    {
+                        "name": "filter[branch_id]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 26
+                        }
+                    },
+                    {
+                        "name": "filter[position_id]",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 26
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "ids": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "capped": {
+                                            "type": "boolean"
+                                        },
+                                        "cap": {
+                                            "type": "integer",
+                                            "const": 2000
+                                        }
+                                    },
+                                    "required": [
+                                        "ids",
+                                        "total",
+                                        "capped",
+                                        "cap"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -50536,6 +50706,30 @@
                         ]
                     },
                     "branch_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "position_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "team_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cost_center_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "supervisor_id": {
                         "type": [
                             "string",
                             "null"
