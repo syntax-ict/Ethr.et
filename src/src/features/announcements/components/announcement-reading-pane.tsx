@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "sonner";
 import { ArticleView } from "@/features/news/components/article-view";
 import { downloadAnnouncementFile, useAnnouncement } from "../api";
-import { articleOf } from "../article";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
@@ -112,7 +111,9 @@ export function AnnouncementReadingPane({
                 // Featured means "first on the organisation's public
                 // website". It is the publishing desk's business, not a
                 // reader's, and the dashboard card already withholds it.
-                article={{ ...articleOf(announcement), featured: false }}
+                article={{ ...announcement, featured: false }}
+                // The sheet's own title is the h2; the page has the h1.
+                headingLevel={3}
                 onDownload={(file) =>
                   downloadAnnouncementFile(announcement.public_id, file).catch(
                     () =>

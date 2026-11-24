@@ -41,7 +41,7 @@ import {
   type NewsCategory,
 } from "@/features/auth/landing-feed";
 import type { NewsCoverImage } from "@/features/news/components/news-card";
-import { fileSize } from "@/features/news/news-format";
+import { fileSize, withoutMarkup } from "@/features/news/news-format";
 import {
   ANNOUNCEMENT_PRIORITIES,
   useAnnouncementCategoryLabel,
@@ -854,7 +854,9 @@ export function AnnouncementEditor({
             ? {
                 public_id: "preview",
                 title: form.title || t("announcements.untitled", "Untitled"),
-                body: form.body,
+                // What a reader will get: the server removes markup from a
+                // body, so the preview does the same to the typed text.
+                body: withoutMarkup(form.body),
                 category: form.category === "none" ? null : form.category,
                 featured: form.showOnLanding && form.featured,
                 priority: form.priority,
