@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Organization;
 
+use App\Http\Requests\Organization\Concerns\ValidatesPositionAccess;
+use App\Services\Access\PositionAccess;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePositionRequest extends FormRequest
 {
+    use ValidatesPositionAccess;
+
     public function authorize(): bool
     {
         return true;
@@ -22,6 +27,7 @@ class StorePositionRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],
+            'access_role' => ['sometimes', 'nullable', 'string', Rule::in(PositionAccess::MAPPABLE)],
         ];
     }
 }

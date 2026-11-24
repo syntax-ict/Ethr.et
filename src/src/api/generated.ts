@@ -9143,6 +9143,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user}/title-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring an account's role to the one its job title gives, now, as the
+         *     signed-in person. Refused with 422 when they may not give that role
+         */
+        post: operations["user.titleAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}/mfa/reset": {
         parameters: {
             query?: never;
@@ -11944,6 +11964,7 @@ export interface components {
             code: string | null;
             description: string | null;
             is_active: boolean;
+            access_role: string | null;
             employees_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -13225,6 +13246,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** StoreProfileEmergencyContactRequest */
         StoreProfileEmergencyContactRequest: {
@@ -14124,6 +14147,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** UpdatePreferencesRequest */
         UpdatePreferencesRequest: {
@@ -14355,6 +14380,7 @@ export interface components {
             /** @description Unique per tenant, ignoring this user's own row so a no-op save passes. */
             username?: string | null;
             role?: components["schemas"]["UserRole"];
+            role_follows_position?: boolean;
             /** @enum {string} */
             status?: "active" | "inactive" | "suspended";
             custom_role_id?: string | null;
@@ -14473,6 +14499,8 @@ export interface components {
             username: string | null;
             phone: string | null;
             role: components["schemas"]["UserRole"];
+            role_follows_position: boolean;
+            title_role: string | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -40258,6 +40286,54 @@ export interface operations {
                         status: 422;
                         /** @constant */
                         detail: "This user is not pending activation.";
+                    };
+                };
+            };
+        };
+    };
+    "user.titleAccess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "You may not give that role, so the account was left as it was.";
                     };
                 };
             };
