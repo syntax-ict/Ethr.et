@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Info } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,13 @@ export function EmploymentLawField({
   const { t } = useT();
   const updateOrganization = useUpdateOrganization();
   const { announceSaved, announceError } = useSaveStatus();
+  // What was just chosen, shown until the refetch settles so the select does
+  // not snap back to its placeholder between the save and the new data. It
+  // belongs to the state it was chosen against: once the data changes it no
+  // longer applies.
+  const stateKey = `${state?.framework ?? ""}|${state?.source ?? ""}`;
+  const [pick, setPick] = useState<{ value: string; key: string } | null>(null);
+  const chosen = pick !== null && pick.key === stateKey ? pick.value : null;
 
   if (!state) return null;
 
@@ -63,6 +71,7 @@ export function EmploymentLawField({
           announceSaved(savedMessage);
         },
         onError: (err) => {
+          setPick(null);
           const fallback = t(
             "settings.employment_law_save_failed",
             "Could not record the employment law",
@@ -124,6 +133,17 @@ export function EmploymentLawField({
           )}
         </p>
       )}
+      {own &&
+        state.ethr_reading !== null &&
+        state.ethr_reading !== state.framework && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t(
+              "settings.employment_law_ethr_differs",
+              "ETHR reads :framework for this kind of organisation.",
+              { framework: employmentFrameworkLabel(t, state.ethr_reading) },
+            )}
+          </p>
+        )}
       {state.framework !== null && !state.has_statutory_rules && (
         <p role="status" className="mt-1 text-xs text-muted-foreground">
           {t(
@@ -135,13 +155,14 @@ export function EmploymentLawField({
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Select
-          value={own ? (state.framework ?? "") : ""}
-          onValueChange={(value) =>
+          value={chosen ?? (own ? (state.framework ?? "") : "")}
+          onValueChange={(value) => {
+            setPick({ value, key: stateKey });
             send(
               value,
               t("settings.employment_law_saved", "Employment law recorded"),
-            )
-          }
+            );
+          }}
           disabled={updateOrganization.isPending}
         >
           <SelectTrigger

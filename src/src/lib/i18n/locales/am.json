@@ -6114,6 +6114,7 @@
   "settings.employment_law_choose": "ሠራተኞችዎን የሚመራውን ሕግ ይምረጡ",
   "settings.employment_law_none": "ለዚህ የድርጅት ዓይነት የተመዘገበ የሥራ ሕግ የለም። ETHR ከመገመት ይልቅ ይጠይቃል።",
   "settings.employment_law_ethr_reading": "ይህ ETHR ለድርጅትዎ ዓይነት ያነበበው ነው። ጠበቃ ገና አላረጋገጠውም።",
+  "settings.employment_law_ethr_differs": "ETHR ለዚህ የድርጅት ዓይነት :framework ብሎ ያነባል።",
   "settings.employment_law_own": "በድርጅትዎ የተመዘገበ።",
   "settings.employment_law_reference": "የሕግ ማጣቀሻ፦ :reference",
   "settings.employment_law_no_rules": "ETHR ለዚህ ሕግ ገና ደንብ የለውም፣ ስለዚህ ምንም አይተገብርም።",

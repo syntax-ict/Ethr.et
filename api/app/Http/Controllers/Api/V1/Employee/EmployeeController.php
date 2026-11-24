@@ -192,6 +192,8 @@ class EmployeeController extends Controller
         unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
         $data = FrameworkExemption::normalise($data, false);
+        $data['outside_employment_framework'] ??= false;
+        $data['employment_framework_note'] ??= null;
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
         // Unset means the column default, Ethiopian — never a null.

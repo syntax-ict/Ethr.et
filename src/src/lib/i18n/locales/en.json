@@ -6114,6 +6114,7 @@
   "settings.employment_law_choose": "Choose the law that governs your staff",
   "settings.employment_law_none": "No employment law is on file for this kind of organisation. ETHR will ask rather than assume.",
   "settings.employment_law_ethr_reading": "This is ETHR's reading for your kind of organisation. A lawyer has not confirmed it yet.",
+  "settings.employment_law_ethr_differs": "ETHR reads :framework for this kind of organisation.",
   "settings.employment_law_own": "Recorded by your organisation.",
   "settings.employment_law_reference": "Legal reference: :reference",
   "settings.employment_law_no_rules": "ETHR has no rules for this law yet, so it will apply none.",

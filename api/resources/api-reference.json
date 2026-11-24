@@ -51594,8 +51594,6 @@
                     "probation_end_date",
                     "confirmation_date",
                     "termination_date",
-                    "outside_employment_framework",
-                    "employment_framework_note",
                     "photo_path",
                     "photo_url",
                     "photo_thumb_url",

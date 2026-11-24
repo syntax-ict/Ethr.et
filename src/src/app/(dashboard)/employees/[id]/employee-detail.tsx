@@ -133,6 +133,9 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const { data: costCenters } = costCentersApi.useList();
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [editAddress, setEditAddress] = useState<AddressFields>(EMPTY_ADDRESS);
+  // Present only for someone who may update the employee (the server leaves
+  // both fields out for everyone else, and for a record loaded in part).
+  const frameworkVisible = employee?.outside_employment_framework !== undefined;
   const [editOutside, setEditOutside] = useState(false);
   const [editFrameworkNote, setEditFrameworkNote] = useState("");
   const formatAddress = useFormatAddress();
@@ -163,15 +166,29 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
     setTab("info");
   }
 
+  // The fields come only to someone who may update the employee, and are sent
+  // only when they changed: a support session is refused the whole request
+  // that names them, so an operator fixing a phone number must not carry them.
+  function exemptionChanges() {
+    if (!employee || !frameworkVisible) return {};
+    const note = editOutside ? editFrameworkNote.trim() || null : null;
+    const changed =
+      editOutside !== (employee.outside_employment_framework === true) ||
+      note !== (employee.employment_framework_note ?? null);
+    return changed
+      ? {
+          outside_employment_framework: editOutside,
+          employment_framework_note: note,
+        }
+      : {};
+  }
+
   function handleSave() {
     updateEmployee.mutate(
       {
         ...editForm,
         ...addressToPayload(editAddress),
-        outside_employment_framework: editOutside,
-        employment_framework_note: editOutside
-          ? editFrameworkNote.trim() || null
-          : null,
+        ...exemptionChanges(),
       },
       {
         onSuccess: () => {
@@ -467,13 +484,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         setEditForm((p) => ({ ...p, cost_center_id: v }))
                       }
                     />
-                    <FrameworkExceptionField
-                      idPrefix="edit"
-                      outside={editOutside}
-                      note={editFrameworkNote}
-                      onOutsideChange={setEditOutside}
-                      onNoteChange={setEditFrameworkNote}
-                    />
+                    {frameworkVisible && (
+                      <FrameworkExceptionField
+                        idPrefix="edit"
+                        outside={editOutside}
+                        note={editFrameworkNote}
+                        onOutsideChange={setEditOutside}
+                        onNoteChange={setEditFrameworkNote}
+                      />
+                    )}
                   </>
                 ) : (
                   <>

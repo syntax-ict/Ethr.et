@@ -6114,6 +6114,7 @@
   "settings.employment_law_choose": "Seera hojjettoota keessan bulchu filadhaa",
   "settings.employment_law_none": "Gosa dhaabbata kanaaf seerri hojii galmaa'e hin jiru. ETHR tilmaamuu irra gaafata.",
   "settings.employment_law_ethr_reading": "Kun hubannoo ETHR gosa dhaabbata keessaniif qabuudha. Abukaatoon ammaaf hin mirkaneessine.",
+  "settings.employment_law_ethr_differs": "ETHR gosa dhaabbata kanaaf :framework jedhee hubata.",
   "settings.employment_law_own": "Dhaabbata keessaniin galmaa'e.",
   "settings.employment_law_reference": "Wabii seeraa: :reference",
   "settings.employment_law_no_rules": "ETHR seera kanaaf ammaaf seerota hin qabu, kanaaf tokko illee hin raawwatu.",

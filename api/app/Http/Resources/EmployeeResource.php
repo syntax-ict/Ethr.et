@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\NationalityStatus;
+use App\Enums\OrgScope;
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
 use App\Models\Employee;
 use App\Services\Attendance\AttendancePolicy;
@@ -29,6 +30,8 @@ class EmployeeResource extends JsonResource
         $showPay = $viewer !== null
             && ($viewer->hasPermission('employee.viewFinancial')
                 || ($viewer->employee_id !== null && (int) $viewer->employee_id === (int) $this->id));
+
+        $mayUpdate = $this->viewerMayUpdate($viewer);
 
         $signIn = array_key_exists('sign_in_status', $this->resource->getAttributes())
             ? EmployeeSignIn::of(
@@ -68,8 +71,8 @@ class EmployeeResource extends JsonResource
             'probation_end_date' => $this->probation_end_date?->format('Y-m-d'),
             'confirmation_date' => $this->confirmation_date?->format('Y-m-d'),
             'termination_date' => $this->termination_date?->format('Y-m-d'),
-            'outside_employment_framework' => (bool) $this->outside_employment_framework,
-            'employment_framework_note' => $this->employment_framework_note,
+            'outside_employment_framework' => $this->when($mayUpdate, fn () => $this->whenHas('outside_employment_framework')),
+            'employment_framework_note' => $this->when($mayUpdate, fn () => $this->whenHas('employment_framework_note')),
             'salary_cents' => $this->when($showPay, fn () => $this->whenHas('salary_cents')),
             'sign_in' => $this->when($signIn !== null, $signIn),
             'photo_path' => $photoPath,
@@ -89,5 +92,35 @@ class EmployeeResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * Whether the viewer may update this employee: the permission, and reach
+     * over the person. Whether someone is outside the organisation's
+     * employment law is a legal characterisation of them, so it is shown only
+     * to those who maintain the record, as sensitive document types are. This
+     * resource is embedded in leave, attendance and payroll entries, many of
+     * which load a few columns; reach is judged only from columns that were
+     * loaded, and a viewer who is not an all-organisation role is refused when
+     * they were not.
+     */
+    private function viewerMayUpdate(mixed $viewer): bool
+    {
+        if ($viewer === null || ! $viewer->hasPermission('employee.update')) {
+            return false;
+        }
+
+        if ($viewer->orgScope() === OrgScope::ALL) {
+            return true;
+        }
+
+        $loaded = $this->resource->getAttributes();
+        foreach (['id', 'branch_id', 'department_id', 'team_id', 'supervisor_id'] as $column) {
+            if (! array_key_exists($column, $loaded)) {
+                return false;
+            }
+        }
+
+        return $viewer->canAccessEmployee($this->resource);
     }
 }

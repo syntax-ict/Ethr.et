@@ -292,9 +292,9 @@ class SettingsController extends Controller
             $chosen = $validated['employment_framework'];
 
             if ($chosen === null) {
-                $frameworks->resetOwn($tenant, $request->user()?->id);
+                $frameworks->resetOwn($tenant);
             } elseif (is_string($chosen)) {
-                $frameworks->setOwn($tenant, EmploymentFramework::from($chosen), $request->user()?->id);
+                $frameworks->setOwn($tenant, EmploymentFramework::from($chosen));
             }
         }
 

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
 use App\Http\Controllers\Api\V1\Employee\BankDetailController;
+use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Onboarding\ConfigurationController;
 use App\Http\Controllers\Api\V1\Onboarding\MigrationController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
@@ -85,6 +86,8 @@ class BlockImpersonatedActions
                 static fn (string $key): string => 'settings.'.$key,
                 array_values(StatutorySettingsBridge::SETTINGS),
             ),
+            EmployeeController::class.'@store' => ['outside_employment_framework', 'employment_framework_note'],
+            EmployeeController::class.'@update' => ['outside_employment_framework', 'employment_framework_note'],
             ProfileController::class.'@update' => ['bank_name', 'bank_account_number'],
             // The setup wizard's apply writes the same two things by another
             // route: the kind, and plan.settings, which is held to what

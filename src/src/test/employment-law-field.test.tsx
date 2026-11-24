@@ -79,6 +79,59 @@ describe("<EmploymentLawField>", () => {
     expect(body).toEqual({ employment_framework: null });
   });
 
+  it("says what ETHR reads when the organisation's own choice differs", () => {
+    renderField({
+      framework: "unspecified",
+      confirmed: true,
+      source: "organisation",
+      legal_reference: null,
+      has_statutory_rules: false,
+      ethr_reading: "labour_proclamation",
+    } as EmploymentFrameworkState);
+
+    expect(
+      screen.getByText(
+        "ETHR reads Labour Proclamation for this kind of organisation.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("says nothing of ETHR's reading when the organisation's own choice matches it", () => {
+    renderField({
+      framework: "labour_proclamation",
+      confirmed: true,
+      source: "organisation",
+      legal_reference: "Proclamation 1156/2019, Art. 3",
+      has_statutory_rules: true,
+      ethr_reading: "labour_proclamation",
+    } as EmploymentFrameworkState);
+
+    expect(screen.queryByText(/ETHR reads/)).toBeNull();
+  });
+
+  it("keeps the chosen value in the select while the save is in flight", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.put("*/settings/organization", async () => {
+        await gate;
+        return HttpResponse.json({ message: "Organization updated" });
+      }),
+    );
+
+    renderField(ETHR_READING);
+
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Federal civil service law" }),
+    );
+
+    expect(screen.getByRole("combobox")).toHaveTextContent(
+      "Federal civil service law",
+    );
+    release();
+  });
+
   it("says no employment law is on file, and that ETHR will ask", () => {
     renderField({
       framework: null,

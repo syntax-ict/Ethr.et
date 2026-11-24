@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 use App\Enums\EmploymentFramework;
 use App\Enums\UserRole;
+use App\Http\Resources\EmployeeResource;
+use App\Http\Resources\LeaveRequestResource;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\Tenant;
-use App\Services\CurrentTenant;
 use App\Services\Employment\EmploymentFrameworks;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /*
  * How an organisation sees and corrects the employment framework ETHR read for
@@ -29,6 +34,12 @@ function fwOwnRows(Tenant $tenant)
 function fwAudit(Tenant $tenant, string $action): int
 {
     return DB::table('audit_log')->where('tenant_id', $tenant->id)->where('action', $action)->count();
+}
+
+function fwFresh(): void
+{
+    app()->forgetScopedInstances();
+    app('auth')->forgetGuards();
 }
 
 function fwAdmin(string $kind = 'private'): Tenant
@@ -226,25 +237,47 @@ describe('PUT /settings/organization employment_framework', function () {
     });
 
     it('does not let another organisation read or change it', function () {
-        $a = createTenant(['organization_type' => 'private']);
-        $b = createTenant(['organization_type' => 'private']);
-        actingAsUser(['role' => UserRole::TENANT_ADMIN], $b);
+        config(['app.domain' => 'ethr.et']);
+        $a = createTenant(['organization_type' => 'private', 'subdomain' => 'orga']);
+        $adminA = createUser(['role' => UserRole::TENANT_ADMIN], $a);
+        $tokenA = $adminA->createToken('auth', ['*'])->plainTextToken;
+        $b = createTenant(['organization_type' => 'private', 'subdomain' => 'orgb']);
+        $adminB = createUser(['role' => UserRole::TENANT_ADMIN], $b);
+        $tokenB = $adminB->createToken('auth', ['*'])->plainTextToken;
+        $hostA = 'http://orga.ethr.et/api/v1/';
+        $hostB = 'http://orgb.ethr.et/api/v1/';
 
-        $this->putJson(fwUrl($b, 'settings/organization'), ['employment_framework' => 'unspecified'])->assertOk();
+        $this->withToken($tokenA)->putJson($hostA.'settings/organization', ['employment_framework' => 'federal_civil_service'])->assertOk();
+        $aRows = fwOwnRows($a)->map(fn ($r) => (array) $r)->all();
+        expect($aRows)->toHaveCount(1);
 
-        expect(fwOwnRows($a))->toHaveCount(0)
+        fwFresh();
+        $this->withToken($tokenB)->putJson($hostB.'settings/organization', ['employment_framework' => 'unspecified'])->assertOk();
+        fwFresh();
+        $this->withToken($tokenB)->putJson($hostB.'settings/organization', ['employment_framework' => null])->assertOk();
+        fwFresh();
+        $this->withToken($tokenB)->putJson($hostB.'settings/organization', ['employment_framework' => 'regional_civil_service'])->assertOk();
+
+        expect(fwOwnRows($a)->map(fn ($r) => (array) $r)->all())->toEqual($aRows)
             ->and(fwOwnRows($b))->toHaveCount(1);
 
-        app(CurrentTenant::class)->set($a);
-        $adminA = createUser(['role' => UserRole::TENANT_ADMIN], $a);
-        $this->actingAs($adminA);
-        app()->forgetScopedInstances();
-        app(CurrentTenant::class)->set($a);
-
-        $this->getJson(fwUrl($a))
+        fwFresh();
+        $this->withToken($tokenA)->getJson($hostA.'settings')
             ->assertOk()
-            ->assertJsonPath('organization.employment_framework.source', 'ethr')
-            ->assertJsonPath('organization.employment_framework.framework', 'labour_proclamation');
+            ->assertJsonPath('organization.employment_framework.framework', 'federal_civil_service')
+            ->assertJsonPath('organization.employment_framework.source', 'organisation');
+
+        // B's signed-in user, sent to A's host, is refused and changes nothing.
+        fwFresh();
+        $this->withToken($tokenB)->getJson($hostA.'settings')
+            ->assertForbidden()
+            ->assertJsonPath('type', 'https://ethr.et/errors/tenant-mismatch');
+        fwFresh();
+        $this->withToken($tokenB)->putJson($hostA.'settings/organization', ['employment_framework' => null])
+            ->assertForbidden()
+            ->assertJsonPath('type', 'https://ethr.et/errors/tenant-mismatch');
+
+        expect(fwOwnRows($a)->map(fn ($r) => (array) $r)->all())->toEqual($aRows);
     });
 
     it('never puts an employment rule in payroll\'s rule set', function () {
@@ -263,12 +296,112 @@ describe('PUT /settings/organization employment_framework', function () {
 
     it('describes the same answer the service gives', function () {
         $tenant = fwAdmin('government');
+        $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'unspecified'])->assertOk();
 
-        $described = app(EmploymentFrameworks::class)->describe($tenant, Carbon::today());
+        $service = app(EmploymentFrameworks::class)->describe($tenant, Carbon::today());
 
-        expect($described['framework'])->toBe('federal_civil_service')
-            ->and($described['source'])->toBe('ethr')
-            ->and($described['has_statutory_rules'])->toBeTrue();
+        expect($this->getJson(fwUrl($tenant))->json('organization.employment_framework'))->toBe($service)
+            ->and($service['framework'])->toBe('unspecified')
+            ->and($service['ethr_reading'])->toBe('federal_civil_service');
+    });
+
+    it('keeps the citation when the organisation confirms ETHR\'s own reading', function () {
+        $tenant = fwAdmin('private');
+        $before = $this->getJson(fwUrl($tenant))->json('organization.employment_framework');
+
+        $after = $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'labour_proclamation'])
+            ->assertOk()->json('organization.employment_framework');
+
+        expect($before['legal_reference'])->not->toBeNull()
+            ->and($after['source'])->toBe('organisation')
+            ->and($after['legal_reference'])->toBe($before['legal_reference']);
+
+        $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'unspecified'])
+            ->assertJsonPath('organization.employment_framework.legal_reference', null);
+    });
+
+    it('starts the row on the organisation\'s own date, and edits it in place the same local day', function () {
+        $tenant = fwAdmin('private');
+        $url = fwUrl($tenant, 'settings/organization');
+
+        // 01:30 in Addis Ababa on 5 June is 22:30 UTC on 4 June.
+        $this->travelTo(Carbon::parse('2026-06-04 22:30:00', 'UTC'));
+        $this->putJson($url, ['employment_framework' => 'unspecified'])->assertOk();
+
+        expect(substr((string) fwOwnRows($tenant)->sole()->effective_from, 0, 10))->toBe('2026-06-05');
+
+        $this->travelTo(Carbon::parse('2026-06-05 09:00:00', 'UTC'));
+        $this->putJson($url, ['employment_framework' => 'federal_civil_service'])->assertOk();
+
+        $row = fwOwnRows($tenant)->sole();
+        expect(json_decode($row->value))->toBe('federal_civil_service')
+            ->and(substr((string) $row->effective_from, 0, 10))->toBe('2026-06-05');
+    });
+
+    it('sets again after a reset on the same day', function () {
+        $tenant = fwAdmin('private');
+        $url = fwUrl($tenant, 'settings/organization');
+
+        $this->putJson($url, ['employment_framework' => 'unspecified'])->assertOk();
+        $this->putJson($url, ['employment_framework' => null])->assertOk();
+        expect(fwOwnRows($tenant))->toHaveCount(0);
+
+        $this->putJson($url, ['employment_framework' => 'federal_civil_service'])->assertOk()
+            ->assertJsonPath('organization.employment_framework.framework', 'federal_civil_service');
+
+        expect(fwOwnRows($tenant))->toHaveCount(1);
+    });
+
+    it('leaves none in force when a reset finds two own rows already open', function () {
+        $tenant = fwAdmin('private');
+        foreach (['unspecified', 'federal_civil_service'] as $i => $value) {
+            DB::table('statutory_parameters')->insert([
+                'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'organization_type' => null,
+                'code' => 'employment.framework', 'domain' => 'employment', 'value' => json_encode($value),
+                'tenant_overridable' => true, 'enforcement' => 'advisory', 'confirmed' => true,
+                'effective_from' => '2026-01-0'.($i + 1), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        app(StatutoryRules::class)->forget();
+
+        $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => null])->assertOk()
+            ->assertJsonPath('organization.employment_framework.source', 'ethr');
+
+        $open = fwOwnRows($tenant)->filter(fn ($r) => $r->effective_to === null || substr((string) $r->effective_to, 0, 10) >= Carbon::today()->toDateString());
+        expect($open)->toHaveCount(0);
+    });
+
+    it('collapses two open own rows into one when a value is set', function () {
+        $tenant = fwAdmin('private');
+        foreach (['unspecified', 'federal_civil_service'] as $i => $value) {
+            DB::table('statutory_parameters')->insert([
+                'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'organization_type' => null,
+                'code' => 'employment.framework', 'domain' => 'employment', 'value' => json_encode($value),
+                'tenant_overridable' => true, 'enforcement' => 'advisory', 'confirmed' => true,
+                'effective_from' => '2026-01-0'.($i + 1), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        app(StatutoryRules::class)->forget();
+
+        $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'regional_civil_service'])->assertOk();
+
+        $open = fwOwnRows($tenant)->filter(fn ($r) => $r->effective_to === null);
+        expect($open)->toHaveCount(1)
+            ->and(json_decode($open->first()->value))->toBe('regional_civil_service');
+    });
+
+    it('refuses to record its own where ETHR holds the rule locked', function () {
+        $tenant = fwAdmin('private');
+        DB::table('statutory_parameters')->where('code', 'employment.framework')->whereNull('tenant_id')->where('organization_type', 'private')
+            ->update(['enforcement' => 'locked']);
+        app(StatutoryRules::class)->forget();
+
+        $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'unspecified'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('employment_framework');
+
+        expect(fwOwnRows($tenant))->toHaveCount(0)
+            ->and(fwAudit($tenant, 'statutory_parameter.overridden'))->toBe(0);
     });
 });
 
@@ -305,7 +438,13 @@ describe('the employee outside the framework', function () {
             ->assertJsonPath('outside_employment_framework', false)
             ->assertJsonPath('employment_framework_note', null);
 
-        $this->assertDatabaseHas('audit_log', ['action' => 'employee.updated']);
+        $payloads = DB::table('audit_log')->where('action', 'employee.updated')->orderBy('id')->pluck('payload')->map(fn ($p) => json_decode((string) $p, true))->all();
+        expect($payloads)->not->toBeEmpty();
+        $changes = array_values(array_filter($payloads, fn ($p) => ($p['after']['outside_employment_framework'] ?? null) === false));
+        expect($changes)->toHaveCount(1)
+            ->and($changes[0]['before']['outside_employment_framework'])->toBeTrue()
+            ->and($changes[0]['before']['employment_framework_note'])->toBe('Executive')
+            ->and($changes[0]['after']['employment_framework_note'])->toBeNull();
     });
 
     it('stores no note for an employee created without the flag', function () {
@@ -367,5 +506,76 @@ describe('the employee outside the framework', function () {
         $this->putJson("/api/v1/employees/{$employee->public_id}", ['outside_employment_framework' => true])->assertForbidden();
 
         expect($employee->fresh()->outside_employment_framework)->toBeFalse();
+    });
+});
+
+describe('who sees an employee outside the framework', function () {
+    it('shows it to someone who may update the employee, and to nobody who may only view', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create([
+            'tenant_id' => $tenant->id, 'outside_employment_framework' => true, 'employment_framework_note' => 'General manager',
+        ]);
+
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $this->getJson("/api/v1/employees/{$employee->public_id}")->assertOk()
+            ->assertJsonPath('outside_employment_framework', true)
+            ->assertJsonPath('employment_framework_note', 'General manager');
+
+        $lead = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $employee->update(['supervisor_id' => $lead->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $lead->id], $tenant);
+        $this->getJson("/api/v1/employees/{$employee->public_id}")->assertOk()
+            ->assertJsonMissingPath('outside_employment_framework')
+            ->assertJsonMissingPath('employment_framework_note')
+            ->assertJsonPath('public_id', $employee->public_id);
+    });
+
+    it('hides it inside an embedded employee, and shows it to HR', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'outside_employment_framework' => true, 'employment_framework_note' => 'Special law']);
+        $type = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+        $leave = LeaveRequest::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'leave_type_id' => $type->id]);
+        $leave->load('employee');
+
+        $render = function ($user) use ($leave): array {
+            // Nested resources read the application's own request, as they do over HTTP.
+            $request = request();
+            $request->setUserResolver(fn () => $user);
+
+            return json_decode((new LeaveRequestResource($leave))->toResponse($request)->getContent(), true)['employee'];
+        };
+
+        $supervisor = createUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        expect($render($supervisor))->not->toHaveKey('outside_employment_framework')->not->toHaveKey('employment_framework_note')
+            ->and($render($hr))->toMatchArray(['outside_employment_framework' => true, 'employment_framework_note' => 'Special law']);
+    });
+
+    it('does not report false for an employee loaded without the column', function () {
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'outside_employment_framework' => true]);
+        $hr = createUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $partial = Employee::query()->select('id', 'tenant_id', 'public_id', 'name')->findOrFail($employee->id);
+        $request = Request::create('/');
+        $request->setUserResolver(fn () => $hr);
+
+        expect((new EmployeeResource($partial))->resolve($request))
+            ->not->toHaveKey('outside_employment_framework')
+            ->not->toHaveKey('employment_framework_note');
+    });
+
+    it('reads the flag from the database when forEmployee gets a partly loaded employee', function () {
+        $tenant = createTenant(['organization_type' => 'private']);
+        $outside = Employee::factory()->create(['tenant_id' => $tenant->id, 'outside_employment_framework' => true]);
+        $covered = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $frameworks = app(EmploymentFrameworks::class);
+
+        $partialOutside = Employee::query()->select('id', 'tenant_id')->findOrFail($outside->id);
+        $partialCovered = Employee::query()->select('id', 'tenant_id')->findOrFail($covered->id);
+
+        expect($frameworks->forEmployee($partialOutside, Carbon::today()))->toBeNull()
+            ->and($frameworks->forEmployee($partialCovered, Carbon::today()))->toBe(EmploymentFramework::LABOUR_PROCLAMATION);
     });
 });

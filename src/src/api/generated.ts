@@ -10715,8 +10715,8 @@ export interface components {
             probation_end_date: string | null;
             confirmation_date: string | null;
             termination_date: string | null;
-            outside_employment_framework: boolean;
-            employment_framework_note: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number;
             /** @enum {string|null} */
             sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;

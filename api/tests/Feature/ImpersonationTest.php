@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\TenantProfileAssignment;
 use App\Models\User;
@@ -409,6 +410,29 @@ test('an impersonated session cannot set or reset the employment framework', fun
 
     expect(DB::table('statutory_parameters')->where('tenant_id', $tenant->id)->where('code', 'employment.framework')->get())->toEqual($rows);
 })->with(['a value' => ['labour_proclamation'], 'a reset' => [null]]);
+
+test('an impersonated session cannot set the employment framework exemption on an employee', function (string $verb, array $body) {
+    [$tenant, $impersonation] = kindFixture();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $before = DB::table('employees')->where('id', $employee->id)->first();
+
+    $path = $verb === 'post' ? 'employees' : "employees/{$employee->public_id}";
+    $payload = $verb === 'post' ? ['name' => 'New Person', 'hire_date' => '2026-01-05', ...$body] : $body;
+
+    freshBearer($impersonation);
+    $response = $verb === 'post' ? test()->postJson(kindUrl($tenant, $path), $payload) : test()->putJson(kindUrl($tenant, $path), $payload);
+    $response->assertForbidden()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+    expect(DB::table('employees')->where('id', $employee->id)->first())->toEqual($before)
+        ->and(DB::table('employees')->where('tenant_id', $tenant->id)->where('name', 'New Person')->count())->toBe(0);
+})->with([
+    'update with the flag' => ['put', ['outside_employment_framework' => true]],
+    'update turning it off' => ['put', ['outside_employment_framework' => false]],
+    'update with only a note' => ['put', ['employment_framework_note' => 'x']],
+    'create with the flag' => ['post', ['outside_employment_framework' => true]],
+]);
 
 test('an impersonated session can still correct the name, timezone and language', function () {
     [$tenant, $impersonation] = kindFixture();
