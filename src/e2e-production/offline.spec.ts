@@ -56,6 +56,37 @@ async function firstVisit(page: Page, path = "/en") {
     .toBe(true);
 }
 
+/** Every /_next/static file this page loaded is in the worker's cache. */
+async function workerHoldsWhatThePageLoaded(page: Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const loaded = new Set(
+            performance
+              .getEntriesByType("resource")
+              .map((entry) => new URL(entry.name, location.origin))
+              .filter(
+                (url) =>
+                  url.origin === location.origin &&
+                  url.pathname.startsWith("/_next/static/"),
+              )
+              .map((url) => url.pathname),
+          );
+          let missing = 0;
+          for (const path of loaded) {
+            if (!(await caches.match(path))) missing++;
+          }
+          return missing;
+        }),
+      {
+        message: "the worker keeps what a first visit had loaded",
+        timeout: 30_000,
+      },
+    )
+    .toBe(0);
+}
+
 async function goOffline(context: BrowserContext, page: Page) {
   await context.setOffline(true);
   await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
@@ -119,13 +150,14 @@ test.describe("offline shell, signed out", () => {
       async ({ context, page }) => {
         await speak(context, locale);
         await firstVisit(page, `/${locale}`);
-        // Once more with the worker in charge. On a first visit the page's
-        // files arrive before the worker controls it, so the Afaan Oromoo
-        // dictionary (a chunk of its own; English is the built-in text and
-        // Amharic is inlined) is not kept yet, and the offline page came up
-        // in English (measured 2026-11-24). The case is about an installed
-        // app, which has been opened before.
-        await page.reload({ waitUntil: "load" });
+        // One visit, no second load. The page's files arrive before the
+        // worker controls a first visit, and the Afaan Oromoo dictionary is a
+        // chunk of its own that no stored page names (English is the built-in
+        // text, Amharic is inlined), so until 2026-11-24 the offline page came
+        // up in English here. The page now tells the worker what it had
+        // loaded (KEEP_ASSETS) and the worker keeps it; wait for that, then
+        // cut the network.
+        await workerHoldsWhatThePageLoaded(page);
         await goOffline(context, page);
 
         await page.goto(`/never-visited-${Date.now()}`, {
