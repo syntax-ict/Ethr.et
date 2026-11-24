@@ -73,7 +73,7 @@ final class ReportEngine
         ],
         'timesheet' => [
             'label' => 'Monthly timesheet',
-            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'holiday_days', 'worked_hours', 'overtime_hours'],
+            'fields' => ['employee_name', 'employee_code', 'department', 'branch', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'holiday_days', 'worked_hours', 'overtime_hours', 'rest_days', 'missing_days', 'early_days', 'late_minutes', 'early_minutes', 'lateness_deduct_minutes', 'scheduled_hours', 'short_hours', 'overtime_normal_hours', 'overtime_night_hours', 'overtime_rest_day_hours', 'overtime_holiday_hours', 'overtime_holiday_night_hours', 'overtime_unapproved_hours', 'overtime_limit_days'],
             'filters' => ['period', 'from', 'to', 'department', 'branch'],
         ],
         'absences' => [
@@ -475,9 +475,11 @@ final class ReportEngine
 
     /**
      * One row per employee for a month: workdays, days present, late, absent,
-     * on leave and on holiday, with hours worked and overtime. Days are
-     * classified by ExpectedDays, the rule the absences source, the dashboards
-     * and the payroll run use, so the totals agree with them.
+     * on leave and on holiday, with the hours worked and scheduled, overtime
+     * by rate, and the late and early minutes. Every figure is the
+     * TimesheetLedger's, which reads the functions payroll reads (ExpectedDays,
+     * the engine that rated each punch, the overtime payroll pays, the same
+     * absence guard), so the report cannot show a number payroll will not pay.
      *
      * `from` and `to` choose the days, at most TIMESHEET_MAX_DAYS of them, so
      * the month can be a Gregorian one or an Ethiopian one (Tikimt runs from
@@ -488,121 +490,56 @@ final class ReportEngine
      * recorded no attendance in the span is not using attendance, so its
      * absent days are 0 rather than every workday, as on the payroll run.
      *
+     * The pay-moving figures (payable days, unpaid leave) are read one person
+     * at a time and are on the grid, not here.
+     *
      * @param  array<string, mixed>  $filters
      * @return list<array<string, mixed>>
      */
     private function queryTimesheet(int $tenantId, array $filters, User $viewer): array
     {
-        $yesterday = Carbon::parse(TenantTime::today(Tenant::query()->find($tenantId))->subDay()->format('Y-m-d'));
-        if (! empty($filters['from'])) {
-            $from = Carbon::parse((string) $filters['from'])->startOfDay();
-            $to = empty($filters['to']) ? $from->copy()->addDays(self::TIMESHEET_MAX_DAYS - 1) : Carbon::parse((string) $filters['to'])->startOfDay();
-            if ($from->diffInDays($to) >= self::TIMESHEET_MAX_DAYS) {
-                $to = $from->copy()->addDays(self::TIMESHEET_MAX_DAYS - 1);
-            }
-        } else {
-            $month = is_string($filters['month'] ?? null) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $filters['month']) === 1
-                ? Carbon::parse($filters['month'].'-01')
-                : $yesterday->copy()->startOfMonth();
-            $from = $month->copy()->startOfMonth();
-            $to = $month->copy()->endOfMonth()->startOfDay();
-        }
-        if ($to->greaterThan($yesterday)) {
-            $to = $yesterday->copy();
-        }
-        if ($from->greaterThan($to)) {
+        $tenant = Tenant::query()->find($tenantId);
+        $report = app(TimesheetReport::class);
+        $yesterday = Carbon::parse(TenantTime::today($tenant)->subDay()->format('Y-m-d'));
+
+        $span = $report->span($filters, $yesterday, self::TIMESHEET_MAX_DAYS, $yesterday);
+        if ($span === null || $tenant === null) {
             return [];
         }
+        [$from, $to] = $span;
         $this->period = ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')];
 
-        $employeeQuery = Employee::query()->where('tenant_id', $tenantId);
-        $this->filterUnits($employeeQuery, $filters);
-        $viewer->scopeAccessibleEmployees($employeeQuery);
-        $employees = $employeeQuery->with(['department:id,name', 'branch:id,name'])->orderBy('name')->get();
-        if ($employees->isEmpty()) {
-            return [];
-        }
-
-        // Scoped, not bypassed, as in the absences source: ExpectedDays reads
-        // shifts and leave through the tenant scope too.
-        $records = AttendanceRecord::query()
-            ->where('tenant_id', $tenantId)
-            ->whereIn('employee_id', $employees->modelKeys())
-            ->whereDate('date', '>=', $from->format('Y-m-d'))
-            ->whereDate('date', '<=', $to->format('Y-m-d'))
-            ->where('status', '!=', AttendanceStatus::VOIDED)
-            ->with('shift')
+        $employees = $report->employees($tenantId, $filters, $viewer)
+            ->with(['department:id,name', 'branch:id,name'])
+            ->orderBy('name')
             ->get();
 
-        $attended = [];
-        $lateOn = [];
-        $totals = [];
-        foreach ($records as $record) {
-            $id = $record->employee_id;
-            // A day, not a record: a person who punched late twice on one
-            // day was counted late twice, more late days than days present.
-            if ($record->status === AttendanceStatus::LATE) {
-                $lateOn[$id][$record->date->format('Y-m-d')] = true;
-            }
-            $totals[$id]['worked'] = ($totals[$id]['worked'] ?? 0) + $record->workedMinutes();
-            $totals[$id]['overtime'] = ($totals[$id]['overtime'] ?? 0) + $record->overtimeMinutes();
-            if ($record->check_in !== null || $record->check_out !== null) {
-                $attended[$id][$record->date->format('Y-m-d')] = true;
-            }
-        }
-
-        $days = [];
-        $expectedDays = app(ExpectedDays::class);
-        for ($day = $from->copy(); $day->lessThanOrEqualTo($to); $day = $day->copy()->addDay()) {
-            $key = $day->format('Y-m-d');
-            foreach ($expectedDays->onDate($employees, $day) as $id => $kind) {
-                $counted = match ($kind) {
-                    ExpectedDay::WORKDAY => 'work',
-                    ExpectedDay::ON_LEAVE => 'leave',
-                    ExpectedDay::HOLIDAY => 'holiday',
-                    default => null,
-                };
-                if ($counted !== null) {
-                    $days[$id][$counted] = ($days[$id][$counted] ?? 0) + 1;
-                }
-                // Present is a workday somebody attended, the other half of
-                // absent, so the two always add up to the workdays. A punch on
-                // a rest day, a holiday or a day of leave is in the hours, and
-                // is not a second classification of that day.
-                if ($kind === ExpectedDay::WORKDAY && isset($attended[$id][$key])) {
-                    $days[$id]['present'] = ($days[$id]['present'] ?? 0) + 1;
-                    // Late is a kind of present, so only on a present day.
-                    if (isset($lateOn[$id][$key])) {
-                        $days[$id]['late'] = ($days[$id]['late'] ?? 0) + 1;
-                    }
-                }
-                if ($kind === ExpectedDay::WORKDAY && $records->isNotEmpty() && ! isset($attended[$id][$key])) {
-                    $days[$id]['absent'] = ($days[$id]['absent'] ?? 0) + 1;
-                }
-            }
+        // Past the limit the rows are the first people by name, and the report
+        // says it was cut, as every source does at its own limit.
+        $this->matched = $employees->count();
+        if ($employees->count() > TimesheetReport::MAX_PEOPLE) {
+            $this->truncated = true;
+            $this->complete = false;
+            $employees = $employees->take(TimesheetReport::MAX_PEOPLE)->values();
         }
 
         $rows = [];
-        foreach ($employees as $employee) {
-            $id = $employee->id;
-            $present = $days[$id]['present'] ?? 0;
+        foreach ($report->rows($employees, $from, $to, $report->rules($tenant, $from), withPay: false) as $row) {
+            $totals = $row['totals'];
+            $attended = collect($row['cells'])->contains(fn (array $cell): bool => $cell['worked']);
+
             // Not employed in the month, or rest days only: nothing to report.
-            if (($days[$id]['work'] ?? 0) === 0 && empty($attended[$id]) && ($days[$id]['leave'] ?? 0) === 0) {
+            if ($totals['scheduled_days'] === 0 && ! $attended && $totals['leave_days'] === 0) {
                 continue;
             }
+
+            $employee = $row['employee'];
             $rows[] = [
                 'employee_name' => $employee->name,
                 'employee_code' => $employee->employee_code,
                 'department' => $employee->department->name ?? '',
                 'branch' => $employee->branch->name ?? '',
-                'work_days' => $days[$id]['work'] ?? 0,
-                'present_days' => $present,
-                'late_days' => $days[$id]['late'] ?? 0,
-                'absent_days' => $days[$id]['absent'] ?? 0,
-                'leave_days' => $days[$id]['leave'] ?? 0,
-                'holiday_days' => $days[$id]['holiday'] ?? 0,
-                'worked_hours' => round(($totals[$id]['worked'] ?? 0) / 60, 1),
-                'overtime_hours' => round(($totals[$id]['overtime'] ?? 0) / 60, 1),
+                ...$report->figures($totals, $row['limits']),
             ];
         }
 
@@ -853,16 +790,7 @@ final class ReportEngine
      */
     private function filterUnits(Builder $query, array $filters): bool
     {
-        $applied = false;
-        foreach (['department' => 'department', 'branch' => 'branch', 'cost_center' => 'costCenter'] as $key => $relation) {
-            $publicId = $filters[$key] ?? null;
-            if (is_string($publicId) && $publicId !== '') {
-                $query->whereHas($relation, fn (Builder $unit) => $unit->where('public_id', $publicId));
-                $applied = true;
-            }
-        }
-
-        return $applied;
+        return UnitFilter::apply($query, $filters);
     }
 
     /**

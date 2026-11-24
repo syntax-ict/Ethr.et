@@ -351,6 +351,8 @@ final class TimesheetLedger
             'rest_days' => 0,
             'not_employed_days' => 0,
             'locked_days' => 0,
+            'short_minutes' => 0,
+            'employed_days' => 0,
             'worked_minutes' => 0,
             'scheduled_minutes' => 0,
             'late_minutes' => 0,
@@ -371,10 +373,20 @@ final class TimesheetLedger
             $totals['late_minutes'] += $cell['late_minutes'];
             $totals['early_minutes'] += $cell['early_minutes'];
             $totals['locked_days'] += $cell['locked'] ? 1 : 0;
+            $totals['employed_days'] += $kind === ExpectedDay::NOT_EMPLOYED ? 0 : 1;
 
             switch ($kind) {
                 case ExpectedDay::WORKDAY:
                     $totals['scheduled_days']++;
+                    // Short is what a day that is over fell short of its scheduled
+                    // minutes (a missed day in full), counted per day so a long day
+                    // does not buy back a short one. Leave days are not workdays,
+                    // so approved leave is never short.
+                    if ($code !== null) {
+                        $totals['short_minutes'] += $code === TimesheetCode::ABSENT
+                            ? $cell['scheduled_minutes']
+                            : max(0, $cell['scheduled_minutes'] - $cell['worked_minutes']);
+                    }
                     if ($code === null) {
                         $totals['pending_days']++;
                     } elseif ($code === TimesheetCode::ABSENT) {
