@@ -248,6 +248,7 @@ class EmployeeController extends Controller
                 role: $this->resolveAssignableRole($request->user(), $requestedRole),
                 employee: $employee,
                 invitedBy: $request->user()->id,
+                followsPosition: $requestedRole === null || $requestedRole === UserRole::EMPLOYEE->value,
             ) !== null;
 
             if (! $loginInvited) {

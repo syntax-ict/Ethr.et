@@ -43,5 +43,8 @@ return [
         'employee_has_login' => 'Hojjetaan kun duraan herrega seensaa qaba.',
         'cannot_reset_own_mfa' => 'Mirkaneessa tarkaanfii lamaa keessanii qindaa\'ina nageenyaa keessan irraa cufaa.',
         'mfa_not_enabled' => 'Fayyadamaan kun mirkaneessa tarkaanfii lamaa hin banne.',
+        'title_access_needs_users' => 'Seensa maqaan hojii kennu jijjiiruuf hayyama fayyadamtoota bulchuu qabaachuu qabdu.',
+        'title_access_held' => 'Gahee kana kennuu hin dandeessan; kanaaf herregni akkuma ture hafe.',
+        'own_access_follows_title' => 'Hayyamni keessan gita hojii keessan hordofa. Bulchaa dhaabbata keessanii akka jijjiiru gaafadhaa.',
     ],
 ];

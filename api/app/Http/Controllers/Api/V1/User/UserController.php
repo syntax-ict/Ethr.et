@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\CustomRole;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
 use App\Services\MfaService;
 use App\Services\Tenancy\OrganisationOwnership;
@@ -25,13 +26,16 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function __construct(private readonly UserProvisioningService $provisioning) {}
+    public function __construct(
+        private readonly UserProvisioningService $provisioning,
+        private readonly PositionAccess $positionAccess,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('users.viewAny');
 
-        $query = User::query()->with(['employee', 'latestInvitation']);
+        $query = User::query()->with(['employee.position', 'latestInvitation']);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -44,6 +48,10 @@ class UserController extends Controller
 
         if ($request->has('filter.status')) {
             $query->where('status', $request->input('filter.status'));
+        }
+
+        if ($request->input('filter.title_access') === 'held') {
+            $query->whereIn('id', $this->positionAccess->heldQuery()->select('users.id'));
         }
 
         $query->orderBy('email');
@@ -80,7 +88,7 @@ class UserController extends Controller
             return $this->problem(422, __('user.errors.already_exists'));
         }
 
-        return (new UserResource($user->load('employee')))
+        return (new UserResource($user->load('employee.position')))
             ->response()
             ->setStatusCode(201);
     }
@@ -111,15 +119,48 @@ class UserController extends Controller
             $data['activated_at'] = now();
         }
 
-        $before = $user->only(['role', 'status', 'custom_role_id', 'locale']);
+        $audited = ['role', 'role_follows_position', 'status', 'custom_role_id', 'locale'];
+        $before = $user->only($audited);
+
+        // Following the job title wins over a role in the same request. A role
+        // given by hand, and different from the one held, ends the following.
+        $follows = array_key_exists('role_follows_position', $data) ? (bool) $data['role_follows_position'] : null;
+        if ($follows === true) {
+            unset($data['role']);
+        } elseif (isset($data['role']) && $data['role'] !== $user->role->value) {
+            $data['role_follows_position'] = false;
+        }
+
         $user->update($data);
+
+        if ($follows === true) {
+            $this->positionAccess->sync($user, $request->user());
+        }
 
         AuditLog::record('user.updated', $user, [
             'before' => $before,
-            'after' => $user->only(['role', 'status', 'custom_role_id', 'locale']),
+            'after' => $user->only($audited),
         ]);
 
-        return new UserResource($user->load('employee'));
+        return new UserResource($user->load('employee.position'));
+    }
+
+    /**
+     * Bring an account's role to the one its job title gives, now, as the
+     * signed-in person. Refused with 422 when they may not give that role.
+     */
+    public function titleAccess(Request $request, User $user): UserResource|JsonResponse
+    {
+        Gate::authorize('users.update');
+        $this->guardTargetLevel($request->user(), $user);
+
+        $outcome = $this->positionAccess->sync($user, $request->user());
+
+        if ($outcome === PositionAccess::HELD) {
+            return $this->problem(422, __('user.errors.title_access_held'));
+        }
+
+        return new UserResource($user->load('employee.position'));
     }
 
     public function resendInvite(Request $request, User $user): JsonResponse
@@ -165,7 +206,7 @@ class UserController extends Controller
         // The sign-in screen pointed at a recovery page that did not exist.
         $mfa->reset($user, by: 'tenant_admin');
 
-        return new UserResource($user->load('employee'));
+        return new UserResource($user->load('employee.position'));
     }
 
     public function destroy(Request $request, User $user): JsonResponse

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\AttendanceMode;
 use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Services\Access\PositionAccess;
 use App\Services\Payroll\PayDifferenceRecorder;
 use App\Services\Payroll\SalaryHistoryWriter;
 use App\Support\BackgroundWork;
@@ -174,6 +175,12 @@ class Employee extends Model
         static::updated(function (Employee $employee): void {
             if ($employee->wasChanged('salary_cents')) {
                 $employee->recordSalaryHistory(created: false);
+            }
+
+            // A new job title may give the login a different role, by the same
+            // rules as setting it by hand (PositionAccess).
+            if ($employee->wasChanged('position_id')) {
+                app(PositionAccess::class)->syncEmployee($employee, PositionAccess::currentActor());
             }
 
             // A leaving date moved: every released month from the earlier of

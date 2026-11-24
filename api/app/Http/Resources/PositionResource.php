@@ -20,6 +20,7 @@ class PositionResource extends JsonResource
             'code' => $this->code,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'access_role' => $this->access_role,
             'employees_count' => $this->whenCounted('employees'),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

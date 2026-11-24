@@ -49,6 +49,7 @@ final class EmployeeLogins
                 employee: $employee,
                 invitedBy: $by?->id,
                 sendActivation: false,
+                followsPosition: true,
             ) ?? self::EMAIL_IN_USE;
         }
 
