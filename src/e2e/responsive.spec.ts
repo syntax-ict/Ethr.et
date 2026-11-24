@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { api, publicNewsPath, publishPublicStory } from "./helpers";
 
 const VIEWPORTS = [
   { name: "mobile-sm", width: 375, height: 812 },
@@ -117,6 +118,55 @@ test.describe("Responsive layout verification", () => {
           fullPage: true,
         });
       });
+    });
+  }
+});
+
+/**
+ * The organisation's public news pages, read signed out, at the narrowest and
+ * the widest of the widths above. A story is published first, so the list has
+ * a story card and the article page exists.
+ */
+test.describe("Responsive layout: the public news pages", () => {
+  test.use({ storageState: "e2e/.auth/hr.json" });
+
+  for (const viewport of VIEWPORTS.filter(
+    (v) => v.width === 375 || v.width === 1280,
+  )) {
+    test(`/news and a story fit at ${viewport.name} (${viewport.width}px)`, async ({
+      page,
+      browser,
+    }) => {
+      const publicId = await publishPublicStory(
+        page,
+        `QA news width ${viewport.width} ${Date.now()}`,
+      );
+      const visitor = await browser.newContext();
+      try {
+        const reader = await visitor.newPage();
+        await reader.setViewportSize({
+          width: viewport.width,
+          height: viewport.height,
+        });
+
+        for (const path of [publicNewsPath(), publicNewsPath(publicId)]) {
+          await reader.goto(path);
+          await expect(reader.getByRole("heading", { level: 1 })).toBeVisible({
+            timeout: 15000,
+          });
+          await reader.waitForLoadState("networkidle");
+
+          const overflows = await reader.evaluate(
+            () =>
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth,
+          );
+          expect(overflows, `${path} scrolls sideways`).toBe(false);
+        }
+      } finally {
+        await visitor.close();
+        await api(page, "DELETE", `/announcements/${publicId}`);
+      }
     });
   }
 });

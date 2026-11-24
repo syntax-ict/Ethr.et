@@ -57,7 +57,7 @@ Whoever holds `announcement.manage` sees every story in every state and can:
 | Archive / Restore | Sets or clears the expiry time | `announcement.archived` |
 | Feature it | Puts a public story first on the website | `announcement.updated` |
 | Category | News, notice, event or deadline; readers filter by it | `announcement.updated` |
-| Preview | Shows the story exactly as the article page will | none |
+| Preview | Shows the story as the article page will, markup removed from the body as for a reader | none |
 
 **People are told once.** Publishing queues the audience notification; a
 scheduled story queues it for its time. `notified_at` records that it was sent,
@@ -82,23 +82,28 @@ low and then newest, and the public order is the same with featured stories firs
 priority, category and audience, are enums (`App\Enums\AnnouncementPriority`, `AnnouncementCategory`,
 `AnnouncementTarget`), and a value outside them is refused with a 422. Markup is removed from a
 story's text and nothing else: a `<` that opens no tag, as in "under <2000 birr", stays as written,
-on the public pages as well as in the app. The editor's Preview shows the form's own text, so a
-manager who types real tags previews them while readers get them removed; that is a known limit,
-and N2 closes it. The public article is cached in
+on the public pages as well as in the app. The editor's Preview applies the same rule to the body
+(`withoutMarkup()` in `features/news/news-format.ts`, for the preview only, never for what is saved),
+so a manager who types real tags previews the text readers get. The public article is cached in
 the browser for two minutes, like the feed and the list, so an unpublished story can stay readable for
 that long to a visitor who had already opened it.
 
 ### One announcement, one presentation
 
-*Added 2026-11-22.* A story is drawn by the same three components wherever it
+*Added 2026-11-22.* A story is drawn by the same components wherever it
 appears: the announcements page, the dashboard card, the organisation's news
 page, an article and the portal's news section.
 
 | What | The one component | Where it lives |
 |---|---|---|
 | Date, category, featured and priority | `NewsMeta` | `src/src/features/news/components/news-card.tsx` |
-| A story as a card | `NewsCard` | the same file |
+| A story as a card, in four densities (`card`, `feature`, `row`, `compact`) | `NewsCard` | the same file |
 | A story in full | `ArticleView` | `features/news/components/article-view.tsx` |
+| Its text as paragraphs and live links (a story's body, an FAQ answer) | `PlainText` | `features/news/components/plain-text.tsx` |
+| Its documents, as a link or a download handler | `AttachmentList` | `features/news/components/attachment-list.tsx` |
+| A paged list of stories, with search and category where the source has them | `StoryBrowser`, with `useStoryFilters` | `features/news/components/story-browser.tsx` |
+| The public pages' four states | `NewsBoundary` (over `QueryBoundary`), with `NewsState` as its skin | `features/news/components/news-state.tsx` |
+| A portal page's frame, links, title and breadcrumb | `usePortalPage()`, `PortalBreadcrumb` | `features/auth/components/portal-page.tsx` |
 | Its state: draft, scheduled, published, archived | `StatusBadge` with `domain="announcement"` | `components/shared/status-badge.tsx`, from `lib/status/registry.ts` |
 | Its shortened text | `excerpt`, from `App\Support\PlainExcerpt` | the API, for the in-app list and the public feed alike |
 
@@ -107,7 +112,17 @@ was three tables (`priorityColors` on the page, `priorityConfig` in the widget,
 `NewsMeta` on the public pages), so one story read "High" in the app and
 "Important" on the organisation's own website, and "low" had no word at all.
 The text was clamped by CSS in two places while the public feed shortened it on
-the server, so the same story was cut at different points.
+the server, so the same story was cut at different points. The clamp now lives
+once, inside `NewsCard`, one per density (card 4 lines, feature 5, compact 2, row
+none), over the server's excerpt.
+
+A story's title is a heading and a list of stories is a list. The page's h1 is
+the only h1: the news page's cards are h2, an article's related stories and the
+portal's section cards h3, the announcements page's rows h2, and the reading
+panel and the editor's preview, which sit on a page with its own h1, draw the
+story's title as an h3. `NewsMeta` may be imported only inside `features/news/`,
+and the link attributes `noopener noreferrer nofollow ugc` appear in one file
+(`plain-text.tsx`); `src/src/test/story-one-renderer.test.ts` fails otherwise.
 
 The words are `landing.urgent` and `landing.important`; normal and low carry no
 badge. `e2e/announcements.spec.ts` publishes one story and reads the same word
@@ -125,7 +140,8 @@ product that sent it.
   entry in the shared-hosting rewrite rules (`.htaccess` group 1), which is a
   deployment surface. `?read=` is the same shareable address with none of
   that, and the back button closes the panel. It is read through
-  `useQueryFilters`, which uses `useSyncExternalStore` rather than
+  `useStoryFilters` (over `useQueryFilters`, carrying `q`, `category`, `page`
+  and `read` together), which uses `useSyncExternalStore` rather than
   `useSearchParams`, so the page stays prerenderable for the static export
   with no Suspense boundary.
 - **The notification leads to the story.** `AnnouncementNotification` stores
@@ -138,7 +154,8 @@ product that sent it.
   confirmed across that line; the panel repeats that and says no more.
 - **Documents download through the API.** In the app `attachmentsPresented()`
   fills no `url` (it needs the organisation's public id), so the panel passes
-  `onDownload` to `ArticleView` and the file arrives as a blob. A public
+  `onDownload` to `ArticleView` and the file arrives as a blob (a handler wins
+  over an address in `AttachmentList`, so the app never depends on `url` being empty). A public
   article keeps its plain links.
 - **No name rather than an email address.** `User::name` falls back to the
   login email for an account with no employee record and no display name, so
