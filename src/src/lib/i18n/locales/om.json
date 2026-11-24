@@ -3136,6 +3136,7 @@
   "exit_clearance.remove": "Sarara :n haqi",
   "exit_clearance.save_template": "Tarree mirkaneeffannaa olkaa'i",
   "exit_clearance.shows_balance": "Kan irra jiru agarsiisa",
+  "exit_clearance.shows_balance_line": "Kan irra jiru agarsiisa, sarara :n",
   "exit_clearance.start": "Qulqullina bahiinsaa jalqabi",
   "exit_clearance.start_failed": "Qulqullinni bahiinsaa jalqabamuu hin dandeenye.",
   "exit_clearance.status_complete": "Xumurame",

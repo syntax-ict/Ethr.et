@@ -331,7 +331,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">
+                <CardTitle as="h2" className="text-base">
                   {t("settings.display", "Display")}
                 </CardTitle>
               </div>
@@ -434,7 +434,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">
+                <CardTitle as="h2" className="text-base">
                   {t("settings.security_settings", "Sign-in security")}
                 </CardTitle>
               </div>
@@ -553,7 +553,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">
+                  <CardTitle as="h2" className="text-base">
                     {t("settings.sso_saml", "SAML single sign-on")}
                   </CardTitle>
                 </div>
