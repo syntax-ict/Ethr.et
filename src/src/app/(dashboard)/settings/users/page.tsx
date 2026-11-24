@@ -329,6 +329,7 @@ export default function UsersSettingsPage() {
                 setPage(1);
               }}
               placeholder={t("users_page.search", "Search by name or email")}
+              label={t("users_page.search", "Search by name or email")}
             />
           </div>
           <Button
@@ -413,7 +414,7 @@ export default function UsersSettingsPage() {
                       </span>
                     ) : (
                       <span key="un" className="text-xs text-muted-foreground">
-                        —
+                        {t("common.not_set", "Not set")}
                       </span>
                     ),
                     <span key="r" className="text-muted-foreground">

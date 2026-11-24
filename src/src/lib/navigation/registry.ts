@@ -342,7 +342,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         id: "organization",
         href: "/organization",
         labelKey: "nav.organization",
-        labelFallback: "Organization",
+        labelFallback: "Organisation",
         icon: Building2,
         show: (c) => c.can.manageOrg,
       }),
