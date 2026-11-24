@@ -2629,6 +2629,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/timesheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a grid: a page of the people the viewer may
+         *     see, each with one cell a day and the figures payroll reads, the totals
+         *     over everyone matched, department subtotals, the overtime rate columns,
+         *     the rules applied and the period's status
+         */
+        get: operations["report.timesheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/export": {
         parameters: {
             query?: never;
@@ -22253,7 +22275,22 @@ export interface operations {
                                     "leave_days",
                                     "holiday_days",
                                     "worked_hours",
-                                    "overtime_hours"
+                                    "overtime_hours",
+                                    "rest_days",
+                                    "missing_days",
+                                    "early_days",
+                                    "late_minutes",
+                                    "early_minutes",
+                                    "lateness_deduct_minutes",
+                                    "scheduled_hours",
+                                    "short_hours",
+                                    "overtime_normal_hours",
+                                    "overtime_night_hours",
+                                    "overtime_rest_day_hours",
+                                    "overtime_holiday_hours",
+                                    "overtime_holiday_night_hours",
+                                    "overtime_unapproved_hours",
+                                    "overtime_limit_days"
                                 ];
                                 filters: [
                                     "period",
@@ -22415,6 +22452,131 @@ export interface operations {
                             };
                             complete?: boolean;
                         };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheet": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: {
+                            from: string;
+                            to: string;
+                        } | null;
+                        days: {
+                            date: string;
+                            iso_weekday: number;
+                        }[];
+                        data: {
+                            public_id: string;
+                            employee_code: string | null;
+                            name: string;
+                            name_am: string | null;
+                            badge_number: string | null;
+                            position: string | null;
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            shift: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            cells: {
+                                date: string;
+                                code: string | null;
+                                short: string | null;
+                                kind: string;
+                                worked: boolean;
+                                late: boolean;
+                                early: boolean;
+                                worked_minutes: number;
+                                scheduled_minutes: number;
+                                late_minutes: number;
+                                early_minutes: number;
+                                overtime: {
+                                    [key: string]: number;
+                                };
+                                records: string[];
+                                locked: boolean;
+                                exception: {
+                                    type: string;
+                                    state: string;
+                                } | null;
+                            }[];
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                            check_ok: boolean;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        links: {
+                            next: string | null;
+                            prev: string | null;
+                        };
+                        complete: boolean;
+                        max_people: number;
+                        totals: {
+                            [key: string]: unknown;
+                        } | null;
+                        department_subtotals: {
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            employees: number;
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        rate_columns: {
+                            rate: number;
+                            types: string[];
+                        }[];
+                        rules_applied: {
+                            [key: string]: unknown;
+                        };
+                        status: {
+                            code: string;
+                            blocking: number;
+                            locked_days: number;
+                            employed_days: number;
+                        } | null;
+                        with_pay: boolean;
                     };
                 };
             };

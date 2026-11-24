@@ -9,13 +9,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\GenerateReportRequest;
 use App\Http\Requests\Report\SaveReportRequest;
 use App\Http\Requests\Report\ScheduleReportRequest;
+use App\Http\Requests\Report\TimesheetRequest;
 use App\Jobs\RunScheduledReportsJob;
 use App\Models\AuditLog;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
+use App\Models\Shift;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
+use App\Services\Report\TimesheetReport;
 use App\Support\Csv;
 use App\Support\Letterhead;
 use App\Support\PdfPages;
@@ -64,6 +69,51 @@ class ReportController extends Controller
         $result = $this->engine->generate($tenantId, $request->validated(), $request->user());
 
         return response()->json($result);
+    }
+
+    /**
+     * The monthly timesheet as a grid: a page of the people the viewer may
+     * see, each with one cell a day and the figures payroll reads, the totals
+     * over everyone matched, department subtotals, the overtime rate columns,
+     * the rules applied and the period's status.
+     *
+     * @scramble-return array{period: array{from: string, to: string}|null, days: list<array{date: string, iso_weekday: int}>, data: list<array{public_id: string, employee_code: string|null, name: string, name_am: string|null, badge_number: string|null, position: string|null, department: array{public_id: string, name: string, name_am: string|null}|null, shift: array{public_id: string, name: string, name_am: string|null}|null, cells: list<array{date: string, code: string|null, short: string|null, kind: string, worked: bool, late: bool, early: bool, worked_minutes: int, scheduled_minutes: int, late_minutes: int, early_minutes: int, overtime: array<string, int>, records: list<string>, locked: bool, exception: array{type: string, state: string}|null}>, totals: array<string, mixed>, check_ok: bool}>, meta: array{current_page: int, last_page: int, per_page: int, total: int}, links: array{next: string|null, prev: string|null}, complete: bool, max_people: int, totals: array<string, mixed>|null, department_subtotals: list<array{department: array{public_id: string, name: string, name_am: string|null}|null, employees: int, totals: array<string, mixed>}>, rate_columns: list<array{rate: float, types: list<string>}>, rules_applied: array<string, mixed>, status: array{code: string, blocking: int, locked_days: int, employed_days: int}|null, with_pay: bool}
+     */
+    public function timesheet(TimesheetRequest $request, TimesheetReport $timesheet): JsonResponse
+    {
+        Gate::authorize('report.generate');
+
+        $tenant = app(CurrentTenant::class)->get() ?? throw new TenantRequired;
+        $page = (int) $request->validated('page', 1);
+        $perPage = (int) $request->validated('per_page', 25);
+
+        $grid = $timesheet->grid($tenant, $request->user(), $request->validated(), $page, $perPage, Gate::allows('payroll.viewAll'));
+
+        $total = (int) $grid['total'];
+        $lastPage = max(1, (int) ceil($total / $perPage));
+
+        return response()->json([
+            'period' => $grid['period'],
+            'days' => $grid['days'],
+            'data' => array_map(fn (array $row): array => $this->timesheetRow($row), $grid['data']),
+            'meta' => ['current_page' => $page, 'last_page' => $lastPage, 'per_page' => $perPage, 'total' => $total],
+            'links' => [
+                'next' => $page < $lastPage ? $request->fullUrlWithQuery(['page' => $page + 1]) : null,
+                'prev' => $page > 1 ? $request->fullUrlWithQuery(['page' => $page - 1]) : null,
+            ],
+            'complete' => $grid['complete'] ?? true,
+            'max_people' => $grid['max_people'] ?? TimesheetReport::MAX_PEOPLE,
+            'totals' => $grid['totals'] ?? null,
+            'department_subtotals' => array_map(fn (array $group): array => [
+                'department' => $this->unit($group['department']),
+                'employees' => $group['employees'],
+                'totals' => $group['totals'],
+            ], $grid['department_subtotals'] ?? []),
+            'rate_columns' => $grid['rate_columns'] ?? [],
+            'rules_applied' => $grid['rules_applied'] ?? [],
+            'status' => $grid['status'] ?? null,
+            'with_pay' => $grid['with_pay'] ?? false,
+        ]);
     }
 
     public function export(GenerateReportRequest $request): Response
@@ -260,5 +310,61 @@ class ReportController extends Controller
         AuditLog::record('report.unscheduled', $scheduledReport);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * One person's row for the response: public ids only, and the ledger's
+     * cells turned into plain arrays.
+     *
+     * @param  array{employee: Employee, shift: Shift|null, cells: array<string, array<string, mixed>>, totals: array<string, mixed>, check_ok: bool}  $row
+     * @return array<string, mixed>
+     */
+    private function timesheetRow(array $row): array
+    {
+        $employee = $row['employee'];
+
+        return [
+            'public_id' => $employee->public_id,
+            'employee_code' => $employee->employee_code,
+            'name' => $employee->name,
+            'name_am' => $employee->name_am,
+            'badge_number' => $employee->badge_number,
+            'position' => $employee->position === null ? null : $employee->position->title,
+            'department' => $this->unit($employee->department),
+            'shift' => $this->unit($row['shift']),
+            'cells' => array_map(fn (array $cell, string $date): array => [
+                'date' => $date,
+                'code' => $cell['code']?->value,
+                'short' => $cell['code']?->short(),
+                'kind' => $cell['kind']->value,
+                'worked' => $cell['worked'],
+                'late' => $cell['late'],
+                'early' => $cell['early'],
+                'worked_minutes' => $cell['worked_minutes'],
+                'scheduled_minutes' => $cell['scheduled_minutes'],
+                'late_minutes' => $cell['late_minutes'],
+                'early_minutes' => $cell['early_minutes'],
+                'overtime' => $cell['overtime'],
+                'records' => $cell['records'],
+                'locked' => $cell['locked'],
+                'exception' => $cell['exception'],
+            ], $row['cells'], array_keys($row['cells'])),
+            'totals' => $row['totals'],
+            'check_ok' => $row['check_ok'],
+        ];
+    }
+
+    /**
+     * A unit (department, shift) as the response names it.
+     *
+     * @return array{public_id: string, name: string, name_am: string|null}|null
+     */
+    private function unit(Department|Shift|null $unit): ?array
+    {
+        return $unit === null ? null : [
+            'public_id' => $unit->public_id,
+            'name' => $unit->name,
+            'name_am' => $unit->name_am,
+        ];
     }
 }

@@ -23,21 +23,24 @@ final class OverlappingAttendance
      */
     public static function skipped(Collection $records): array
     {
-        $sorted = $records
-            ->filter(fn (AttendanceRecord $r) => $r->check_in !== null && $r->check_out !== null)
-            ->sort(fn (AttendanceRecord $a, AttendanceRecord $b) => [$a->check_in->getTimestamp(), $a->id] <=> [$b->check_in->getTimestamp(), $b->id])
-            ->values();
+        // Each record's punches are read once: an Eloquent date attribute is
+        // parsed again on every access, and a sort reads them O(n log n) times.
+        $spans = [];
+        foreach ($records as $record) {
+            if ($record->check_in !== null && $record->check_out !== null) {
+                $spans[] = [$record->check_in->getTimestamp(), $record->check_out->getTimestamp(), $record->id];
+            }
+        }
+        usort($spans, fn (array $a, array $b) => [$a[0], $a[2]] <=> [$b[0], $b[2]]);
 
         $groups = [];
         $current = [];
         $groupEnd = null;
 
-        foreach ($sorted as $record) {
-            $in = $record->check_in->getTimestamp();
-
-            if ($current !== [] && $in < $groupEnd) {
-                $current[] = $record;
-                $groupEnd = max($groupEnd, $record->check_out->getTimestamp());
+        foreach ($spans as $span) {
+            if ($current !== [] && $span[0] < $groupEnd) {
+                $current[] = $span;
+                $groupEnd = max($groupEnd, $span[1]);
 
                 continue;
             }
@@ -45,8 +48,8 @@ final class OverlappingAttendance
             if (count($current) > 1) {
                 $groups[] = $current;
             }
-            $current = [$record];
-            $groupEnd = $record->check_out->getTimestamp();
+            $current = [$span];
+            $groupEnd = $span[1];
         }
         if (count($current) > 1) {
             $groups[] = $current;
@@ -54,14 +57,11 @@ final class OverlappingAttendance
 
         $skipped = [];
         foreach ($groups as $group) {
-            usort($group, fn (AttendanceRecord $a, AttendanceRecord $b) => [
-                $b->check_out->getTimestamp() - $b->check_in->getTimestamp(), $a->id,
-            ] <=> [
-                $a->check_out->getTimestamp() - $a->check_in->getTimestamp(), $b->id,
-            ]);
+            // The longest pays; the lowest id on a tie.
+            usort($group, fn (array $a, array $b) => [$b[1] - $b[0], $a[2]] <=> [$a[1] - $a[0], $b[2]]);
             $kept = array_shift($group);
             foreach ($group as $loser) {
-                $skipped[$loser->id] = $kept->id;
+                $skipped[$loser[2]] = $kept[2];
             }
         }
 
