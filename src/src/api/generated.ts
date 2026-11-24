@@ -14609,6 +14609,11 @@ export interface components {
             role: components["schemas"]["UserRole"];
             role_follows_position: boolean;
             title_role: string | null;
+            title_preview: {
+                role: string;
+                position: string | null;
+                applies: boolean;
+            } | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
