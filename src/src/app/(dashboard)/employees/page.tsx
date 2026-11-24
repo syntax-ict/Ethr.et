@@ -35,11 +35,13 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable } from "@/components/patterns/DataTable";
+import { ArchivedBulkBar } from "@/features/employees/components/archived-bulk-bar";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
 import { SignInBadge } from "@/features/employees/components/sign-in-badge";
 import { HeadcountCharts } from "@/features/employees/components/headcount-charts";
@@ -59,6 +61,8 @@ import { saveBlob, saveCsv } from "@/lib/utils/csv-export";
 import { XLSX_MIME } from "@/features/onboarding/v2/xlsx-grid";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
@@ -86,6 +90,13 @@ const STATUSES = [
   "terminated",
   "retired",
 ] as const;
+
+/**
+ * The Archived view is one more choice of the status filter, set apart from
+ * the statuses because an archived person has none shown: they were taken out
+ * of the list, not moved through it. It is sent as `filter[archived]=1`.
+ */
+const ARCHIVED = "archived";
 
 /** The columns the API sorts by (`EmployeeController::index`). */
 const SORTS = ["name", "employee_code", "status"].flatMap((s) => [s, `-${s}`]);
@@ -125,14 +136,24 @@ function parseSort(sort?: string): SortingState {
 
 export default function EmployeesPage() {
   const { t } = useT();
+  const { can } = usePermissions();
+  const { formatDate } = useDateFormatters();
   const filters = useQueryFilters(FILTER_DEFAULTS, {
-    status: ["all", ...STATUSES],
+    status: ["all", ...STATUSES, ARCHIVED],
     review: ["", "1"],
     missing: ["", ...MISSING],
     sort: SORTS,
   });
   const search = filters.values.q;
-  const status = filters.values.status;
+  // Seeing who was archived is the permission to restore them. Someone who
+  // opens a link to the view without it sees the ordinary list.
+  const archivedView =
+    filters.values.status === ARCHIVED && can.deleteEmployees;
+  const status = archivedView
+    ? ARCHIVED
+    : filters.values.status === ARCHIVED
+      ? "all"
+      : filters.values.status;
   const department = filters.values.department;
   const branch = filters.values.branch;
   const sort = filters.values.sort;
@@ -181,7 +202,8 @@ export default function EmployeesPage() {
   const listFilters = {
     nationalityReview: reviewOnly,
     missing: missing || undefined,
-    status: status === "all" ? undefined : status,
+    status: status === "all" || archivedView ? undefined : status,
+    archived: archivedView || undefined,
     departmentId: department === "all" ? undefined : department,
     branchId: branch === "all" ? undefined : branch,
   };
@@ -273,11 +295,8 @@ export default function EmployeesPage() {
       cell: ({ row }) => {
         const employee = row.original;
 
-        return (
-          <Link
-            href={`/employees/${employee.public_id}`}
-            className="flex items-center gap-3"
-          >
+        const who = (
+          <>
             <EmployeeAvatar
               name={employee.name}
               photoThumbUrl={employee.photo_thumb_url}
@@ -286,20 +305,40 @@ export default function EmployeesPage() {
               fallbackClassName="bg-primary-soft text-xs font-semibold text-primary-on-soft"
             />
             <div>
-              <p className="text-sm font-medium text-foreground hover:text-primary hover:underline">
+              <p
+                className={
+                  archivedView
+                    ? "text-sm font-medium text-foreground"
+                    : "text-sm font-medium text-foreground hover:text-primary hover:underline"
+                }
+              >
                 {employee.name}
               </p>
               <p className="text-xs text-muted-foreground">{employee.email}</p>
-              {(employee.sign_in === "none" ||
-                employee.sign_in === "invited") && (
-                <div className="mt-1">
-                  <SignInBadge
-                    state={employee.sign_in}
-                    status={employee.status}
-                  />
-                </div>
-              )}
+              {!archivedView &&
+                (employee.sign_in === "none" ||
+                  employee.sign_in === "invited") && (
+                  <div className="mt-1">
+                    <SignInBadge
+                      state={employee.sign_in}
+                      status={employee.status}
+                    />
+                  </div>
+                )}
             </div>
+          </>
+        );
+
+        // An archived person has no page: the detail route serves the people
+        // who are here, so their name is text, not a link.
+        return archivedView ? (
+          <div className="flex items-center gap-3">{who}</div>
+        ) : (
+          <Link
+            href={`/employees/${employee.public_id}`}
+            className="flex items-center gap-3"
+          >
+            {who}
           </Link>
         );
       },
@@ -343,6 +382,22 @@ export default function EmployeesPage() {
       header: t("common.status", "Status"),
       cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
     },
+    ...(archivedView
+      ? [
+          {
+            id: "archived_at",
+            header: t("employees.archive.col_archived", "Archived"),
+            enableSorting: false,
+            cell: ({ row }) => (
+              <span className="whitespace-nowrap text-sm text-muted-foreground">
+                {row.original.archived_at
+                  ? formatDate(row.original.archived_at)
+                  : "—"}
+              </span>
+            ),
+          } satisfies ColumnDef<Employee, unknown>,
+        ]
+      : []),
   ];
 
   // The same flag the sidebar shows this page under (`employee.create`). It
@@ -360,7 +415,7 @@ export default function EmployeesPage() {
                 variant="outline"
                 size="icon"
                 onClick={() => exportCsv.mutate()}
-                disabled={exportCsv.isPending}
+                disabled={exportCsv.isPending || archivedView}
                 title={t("common.export", "Export")}
                 aria-label={t("common.export", "Export")}
               >
@@ -374,7 +429,7 @@ export default function EmployeesPage() {
                 variant="outline"
                 size="icon"
                 onClick={() => downloadToComplete.mutate()}
-                disabled={downloadToComplete.isPending}
+                disabled={downloadToComplete.isPending || archivedView}
                 title={t("employees.complete_download", "Download to complete")}
                 aria-label={t(
                   "employees.complete_download",
@@ -451,7 +506,12 @@ export default function EmployeesPage() {
             { label: t("common.search", "Search"), value: search },
             {
               label: t("common.status", "Status"),
-              value: status === "all" ? "" : t(`status.${status}`, status),
+              value:
+                status === "all"
+                  ? ""
+                  : archivedView
+                    ? t("employees.filter_archived", "Archived")
+                    : t(`status.${status}`, status),
             },
             {
               label: t("common.department", "Department"),
@@ -548,6 +608,13 @@ export default function EmployeesPage() {
                   {t(`status.${s}`, s)}
                 </SelectItem>
               ))}
+              {can.deleteEmployees && (
+                <SelectGroup className="mt-1 border-t border-border pt-1">
+                  <SelectItem value={ARCHIVED}>
+                    {t("employees.filter_archived", "Archived")}
+                  </SelectItem>
+                </SelectGroup>
+              )}
             </SelectContent>
           </Select>
           <Select
@@ -595,7 +662,7 @@ export default function EmployeesPage() {
         </FilterBar>
 
         <DataTable
-          key={selectionResetKey}
+          key={`${selectionResetKey}-${archivedView ? "archived" : "live"}`}
           tableId="employees"
           columns={columns}
           data={data?.data ?? []}
@@ -641,13 +708,20 @@ export default function EmployeesPage() {
             />
           }
           selectable
-          bulkActions={(selectedIds) => (
-            <BulkActionsBar
-              selectedIds={selectedIds}
-              people={data?.data ?? []}
-              onComplete={() => setSelectionResetKey((k) => k + 1)}
-            />
-          )}
+          bulkActions={(selectedIds) =>
+            archivedView ? (
+              <ArchivedBulkBar
+                selectedIds={selectedIds}
+                onComplete={() => setSelectionResetKey((k) => k + 1)}
+              />
+            ) : (
+              <BulkActionsBar
+                selectedIds={selectedIds}
+                people={data?.data ?? []}
+                onComplete={() => setSelectionResetKey((k) => k + 1)}
+              />
+            )
+          }
           // No `getExportRow`: the table's own "Export CSV" downloads only the
           // 25 rows on screen, beside the header's Export that downloads every
           // employee matching the search. Two buttons, one of them silently
@@ -655,17 +729,26 @@ export default function EmployeesPage() {
           emptyState={
             <EmptyState
               icon={Users}
-              title={t("employees.none_found", "No employees found")}
+              title={
+                archivedView
+                  ? t("employees.archive.empty_title", "Nobody is archived")
+                  : t("employees.none_found", "No employees found")
+              }
               description={
-                isFiltered
+                archivedView
                   ? t(
-                      "employees.try_different_filters",
-                      "Try a different search or clear the filters",
+                      "employees.archive.empty_desc",
+                      "People you archive appear here, and can be restored.",
                     )
-                  : t(
-                      "employees.add_first",
-                      "Add your first employee to get started",
-                    )
+                  : isFiltered
+                    ? t(
+                        "employees.try_different_filters",
+                        "Try a different search or clear the filters",
+                      )
+                    : t(
+                        "employees.add_first",
+                        "Add your first employee to get started",
+                      )
               }
               action={
                 !isFiltered ? (

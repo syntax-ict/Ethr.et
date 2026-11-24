@@ -29,12 +29,15 @@ export interface EmployeeFilters {
    * `emergency_contact` or `phone`. The set a Next Steps row counted.
    */
   missing?: string;
+  /** Only the people who were archived. Needs `employee.delete`. */
+  archived?: boolean;
 }
 
 function filterParams(f: EmployeeFilters): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   if (f.nationalityReview) out["filter[nationality_needs_review]"] = 1;
   if (f.missing) out["filter[missing]"] = f.missing;
+  if (f.archived) out["filter[archived]"] = 1;
   if (f.status) out["filter[status]"] = f.status;
   if (f.departmentId) out["filter[department_id]"] = f.departmentId;
   if (f.branchId) out["filter[branch_id]"] = f.branchId;
@@ -58,6 +61,7 @@ export function useEmployees(
         departmentId,
         branchId,
         missing,
+        archived,
         search,
         ...rest
       } = params ?? {};
@@ -71,6 +75,7 @@ export function useEmployees(
             departmentId,
             branchId,
             missing,
+            archived,
           }),
         },
       });
@@ -216,6 +221,63 @@ export function useBulkUpdateEmployees() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
+}
+
+// ── Archive and restore ────────────────────────────────────────────
+
+export type BulkArchiveResult =
+  operations["employeeBulk.bulkArchive"]["responses"][200]["content"]["application/json"];
+
+export type BulkRestoreResult =
+  operations["employeeBulk.bulkRestore"]["responses"][200]["content"]["application/json"];
+
+/** The most people one archive or restore request carries (`BulkArchiveRequest`). */
+export const ARCHIVE_SLICE = 200;
+
+/**
+ * One request: what archiving these people would do (`confirm` false, which
+ * writes nothing), or doing it.
+ */
+export async function postBulkArchive(
+  ids: string[],
+  confirm: boolean,
+): Promise<BulkArchiveResult> {
+  const { data } = await apiClient.post<BulkArchiveResult>(
+    "/employees/bulk-archive",
+    { employee_ids: ids, confirm },
+  );
+  return data;
+}
+
+export async function postBulkRestore(
+  ids: string[],
+): Promise<BulkRestoreResult> {
+  const { data } = await apiClient.post<BulkRestoreResult>(
+    "/employees/bulk-restore",
+    { employee_ids: ids },
+  );
+  return data;
+}
+
+/** The answers of several archive slices as one, in the order they came. */
+export function combineArchive(parts: BulkArchiveResult[]): BulkArchiveResult {
+  return {
+    confirmed: parts.every((p) => p.confirmed),
+    archive_count: parts.reduce((n, p) => n + p.archive_count, 0),
+    keep_count: parts.reduce((n, p) => n + p.keep_count, 0),
+    already_archived: parts.reduce((n, p) => n + p.already_archived, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
+}
+
+/** The answers of several restore slices as one, in the order they came. */
+export function combineRestore(parts: BulkRestoreResult[]): BulkRestoreResult {
+  return {
+    restored: parts.reduce((n, p) => n + p.restored, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
 }
 
 // ── Export ─────────────────────────────────────────────────────────
