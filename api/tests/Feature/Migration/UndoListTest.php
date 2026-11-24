@@ -637,3 +637,61 @@ describe('recording what a commit does', function () {
         expect(MigrationStagingRow::query()->where('batch_id', $batch->id)->orderBy('id')->pluck('created_employee')->all())->toBe([null, null]);
     });
 });
+
+/*
+ * The commonest correction: a wrong file is added, its additions are undone,
+ * and the corrected file is added. The people the undo archived still hold
+ * their employee numbers (the unique index keeps soft-deleted rows), and the
+ * corrected file reuses them.
+ */
+describe('adding the corrected list after an undo', function () {
+    it('commits the list with the rows that reuse an archived number left for review, and never throws', function () {
+        [$tenant, $user] = Undo::admin();
+        $first = Undo::committed($tenant, $user, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+            ['name' => 'Dawit Haile', 'employee_code' => 'E-3'],
+        ]);
+        test()->postJson(Undo::url($tenant, $first), ['confirm' => true])->assertOk()->assertJsonPath('archived', 3);
+
+        $corrected = Staging::stage($tenant, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+            ['name' => 'Dawit Haile', 'employee_code' => 'E-3'],
+            ['name' => 'Hana Girma', 'employee_code' => 'E-4'],
+        ]);
+
+        $rows = test()->getJson(Staging::url($tenant, "batches/{$corrected->public_id}"))->assertOk()->json('rows');
+        expect(array_column($rows, 'action'))->toBe(['defer', 'defer', 'defer', 'create']);
+
+        // The reviewer cannot say "add as new" to a number an archived person holds.
+        foreach (array_slice($rows, 0, 3) as $row) {
+            expect($row['warnings'][0]['code'])->toBe('number_held')
+                ->and($row['warnings'][0]['message'])->toContain('archived');
+
+            test()->patchJson(Staging::url($tenant, "rows/{$row['public_id']}"), ['action' => 'create'])->assertStatus(422);
+        }
+
+        test()->postJson(Staging::url($tenant, "batches/{$corrected->public_id}/commit"))->assertOk()
+            ->assertJsonPath('status', 'committed')
+            ->assertJsonPath('totals.created', 1)
+            ->assertJsonPath('totals.deferred', 3);
+
+        expect(Employee::query()->where('tenant_id', $tenant->id)->pluck('employee_code')->all())->toBe(['E-4'])
+            ->and(Employee::withTrashed()->where('tenant_id', $tenant->id)->count())->toBe(4);
+    });
+
+    it('does not let the commit fail on a row forced to add as new, however it got that choice', function () {
+        [$tenant, $user] = Undo::admin();
+        $first = Undo::committed($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        test()->postJson(Undo::url($tenant, $first), ['confirm' => true])->assertOk();
+
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected->rows()->update(['action' => 'create']);
+
+        test()->postJson(Staging::url($tenant, "batches/{$corrected->public_id}/commit"))->assertOk()
+            ->assertJsonPath('status', 'committed')
+            ->assertJsonPath('totals.created', 0)
+            ->assertJsonPath('totals.deferred', 1);
+    });
+});
