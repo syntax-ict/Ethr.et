@@ -34,7 +34,10 @@ class WatchHeldTitleAccessCommand extends Command
                 $current->set($tenant);
 
                 $waiting = $this->waiting($access);
-                $key = "title-access:told:{$tenant->id}";
+                // The v2 key exists because the first release's listener failed on
+                // every job while the sweep remembered those accounts as told, so
+                // a new key announces them once.
+                $key = "title-access:told:v2:{$tenant->id}";
                 $before = $this->remembered($key);
 
                 $new = array_diff_key($waiting, array_flip($before));
