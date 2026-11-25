@@ -202,3 +202,112 @@ describe("a terminal that sends to ETHR", () => {
     });
   });
 });
+
+/*
+ * The one device form (device setup upgrade, PR 2): Register, the list's Edit
+ * and the device page's Edit share these fields, so the payload carries them
+ * all, whichever door the form was opened from.
+ */
+describe("the fields every device form shares", () => {
+  it("sends the location as typed, or null when it is blank", () => {
+    expect(
+      buildDevicePayload(
+        { ...hikvision, location_description: "  Front gate " },
+        "create",
+      ).location_description,
+    ).toBe("Front gate");
+    expect(
+      buildDevicePayload({ ...hikvision, location_description: " " }, "edit")
+        .location_description,
+    ).toBeNull();
+  });
+
+  it("sends the device clock zone, or null to follow the organisation", () => {
+    expect(
+      buildDevicePayload({ ...hikvision, timezone: "UTC" }, "create").timezone,
+    ).toBe("UTC");
+    expect(buildDevicePayload(hikvision, "create").timezone).toBeNull();
+  });
+
+  it("splits the allowlist on lines, commas and spaces, dropping blanks", () => {
+    const payload = buildDevicePayload(
+      {
+        ...hikvision,
+        webhook_ip_allowlist: "203.0.113.7\n 198.51.100.0/24, 192.0.2.1  \n\n",
+      },
+      "create",
+    );
+
+    expect(payload.webhook_ip_allowlist).toEqual([
+      "203.0.113.7",
+      "198.51.100.0/24",
+      "192.0.2.1",
+    ]);
+  });
+
+  it("sends an empty allowlist on edit so it can be cleared, and none on create", () => {
+    expect(buildDevicePayload(hikvision, "edit").webhook_ip_allowlist).toEqual(
+      [],
+    );
+    expect(buildDevicePayload(hikvision, "create")).not.toHaveProperty(
+      "webhook_ip_allowlist",
+    );
+  });
+
+  it("leaves the branch out on edit when none is chosen, so the stored one stays", () => {
+    const blank = { ...hikvision, branch_public_id: "" };
+
+    expect(buildDevicePayload(blank, "edit")).not.toHaveProperty(
+      "branch_public_id",
+    );
+    expect(buildDevicePayload(hikvision, "edit").branch_public_id).toBe(
+      "01BRANCH",
+    );
+  });
+
+  it("clamps the sync interval to the server's floor", () => {
+    const interval = (value: string) =>
+      buildDevicePayload({ ...hikvision, sync_interval_minutes: value }, "edit")
+        .sync_interval_minutes;
+
+    expect(interval("1")).toBe(5);
+    expect(interval("")).toBe(5);
+    expect(interval("abc")).toBe(5);
+    expect(interval("30")).toBe(30);
+  });
+
+  it("sends the commands switch only when the device accepts commands", () => {
+    const form = { ...hikvision, commands_enabled: true };
+
+    expect(buildDevicePayload(form, "edit")).not.toHaveProperty(
+      "commands_enabled",
+    );
+    expect(
+      buildDevicePayload(form, "edit", { acceptsCommands: true })
+        .commands_enabled,
+    ).toBe(true);
+    expect(
+      buildDevicePayload({ ...form, commands_enabled: false }, "edit", {
+        acceptsCommands: true,
+      }).commands_enabled,
+    ).toBe(false);
+  });
+
+  it("keeps the allowlist on an ADMS device, which has no address and no pull", () => {
+    const payload = buildDevicePayload(
+      {
+        ...EMPTY_DEVICE_FORM,
+        adapter_type: "zkteco_adms",
+        name: "Gate",
+        serial_number: "CQZ7232460001",
+        branch_public_id: "01BRANCH",
+        webhook_ip_allowlist: "203.0.113.7",
+      },
+      "create",
+    );
+
+    expect(payload.webhook_ip_allowlist).toEqual(["203.0.113.7"]);
+    expect(payload.connection_config).toEqual({ mode: "adms" });
+    expect(payload.auto_sync).toBe(false);
+  });
+});

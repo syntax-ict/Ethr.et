@@ -34,6 +34,25 @@ export interface DeviceFormData {
    * and has no address ETHR could reach, so none is asked for.
    */
   sends_to_ethr: boolean;
+  location_description: string;
+  /** An IANA zone the device's own clock is set to; blank follows the organisation. */
+  timezone: string;
+  /** One IP address or range per line (commas and spaces also split). */
+  webhook_ip_allowlist: string;
+  commands_enabled: boolean;
+  /** Minutes, as typed or picked; clamped to the server's floor on the way out. */
+  sync_interval_minutes: string;
+}
+
+// Mirrors Device::MIN_SYNC_INTERVAL_MINUTES on the API.
+export const MIN_SYNC_INTERVAL_MINUTES = 5;
+
+/** Split the allowlist text into the array the API takes. */
+export function parseAllowlist(text: string): string[] {
+  return text
+    .split(/[\s,]+/)
+    .map((ip) => ip.trim())
+    .filter(Boolean);
 }
 
 /** The adapters that can be registered to send to ETHR with no address. */
@@ -61,6 +80,11 @@ export const EMPTY_DEVICE_FORM: DeviceFormData = {
   api_key: "",
   auto_sync: true,
   sends_to_ethr: false,
+  location_description: "",
+  timezone: "",
+  webhook_ip_allowlist: "",
+  commands_enabled: false,
+  sync_interval_minutes: String(MIN_SYNC_INTERVAL_MINUTES),
 };
 
 /** Adapters addressed as `http://{ip}:{port}` — the only ones this form can configure. */
@@ -82,6 +106,10 @@ export function isIpAdapter(adapterType: string): boolean {
 export function buildDevicePayload(
   form: DeviceFormData,
   mode: "create" | "edit",
+  options: {
+    /** `device.accepts_commands`: only then is the commands switch offered. */
+    acceptsCommands?: boolean;
+  } = {},
 ): DevicePayload {
   const payload: DevicePayload = {
     name: form.name,
@@ -92,7 +120,30 @@ export function buildDevicePayload(
     // took the server's default and was pulled every five minutes whether or
     // not anyone wanted it (attendance QA A11).
     auto_sync: form.auto_sync,
+    location_description: form.location_description.trim() || null,
+    timezone: form.timezone || null,
+    sync_interval_minutes: Math.max(
+      MIN_SYNC_INTERVAL_MINUTES,
+      Number.parseInt(form.sync_interval_minutes, 10) ||
+        MIN_SYNC_INTERVAL_MINUTES,
+    ),
   };
+
+  // A blank branch on edit keeps the stored one: the field is not sent, since
+  // an empty string reaches the API as null and `string` refuses that.
+  if (mode === "edit" && form.branch_public_id === "") {
+    delete (payload as Partial<DevicePayload>).branch_public_id;
+  }
+
+  // On edit the array is always sent, so emptying the box clears the list.
+  const allowlist = parseAllowlist(form.webhook_ip_allowlist);
+  if (mode === "edit" || allowlist.length > 0) {
+    payload.webhook_ip_allowlist = allowlist;
+  }
+
+  if (options.acceptsCommands) {
+    payload.commands_enabled = form.commands_enabled;
+  }
 
   if (form.adapter_type === "mock") {
     if (mode === "create") payload.connection_config = { mode: "simulator" };

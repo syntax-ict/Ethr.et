@@ -341,3 +341,58 @@ describe("<DevicesPage> after registering", () => {
     expect(screen.queryByText(/token=/)).not.toBeInTheDocument();
   });
 });
+
+/*
+ * The list's Edit is the same form as Register and the device page's Edit
+ * (device setup upgrade, PR 2): it used to be a partial form that could not
+ * touch the allowlist, the clock zone or the interval.
+ */
+describe("<DevicesPage> edit", () => {
+  it("saves the webhook allowlist from the list's own Edit", async () => {
+    serve([
+      {
+        ...base,
+        public_id: "PULL1",
+        name: "Main gate",
+        adapter_type: "hikvision",
+        receives_only: false,
+        pulled: true,
+        status: "online",
+        commands_enabled: false,
+        accepts_commands: false,
+        timezone: null,
+        webhook_ip_allowlist: ["203.0.113.7"],
+      },
+    ]);
+    let sent: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/api/v1/devices/PULL1", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ public_id: "PULL1" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const card = (await screen.findByText("Main gate")).closest(
+      '[class*="p-4"]',
+    ) as HTMLElement;
+    await user.click(within(card).getByRole("button", { name: /actions/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /edit/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    const box = within(dialog).getByLabelText(/allowed ip/i);
+    expect(box).toHaveValue("203.0.113.7");
+    await user.type(box, "{enter}198.51.100.0/24");
+    await user.click(
+      within(dialog).getByRole("button", { name: /save changes/i }),
+    );
+
+    await vi.waitFor(() => expect(sent).not.toBeNull());
+    expect(sent!.webhook_ip_allowlist).toEqual([
+      "203.0.113.7",
+      "198.51.100.0/24",
+    ]);
+    expect(sent).not.toHaveProperty("connection_config");
+  });
+});

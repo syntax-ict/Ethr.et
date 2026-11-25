@@ -9,7 +9,6 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  Copy,
   RotateCw,
   CheckCircle,
   XCircle,
@@ -25,27 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuarantineCard } from "@/features/devices/components/quarantine-card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { SimpleTable } from "@/components/shared/simple-table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
@@ -65,11 +46,9 @@ import {
 import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
 import { PushSetup } from "@/features/devices/components/push-setup";
 import { RegenerateTokenDialog } from "@/features/devices/components/regenerate-token-dialog";
-import {
-  buildDevicePayload,
-  canSendToEthr,
-  EMPTY_DEVICE_FORM,
-} from "@/features/devices/payload";
+import { branchesApi } from "@/features/organization/api";
+import { DeviceFormDialog } from "@/features/devices/components/device-form";
+import type { DevicePayload } from "@/features/devices/payload";
 import {
   useDeleteDevice,
   useDevice,
@@ -104,9 +83,6 @@ function isNotFound(error: unknown): boolean {
     404
   );
 }
-
-// Mirrors Device::MIN_SYNC_INTERVAL_MINUTES on the API.
-const MIN_SYNC_INTERVAL_MINUTES = 5;
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -715,10 +691,9 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         </Tabs>
 
         {/* Edit Dialog */}
-        {editOpen && device && (
-          <EditDeviceDialog
+        {editOpen && (
+          <EditDeviceHost
             device={device}
-            open={editOpen}
             onOpenChange={setEditOpen}
             onSubmit={update}
             isPending={updateMutation.isPending}
@@ -765,375 +740,29 @@ function InfoCard({
   );
 }
 
-function EditDeviceDialog({
+/** Loads the branch list only while the edit form is open. */
+function EditDeviceHost({
   device,
-  open,
   onOpenChange,
   onSubmit,
   isPending,
 }: {
   device: Device;
-  open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: DeviceUpdate) => void;
+  onSubmit: (payload: DevicePayload) => void;
   isPending: boolean;
 }) {
-  const { t } = useT();
-  const [form, setForm] = useState({
-    name: device.name,
-    location_description: device.location_description ?? "",
-    serial_number: device.serial_number ?? "",
-    auto_sync: device.auto_sync,
-    commands_enabled: device.commands_enabled,
-    sync_interval_minutes: String(
-      Math.max(MIN_SYNC_INTERVAL_MINUTES, device.sync_interval_minutes),
-    ),
-    timezone: device.timezone ?? "",
-    webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
-    // How the terminal reaches ETHR. The stored address is never returned (it
-    // sits beside credentials), so the fields start blank: blank keeps it.
-    sends_to_ethr: device.receives_only === true,
-    ip: "",
-    port: "",
-    username: "",
-    password: "",
-  });
-
-  const set = (key: string, value: string | boolean) =>
-    setForm((p) => ({ ...p, [key]: value }));
-
-  const hasConnectionChoice = canSendToEthr(device.adapter_type);
-  const sendsToEthr = hasConnectionChoice && form.sends_to_ethr;
-  // A terminal switched back to an address has none stored that is usable.
-  const addressRequired =
-    hasConnectionChoice && device.receives_only === true && !sendsToEthr;
-
+  const { data: branches } = branchesApi.useList();
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("devices_page.edit_device")}</DialogTitle>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const connection = hasConnectionChoice
-              ? buildDevicePayload(
-                  {
-                    ...EMPTY_DEVICE_FORM,
-                    adapter_type: device.adapter_type,
-                    ip: form.ip,
-                    port: form.port,
-                    username: form.username,
-                    password: form.password,
-                    sends_to_ethr: form.sends_to_ethr,
-                  },
-                  "edit",
-                )
-              : null;
-            onSubmit({
-              name: form.name,
-              location_description: form.location_description || null,
-              serial_number: form.serial_number || null,
-              auto_sync: sendsToEthr ? false : form.auto_sync,
-              ...(connection?.connection_config && {
-                connection_config: connection.connection_config,
-              }),
-              ...(device.accepts_commands && {
-                commands_enabled: form.commands_enabled,
-              }),
-              sync_interval_minutes: Math.max(
-                MIN_SYNC_INTERVAL_MINUTES,
-                parseInt(form.sync_interval_minutes, 10) ||
-                  MIN_SYNC_INTERVAL_MINUTES,
-              ),
-              timezone: form.timezone || null,
-              webhook_ip_allowlist: form.webhook_ip_allowlist
-                .split(/[\s,]+/)
-                .map((ip) => ip.trim())
-                .filter(Boolean),
-            });
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <Label htmlFor="device-name">{t("devices_page.device_name")}</Label>
-            <Input
-              id="device-name"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              required
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="location-description">
-              {t("device_detail_page.location_description")}
-            </Label>
-            <Input
-              id="location-description"
-              value={form.location_description}
-              onChange={(e) => set("location_description", e.target.value)}
-              placeholder={t("device_detail_page.location_placeholder")}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="serial-number">
-              {t("devices_page.serial_number")}
-            </Label>
-            <Input
-              id="serial-number"
-              value={form.serial_number}
-              onChange={(e) => set("serial_number", e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          {hasConnectionChoice && (
-            <div className="space-y-3 rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">
-                    {t(
-                      "devices_page.sends_to_ethr",
-                      "The terminal is on our office network",
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(
-                      "devices_page.sends_to_ethr_hint",
-                      "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
-                    )}
-                  </p>
-                </div>
-                <Switch
-                  aria-label={t(
-                    "devices_page.sends_to_ethr",
-                    "The terminal is on our office network",
-                  )}
-                  checked={form.sends_to_ethr}
-                  onCheckedChange={(v) => set("sends_to_ethr", v)}
-                />
-              </div>
-              {!sendsToEthr && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t(
-                      "devices_page.public_address_hint",
-                      "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
-                    )}
-                  </p>
-                  {!addressRequired && (
-                    <p className="text-sm text-muted-foreground">
-                      {t("devices_page.keep_connection_hint")}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <Label htmlFor="edit-ip-address">
-                        {t("devices_page.ip_address")}
-                      </Label>
-                      <Input
-                        id="edit-ip-address"
-                        value={form.ip}
-                        onChange={(e) => set("ip", e.target.value)}
-                        required={addressRequired}
-                        placeholder="203.0.113.10"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-port">
-                        {t("devices_page.port")}
-                      </Label>
-                      <Input
-                        id="edit-port"
-                        value={form.port}
-                        onChange={(e) => set("port", e.target.value)}
-                        required={addressRequired || form.ip.trim() !== ""}
-                        type="number"
-                        min={1}
-                        max={65535}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="edit-username">
-                        {t("devices_page.username")}
-                      </Label>
-                      <Input
-                        id="edit-username"
-                        value={form.username}
-                        onChange={(e) => set("username", e.target.value)}
-                        placeholder={t("leave_page.optional")}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-password">
-                        {t("auth.password")}
-                      </Label>
-                      <Input
-                        id="edit-password"
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => set("password", e.target.value)}
-                        placeholder={t("leave_page.optional")}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <div>
-            <Label htmlFor="device-timezone">
-              {t("device_detail_page.clock_zone", "Device clock time zone")}
-            </Label>
-            <Select
-              value={form.timezone || "__org__"}
-              onValueChange={(v) => set("timezone", v === "__org__" ? "" : v)}
-            >
-              <SelectTrigger id="device-timezone" className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__org__">
-                  {t(
-                    "device_detail_page.clock_zone_org",
-                    "Same as the organisation",
-                  )}
-                </SelectItem>
-                <SelectItem value="Africa/Addis_Ababa">
-                  Africa/Addis_Ababa (EAT)
-                </SelectItem>
-                <SelectItem value="UTC">UTC</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "device_detail_page.clock_zone_hint",
-                "The zone the device's own clock is set to. Its punch times are read in it.",
-              )}
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="device-allowlist">
-              {t(
-                "device_detail_page.ip_allowlist",
-                "Webhook allowed IP addresses",
-              )}
-            </Label>
-            <Textarea
-              id="device-allowlist"
-              value={form.webhook_ip_allowlist}
-              onChange={(e) => set("webhook_ip_allowlist", e.target.value)}
-              rows={2}
-              placeholder="203.0.113.7"
-              className="mt-1 font-mono"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "device_detail_page.ip_allowlist_hint",
-                "One per line. A device without a webhook token is accepted only from these addresses.",
-              )}
-            </p>
-          </div>
-          <div
-            className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr || !isPulled(device)}
-          >
-            <div>
-              <p className="text-sm font-medium">
-                {t("device_detail_page.auto_sync")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("device_detail_page.auto_sync_hint")}
-              </p>
-            </div>
-            <Switch
-              aria-label={t("device_detail_page.auto_sync")}
-              checked={form.auto_sync}
-              onCheckedChange={(v) => set("auto_sync", v)}
-            />
-          </div>
-          {device.accepts_commands && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("device_commands.enable")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("device_commands.enable_hint")}
-                </p>
-              </div>
-              <Switch
-                aria-label={t("device_commands.enable")}
-                checked={form.commands_enabled}
-                onCheckedChange={(v) => set("commands_enabled", v)}
-              />
-            </div>
-          )}
-          {form.auto_sync && !sendsToEthr && isPulled(device) && (
-            <div>
-              <Label htmlFor="sync-interval">
-                {t("device_detail_page.sync_interval")}
-              </Label>
-              <Select
-                value={form.sync_interval_minutes}
-                onValueChange={(v) => set("sync_interval_minutes", v)}
-              >
-                <SelectTrigger id="sync-interval" className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">
-                    {t("device_detail_page.every_5_min")}
-                  </SelectItem>
-                  <SelectItem value="10">
-                    {t("device_detail_page.every_10_min")}
-                  </SelectItem>
-                  <SelectItem value="15">
-                    {t("device_detail_page.every_15_min")}
-                  </SelectItem>
-                  <SelectItem value="30">
-                    {t("device_detail_page.every_30_min")}
-                  </SelectItem>
-                  <SelectItem value="60">
-                    {t("device_detail_page.every_1_hour")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t(
-                  "device_detail_page.sync_interval_hint",
-                  "ETHR pulls from this terminal when its scheduler runs, at most this often, and sometimes later. A late pull loses nothing: each punch keeps the time it happened. Use :action when you need them at once.",
-                  {
-                    action: t("devices_page.pull"),
-                  },
-                )}
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("leave_types_page.save_changes")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <DeviceFormDialog
+      mode="edit"
+      device={device}
+      open
+      onOpenChange={onOpenChange}
+      branches={branches?.data ?? []}
+      onSubmit={onSubmit}
+      isPending={isPending}
+    />
   );
 }
 
