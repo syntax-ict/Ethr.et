@@ -45,7 +45,7 @@ import { useT } from "@/lib/i18n/useT";
  * commands, and advanced.
  */
 
-type Branch = { public_id: string; name: string };
+export type Branch = { public_id: string; name: string };
 
 /** The state every section reads and writes. */
 export interface DeviceFormState {
@@ -104,10 +104,16 @@ export function connectionOf(
   return connectionModeFor(form);
 }
 
-function useFormState(
+/**
+ * The form's state, for this form and for the guided setup that places its
+ * sections. An organisation with one branch has nothing to choose, so it is
+ * filled in here and Register is not held back by a question with one answer.
+ */
+export function useDeviceFormState(
   mode: "create" | "edit",
   device: Device | undefined,
-): DeviceFormState {
+  branches: Branch[] = [],
+): DeviceFormState & { branchMissing: boolean } {
   const [form, setForm] = useState<DeviceFormData>(() =>
     device ? deviceToForm(device) : { ...EMPTY_DEVICE_FORM },
   );
@@ -116,7 +122,26 @@ function useFormState(
       setForm((p) => ({ ...p, ...changes })),
     [],
   );
-  return { form, patch, mode, connection: connectionOf(form, device), device };
+
+  const onlyBranch = branches.length === 1 ? branches[0].public_id : null;
+  useEffect(() => {
+    if (mode === "create" && onlyBranch && form.branch_public_id === "") {
+      patch({ branch_public_id: onlyBranch });
+    }
+  }, [mode, onlyBranch, form.branch_public_id, patch]);
+
+  // With no branch to offer the field is not drawn, and the server says why.
+  const branchMissing =
+    mode === "create" && branches.length > 0 && form.branch_public_id === "";
+
+  return {
+    form,
+    patch,
+    mode,
+    connection: connectionOf(form, device),
+    device,
+    branchMissing,
+  };
 }
 
 function Section({
@@ -161,9 +186,12 @@ function SwitchRow({
 export function DeviceIdentitySection({
   state,
   branches,
+  lockAdapter = false,
 }: {
   state: DeviceFormState;
   branches: Branch[];
+  /** The guided setup has already chosen the adapter, and Details must not undo it. */
+  lockAdapter?: boolean;
 }) {
   const { t } = useT();
   const { form, patch, mode } = state;
@@ -194,31 +222,35 @@ export function DeviceIdentitySection({
           className="mt-1"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="adapter-type">{t("devices_page.adapter_type")}</Label>
-          <Select
-            value={form.adapter_type}
-            onValueChange={(v) => patch({ adapter_type: v })}
-          >
-            <SelectTrigger id="adapter-type" className="mt-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hikvision">Hikvision</SelectItem>
-              <SelectItem value="zkteco">ZKTeco</SelectItem>
-              <SelectItem value="zkteco_adms">
-                {t("devices_page.zkteco_adms")}
-              </SelectItem>
-              <SelectItem value="suprema">Suprema</SelectItem>
-              {(SIMULATOR_IN_FORM || form.adapter_type === "mock") && (
-                <SelectItem value="mock">
-                  {t("devices_page.mock_simulator")}
+      <div className={lockAdapter ? "grid gap-4" : "grid grid-cols-2 gap-4"}>
+        {!lockAdapter && (
+          <div>
+            <Label htmlFor="adapter-type">
+              {t("devices_page.adapter_type")}
+            </Label>
+            <Select
+              value={form.adapter_type}
+              onValueChange={(v) => patch({ adapter_type: v })}
+            >
+              <SelectTrigger id="adapter-type" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hikvision">Hikvision</SelectItem>
+                <SelectItem value="zkteco">ZKTeco</SelectItem>
+                <SelectItem value="zkteco_adms">
+                  {t("devices_page.zkteco_adms")}
                 </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+                <SelectItem value="suprema">Suprema</SelectItem>
+                {(SIMULATOR_IN_FORM || form.adapter_type === "mock") && (
+                  <SelectItem value="mock">
+                    {t("devices_page.mock_simulator")}
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div>
           <Label htmlFor="serial-number">
             {t("devices_page.serial_number")}
@@ -298,7 +330,14 @@ export function addressIsRequired(state: DeviceFormState): boolean {
   );
 }
 
-export function DeviceConnectionSection({ state }: { state: DeviceFormState }) {
+export function DeviceConnectionSection({
+  state,
+  hideReach = false,
+}: {
+  state: DeviceFormState;
+  /** The guided setup has already asked whether the terminal is on the office network. */
+  hideReach?: boolean;
+}) {
   const { t } = useT();
   const { form, patch, connection } = state;
   const addressRequired = addressIsRequired(state);
@@ -317,7 +356,7 @@ export function DeviceConnectionSection({ state }: { state: DeviceFormState }) {
         </div>
       )}
 
-      {canSendToEthr(form.adapter_type) && (
+      {canSendToEthr(form.adapter_type) && !hideReach && (
         <SwitchRow
           label={t(
             "devices_page.sends_to_ethr",
@@ -582,21 +621,8 @@ export type DeviceFormProps = DeviceFormCommon &
 export function DeviceForm(props: DeviceFormProps) {
   const { mode, device, branches, isPending, submitLabel, onCancel } = props;
   const { t } = useT();
-  const state = useFormState(mode, device);
-  const { form, patch } = state;
-
-  const onlyBranch = branches.length === 1 ? branches[0].public_id : null;
-  // With no branch to offer the field is not drawn, and the server says why.
-  const branchMissing =
-    mode === "create" && branches.length > 0 && form.branch_public_id === "";
-
-  // An organisation with one branch has nothing to choose: fill it in, so
-  // Register is not held back by a question with one answer.
-  useEffect(() => {
-    if (mode === "create" && onlyBranch && form.branch_public_id === "") {
-      patch({ branch_public_id: onlyBranch });
-    }
-  }, [mode, onlyBranch, form.branch_public_id, patch]);
+  const state = useDeviceFormState(mode, device, branches);
+  const { form, branchMissing } = state;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

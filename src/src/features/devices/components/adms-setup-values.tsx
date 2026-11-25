@@ -1,18 +1,23 @@
 "use client";
 
+import { CopyValueButton } from "@/features/devices/components/copy-value-button";
 import { useT } from "@/lib/i18n/useT";
 
 /**
  * What is typed on a ZKTeco terminal under COMM, then Cloud Server Setting.
  * One list for the setup card on the device page and for the dialog shown
  * after registering, so the two cannot say different things.
+ *
+ * With `copyable`, each value typed on the terminal has a copy button.
  */
 export function AdmsSetupValues({
   server,
   serial,
+  copyable = false,
 }: {
   server: string;
   serial: string | null | undefined;
+  copyable?: boolean;
 }) {
   const { t } = useT();
   // Monospace for what is typed on the device; plain text for advice.
@@ -28,7 +33,18 @@ export function AdmsSetupValues({
       {rows.map(([label, value, typed]) => (
         <div key={label} className="contents">
           <dt className="text-muted-foreground">{label}</dt>
-          <dd className={typed ? "font-mono break-all" : ""}>{value}</dd>
+          <dd
+            className={
+              typed
+                ? "flex items-start gap-2 font-mono break-all"
+                : undefined
+            }
+          >
+            {value}
+            {copyable && typed && value !== "—" && (
+              <CopyValueButton value={value} label={label} />
+            )}
+          </dd>
         </div>
       ))}
     </dl>
