@@ -749,3 +749,17 @@ The Amharic drafts:
 - `migration.restore_refused_in_use` is also the note on a row whose archived person has been used and whose name shares nothing with the line (it replaces "choose restore if it is them" there). No new string.
 
 What to check first: that "መልስ" ("restore") is the verb the Archived view already uses on its button, and that "ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል" ("has been used since the list that added them") reads as work done for the person, not as a thing used up. The Afaan Oromoo lines are drafts and unread.
+
+### Reach from the lists card: a corrected file and one way in from Employees (2026-11-25)
+
+| What | Where | Strings |
+|---|---|---|
+| "Add a corrected file" on a list whose additions were undone | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.add_corrected` | 1 each |
+| Add-employee menu item that opens the import page at the lists card | `src/src/lib/i18n/locales/{am,om}.json`, `employees.add_menu.recent_lists` | 1 each |
+
+The Amharic drafts:
+
+- `migration_lists.add_corrected`: የተስተካከለ ፋይል ያክሉ
+- `employees.add_menu.recent_lists`: በቅርቡ የጨመሯቸው ዝርዝሮች
+
+What to check first: that "የተስተካከለ ፋይል" ("a corrected file") reads as the file after fixing, not as a file that was edited by the system, and that "ያክሉ" matches the verb already used on the import screen for adding a list. The Afaan Oromoo lines are drafts and unread.

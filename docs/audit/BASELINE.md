@@ -5426,3 +5426,17 @@ Tests: `tests/Feature/Migration/RestoreFromListTest.php`, `src/src/test/migratio
 5. *Badge.* `writeOver` keeps the `badge_held` warning on the row, as `admit()` does. `keeps a warning on a row whose badge another record took after the review`.
 6. *Warning for a used person.* A row matched to an archived person who has been used, with a name that shares nothing, no longer says "choose restore if it is them": the warning keeps its code, carries `used`, and its message is the existing `restore_refused_in_use` (MigrationController::warningMessage re-renders it by code). No new string. `does not tell a reviewer to choose restore for a person who has been used`.
 7. *Sign-in.* Documented, not built (above and in `docs/MIGRATION.md`).
+
+### 25bd. Undo and a corrected file, from the lists card: built 2026-11-25
+
+**What was wrong.** After a wrong list was added, the admin had to open the list before any undo button appeared, and after the undo the card offered no way on to the corrected file. The route was Employees, import, open the list, undo, paste again.
+
+**What it does.** Frontend only; no server change and no new request on the Employees page.
+
+- Each row under "Lists added recently" carries the existing `MigrationUndoButton` while `undone_at` is null. The button's own rules still apply: it shows only for `mode !== "complete"` and `employee.delete`. An undone row shows the "Additions undone" badge and no second undo.
+- An undone row carries "Add a corrected file" when the host passes `onAddCorrected`. `migration-step.tsx` supplies it: it clears any interruption or open list and brings the paste box into view. Nothing is prefilled and the new list is not bound to the undone one; the corrected file brings the archived people back by number (25bc).
+- The add-employee menu has "Lists you added recently", a link to `/employees/import#recent-lists`. The card is the anchor (`id="recent-lists"`). It appears only after its request lands, after the browser has looked for the anchor, so the card scrolls itself into view the first time it shows with that hash.
+
+**Not measured.** No browser run: Vitest only. The Amharic and Afaan Oromoo lines are unread (`docs/i18n/AMHARIC-REVIEW.md`). The hash scroll on a real navigation is untested in a browser; jsdom does not scroll.
+
+Tests: `src/src/test/migration-lists-in-progress.test.tsx` ("Reach from the lists card", 5 cases), `src/src/test/add-employee-menu.test.tsx`.
