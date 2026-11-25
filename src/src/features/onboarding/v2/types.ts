@@ -138,7 +138,8 @@ export interface GoLiveResult {
  */
 export type MatchOutcome =
   "matched" | "probable" | "ambiguous" | "archived" | "new" | "same_name";
-export type StagingAction = "merge" | "create" | "skip" | "defer" | "pending";
+export type StagingAction =
+  "merge" | "create" | "skip" | "defer" | "restore" | "pending";
 
 export interface StagingCandidate {
   employee_public_id: string;
@@ -185,6 +186,12 @@ export interface StagingRow {
   changes: StagedChange[];
   /** What staging noted about the row. Its number may not fit a terminal. */
   warnings?: { code: string; message: string }[];
+  /**
+   * Set when the row matched someone who is archived: whether the row can
+   * bring them back, what has used them since if not (`reasons`, as an undo
+   * names them), and whether the viewer may restore people.
+   */
+  restore?: { possible: boolean; allowed: boolean; reasons: string[] } | null;
   /** The viewer may edit the matched employee. */
   can_apply_changes: boolean;
   /** The matched employee has a change waiting for a later date. */
