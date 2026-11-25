@@ -21,7 +21,9 @@ return new class extends Migration
     {
         Schema::table('tenants', function (Blueprint $table): void {
             $table->timestamp('erased_at')->nullable();
-            $table->foreignId('erased_by')->nullable()->constrained('users')->nullOnDelete();
+            // Indexed, not a foreign key, as owner_user_id is: a key from
+            // tenants to users and back leaves a backup restore no order.
+            $table->unsignedBigInteger('erased_by')->nullable()->index();
             $table->json('erasure_certificate')->nullable();
         });
     }
@@ -29,8 +31,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('erased_by');
-            $table->dropColumn(['erased_at', 'erasure_certificate']);
+            $table->dropIndex(['erased_by']);
+            $table->dropColumn(['erased_at', 'erased_by', 'erasure_certificate']);
         });
     }
 };

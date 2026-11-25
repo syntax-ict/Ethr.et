@@ -22,15 +22,18 @@ return new class extends Migration
         Schema::table('tenants', function (Blueprint $table): void {
             $table->string('terms_accepted_version', 32)->nullable();
             $table->timestamp('terms_accepted_at')->nullable();
-            $table->foreignId('terms_accepted_by')->nullable()->constrained('users')->nullOnDelete();
+            // Indexed, not a foreign key, as owner_user_id is: users.tenant_id
+            // already points here, and a key in both directions leaves a
+            // backup restore no order to replay the two tables in.
+            $table->unsignedBigInteger('terms_accepted_by')->nullable()->index();
         });
     }
 
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('terms_accepted_by');
-            $table->dropColumn(['terms_accepted_version', 'terms_accepted_at']);
+            $table->dropIndex(['terms_accepted_by']);
+            $table->dropColumn(['terms_accepted_version', 'terms_accepted_at', 'terms_accepted_by']);
         });
     }
 };
