@@ -1837,22 +1837,28 @@ export function MigrationStep({
                           )}
                         </Button>
                       )}
-                      {row.restore && !row.processed_at && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {row.restore.possible
-                            ? t(
-                                "setup2.restore_note",
-                                "Archived. Adding this list brings them back with this line's details.",
-                              )
-                            : t(
-                                "setup2.restore_blocked",
-                                "Cannot be brought back from a list: :reasons. Restore them from the archived view if they should return.",
-                                {
-                                  reasons: archiveReasons(row.restore.reasons),
-                                },
-                              )}
-                        </p>
-                      )}
+                      {row.restore &&
+                        !row.processed_at &&
+                        (!row.restore.possible ||
+                          (row.action === "restore" &&
+                            batch.mode !== "complete")) && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {row.restore.possible
+                              ? t(
+                                  "setup2.restore_note",
+                                  "Archived. Adding this list brings them back with this line's details.",
+                                )
+                              : t(
+                                  "setup2.restore_blocked",
+                                  "Cannot be brought back from a list: :reasons. Restore them from the archived view if they should return.",
+                                  {
+                                    reasons: archiveReasons(
+                                      row.restore.reasons,
+                                    ),
+                                  },
+                                )}
+                          </p>
+                        )}
                       {(row.warnings ?? []).length > 0 && (
                         <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
                           {row.warnings!.map((warning) => (

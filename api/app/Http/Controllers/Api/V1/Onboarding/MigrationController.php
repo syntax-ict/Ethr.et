@@ -856,7 +856,11 @@ class MigrationController extends Controller
         $code = (string) ($warning['code'] ?? '');
 
         if ($code === WorkforceMigrationService::MAYBE_OTHER_PERSON) {
-            return __($warning['archived'] ?? false ? 'onboarding.migration.maybe_other_person_archived' : 'onboarding.migration.maybe_other_person');
+            if (! ($warning['archived'] ?? false)) {
+                return __('onboarding.migration.maybe_other_person');
+            }
+
+            return __(($warning['used'] ?? false) ? 'onboarding.migration.restore_refused_in_use' : 'onboarding.migration.maybe_other_person_archived');
         }
 
         if ($code === WorkforceMigrationService::RESTORE_REFUSED && is_string($warning['reason'] ?? null)) {

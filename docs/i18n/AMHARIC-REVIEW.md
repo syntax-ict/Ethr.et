@@ -746,5 +746,6 @@ The Amharic drafts:
 - `migration.restore_refused_no_seat`: በእቅድዎ ውስጥ መቀመጫ ስለሌለ ይህ ሰው አልተመለሰም። መቀመጫ ያስለቅቁ ወይም እቅዱን ይቀይሩ፣ ከዚያ ይህን ዝርዝር እንደገና ይጨምሩ።
 - `migration.restore_refused_number_taken`: በዚህ መስመር ያለው የሰራተኛ ቁጥር አሁን የሌላ መዝገብ ስለሆነ ይህ ሰው አልተመለሰም።
 - The other `migration.restore_refused_*` lines (`gone`, `no_permission`, `failed`).
+- `migration.restore_refused_in_use` is also the note on a row whose archived person has been used and whose name shares nothing with the line (it replaces "choose restore if it is them" there). No new string.
 
 What to check first: that "መልስ" ("restore") is the verb the Archived view already uses on its button, and that "ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል" ("has been used since the list that added them") reads as work done for the person, not as a thing used up. The Afaan Oromoo lines are drafts and unread.

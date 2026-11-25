@@ -529,8 +529,9 @@ matched to an archived person has the action `restore`: "Bring back" on the revi
   (`EmployeeArchiver::reasons()`, the rule an undo and archiving a selection use) and whose
   name does not contradict theirs (`PersonName::overlap`; a name ETHR made up is no
   objection) defaults to `restore`. A name that shares no word with the person's defaults to
-  `defer` with the warning `maybe_other_person` (told as "choose restore", not "merge"); the
-  reviewer may still choose restore on it. A person who has been used, or who was matched by
+  `defer` with the warning `maybe_other_person` (told as "choose restore", not "merge"; for a
+  person who has been used it says why they cannot be brought back instead); the
+  reviewer may still choose restore on it where it is possible. A person who has been used, or who was matched by
   something other than the number, stays `defer`, with `number_held` as before. A terminal's
   guessed number (`code_is_guess`) never defaults to restore.
 - **`PATCH /rows/{row}` with `restore`** answers 422 unless the row's person is archived, has
@@ -555,9 +556,28 @@ matched to an archived person has the action `restore`: "Bring back" on the revi
   Totals gain `restored`.
 - **Undo of a list that restored people** archives them again on the same terms as the ones
   it made (still unused, within reach). They are never deleted, and the undo's audit entry
-  records `restored`. A person restored by list B is also in the first list's own set, so
-  pressing undo again on the first list would archive them again; the screen offers undo
-  once.
+  records `restored`. A person restored by list B is also in the first list's own set, but
+  pressing undo again on the first list (which is supported, and archives nobody twice) leaves
+  them alone: `ListAdditions` leaves out anyone a later list's processed `restore` row
+  resolved to, so the preview and the undo of the first list no longer name them. If list B is
+  itself undone they are archived by that undo.
+- **The plan's limit counts them.** The check at the head of each chunk counts the rows still
+  to do whose action is `create` or `restore`, before anything is written, so a list that
+  would take the plan over its limit is refused with 403 as a whole. A restore row that is held
+  afterwards (used since, no permission) still counted, so the check can be stricter than the
+  result; the per-person `no_seat` refusal remains for a seat taken between the check and the
+  row.
+- **What stops the commit instead of holding the row.** A deadlock, a lock wait timeout or a
+  lost connection during a restore is not a reason to hold a row: it ends the chunk's
+  transaction on the server, so it is rethrown (as `admit()` does) and the whole chunk rolls
+  back; asking the commit again resumes. A unique violation is `number_taken` only on the
+  employee number; on any other index the row is held as `failed` and the error is reported.
+- **The badge.** A badge number another record holds is left off the restored person and the
+  row keeps the `badge_held` warning, as for a new person.
+- **Their sign-in is not reopened and no invitation is sent.** Archiving closed the person's
+  login; a restore does not reopen it (`EmployeeRestorer`), and a list never sends an
+  invitation. Someone who needs to sign in again has to be given access again by hand.
+  Not built.
 
 ### A list that comes out of other software (2026-11-16)
 

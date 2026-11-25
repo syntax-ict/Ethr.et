@@ -38,6 +38,10 @@ use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
 use App\Support\PersonName;
 use App\Support\RelationMatch;
+use Illuminate\Database\ConcurrencyErrorDetector;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\LostConnectionDetector;
+use Illuminate\Database\LostConnectionException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -393,7 +397,11 @@ final class WorkforceMigrationService
         // asked again whenever the action or the person moves.
         $raw = $this->rawOf($row);
         $target = $resolvedEmployee ?? $this->resolvedPerson($row);
-        $flagged = $this->withOtherPersonWarning($raw, in_array($action, [MigrationStagingRow::ACTION_MERGE, MigrationStagingRow::ACTION_DEFER, MigrationStagingRow::ACTION_RESTORE], true) && $this->flagsOtherPerson($raw, $target, $action !== MigrationStagingRow::ACTION_MERGE), $target?->trashed() === true);
+        $other = in_array($action, [MigrationStagingRow::ACTION_MERGE, MigrationStagingRow::ACTION_DEFER, MigrationStagingRow::ACTION_RESTORE], true) && $this->flagsOtherPerson($raw, $target, $action !== MigrationStagingRow::ACTION_MERGE);
+        // Someone archived who has been used cannot be brought back by a list,
+        // so the warning must not suggest choosing restore.
+        $used = $other && $target?->trashed() === true && $this->useAmong($row->tenant_id, [$target->id]) !== [];
+        $flagged = $this->withOtherPersonWarning($raw, $other, $target?->trashed() === true, $used);
 
         // A number held by the very person a row restores is theirs, and one
         // that stopped being a restore is a held number again.
@@ -563,12 +571,13 @@ final class WorkforceMigrationService
             $cursor = (int) ($locked->commit_cursor ?? 0);
             $completing = $locked->isCompleting();
 
-            // The plan's limit, on everyone this list still has to add, before
-            // any of them is written: as the file import applies it.
+            // The plan's limit, on everyone this list still has to add or bring
+            // back, before any of them is written: as the file import applies
+            // it. A restored person takes a seat as a new one does.
             $this->planLimits->assertCanAdd(
                 $tenant,
                 'employees',
-                $completing ? 0 : $batch->rows()->where('id', '>', $cursor)->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
+                $completing ? 0 : $batch->rows()->where('id', '>', $cursor)->whereIn('action', [MigrationStagingRow::ACTION_CREATE, MigrationStagingRow::ACTION_RESTORE])->count(),
             );
 
             $rows = $batch->rows()->where('id', '>', $cursor)->orderBy('id')->limit($this->chunk)->get();
@@ -1122,16 +1131,17 @@ final class WorkforceMigrationService
             ? MigrationStagingRow::ACTION_RESTORE
             : MigrationStagingRow::ACTION_DEFER;
 
-        $flagged = $this->withOtherPersonWarning($raw, $other, archived: true);
+        $flagged = $this->withOtherPersonWarning($raw, $other, archived: true, used: ($held->useOf($person->id) ?? []) !== []);
 
         return $flagged === $raw ? $attributes : [...$attributes, 'raw' => $flagged];
     }
 
     /**
      * @param  array<string, mixed>  $raw
+     * @param  bool  $used  the archived person has been used since, so restore is not on offer and the warning says why
      * @return array<string, mixed> the row's raw details, with the warning as it now stands
      */
-    private function withOtherPersonWarning(array $raw, bool $flagged, bool $archived = false): array
+    private function withOtherPersonWarning(array $raw, bool $flagged, bool $archived = false, bool $used = false): array
     {
         $warnings = array_values(array_filter(
             is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
@@ -1144,7 +1154,8 @@ final class WorkforceMigrationService
             $warnings[] = [
                 'code' => self::MAYBE_OTHER_PERSON,
                 ...($archived ? ['archived' => true] : []),
-                'message' => __($archived ? 'onboarding.migration.maybe_other_person_archived' : 'onboarding.migration.maybe_other_person'),
+                ...($archived && $used ? ['used' => true] : []),
+                'message' => __($archived ? ($used ? 'onboarding.migration.restore_refused_in_use' : 'onboarding.migration.maybe_other_person_archived') : 'onboarding.migration.maybe_other_person'),
             ];
         }
 
@@ -1641,7 +1652,7 @@ final class WorkforceMigrationService
                     $audit = ['via' => 'migration.restore', 'batch' => $batch->public_id];
 
                     $this->restorer->restore($person, seatHeld: true, audit: $audit, tenant: $tenant);
-                    $this->writeOver($person, $raw, $batch, $departments, $held, $audit);
+                    $this->writeOver($row, $person, $raw, $batch, $departments, $held, $audit);
                     $this->resolver->link($person, $signals, 1.0, verified: true, reassign: true);
                     $this->writeProfile($person, $raw, $actor, over: true);
 
@@ -1649,9 +1660,26 @@ final class WorkforceMigrationService
                 });
             } catch (HttpException $e) {
                 $reason = $e->getStatusCode() === 403 ? 'no_seat' : 'failed';
-            } catch (UniqueConstraintViolationException) {
-                $reason = 'number_taken';
+            } catch (UniqueConstraintViolationException $e) {
+                // Only the employee number is "taken"; any other unique index
+                // is a failure the reviewer is told about, and it is reported.
+                if (str_contains($e->getMessage(), 'employee_code')) {
+                    $reason = 'number_taken';
+                } else {
+                    report($e);
+                    $reason = 'failed';
+                }
             } catch (Throwable $e) {
+                // A deadlock or a lock wait timeout has already ended the
+                // chunk's transaction on the server (Laravel counts the level
+                // down without rolling back to our savepoint), so carrying on
+                // would write the rest of the chunk in autocommit and keep a
+                // person half restored. Let it out, as admit() does: the chunk
+                // rolls back whole and the commit can be asked again.
+                if ($e instanceof DeadlockException || $e instanceof LostConnectionException || (new ConcurrencyErrorDetector)->causedByConcurrencyError($e) || (new LostConnectionDetector)->causedByLostConnection($e)) {
+                    throw $e;
+                }
+
                 report($e);
                 $reason = 'failed';
             }
@@ -1679,7 +1707,7 @@ final class WorkforceMigrationService
      * @param  array<string, mixed>  $raw
      * @param  array<string, mixed>  $audit
      */
-    private function writeOver(Employee $person, array $raw, MigrationBatch $batch, DepartmentMatch $departments, HeldSet $held, array $audit): void
+    private function writeOver(MigrationStagingRow $row, Employee $person, array $raw, MigrationBatch $batch, DepartmentMatch $departments, HeldSet $held, array $audit): void
     {
         $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
 
@@ -1701,6 +1729,9 @@ final class WorkforceMigrationService
         $badgeHolder = $badge === null ? null : $held->badge($badge);
         if ($badge !== null && ($badgeHolder === null || $badgeHolder['id'] === $person->id)) {
             $attributes['badge_number'] = $badge;
+        } elseif ($badge !== null) {
+            // Left off, and the reviewer is told, as admit() does for a new person.
+            $this->noteHeldBadge($row, $raw, $badge, $badgeHolder);
         }
 
         $attributes = [

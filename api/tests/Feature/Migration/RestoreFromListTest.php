@@ -9,7 +9,10 @@ use App\Models\MigrationBatch;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Tests\Support\StagingFixtures as Staging;
 use Tests\Support\UndoFixtures as Undo;
 
@@ -226,34 +229,57 @@ describe('who can be brought back', function () {
 });
 
 describe('what stops a restore at commit', function () {
-    it('holds the person the plan has no seat for and restores the others, and the list is not stuck', function () {
+    it('counts the people a list brings back as well as the people it adds, and refuses before anything is written', function () {
         [$tenant, $user] = Undo::admin();
         wrongListUndone($tenant, $user, [
             ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
             ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
             ['name' => 'Dawit Haile', 'employee_code' => 'E-3'],
         ]);
-        // The admin's own login has no employee record, so two seats are free.
-        Subscription::factory()->for($tenant)->create(['plan_id' => Plan::factory()->create(['max_employees' => 2])->id]);
+        // The plan has room for five. The list brings three back and adds
+        // three: the adds alone fit, the whole does not.
+        Subscription::factory()->for($tenant)->create(['plan_id' => Plan::factory()->create(['max_employees' => 5])->id]);
 
         $corrected = Staging::stage($tenant, [
             ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
             ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
             ['name' => 'Dawit Haile', 'employee_code' => 'E-3'],
+            ['name' => 'Hana Girma', 'employee_code' => 'E-4'],
+            ['name' => 'Yonas Bekele', 'employee_code' => 'E-5'],
+            ['name' => 'Meron Alemu', 'employee_code' => 'E-6'],
+        ]);
+
+        commitList($tenant, $corrected)->assertForbidden();
+
+        expect(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(0)
+            ->and(Employee::withTrashed()->where('tenant_id', $tenant->id)->count())->toBe(3)
+            ->and($corrected->refresh()->isCommitted())->toBeFalse()
+            ->and($corrected->status)->not->toBe('committing')
+            ->and($corrected->rows()->whereNotNull('processed_at')->count())->toBe(0);
+    });
+
+    it('commits a list that fills the plan exactly, people brought back and people added together', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+        ]);
+        Staging::employee($tenant, ['name' => 'Kidist Worku', 'employee_code' => 'E-9']);
+        Subscription::factory()->for($tenant)->create(['plan_id' => Plan::factory()->create(['max_employees' => 5])->id]);
+
+        $corrected = Staging::stage($tenant, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+            ['name' => 'Hana Girma', 'employee_code' => 'E-4'],
+            ['name' => 'Yonas Bekele', 'employee_code' => 'E-5'],
         ]);
 
         commitList($tenant, $corrected)->assertOk()
             ->assertJsonPath('status', 'committed')
             ->assertJsonPath('totals.restored', 2)
-            ->assertJsonPath('totals.deferred', 1);
+            ->assertJsonPath('totals.created', 2);
 
-        expect($corrected->refresh()->isCommitted())->toBeTrue()
-            ->and(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(2);
-
-        $held = collect(reviewRows($tenant, $corrected))->firstWhere('action', 'defer');
-        expect($held['warnings'][0]['code'])->toBe('restore_refused')
-            ->and($held['warnings'][0]['message'])->toBe(__('onboarding.migration.restore_refused_no_seat'))
-            ->and(Undo::who($tenant, 'Dawit Haile')->trashed())->toBeTrue();
+        expect(Employee::query()->where('tenant_id', $tenant->id)->count())->toBe(5);
     });
 
     it('needs the permission to restore people, as well as to add them', function () {
@@ -309,5 +335,149 @@ describe('undoing a list that brought people back', function () {
             ->and(Undo::who($tenant, 'Sara Tesfaye')->trashed())->toBeFalse()
             ->and(Employee::withTrashed()->where('tenant_id', $tenant->id)->count())->toBe(3)
             ->and(AuditLog::query()->where('action', 'migration.undone')->latest('id')->first()->payload['restored'])->toBe(2);
+    });
+});
+
+/** Make the write of the file's details over a restored person fail with this. */
+function failTheWriteWith(Throwable $e): void
+{
+    Event::listen('eloquent.updating: '.Employee::class, function () use ($e): void {
+        throw $e;
+    });
+}
+
+function uniqueViolationOn(string $columns): UniqueConstraintViolationException
+{
+    return new UniqueConstraintViolationException(
+        'sqlite',
+        'update "employees" set "name" = ?',
+        [],
+        new PDOException("SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: {$columns}"),
+    );
+}
+
+describe('what goes wrong inside a restore', function () {
+    it('reports a unique violation that is not the employee number as a failure, not as a number taken', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1', 'email' => 'abebe@example.test']]);
+
+        failTheWriteWith(uniqueViolationOn('employees.tenant_id, employees.email'));
+
+        commitList($tenant, $corrected)->assertOk()->assertJsonPath('totals.deferred', 1)->assertJsonPath('totals.restored', 0);
+
+        $warning = reviewRows($tenant, $corrected)[0]['warnings'][0];
+        expect($warning['code'])->toBe('restore_refused')
+            ->and($warning['message'])->toBe(__('onboarding.migration.restore_refused_failed'))
+            ->and(Undo::who($tenant, 'Abebe Kebede')->trashed())->toBeTrue();
+    });
+
+    it('still reports a unique violation on the employee number as a number taken', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+
+        failTheWriteWith(uniqueViolationOn('employees.tenant_id, employees.employee_code'));
+
+        commitList($tenant, $corrected)->assertOk()->assertJsonPath('totals.deferred', 1);
+
+        expect(reviewRows($tenant, $corrected)[0]['warnings'][0]['message'])->toBe(__('onboarding.migration.restore_refused_number_taken'));
+    });
+
+    it('lets a deadlock out of the chunk instead of turning the row into a held one', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+
+        failTheWriteWith(new DeadlockException('Deadlock found when trying to get lock; try restarting transaction'));
+
+        $this->withoutExceptionHandling();
+
+        expect(fn () => commitList($tenant, $corrected))->toThrow(DeadlockException::class);
+
+        expect($corrected->rows()->sole()->action)->toBe('restore');
+    });
+
+    it('lets a lock wait timeout out of the chunk too', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+
+        failTheWriteWith(new Exception('Lock wait timeout exceeded; try restarting transaction'));
+
+        $this->withoutExceptionHandling();
+
+        expect(fn () => commitList($tenant, $corrected))->toThrow(Exception::class, 'Lock wait timeout');
+
+        expect($corrected->rows()->sole()->action)->toBe('restore');
+    });
+});
+
+describe('pressing undo again on the first list', function () {
+    it('does not archive again the people a later corrected list brought back', function () {
+        [$tenant, $user] = Undo::admin();
+        $first = wrongListUndone($tenant, $user, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+        ]);
+        $corrected = Staging::stage($tenant, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+        ]);
+        commitList($tenant, $corrected)->assertOk()->assertJsonPath('totals.restored', 2);
+
+        test()->getJson(Undo::url($tenant, $first))->assertOk()->assertJsonPath('archive_count', 0);
+
+        test()->postJson(Undo::url($tenant, $first), ['confirm' => true])->assertOk()->assertJsonPath('archived', 0);
+
+        expect(Undo::who($tenant, 'Abebe Kebede')->trashed())->toBeFalse()
+            ->and(Undo::who($tenant, 'Sara Tesfaye')->trashed())->toBeFalse();
+    });
+
+    it('still undoes the first list for the people no later list brought back', function () {
+        [$tenant, $user] = Undo::admin();
+        $first = Undo::committed($tenant, $user, [
+            ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
+            ['name' => 'Sara Tesfaye', 'employee_code' => 'E-2'],
+        ]);
+
+        Undo::who($tenant, 'Abebe Kebede')->delete();
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        commitList($tenant, $corrected)->assertOk()->assertJsonPath('totals.restored', 1);
+
+        test()->postJson(Undo::url($tenant, $first), ['confirm' => true])->assertOk()->assertJsonPath('archived', 1);
+
+        expect(Undo::who($tenant, 'Abebe Kebede')->trashed())->toBeFalse()
+            ->and(Undo::who($tenant, 'Sara Tesfaye')->trashed())->toBeTrue();
+    });
+});
+
+describe('what a restore tells the reviewer', function () {
+    it('keeps a warning on a row whose badge another record took after the review', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        $corrected = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1', 'badge_number' => 'B-77']]);
+        expect(reviewRows($tenant, $corrected)[0]['warnings'])->toBe([]);
+
+        Staging::employee($tenant, ['name' => 'Yonas Bekele', 'employee_code' => 'E-9', 'badge_number' => 'B-77']);
+
+        commitList($tenant, $corrected)->assertOk()->assertJsonPath('totals.restored', 1);
+
+        expect(array_column(reviewRows($tenant, $corrected)[0]['warnings'], 'code'))->toBe(['badge_held'])
+            ->and(Undo::who($tenant, 'Abebe Kebede')->badge_number)->toBeNull();
+    });
+
+    it('does not tell a reviewer to choose restore for a person who has been used', function () {
+        [$tenant, $user] = Undo::admin();
+        wrongListUndone($tenant, $user, [['name' => 'Abebe Kebede', 'employee_code' => 'E-1']]);
+        Undo::use($tenant, Undo::who($tenant, 'Abebe Kebede'), 'attendance');
+
+        $corrected = Staging::stage($tenant, [['name' => 'Meron Alemu', 'employee_code' => 'E-1']]);
+        $row = reviewRows($tenant, $corrected)[0];
+
+        $warning = collect($row['warnings'])->firstWhere('code', 'maybe_other_person');
+        expect($row['action'])->toBe('defer')
+            ->and($warning['message'])->toBe(__('onboarding.migration.restore_refused_in_use'))
+            ->and($warning['message'])->not->toBe(__('onboarding.migration.maybe_other_person_archived'));
     });
 });

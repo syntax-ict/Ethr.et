@@ -2046,4 +2046,59 @@ describe("a row matched to someone archived", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  async function reviewBatch(batch: MigrationBatch) {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      { target: { value: "Abebe Kebede" } },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+  }
+
+  const BRINGS_BACK =
+    "Archived. Adding this list brings them back with this line's details.";
+
+  it("promises the return only on a row whose action is restore", async () => {
+    const possible = { possible: true, allowed: true, reasons: [] };
+
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      summary: { archived: 3 },
+      rows: [
+        row("A", possible, "defer"),
+        row("B", possible, "skip"),
+        row("C", possible, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText(BRINGS_BACK)).toBeInTheDocument();
+    expect(screen.getAllByText(BRINGS_BACK)).toHaveLength(1);
+  });
+
+  it("promises nothing on a list that completes people, whatever a row says", async () => {
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { archived: 1 },
+      rows: [
+        row("A", { possible: true, allowed: true, reasons: [] }, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText("Person A")).toBeInTheDocument();
+    expect(screen.queryByText(BRINGS_BACK)).not.toBeInTheDocument();
+  });
 });
