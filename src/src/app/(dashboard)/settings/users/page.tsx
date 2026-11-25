@@ -56,6 +56,7 @@ import {
   type UserRole,
   type UserStatus,
 } from "@/features/users/api";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SearchInput } from "@/components/shared/search-input";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -182,6 +183,7 @@ export default function UsersSettingsPage() {
   const [editUser, setEditUser] = useState<TenantUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<TenantUser | null>(null);
   const [mfaUser, setMfaUser] = useState<TenantUser | null>(null);
+  const [confirmFollow, setConfirmFollow] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -265,8 +267,28 @@ export default function UsersSettingsPage() {
     }
   }
 
+  const roleLabel = (r: string) => t(`role.${r}`, r.replace(/_/g, " "));
+
+  // Switching an account on to its job title applies at once, so when that
+  // would change its role the person is asked first.
+  function savePressed() {
+    const preview = editUser?.title_preview;
+    if (
+      editUser &&
+      editForm.follows &&
+      !editUser.role_follows_position &&
+      preview &&
+      preview.role !== editUser.role
+    ) {
+      setConfirmFollow(true);
+      return;
+    }
+    void submitEdit();
+  }
+
   async function submitEdit() {
     if (!editUser) return;
+    setConfirmFollow(false);
     try {
       await update.mutateAsync({
         publicId: editUser.public_id,
@@ -732,6 +754,24 @@ export default function UsersSettingsPage() {
                       </Button>
                     ))}
                   </div>
+                  {editForm.follows && editUser.title_preview && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {editUser.title_preview.position
+                        ? t(
+                            "users_page.title_preview",
+                            "Job title :title gives :role",
+                            {
+                              title: editUser.title_preview.position,
+                              role: roleLabel(editUser.title_preview.role),
+                            },
+                          )
+                        : t(
+                            "users_page.title_preview_none",
+                            "No job title, so this gives :role",
+                            { role: roleLabel(editUser.title_preview.role) },
+                          )}
+                    </p>
+                  )}
                 </div>
               )}
               <div>
@@ -783,7 +823,7 @@ export default function UsersSettingsPage() {
               <Button variant="outline" onClick={() => setEditUser(null)}>
                 {t("common.cancel", "Cancel")}
               </Button>
-              <Button onClick={submitEdit} disabled={update.isPending}>
+              <Button onClick={savePressed} disabled={update.isPending}>
                 {update.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -792,6 +832,42 @@ export default function UsersSettingsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Following the job title would change this role: say how, first */}
+        <ConfirmDialog
+          open={confirmFollow && !!editUser?.title_preview}
+          onOpenChange={setConfirmFollow}
+          title={t("users_page.follow_confirm_title", "Follow the job title?")}
+          description={
+            editUser?.title_preview
+              ? t(
+                  editUser.title_preview.applies
+                    ? "users_page.follow_confirm_applies"
+                    : "users_page.follow_confirm_held",
+                  editUser.title_preview.applies
+                    ? ":name's role changes from :from to :to."
+                    : ":name keeps :from until someone who may give :to applies it. It will show under Differs from job title.",
+                  {
+                    name:
+                      editUser.employee?.name ??
+                      editUser.display_name ??
+                      editUser.email ??
+                      "",
+                    from: roleLabel(editUser.role),
+                    to: roleLabel(editUser.title_preview.role),
+                  },
+                )
+              : undefined
+          }
+          confirmLabel={
+            editUser?.title_preview?.applies
+              ? t("users_page.follow_confirm_change", "Change role")
+              : t("users_page.follow_confirm_follow", "Follow job title")
+          }
+          cancelLabel={t("users_page.keep_editing", "Keep editing")}
+          loading={update.isPending}
+          onConfirm={() => void submitEdit()}
+        />
 
         {/* Reset two-factor: the way back from a lost authenticator */}
         <Dialog open={!!mfaUser} onOpenChange={(o) => !o && setMfaUser(null)}>
