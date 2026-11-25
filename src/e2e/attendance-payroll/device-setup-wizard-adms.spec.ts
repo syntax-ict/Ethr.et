@@ -175,19 +175,33 @@ test("a ZKTeco terminal is set up in the wizard: refused, allowed with one click
     );
     expect(upload.status(), "an ATTLOG upload").toBe(200);
 
+    // The new terminal's own count: one punch received, and recorded for a
+    // person rather than held as an unknown badge.
+    await expect
+      .poll(
+        async () => {
+          const device = await api(page, "GET", `/devices/${deviceId}`);
+          const today = device.data.today ?? {};
+          return `${today.received}:${today.recorded}:${today.held}`;
+        },
+        { timeout: 60_000 },
+      )
+      .toBe("1:1:0");
+
+    // And it is on the person's day, at the time the terminal said. Other
+    // journeys punch for this person too, so the record may already have been
+    // open: the punch is looked for by its time, not by the record's.
     const person = await employeeId(page, "DEV-0001");
-    // Other journeys punch for this person too, so the record is the one at this time.
-    const isThisPunch = (row: { check_in: string | null }) =>
-      row.check_in !== null &&
-      Math.abs(new Date(row.check_in).getTime() - arrived.getTime()) < 2000;
-    const rows = await recordsWhen(
+    const isThisPunch = (punch: { source: string; at: string }) =>
+      punch.source === "biometric" &&
+      Math.abs(new Date(punch.at).getTime() - arrived.getTime()) < 2000;
+    await recordsWhen(
       page,
       person,
       addisDate(minutesAgo(1640)),
       addisDate(new Date()),
-      (found) => live(found).some(isThisPunch),
+      (found) => live(found).some((row) => row.punches.some(isThisPunch)),
     );
-    expect(live(rows).find(isThisPunch)?.source).toBe("biometric");
   } finally {
     if (deviceId) await api(page, "DELETE", `/devices/${deviceId}`);
     await admin.context.close();

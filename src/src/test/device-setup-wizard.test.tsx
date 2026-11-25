@@ -94,6 +94,10 @@ const PUSH = {
   uses_webhook_token: true,
   has_webhook_token: true,
   webhook_url: PUSH_URL,
+  // As the server says it: a send-only Hikvision resolves to the push
+  // adapter, which carries out no commands.
+  accepts_commands: false,
+  commands_enabled: false,
 };
 
 const PULL = {
@@ -115,19 +119,31 @@ const BRANCHES = [{ public_id: "B1", name: "Head office" }];
 /** What `GET /devices/DEV1` answers now, and how many times it was asked. */
 let current: Record<string, unknown>;
 let polls: number;
+/** The X-ETHR-Background header of each read, in order. */
+let background: (string | null)[];
 let created: unknown[];
 
-function serve(registered: Record<string, unknown>) {
+function serve(
+  registered: Record<string, unknown>,
+  options: { createDelayMs?: number } = {},
+) {
   current = registered;
   polls = 0;
+  background = [];
   created = [];
   server.use(
     http.post("*/api/v1/devices", async ({ request }) => {
       created.push(await request.json());
+      if (options.createDelayMs) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, options.createDelayMs),
+        );
+      }
       return HttpResponse.json(registered, { status: 201 });
     }),
-    http.get("*/api/v1/devices/DEV1", () => {
+    http.get("*/api/v1/devices/DEV1", ({ request }) => {
       polls++;
+      background.push(request.headers.get("X-ETHR-Background"));
       return HttpResponse.json(current);
     }),
     http.get("*/api/v1/devices/DEV1/status", () =>
@@ -159,12 +175,13 @@ function renderWizard(
     onOpenChange: vi.fn(),
     ...handlers,
   };
-  const view = render(
+  const tree = (open: boolean) => (
     <QueryClientProvider client={client}>
-      <DeviceSetupWizard open branches={BRANCHES} {...props} />
-    </QueryClientProvider>,
+      <DeviceSetupWizard open={open} branches={BRANCHES} {...props} />
+    </QueryClientProvider>
   );
-  return { ...props, ...view };
+  const view = render(tree(true));
+  return { ...props, ...view, close: () => view.rerender(tree(false)) };
 }
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -261,20 +278,36 @@ describe("firstContactFor", () => {
     const push = (today: object) =>
       firstContactFor(device({ today: { ...TODAY, ...today } }), "push");
     expect(push({})).toEqual({ kind: "waiting" });
+    // A heartbeat moves last_sync_at only: no punch.
+    expect(
+      firstContactFor(
+        device({ today: TODAY, last_sync_at: "2026-11-25T08:00:00Z" }),
+        "push",
+      ),
+    ).toEqual({ kind: "waiting" });
+    expect(push({ received: 1, quarantined: 1 })).toEqual({
+      kind: "punch",
+      matched: false,
+      held: false,
+      quarantined: true,
+    });
     expect(push({ received: 1, recorded: 1 })).toEqual({
       kind: "punch",
       matched: true,
       held: false,
+      quarantined: false,
     });
     expect(push({ received: 1, held: 1 })).toEqual({
       kind: "punch",
       matched: false,
       held: true,
+      quarantined: false,
     });
     expect(push({ waiting: 1 })).toEqual({
       kind: "punch",
       matched: false,
       held: false,
+      quarantined: false,
     });
   });
 });
@@ -291,6 +324,28 @@ describe("<DeviceSetupWizard>", () => {
 
     expect(onAdvanced).toHaveBeenCalledTimes(1);
     expect(created).toHaveLength(0);
+  });
+
+  it("cannot be closed, sent to Advanced or sent back while Register is on its way", async () => {
+    serve(PUSH, { createDelayMs: 10_000 });
+    const user = fresh();
+    const { onOpenChange, onAdvanced } = renderWizard();
+
+    await answer(user, "Hikvision", OFFICE);
+    await register(user);
+
+    expect(created).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /^advanced$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^back$/i })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(onAdvanced).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await screen.findByTestId("issued-address")).toHaveTextContent(
+      "token=issued-once",
+    );
+    expect(created).toHaveLength(1);
   });
 
   it("explains that a Suprema terminal that only sends has no path here", async () => {
@@ -430,6 +485,10 @@ describe("<DeviceSetupWizard>", () => {
 
       await user.keyboard("{Escape}");
       expect(onOpenChange).not.toHaveBeenCalled();
+      // The close button is hidden while the address may still be needed.
+      expect(screen.getByRole("dialog").className).toContain(
+        "[&>button]:hidden",
+      );
 
       // Finish later asks first: the address cannot be shown again.
       await user.click(screen.getByRole("button", { name: /finish later/i }));
@@ -439,7 +498,22 @@ describe("<DeviceSetupWizard>", () => {
         }),
       ).toHaveTextContent(/cannot be shown again/i);
       expect(onOpenChange).not.toHaveBeenCalled();
+      // It takes the place of Finish later, and Stay has the focus.
+      expect(screen.getByRole("button", { name: /^stay$/i })).toHaveFocus();
+      expect(
+        screen.queryByRole("button", { name: /finish later/i }),
+      ).toBeNull();
       await user.click(screen.getByRole("button", { name: /^stay$/i }));
+      // Moving on and back does not keep an old confirmation open.
+      await user.click(
+        screen.getByRole("button", { name: /check the connection/i }),
+      );
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      await user.click(
+        await screen.findByRole("button", {
+          name: /back to the terminal steps/i,
+        }),
+      );
       await user.click(screen.getByRole("button", { name: /finish later/i }));
       await user.click(screen.getByRole("button", { name: /^leave$/i }));
       expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -481,17 +555,21 @@ describe("<DeviceSetupWizard>", () => {
 
       await user.click(await screen.findByRole("button", { name: /^next$/i }));
 
-      // A terminal that only sends cannot be asked who is enrolled.
+      // A terminal that only sends can be asked nothing: no roster, and the
+      // push adapter carries out no commands.
       expect(
-        await screen.findByRole("button", { name: "Send all staff" }),
+        await screen.findByText(/cannot be asked who is enrolled/i),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Discover enrolled users" }),
       ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Send all staff" }),
+      ).toBeNull();
     });
 
-    it("says nothing more can be asked of it when it takes no commands either", async () => {
-      serve({ ...PUSH, accepts_commands: false, commands_enabled: false });
+    it("takes no heartbeat for a punch, and says when a punch could not be recorded", async () => {
+      serve(PUSH);
       const user = fresh();
       renderWizard();
 
@@ -500,21 +578,27 @@ describe("<DeviceSetupWizard>", () => {
       await user.click(
         await screen.findByRole("button", { name: /check the connection/i }),
       );
+
+      // A keep-alive moves last_sync_at and nothing else.
+      current = { ...PUSH, last_sync_at: new Date().toISOString() };
+      await vi.advanceTimersByTimeAsync(5000);
+      await waitFor(() => expect(polls).toBeGreaterThan(1));
+      expect(
+        screen.getByText(/ask someone to punch once/i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/a punch arrived/i)).toBeNull();
+      expect(screen.getByRole("button", { name: /^next$/i })).toBeDisabled();
+
       current = {
         ...PUSH,
-        accepts_commands: false,
-        commands_enabled: false,
-        today: { ...TODAY, received: 1, recorded: 1 },
+        last_sync_at: new Date().toISOString(),
+        today: { ...TODAY, received: 1, quarantined: 1 },
       };
       await vi.advanceTimersByTimeAsync(5000);
-      await user.click(await screen.findByRole("button", { name: /^next$/i }));
-
       expect(
-        await screen.findByText(/cannot be asked who is enrolled/i),
+        await screen.findByText(/could not be recorded/i),
       ).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Send all staff" }),
-      ).toBeNull();
+      expect(screen.queryByText(/being processed/i)).toBeNull();
     });
   });
 
@@ -607,6 +691,10 @@ describe("<DeviceSetupWizard>", () => {
       expect(polls).toBe(first + 1);
       await vi.advanceTimersByTimeAsync(5000);
       expect(polls).toBe(first + 2);
+      // The first read is the user arriving; the polls are background
+      // requests, which do not hold the session past its idle timeout.
+      expect(background[0]).toBeNull();
+      expect(background.at(-1)).toBe("1");
 
       await user.click(
         screen.getByRole("button", { name: /back to the terminal steps/i }),
@@ -623,7 +711,9 @@ describe("<DeviceSetupWizard>", () => {
       await toWaiting(user);
       await vi.advanceTimersByTimeAsync(5000);
 
-      view.unmount();
+      // Closed as the page closes it: open goes false, the providers stay.
+      view.close();
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       const closed = polls;
       await vi.advanceTimersByTimeAsync(30_000);
       expect(polls).toBe(closed);

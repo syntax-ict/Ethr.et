@@ -16,10 +16,16 @@ export type FirstContact =
   | { kind: "heard"; at: string | null }
   /**
    * Push: a punch arrived. `matched` is a person it was recorded for, `held`
-   * is a badge number that names nobody yet, and neither means it is still
-   * being worked by the queue.
+   * is a badge number that names nobody yet, `quarantined` is one that could
+   * not be recorded (its own page says why), and none of them means it is
+   * still being worked by the queue.
    */
-  | { kind: "punch"; matched: boolean; held: boolean };
+  | {
+      kind: "punch";
+      matched: boolean;
+      held: boolean;
+      quarantined: boolean;
+    };
 
 /** Whether the first contact has happened and the wizard may move on. */
 export function isConfirmed(contact: FirstContact): boolean {
@@ -52,9 +58,18 @@ export function firstContactFor(
     const recorded = Number(today?.recorded ?? 0);
     const held = Number(today?.held ?? 0);
     const waiting = Number(today?.waiting ?? 0);
+    const quarantined = Number(today?.quarantined ?? 0);
 
-    if (received > 0 || waiting > 0 || device.last_sync_at) {
-      return { kind: "punch", matched: recorded > 0, held: held > 0 };
+    // Only the counts say a punch arrived. `last_sync_at` moves on any post,
+    // a heartbeat or a door event that names nobody included, so it alone
+    // would report a punch nobody made.
+    if (received > 0 || waiting > 0) {
+      return {
+        kind: "punch",
+        matched: recorded > 0,
+        held: held > 0,
+        quarantined: quarantined > 0,
+      };
     }
   }
 

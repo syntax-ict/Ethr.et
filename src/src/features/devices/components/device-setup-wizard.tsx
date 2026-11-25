@@ -123,6 +123,15 @@ function WizardContent({
   const oneTime =
     registered?.setup?.mode === "push" &&
     (step === "terminal" || step === "waiting");
+  // Nor while Register is on its way: closing then would unmount the wizard
+  // before the answer arrives, losing that address, and Advanced would offer
+  // to register the same terminal a second time.
+  const locked = oneTime || create.isPending;
+
+  function goTo(next: Step) {
+    setConfirmLeave(false);
+    setStep(next);
+  }
 
   function chooseNext() {
     if (!brand || !choice) return;
@@ -131,7 +140,7 @@ function WizardContent({
       sends_to_ethr: choice.sends_to_ethr,
       port: brand === "zkteco" ? "4370" : "80",
     });
-    setStep("details");
+    goTo("details");
   }
 
   function register(e: React.FormEvent) {
@@ -153,7 +162,7 @@ function WizardContent({
           ip: state.form.ip.trim(),
           port: state.form.port,
         });
-        setStep("terminal");
+        goTo("terminal");
       },
       onError: (err: unknown) =>
         toast.error(apiErrorMessage(err, t("devices_page.add_failed"))),
@@ -185,9 +194,9 @@ function WizardContent({
 
   return (
     <DialogContent
-      className={`max-h-[90vh] max-w-lg overflow-y-auto${oneTime ? " [&>button]:hidden" : ""}`}
-      onInteractOutside={oneTime ? (e) => e.preventDefault() : undefined}
-      onEscapeKeyDown={oneTime ? (e) => e.preventDefault() : undefined}
+      className={`max-h-[90vh] max-w-lg overflow-y-auto${locked ? " [&>button]:hidden" : ""}`}
+      onInteractOutside={locked ? (e) => e.preventDefault() : undefined}
+      onEscapeKeyDown={locked ? (e) => e.preventDefault() : undefined}
     >
       <DialogHeader>
         <p className="text-xs text-muted-foreground">
@@ -237,14 +246,20 @@ function WizardContent({
           )}
           <DevicePeopleSection state={state} />
           <DialogFooter className="sm:justify-between">
-            <Button type="button" variant="ghost" onClick={onAdvanced}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={create.isPending}
+              onClick={onAdvanced}
+            >
               {t("device_wizard.advanced")}
             </Button>
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep("choose")}
+                disabled={create.isPending}
+                onClick={() => goTo("choose")}
               >
                 {t("device_wizard.back")}
               </Button>
@@ -265,14 +280,21 @@ function WizardContent({
       {registered && step === "terminal" && (
         <>
           <TerminalStep registered={registered} />
-          <DialogFooter className="sm:justify-between">
-            <Button type="button" variant="ghost" onClick={finishLater}>
-              {t("device_wizard.finish_later")}
-            </Button>
-            <Button type="button" onClick={() => setStep("waiting")}>
-              {t("device_wizard.check_connection")}
-            </Button>
-          </DialogFooter>
+          {confirmLeave ? (
+            <ConfirmLeave
+              onStay={() => setConfirmLeave(false)}
+              onLeave={finishLater}
+            />
+          ) : (
+            <DialogFooter className="sm:justify-between">
+              <Button type="button" variant="ghost" onClick={finishLater}>
+                {t("device_wizard.finish_later")}
+              </Button>
+              <Button type="button" onClick={() => goTo("waiting")}>
+                {t("device_wizard.check_connection")}
+              </Button>
+            </DialogFooter>
+          )}
         </>
       )}
 
@@ -280,14 +302,21 @@ function WizardContent({
         <>
           <FirstContactStep
             registered={registered}
-            onBack={() => setStep("terminal")}
-            onConfirmed={() => setStep("done")}
+            onBack={() => goTo("terminal")}
+            onConfirmed={() => goTo("done")}
           />
-          <DialogFooter className="sm:justify-start">
-            <Button type="button" variant="ghost" onClick={finishLater}>
-              {t("device_wizard.finish_later")}
-            </Button>
-          </DialogFooter>
+          {confirmLeave ? (
+            <ConfirmLeave
+              onStay={() => setConfirmLeave(false)}
+              onLeave={finishLater}
+            />
+          ) : (
+            <DialogFooter className="sm:justify-start">
+              <Button type="button" variant="ghost" onClick={finishLater}>
+                {t("device_wizard.finish_later")}
+              </Button>
+            </DialogFooter>
+          )}
         </>
       )}
 
@@ -301,31 +330,50 @@ function WizardContent({
           }}
         />
       )}
-
-      {confirmLeave && (
-        <div
-          role="alertdialog"
-          aria-label={t("device_wizard.later_push_title")}
-          className="space-y-3 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
-        >
-          <p className="font-medium">{t("device_wizard.later_push_title")}</p>
-          <p>{t("device_wizard.later_push_body")}</p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setConfirmLeave(false)}
-            >
-              {t("device_wizard.later_stay")}
-            </Button>
-            <Button type="button" size="sm" onClick={finishLater}>
-              {t("device_wizard.later_leave")}
-            </Button>
-          </div>
-        </div>
-      )}
     </DialogContent>
+  );
+}
+
+/**
+ * Leaving a push terminal half set up loses its address for good, so Finish
+ * later asks first. It takes the footer's place, where the button was, and
+ * Stay takes the focus, so a keyboard or screen reader user lands on it.
+ */
+function ConfirmLeave({
+  onStay,
+  onLeave,
+}: {
+  onStay: () => void;
+  onLeave: () => void;
+}) {
+  const { t } = useT();
+
+  return (
+    <div
+      role="alertdialog"
+      aria-labelledby="wizard-leave-title"
+      aria-describedby="wizard-leave-body"
+      className="space-y-3 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+    >
+      <p id="wizard-leave-title" className="font-medium">
+        {t("device_wizard.later_push_title")}
+      </p>
+      <p id="wizard-leave-body">{t("device_wizard.later_push_body")}</p>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          autoFocus
+          onClick={onStay}
+        >
+          {t("device_wizard.later_stay")}
+        </Button>
+        <Button type="button" size="sm" onClick={onLeave}>
+          {t("device_wizard.later_leave")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -635,7 +683,11 @@ function ContactStatus({
     return (
       <div
         role="status"
-        className="space-y-1 rounded-lg border border-success-edge bg-success-soft p-3 text-sm text-success-on-soft"
+        className={`space-y-1 rounded-lg border p-3 text-sm ${
+          contact.matched || (!contact.held && !contact.quarantined)
+            ? "border-success-edge bg-success-soft text-success-on-soft"
+            : "border-warning-edge bg-warning-soft text-warning-on-soft"
+        }`}
       >
         <p className="font-medium">{t("device_wizard.push_arrived")}</p>
         <p>
@@ -643,7 +695,9 @@ function ContactStatus({
             ? t("device_wizard.push_matched")
             : contact.held
               ? t("device_wizard.push_held")
-              : t("device_wizard.push_processing")}
+              : contact.quarantined
+                ? t("device_wizard.push_quarantined")
+                : t("device_wizard.push_processing")}
         </p>
       </div>
     );

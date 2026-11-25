@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,17 +123,12 @@ export function useDeviceFormState(
     [],
   );
 
+  // Derived, not copied into state by an effect: the select shows it and
+  // Register sends it from the same value. An effect that filled the field
+  // raced a branch list arriving after the form mounted, and the e2e wizard
+  // journey saw the select show the branch while Register sent "" and was
+  // refused "The branch field is required".
   const onlyBranch = branches.length === 1 ? branches[0].public_id : null;
-  useEffect(() => {
-    if (mode === "create" && onlyBranch && form.branch_public_id === "") {
-      patch({ branch_public_id: onlyBranch });
-    }
-  }, [mode, onlyBranch, form.branch_public_id, patch]);
-
-  // The effect above fills the field for the reader. What is sent is derived
-  // here as well: a branch list that arrives after the form has mounted could
-  // otherwise leave the select showing the branch while the form still held
-  // "" (the e2e wizard journey was refused "branch field is required" so).
   const effective =
     mode === "create" && onlyBranch && form.branch_public_id === ""
       ? { ...form, branch_public_id: onlyBranch }

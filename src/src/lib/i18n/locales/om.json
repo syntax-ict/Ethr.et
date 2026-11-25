@@ -8369,5 +8369,6 @@
   "device_wizard.done_title": "Teerminaalichi walqabateera",
   "device_wizard.done_intro": "Itti aansuun namoota teerminaalicha irratti galchaa.",
   "device_wizard.done_no_roster": "Teerminaalichi eenyu irratti galmaa'e jedhamee gaafatamuu hin danda'u. Hojjetaa hundumaaf lakkoofsa baajii teerminaala irratti itti fayyadamu, profaayila isaa irratti kenniif.",
-  "device_wizard.open_device": "Fuula meeshaa bani"
+  "device_wizard.open_device": "Fuula meeshaa bani",
+  "device_wizard.push_quarantined": "ETHR bira ga'eera, garuu galmaa'uu hin dandeenye. Sababa isaa fuulli meeshaa Galmeewwan xiyyeeffannoo barbaadan jalatti agarsiisa."
 }

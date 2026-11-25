@@ -8369,5 +8369,6 @@
   "device_wizard.done_title": "The terminal is connected",
   "device_wizard.done_intro": "Next, bring the people onto it.",
   "device_wizard.done_no_roster": "This terminal cannot be asked who is enrolled on it. Give each employee the badge number they use on the terminal, on their profile.",
-  "device_wizard.open_device": "Open the device page"
+  "device_wizard.open_device": "Open the device page",
+  "device_wizard.push_quarantined": "It reached ETHR but could not be recorded. The device page says why, under Punches that need attention."
 }
