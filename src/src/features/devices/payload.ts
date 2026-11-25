@@ -103,6 +103,8 @@ export function buildDevicePayload(
   // number identifies it, and the IP allowlist admits it.
   if (form.adapter_type === "zkteco_adms") {
     if (mode === "create") payload.connection_config = { mode: "adms" };
+    // Nothing to pull from a terminal that only sends.
+    payload.auto_sync = false;
     return payload;
   }
 

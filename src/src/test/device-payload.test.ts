@@ -40,6 +40,20 @@ describe("buildDevicePayload", () => {
     expect(buildDevicePayload(form, "edit").connection_config).toBeUndefined();
   });
 
+  it("does not put an ADMS device on the pull schedule, on create or edit", () => {
+    const form: DeviceFormData = {
+      ...EMPTY_DEVICE_FORM,
+      adapter_type: "zkteco_adms",
+      name: "Gate",
+      serial_number: "CQZ7232460001",
+      branch_public_id: "01BRANCH",
+      auto_sync: true,
+    };
+
+    expect(buildDevicePayload(form, "create").auto_sync).toBe(false);
+    expect(buildDevicePayload(form, "edit").auto_sync).toBe(false);
+  });
+
   it("registers a mock device with a marker config and no fake port", () => {
     const payload = buildDevicePayload(
       {
