@@ -106,7 +106,8 @@ export default function DevicesPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
 
-  const { data: branches } = branchesApi.useList();
+  const branchesQuery = branchesApi.useList();
+  const branches = branchesQuery.data;
 
   const createMutation = useCreateDevice();
   // What to do on the new terminal, by how it connects. A push terminal's
@@ -350,7 +351,9 @@ export default function DevicesPage() {
         <DeviceSetupWizard
           open={wizardOpen}
           onOpenChange={setWizardOpen}
-          branches={branches?.data ?? []}
+          branches={
+            branchesQuery.isPending ? undefined : (branches?.data ?? [])
+          }
           onAdvanced={() => {
             setWizardOpen(false);
             setCreateOpen(true);

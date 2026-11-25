@@ -80,7 +80,8 @@ interface Registered {
 interface DeviceSetupWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  branches: Branch[];
+  /** Undefined while the list is still loading: Register waits for it. */
+  branches: Branch[] | undefined;
   /** The full form, for people who know the values. Nothing has been registered yet. */
   onAdvanced: () => void;
   /** Open the enrolled-users dialog for the new device; the wizard has closed. */
@@ -113,7 +114,12 @@ function WizardContent({
   const [reach, setReach] = useState<WizardReach | null>(null);
   const [registered, setRegistered] = useState<Registered | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const state = useDeviceFormState("create", undefined, branches);
+  // Register waits for the branch list. Before it arrives the form neither
+  // draws the field nor fills in an only branch, so a quick click sent no
+  // branch and was refused (the e2e wizard journey found it).
+  const branchesLoading = branches === undefined;
+  const branchList = branches ?? [];
+  const state = useDeviceFormState("create", undefined, branchList);
   const create = useCreateDevice();
 
   const choice = brand && reach ? wizardChoice(brand, reach) : null;
@@ -149,7 +155,7 @@ function WizardContent({
       toast.error(t("device_wizard.serial_needed"));
       return;
     }
-    if (state.branchMissing) return;
+    if (branchesLoading || state.branchMissing) return;
 
     create.mutate(buildDevicePayload(state.form, "create"), {
       onSuccess: (device) => {
@@ -238,7 +244,7 @@ function WizardContent({
           </p>
           <DeviceIdentitySection
             state={state}
-            branches={branches}
+            branches={branchList}
             lockAdapter
           />
           {state.connection === "pull" && (
@@ -265,7 +271,9 @@ function WizardContent({
               </Button>
               <Button
                 type="submit"
-                disabled={create.isPending || state.branchMissing}
+                disabled={
+                  create.isPending || branchesLoading || state.branchMissing
+                }
               >
                 {create.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
