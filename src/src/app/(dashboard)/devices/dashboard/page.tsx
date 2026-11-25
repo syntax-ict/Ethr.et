@@ -39,7 +39,7 @@ import { ErrorState } from "@/components/shared/error-state";
 
 export default function DeviceDashboardPage() {
   const { t } = useT();
-  const { timeAgo } = useDateFormatters();
+  const { timeAgo, formatDateTime } = useDateFormatters();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("device.create");
   const {
@@ -123,6 +123,37 @@ export default function DeviceDashboardPage() {
                             punches: entry.punches.toLocaleString(),
                           },
                         )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {stats && stats.silent.length > 0 && (
+          <div
+            role="status"
+            className="space-y-1 rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            <p className="font-medium">
+              {t("devices_dashboard_page.silent_title")}
+            </p>
+            <p>{t("devices_dashboard_page.silent_body")}</p>
+            <ul className="space-y-0.5">
+              {stats.silent.map((entry) => (
+                <li key={entry.device_public_id}>
+                  <Link
+                    href={`/devices/${entry.device_public_id}`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {entry.kind === "adms"
+                      ? t("devices_dashboard_page.silent_adms", undefined, {
+                          device: entry.name,
+                          time: formatDateTime(entry.since),
+                        })
+                      : t("devices_dashboard_page.silent_push", undefined, {
+                          device: entry.name,
+                        })}
                   </Link>
                 </li>
               ))}

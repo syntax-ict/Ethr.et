@@ -32,6 +32,7 @@ use App\Services\Device\DeviceDayCounts;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\DevicePunchKey;
 use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\DeviceSilence;
 use App\Services\Device\HeartbeatCapture;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
@@ -582,6 +583,9 @@ class DeviceController extends Controller
             ->groupBy('device_id')
             ->pluck('punches', 'device_id');
 
+        $tenant = app(CurrentTenant::class)->get();
+        $silent = $tenant === null ? [] : app(DeviceSilence::class)->silentDevices($tenant);
+
         return response()->json([
             'total' => $devices->count(),
             'online' => $devices->where('status', 'online')->count(),
@@ -604,6 +608,10 @@ class DeviceController extends Controller
                     ->values()
                     ->all(),
             ],
+            'silent' => collect($silent)
+                ->map(fn (array $found) => ['device_public_id' => (string) $found['device']->public_id, 'name' => (string) $found['device']->name, 'kind' => (string) $found['kind'], 'since' => $found['since']->toIso8601String()])
+                ->values()
+                ->all(),
             'unmatched' => [
                 'badges' => $unmatchedBadges,
                 'punches' => $unmatchedPunches,

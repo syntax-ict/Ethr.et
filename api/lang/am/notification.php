@@ -27,6 +27,8 @@ return [
     // Approval routing
     'review_request' => 'ጥያቄ ይከልሱ',
     'device_offline_subject' => 'የባዮሜትሪክ መሣሪያ ከመስመር ውጭ ሆኗል',
+    'device_silent_adms_subject' => 'የባዮሜትሪክ መሣሪያ አልተገናኘም፦ :name',
+    'device_silent_push_subject' => 'ዛሬ ከባዮሜትሪክ መሣሪያ ምንም ምዝገባ አልመጣም፦ :name',
     'device_sync_failed_subject' => 'የባዮሜትሪክ መሣሪያ ማመሳሰል አልተሳካም፦ :name',
     'device_sync_failed_body' => 'የመሣሪያ ":name" ማመሳሰል ከሁሉም ሙከራዎች በኋላ አልተሳካም፤ ከእሱ ምንም የመገኘት መዝገቦች እየተሰበሰቡ አይደሉም። መሣሪያው ያሳወቀው፦ :reason',
     'device_action' => 'የመሣሪያ ሁኔታ ይመልከቱ',
@@ -53,6 +55,8 @@ return [
         'phone_revoked' => 'የሚመዘገቡበት ስልክ ተሰርዟል። አሁን የሚጠቀሙበትን ስልክ ያስመዝግቡ።',
         'phone_revoked_reason' => 'የሚመዘገቡበት ስልክ ተሰርዟል፦ :reason። አሁን የሚጠቀሙበትን ስልክ ያስመዝግቡ።',
         'device_offline' => '":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
+        'device_silent_adms' => '":name" መሣሪያ አልተገናኘም።',
+        'device_silent_push' => 'ዛሬ ከ":name" መሣሪያ ምንም ምዝገባ አልመጣም።',
         'leave_approved' => 'የፈቃድ ጥያቄዎ ጸድቋል።',
         'leave_changed' => 'የጸደቀ ፈቃድዎ በሰው ሀብት ተቀይሯል።',
         'leave_rejected' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
@@ -69,5 +73,9 @@ return [
     'approval_reminder_action' => 'ማጽደቂያዎችን ይመልከቱ',
     'device_offline_line' => 'በ:location ያለው ":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
     'device_offline_action' => 'የመሣሪያውን ሁኔታ ይመልከቱ',
+    'device_silent_adms_line' => 'በ:location ያለው ":name" መሣሪያ በሥራ ሰዓት ለተወሰነ ጊዜ ከETHR ጋር አልተገናኘም።',
+    'device_silent_push_line' => 'በ:location ያለው ":name" መሣሪያ ዛሬ ምንም ምዝገባ አልላከም፤ ሆኖም በዚያ የሚሠሩ ሰዎች የባጅ ቁጥር አላቸው።',
+    'device_silent_hint' => 'ዛሬ መሥሪያ ቤቱ ዝግ ከሆነ ምንም ማድረግ አያስፈልግም። ካልሆነ መሣሪያው መብራቱንና ኢንተርኔት ማግኘቱን ያረጋግጡ።',
+    'device_silent_action' => 'መሣሪያውን ይመልከቱ',
     'unknown_location' => 'ስም ያልተሰጠው ቦታ',
 ];

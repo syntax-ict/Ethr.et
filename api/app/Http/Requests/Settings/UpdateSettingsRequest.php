@@ -14,6 +14,7 @@ use App\Services\EmployeeNumbering;
 use App\Services\Leave\LeaveYear;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\DeviceSilenceRules;
 use App\Support\PayChangeThresholds;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
@@ -80,6 +81,9 @@ class UpdateSettingsRequest extends FormRequest
             'settings.letterhead_address' => ['sometimes', 'nullable', 'string', 'max:200'],
             'settings.letterhead_phone' => ['sometimes', 'nullable', 'string', 'max:40'],
             'settings.letterhead_email' => ['sometimes', 'nullable', 'email', 'max:120'],
+            'settings.device_silence_alerts' => ['sometimes', 'boolean'],
+            'settings.device_silence_adms_minutes' => ['sometimes', 'integer', 'between:'.DeviceSilenceRules::ADMS_MINUTES_MIN.','.DeviceSilenceRules::ADMS_MINUTES_MAX],
+            'settings.device_silence_push_grace_minutes' => ['sometimes', 'integer', 'between:'.DeviceSilenceRules::PUSH_GRACE_MINUTES_MIN.','.DeviceSilenceRules::PUSH_GRACE_MINUTES_MAX],
             'settings.letterhead_po_box' => ['sometimes', 'nullable', 'string', 'max:40'],
         ];
     }

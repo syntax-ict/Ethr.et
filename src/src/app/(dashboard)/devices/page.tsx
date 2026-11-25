@@ -769,7 +769,7 @@ function DeviceFormDialog({
 
           <div
             className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr}
+            hidden={sendsToEthr || form.adapter_type === "zkteco_adms"}
           >
             <div>
               <p className="text-sm font-medium">

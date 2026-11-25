@@ -15,6 +15,7 @@ use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Services\Employment\EmploymentFrameworks;
 use App\Services\Payroll\StatutoryRules;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -301,7 +302,7 @@ describe('PUT /settings/organization employment_framework', function () {
         $tenant = fwAdmin('government');
         $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => 'unspecified'])->assertOk();
 
-        $service = app(EmploymentFrameworks::class)->describe($tenant, Carbon::today());
+        $service = app(EmploymentFrameworks::class)->describe($tenant, TenantTime::today($tenant));
 
         expect($this->getJson(fwUrl($tenant))->json('organization.employment_framework'))->toBe($service)
             ->and($service['framework'])->toBe('unspecified')
@@ -370,7 +371,7 @@ describe('PUT /settings/organization employment_framework', function () {
         $this->putJson(fwUrl($tenant, 'settings/organization'), ['employment_framework' => null])->assertOk()
             ->assertJsonPath('organization.employment_framework.source', 'ethr');
 
-        $open = fwOwnRows($tenant)->filter(fn ($r) => $r->effective_to === null || substr((string) $r->effective_to, 0, 10) >= Carbon::today()->toDateString());
+        $open = fwOwnRows($tenant)->filter(fn ($r) => $r->effective_to === null || substr((string) $r->effective_to, 0, 10) >= TenantTime::today($tenant)->toDateString());
         expect($open)->toHaveCount(0);
     });
 

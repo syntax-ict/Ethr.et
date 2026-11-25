@@ -14431,6 +14431,9 @@ export interface components {
                 letterhead_phone?: string | null;
                 /** Format: email */
                 letterhead_email?: string | null;
+                device_silence_alerts?: boolean;
+                device_silence_adms_minutes?: number;
+                device_silence_push_grace_minutes?: number;
                 letterhead_po_box?: string | null;
             };
         };
@@ -14673,6 +14676,11 @@ export interface components {
             role: components["schemas"]["UserRole"];
             role_follows_position: boolean;
             title_role: string | null;
+            title_preview: {
+                role: string;
+                position: string | null;
+                applies: boolean;
+            } | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -23138,6 +23146,12 @@ export interface operations {
                                 punches: number;
                             }[];
                         };
+                        silent: {
+                            device_public_id: string;
+                            name: string;
+                            kind: string;
+                            since: string;
+                        }[];
                         unmatched: {
                             badges: number;
                             punches: number;
@@ -37502,6 +37516,11 @@ export interface operations {
                             number_format: string;
                             next_code: string;
                             invitation_reminders: boolean;
+                        };
+                        devices: {
+                            silence_alerts: boolean;
+                            silence_adms_minutes: number | null;
+                            silence_push_grace_minutes: number | null;
                         };
                         sso: {
                             is_enabled: boolean;
