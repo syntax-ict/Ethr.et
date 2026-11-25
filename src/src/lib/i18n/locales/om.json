@@ -2446,7 +2446,7 @@
   "devices_page.adapter_type": "Gosa Walqunnamsiisaa",
   "devices_page.add_device": "Meeshaa Dabali",
   "devices_page.add_failed": "Meeshaa dabaluun hin milkoofne",
-  "devices_page.adms_hint": "Teerminaalli ETHR waama, kanaaf teessoon hin barbaachisu, neetworkii waajjiraa kamirraayyuu ni hojjeta. Erga galmeessitanii booda, fuulli meeshaa wanta irratti galchitan isiniif agarsiisa. Teessoo IP uummataa waajjiraa (ykn hangii isaa) tarree hayyamamaa irratti dabalaa, yoo kana hin goone ETHR ni dida.",
+  "devices_page.adms_hint": "Teerminaalli ETHR waama, kanaaf teessoon hin barbaachisu, neetworkii waajjiraa kamirraayyuu ni hojjeta. Erga galmeessitanii booda, fuulli meeshaa wanta irratti galchitan isiniif agarsiisa. ETHR teerminaalicha teessoo hayyamame irraa qofa fudhata; tarreen isaa kutaa 'Ol'aanaa' jala jira.",
   "devices_page.public_address_hint": "ETHR teessoo kanaan interneetiin wal qunnama, kanaaf teessoo uummataa ta'uu qaba. Teessoon neetworkii waajjiraa kan akka 192.168.1.100 hin fudhatamu.",
   "devices_page.sends_to_ethr_hint": "Galmee argamaa tokkoon tokkoon isaa ofumaan gara ETHR erga, kanaaf teessoon hin barbaachisu. Erga galmeessitanii booda, fuulli meeshaa wanta teerminaalicha irratti galchitan isiniif agarsiisa. ETHR fayyadamtoota isaa galmaa'an dubbisuu, sa'aatii isaa sirreessuu ykn galmeewwan darban fiduu hin danda'u.",
   "devices_page.sends_to_ethr": "Teerminaalichi neetworkii waajjira keenyaa keessa jira",
@@ -8302,5 +8302,11 @@
   "accept_differences.running": "Fudhachaa jira",
   "accept_differences.result": "Namoota :accepted tiif fudhatameera. :out_of_reach sirreessuu hin dandeessan. :held siif hafeera.",
   "accept_differences.result_pay": "Namoota :accepted tiif fudhatameera. :out_of_reach sirreessuu hin dandeessan. :held siif hafeera. Mindaan fi TIN namoota :pay_refused tiif hafeera, sababni isaas kaffaltii jijjiiruu hin dandeessan.",
-  "accept_differences.failed": "Fudhachuun dhaabbateera. Garaagarummaan tokko tokko duraan fudhatamee jiraachuu danda'a. Irra deebi'ii yaalaa."
+  "accept_differences.failed": "Fudhachuun dhaabbateera. Garaagarummaan tokko tokko duraan fudhatamee jiraachuu danda'a. Irra deebi'ii yaalaa.",
+  "device_form.section_identity": "Eenyummaa",
+  "device_form.section_connection": "Walqunnamtii",
+  "device_form.section_people": "Namoota fi ajajoota",
+  "device_form.section_advanced": "Ol'aanaa",
+  "device_form.allowlist_optional": "Teessoowwan IP hayyamaman (filannoo)",
+  "device_form.allowlist_adms_hint": "Sarara tokkotti tokko. Yeroo ammaaf duwwaa dhiisuu ni dandeessan. Waamichi jalqabaa teerminaalichaa yoo didame, fuulli meeshaa teessoo irraa dhufe qabduu Hayyami wajjin agarsiisa."
 }

@@ -2446,7 +2446,7 @@
   "devices_page.adapter_type": "የአስማሚ አይነት",
   "devices_page.add_device": "መሳሪያ ጨምር",
   "devices_page.add_failed": "መሳሪያ ማከል አልተሳካም",
-  "devices_page.adms_hint": "መሣሪያው ራሱ ETHRን ስለሚጠራ አድራሻ አያስፈልግም፣ ከማንኛውም የቢሮ አውታረ መረብም ይሠራል። ከተመዘገበ በኋላ የመሣሪያው ገጽ በመሣሪያው ላይ ምን እንደሚገባ ያሳያል። የቢሮውን የወል IP አድራሻ (ወይም ክልሉን) በተፈቀዱ ዝርዝር ውስጥ ያክሉ፤ ያለበለዚያ ETHR አይቀበለውም።",
+  "devices_page.adms_hint": "መሣሪያው ራሱ ETHRን ስለሚጠራ አድራሻ አያስፈልግም፣ ከማንኛውም የቢሮ አውታረ መረብም ይሠራል። ከተመዘገበ በኋላ የመሣሪያው ገጽ በመሣሪያው ላይ ምን እንደሚገባ ያሳያል። ETHR መሣሪያውን የሚቀበለው ከተፈቀደ አድራሻ ብቻ ነው፤ ዝርዝሩ በ«ተጨማሪ ቅንብሮች» ክፍል ውስጥ ነው።",
   "devices_page.public_address_hint": "ETHR ከዚህ አድራሻ ጋር በኢንተርኔት ይገናኛል፣ ስለዚህ የአደባባይ አድራሻ መሆን አለበት። እንደ 192.168.1.100 ያለ የቢሮ አውታረ መረብ አድራሻ ተቀባይነት የለውም።",
   "devices_page.sends_to_ethr_hint": "እያንዳንዱን የመገኘት ምዝገባ ራሱ ወደ ETHR ይልካል፣ ስለዚህ አድራሻ አያስፈልግም። ከተመዘገበ በኋላ የመሣሪያው ገጽ በመሣሪያው ላይ ምን እንደሚገባ ያሳያል። ETHR በመሣሪያው የተመዘገቡ ተጠቃሚዎችን ማንበብ፣ ሰዓቱን ማስተካከል ወይም ያመለጡ ምዝገባዎችን ማምጣት አይችልም።",
   "devices_page.sends_to_ethr": "መሣሪያው በቢሮአችን አውታረ መረብ ውስጥ ነው",
@@ -8302,5 +8302,11 @@
   "accept_differences.running": "በመቀበል ላይ",
   "accept_differences.result": "ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።",
   "accept_differences.result_pay": "ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።",
-  "accept_differences.failed": "መቀበሉ ቆሟል። አንዳንድ ልዩነቶች ቀድሞ ተቀብለው ሊሆን ይችላል። እንደገና ይሞክሩ።"
+  "accept_differences.failed": "መቀበሉ ቆሟል። አንዳንድ ልዩነቶች ቀድሞ ተቀብለው ሊሆን ይችላል። እንደገና ይሞክሩ።",
+  "device_form.section_identity": "መለያ",
+  "device_form.section_connection": "ግንኙነት",
+  "device_form.section_people": "ሰዎች እና ትዕዛዞች",
+  "device_form.section_advanced": "ተጨማሪ ቅንብሮች",
+  "device_form.allowlist_optional": "የተፈቀዱ የIP አድራሻዎች (አማራጭ)",
+  "device_form.allowlist_adms_hint": "በአንድ መስመር አንድ። ለአሁን ባዶ መተው ይቻላል። የመሣሪያው የመጀመሪያ ጥሪ ከተከለከለ፣ የመሣሪያው ገጽ የመጣበትን አድራሻ «ፍቀድ» ከሚል አዝራር ጋር ያሳያል።"
 }

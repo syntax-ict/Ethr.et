@@ -2446,7 +2446,7 @@
   "devices_page.adapter_type": "Adapter Type",
   "devices_page.add_device": "Add Device",
   "devices_page.add_failed": "Failed to add device",
-  "devices_page.adms_hint": "The terminal calls ETHR, so no address is needed and it works from any office network. After registering, the device page shows what to enter on it. Add the office's public IP address (or its range) to the allowlist, or ETHR will refuse it.",
+  "devices_page.adms_hint": "The terminal calls ETHR, so no address is needed and it works from any office network. After registering, the device page shows what to enter on it. ETHR accepts it only from an allowed address, listed under Advanced.",
   "devices_page.public_address_hint": "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
   "devices_page.sends_to_ethr_hint": "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
   "devices_page.sends_to_ethr": "The terminal is on our office network",
@@ -8302,5 +8302,11 @@
   "accept_differences.running": "Accepting",
   "accept_differences.result": "Accepted for :accepted people. :out_of_reach you may not edit. :held left for you.",
   "accept_differences.result_pay": "Accepted for :accepted people. :out_of_reach you may not edit. :held left for you. Salary and TIN were left for :pay_refused people, because you may not change pay.",
-  "accept_differences.failed": "Accepting stopped. Some differences may already be accepted. Try again."
+  "accept_differences.failed": "Accepting stopped. Some differences may already be accepted. Try again.",
+  "device_form.section_identity": "Identity",
+  "device_form.section_connection": "Connection",
+  "device_form.section_people": "People and commands",
+  "device_form.section_advanced": "Advanced",
+  "device_form.allowlist_optional": "Allowed IP addresses (optional)",
+  "device_form.allowlist_adms_hint": "One per line. This can be left empty for now. If the terminal's first call is refused, the device page shows the address it came from, with an Allow button."
 }

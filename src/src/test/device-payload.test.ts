@@ -202,3 +202,52 @@ describe("a terminal that sends to ETHR", () => {
     });
   });
 });
+
+describe("an edit that changes the adapter", () => {
+  // The server replaces the stored connection when the adapter changes, so a
+  // terminal switched to ADMS or the simulator has to say so, or it keeps the
+  // old vendor's address under the new adapter.
+  it("sends the new adapter's marker, and sends none when the adapter is unchanged", () => {
+    const adms = { ...hikvision, adapter_type: "zkteco_adms", ip: "" };
+
+    expect(
+      buildDevicePayload(adms, "edit", { adapterChanged: true })
+        .connection_config,
+    ).toEqual({ mode: "adms" });
+    expect(buildDevicePayload(adms, "edit")).not.toHaveProperty(
+      "connection_config",
+    );
+    expect(
+      buildDevicePayload(
+        { ...hikvision, adapter_type: "mock", ip: "" },
+        "edit",
+        { adapterChanged: true },
+      ).connection_config,
+    ).toEqual({ mode: "simulator" });
+  });
+});
+
+describe("what the shared form sends besides the connection", () => {
+  it("leaves out an empty location, time zone and allowlist on register", () => {
+    const payload = buildDevicePayload(hikvision, "create");
+
+    expect(payload).not.toHaveProperty("location_description");
+    expect(payload).not.toHaveProperty("timezone");
+    expect(payload).not.toHaveProperty("webhook_ip_allowlist");
+  });
+
+  it("sends an emptied allowlist and location on edit, so they can be cleared", () => {
+    const payload = buildDevicePayload({ ...hikvision, ip: "" }, "edit");
+
+    expect(payload.webhook_ip_allowlist).toEqual([]);
+    expect(payload.location_description).toBeNull();
+    expect(payload.timezone).toBeNull();
+  });
+
+  it("never offers a sync interval under the minimum", () => {
+    expect(
+      buildDevicePayload({ ...hikvision, sync_interval_minutes: "1" }, "create")
+        .sync_interval_minutes,
+    ).toBe(5);
+  });
+});
