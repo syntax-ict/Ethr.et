@@ -27,7 +27,7 @@ return [
     // Approval routing
     'review_request' => 'Gaaffii Ilaali',
     'device_offline_subject' => 'Meeshaan baayoometrikii tokko toora ala ta\'eera',
-    'device_silent_adms_subject' => 'Meeshaan baayoometrikii hin walqabanne: :name',
+    'device_silent_adms_subject' => 'Meeshaan baayoometrikii hin wal-qunnamne: :name',
     'device_silent_push_subject' => 'Har\'a meeshaa baayoometrikii irraa galmeen tokkollee hin dhufne: :name',
     'device_sync_failed_subject' => 'Walsimsiisni meeshaa baayoometrikii hin milkoofne: :name',
     'device_sync_failed_body' => 'Walsimsiisni meeshaa ":name" erga irra deebi\'amee yaalamee booda hin milkoofne, taateewwan argamaa tokkollee isa irraa sassaabamaa hin jiran. Meeshaan kana gabaase: :reason',
@@ -55,7 +55,7 @@ return [
         'phone_revoked' => 'Bilbilli argamaa keessan haqameera. Bilbila amma fayyadamtan galmeessaa.',
         'phone_revoked_reason' => 'Bilbilli argamaa keessan haqameera: :reason. Bilbila amma fayyadamtan galmeessaa.',
         'device_offline' => 'Meeshaan ":name" toora ala ta\'eera.',
-        'device_silent_adms' => 'Meeshaan ":name" hin walqabanne.',
+        'device_silent_adms' => 'Meeshaan ":name" hin wal-qunnamne.',
         'device_silent_push' => 'Har\'a meeshaa ":name" irraa galmeen tokkollee hin dhufne.',
         'leave_approved' => 'Gaaffiin boqonnaa keessan raggaasifameera.',
         'leave_changed' => 'Boqonnaan keessan raggaasifame HR\'n jijjiirameera.',
@@ -75,7 +75,7 @@ return [
     'device_offline_action' => 'Haala meeshaa ilaali',
     'device_silent_adms_line' => 'Meeshaan ":name" :location jiru yeroo hojii keessatti yeroo muraasaaf ETHR waliin hin wal-qunnamne.',
     'device_silent_push_line' => 'Meeshaan ":name" :location jiru har\'a galmee tokkollee hin erginne; namoonni achi hojjatan garuu lakkoofsa baajii qabu.',
-    'device_silent_hint' => 'Har\'a waajjirri cufaa yoo ta\'e, wanti gochuu qabdan hin jiru. Yoo kanaan alatti ta\'e, meeshaan bantee fi interneetii argachuu isaa mirkaneessaa.',
-    'device_silent_action' => 'Meeshaa ilaali',
+    'device_silent_hint' => 'Har\'a waajjirri cufaa yoo ta\'e, wanti gochuu qabdan hin jiru. Yoo kanaan alatti ta\'e, meeshaan banamee jiraachuu fi interneetii argachuu isaa mirkaneessaa.',
+    'device_silent_action' => 'Meeshaa ilaalaa',
     'unknown_location' => 'bakka maqaa hin qabne',
 ];
