@@ -801,8 +801,7 @@ export function MigrationStep({
    * undone list.
    */
   function addCorrectedFile() {
-    setInterrupted(null);
-    if (batchId !== null) setBatchId(null);
+    startOver();
     window.requestAnimationFrame(() => {
       const box = pasteBox.current;
       box?.scrollIntoView?.({ behavior: "smooth", block: "center" });
