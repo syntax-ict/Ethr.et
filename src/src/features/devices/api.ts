@@ -175,13 +175,28 @@ export function useDeviceDashboard(options?: { refetchInterval?: number }) {
   });
 }
 
-export function useDevice(publicId: string) {
+export function useDevice(
+  publicId: string,
+  options?: { refetchInterval?: number | false },
+) {
+  const interval = options?.refetchInterval || undefined;
   return useQuery<Device>({
     queryKey: keys.detail(publicId),
-    queryFn: async () => (await apiClient.get(`/devices/${publicId}`)).data,
+    // A poll is a background request, as on the dashboard: a setup wizard left
+    // open must not hold the session past the tenant's idle timeout.
+    queryFn: async ({ client, queryKey }) =>
+      (
+        await apiClient.get(
+          `/devices/${publicId}`,
+          backgroundRequest(
+            isPoll(client, queryKey, { refetchInterval: interval }),
+          ),
+        )
+      ).data,
     // A static-export shell renders before `useRouteId` has the real id;
     // without this gate its first paint fires `GET /devices/`.
     enabled: !!publicId,
+    refetchInterval: interval ?? false,
   });
 }
 

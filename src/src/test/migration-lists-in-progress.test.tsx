@@ -95,15 +95,20 @@ function renderCard(
   props: Partial<Parameters<typeof MigrationListsInProgress>[0]> = {},
 ) {
   const onOpen = vi.fn();
+  const onAddCorrected = vi.fn();
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
-      <MigrationListsInProgress onOpen={onOpen} {...props} />
+      <MigrationListsInProgress
+        onOpen={onOpen}
+        onAddCorrected={onAddCorrected}
+        {...props}
+      />
     </QueryClientProvider>,
   );
-  return { onOpen };
+  return { onOpen, onAddCorrected };
 }
 
 describe("Lists in progress", () => {
@@ -424,5 +429,97 @@ describe("Lists in progress", () => {
 
     expect(await screen.findByText("Lists in progress")).toBeInTheDocument();
     expect(screen.queryByText("Lists added recently")).toBeNull();
+  });
+});
+
+describe("Reach from the lists card", () => {
+  const UNDONE = "2026-11-02T09:00:00Z";
+
+  it("offers the undo on an added list that has not been undone", async () => {
+    server.use(me(["employee.create", "employee.delete"]));
+    serves([], [added({})]);
+    renderCard();
+
+    const row = await screen.findByTestId("list-added");
+    expect(
+      await within(row).findByRole("button", {
+        name: "Undo this list's additions",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers no undo on a list already undone, and none on a completing list", async () => {
+    server.use(me(["employee.create", "employee.delete"]));
+    serves(
+      [],
+      [
+        added({ undone_at: UNDONE }),
+        added({
+          public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A02",
+          mode: "complete",
+        }),
+      ],
+    );
+    renderCard();
+
+    const rows = await screen.findAllByTestId("list-added");
+    await screen.findByText("Additions undone");
+    for (const row of rows) {
+      expect(
+        within(row).queryByRole("button", {
+          name: "Undo this list's additions",
+        }),
+      ).toBeNull();
+    }
+  });
+
+  it("offers no undo to someone who may not delete employees", async () => {
+    server.use(me(["employee.create"]));
+    serves([], [added({})]);
+    renderCard();
+
+    const row = await screen.findByTestId("list-added");
+    await within(row).findByRole("button", { name: "Open" });
+    expect(
+      within(row).queryByRole("button", { name: "Undo this list's additions" }),
+    ).toBeNull();
+  });
+
+  it("offers a corrected file only on an undone list, and calls back when it is chosen", async () => {
+    server.use(me(["employee.create"]));
+    serves(
+      [],
+      [
+        added({}),
+        added({
+          public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6A02",
+          undone_at: UNDONE,
+        }),
+      ],
+    );
+    const { onAddCorrected, onOpen } = renderCard();
+
+    const rows = await screen.findAllByTestId("list-added");
+    expect(
+      within(rows[0]).queryByRole("button", { name: "Add a corrected file" }),
+    ).toBeNull();
+
+    await userEvent.click(
+      within(rows[1]).getByRole("button", { name: "Add a corrected file" }),
+    );
+    expect(onAddCorrected).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("shows no corrected-file button when the page gave no way to start one", async () => {
+    server.use(me(["employee.create"]));
+    serves([], [added({ undone_at: UNDONE })]);
+    renderCard({ onAddCorrected: undefined });
+
+    const row = await screen.findByTestId("list-added");
+    await within(row).findByRole("button", { name: "Open" });
+    expect(
+      within(row).queryByRole("button", { name: "Add a corrected file" }),
+    ).toBeNull();
   });
 });
