@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { Device } from "@/features/devices/api";
+import { isPulled, type Device } from "@/features/devices/api";
 import {
   buildDevicePayload,
   canSendToEthr,
@@ -176,7 +176,14 @@ function DeviceFormFields({
   const branchMissing =
     branchRequired && branches.length > 0 && branchValue === "";
   const showCommands = !creating && device?.accepts_commands === true;
-  const pulledAdapter = !sendsToEthr && !isAdms;
+  // A device that only sends is not pulled, so auto-sync means nothing for it,
+  // unless the edit changes the adapter or types an address: then it will be.
+  const becomesPulled =
+    creating ||
+    device?.adapter_type !== adapter ||
+    form.ip.trim() !== "" ||
+    (device !== undefined && isPulled(device));
+  const pulledAdapter = !sendsToEthr && !isAdms && becomesPulled;
   const hasStoredAllowlist =
     !creating && (device?.webhook_ip_allowlist?.length ?? 0) > 0;
   const showAllowlist = isAdms || sendsToEthr || hasStoredAllowlist;

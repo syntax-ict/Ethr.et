@@ -189,6 +189,29 @@ describe("<DeviceFormDialog>", () => {
     );
   });
 
+  it("offers no Auto-Sync on a ZKTeco that only sends, until an address is typed", async () => {
+    const user = userEvent.setup();
+    const sends = {
+      ...PULLED,
+      adapter_type: "zkteco",
+      pulled: false,
+      receives_only: false,
+    } as Device;
+    const { dialog } = open({ mode: "edit", device: sends });
+
+    expect(
+      within(dialog).queryByRole("switch", { name: /auto-sync/i }),
+    ).toBeNull();
+
+    await user.type(
+      within(dialog).getByLabelText(/ip address/i),
+      "203.0.113.9",
+    );
+    expect(
+      within(dialog).getByRole("switch", { name: /auto-sync/i }),
+    ).toBeInTheDocument();
+  });
+
   it("offers the commands switch only on edit of a device that accepts them", () => {
     const edited = open({
       mode: "edit",

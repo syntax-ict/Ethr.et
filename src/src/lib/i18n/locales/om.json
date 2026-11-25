@@ -2525,7 +2525,7 @@
   "devices_page.section_connection": "Walqunnamtii",
   "devices_page.section_commands": "Namootaa fi ajajoota",
   "devices_page.section_advanced": "Qindaa'ina dabalataa",
-  "devices_page.allowlist_adms_optional": "Teerminaalii ZKTeco ADMS tiif filannoodha. Duwwaa yoo dhiistan, teerminaalichi yeroo walqunnamuu yaalu, fuulli meeshaa teessoo waamicha isaa isa jalqabaa kan didame, button Hayyami wajjin agarsiisa.",
+  "devices_page.allowlist_adms_optional": "Teerminaalii ZKTeco ADMS tiif filannoodha. Duwwaa yoo dhiistan, teerminaalichi yeroo walqunnamuu yaalu, fuulli meeshaa teessoo waamicha isaa isa jalqabaa kan didame, «hayyami» wajjin agarsiisa.",
   "devices_page.sn": "L/T",
   "devices_page.start_date": "Guyyaa jalqabaa",
   "devices_page.start_import": "Galchuu jalqabi",
