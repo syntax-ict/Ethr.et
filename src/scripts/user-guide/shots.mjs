@@ -1280,7 +1280,7 @@ export const SHOTS = [
     markers: [
       {
         target: (page) =>
-          page.locator("main").getByRole("button", { name: "መሳሪያ ጨምር" }),
+          page.locator("main").getByRole("button", { name: "መሣሪያ ጨምር" }),
         pin: "below",
       },
       {
