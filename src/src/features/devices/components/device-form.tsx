@@ -130,15 +130,26 @@ export function useDeviceFormState(
     }
   }, [mode, onlyBranch, form.branch_public_id, patch]);
 
+  // The effect above fills the field for the reader. What is sent is derived
+  // here as well: a branch list that arrives after the form has mounted could
+  // otherwise leave the select showing the branch while the form still held
+  // "" (the e2e wizard journey was refused "branch field is required" so).
+  const effective =
+    mode === "create" && onlyBranch && form.branch_public_id === ""
+      ? { ...form, branch_public_id: onlyBranch }
+      : form;
+
   // With no branch to offer the field is not drawn, and the server says why.
   const branchMissing =
-    mode === "create" && branches.length > 0 && form.branch_public_id === "";
+    mode === "create" &&
+    branches.length > 0 &&
+    effective.branch_public_id === "";
 
   return {
-    form,
+    form: effective,
     patch,
     mode,
-    connection: connectionOf(form, device),
+    connection: connectionOf(effective, device),
     device,
     branchMissing,
   };

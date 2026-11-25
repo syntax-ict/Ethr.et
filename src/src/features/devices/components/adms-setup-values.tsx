@@ -35,9 +35,7 @@ export function AdmsSetupValues({
           <dt className="text-muted-foreground">{label}</dt>
           <dd
             className={
-              typed
-                ? "flex items-start gap-2 font-mono break-all"
-                : undefined
+              typed ? "flex items-start gap-2 font-mono break-all" : undefined
             }
           >
             {value}

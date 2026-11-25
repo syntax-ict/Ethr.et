@@ -143,11 +143,13 @@ function serve(registered: Record<string, unknown>) {
   );
 }
 
-function renderWizard(handlers: Partial<{
-  onAdvanced: () => void;
-  onDiscover: (device: Device) => void;
-  onOpenChange: (open: boolean) => void;
-}> = {}) {
+function renderWizard(
+  handlers: Partial<{
+    onAdvanced: () => void;
+    onDiscover: (device: Device) => void;
+    onOpenChange: (open: boolean) => void;
+  }> = {},
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -167,11 +169,7 @@ function renderWizard(handlers: Partial<{
 
 type User = ReturnType<typeof userEvent.setup>;
 
-async function answer(
-  user: User,
-  brand: string,
-  reach: RegExp,
-): Promise<void> {
+async function answer(user: User, brand: string, reach: RegExp): Promise<void> {
   await user.click(await screen.findByRole("radio", { name: brand }));
   await user.click(screen.getByRole("radio", { name: reach }));
   await user.click(screen.getByRole("button", { name: /^next$/i }));
@@ -225,7 +223,8 @@ describe("wizardChoice", () => {
 });
 
 describe("firstContactFor", () => {
-  const device = (extra: object) => ({ ...ADMS, ...extra }) as unknown as Device;
+  const device = (extra: object) =>
+    ({ ...ADMS, ...extra }) as unknown as Device;
 
   it("reads an ADMS terminal's first call, and a refusal newer than it", () => {
     expect(firstContactFor(device({}), "adms")).toEqual({ kind: "waiting" });
@@ -239,7 +238,11 @@ describe("firstContactFor", () => {
         }),
         "adms",
       ),
-    ).toEqual({ kind: "refused", ip: "196.188.1.1", at: "2026-11-25T08:00:00Z" });
+    ).toEqual({
+      kind: "refused",
+      ip: "196.188.1.1",
+      at: "2026-11-25T08:00:00Z",
+    });
     expect(
       firstContactFor(
         device({
@@ -256,10 +259,7 @@ describe("firstContactFor", () => {
 
   it("reads a push terminal's punch, matched, held or still being worked", () => {
     const push = (today: object) =>
-      firstContactFor(
-        device({ today: { ...TODAY, ...today } }),
-        "push",
-      );
+      firstContactFor(device({ today: { ...TODAY, ...today } }), "push");
     expect(push({})).toEqual({ kind: "waiting" });
     expect(push({ received: 1, recorded: 1 })).toEqual({
       kind: "punch",
@@ -285,7 +285,9 @@ describe("<DeviceSetupWizard>", () => {
     const user = fresh();
     const { onAdvanced } = renderWizard();
 
-    await user.click(await screen.findByRole("button", { name: /^advanced$/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /^advanced$/i }),
+    );
 
     expect(onAdvanced).toHaveBeenCalledTimes(1);
     expect(created).toHaveLength(0);
@@ -322,6 +324,8 @@ describe("<DeviceSetupWizard>", () => {
       expect(created[0]).toMatchObject({
         adapter_type: "zkteco_adms",
         serial_number: "CQZ7232460001",
+        // The only branch is filled in, and sent: Register must not be refused for it.
+        branch_public_id: "B1",
         connection_config: { mode: "adms" },
       });
 
@@ -414,7 +418,9 @@ describe("<DeviceSetupWizard>", () => {
       expect(await screen.findByTestId("issued-address")).toHaveTextContent(
         "token=issued-once",
       );
-      expect(screen.getByText(/open Network, then HTTP listening/i)).toBeVisible();
+      expect(
+        screen.getByText(/open Network, then HTTP listening/i),
+      ).toBeVisible();
       expect(
         screen.getByRole("button", { name: "Copy Server address" }),
       ).toBeInTheDocument();
@@ -428,7 +434,9 @@ describe("<DeviceSetupWizard>", () => {
       // Finish later asks first: the address cannot be shown again.
       await user.click(screen.getByRole("button", { name: /finish later/i }));
       expect(
-        await screen.findByRole("alertdialog", { name: /leave without finishing/i }),
+        await screen.findByRole("alertdialog", {
+          name: /leave without finishing/i,
+        }),
       ).toHaveTextContent(/cannot be shown again/i);
       expect(onOpenChange).not.toHaveBeenCalled();
       await user.click(screen.getByRole("button", { name: /^stay$/i }));
@@ -504,7 +512,9 @@ describe("<DeviceSetupWizard>", () => {
       expect(
         await screen.findByText(/cannot be asked who is enrolled/i),
       ).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Send all staff" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Send all staff" }),
+      ).toBeNull();
     });
   });
 
@@ -524,7 +534,9 @@ describe("<DeviceSetupWizard>", () => {
         connection_config: { ip: "203.0.113.10", port: 80 },
       });
       expect(
-        await screen.findByText(/calls the terminal at 203\.0\.113\.10, port 80/i),
+        await screen.findByText(
+          /calls the terminal at 203\.0\.113\.10, port 80/i,
+        ),
       ).toBeInTheDocument();
       expect(screen.getByText(/forward port 80/i)).toBeInTheDocument();
       expect(screen.queryByTestId("issued-address")).toBeNull();
@@ -535,7 +547,9 @@ describe("<DeviceSetupWizard>", () => {
       const next = await screen.findByRole("button", { name: /^next$/i });
       expect(next).toBeDisabled();
 
-      await user.click(screen.getByRole("button", { name: /test connection/i }));
+      await user.click(
+        screen.getByRole("button", { name: /test connection/i }),
+      );
       expect(
         await screen.findByText("Device is online and responding"),
       ).toBeInTheDocument();

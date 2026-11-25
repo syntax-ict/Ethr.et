@@ -36,7 +36,8 @@ export function firstContactFor(
 
     if (heardAt) {
       const refusedSince =
-        rejected && new Date(rejected.at).getTime() > new Date(heardAt).getTime();
+        rejected &&
+        new Date(rejected.at).getTime() > new Date(heardAt).getTime();
       if (!refusedSince) return { kind: "heard", at: heardAt };
     }
     if (rejected) {

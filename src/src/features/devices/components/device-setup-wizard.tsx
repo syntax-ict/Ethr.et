@@ -39,7 +39,10 @@ import {
   isConfirmed,
   type FirstContact,
 } from "@/features/devices/first-contact";
-import { issuedSetupFor, type IssuedSetup } from "@/features/devices/issued-setup";
+import {
+  issuedSetupFor,
+  type IssuedSetup,
+} from "@/features/devices/issued-setup";
 import {
   buildDevicePayload,
   wizardChoice,
@@ -145,7 +148,8 @@ function WizardContent({
         setRegistered({
           device,
           setup: issuedSetupFor(device),
-          mode: state.connection,
+          // The server decides the mode; the form only predicted it.
+          mode: device.connection_mode ?? state.connection,
           ip: state.form.ip.trim(),
           port: state.form.port,
         });
@@ -223,8 +227,12 @@ function WizardContent({
           <p className="text-sm text-muted-foreground">
             {t(`device_wizard.mode_${state.connection}`)}
           </p>
-          <DeviceIdentitySection state={state} branches={branches} lockAdapter />
-          {state.connection !== "push" && (
+          <DeviceIdentitySection
+            state={state}
+            branches={branches}
+            lockAdapter
+          />
+          {state.connection === "pull" && (
             <DeviceConnectionSection state={state} hideReach />
           )}
           <DevicePeopleSection state={state} />
@@ -531,51 +539,54 @@ function FirstContactStep({
   });
   const [online, setOnline] = useState(false);
 
+  // Once the device has been read, one failed poll keeps what is on screen:
+  // the next poll is five seconds away, and an error card would hide the
+  // values and the Allow button while it waits.
+  if (query.data) return body(query.data);
+
   return (
     <QueryBoundary
       query={query}
       loading={<Skeleton className="h-24 w-full" />}
       isEmpty={() => false}
     >
-      {(device) => {
-        const contact = firstContactFor(device, mode);
-        const confirmed = mode === "pull" ? online : isConfirmed(contact);
-
-        return (
-          <div className="space-y-4">
-            {mode === "pull" ? (
-              <div className="space-y-3">
-                <p role="status" className="text-sm">
-                  {online
-                    ? t("device_wizard.pull_online")
-                    : t("device_wizard.pull_waiting")}
-                </p>
-                <PullConnectionTest
-                  devicePublicId={device.public_id}
-                  adapterType={device.adapter_type}
-                  onResult={setOnline}
-                />
-              </div>
-            ) : (
-              <ContactStatus contact={contact} device={device} mode={mode} />
-            )}
-            <div className="flex flex-wrap justify-between gap-2">
-              <Button type="button" variant="outline" onClick={onBack}>
-                {t("device_wizard.back_to_terminal")}
-              </Button>
-              <Button
-                type="button"
-                disabled={!confirmed}
-                onClick={onConfirmed}
-              >
-                {t("device_wizard.next")}
-              </Button>
-            </div>
-          </div>
-        );
-      }}
+      {body}
     </QueryBoundary>
   );
+
+  function body(device: Device) {
+    const contact = firstContactFor(device, mode);
+    const confirmed = mode === "pull" ? online : isConfirmed(contact);
+
+    return (
+      <div className="space-y-4">
+        {mode === "pull" ? (
+          <div className="space-y-3">
+            <p role="status" className="text-sm">
+              {online
+                ? t("device_wizard.pull_online")
+                : t("device_wizard.pull_waiting")}
+            </p>
+            <PullConnectionTest
+              devicePublicId={device.public_id}
+              adapterType={device.adapter_type}
+              onResult={setOnline}
+            />
+          </div>
+        ) : (
+          <ContactStatus contact={contact} device={device} mode={mode} />
+        )}
+        <div className="flex flex-wrap justify-between gap-2">
+          <Button type="button" variant="outline" onClick={onBack}>
+            {t("device_wizard.back_to_terminal")}
+          </Button>
+          <Button type="button" disabled={!confirmed} onClick={onConfirmed}>
+            {t("device_wizard.next")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 }
 
 function ContactStatus({
@@ -602,10 +613,7 @@ function ContactStatus({
             when: timeAgo(contact.at),
           })}
         </p>
-        <AllowAddressButton
-          devicePublicId={device.public_id}
-          ip={contact.ip}
-        />
+        <AllowAddressButton devicePublicId={device.public_id} ip={contact.ip} />
       </div>
     );
   }
