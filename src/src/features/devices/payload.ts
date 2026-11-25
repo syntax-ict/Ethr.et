@@ -122,6 +122,8 @@ interface PayloadOptions {
   acceptsCommands?: boolean;
   /** Edit only: false when the server did not show the allowlist (not a tenant admin), so it is left alone. */
   sendsAllowlist?: boolean;
+  /** Edit only: the adapter was changed, so the old vendor's stored connection no longer applies. */
+  adapterChanged?: boolean;
 }
 
 /**
@@ -196,15 +198,17 @@ export function buildDevicePayload(
     );
   }
 
+  const marksConnection = mode === "create" || options.adapterChanged === true;
+
   if (form.adapter_type === "mock") {
-    if (mode === "create") payload.connection_config = { mode: "simulator" };
+    if (marksConnection) payload.connection_config = { mode: "simulator" };
     return payload;
   }
 
   // ZKTeco ADMS calls ETHR, so there is no address to store: the serial
   // number identifies it, and the IP allowlist admits it.
   if (form.adapter_type === "zkteco_adms") {
-    if (mode === "create") payload.connection_config = { mode: "adms" };
+    if (marksConnection) payload.connection_config = { mode: "adms" };
     // Nothing to pull from a terminal that only sends.
     payload.auto_sync = false;
     return payload;

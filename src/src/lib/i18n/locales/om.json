@@ -2446,7 +2446,7 @@
   "devices_page.adapter_type": "Gosa Walqunnamsiisaa",
   "devices_page.add_device": "Meeshaa Dabali",
   "devices_page.add_failed": "Meeshaa dabaluun hin milkoofne",
-  "devices_page.adms_hint": "Teerminaalli ETHR waama, kanaaf teessoon hin barbaachisu, neetworkii waajjiraa kamirraayyuu ni hojjeta. Erga galmeessanii booda, fuulli meeshaa wanta irratti galchitan isiniif agarsiisa. ETHR teerminaalicha teessoo hayyamame irraa qofa fudhata; tarreen isaa kutaa 'Ol'aanaa' jala jira.",
+  "devices_page.adms_hint": "Teerminaalli ETHR waama, kanaaf teessoon hin barbaachisu, neetworkii waajjiraa kamirraayyuu ni hojjeta. Erga galmeessitanii booda, fuulli meeshaa wanta irratti galchitan isiniif agarsiisa. ETHR teerminaalicha teessoo hayyamame irraa qofa fudhata; tarreen isaa kutaa 'Ol'aanaa' jala jira.",
   "devices_page.public_address_hint": "ETHR teessoo kanaan interneetiin wal qunnama, kanaaf teessoo uummataa ta'uu qaba. Teessoon neetworkii waajjiraa kan akka 192.168.1.100 hin fudhatamu.",
   "devices_page.sends_to_ethr_hint": "Galmee argamaa tokkoon tokkoon isaa ofumaan gara ETHR erga, kanaaf teessoon hin barbaachisu. Erga galmeessitanii booda, fuulli meeshaa wanta teerminaalicha irratti galchitan isiniif agarsiisa. ETHR fayyadamtoota isaa galmaa'an dubbisuu, sa'aatii isaa sirreessuu ykn galmeewwan darban fiduu hin danda'u.",
   "devices_page.sends_to_ethr": "Teerminaalichi neetworkii waajjira keenyaa keessa jira",

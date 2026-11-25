@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Device } from "@/features/devices/api";
+import type { Device, DeviceUpdate } from "@/features/devices/api";
 import {
   buildDevicePayload,
   canAcceptCommands,
@@ -81,6 +81,29 @@ export function deviceToForm(device: Device): DeviceFormData {
   };
 }
 
+/**
+ * How the form's terminal reaches ETHR. A stored ZKTeco or Suprema terminal
+ * with no address only sends, and the server says so (`connection_mode`); the
+ * form keeps it that way until an address is typed, which is how it is given
+ * one. Everything else follows the adapter and the office-network switch.
+ */
+export function connectionOf(
+  form: DeviceFormData,
+  device?: Device,
+): ConnectionMode {
+  if (
+    device &&
+    device.adapter_type === form.adapter_type &&
+    device.connection_mode === "push" &&
+    !canSendToEthr(form.adapter_type) &&
+    isIpAdapter(form.adapter_type) &&
+    form.ip.trim() === ""
+  ) {
+    return "push";
+  }
+  return connectionModeFor(form);
+}
+
 function useFormState(
   mode: "create" | "edit",
   device: Device | undefined,
@@ -88,14 +111,12 @@ function useFormState(
   const [form, setForm] = useState<DeviceFormData>(() =>
     device ? deviceToForm(device) : { ...EMPTY_DEVICE_FORM },
   );
-  const state: DeviceFormState = {
-    form,
-    patch: (changes) => setForm((p) => ({ ...p, ...changes })),
-    mode,
-    connection: connectionModeFor(form),
-    device,
-  };
-  return state;
+  const patch = useCallback(
+    (changes: Partial<DeviceFormData>) =>
+      setForm((p) => ({ ...p, ...changes })),
+    [],
+  );
+  return { form, patch, mode, connection: connectionOf(form, device), device };
 }
 
 function Section({
@@ -249,6 +270,15 @@ export function DeviceIdentitySection({
   );
 }
 
+/** Whether the address and credentials are asked for: a terminal ETHR calls, or one with no address yet. */
+function showsAddress(state: DeviceFormState): boolean {
+  const { connection, form } = state;
+  return (
+    connection === "pull" ||
+    (connection === "push" && !canSendToEthr(form.adapter_type))
+  );
+}
+
 /**
  * Whether the address fields must be filled: always on register, and on edit
  * when the stored connection no longer fits (another vendor, or a terminal
@@ -258,6 +288,9 @@ export function addressIsRequired(state: DeviceFormState): boolean {
   const { mode, device, form } = state;
   if (mode === "create" || !device) return true;
   if (device.adapter_type !== form.adapter_type) return true;
+  if (state.connection === "push" && !canSendToEthr(form.adapter_type)) {
+    return false;
+  }
   return (
     canSendToEthr(device.adapter_type) &&
     device.receives_only === true &&
@@ -299,7 +332,7 @@ export function DeviceConnectionSection({ state }: { state: DeviceFormState }) {
         />
       )}
 
-      {isIpAdapter(form.adapter_type) && connection === "pull" && (
+      {isIpAdapter(form.adapter_type) && showsAddress(state) && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {t(
@@ -524,26 +557,30 @@ export function DeviceAdvancedSection({ state }: { state: DeviceFormState }) {
   );
 }
 
-export interface DeviceFormProps {
-  mode: "create" | "edit";
-  /** The stored device. Required on edit. */
-  device?: Device;
+interface DeviceFormCommon {
   branches: Branch[];
   isPending: boolean;
   submitLabel: string;
-  onSubmit: (payload: DevicePayload) => void;
   onCancel: () => void;
 }
 
-export function DeviceForm({
-  mode,
-  device,
-  branches,
-  isPending,
-  submitLabel,
-  onSubmit,
-  onCancel,
-}: DeviceFormProps) {
+/** Register sends a whole new device; Edit sends only what it changes. */
+export type DeviceFormProps = DeviceFormCommon &
+  (
+    | {
+        mode: "create";
+        device?: undefined;
+        onSubmit: (payload: DevicePayload) => void;
+      }
+    | {
+        mode: "edit";
+        device: Device;
+        onSubmit: (payload: DeviceUpdate) => void;
+      }
+  );
+
+export function DeviceForm(props: DeviceFormProps) {
+  const { mode, device, branches, isPending, submitLabel, onCancel } = props;
   const { t } = useT();
   const state = useFormState(mode, device);
   const { form, patch } = state;
@@ -559,21 +596,20 @@ export function DeviceForm({
     if (mode === "create" && onlyBranch && form.branch_public_id === "") {
       patch({ branch_public_id: onlyBranch });
     }
-    // patch is recreated every render and only calls setState.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, onlyBranch, form.branch_public_id]);
+  }, [mode, onlyBranch, form.branch_public_id, patch]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "create") {
-      onSubmit(buildDevicePayload(form, "create"));
+    if (props.mode === "create") {
+      props.onSubmit(buildDevicePayload(form, "create"));
       return;
     }
-    onSubmit(
+    props.onSubmit(
       buildDevicePayload(form, "edit", {
         acceptsCommands: offersCommands(state),
-        sendsAllowlist: device?.webhook_ip_allowlist !== undefined,
-      }) as DevicePayload,
+        sendsAllowlist: props.device.webhook_ip_allowlist !== undefined,
+        adapterChanged: props.device.adapter_type !== form.adapter_type,
+      }),
     );
   }
 
@@ -612,7 +648,12 @@ export function DeviceFormDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <DeviceForm {...formProps} onCancel={() => onOpenChange(false)} />
+        <DeviceForm
+          {...({
+            ...formProps,
+            onCancel: () => onOpenChange(false),
+          } as DeviceFormProps)}
+        />
       </DialogContent>
     </Dialog>
   );

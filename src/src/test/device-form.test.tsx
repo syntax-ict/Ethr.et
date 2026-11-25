@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DeviceForm } from "@/features/devices/components/device-form";
 import type { Device } from "@/features/devices/api";
+import type { DevicePayload } from "@/features/devices/payload";
 
 /**
  * Register and Edit are one form (device setup upgrade, PR 2). What a mode
@@ -39,21 +40,37 @@ function stored(overrides: Partial<Device>): Device {
   } as Device;
 }
 
+function formElement(
+  mode: "create" | "edit",
+  device?: Device,
+  onSubmit: (payload: Partial<DevicePayload>) => void = () => {},
+  submitLabel = "Go",
+) {
+  const common = {
+    branches: BRANCHES,
+    isPending: false,
+    submitLabel,
+    onCancel: () => {},
+  };
+  return mode === "edit" && device ? (
+    <DeviceForm {...common} mode="edit" device={device} onSubmit={onSubmit} />
+  ) : (
+    <DeviceForm {...common} mode="create" onSubmit={onSubmit} />
+  );
+}
+
 function renderForm(
   mode: "create" | "edit",
   device?: Device,
   onSubmit = vi.fn(),
 ) {
   render(
-    <DeviceForm
-      mode={mode}
-      device={device}
-      branches={BRANCHES}
-      isPending={false}
-      submitLabel={mode === "create" ? "Register" : "Save changes"}
-      onSubmit={onSubmit}
-      onCancel={() => {}}
-    />,
+    formElement(
+      mode,
+      device,
+      onSubmit,
+      mode === "create" ? "Register" : "Save changes",
+    ),
   );
   return onSubmit;
 }
@@ -70,17 +87,7 @@ const SECTIONS = ["Identity", "Connection", "Advanced"];
 describe("<DeviceForm> sections", () => {
   it("shows the same sections and fields to a terminal ETHR calls, new or stored", () => {
     for (const mode of ["create", "edit"] as const) {
-      const { unmount } = render(
-        <DeviceForm
-          mode={mode}
-          device={mode === "edit" ? stored({}) : undefined}
-          branches={BRANCHES}
-          isPending={false}
-          submitLabel="Go"
-          onSubmit={() => {}}
-          onCancel={() => {}}
-        />,
-      );
+      const { unmount } = render(formElement(mode, stored({})));
 
       for (const name of SECTIONS) {
         expect(screen.getByText(name)).toBeInTheDocument();
@@ -107,25 +114,16 @@ describe("<DeviceForm> sections", () => {
   it("shows an ADMS terminal no address and no Auto-Sync, and an optional allowlist, new or stored", async () => {
     for (const mode of ["create", "edit"] as const) {
       const { unmount } = render(
-        <DeviceForm
-          mode={mode}
-          device={
-            mode === "edit"
-              ? stored({
-                  adapter_type: "zkteco_adms",
-                  connection_mode: "adms",
-                  uses_webhook_token: false,
-                  pulled: false,
-                  webhook_ip_allowlist: [],
-                })
-              : undefined
-          }
-          branches={BRANCHES}
-          isPending={false}
-          submitLabel="Go"
-          onSubmit={() => {}}
-          onCancel={() => {}}
-        />,
+        formElement(
+          mode,
+          stored({
+            adapter_type: "zkteco_adms",
+            connection_mode: "adms",
+            uses_webhook_token: false,
+            pulled: false,
+            webhook_ip_allowlist: [],
+          }),
+        ),
       );
       if (mode === "create") await chooseAdapter(/ZKTeco \(ADMS/);
 
@@ -150,23 +148,14 @@ describe("<DeviceForm> sections", () => {
   it("shows a terminal that sends no address and no pull schedule, new or stored", async () => {
     for (const mode of ["create", "edit"] as const) {
       const { unmount } = render(
-        <DeviceForm
-          mode={mode}
-          device={
-            mode === "edit"
-              ? stored({
-                  receives_only: true,
-                  pulled: false,
-                  connection_mode: "push",
-                })
-              : undefined
-          }
-          branches={BRANCHES}
-          isPending={false}
-          submitLabel="Go"
-          onSubmit={() => {}}
-          onCancel={() => {}}
-        />,
+        formElement(
+          mode,
+          stored({
+            receives_only: true,
+            pulled: false,
+            connection_mode: "push",
+          }),
+        ),
       );
       const toggle = screen.getByRole("switch", {
         name: "The terminal is on our office network",
@@ -181,6 +170,33 @@ describe("<DeviceForm> sections", () => {
       ).not.toBeInTheDocument();
       unmount();
     }
+  });
+});
+
+describe("<DeviceForm> a stored terminal with no address", () => {
+  it("is shown as one that only sends, and can be given an address", async () => {
+    const user = userEvent.setup();
+    renderForm(
+      "edit",
+      stored({
+        adapter_type: "zkteco",
+        receives_only: true,
+        pulled: false,
+        connection_mode: "push",
+        auto_sync: false,
+      }),
+    );
+
+    expect(
+      screen.queryByRole("switch", { name: /auto-sync/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/sync interval/i)).toBeNull();
+    expect(screen.getByLabelText("IP Address")).not.toBeRequired();
+
+    await user.type(screen.getByLabelText("IP Address"), "203.0.113.10");
+    expect(
+      screen.getByRole("switch", { name: /auto-sync/i }),
+    ).toBeInTheDocument();
   });
 });
 
