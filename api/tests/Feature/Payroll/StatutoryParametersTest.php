@@ -222,6 +222,7 @@ it('infers the kind of organisation at registration and asks the admin to confir
         'organization_name' => 'Kind Test', 'subdomain' => 'kind-test-'.$industry,
         'admin_name' => 'Admin User', 'admin_email' => "admin@{$industry}.example", 'admin_phone' => '+251911234567',
         'password' => 'SecurePass123!', 'password_confirmation' => 'SecurePass123!',
+        'accept_terms' => true,
         'organization_type' => $industry,
     ])->assertCreated();
 

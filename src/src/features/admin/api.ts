@@ -87,6 +87,13 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   /** Whether the plan includes the `custom_domain` add-on. */
   custom_domain_allowed: boolean;
   updated_at: string;
+  /**
+   * The Terms and Privacy Policy version accepted at sign-up, and when.
+   * Null for organisations that registered before acceptance was recorded
+   * (2026-11-25).
+   */
+  terms_accepted_version?: string | null;
+  terms_accepted_at?: string | null;
   /** A change of kind scheduled for a later date. */
   organization_type_pending?: {
     organization_type: string;

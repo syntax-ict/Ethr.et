@@ -29,6 +29,9 @@ use Illuminate\Support\Facades\Cache;
  * @property TenantAddressMode|null $address_mode
  * @property Carbon|null $showcase_consented_at
  * @property Carbon|null $showcase_hidden_at
+ * @property string|null $terms_accepted_version
+ * @property Carbon|null $terms_accepted_at
+ * @property int|null $terms_accepted_by
  */
 class Tenant extends Model
 {
@@ -134,6 +137,7 @@ class Tenant extends Model
             'address_mode' => TenantAddressMode::class,
             'showcase_consented_at' => 'datetime',
             'showcase_hidden_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
         ];
     }
 

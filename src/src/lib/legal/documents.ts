@@ -87,6 +87,14 @@ export interface LegalDocument {
 
 const EFFECTIVE_DATE = "2026-11-25";
 
+/**
+ * The version an organisation accepts at sign-up: these documents' effective
+ * date. The server records its own copy, `App\Support\LegalDocuments::VERSION`,
+ * and `legal-version.test.ts` fails when the two differ, because an acceptance
+ * recorded against a version nobody was shown proves nothing.
+ */
+export const LEGAL_VERSION = EFFECTIVE_DATE;
+
 export const privacyEn: LegalDocument = {
   slug: "privacy",
   title: "Privacy Policy",
@@ -127,6 +135,7 @@ export const privacyEn: LegalDocument = {
             "The organization's name and the address it chooses for its ETHR sign-in page.",
             "The administrator's name, email address, and optionally an Ethiopian phone number.",
             "A password, which is stored only as a cryptographic hash and is never recoverable in readable form.",
+            "Which version of these terms and of this policy you accepted, when, and the IP address and browser you accepted them from.",
           ],
         },
         {
@@ -276,7 +285,7 @@ export const termsEn: LegalDocument = {
       heading: "Accounts",
       blocks: [
         {
-          text: "Creating an organization reserves its address on ETHR (ethr.et followed by a name it chooses, or later its own domain) and creates an administrator account. You are responsible for the accuracy of the details you give and for keeping the administrator's credentials secure. Multi-factor authentication is available and we recommend enabling it for every administrator.",
+          text: "Creating an organization reserves its address on ETHR (ethr.et followed by a name it chooses, or later its own domain) and creates an administrator account. Creating it requires accepting these terms and the Privacy Policy, and we record which version was accepted and when. You are responsible for the accuracy of the details you give and for keeping the administrator's credentials secure. Multi-factor authentication is available and we recommend enabling it for every administrator.",
         },
       ],
     },

@@ -24,6 +24,7 @@ function registerAs(string $industry, ?string $kind = null): TestResponse
         'organization_name' => 'Abay Trading', 'subdomain' => 'abay-trading',
         'admin_name' => 'Admin User', 'admin_email' => 'admin@abay.example', 'admin_phone' => '+251911234567',
         'password' => 'SecurePass123!', 'password_confirmation' => 'SecurePass123!',
+        'accept_terms' => true,
         'organization_type' => $industry,
         'organization_kind' => $kind,
     ], static fn ($value): bool => $value !== null));

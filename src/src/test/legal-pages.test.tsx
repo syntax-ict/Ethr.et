@@ -141,6 +141,18 @@ describe("Legal documents", () => {
       ).toBeInTheDocument();
     });
 
+    it("says that sign-up records which version of these terms was accepted", () => {
+      render(<LegalDocumentView document={privacyEn} />);
+
+      // AuthService::registerTenant writes tenants.terms_accepted_version and
+      // a tenant.terms_accepted audit row, which carries the IP and browser.
+      expect(
+        screen.getByText(
+          /which version of these terms and of this policy you accepted/i,
+        ),
+      ).toBeInTheDocument();
+    });
+
     it("distinguishes ETHR as processor from the employer as controller", () => {
       render(<LegalDocumentView document={privacyEn} />);
 
