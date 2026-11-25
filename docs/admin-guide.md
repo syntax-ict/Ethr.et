@@ -485,6 +485,17 @@ The monthly timesheet reads the same figures payroll reads, so the two cannot di
 - **Overtime by rate**: one column for each rate the organization pays (1.5× day, 1.75× night, 2.0× rest day, 2.5× holiday are the legal minimums). Overtime worked is paid whether or not it was approved in advance; the timesheet shows how much was unapproved, and the days over the legal limits of 4 hours a day and 12 hours a week, from the rules in Payroll rules.
 - **Status**: shown, never set by hand. Open, exceptions (a punch is still open or pending), reconciled, part-paid or paid (payroll has released the days). A day payroll has paid cannot be edited; a later fix goes into the next run.
 
+**The grid.** On the **Quick reports** tab, the monthly timesheet card has **Open as a day-by-day grid**, which opens the month chosen above it. The page is `/reports/timesheet?from=…&to=…`, so a link or a reload keeps the month and the filters (department, branch, shift, employment status).
+
+- Each row is a person, with one cell a day and a letter in it: **P** present, **L** late, **E** left early, **M** missing punch, **A** absent, **AL** annual, **SL** sick, **ML** maternity, **OL** other leave, **FD** field duty, **½** half day leave, **H** public holiday, **R** weekly rest day. A dot is a day that is not over. Weekends are shaded, and the legend under the sheet names every code.
+- **Click a cell** to see what was scheduled and worked that day, the late and early minutes, the overtime by rate, and the punches behind it. A day payroll has paid is marked and cannot be corrected from here; any other day links to **Request a correction**. Seeing the punches needs `attendance.viewAll`; without it the drawer says the day has records.
+- A warning mark at the end of a row means the row does not add up: its workdays, present days, overtime or hours disagree with the records. It should never show; if it does, tell support.
+- Summary columns follow the days, then one overtime column for each rate the organization pays. **Payable days** is shown only to someone who may see payroll.
+- Under the sheet: totals for everyone listed and for each department, the legend, and **How this is counted** (each shift's grace and early-departure minutes and break, how punches pair, how a night shift is dated, the overtime window and legal limits, and that absences are listed and not deducted).
+- Totals and the status are shown for up to 200 people. For a longer list the sheet still pages through everyone, says so, and shows no status: choose a department, branch or shift to narrow it.
+- On a phone, each person is a card with the month as a strip of days; tapping a day opens the same drawer.
+- **Download CSV** saves the page as it reads, a code a day; **Print** prints the sheet from the browser. The A4 landscape PDF with signature blocks comes in a later release.
+
 Through the API, `GET /reports/timesheet` returns a page of people with one cell per day, the totals over everyone the filters match, department subtotals, the rules applied and the status. The Builder's "Monthly timesheet" source carries the same figures as columns.
 
 ### Quick Reports

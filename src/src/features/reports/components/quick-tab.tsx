@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   reportCutNote,
   reportFieldLabel,
@@ -389,6 +390,24 @@ export function QuickTab() {
                         )}
                         {t("reports_page.run")}
                       </Button>
+                      {preset.key === "monthly_timesheet" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-2"
+                          asChild
+                        >
+                          <Link
+                            href={`/reports/timesheet?from=${reportMonthRange(month).from}&to=${reportMonthRange(month).to}`}
+                          >
+                            <CalendarCheck className="mr-2 h-3 w-3" />
+                            {t(
+                              "reports_page.timesheet.open_grid",
+                              "Open as a day-by-day grid",
+                            )}
+                          </Link>
+                        </Button>
+                      ) : null}
                     </CardContent>
                   </Card>
                 );
