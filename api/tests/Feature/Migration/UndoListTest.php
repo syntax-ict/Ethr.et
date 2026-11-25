@@ -645,7 +645,9 @@ describe('recording what a commit does', function () {
  * corrected file reuses them.
  */
 describe('adding the corrected list after an undo', function () {
-    it('commits the list with the rows that reuse an archived number left for review, and never throws', function () {
+    // People used since cannot be brought back from a list (RestoreFromListTest
+    // is the unused case, which is brought back), so their rows wait.
+    it('commits the list with the rows that reuse a used archived person\'s number left for review, and never throws', function () {
         [$tenant, $user] = Undo::admin();
         $first = Undo::committed($tenant, $user, [
             ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],
@@ -653,6 +655,9 @@ describe('adding the corrected list after an undo', function () {
             ['name' => 'Dawit Haile', 'employee_code' => 'E-3'],
         ]);
         test()->postJson(Undo::url($tenant, $first), ['confirm' => true])->assertOk()->assertJsonPath('archived', 3);
+        foreach (['Abebe Kebede', 'Sara Tesfaye', 'Dawit Haile'] as $name) {
+            Undo::use($tenant, Undo::who($tenant, $name), 'attendance');
+        }
 
         $corrected = Staging::stage($tenant, [
             ['name' => 'Abebe Kebede', 'employee_code' => 'E-1'],

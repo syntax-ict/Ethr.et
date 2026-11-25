@@ -25,6 +25,7 @@ class UpdateStagingRowRequest extends FormRequest
                 MigrationStagingRow::ACTION_CREATE,
                 MigrationStagingRow::ACTION_SKIP,
                 MigrationStagingRow::ACTION_DEFER,
+                MigrationStagingRow::ACTION_RESTORE,
             ])],
             // Lets a reviewer pick which candidate an "ambiguous" row merges
             // with — resolved tenant-scoped in the controller, same as every

@@ -27477,6 +27477,31 @@
                                                         "type": "array",
                                                         "items": []
                                                     },
+                                                    "restore": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "possible": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "allowed": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "possible",
+                                                            "allowed",
+                                                            "reasons"
+                                                        ]
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -27502,6 +27527,7 @@
                                                     "action",
                                                     "changes",
                                                     "warnings",
+                                                    "restore",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -27763,6 +27789,9 @@
                                                 "updated": {
                                                     "type": "integer"
                                                 },
+                                                "restored": {
+                                                    "type": "integer"
+                                                },
                                                 "skipped": {
                                                     "type": "integer"
                                                 },
@@ -27774,6 +27803,7 @@
                                                 "created",
                                                 "merged",
                                                 "updated",
+                                                "restored",
                                                 "skipped",
                                                 "deferred"
                                             ]
@@ -28876,6 +28906,31 @@
                                                         "type": "array",
                                                         "items": []
                                                     },
+                                                    "restore": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "possible": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "allowed": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "possible",
+                                                            "allowed",
+                                                            "reasons"
+                                                        ]
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -28901,6 +28956,7 @@
                                                     "action",
                                                     "changes",
                                                     "warnings",
+                                                    "restore",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -29442,6 +29498,31 @@
                                                                 "type": "array",
                                                                 "items": []
                                                             },
+                                                            "restore": {
+                                                                "type": [
+                                                                    "object",
+                                                                    "null"
+                                                                ],
+                                                                "properties": {
+                                                                    "possible": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "allowed": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "reasons": {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "possible",
+                                                                    "allowed",
+                                                                    "reasons"
+                                                                ]
+                                                            },
                                                             "can_apply_changes": {
                                                                 "type": "boolean"
                                                             },
@@ -29467,6 +29548,7 @@
                                                             "action",
                                                             "changes",
                                                             "warnings",
+                                                            "restore",
                                                             "can_apply_changes",
                                                             "scheduled_action",
                                                             "processed_at"
@@ -29696,6 +29778,31 @@
                                             "type": "array",
                                             "items": []
                                         },
+                                        "restore": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "possible": {
+                                                    "type": "boolean"
+                                                },
+                                                "allowed": {
+                                                    "type": "boolean"
+                                                },
+                                                "reasons": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "possible",
+                                                "allowed",
+                                                "reasons"
+                                            ]
+                                        },
                                         "can_apply_changes": {
                                             "type": "boolean"
                                         },
@@ -29721,6 +29828,7 @@
                                         "action",
                                         "changes",
                                         "warnings",
+                                        "restore",
                                         "can_apply_changes",
                                         "scheduled_action",
                                         "processed_at"
@@ -62891,7 +62999,8 @@
                             "merge",
                             "create",
                             "skip",
-                            "defer"
+                            "defer",
+                            "restore"
                         ]
                     },
                     "employee_public_id": {
