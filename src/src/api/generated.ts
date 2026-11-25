@@ -14478,7 +14478,7 @@ export interface components {
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
             /** @enum {string} */
-            action: "merge" | "create" | "skip" | "defer";
+            action: "merge" | "create" | "skip" | "defer" | "restore";
             /**
              * @description Lets a reviewer pick which candidate an "ambiguous" row merges
              *     with — resolved tenant-scoped in the controller, same as every
@@ -29970,6 +29970,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30118,6 +30123,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30380,6 +30390,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30463,6 +30478,11 @@ export interface operations {
                             taken: boolean;
                         }[];
                         warnings: unknown[];
+                        restore: {
+                            possible: boolean;
+                            allowed: boolean;
+                            reasons: string[];
+                        } | null;
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;
@@ -30674,6 +30694,7 @@ export interface operations {
                             created: number;
                             merged: number;
                             updated: number;
+                            restored: number;
                             skipped: number;
                             deferred: number;
                         };
