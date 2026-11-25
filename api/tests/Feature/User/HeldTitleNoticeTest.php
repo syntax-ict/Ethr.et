@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Events\TitleAccessHeld;
-use App\Listeners\NotifyTitleAccessHeld;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Tenant;
@@ -50,11 +49,7 @@ function heldNoticeSweep(): void
 function heldNoticeDeliver(Tenant $tenant, array $userIds): void
 {
     app()->forgetScopedInstances();
-    app(NotifyTitleAccessHeld::class)->handle(
-        new TitleAccessHeld($tenant->id, $userIds),
-        app(PositionAccess::class),
-        app(CurrentTenant::class),
-    );
+    event(new TitleAccessHeld($tenant->id, $userIds));
 }
 
 /** An organisation with an admin who may give any role a title gives. */
@@ -279,5 +274,18 @@ describe('the notice', function () {
 
         expect($notification->toArray($admin)['message'])->toContain('1 account is waiting');
         expect((new TitleAccessHeldNotification(3))->toArray($admin)['message'])->toContain('3 accounts are waiting');
+    });
+});
+
+describe('the sweep and the listener together', function () {
+    it('tells the admin when the sweep finds a held account, with the event sent through the dispatcher', function () {
+        Notification::fake();
+        $tenant = createTenant();
+        $admin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+
+        Notification::assertSentTo($admin, TitleAccessHeldNotification::class);
     });
 });
