@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 48 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. **`operations/` has its own section below, and its own index at [`operations/README.md`](operations/README.md).** *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 48 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/`, `legal/` and `archive/`. **`operations/` has its own section below, and its own index at [`operations/README.md`](operations/README.md).** *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -33,6 +33,7 @@ Several documents in this tree describe things that are not true of the code. Th
 | [`EMPLOYEE-LIFECYCLE.md`](EMPLOYEE-LIFECYCLE.md) | **The employee lifecycle from position to exit** (2026-10-27): capability matrix against the code, the recruitment-to-hire slice, the rules every lifecycle feature follows, and the ordered plan with acceptance criteria. |
 | [`EMPLOYEE-INVITATIONS-PLAN.md`](EMPLOYEE-INVITATIONS-PLAN.md) | **Bringing device staff into ETHR and inviting them** (2026-10-28): queued and throttled invitations, an invitation channel for phone-only and no-contact staff, inviting after a device migration, and ADMS enrolled-user lists. Four PRs in order, with the owner decisions they need. Not built. |
 | [`EMPLOYMENT-LAW-REGISTER.md`](EMPLOYMENT-LAW-REGISTER.md) | **Employment law register** (2026-10-27): Labour Proc. 1156/2019, Civil Servants Proc. 1353/2024, PDPP 1321/2024, pension and e-transaction law, each requirement classed verified / not fully verified / needs counsel. Not legal advice. |
+| [`legal/LEGAL-REGISTRATION-REGISTER.md`](legal/LEGAL-REGISTRATION-REGISTER.md) | **`LEGALLY READY TO TRADE = NO`** (2026-11-25): every registration, filing and signature ETHR needs to trade lawfully — entity form, TIN and licence, IP assignments, trademark, ECA registration as controller and processor, DPO, copyright, tax, procurement — in dependency order, each with a state. The rest of [`legal/`](legal/README.md) is the drafts it points to: DPA, record of processing, DPIA, sub-processors, biometric policy, retention schedule, SLA, MSA. Not legal advice; none reviewed by counsel. |
 
 Three standing caveats:
 
@@ -89,6 +90,15 @@ Three standing caveats:
 | [`external/ERCA_INCOME_TAX_QUERY.md`](external/ERCA_INCOME_TAX_QUERY.md) | **Drafted, unsent.** Asks the **Ministry of Revenues** (not "ERCA" — that body is gone) to confirm the Proclamation 1395/2025 employment-income ladder band by band, because `DEPLOYMENT.md` records it was taken from legal-firm summaries rather than the Negarit Gazeta, and to say how an over-withholding must be corrected. Also records that **both** "open items" in roadmap 4.3 are stale |
 | [`B1-B5_GATE_REPORT.md`](B1-B5_GATE_REPORT.md) | External probing of the hosting target — DNS, ports, TLS |
 | [`phases/`](phases/) | `PHASE_00`–`PHASE_09` design records. **Checkboxes not maintained** |
+
+## Legal
+
+| Document | What it is |
+|---|---|
+| [`legal/README.md`](legal/README.md) | **The legal pack**: index, and the rules every document in it follows (describe the code, tag each legal point by confidence, never invent an owner's fact, no names, no machine translation) |
+| [`legal/LEGAL-REGISTRATION-REGISTER.md`](legal/LEGAL-REGISTRATION-REGISTER.md) | The register that decides whether ETHR is registered, protected and contracted. Separate from the cutover register, and passing one does not pass the other |
+| [`legal/DATA-PROCESSING-AGREEMENT.md`](legal/DATA-PROCESSING-AGREEMENT.md) · [`legal/RECORD-OF-PROCESSING.md`](legal/RECORD-OF-PROCESSING.md) · [`legal/DPIA-ATTENDANCE-MONITORING.md`](legal/DPIA-ATTENDANCE-MONITORING.md) | Proclamation 1321/2024 drafts: the Art. 16(3) contract, the Art. 46 record, the Art. 47 assessment |
+| [`EMPLOYMENT-LAW-REGISTER.md`](EMPLOYMENT-LAW-REGISTER.md) | What the employment and data-protection laws require of the product's features |
 
 ## Security
 
