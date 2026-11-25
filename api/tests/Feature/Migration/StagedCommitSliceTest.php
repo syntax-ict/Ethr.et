@@ -20,6 +20,7 @@ use App\Services\Migration\WorkforceMigrationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Tests\Support\StagingFixtures as Staging;
+use Tests\Support\UndoFixtures as Undo;
 
 /**
  * One request has thirty seconds on the host and the whole list was committed
@@ -242,7 +243,8 @@ describe('a number another record holds', function () {
 
     it('holds a row whose number an archived record holds, names the number, and will not add it as new', function () {
         [$tenant] = Staging::organisation();
-        Staging::archived($tenant, ['name' => 'Abebe Kebede', 'employee_code' => 'EMP-001']);
+        // Someone used since cannot be brought back by the row (RestoreFromListTest).
+        Undo::use($tenant, Staging::archived($tenant, ['name' => 'Abebe Kebede', 'employee_code' => 'EMP-001']), 'attendance');
 
         $batch = Staging::stage($tenant, [['name' => 'Abebe Kebede', 'employee_code' => 'emp-001']]);
         $row = heldRowOf($tenant, $batch);
@@ -399,8 +401,8 @@ describe('a number another record holds', function () {
         [$tenant] = Staging::organisation();
         $finance = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Finance', 'code' => 'FIN']);
         $sales = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Sales', 'code' => 'SAL']);
-        Staging::archived($tenant, ['name' => 'Hana Girma', 'employee_code' => 'EMP-009', 'department_id' => $sales->id]);
-        Staging::archived($tenant, ['name' => 'Meron Alemu', 'employee_code' => 'EMP-010', 'department_id' => $finance->id]);
+        Undo::use($tenant, Staging::archived($tenant, ['name' => 'Hana Girma', 'employee_code' => 'EMP-009', 'department_id' => $sales->id]), 'attendance');
+        Undo::use($tenant, Staging::archived($tenant, ['name' => 'Meron Alemu', 'employee_code' => 'EMP-010', 'department_id' => $finance->id]), 'attendance');
 
         $batch = Staging::stage($tenant, [
             ['name' => 'Hana Girma', 'employee_code' => 'EMP-009'],

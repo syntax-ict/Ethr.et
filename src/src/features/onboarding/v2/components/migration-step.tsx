@@ -92,8 +92,44 @@ import { MigrationTerminals } from "./migration-terminals";
 import { MigrationUndoButton, MigrationUndoNote } from "./migration-undo";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
+import { useArchiveReasonText } from "@/features/employees/use-archive-reasons";
 
-const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
+const ACTIONS: StagingAction[] = [
+  "merge",
+  "create",
+  "restore",
+  "skip",
+  "defer",
+];
+
+/**
+ * The actions a row offers. A row matched to someone archived can bring them
+ * back when nothing stops it and the viewer may restore people; one that
+ * cannot be added as new (a held number, or an archived match) is not offered
+ * Create. A list that completes people adds and restores nobody.
+ */
+export function actionsFor(
+  row: {
+    action: StagingAction;
+    restore?: { possible: boolean; allowed: boolean } | null;
+    warnings?: { code: string }[] | null;
+  },
+  completing: boolean,
+): StagingAction[] {
+  return ACTIONS.filter((a) => {
+    if (a === "restore") {
+      return (
+        !completing &&
+        (row.action === "restore" ||
+          (row.restore?.possible === true && row.restore.allowed))
+      );
+    }
+    if (a === "create") {
+      return !completing && !numberHeld(row) && !row.restore;
+    }
+    return true;
+  });
+}
 
 // Another record holds the row's employee number, so it cannot be added as new.
 const numberHeld = (row: { warnings?: { code: string }[] | null }) =>
@@ -188,6 +224,7 @@ export function MigrationStep({
   description?: string;
 }) {
   const { t } = useT();
+  const archiveReasons = useArchiveReasonText();
   const { requestConfirm, confirmDialog } = useConfirm();
   const { can } = usePermissions();
   const devicesQuery = useDevices();
@@ -846,15 +883,26 @@ export function MigrationStep({
                 skipped: result.totals.skipped ?? 0,
               },
             )
-          : t(
-              "setup2.migration_done",
-              "Migration complete: :created created, :merged merged, :updated updated",
-              {
-                created: result.totals.created ?? 0,
-                merged: result.totals.merged ?? 0,
-                updated: result.totals.updated ?? 0,
-              },
-            ),
+          : (result.totals.restored ?? 0) > 0
+            ? t(
+                "setup2.migration_done_restored",
+                "Migration complete: :created created, :restored brought back, :merged merged, :updated updated",
+                {
+                  created: result.totals.created ?? 0,
+                  restored: result.totals.restored ?? 0,
+                  merged: result.totals.merged ?? 0,
+                  updated: result.totals.updated ?? 0,
+                },
+              )
+            : t(
+                "setup2.migration_done",
+                "Migration complete: :created created, :merged merged, :updated updated",
+                {
+                  created: result.totals.created ?? 0,
+                  merged: result.totals.merged ?? 0,
+                  updated: result.totals.updated ?? 0,
+                },
+              ),
       );
     } catch (err) {
       toast.error(
@@ -1789,6 +1837,22 @@ export function MigrationStep({
                           )}
                         </Button>
                       )}
+                      {row.restore && !row.processed_at && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {row.restore.possible
+                            ? t(
+                                "setup2.restore_note",
+                                "Archived. Adding this list brings them back with this line's details.",
+                              )
+                            : t(
+                                "setup2.restore_blocked",
+                                "Cannot be brought back from a list: :reasons. Restore them from the archived view if they should return.",
+                                {
+                                  reasons: archiveReasons(row.restore.reasons),
+                                },
+                              )}
+                        </p>
+                      )}
                       {(row.warnings ?? []).length > 0 && (
                         <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
                           {row.warnings!.map((warning) => (
@@ -1837,14 +1901,13 @@ export function MigrationStep({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(batch.mode === "complete" || numberHeld(row)
-                            ? ACTIONS.filter((a) => a !== "create")
-                            : ACTIONS
-                          ).map((a) => (
-                            <SelectItem key={a} value={a}>
-                              {t(`setup2.action_${a}`, a)}
-                            </SelectItem>
-                          ))}
+                          {actionsFor(row, batch.mode === "complete").map(
+                            (a) => (
+                              <SelectItem key={a} value={a}>
+                                {t(`setup2.action_${a}`, a)}
+                              </SelectItem>
+                            ),
+                          )}
                         </SelectContent>
                       </Select>
                     ),

@@ -46,10 +46,21 @@ final class ListAdditions
         $recorded = [];
         $legacy = [];
         $pointedAt = [];
+        $restored = [];
 
         foreach ($rows as $row) {
             $id = (int) $row->resolved_employee_id;
             $pointedAt[$id] = true;
+
+            // A restore row is processed only when the person was brought back,
+            // and they were archived before the list: undoing it archives them
+            // again, never deletes them. Kept apart from the created ones, whose
+            // count the list's own totals are checked against.
+            if ($row->action === MigrationStagingRow::ACTION_RESTORE) {
+                $restored[$id] = true;
+
+                continue;
+            }
 
             if ($row->action !== MigrationStagingRow::ACTION_CREATE) {
                 continue;
@@ -75,7 +86,8 @@ final class ListAdditions
             $created = $established;
         }
 
-        $matched = count(array_diff_key($pointedAt, $created, $unsure));
+        $restored = array_diff_key($restored, $created, $unsure);
+        $matched = count(array_diff_key($pointedAt, $created, $unsure, $restored));
 
         return new Additions(
             created: array_keys($created),
@@ -83,6 +95,7 @@ final class ListAdditions
             matched: $matched,
             origin: $legacy === [] ? Additions::RECORDED : Additions::DERIVED,
             declared: $total,
+            restored: array_keys($restored),
         );
     }
 

@@ -405,8 +405,9 @@ class MigrationController extends Controller
         // Employee::query() carries the tenant global scope, so a public_id from
         // another tenant (the FormRequest's `exists` rule can't see the scope —
         // see its comment) simply resolves to null here instead of leaking across.
+        $restoring = $request->validated('action') === MigrationStagingRow::ACTION_RESTORE;
         $employee = $employeePublicId !== null
-            ? Employee::where('public_id', $employeePublicId)->first()
+            ? ($restoring ? Employee::withTrashed() : Employee::query())->where('public_id', $employeePublicId)->first()
             : null;
 
         // A list still being matched has no verdicts to decide on yet, and one
@@ -425,6 +426,21 @@ class MigrationController extends Controller
             $raw = $row->getAttribute('raw');
             $code = is_array($raw) && is_scalar($raw['employee_code'] ?? null) ? trim((string) $raw['employee_code']) : '';
             abort_if($this->heldNumbers->among($batch->tenant_id, [$code])->code($code) !== null, 422, __('onboarding.migration.number_held', ['value' => $code]));
+        }
+
+        // Bringing someone back takes what archiving them took, and only a
+        // person who is archived and has not been used since can be: the same
+        // rule an undo of a list and archiving a selection use. The commit asks
+        // again.
+        if ($restoring) {
+            abort_if($batch->isCompleting(), 422, __('onboarding.migration.complete_adds_nobody'));
+
+            $person = $employee ?? ($row->resolved_employee_id === null ? null : Employee::withTrashed()->where('tenant_id', $batch->tenant_id)->whereKey($row->resolved_employee_id)->first());
+            $refusal = $this->migration->restoreRefusal($batch->tenant_id, $person);
+            if ($refusal !== null || $person === null) {
+                abort(422, __('onboarding.migration.restore_refused_'.($refusal['code'] ?? 'gone')));
+            }
+            Gate::authorize('delete', $person);
         }
 
         // Accepting a difference is deciding to edit that employee, so it
@@ -448,7 +464,7 @@ class MigrationController extends Controller
 
         $row = $row->refresh()->load('resolvedEmployee');
 
-        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row]), $this->candidateCodes([$row]), $this->holderNames([$row])));
+        return response()->json($this->rowPayload($row, $this->scheduledAmong([$row]), $this->candidateCodes([$row]), $this->holderNames([$row]), $this->restoreStates([$row])));
     }
 
     /**
@@ -681,7 +697,7 @@ class MigrationController extends Controller
      * Every count, named, so the published contract says what `totals` holds.
      *
      * @param  array<string, int>  $totals
-     * @return array{created: int, merged: int, updated: int, skipped: int, deferred: int}
+     * @return array{created: int, merged: int, updated: int, restored: int, skipped: int, deferred: int}
      */
     private function totalsPayload(array $totals): array
     {
@@ -689,6 +705,7 @@ class MigrationController extends Controller
             'created' => (int) ($totals['created'] ?? 0),
             'merged' => (int) ($totals['merged'] ?? 0),
             'updated' => (int) ($totals['updated'] ?? 0),
+            'restored' => (int) ($totals['restored'] ?? 0),
             'skipped' => (int) ($totals['skipped'] ?? 0),
             'deferred' => (int) ($totals['deferred'] ?? 0),
         ];
@@ -758,6 +775,7 @@ class MigrationController extends Controller
         $scheduled = $this->scheduledAmong($rows->all());
         $codes = $this->candidateCodes($rows->all());
         $holders = $this->holderNames($rows->all());
+        $restorable = $this->restoreStates($rows->all());
 
         return [
             'public_id' => $batch->public_id,
@@ -771,7 +789,7 @@ class MigrationController extends Controller
             'undo_archived' => $this->undoArchived($batch),
             'summary' => $this->summarize($batch),
             'sign_in_plan' => $this->signIn->plan($batch, $rows),
-            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled, $codes, $holders))->all(),
+            'rows' => $rows->map(fn (MigrationStagingRow $row) => $this->rowPayload($row, $scheduled, $codes, $holders, $restorable))->all(),
         ];
     }
 
@@ -779,8 +797,9 @@ class MigrationController extends Controller
      * @param  list<int>  $scheduled  employees with a change waiting for its date
      * @param  array<string, string|null>  $codes  candidates' employee numbers (candidateCodes)
      * @param  array<int, string|null>  $holders  the name of each holder a warning names, for those the viewer may open (holderNames)
+     * @param  array<int, array{possible: bool, allowed: bool, reasons: list<string>}>  $restorable  by archived person's id (restoreStates)
      */
-    private function rowPayload(MigrationStagingRow $row, array $scheduled = [], array $codes = [], array $holders = []): array
+    private function rowPayload(MigrationStagingRow $row, array $scheduled = [], array $codes = [], array $holders = [], array $restorable = []): array
     {
         $processedAt = $row->getAttribute('processed_at');
         $employee = $row->resolvedEmployee;
@@ -798,6 +817,7 @@ class MigrationController extends Controller
             'action' => $row->action,
             'changes' => $this->changesPayload($row, $employee, $mayView),
             'warnings' => $this->warningsPayload($row, $holders),
+            'restore' => $row->resolved_employee_id !== null && $row->getAttribute('processed_at') === null ? ($restorable[$row->resolved_employee_id] ?? null) : null,
             'can_apply_changes' => $this->mayEdit($employee),
             'scheduled_action' => $this->isScheduled($employee, $scheduled),
             'processed_at' => $processedAt instanceof \DateTimeInterface ? $processedAt->format('c') : null,
@@ -836,7 +856,11 @@ class MigrationController extends Controller
         $code = (string) ($warning['code'] ?? '');
 
         if ($code === WorkforceMigrationService::MAYBE_OTHER_PERSON) {
-            return __('onboarding.migration.maybe_other_person');
+            return __($warning['archived'] ?? false ? 'onboarding.migration.maybe_other_person_archived' : 'onboarding.migration.maybe_other_person');
+        }
+
+        if ($code === WorkforceMigrationService::RESTORE_REFUSED && is_string($warning['reason'] ?? null)) {
+            return __('onboarding.migration.restore_refused_'.$warning['reason']);
         }
 
         if (! in_array($code, [WorkforceMigrationService::NUMBER_HELD, WorkforceMigrationService::BADGE_HELD], true) || ! isset($warning['holder'], $warning['value'])) {
@@ -1049,6 +1073,45 @@ class MigrationController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * For each row's archived person, whether the row could bring them back, by
+     * the person's id. One query for the list, and one for who has been used
+     * since (EmployeeArchiver::reasons()). A row whose person is here, or who
+     * is already added, has none.
+     *
+     * `possible` is that nothing stops it, `reasons` what the person was used
+     * for, and `allowed` that the viewer may archive and restore them.
+     *
+     * @param  array<int, MigrationStagingRow>  $rows
+     * @return array<int, array{possible: bool, allowed: bool, reasons: list<string>}>
+     */
+    private function restoreStates(array $rows): array
+    {
+        $ids = [];
+        $tenantId = null;
+        foreach ($rows as $row) {
+            if ($row->resolved_employee_id !== null && $row->getAttribute('processed_at') === null && $row->resolvedEmployee === null) {
+                $ids[(int) $row->resolved_employee_id] = true;
+                $tenantId = (int) $row->tenant_id;
+            }
+        }
+
+        if ($ids === [] || $tenantId === null) {
+            return [];
+        }
+
+        $people = Employee::onlyTrashed()->where('tenant_id', $tenantId)->whereIn('id', array_keys($ids))->get();
+        $reasons = $this->migration->useAmong($tenantId, $people->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        $states = [];
+        foreach ($people as $person) {
+            $why = $reasons[$person->id] ?? [];
+            $states[$person->id] = ['possible' => $why === [], 'allowed' => Gate::allows('delete', $person), 'reasons' => $why];
+        }
+
+        return $states;
     }
 
     /** @return array<string, int> */

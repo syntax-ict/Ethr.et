@@ -519,9 +519,45 @@ query).
   added without the badge, as the form would have refused it.
 
 So the usual correction works: add a wrong file, undo its additions, add the corrected
-file. Every row that reuses an archived person's number is left for review ("Archived"),
-the others are added, and the list reaches `committed`. To bring one of those people back,
-restore them (`POST /employees/{employee}/restore`) and merge the row into them.
+file. A row that reuses an archived person's number is brought back, as below; the others
+are added, and the list reaches `committed`.
+
+**Bringing an archived person back with the corrected file** (`restore`, 2026-11-24). A row
+matched to an archived person has the action `restore`: "Bring back" on the review screen.
+
+- **Default.** A row that holds the number of an archived person who has not been used since
+  (`EmployeeArchiver::reasons()`, the rule an undo and archiving a selection use) and whose
+  name does not contradict theirs (`PersonName::overlap`; a name ETHR made up is no
+  objection) defaults to `restore`. A name that shares no word with the person's defaults to
+  `defer` with the warning `maybe_other_person` (told as "choose restore", not "merge"); the
+  reviewer may still choose restore on it. A person who has been used, or who was matched by
+  something other than the number, stays `defer`, with `number_held` as before. A terminal's
+  guessed number (`code_is_guess`) never defaults to restore.
+- **`PATCH /rows/{row}` with `restore`** answers 422 unless the row's person is archived, has
+  not been used since, and the list adds people (a list that completes them adds and restores
+  nobody); and 403 without `employee.delete`, the permission of the single restore. Each row's
+  `restore` says `possible`, `allowed` and, when not possible, `reasons` (the undo's codes).
+- **At commit**, under the lock and for each row in a savepoint of its own: the person is
+  looked up inside the organisation, asked again whether they have been used since the review
+  and whether the actor may restore them, and `EmployeeRestorer::restore()` brings them back
+  (the plan's seat limit applies; the seat lock is the chunk's, so it is not taken again). Then
+  every field the row supplies is written over the record, identity included (name, email,
+  phone, hire date, department, status as for a new person, national ID, salary, and the rest
+  a new person would get); a field the row leaves blank is left as it is, a badge another
+  record holds is left off, the source's identity is linked, and a bank account the file
+  gives becomes the primary one. A contract or an emergency contact is written only when the
+  person has none, since the list that made them wrote one. Audit: `employee.restored` and
+  `employee.updated` (national ID and TIN masked) with `via: migration.restore`, and one
+  `migration.restored` per person.
+- **A row that cannot be done** (no seat, used since, no permission, the number taken, any
+  error) is put back to `defer` with the warning `restore_refused` and its reason, counts
+  under `deferred`, and the rest of the list goes on: the list ends `committed`, never stuck.
+  Totals gain `restored`.
+- **Undo of a list that restored people** archives them again on the same terms as the ones
+  it made (still unused, within reach). They are never deleted, and the undo's audit entry
+  records `restored`. A person restored by list B is also in the first list's own set, so
+  pressing undo again on the first list would archive them again; the screen offers undo
+  once.
 
 ### A list that comes out of other software (2026-11-16)
 
@@ -793,7 +829,7 @@ and "N people added".
 
 **Adding the corrected list afterwards.** The people an undo archived still hold their
 employee numbers, so a corrected list that reuses them finds each one as an archived person
-and leaves the row for review: "A number another record holds", above. Until 2026-11-24 such
+and brings them back with the file's details when they are unused ("Bringing an archived person back", above); otherwise the row is left for review. Until 2026-11-24 such
 a row could be set to "add as new", and the commit then failed on the unique index and could
 not be finished.
 

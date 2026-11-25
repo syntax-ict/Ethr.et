@@ -52,7 +52,7 @@ final class ListUndo
     public function preview(MigrationBatch $batch, User $actor): UndoPlan
     {
         $additions = $this->additions->of($batch);
-        $ids = [...$additions->created, ...$additions->unsure];
+        $ids = [...$additions->created, ...$additions->restored, ...$additions->unsure];
 
         $people = new Collection;
         foreach (array_chunk($ids, self::CHUNK) as $chunk) {
@@ -71,7 +71,9 @@ final class ListUndo
         $already = 0;
         $outOfReach = 0;
 
-        foreach ($additions->created as $id) {
+        // The people a corrected list brought back are archived again on the
+        // same terms as the ones it made: only while still unused.
+        foreach ([...$additions->created, ...$additions->restored] as $id) {
             $person = $people->get($id);
             if (! $person instanceof Employee) {
                 continue;
@@ -195,6 +197,7 @@ final class ListUndo
             AuditLog::record('migration.undone', $locked, [
                 'batch' => $locked->public_id,
                 'added' => $plan->additions->added(),
+                'restored' => count($plan->additions->restored),
                 'archived' => $totals['pending'],
                 'kept' => count($plan->keep),
                 'out_of_reach' => $plan->outOfReach,
