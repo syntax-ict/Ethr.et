@@ -292,7 +292,10 @@ describe("<DevicesPage> after registering", () => {
     );
     const form = await screen.findByRole("dialog");
     await user.type(within(form).getByLabelText(/device name/i), "Front door");
-    await user.type(within(form).getByLabelText(/^ip address$/i), "203.0.113.10");
+    await user.type(
+      within(form).getByLabelText(/^ip address$/i),
+      "203.0.113.10",
+    );
     await user.click(within(form).getByRole("button", { name: /^register$/i }));
   }
 
