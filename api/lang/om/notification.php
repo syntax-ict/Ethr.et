@@ -57,6 +57,7 @@ return [
         'device_offline' => 'Meeshaan ":name" toora ala ta\'eera.',
         'device_silent_adms' => 'Meeshaan ":name" hin wal-qunnamne.',
         'device_silent_push' => 'Har\'a meeshaa ":name" irraa galmeen tokkollee hin dhufne.',
+        'title_access_held' => 'Herregni :count gita hojii isaanii hordofan gahee gitni hojii kennu eegaa jiru.',
         'leave_approved' => 'Gaaffiin boqonnaa keessan raggaasifameera.',
         'leave_changed' => 'Boqonnaan keessan raggaasifame HR\'n jijjiirameera.',
         'leave_rejected' => 'Gaaffiin boqonnaa keessan didameera.',
@@ -77,5 +78,9 @@ return [
     'device_silent_push_line' => 'Meeshaan ":name" :location jiru har\'a galmee tokkollee hin erginne; namoonni achi hojjatan garuu lakkoofsa baajii qabu.',
     'device_silent_hint' => 'Har\'a waajjirri cufaa yoo ta\'e, wanti gochuu qabdan hin jiru. Yoo kanaan alatti ta\'e, meeshaan banamee jiraachuu fi interneetii argachuu isaa mirkaneessaa.',
     'device_silent_action' => 'Meeshaa ilaalaa',
+    'title_access_held_subject' => 'Herregni :count gita hojii isaanii hordofan gahee gitni hojii kennu eegaa jiru',
+    'title_access_held_line' => 'Herregni :count gita hojii isaanii hordofu, garuu gaheen isaanii kan gitni hojii kennu hin taane.',
+    'title_access_held_hint' => 'Fayyadamtootaa fi hayyama banaa, gahee gita hojii tokkoon tokkoon kennu ilaalaa, kan itti walii galtan irratti Hojiirra oolchi tuqaa.',
+    'title_access_held_action' => 'Herregoota ilaali',
     'unknown_location' => 'bakka maqaa hin qabne',
 ];

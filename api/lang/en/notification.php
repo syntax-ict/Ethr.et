@@ -57,6 +57,7 @@ return [
         'device_offline' => 'Device ":name" has gone offline.',
         'device_silent_adms' => 'Device ":name" is not connected.',
         'device_silent_push' => 'No punches from device ":name" today.',
+        'title_access_held' => ':count account is waiting for the role its job title gives.|:count accounts are waiting for the role their job titles give.',
         'leave_approved' => 'Your leave request was approved.',
         'leave_changed' => 'Your approved leave was changed by HR.',
         'leave_rejected' => 'Your leave request was rejected.',
@@ -77,5 +78,9 @@ return [
     'device_silent_push_line' => 'The device ":name" at :location has sent no punches today, though people there have badge numbers.',
     'device_silent_hint' => 'If the office is closed today, nothing needs doing. Otherwise check that the terminal is switched on and can reach the internet.',
     'device_silent_action' => 'View device',
+    'title_access_held_subject' => ':count account is waiting for the role its job title gives|:count accounts are waiting for the role their job titles give',
+    'title_access_held_line' => ':count account follows its job title, but its role is not the one the title gives yet.|:count accounts follow their job titles, but their roles are not the ones the titles give yet.',
+    'title_access_held_hint' => 'Open Users and access, check the role each title gives, and press Apply on the ones you agree with.',
+    'title_access_held_action' => 'See the accounts',
     'unknown_location' => 'an unnamed location',
 ];
