@@ -33,6 +33,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
 import { DeviceFormDialog } from "@/features/devices/components/device-form";
+import { DeviceSetupWizard } from "@/features/devices/components/device-setup-wizard";
 import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
 import { IssuedAddressDialog } from "@/features/devices/components/issued-address-dialog";
 import {
@@ -86,6 +87,8 @@ const ADAPTER_LABELS: Record<string, string> = {
 export default function DevicesPage() {
   const { t } = useT();
   const [createOpen, setCreateOpen] = useState(false);
+  // Add Device opens the guided setup; the full form is its Advanced link.
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
   const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
@@ -103,7 +106,8 @@ export default function DevicesPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
 
-  const { data: branches } = branchesApi.useList();
+  const branchesQuery = branchesApi.useList();
+  const branches = branchesQuery.data;
 
   const createMutation = useCreateDevice();
   // What to do on the new terminal, by how it connects. A push terminal's
@@ -182,7 +186,7 @@ export default function DevicesPage() {
     if (window.location.hash !== "#add") return;
     const timer = window.setTimeout(() => {
       openedFromHash.current = true;
-      setCreateOpen(true);
+      setWizardOpen(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [canCreate]);
@@ -257,7 +261,7 @@ export default function DevicesPage() {
                 </Button>
               )}
               {canCreate && (
-                <Button onClick={() => setCreateOpen(true)}>
+                <Button onClick={() => setWizardOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.add_device")}
                 </Button>
@@ -316,7 +320,7 @@ export default function DevicesPage() {
             description={t("devices_page.no_devices_desc")}
             action={
               canCreate ? (
-                <Button onClick={() => setCreateOpen(true)}>
+                <Button onClick={() => setWizardOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.add_device")}
                 </Button>
@@ -344,7 +348,20 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {/* Register */}
+        <DeviceSetupWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          branches={
+            branchesQuery.isPending ? undefined : (branches?.data ?? [])
+          }
+          onAdvanced={() => {
+            setWizardOpen(false);
+            setCreateOpen(true);
+          }}
+          onDiscover={setDiscoverDevice}
+        />
+
+        {/* Register: the full form, reached from the wizard's Advanced link */}
         <DeviceFormDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
