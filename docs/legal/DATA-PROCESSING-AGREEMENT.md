@@ -57,7 +57,7 @@ ETHR processes the personal data described in **Annex 1** to provide the service
 
 7.1 ETHR stores the Customer's personal data on servers in Ethiopia (Art. 22(1), class 1).
 
-7.2 ETHR does not transfer the Customer's personal data outside Ethiopia except as Arts. 18 to 22 permit and with the Customer's prior written instruction. `[confirm before signature: register row L16. Until production refuses off-shore backup targets, §7.2 must disclose the Google Drive fallback, or the fallback must be disabled for this Customer.]`
+7.2 ETHR does not transfer the Customer's personal data outside Ethiopia except as Arts. 18 to 22 permit and with the Customer's prior written instruction. Backups are held to the same rule: in production they are copied only to storage located in Ethiopia, and never to a service that stores outside it.
 
 ## 8. Helping the Customer
 

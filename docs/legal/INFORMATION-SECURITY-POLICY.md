@@ -53,14 +53,13 @@
 - Nightly backups, kept on the host and copied off it when off-host storage is configured ([`../deployment/BACKUP-RESTORE.md`](../deployment/BACKUP-RESTORE.md)).
 - A breach procedure with the 72-hour clock ([`../operations/DATA-BREACH-RESPONSE.md`](../operations/DATA-BREACH-RESPONSE.md)), and an on-call guide ([`../operations/ON-CALL.md`](../operations/ON-CALL.md)).
 - Vulnerability reports: [`../../SECURITY.md`](../../SECURITY.md).
-- Hosting in Ethiopia, with Ethio Telecom.
+- Hosting in Ethiopia, with Ethio Telecom. In production, off-host backups go only to storage stated to be in Ethiopia, never to Google Drive (`BackupResidency`).
 
 ## 9. Known gaps
 
 Stated so a customer can weigh them, not discovered later:
 
 1. Uploaded files, including selfies, are not encrypted at rest.
-2. Backups can be copied to storage outside Ethiopia (register row L16).
-3. **A restore from backup has not yet been rehearsed on the production host** ([`../deployment/CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md)).
-4. Ordinary views of an employee record are not audit-logged; sensitive views are.
-5. No independent penetration test or INSA assessment has been done (register row L34).
+2. **A restore from backup has not yet been rehearsed on the production host** ([`../deployment/CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md)).
+3. Ordinary views of an employee record are not audit-logged; sensitive views are.
+4. No independent penetration test or INSA assessment has been done (register row L34).

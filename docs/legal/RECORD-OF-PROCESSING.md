@@ -59,10 +59,10 @@ Running the organisation's HR: the employee record, attendance and time, leave, 
 
 ### Transfers outside Ethiopia
 
-Production is hosted in Ethiopia by Ethio Telecom (`docs/deployment/host-evidence/HOST-EVIDENCE.json`), as Art. 22(1) requires (class 1). Two paths can still place data outside Ethiopia:
+Production is hosted in Ethiopia by Ethio Telecom (`docs/deployment/host-evidence/HOST-EVIDENCE.json`), as Art. 22(1) requires (class 1). Off-host backups are held to the same rule since 2026-11-25 (register row L16):
 
-- **Backups to Google Drive**, the fallback when the primary off-host storage fails. The archive is encrypted on the server first, but it is still held outside Ethiopia. **Open, register row L16.**
-- **Backups to S3-compatible storage**, if the configured provider is outside Ethiopia. The code does not prevent it. **Open, L16.**
+- **Google Drive**: production never copies to it. Archives placed there before the rule can still be restored.
+- **S3-compatible storage**: production copies only to storage stated to be in Ethiopia, by the super admin in the console or by `BACKUP_OFF_HOST_IN_ETHIOPIA` in `.env`. The statement is audited. Its truth is the operator's responsibility, since nothing in an endpoint proves where a bucket is.
 
 Calls that leave Ethiopia but carry no personal data are listed in [`SUB-PROCESSORS.md`](SUB-PROCESSORS.md) §B.
 

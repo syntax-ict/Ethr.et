@@ -37,7 +37,7 @@
 | R3 | Consent is not free because refusing costs the job | High for private employers | Consent recorded per person with version and time; withdrawal is one click; the server refuses a selfie without consent. **Not in place:** anything that forces the organisation to offer an alternative. That obligation sits in the DPA (Annex 2B) | Medium, for private customers, until the customer confirms an alternative |
 | R4 | Location data shows where a person goes | Medium | Location only at check-in and at presence checks, never continuously; presence checks deleted after 90 days | Low to medium: check-in locations stay with the attendance record |
 | R5 | A breach exposes biometric data | Medium | Tenant isolation fails closed; MFA for platform staff; HSTS and strict CSP; [`../operations/DATA-BREACH-RESPONSE.md`](../operations/DATA-BREACH-RESPONSE.md). **Not in place:** encryption of photo files on disk | Medium. Encrypting stored selfies would lower it |
-| R6 | Biometric data leaves Ethiopia | Low for live data, medium for backups | Hosting in Ethiopia. **Not in place:** a guard against off-shore backup targets (register L16) | Medium until L16 is built |
+| R6 | Biometric data leaves Ethiopia | Low for live data, medium for backups | Hosting in Ethiopia. In production, backups go only to storage stated to be in Ethiopia and never to Google Drive (`BackupResidency`, register L16) | Low, provided the location statement is true |
 | R7 | Enrolment on a terminal happens without a person's knowledge | Medium | ETHR stores no templates. **The terminal does, and enrolment is outside ETHR's control.** Syntax Technology technicians who enrol on site do so on the organisation's instruction (DPA Annex 4) | Medium: depends on the customer collecting written consent |
 | R8 | A false integrity flag leads to a penalty without a human looking | Low | Integrity flags are for review; nothing deducts pay or disciplines on its own ([`../EMPLOYEE-LIFECYCLE.md`](../EMPLOYEE-LIFECYCLE.md), rule 3) | Low |
 
@@ -46,9 +46,8 @@
 Product work, tracked separately, not promised here:
 
 1. Encrypt stored selfie files at rest (R5).
-2. Refuse backup targets outside Ethiopia in production (R6, register L16).
-3. Record, per organisation, that a non-biometric method is enabled before selfies can be required (R3).
-4. A consent record for device enrolment, if the organisation wants ETHR to hold it (R7).
+2. Record, per organisation, that a non-biometric method is enabled before selfies can be required (R3).
+3. A consent record for device enrolment, if the organisation wants ETHR to hold it (R7).
 
 ## 5. Sign-off
 

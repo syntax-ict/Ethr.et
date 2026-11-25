@@ -12567,6 +12567,7 @@ export interface components {
             path_style: boolean;
         };
         /**
+            located_in_ethiopia: boolean;
          * SaveImportMappingRequest
          * @description A source of lists and how it names its columns, saved or changed.
          *
@@ -19819,6 +19820,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -19826,6 +19828,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -19911,6 +19915,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -19918,6 +19923,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20031,6 +20038,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20038,6 +20046,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20124,6 +20134,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20131,6 +20142,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20220,6 +20233,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20227,6 +20241,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20337,6 +20353,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20344,6 +20361,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20432,6 +20451,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20439,6 +20459,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20528,6 +20550,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20535,6 +20558,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;
@@ -20621,6 +20646,7 @@ export interface operations {
                         keep: number;
                         storage: {
                             endpoint: string;
+                        residency_enforced: boolean;
                             region: string;
                             bucket: string;
                             access_key_id: string;
@@ -20628,6 +20654,8 @@ export interface operations {
                             path_style: boolean;
                             verified: boolean;
                             verified_at: string | null;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             last_test_at: string | null;
                             last_test_ok: boolean | null;
                             last_test_error: string | null;

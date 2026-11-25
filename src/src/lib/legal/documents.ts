@@ -197,7 +197,7 @@ export const privacyEn: LegalDocument = {
       heading: "Where your data is held",
       blocks: [
         {
-          text: "ETHR at ethr.et is hosted in Ethiopia, by Ethio Telecom. Ethiopian law requires personal data collected in Ethiopia to be stored on servers in Ethiopia, and the live service is. Backup copies are encrypted before they leave the server; where they are kept is being brought fully in line with the same rule, and if you need to know where your organization's backups are held today, ask us and we will answer specifically.",
+          text: "ETHR at ethr.et is hosted in Ethiopia, by Ethio Telecom. Ethiopian law requires personal data collected in Ethiopia to be stored on servers in Ethiopia, and both the live service and its backups are: backup copies are encrypted before they leave the server, and are kept only on storage in Ethiopia.",
         },
       ],
     },

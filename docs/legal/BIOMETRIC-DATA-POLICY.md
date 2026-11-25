@@ -25,7 +25,7 @@ ETHR **does not** compare a selfie with anyone's face, identify a person from a 
 2. **Keep selfies for the organisation's retention period only**: 7 days by default, 1 to 90 allowed, then a 48-hour review, then permanent deletion unless HR holds the record for a stated reason ([`../operations/ATTENDANCE-PHOTO-RETENTION.md`](../operations/ATTENDANCE-PHOTO-RETENTION.md)).
 3. **Show selfies only to holders of `attendance.viewPhotos`**, within their scope, and log every view (`attendance.photo_viewed`).
 4. **Never copy templates off a terminal.** When a person resigns, is terminated or retires, ETHR sends the terminal a command to remove them, where the terminal accepts commands ([`../DEVICE_INTEGRATION.md`](../DEVICE_INTEGRATION.md)).
-5. **Keep it in Ethiopia** (Art. 22(1), class 1). Backups are the open gap: register row L16.
+5. **Keep it in Ethiopia** (Art. 22(1), class 1), backups included: production copies them only to storage in Ethiopia (register row L16).
 6. Treat any incident involving selfies as a breach of sensitive data under [`../operations/DATA-BREACH-RESPONSE.md`](../operations/DATA-BREACH-RESPONSE.md).
 
 ## 3. Rules for the customer organisation (controller)
