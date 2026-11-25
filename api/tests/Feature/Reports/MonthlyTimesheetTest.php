@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\TimesheetCode;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
@@ -462,4 +463,20 @@ test('the exports name the new columns in the reader\'s language', function () {
             expect(Lang::has('report.fields.'.$field, $locale))->toBeTrue("$locale is missing report.fields.$field");
         }
     }
+});
+
+test('the letters the server prints are the ones the grid\'s legend lists, in the same order', function () {
+    $letters = array_map(
+        fn (TimesheetCode $code): string => $code->short(),
+        [
+            TimesheetCode::PRESENT, TimesheetCode::LATE, TimesheetCode::EARLY_LEAVE, TimesheetCode::MISSING_PUNCH,
+            TimesheetCode::ABSENT, TimesheetCode::ANNUAL_LEAVE, TimesheetCode::SICK_LEAVE, TimesheetCode::MATERNITY_LEAVE,
+            TimesheetCode::OTHER_LEAVE, TimesheetCode::FIELD_DUTY, TimesheetCode::HALF_DAY_LEAVE, TimesheetCode::HOLIDAY,
+            TimesheetCode::REST_DAY,
+        ],
+    );
+
+    // src/src/features/reports/timesheet/codes.ts lists the same thirteen, and
+    // src/src/test/reports-timesheet-screen.test.tsx pins its side of this.
+    expect($letters)->toBe(['P', 'L', 'E', 'M', 'A', 'AL', 'SL', 'ML', 'OL', 'FD', '½', 'H', 'R']);
 });
