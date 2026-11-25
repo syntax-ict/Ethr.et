@@ -32,7 +32,7 @@ How long ETHR keeps each kind of data, **as built**. Proclamation 1321/2024 requ
 
 ## Gaps the owner must decide
 
-1. **Closing an organisation is not erasure.** It suspends access and keeps the records ([`../operations/TENANT-DELETION.md`](../operations/TENANT-DELETION.md)). The DPA promises deletion after the contract ends (Art. 50, class 2). A documented erasure procedure is needed before the DPA is signed as written.
+1. **Closing an organisation is not erasure, but erasure now exists.** Closing suspends access and keeps the records. From 30 days after closing, the owner can erase them (`OrganisationErasure`, [`../operations/TENANT-DELETION.md`](../operations/TENANT-DELETION.md)), which keeps only the audit log, invoices and a tombstone. Nothing erases automatically: it is an owner action, on the organisation's request or at the end of its contract.
 2. **No period exists for records that are kept, on purpose, without limit.** "Never delete" is right while an organisation is a customer. It needs an end once it is not: `[confirm: the tax and pension record-keeping period, with the accountant]`.
 3. **Sign-in history has no limit.** `[confirm: a period, e.g. one year]`.
 4. **There is no per-employee export or erasure** of an active employee's record. Requests are handled by ETHR by hand, on the organisation's instruction.

@@ -67,6 +67,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
                     Route::post('/backups', [MaintenanceController::class, 'backups']);
                     Route::post('/backup', [MaintenanceController::class, 'backup']);
                     Route::post('/restore', [MaintenanceController::class, 'restore']);
+                    Route::post('/erase-organisation', [MaintenanceController::class, 'eraseOrganisation']);
                     Route::post('/{task}', [MaintenanceController::class, 'run'])
                         ->where('task', 'migrate|seed|optimize|clear|mail-probe');
                 });

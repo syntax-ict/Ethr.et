@@ -81,7 +81,7 @@ ETHR processes the personal data described in **Annex 1** to provide the service
 
 10.2 After that, ETHR **deletes** the Customer's personal data, including from backups as they rotate out, unless Ethiopian law requires it to keep some, and confirms in writing when it is done (Art. 50, class 2).
 
-10.3 `[confirm before signature: closing an organisation in ETHR today suspends it and keeps its records ([`../operations/TENANT-DELETION.md`](../operations/TENANT-DELETION.md)). Permanent erasure is not in the console. Until a documented erasure procedure exists, §10.2 is performed by ETHR by hand on the Customer's written instruction, and the time it takes must be stated here.]`
+10.3 ETHR erases the Customer's data no earlier than 30 days after the Main Agreement ends, so that the Customer can take its export, and sends the Customer a certificate of erasure: what was erased, when, and what was kept. ETHR keeps only its own records: the audit log of actions taken in the service, which cannot be altered, and its invoices. Copies inside backups are not edited; they are deleted as backups rotate, by the date the certificate states ([`../operations/TENANT-DELETION.md`](../operations/TENANT-DELETION.md) → *Erasing an organisation that has left*).
 
 ## 11. Records and audit
 

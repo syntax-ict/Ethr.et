@@ -29,4 +29,16 @@ return [
 
     'custom_domain_target' => env('TENANCY_CUSTOM_DOMAIN_TARGET'),
 
+    /*
+    | Days an organisation stays deleted before it may be erased.
+    |
+    | Deleting closes an organisation and keeps its records; erasing destroys
+    | them (App\Services\Tenancy\OrganisationErasure, run by the owner). The
+    | wait is the window the DPA gives a customer to collect its export, and
+    | the time in which a deletion can still be undone. Owner decision
+    | 2026-11-25: 30 days.
+    */
+
+    'erasure_grace_days' => (int) env('TENANT_ERASURE_GRACE_DAYS', 30),
+
 ];
