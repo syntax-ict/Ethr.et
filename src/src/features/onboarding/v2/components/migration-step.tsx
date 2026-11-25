@@ -267,6 +267,7 @@ export function MigrationStep({
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const pasteBox = useRef<HTMLTextAreaElement>(null);
 
   const batchQuery = useMigrationBatch(openedId);
   // A list that is gone, or is another organisation's, is let go quietly: the
@@ -794,6 +795,21 @@ export function MigrationStep({
     setBatchId(list.public_id);
   }
 
+  /**
+   * "Add a corrected file" on an undone list: a fresh list, so nothing open
+   * stays open, and the paste box in view. Nothing is carried over from the
+   * undone list.
+   */
+  function addCorrectedFile() {
+    setInterrupted(null);
+    if (batchId !== null) setBatchId(null);
+    window.requestAnimationFrame(() => {
+      const box = pasteBox.current;
+      box?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      box?.focus({ preventScroll: true });
+    });
+  }
+
   function startOver() {
     setInterrupted(null);
     if (batchId !== null) setBatchId(null);
@@ -941,6 +957,7 @@ export function MigrationStep({
           openingId={carryOn.isPending ? (carryOn.variables ?? null) : null}
           openingText={staging ? stagingText(staging) : null}
           disabled={stageDevice.isPending}
+          onAddCorrected={addCorrectedFile}
         />
       )}
 
@@ -1168,6 +1185,7 @@ export function MigrationStep({
                 </div>
               )}
               <textarea
+                ref={pasteBox}
                 value={csv}
                 onChange={(e) => {
                   setCsv(e.target.value);
