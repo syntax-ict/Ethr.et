@@ -182,11 +182,12 @@ test("a ZKTeco terminal is set up in the wizard: refused, allowed with one click
         async () => {
           const device = await api(page, "GET", `/devices/${deviceId}`);
           const today = device.data.today ?? {};
-          return `${today.received}:${today.recorded}:${today.held}`;
+          // received:recorded:held:duplicate:quarantined, so a failure says where the punch went.
+          return `${today.received}:${today.recorded}:${today.held}:${today.duplicate}:${today.quarantined}`;
         },
         { timeout: 60_000 },
       )
-      .toBe("1:1:0");
+      .toBe("1:1:0:0:0");
 
     // And it is on the person's day, at the time the terminal said. Other
     // journeys punch for this person too, so the record may already have been
