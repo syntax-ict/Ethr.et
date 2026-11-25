@@ -48,7 +48,20 @@ final class PositionAccess
     /** The role this account's job title gives, or null when it does not follow one. */
     public function titleRole(User $user): ?UserRole
     {
-        if (! $user->role_follows_position || $user->employee_id === null
+        if (! $user->role_follows_position) {
+            return null;
+        }
+
+        return $this->previewRole($user);
+    }
+
+    /**
+     * The role this account's job title WOULD give it if it followed one:
+     * titleRole() without the flag. Every other reason for null stays.
+     */
+    public function previewRole(User $user): ?UserRole
+    {
+        if ($user->employee_id === null
             || $user->custom_role_id !== null || $user->isSuperAdmin()) {
             return null;
         }
