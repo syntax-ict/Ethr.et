@@ -34,6 +34,48 @@ export interface DeviceFormData {
    * and has no address ETHR could reach, so none is asked for.
    */
   sends_to_ethr: boolean;
+  location_description: string;
+  /** Whether ETHR may send commands to the terminal (clock, people). */
+  commands_enabled: boolean;
+  sync_interval_minutes: string;
+  /** Empty means the organisation's own zone. */
+  timezone: string;
+  /** One address or range per line, or comma separated. */
+  webhook_ip_allowlist: string;
+}
+
+/**
+ * How a terminal reaches ETHR, read from the form's own choices. It matches
+ * the server's `connection_mode` for a device that has not been changed, and
+ * it follows the form while the adapter or the office-network switch moves.
+ */
+export type ConnectionMode = "adms" | "push" | "pull";
+
+export function connectionModeFor(
+  form: Pick<DeviceFormData, "adapter_type" | "sends_to_ethr">,
+): ConnectionMode {
+  if (form.adapter_type === "zkteco_adms") return "adms";
+  if (canSendToEthr(form.adapter_type) && form.sends_to_ethr) return "push";
+  return "pull";
+}
+
+/** The adapters whose terminals can carry out commands (DeviceCommandQueue::supports). */
+export function canAcceptCommands(adapterType: string): boolean {
+  return (
+    adapterType === "hikvision" ||
+    adapterType === "zkteco_adms" ||
+    adapterType === "mock"
+  );
+}
+
+// Mirrors Device::MIN_SYNC_INTERVAL_MINUTES on the API.
+export const MIN_SYNC_INTERVAL_MINUTES = 5;
+
+export function parseAllowlist(text: string): string[] {
+  return text
+    .split(/[\s,]+/)
+    .map((ip) => ip.trim())
+    .filter(Boolean);
 }
 
 /** The adapters that can be registered to send to ETHR with no address. */
@@ -61,6 +103,11 @@ export const EMPTY_DEVICE_FORM: DeviceFormData = {
   api_key: "",
   auto_sync: true,
   sends_to_ethr: false,
+  location_description: "",
+  commands_enabled: false,
+  sync_interval_minutes: String(MIN_SYNC_INTERVAL_MINUTES),
+  timezone: "",
+  webhook_ip_allowlist: "",
 };
 
 /** Adapters addressed as `http://{ip}:{port}` — the only ones this form can configure. */
@@ -68,6 +115,13 @@ export const IP_ADAPTERS = ["hikvision", "zkteco", "suprema"] as const;
 
 export function isIpAdapter(adapterType: string): boolean {
   return (IP_ADAPTERS as readonly string[]).includes(adapterType);
+}
+
+interface PayloadOptions {
+  /** Edit only: whether the stored device can carry out commands. */
+  acceptsCommands?: boolean;
+  /** Edit only: false when the server did not show the allowlist (not a tenant admin), so it is left alone. */
+  sendsAllowlist?: boolean;
 }
 
 /**
@@ -81,18 +135,66 @@ export function isIpAdapter(adapterType: string): boolean {
  */
 export function buildDevicePayload(
   form: DeviceFormData,
+  mode: "create",
+  options?: PayloadOptions,
+): DevicePayload;
+export function buildDevicePayload(
+  form: DeviceFormData,
+  mode: "edit",
+  options?: PayloadOptions,
+): Partial<DevicePayload>;
+export function buildDevicePayload(
+  form: DeviceFormData,
   mode: "create" | "edit",
-): DevicePayload {
-  const payload: DevicePayload = {
+  options: PayloadOptions = {},
+): Partial<DevicePayload> {
+  const payload: Partial<DevicePayload> = {
     name: form.name,
     adapter_type: form.adapter_type as StoreDeviceRequest["adapter_type"],
     serial_number: form.serial_number || null,
-    branch_public_id: form.branch_public_id,
     // Sent on both paths: the Register form had no switch, so every device
     // took the server's default and was pulled every five minutes whether or
     // not anyone wanted it (attendance QA A11).
     auto_sync: form.auto_sync,
   };
+
+  // A new device must name its branch, and the server says so when it is
+  // blank. An edit with none chosen keeps the stored branch.
+  if (mode === "create" || form.branch_public_id !== "") {
+    payload.branch_public_id = form.branch_public_id;
+  }
+
+  const location = form.location_description.trim();
+  if (mode === "edit" || location !== "") {
+    payload.location_description = location || null;
+  }
+
+  if (mode === "edit" || form.timezone !== "") {
+    payload.timezone = form.timezone || null;
+  }
+
+  const allowlist = parseAllowlist(form.webhook_ip_allowlist);
+  if (
+    mode === "create" ? allowlist.length > 0 : options.sendsAllowlist !== false
+  ) {
+    payload.webhook_ip_allowlist = allowlist;
+  }
+
+  const commandsOffered =
+    mode === "create"
+      ? canAcceptCommands(form.adapter_type)
+      : options.acceptsCommands === true;
+  if (commandsOffered && (mode === "edit" || form.commands_enabled)) {
+    payload.commands_enabled = form.commands_enabled;
+  }
+
+  if (connectionModeFor(form) === "pull") {
+    payload.sync_interval_minutes = Math.max(
+      MIN_SYNC_INTERVAL_MINUTES,
+      Number.parseInt(form.sync_interval_minutes, 10) ||
+        MIN_SYNC_INTERVAL_MINUTES,
+    );
+  }
 
   if (form.adapter_type === "mock") {
     if (mode === "create") payload.connection_config = { mode: "simulator" };
