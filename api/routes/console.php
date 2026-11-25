@@ -40,6 +40,11 @@ Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 // late. Skips pulled terminals, which PullDeviceEventsJob already reports.
 Schedule::command('devices:watch-silence')->everyFifteenMinutes()->name('devices-watch-silence')->withoutOverlapping();
 
+// Tell the admins when an account that follows its job title starts waiting for
+// someone who may give it the role the title names. One notice per organisation
+// per new set of waiting accounts, so a bulk change is one notice, not many.
+Schedule::command('access:watch-held-titles')->everyFifteenMinutes()->name('access-watch-held-titles')->withoutOverlapping();
+
 // Close check-ins left open past the shift's end, at the shift's end, for
 // organisations that turned auto check-out on (AttendanceSetting). Every five
 // minutes; ScheduleCatchUpCommand runs it once for any number of missed ticks,
