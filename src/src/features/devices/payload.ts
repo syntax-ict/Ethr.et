@@ -59,6 +59,37 @@ export function connectionModeFor(
   return "pull";
 }
 
+/** Which maker's terminal the administrator has: the first question of the setup wizard. */
+export type WizardBrand = "hikvision" | "zkteco" | "suprema";
+
+/** Whether ETHR can reach the terminal at a public address, or it only sends from the office network. */
+export type WizardReach = "public" | "office";
+
+/**
+ * What the wizard's two plain questions choose. The result is the adapter and
+ * the office-network switch the form already holds, so `connectionModeFor`
+ * reads the mode from it as it does for the form. Null for the one answer
+ * with no way to register: a Suprema terminal that only sends has no push
+ * configuration here, so the form (Advanced) is the only path and the wizard
+ * says so.
+ */
+export function wizardChoice(
+  brand: WizardBrand,
+  reach: WizardReach,
+): { adapter_type: string; sends_to_ethr: boolean } | null {
+  if (brand === "hikvision") {
+    return { adapter_type: "hikvision", sends_to_ethr: reach === "office" };
+  }
+  if (brand === "zkteco") {
+    return {
+      adapter_type: reach === "office" ? "zkteco_adms" : "zkteco",
+      sends_to_ethr: false,
+    };
+  }
+  if (reach === "office") return null;
+  return { adapter_type: "suprema", sends_to_ethr: false };
+}
+
 /** The adapters whose terminals can carry out commands (DeviceCommandQueue::supports). */
 export function canAcceptCommands(adapterType: string): boolean {
   return (

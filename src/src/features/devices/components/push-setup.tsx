@@ -1,5 +1,6 @@
 "use client";
 
+import { CopyValueButton } from "@/features/devices/components/copy-value-button";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -11,9 +12,15 @@ import { useT } from "@/lib/i18n/useT";
 export function PushSetup({
   url,
   masked = false,
+  copyable = false,
+  showIntro = true,
 }: {
   url: string;
   masked?: boolean;
+  /** A copy button on each value; never with `masked`, which has nothing to type in. */
+  copyable?: boolean;
+  /** The wizard numbers the same instructions as its own steps, and leaves this paragraph out. */
+  showIntro?: boolean;
 }) {
   const { t } = useT();
   let parts: { label: string; value: string }[] = [];
@@ -52,7 +59,7 @@ export function PushSetup({
               "Enter these on the terminal",
             )}
       </p>
-      {!masked && (
+      {!masked && showIntro && (
         <p className="text-xs text-muted-foreground">
           {t(
             "device_detail_page.push_setup_intro",
@@ -64,7 +71,12 @@ export function PushSetup({
         {parts.map((part) => (
           <div key={part.label} className="contents">
             <dt className="text-muted-foreground">{part.label}</dt>
-            <dd className="font-mono break-all">{part.value}</dd>
+            <dd className="flex items-start gap-2 font-mono break-all">
+              {part.value}
+              {copyable && !masked && (
+                <CopyValueButton value={part.value} label={part.label} />
+              )}
+            </dd>
           </div>
         ))}
       </dl>

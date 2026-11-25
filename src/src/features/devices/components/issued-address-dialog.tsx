@@ -1,7 +1,6 @@
 "use client";
 
-import { Copy, Loader2, Signal } from "lucide-react";
-import { useState } from "react";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useTestDeviceConnection } from "@/features/devices/api";
 import { AdmsSetupValues } from "@/features/devices/components/adms-setup-values";
-import { syncErrorHintKeys } from "@/features/devices/components/device-heard";
+import { PullConnectionTest } from "@/features/devices/components/pull-connection-test";
 import { PushSetup } from "@/features/devices/components/push-setup";
 import type { IssuedSetup } from "@/features/devices/issued-setup";
-import { apiErrorMessage } from "@/lib/api/error-message";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -143,30 +140,6 @@ function PullBody({
   setup: Extract<IssuedSetup, { mode: "pull" }>;
 }) {
   const { t } = useT();
-  const test = useTestDeviceConnection();
-  const [result, setResult] = useState<string | null>(null);
-
-  function runTest() {
-    setResult(null);
-    test.mutate(setup.devicePublicId, {
-      onSuccess: ({ status, error_code }) => {
-        if (status === "online") {
-          setResult(t("devices_page.online_responding"));
-          return;
-        }
-        const hint = syncErrorHintKeys(error_code, setup.adapterType)
-          .map((k) => t(k))
-          .join(" ");
-        setResult(
-          `${t("devices_page.device_status", "The device is :status", {
-            status: t(`devices_page.${status}`, status),
-          })}${hint ? ` ${hint}` : ""}`,
-        );
-      },
-      onError: (err) =>
-        setResult(apiErrorMessage(err, t("devices_page.test_failed"))),
-    });
-  }
 
   return (
     <>
@@ -174,26 +147,10 @@ function PullBody({
         <DialogTitle>{t("device_setup.pull_title")}</DialogTitle>
         <DialogDescription>{t("device_setup.pull_intro")}</DialogDescription>
       </DialogHeader>
-      <div className="space-y-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={runTest}
-          disabled={test.isPending}
-        >
-          {test.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Signal className="mr-2 h-4 w-4" />
-          )}
-          {t("devices_page.test_connection")}
-        </Button>
-        {result && (
-          <p role="status" className="text-sm">
-            {result}
-          </p>
-        )}
-      </div>
+      <PullConnectionTest
+        devicePublicId={setup.devicePublicId}
+        adapterType={setup.adapterType}
+      />
     </>
   );
 }
