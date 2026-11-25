@@ -37,6 +37,7 @@ return [
     'DeviceOfflineNotification' => 'monitoring alert to admins; always delivered',
     'DeviceSilentNotification' => 'monitoring alert to admins; always delivered',
     'DeviceSyncFailedNotification' => 'monitoring alert to admins; always delivered',
+    'TitleAccessHeldNotification' => 'tells an admin that an account is waiting for a role only they may give; muting it leaves the account waiting unseen',
     'PayrollRunFailedNotification' => 'a crashed payroll run must reach a human; muting the success notice must not mute it',
     'ScheduledReportFailedNotification' => 'failure notice to free-text addresses, not users with preferences',
 

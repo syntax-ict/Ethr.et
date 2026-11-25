@@ -57,6 +57,7 @@ return [
         'device_offline' => '":name" መሣሪያ ከመስመር ውጭ ሆኗል።',
         'device_silent_adms' => '":name" መሣሪያ አልተገናኘም።',
         'device_silent_push' => 'ዛሬ ከ":name" መሣሪያ ምንም ምዝገባ አልመጣም።',
+        'title_access_held' => 'የስራ መደባቸውን የሚከተሉ :count መለያዎች ሚናቸውን እየጠበቁ ነው።',
         'leave_approved' => 'የፈቃድ ጥያቄዎ ጸድቋል።',
         'leave_changed' => 'የጸደቀ ፈቃድዎ በሰው ሀብት ተቀይሯል።',
         'leave_rejected' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
@@ -77,5 +78,9 @@ return [
     'device_silent_push_line' => 'በ:location ያለው ":name" መሣሪያ ዛሬ ምንም ምዝገባ አልላከም፤ ሆኖም በዚያ የሚሠሩ ሰዎች የባጅ ቁጥር አላቸው።',
     'device_silent_hint' => 'ዛሬ መሥሪያ ቤቱ ዝግ ከሆነ ምንም ማድረግ አያስፈልግም። ካልሆነ መሣሪያው መብራቱንና ኢንተርኔት ማግኘቱን ያረጋግጡ።',
     'device_silent_action' => 'መሣሪያውን ይመልከቱ',
+    'title_access_held_subject' => 'የስራ መደባቸውን የሚከተሉ :count መለያዎች ሚናቸውን እየጠበቁ ነው',
+    'title_access_held_line' => 'የስራ መደባቸውን የሚከተሉ :count መለያዎች አሉ፤ ሆኖም ሚናቸው መደቡ የሚሰጠው ገና አይደለም።',
+    'title_access_held_hint' => 'ተጠቃሚዎችና መዳረሻን ይክፈቱ፣ እያንዳንዱ መደብ የሚሰጠውን ሚና ይመልከቱ፣ የሚስማሙበትን ላይ ተግብር ይጫኑ።',
+    'title_access_held_action' => 'መለያዎቹን ይመልከቱ',
     'unknown_location' => 'ስም ያልተሰጠው ቦታ',
 ];
