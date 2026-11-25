@@ -18,7 +18,12 @@ class NotifyTitleAccessHeld implements ShouldQueue
 {
     public string $queue = 'notifications';
 
-    public function handle(TitleAccessHeld $event, PositionAccess $access, CurrentTenant $current): void
+    public function __construct(
+        private readonly PositionAccess $access,
+        private readonly CurrentTenant $current,
+    ) {}
+
+    public function handle(TitleAccessHeld $event): void
     {
         $tenant = Tenant::query()->find($event->tenantId);
 
@@ -30,12 +35,12 @@ class NotifyTitleAccessHeld implements ShouldQueue
         // the sweep stated and reads only through the tenant scope: it drops no
         // scope of its own. It forgets it again, because the next job on this
         // worker is another organisation's.
-        $current->set($tenant);
+        $this->current->set($tenant);
 
         try {
             // The queue drains later than the sweep ran: an account that was
             // applied in between is not waiting any more.
-            $held = $access->heldQuery()
+            $held = $this->access->heldQuery()
                 ->whereIn('users.id', $event->userIds)
                 ->with('employee.position')
                 ->get();
@@ -55,8 +60,8 @@ class NotifyTitleAccessHeld implements ShouldQueue
             // organisation admin. A notice to someone who cannot act on it
             // would point at a page where nothing is theirs to do.
             foreach ($candidates as $candidate) {
-                $count = $held->filter(function (User $account) use ($candidate, $access): bool {
-                    $to = $access->previewRole($account);
+                $count = $held->filter(function (User $account) use ($candidate): bool {
+                    $to = $this->access->previewRole($account);
 
                     return $to !== null && RoleAssignment::mayChange($candidate, $account, $to);
                 })->count();
@@ -66,7 +71,7 @@ class NotifyTitleAccessHeld implements ShouldQueue
                 }
             }
         } finally {
-            $current->forget();
+            $this->current->forget();
         }
     }
 }
