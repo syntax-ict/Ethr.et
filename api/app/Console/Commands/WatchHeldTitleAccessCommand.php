@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\UserRole;
 use App\Events\TitleAccessHeld;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\HealthSignals;
+use App\Support\RoleAssignment;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class WatchHeldTitleAccessCommand extends Command
@@ -39,24 +41,25 @@ class WatchHeldTitleAccessCommand extends Command
 
                 // What waits now is what is remembered, so an account that was
                 // applied drops out and tells again if it is held a second time.
-                $this->remember($key, array_keys($waiting));
+                $remember = array_keys($waiting);
 
-                if ($new === []) {
-                    return;
+                // Dispatched before it is remembered: a failed dispatch keeps
+                // only what was already told, so the next sweep tries the new
+                // accounts again, and does not stop the organisations after.
+                if ($new !== []) {
+                    try {
+                        TitleAccessHeld::dispatch($tenant->id, array_map(
+                            fn (string $pair): int => (int) explode(':', $pair)[0],
+                            array_keys($new),
+                        ));
+                        $told++;
+                    } catch (Throwable $e) {
+                        $remember = array_values(array_intersect($remember, $before));
+                        report($e);
+                    }
                 }
 
-                // A failed dispatch gives the notice back, so the next sweep
-                // tries it again, and does not stop the organisations after.
-                try {
-                    TitleAccessHeld::dispatch($tenant->id, array_map(
-                        fn (string $pair): int => (int) explode(':', $pair)[0],
-                        array_keys($new),
-                    ));
-                    $told++;
-                } catch (Throwable $e) {
-                    $this->remember($key, $before);
-                    report($e);
-                }
+                $this->remember($key, $remember);
             } catch (Throwable $e) {
                 report($e);
             } finally {
@@ -70,21 +73,34 @@ class WatchHeldTitleAccessCommand extends Command
     }
 
     /**
-     * The accounts waiting now, keyed `userId:role` so an account whose job
-     * title moved on to a different role counts as new again.
+     * The accounts waiting now that someone here may give the role to, keyed
+     * `userId:role` so an account whose job title moved on to a different role
+     * counts as new again. One that nobody may act on yet is left out, so it
+     * is still new when someone who may give the role joins (the listener
+     * tells only those who may).
      *
      * @return array<string, true>
      */
     private function waiting(PositionAccess $access): array
     {
+        $admins = User::query()
+            ->whereIn('role', [UserRole::TENANT_ADMIN->value, UserRole::HR_ADMIN->value])
+            ->where('status', 'active')
+            ->get();
+
+        if ($admins->isEmpty()) {
+            return [];
+        }
+
         $waiting = [];
 
-        $access->heldQuery()->with('employee.position')->chunkById(200, function ($users) use ($access, &$waiting): void {
+        $access->heldQuery()->with('employee.position')->chunkById(200, function ($users) use ($access, $admins, &$waiting): void {
             /** @var User $user */
             foreach ($users as $user) {
                 $to = $access->previewRole($user);
 
-                if ($to !== null && $user->role !== $to) {
+                if ($to !== null && $user->role !== $to
+                    && $admins->contains(fn (User $admin): bool => RoleAssignment::mayChange($admin, $user, $to))) {
                     $waiting["{$user->id}:{$to->value}"] = true;
                 }
             }
@@ -94,15 +110,18 @@ class WatchHeldTitleAccessCommand extends Command
     }
 
     /**
-     * What the last sweep remembered. If the cache fails nothing is
-     * remembered, so a notice is never lost to a cache outage.
+     * What the last sweep remembered, in the `signals` store: every release
+     * runs `optimize:clear`, which empties the default store, and a memory
+     * kept there would announce every waiting account again after each
+     * release. If the store fails nothing is remembered, so a notice is never
+     * lost to an outage.
      *
      * @return list<string>
      */
     private function remembered(string $key): array
     {
         try {
-            $value = Cache::get($key);
+            $value = HealthSignals::store()->get($key);
 
             return is_array($value) ? array_values(array_filter($value, 'is_string')) : [];
         } catch (Throwable $e) {
@@ -117,9 +136,9 @@ class WatchHeldTitleAccessCommand extends Command
     {
         try {
             if ($pairs === []) {
-                Cache::forget($key);
+                HealthSignals::store()->forget($key);
             } else {
-                Cache::put($key, $pairs, now()->addDays(60));
+                HealthSignals::store()->put($key, $pairs, now()->addDays(60));
             }
         } catch (Throwable $e) {
             report($e);

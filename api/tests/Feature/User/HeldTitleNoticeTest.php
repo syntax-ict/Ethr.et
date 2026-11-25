@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\TitleAccessHeldNotification;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\HealthSignals;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -21,7 +22,10 @@ use Illuminate\Support\Facades\Notification;
 // reads that from PositionAccess::heldQuery() and tells the people who can act,
 // once per new set of waiting accounts, so a bulk change is one notice.
 
-beforeEach(fn () => Cache::flush());
+beforeEach(function () {
+    Cache::flush();
+    HealthSignals::store()->flush();
+});
 
 /** An account that follows a title giving $titleGives while holding $role. */
 function heldNoticeAccount(Tenant $tenant, string $titleGives = 'hr_admin', UserRole $role = UserRole::EMPLOYEE): User
@@ -53,11 +57,19 @@ function heldNoticeDeliver(Tenant $tenant, array $userIds): void
     );
 }
 
+/** An organisation with an admin who may give any role a title gives. */
+function heldNoticeOrganisation(): Tenant
+{
+    $tenant = createTenant();
+    createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    return $tenant;
+}
+
 describe('the sweep', function () {
     it('dispatches one event for an account that starts waiting, and none on the next sweep', function () {
         Event::fake([TitleAccessHeld::class]);
-        $tenant = createTenant();
-        createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $tenant = heldNoticeOrganisation();
         $held = heldNoticeAccount($tenant);
 
         heldNoticeSweep();
@@ -69,7 +81,7 @@ describe('the sweep', function () {
 
     it('makes a bulk change one event naming every account, not one each', function () {
         Event::fake([TitleAccessHeld::class]);
-        $tenant = createTenant();
+        $tenant = heldNoticeOrganisation();
         $ids = collect(range(1, 3))->map(fn () => heldNoticeAccount($tenant)->id)->sort()->values()->all();
 
         heldNoticeSweep();
@@ -80,7 +92,7 @@ describe('the sweep', function () {
 
     it('tells again about an account that was applied and then held a second time', function () {
         Event::fake([TitleAccessHeld::class]);
-        $tenant = createTenant();
+        $tenant = heldNoticeOrganisation();
         $held = heldNoticeAccount($tenant);
 
         heldNoticeSweep();
@@ -94,20 +106,20 @@ describe('the sweep', function () {
 
     it('tells only about the accounts that are new when one more starts waiting', function () {
         Event::fake([TitleAccessHeld::class]);
-        $tenant = createTenant();
+        $tenant = heldNoticeOrganisation();
         $first = heldNoticeAccount($tenant);
 
         heldNoticeSweep();
         $second = heldNoticeAccount($tenant);
         heldNoticeSweep();
 
-        Event::assertDispatched(TitleAccessHeld::class, fn (TitleAccessHeld $e) => $e->userIds === [$second->id]);
-        Event::assertNotDispatched(TitleAccessHeld::class, fn (TitleAccessHeld $e) => in_array($first->id, $e->userIds, true) && count($e->userIds) > 1);
+        $sent = Event::dispatched(TitleAccessHeld::class)->map(fn (array $args) => $args[0]->userIds)->all();
+        expect($sent)->toBe([[$first->id], [$second->id]]);
     });
 
     it('does not count an account that does not follow its title, or one that already holds the role', function () {
         Event::fake([TitleAccessHeld::class]);
-        $tenant = createTenant();
+        $tenant = heldNoticeOrganisation();
         heldNoticeAccount($tenant)->update(['role_follows_position' => false]);
         heldNoticeAccount($tenant, 'hr_admin', UserRole::HR_ADMIN);
 
@@ -118,9 +130,9 @@ describe('the sweep', function () {
 
     it('keeps each organisation to its own accounts', function () {
         Event::fake([TitleAccessHeld::class]);
-        $a = createTenant();
+        $a = heldNoticeOrganisation();
         $heldA = heldNoticeAccount($a);
-        $b = createTenant();
+        $b = heldNoticeOrganisation();
         $heldB = heldNoticeAccount($b);
 
         heldNoticeSweep();
@@ -128,6 +140,44 @@ describe('the sweep', function () {
         Event::assertDispatchedTimes(TitleAccessHeld::class, 2);
         Event::assertDispatched(TitleAccessHeld::class, fn (TitleAccessHeld $e) => $e->tenantId === $a->id && $e->userIds === [$heldA->id]);
         Event::assertDispatched(TitleAccessHeld::class, fn (TitleAccessHeld $e) => $e->tenantId === $b->id && $e->userIds === [$heldB->id]);
+    });
+
+    it('does not announce the same accounts again after a release empties the default cache', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = heldNoticeOrganisation();
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+        Cache::store()->flush();
+        heldNoticeSweep();
+
+        Event::assertDispatchedTimes(TitleAccessHeld::class, 1);
+    });
+
+    it('waits to announce a hold nobody may act on until someone who may give the role joins', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        createUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $held = heldNoticeAccount($tenant, 'hr_admin');
+
+        heldNoticeSweep();
+        Event::assertNotDispatched(TitleAccessHeld::class);
+
+        createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        heldNoticeSweep();
+
+        Event::assertDispatched(TitleAccessHeld::class, fn (TitleAccessHeld $e) => $e->userIds === [$held->id]);
+    });
+
+    it('does not count a suspended admin as someone who may act', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        createUser(['role' => UserRole::TENANT_ADMIN, 'status' => 'suspended'], $tenant);
+        heldNoticeAccount($tenant, 'supervisor');
+
+        heldNoticeSweep();
+
+        Event::assertNotDispatched(TitleAccessHeld::class);
     });
 });
 
