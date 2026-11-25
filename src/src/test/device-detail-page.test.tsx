@@ -235,6 +235,14 @@ describe("device detail for a terminal that has not been heard from", () => {
       http.get("*/api/v1/devices/DEV1/events", () =>
         HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
       ),
+      // Edit is the shared device form, which offers the organisation's branches.
+      http.get("*/api/v1/organization/branches", () =>
+        HttpResponse.json({
+          data: [],
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 0 },
+          links: { next: null, prev: null },
+        }),
+      ),
     );
   }
 
