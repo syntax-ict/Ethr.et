@@ -494,7 +494,8 @@ The monthly timesheet reads the same figures payroll reads, so the two cannot di
 - Under the sheet: totals for everyone listed and for each department, the legend, and **How this is counted** (each shift's grace and early-departure minutes and break, how punches pair, how a night shift is dated, the overtime window and legal limits, and that absences are listed and not deducted).
 - Totals and the status are shown for up to 200 people. For a longer list the sheet still pages through everyone, says so, and shows no status: choose a department, branch or shift to narrow it.
 - On a phone, each person is a card with the month as a strip of days; tapping a day opens the same drawer.
-- **Download CSV** saves the page as it reads, a code a day; **Print** prints the sheet from the browser. The A4 landscape PDF with signature blocks comes in a later release.
+- **Download CSV** saves the page as it reads, a code a day; **Print** prints the sheet from the browser.
+- **Download PDF** makes the sheet for the wall and the file: A4 landscape, the organization's letterhead, the title in English and in Amharic, the period in your calendar, who made it and when, the status, the filters and the shifts. The days come first (one column a day, weekends shaded, paid days boxed), then the summary on its own page, then department totals, the legend of codes, how it was counted, and **Prepared by**, **Checked by** and **Approved by** lines with a box for the stamp. It holds up to 50 people: for more, choose a department, branch or shift and the message tells you so. Excel comes with the queued files in a later release.
 
 Through the API, `GET /reports/timesheet` returns a page of people with one cell per day, the totals over everyone the filters match, department subtotals, the rules applied and the status. The Builder's "Monthly timesheet" source carries the same figures as columns.
 
