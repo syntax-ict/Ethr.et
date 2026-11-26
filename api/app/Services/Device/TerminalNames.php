@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Models\Device;
 use App\Models\Employee;
+use App\Support\PersonName;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -156,6 +157,141 @@ final class TerminalNames
         return count($found) > $limit ? [] : $found;
     }
 
+    /** The terminal's name is the employee's, word for word. */
+    public const FIT_SAME = 'same';
+
+    /** The terminal's name is the employee's, spelled a little differently. */
+    public const FIT_SIMILAR = 'similar';
+
+    /**
+     * Who each terminal name may be, for a person to read. Never for anything
+     * that assigns: the automatic recording asks `lookalikes()` and nothing
+     * here.
+     *
+     * The same positional rule as `lookalikes()`: every terminal word must fit
+     * the employee's word in the same place, from the given name, and fewer
+     * than two words suggests nobody. What differs is the word test. A word
+     * fits when it is the other's start or equal (`FIT_SAME`), or when the two
+     * are the same name written differently (`FIT_SIMILAR`): a doubled letter,
+     * a swapped vowel, one letter off, or an Ethiopic name against a Latin one
+     * (PersonName::fold(), EthiopicLatin). The strict fits are listed first.
+     *
+     * More than `$limit` fits says nothing, as in `lookalikes()`. When the
+     * strict fits alone are within it and the similar ones push it over, the
+     * strict ones are kept and the similar ones dropped: a list that grew past
+     * five because spellings were forgiven must not take away the line a
+     * reader had before.
+     *
+     * The organisation's current employees are read once for all the names
+     * (id, names and the columns an access check reads), so a page of badges
+     * costs one query, not one per badge. Every query states the tenant.
+     *
+     * @param  array<int|string, string>  $names  terminal name by caller's key
+     * @return array<int|string, list<array{employee: Employee, fit: string}>>
+     */
+    public function suggestionsFor(int $tenantId, array $names, int $limit = 5): array
+    {
+        $result = [];
+        $wanted = [];
+        foreach ($names as $key => $name) {
+            $words = $this->words($name);
+            $result[$key] = [];
+            if (count($words) >= 2) {
+                $wanted[$key] = $words;
+            }
+        }
+
+        if ($wanted === []) {
+            return $result;
+        }
+
+        $pool = $this->pool($tenantId);
+
+        foreach ($wanted as $key => $words) {
+            $folded = array_map(PersonName::fold(...), $words);
+            $strict = [];
+            $similar = [];
+
+            foreach ($pool as $entry) {
+                if ($this->prefixFits($words, $entry['plain'][0]) || $this->prefixFits($words, $entry['plain'][1])) {
+                    $strict[] = $entry['employee'];
+                } elseif ($this->looselyFits($folded, $entry['folded'][0]) || $this->looselyFits($folded, $entry['folded'][1])) {
+                    $similar[] = $entry['employee'];
+                }
+            }
+
+            if (count($strict) > $limit) {
+                continue;
+            }
+
+            $kept = count($strict) + count($similar) > $limit ? [] : $similar;
+
+            $result[$key] = [
+                ...array_map(fn (Employee $e): array => ['employee' => $e, 'fit' => self::FIT_SAME], $strict),
+                ...array_map(fn (Employee $e): array => ['employee' => $e, 'fit' => self::FIT_SIMILAR], $kept),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * One name's suggestions; see `suggestionsFor()`.
+     *
+     * @return list<array{employee: Employee, fit: string}>
+     */
+    public function suggestions(int $tenantId, string $name, int $limit = 5): array
+    {
+        return $this->suggestionsFor($tenantId, [0 => $name], $limit)[0];
+    }
+
+    /**
+     * The organisation's current employees with their names split into words,
+     * plain and folded, once. The columns are what `canAccessEmployee()` reads
+     * and what the card shows of a person before the identity line loads.
+     *
+     * @return list<array{employee: Employee, plain: array{0: list<string>, 1: list<string>}, folded: array{0: list<string>, 1: list<string>}}>
+     */
+    private function pool(int $tenantId): array
+    {
+        $pool = [];
+
+        Employee::query()
+            ->where('tenant_id', $tenantId)
+            ->orderBy('id')
+            ->get(['id', 'tenant_id', 'public_id', 'name', 'name_am', 'department_id', 'branch_id', 'team_id', 'supervisor_id'])
+            ->each(function (Employee $employee) use (&$pool): void {
+                $plain = [$this->words((string) $employee->name), $this->words((string) $employee->name_am)];
+
+                $pool[] = [
+                    'employee' => $employee,
+                    'plain' => $plain,
+                    'folded' => [array_map(PersonName::fold(...), $plain[0]), array_map(PersonName::fold(...), $plain[1])],
+                ];
+            });
+
+        return $pool;
+    }
+
+    /**
+     * Terminal word i fits the employee's word i for every terminal word, each
+     * pair the same name once spellings are folded.
+     *
+     * @param  list<string>  $folded
+     * @param  list<string>  $theirs  already folded
+     */
+    private function looselyFits(array $folded, array $theirs): bool
+    {
+        foreach ($folded as $position => $word) {
+            $other = $theirs[$position] ?? null;
+            if ($other === null || ! PersonName::foldedWordsFit($word, $other)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** @return list<string> */
     private function words(string $name): array
     {
@@ -174,8 +310,15 @@ final class TerminalNames
      */
     private function sharesEveryWord(array $words, string $field): bool
     {
-        $theirs = $this->words($field);
+        return $this->prefixFits($words, $this->words($field));
+    }
 
+    /**
+     * @param  list<string>  $words
+     * @param  list<string>  $theirs
+     */
+    private function prefixFits(array $words, array $theirs): bool
+    {
         foreach ($words as $position => $word) {
             $other = $theirs[$position] ?? null;
             if ($other === null || ! (str_starts_with($other, $word) || str_starts_with($word, $other))) {
