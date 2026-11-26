@@ -7,6 +7,8 @@ use RuntimeException;
 
 class Spinner extends Prompt
 {
+    use Concerns\RendersAnimations;
+
     /**
      * How long to wait between rendering each frame.
      */
@@ -47,7 +49,7 @@ class Spinner extends Prompt
     {
         $this->capturePreviousNewLines();
 
-        if (! static::output()->isDecorated() || ! (function_exists('pcntl_fork') && function_exists('posix_kill'))) {
+        if ($this->shouldRenderStatically()) {
             return $this->renderStatically($callback);
         }
 
@@ -155,6 +157,10 @@ class Spinner extends Prompt
     {
         if (! empty($this->pid)) {
             posix_kill($this->pid, SIGHUP);
+            pcntl_waitpid($this->pid, $status);
+
+            // The render loop may have been killed mid-frame, so end any open synchronized update...
+            static::writeDirectly("\e[?2026l");
         }
 
         parent::__destruct();

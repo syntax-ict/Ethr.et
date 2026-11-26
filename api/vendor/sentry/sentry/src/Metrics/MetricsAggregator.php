@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sentry\Metrics;
 
 use Sentry\Client;
+use Sentry\ClientReport\ClientReportAggregator;
+use Sentry\ClientReport\Reason;
 use Sentry\Event;
 use Sentry\EventId;
 use Sentry\Metrics\Types\CounterMetric;
@@ -16,6 +18,7 @@ use Sentry\State\HubInterface;
 use Sentry\State\Scope;
 use Sentry\Tracing\SpanId;
 use Sentry\Tracing\TraceId;
+use Sentry\Transport\DataCategory;
 use Sentry\Unit;
 use Sentry\Util\TelemetryStorage;
 
@@ -105,7 +108,6 @@ final class MetricsAggregator
         $spanId = new SpanId($traceContext['span_id']);
 
         $metricTypeClass = self::METRIC_TYPES[$type];
-        /** @var Metric $metric */
         $metric = new $metricTypeClass($name, $value, $traceId, $spanId, $attributes, microtime(true), $unit);
 
         if ($client !== null) {
@@ -113,17 +115,26 @@ final class MetricsAggregator
                 $beforeSendMetric = $client->getOptions()->getBeforeSendMetricCallback();
                 $metric = $beforeSendMetric($metric);
                 if ($metric === null) {
+                    ClientReportAggregator::getInstance()->add(DataCategory::metric(), Reason::beforeSend(), 1);
+
                     return;
                 }
             } catch (\Throwable $exception) {
                 $client->getOptions()->getLoggerOrNullLogger()->error(\sprintf('The "before_send_metric" callback failed with exception: "%s".', $exception->getMessage()));
+                ClientReportAggregator::getInstance()->add(DataCategory::metric(), Reason::beforeSend(), 1);
 
                 return;
             }
         }
 
         $metrics = $this->getStorage($metricFlushThreshold);
+        $metricCount = \count($metrics);
         $metrics->push($metric);
+
+        // A full bounded buffer drops its oldest metric on push, so the count stays the same
+        if (\count($metrics) === $metricCount) {
+            ClientReportAggregator::getInstance()->add(DataCategory::metric(), Reason::bufferOverflow(), 1);
+        }
 
         if ($metricFlushThreshold !== null && \count($metrics) >= $metricFlushThreshold) {
             $this->flush($hub);

@@ -66,8 +66,8 @@ class SignatureV4 implements SignatureInterface
             'referer'               => true,
             'user-agent'            => true,
             'x-amzn-trace-id'       => true,
-            'aws-sdk-invocation-id' => true,
-            'aws-sdk-retry'         => true,
+            'amz-sdk-invocation-id' => true,
+            'amz-sdk-request'       => true,
         ];
     }
 
@@ -387,14 +387,58 @@ class SignatureV4 implements SignatureInterface
         if ($dateValue instanceof \DateTimeInterface) {
             $timestamp = $dateValue->getTimestamp();
         } elseif (!is_numeric($dateValue)) {
-            $timestamp = strtotime($dateValue,
-                $relativeTimeBase === null ? time() : $relativeTimeBase
-            );
+            $relativeTimeBase = $relativeTimeBase === null ? time() : $relativeTimeBase;
+            $timestamp = $this->addElapsedTime($dateValue, $relativeTimeBase)
+                ?? strtotime($dateValue, $relativeTimeBase);
         } else {
             $timestamp = $dateValue;
         }
 
         return $timestamp;
+    }
+
+    /**
+     * Adds a relative time of only hours, minutes, seconds and smaller units
+     * (for example "+15 minutes") as elapsed time, in UTC.
+     *
+     * strtotime() adds these units as wall-clock time in the default
+     * timezone. When the result falls into the repeated hour of a daylight
+     * saving time change, it is one hour too late, so a "+15 minutes"
+     * presigned URL gets X-Amz-Expires=4500.
+     *
+     * Returns null for all other values, which keep the strtotime() result.
+     */
+    private function addElapsedTime(string $dateValue, int $relativeTimeBase): ?int
+    {
+        $parsed = date_parse($dateValue);
+        if ($parsed['error_count'] > 0
+            || $parsed['warning_count'] > 0
+            || !isset($parsed['relative'])
+            || isset($parsed['zone_type'])
+        ) {
+            return null;
+        }
+
+        foreach (['year', 'month', 'day', 'hour', 'minute', 'second'] as $field) {
+            if ($parsed[$field] !== false) {
+                return null;
+            }
+        }
+
+        $relative = $parsed['relative'];
+        $timeOnly = ['year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond'];
+        if ($relative['year'] !== 0
+            || $relative['month'] !== 0
+            || $relative['day'] !== 0
+            || array_diff(array_keys($relative), $timeOnly) !== []
+        ) {
+            return null;
+        }
+
+        // A "@timestamp" date is in UTC, which has no daylight saving time.
+        return (new \DateTimeImmutable('@' . $relativeTimeBase))
+            ->modify($dateValue)
+            ->getTimestamp();
     }
 
     private function convertExpires($expiresTimestamp, $startTimestamp)
@@ -444,9 +488,13 @@ class SignatureV4 implements SignatureInterface
             ->withoutHeader('Authorization');
         $uri = $request->getUri();
 
+        $path = method_exists(Psr7\Uri::class, 'rawPath')
+            ? Psr7\Uri::rawPath($uri)
+            : $uri->getPath();
+
         return [
             'method'  => $request->getMethod(),
-            'path'    => $uri->getPath(),
+            'path'    => $path,
             'query'   => Psr7\Query::parse($uri->getQuery()),
             'uri'     => $uri,
             'headers' => $request->getHeaders(),
@@ -494,8 +542,8 @@ class SignatureV4 implements SignatureInterface
     {
         static $illegalV4aHeaders = [
             self::AMZ_CONTENT_SHA256_HEADER,
-            'aws-sdk-invocation-id',
-            'aws-sdk-retry',
+            'amz-sdk-invocation-id',
+            'amz-sdk-request',
             'x-amz-region-set',
             'transfer-encoding',
         ];

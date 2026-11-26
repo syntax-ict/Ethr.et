@@ -4,10 +4,14 @@ namespace Aws\S3\Parser;
 
 use Aws\Api\Service;
 use Aws\CommandInterface;
+use Aws\HashingStream;
+use Aws\PhpHash;
 use Aws\ResultInterface;
 use Aws\S3\CalculatesChecksumTrait;
 use Aws\S3\Exception\S3Exception;
+use GuzzleHttp\Psr7\InflateStream;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * A custom s3 result mutator that validates the response checksums.
@@ -49,6 +53,17 @@ final class ValidateResponseChecksumResultMutator implements S3ResultMutator
         ?ResponseInterface $response = null
     ): ResultInterface
     {
+        $result = $this->validate($result, $command, $response);
+
+        return $this->inflateBody($result, $command, $response);
+    }
+
+    private function validate(
+        ResultInterface $result,
+        CommandInterface $command,
+        ResponseInterface $response
+    ): ResultInterface
+    {
         $operation = $this->api->getOperation($command->getName());
 
         // Skip this middleware if the operation doesn't have an httpChecksum
@@ -72,63 +87,143 @@ final class ValidateResponseChecksumResultMutator implements S3ResultMutator
         }
 
         $checksumPriority = $this->getChecksumPriority();
-        $checksumsToCheck = array_intersect($responseAlgorithms, array_map(
-            'strtoupper',
-            array_keys($checksumPriority))
+        $checksumsToCheck = array_intersect(
+            $responseAlgorithms,
+            array_map(
+                'strtoupper',
+                array_keys($checksumPriority)
+            )
         );
-        $checksumValidationInfo = $this->validateChecksum($checksumsToCheck, $response);
+        $checksumToValidate = $this->chooseChecksumHeaderToValidate(
+            $checksumsToCheck,
+            $response
+        );
+        if (empty($checksumToValidate)) {
+            return $result;
+        }
 
-        if ($checksumValidationInfo['status'] === "SUCCEEDED") {
-            $result['ChecksumValidated'] = $checksumValidationInfo['checksum'];
-        } elseif ($checksumValidationInfo['status'] === "FAILED") {
-            if ($this->isMultipartGetObject($command, $checksumValidationInfo)) {
-                return $result;
-            }
+        $checksumHeaderValue = $response->getHeaderLine(
+            'x-amz-checksum-' . $checksumToValidate
+        );
+        if (empty($checksumHeaderValue)) {
+            return $result;
+        }
+
+        $checksumValidationInfo = [
+            'checksum' => $checksumToValidate,
+            'checksumHeaderValue' => $checksumHeaderValue,
+        ];
+        if ($this->isMultipartGetObject($command, $checksumValidationInfo)
+            || $this->isDecodedResponse($command, $response)
+        ) {
+            return $result;
+        }
+
+        $payloadMember = $operation->getOutput()['payload'] ?? null;
+        $payload = $payloadMember !== null
+            ? $result[$payloadMember]
+            : null;
+        if ($payload instanceof StreamInterface && !$payload->isSeekable()) {
+            $result[$payloadMember] = $this->createChecksumValidatingStream(
+                $payload,
+                $checksumToValidate,
+                $checksumHeaderValue,
+                $command,
+                $result
+            );
+
+            return $result;
+        }
+
+        $calculatedChecksumValue = $this->getEncodedValue(
+            $checksumToValidate,
+            $response->getBody()
+        );
+        if (!hash_equals($checksumHeaderValue, $calculatedChecksumValue)) {
             throw new S3Exception(
                 "Calculated response checksum did not match the expected value",
                 $command
             );
+        }
+        $result['ChecksumValidated'] = $checksumToValidate;
+
+        return $result;
+    }
+
+    /**
+     * Wraps the validated raw body so callers still receive decoded content.
+     */
+    private function inflateBody(
+        ResultInterface $result,
+        CommandInterface $command,
+        ResponseInterface $response
+    ): ResultInterface
+    {
+        if (empty($command['@context']['inflate_response_body'])) {
+            return $result;
+        }
+
+        $encoding = strtolower(trim($response->getHeaderLine('Content-Encoding')));
+        if (!in_array($encoding, ['gzip', 'x-gzip', 'deflate'], true)) {
+            return $result;
+        }
+
+        $payloadMember = $this->api->getOperation($command->getName())
+            ->getOutput()['payload'] ?? null;
+        if ($payloadMember !== null
+            && $result[$payloadMember] instanceof StreamInterface
+        ) {
+            $result[$payloadMember] = new InflateStream($result[$payloadMember]);
         }
 
         return $result;
     }
 
     /**
-     * @param $checksumPriority
-     * @param ResponseInterface $response
+     * @param StreamInterface $stream
+     * @param string $checksum
+     * @param string $checksumHeaderValue
+     * @param CommandInterface $command
+     * @param ResultInterface $result
      *
-     * @return array
+     * @return StreamInterface
      */
-    private function validateChecksum(
-        $checksumPriority,
-        ResponseInterface $response
-    ): array
+    private function createChecksumValidatingStream(
+        StreamInterface $stream,
+        string $checksum,
+        string $checksumHeaderValue,
+        CommandInterface $command,
+        ResultInterface $result
+    ): StreamInterface
     {
-        $checksumToValidate = $this->chooseChecksumHeaderToValidate(
-            $checksumPriority,
-            $response
-        );
-        $validationStatus = "SKIPPED";
-        $checksumHeaderValue = null;
-        if (!empty($checksumToValidate)) {
-            $checksumHeaderValue = $response->getHeaderLine(
-                'x-amz-checksum-' . $checksumToValidate
-            );
-            if (!empty($checksumHeaderValue)) {
-                $calculatedChecksumValue = $this->getEncodedValue(
-                    $checksumToValidate,
-                    $response->getBody()
-                );
-                $validationStatus = $checksumHeaderValue == $calculatedChecksumValue
-                    ? "SUCCEEDED"
-                    : "FAILED";
-            }
+        $hashAlgorithm = strtolower($checksum);
+        if ($hashAlgorithm === 'crc32') {
+            $hashAlgorithm = 'crc32b';
         }
-        return [
-            "status" => $validationStatus,
-            "checksum" => $checksumToValidate,
-            "checksumHeaderValue" => $checksumHeaderValue,
-        ];
+
+        return new HashingStream(
+            $stream,
+            new PhpHash($hashAlgorithm, ['base64' => true]),
+            function ($calculatedChecksumValue) use (
+                $checksum,
+                $checksumHeaderValue,
+                $command,
+                $result
+            ) {
+                $checksumMatches = hash_equals(
+                    $checksumHeaderValue,
+                    $calculatedChecksumValue
+                );
+                if (!$checksumMatches) {
+                    throw new S3Exception(
+                        "Calculated response checksum did not match the expected value",
+                        $command
+                    );
+                }
+
+                $result['ChecksumValidated'] = $checksum;
+            }
+        );
     }
 
     /**
@@ -140,7 +235,7 @@ final class ValidateResponseChecksumResultMutator implements S3ResultMutator
     private function chooseChecksumHeaderToValidate(
         $checksumPriority,
         ResponseInterface $response
-    ):? string
+    ): ?string
     {
         foreach ($checksumPriority as $checksum) {
             $checksumHeader = 'x-amz-checksum-' . $checksum;
@@ -190,9 +285,9 @@ final class ValidateResponseChecksumResultMutator implements S3ResultMutator
         array $checksumValidationInfo
     ): bool
     {
-        if ($command->getName() !== "GetObject"
-            || empty($checksumValidationInfo['checksumHeaderValue'])
-        ) {
+        $isGetObject = $command->getName() === "GetObject";
+        $hasChecksum = !empty($checksumValidationInfo['checksumHeaderValue']);
+        if (!$isGetObject || !$hasChecksum) {
             return false;
         }
 
@@ -201,7 +296,28 @@ final class ValidateResponseChecksumResultMutator implements S3ResultMutator
         $endOfChecksum = substr($headerValue, $lastDashPos + 1);
 
         return is_numeric($endOfChecksum)
-            && (int) $endOfChecksum > 1
-            && (int) $endOfChecksum < 10000;
+            && (int) $endOfChecksum >= 1
+            && (int) $endOfChecksum <= 10000;
+    }
+
+    /**
+     * @param CommandInterface $command
+     * @param ResponseInterface $response
+     *
+     * @return bool
+     */
+    private function isDecodedResponse(
+        CommandInterface $command,
+        ResponseInterface $response
+    ): bool
+    {
+        $encoding = $response->getHeaderLine('x-encoded-content-encoding')
+            ?: $response->getHeaderLine('Content-Encoding');
+        if (in_array(strtolower($encoding), ['', 'identity'], true)) {
+            return false;
+        }
+
+        return $response->hasHeader('x-encoded-content-encoding')
+            || ($command['@http']['decode_content'] ?? true) !== false;
     }
 }

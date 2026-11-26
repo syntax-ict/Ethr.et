@@ -1,5 +1,60 @@
 # Changelog
 
+## 4.31.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Laravel SDK v4.31.0.
+
+### Bug Fixes
+
+- Avoid PHP 8.5 deprecation warnings for `SplObjectStorage::attach()` and `SplObjectStorage::contains()` when monitoring scheduled tasks. [(#1242)](https://github.com/getsentry/sentry-laravel/pull/1242)
+- Don't listen for `QueryExecuted` events when `breadcrumbs.sql_queries` or `tracing.sql_queries` is disabled, so database drivers that only do extra work when the event has a listener, such as `mongodb/laravel-mongodb`, no longer pay for it. [(#1240)](https://github.com/getsentry/sentry-laravel/pull/1240)
+- Register the view composer that tracks view names for `view.render` spans only once per view factory, so composers no longer pile up and run on every render when view engines are resolved again, for example on Laravel Octane. [(#1236)](https://github.com/getsentry/sentry-laravel/pull/1236)
+
+### Misc
+
+- Bump the PHP SDK to version `4.38.0`
+
+## 4.30.0
+
+The Sentry SDK team is happy to announce the immediate availability of Sentry Laravel SDK v4.30.0.
+
+### Features
+
+- Add the `crons.monitor_scheduled_tasks` config option to monitor every scheduled task without adding `->sentryMonitor()` to each one. [(#1202)](https://github.com/getsentry/sentry-laravel/pull/1202)
+
+  The schedule of each task is sent along with its check-ins, so Sentry creates the monitors and keeps them in sync. Use `crons.exclude_scheduled_tasks` to skip tasks by command, job class, task name or monitor slug, with `*` as a wildcard.
+
+  ```php
+  // config/sentry.php
+  'crons' => [
+      'monitor_scheduled_tasks' => env('SENTRY_CRONS_MONITOR_SCHEDULED_TASKS', false),
+      'exclude_scheduled_tasks' => ['horizon:snapshot', 'scheduled_reports-*'],
+  ],
+  ```
+
+  Tasks with `->sentryMonitor()` keep their own settings. Closures without a `name()`, sub-minute tasks, tasks that can skip runs (`when`, `skip`, `between`), tasks without a named timezone in a non-UTC app and tasks whose schedule Sentry would read differently are not monitored automatically.
+
+- Ignore Laravel Horizon, Laravel Telescope and Laravel Debugbar transactions by default. [(#1223)](https://github.com/getsentry/sentry-laravel/pull/1223)
+
+  This only applies if you have not published the config file. To ignore them with a published config, add the pattern to `ignore_transactions`:
+
+  ```php
+  // config/sentry.php
+  'ignore_transactions' => [
+      '/up',
+      '/^\/(horizon|telescope|_debugbar)(\/|$)/',
+  ],
+  ```
+
+- Shorten the description of `view.render` spans for views rendered from a file, such as Laravel Folio pages, by removing the application base path. [(#1228)](https://github.com/getsentry/sentry-laravel/pull/1228)
+
+### Bug Fixes
+
+- Prefer the transaction name set by Laravel for the matched route over the request path when applying the transaction name to events. [(#1222)](https://github.com/getsentry/sentry-laravel/pull/1222)
+- Fix dropped transactions caused by an `app.bootstrap` span with a negative duration, which could happen on Laravel Octane or when a route used `Artisan::call`. [(#1221)](https://github.com/getsentry/sentry-laravel/pull/1221)
+- Remove the check-in IDs of launched background tasks from the scheduler context, so they no longer accumulate and grow the payload of jobs dispatched by later scheduled commands. [(#1220)](https://github.com/getsentry/sentry-laravel/pull/1220)
+- Omit the `cache.ttl` and `session.ttl` span attributes when an entry never expires instead of sending `null`. [(#1205)](https://github.com/getsentry/sentry-laravel/pull/1205)
+
 ## 4.29.0
 
 The Sentry SDK team is happy to announce the immediate availability of Sentry Laravel SDK v4.29.0.

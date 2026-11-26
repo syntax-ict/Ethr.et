@@ -11,6 +11,7 @@ use Sentry\Context\RuntimeContext;
 use Sentry\Logs\Log;
 use Sentry\Metrics\Types\Metric;
 use Sentry\Profiling\Profile;
+use Sentry\Profiling\ProfileChunk;
 use Sentry\Tracing\Span;
 
 /**
@@ -213,6 +214,11 @@ final class Event
     private $profile;
 
     /**
+     * @var ProfileChunk|null The continuous profiling data
+     */
+    private $profileChunk;
+
+    /**
      * @var Attachment[]
      */
     private $attachments = [];
@@ -262,6 +268,11 @@ final class Event
     public static function createMetrics(?EventId $eventId = null): self
     {
         return new self($eventId, EventType::metrics());
+    }
+
+    public static function createProfileChunk(?EventId $eventId = null): self
+    {
+        return new self($eventId, EventType::profileChunk());
     }
 
     public static function createClientReport(?EventId $eventId = null): self
@@ -484,6 +495,8 @@ final class Event
     }
 
     /**
+     * @return array<string, MetricsSummary>
+     *
      * @deprecated Metrics are no longer supported. Metrics API is a no-op and will be removed in 5.x.
      */
     public function getMetricsSummary(): array
@@ -492,6 +505,8 @@ final class Event
     }
 
     /**
+     * @param array<string, MetricsSummary> $metricsSummary
+     *
      * @deprecated Metrics are no longer supported. Metrics API is a no-op and will be removed in 5.x.
      */
     public function setMetricsSummary(array $metricsSummary): self
@@ -981,6 +996,18 @@ final class Event
     public function setProfile(?Profile $profile): self
     {
         $this->profile = $profile;
+
+        return $this;
+    }
+
+    public function getProfileChunk(): ?ProfileChunk
+    {
+        return $this->profileChunk;
+    }
+
+    public function setProfileChunk(?ProfileChunk $profileChunk): self
+    {
+        $this->profileChunk = $profileChunk;
 
         return $this;
     }

@@ -82,7 +82,8 @@ class InstanceProfileProvider
      */
     public function __construct(array $config = [])
     {
-        $this->timeout = (float) getenv(self::ENV_TIMEOUT) ?: ($config['timeout'] ?? self::DEFAULT_TIMEOUT);
+        $timeout = (float) getenv(self::ENV_TIMEOUT) ?: ($config['timeout'] ?? self::DEFAULT_TIMEOUT);
+        $this->timeout = is_string($timeout) && is_numeric($timeout) ? (float) $timeout : $timeout;
         $this->profile = $config['profile'] ?? null;
         $this->retries = (int) getenv(self::ENV_RETRIES) ?: ($config['retries'] ?? self::DEFAULT_RETRIES);
         $this->client = $config['client'] ?? \Aws\default_http_handler();
@@ -278,7 +279,9 @@ class InstanceProfileProvider
                 }
                 $msg = $reason->getMessage();
                 throw new CredentialsException(
-                    $this->createErrorMessage($msg)
+                    $this->createErrorMessage($msg),
+                    0,
+                    $reason
                 );
             });
     }
@@ -298,7 +301,7 @@ class InstanceProfileProvider
         if ($isRetryable && $this->attempts < $this->retries) {
             sleep((int) pow(1.2, $this->attempts));
         } else {
-            throw new CredentialsException($message);
+            throw new CredentialsException($message, 0, $e);
         }
     }
 

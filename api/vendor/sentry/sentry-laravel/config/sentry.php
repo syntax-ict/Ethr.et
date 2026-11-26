@@ -63,6 +63,9 @@ return [
     'ignore_transactions' => [
         // Ignore Laravel's default health URL
         '/up',
+
+        // Ignore the Laravel Horizon, Laravel Telescope and Laravel Debugbar routes
+        '/^\/(horizon|telescope|_debugbar)(\/|$)/',
     ],
 
     // Breadcrumb specific configuration
@@ -94,6 +97,15 @@ return [
 
         // Capture send notifications as breadcrumbs
         'notifications' => env('SENTRY_BREADCRUMBS_NOTIFICATIONS_ENABLED', true),
+    ],
+
+    // Crons monitoring specific configuration
+    'crons' => [
+        // Monitor every scheduled task as if `->sentryMonitor()` was called on it
+        'monitor_scheduled_tasks' => env('SENTRY_CRONS_MONITOR_SCHEDULED_TASKS', false),
+
+        // Commands, job classes, task names or monitor slugs of tasks that are not monitored automatically, `*` is a wildcard
+        'exclude_scheduled_tasks' => [],
     ],
 
     // Performance monitoring specific configuration

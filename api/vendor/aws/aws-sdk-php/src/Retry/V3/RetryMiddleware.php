@@ -8,13 +8,12 @@ use Aws\ResultInterface;
 use Aws\Retry\ConfigurationInterface;
 use Aws\Retry\RateLimiter;
 use Aws\Retry\RetryHelperTrait;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
 
 /**
- * Retry middleware for the AWS_NEW_RETRIES_2026 opt-in path. Implements
+ * Retry middleware for standard and adaptive modes. Implements
  * the spec-defined behavior for 'standard' and 'adaptive' modes:
  * throttling-aware quota, retry-after header support, max-attempts
  * before quota in the decision order, supplemental customer deciders,
@@ -29,6 +28,7 @@ class RetryMiddleware
     private const THROTTLING_BASE_DELAY_MS = 1_000;
     private const DEFAULT_BASE_DELAY_MS = 50;
     private const DEFAULT_MAX_BACKOFF_MS = 20_000;
+    private const THROTTLING_STATUS_CODE = 429;
     private const RETRY_AFTER_HEADER = 'x-amz-retry-after';
 
     private static array $standardThrottlingErrors = [
@@ -72,11 +72,20 @@ class RetryMiddleware
     private array $options;
     private QuotaManager $quotaManager;
     private ?RateLimiter $rateLimiter = null;
-    private array $retryCurlErrors;
     private ?string $service;
 
     public static function wrap(ConfigurationInterface $config, array $options): \Closure
     {
+        if (!isset($options['quota_manager'])) {
+            $options['quota_manager'] = new QuotaManager();
+        }
+
+        if ($config->getMode() === 'adaptive'
+            && !isset($options['rate_limiter'])
+        ) {
+            $options['rate_limiter'] = new RateLimiter();
+        }
+
         return function (callable $handler) use ($config, $options) {
             return new static($config, $handler, $options);
         };
@@ -84,23 +93,17 @@ class RetryMiddleware
 
     /**
      * Returns a closure that decides retryability for a given result based
-     * on the standard error codes, status codes, and curl errors. Quota and
-     * max-attempts decisions are handled by the middleware itself, not by
-     * this closure.
+     * on the standard error codes and status codes. Quota and max-attempts
+     * decisions are handled by the middleware itself, not by this closure.
      */
     public static function createDefaultDecider(array $options = []): \Closure
     {
-        $retryCurlErrors = [];
-        if (extension_loaded('curl')) {
-            $retryCurlErrors[CURLE_RECV_ERROR] = true;
-        }
-
         return function (
             int $attempts,
             CommandInterface $command,
             mixed $result
-        ) use ($options, $retryCurlErrors): bool {
-            return self::isRetryable($result, $retryCurlErrors, $options);
+        ) use ($options): bool {
+            return self::isRetryable($result, $options);
         };
     }
 
@@ -128,16 +131,6 @@ class RetryMiddleware
             ? ($options['delayer'])(...)
             : null;
 
-        $this->retryCurlErrors = [];
-        if (extension_loaded('curl')) {
-            $this->retryCurlErrors[CURLE_RECV_ERROR] = true;
-        }
-        if (!empty($options['curl_errors']) && is_array($options['curl_errors'])) {
-            foreach ($options['curl_errors'] as $code) {
-                $this->retryCurlErrors[$code] = true;
-            }
-        }
-
         if ($this->mode === 'adaptive') {
             $this->rateLimiter = $options['rate_limiter'] ?? new RateLimiter();
         }
@@ -152,7 +145,7 @@ class RetryMiddleware
         $requestStats = [];
         $capacityUsed = null;
 
-        $req = $this->addRetryHeader($req, 0, 0);
+        $req = $this->addRetryHeader($req, 0, $this->resolveMaxAttempts($cmd));
 
         $callback = function ($value) use (
             $handler,
@@ -198,7 +191,6 @@ class RetryMiddleware
 
             $isRetryable = self::isRetryable(
                 $value,
-                $this->retryCurlErrors,
                 $this->options
             );
 
@@ -219,9 +211,7 @@ class RetryMiddleware
             }
 
             // Max attempts is checked before retry quota.
-            $maxAttempts = ($cmd['@retries'] !== null)
-                ? $cmd['@retries'] + 1
-                : $this->maxAttempts;
+            $maxAttempts = $this->resolveMaxAttempts($cmd);
 
             if ($attempts >= $maxAttempts) {
                 if ($value instanceof AwsException) {
@@ -275,7 +265,11 @@ class RetryMiddleware
                 $this->updateStats($attempts - 1, $delayByMs, $requestStats);
             }
 
-            $req = $this->addRetryHeader($req, $attempts - 1, $delayByMs);
+            $req = $this->addRetryHeader(
+                $req,
+                $attempts - 1,
+                $maxAttempts
+            );
 
             if ($this->mode === 'adaptive') {
                 $this->rateLimiter->getSendToken();
@@ -342,7 +336,6 @@ class RetryMiddleware
 
     private static function isRetryable(
         mixed $result,
-        array $retryCurlErrors,
         array $options = []
     ): bool
     {
@@ -368,14 +361,6 @@ class RetryMiddleware
         ) {
             foreach ($options['status_codes'] as $code) {
                 $statusCodes[$code] = true;
-            }
-        }
-
-        if (!empty($options['curl_errors'])
-            && is_array($options['curl_errors'])
-        ) {
-            foreach ($options['curl_errors'] as $code) {
-                $retryCurlErrors[$code] = true;
             }
         }
 
@@ -406,22 +391,8 @@ class RetryMiddleware
             return true;
         }
 
-        if (count($retryCurlErrors)
-            && ($previous = $result->getPrevious())
-            && $previous instanceof RequestException
-        ) {
-            if (method_exists($previous, 'getHandlerContext')) {
-                $context = $previous->getHandlerContext();
-                return !empty($context['errno'])
-                    && isset($retryCurlErrors[$context['errno']]);
-            }
-
-            $message = $previous->getMessage();
-            foreach (array_keys($retryCurlErrors) as $curlError) {
-                if (str_starts_with($message, 'cURL error ' . $curlError . ':')) {
-                    return true;
-                }
-            }
+        if (self::isUnmodeledThrottlingStatus($result)) {
+            return true;
         }
 
         if (!empty($errorShape = $result->getAwsErrorShape())) {
@@ -457,8 +428,30 @@ class RetryMiddleware
                     return true;
                 }
             }
+
+            if (self::isUnmodeledThrottlingStatus($result)) {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    /**
+     * An HTTP 429 whose error does not match one of the operation's
+     * modeled errors is a throttling error. When the error is modeled,
+     * the shape's retryable trait decides instead.
+     */
+    private static function isUnmodeledThrottlingStatus(AwsException $result): bool
+    {
+        return $result->getStatusCode() === self::THROTTLING_STATUS_CODE
+            && empty($result->getAwsErrorShape());
+    }
+
+    private function resolveMaxAttempts(CommandInterface $cmd): int
+    {
+        return ($cmd['@retries'] !== null)
+            ? $cmd['@retries'] + 1
+            : $this->maxAttempts;
     }
 }
