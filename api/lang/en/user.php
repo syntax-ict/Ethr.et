@@ -46,5 +46,6 @@ return [
         'title_access_needs_users' => 'You need permission to manage users to change what access a job title gives.',
         'title_access_held' => 'You may not give that role, so the account was left as it was.',
         'own_access_follows_title' => 'Your access follows your job title. Ask your organisation admin to change it.',
+        'own_custom_role' => 'Another administrator has to change your own custom role.',
     ],
 ];
