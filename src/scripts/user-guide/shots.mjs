@@ -939,7 +939,7 @@ export const SHOTS = [
     path: "/settings/attendance",
     markers: [
       { target: text("የመገኘት ዝግጅት", { exact: true }) },
-      { target: text("የነቁ የመገኘት ዘዴዎች", { exact: true }) },
+      { target: text("የመገኘት ዘዴዎች", { exact: true }) },
       {
         target: (page) =>
           page.locator("main").getByRole("button", { name: "ለውጦችን አስቀምጥ" }),
