@@ -9,7 +9,10 @@ Read, in this order:
 2. **[`docs/CLAUDE.md`](docs/CLAUDE.md)** — the 15 Non-Negotiable Conventions, the design
    system, the API and testing rules.
 3. **[`CONTRIBUTING.md`](CONTRIBUTING.md)** — how to actually run and test the project.
-4. **[`docs/audit/BASELINE.md`](docs/audit/BASELINE.md)** — what is *measured* versus merely
+4. **[`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md)** — which model does what. Sonnet
+   implements; Opus plans, reviews and owns tenancy, security, payroll and attendance design;
+   end-to-end tests run before a deploy. Owner's hard rule, 2026-11-12.
+5. **[`docs/audit/BASELINE.md`](docs/audit/BASELINE.md)** — what is *measured* versus merely
    documented. Several documents in this tree assert controls that do not exist; the
    baseline says which.
 
