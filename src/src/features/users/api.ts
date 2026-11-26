@@ -31,7 +31,7 @@ export function useUsers(params?: {
   search?: string;
   /** `invited` lists the people who have not activated yet. */
   status?: UserStatus;
-  /** `held` lists accounts whose role differs from what their job title gives. */
+  /** `held` lists accounts whose role differs from what their position gives. */
   titleAccess?: "held";
   /** A custom role's public id: lists only the people who hold it. */
   customRole?: string;
@@ -110,7 +110,7 @@ export function useUpdateUser() {
 }
 
 /**
- * Gives an account the role its job title gives, as the signed-in person. The
+ * Gives an account the role its position gives, as the signed-in person. The
  * API refuses (422) when they may not give that role.
  */
 export function useApplyTitleAccess() {
