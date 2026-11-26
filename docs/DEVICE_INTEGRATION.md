@@ -117,6 +117,10 @@ Devices → **Unrecognised badges** lists the held badges by device:
   is marked `refused`, with the reason.
 - **Dismiss** drops the held punches of a badge that is no one's.
 
+### Recorded without a click, by number only (2026-11-19)
+
+When HR writes a terminal's number in a person's **Badge number** (or it equals their employee code) after punches were held, the held punches of that badge are recorded by themselves. A sweep every five minutes (`held-punches-auto-record`, `RecordHeldPunchesJob`, queue `attendance`) queues one job per organisation, device and badge; each replays one slice, earliest first, and queues itself again while punches remain. It records only when all four hold (`UnmatchedPunches::recordsItself`, used by the job and by the card): (a) the card's verdict is a match to a current person who has not left; (b) no person has replayed any punch of this badge on this device (no `replayed` or `refused` row with `resolved_by`), because a person who started a replay and stopped may have stopped for a reason, so what is left is theirs; dismissed rows do not count; (c) the number says so today with any mapping set aside: the number and the terminal's name are scored again and must match the same person (an existing mapping alone proves only that someone once linked it), or the mapping is one a person confirmed and the scoring names no other current employee, which is how terminal users are mapped when nobody holds the number; (d) the terminal's own name points to the same person and nobody else: the terminal has sent a name for the badge, and `TerminalNames::lookalikes()` (two words or more, matched from the first word in order, nobody when more than five fit) returns exactly one employee, the verdict's. The number and the name are two independent things and must name the same single person, because a mistyped number on one employee would otherwise record on the wrong person within minutes with no undo. d applies to every automatic path, a mapping a person confirmed included, and is checked last. A terminal that sends no name, a one-word name, a name two people fit (duplicate records included) and a name that fits someone else leave the punches for a click: the card still says "This is :name" with "Assign and replay". The sweep lists a badge only once a name is stored for it (`device_enrollment_snapshots`). Two holders of the number (even when the terminal's name agrees with one of them: the number must be held by exactly one current employee, whatever the name adds to the score), a name that differs, a leaver, a name with no number, an unconfirmed mapping the person no longer holds the number for, and a number confirmed for someone else leave everything held. A number a person confirmed for someone else is never moved. The link is not marked verified and the rows carry no `resolved_by`. Each slice that replays or refuses a punch is audited as `device.held_punches_auto_recorded` (badge, employee, reasons, replayed, refused). A manual Assign holding the badge's lock makes the job leave quietly. The card marks such a badge (`recording_itself` on `GET devices/unmatched-punches`) and Assign stays available. Applies to every organisation; no setting.
+
 Listing needs `device.viewAny`; assigning and dismissing need
 `attendance.manage`. Both are audited (`device.badge_assigned`,
 `device.badge_dismissed`). Before this, every device path logged the badge
@@ -152,8 +156,9 @@ After a list is added, the terminals read of that batch
 `attendance.manage`, the held badges that now resolve to exactly one of the
 list's people (`held`, at most 100, the rest counted in `held_more`; ambiguous
 or probable matches are never listed). One button there assigns them one
-badge after another through the same endpoint. It is never automatic: it gives
-each number to that person and cannot be undone from that screen.
+badge after another through the same endpoint. The button is a person's click: it gives
+each number to that person and cannot be undone from that screen. A number that equals
+the person's badge number or code is recorded by the five-minute sweep above without it.
 
 ## Attendance-history import (backfill)
 
@@ -543,15 +548,54 @@ by its token. A terminal may now be registered with **no address**.
   badge is resolved, and the punch is recorded or held in `unmatched_device_punches`. The
   engine's `auto` direction reads the open record, so order is what makes an evening scan
   close the morning one. A database error leaves the row pending and the rows behind it wait
-  for the retry; a refused punch is marked processed with its reason in `error`; a row that
-  has failed five times is marked processed rather than retried for ever. Processed rows are
-  deleted after seven days by `CleanupExpiredDataJob`, waiting rows never. The route's own
+  for the retry. Processed rows are deleted after seven days by `CleanupExpiredDataJob`,
+  waiting rows never, and quarantined rows (below) not until a person has dismissed them. The route's own
   `device-webhook` limiter allows 600 posts a minute per address (a ceiling against a broken
   sender, not a delivery pace), and the global API limiter does not count these posts a second
   time. Because the work is queued, a punch is recorded only once something drains the queue
   (production: `RunBackgroundWorkAfterResponse` after any API response, the terminal's own
   posts included, at most once a minute, and the cron caller), and a heartbeat or punch stamps the device row at most once a
   minute.
+- **Every push path goes through the inbox (2026-11-20).** The ZKTeco and Suprema JSON
+  webhooks and ADMS `ATTLOG` uploads used to run the attendance engine inside the request, so
+  an unexpected error was acknowledged and lost, and a backlog after a power cut ran the
+  engine per line under the host's 30-second limit. They now `insertOrIgnore` into
+  `device_inbound_punches` in chunks of 500 (`DeviceInboundPunch::stash()`), keep their key
+  prefixes (`webhook:zk|sup|adms:{device}:{badge}:{time}`, so punches recorded before still
+  dedupe a resend), queue `ProcessDeviceInboundPunchesJob` when a row was new, and answer
+  exactly as before (`processed` with a `count`, or `OK: n` for ADMS). An unreadable ADMS line
+  is stored in quarantine with its text and counted in the `OK: n`, so the terminal does not
+  send it for ever. `/iclock` carries `RunBackgroundWorkAfterResponse` like the API group.
+- **Raw is kept, a failure is quarantined (2026-11-20).** Every inbox row stores the event as
+  received in `raw` (Hikvision: the parsed event only, never the multipart face picture; ADMS:
+  the line; ZKTeco and Suprema: the record), capped at 16 KB with a `...[truncated]` marker,
+  and clears it once the punch is recorded or held. A punch the engine refuses
+  (`AttendanceRefused`: a leaver, a check-out with no check-in, a disabled method), a time
+  the terminal's clock puts more than ten minutes ahead, an event with no time, or an
+  unexpected exception is not purged and not retried: the row gets `failed_at`, `failure`
+  (`refused:{reason}`, `clock_ahead`, `no_time`, `unreadable`, `error`) and a scrubbed `error`, and the
+  device's later rows carry on. A database or deadlock error still retries; a row that fails
+  five times becomes `failure = error` instead of being given up. An unknown badge is not a
+  failure: it stays the held-punch path. `GET /devices/{device}/quarantine` lists them
+  (`device.view`; `raw` only for `device.update`); `POST /devices/quarantine/replay` puts rows
+  back in the inbox (so a fixed leaving date or terminal clock lets them record, once: a
+  replay of a punch already recorded is a duplicate, never a second record) and
+  `POST /devices/quarantine/dismiss` lets them go (kept a week, then purged). Both take
+  `ids` (public ids, at most 500) and write `device.quarantine_replayed` /
+  `device.quarantine_dismissed`. A `no_time` row and an `unreadable` ADMS line (stored with the terminal's own line as `raw`) cannot
+  be replayed, since the same row fails again: the punch is entered by hand. A `clock_ahead`
+  row is recorded at the time the terminal stamped, which fixing the terminal's clock does not
+  change, so the card asks first: replay is right only when the time zone set for the terminal in
+  ETHR was wrong, and a punch from a terminal whose own clock was wrong is dismissed and entered
+  by hand. `error` (exception text) and `raw` are shown only to those who may change the device. The device page shows the
+  list in "Punches that need attention", and `/devices/dashboard` the count.
+- **Key guard.** `attendance_records.idempotency_key` is varchar(64) and device keys used to be
+  built up to 191 characters, which production's strict MySQL refuses. `DevicePunchKey::fit()`
+  returns a key of 64 characters or less unchanged and a longer one as `dk:` plus 60 hex
+  characters of its sha256, and is applied at every construction site and inside
+  `DevicePunchRecorder::record()`, so live push, pull and held-punch replay give the same key.
+- **Queue order.** `QueueHealth::QUEUES` is `attendance, default, notifications, exports`:
+  the first queue named is drained first, so punches no longer wait behind pulls and reports.
 - **Who writes it.** The rule is written by `devices:sync` on every run for every such
   device (nothing else moves a terminal off `online` when it goes quiet, because it is
   never pulled), by `PUT /devices/{id}` when the mode changes, and by
@@ -657,6 +701,31 @@ tenant journey keeps its own three-day `devices_silent`, with the same registrat
 for both kinds: a terminal not set up three days after it was registered is a stalled setup
 the platform should see.
 
+## Webhook tokens are stored hashed (2026-11-21)
+
+A terminal's token used to sit in `devices.webhook_token` in clear, and database backups go
+off-host, so a copy of any backup could post punches into any organisation. The device now
+keeps `webhook_token_hash` (plain sha256 of the 64-hex-character token; not keyed on `APP_KEY`,
+which must never be regenerated), `webhook_token_prefix` (the first eight characters, for
+display) and `webhook_token_head_hash` (sha256 of the first sixteen, so a cut-off address can
+still be traced). The old plaintext column stays, empty, until a later release drops it.
+Assigning `Device::webhook_token` hashes it; reading it back gives the token only on the
+instance it was assigned to.
+
+- **Shown once.** `POST /devices` and `POST /devices/{device}/regenerate-token` return
+  `webhook_token` and `webhook_url`; no later response does. The device resource carries
+  `has_webhook_token`, `webhook_token_prefix` and `webhook_url_masked` instead. Nothing can
+  show an address again: the only way to see one is to regenerate it.
+- **Regenerate takes a `reason`.** `lost` (the default, also when none is sent): the new token
+  replaces the old at once, and a token still inside a `moving` grace dies too. `moving`: the old
+  token is kept as `webhook_token_previous_hash` for 24 hours (`webhook_token_previous_expires_at`),
+  so a terminal can be reset without losing punches. The reason is in the `device.token_regenerated`
+  audit entry.
+- **A device that has a token needs it.** A serial-only call is refused with `token_missing`,
+  even from an allowlisted address; only a device with no token authenticates by allowlist.
+- **Rollback.** The migration's `down()` drops the new columns and cannot restore the plaintext;
+  the pre-migrate backup taken by the release steps is the only way back.
+
 ## Why a terminal's calls were refused (2026-11-13)
 
 A refused webhook used to leave only a log line, so a terminal with a stale or cut-off
@@ -668,8 +737,8 @@ integration key). It stops showing once the terminal has been heard from since.
 
 | Reason | How the call is traced to the device |
 |---|---|
-| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation stores a hash of the old token against the device, never the token. |
-| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, so no `LIKE` wildcard reaches the match, and only when exactly one device of that vendor matches. |
+| `token_retired` | The token was regenerated and the terminal still sends the old one. The rotation remembers the old token's sha256 for a week, never the token. |
+| `token_truncated` | The terminal sent the start of the device's token and no more, as a short address field does. Only a hex string of 16 to 63 characters is tried, matched on the stored hash of its first 16 characters (never a `LIKE` on the token), and only when exactly one device of that vendor matches. |
 | `token_missing` | The request named the device by its serial and carried no token, and the device has one. |
 | `ip_not_allowed` | A device without a token called from an address not on its allowlist. |
 
@@ -682,21 +751,72 @@ received from this terminal yet"; re-enter the address from the device page.
 A terminal retrying every few seconds is written once a minute, and a cache that cannot be
 reached never turns the 401 into a 500.
 
-## Device clocks (2026-10-14)
+## Device clocks (2026-10-14, reworked 2026-11-21)
 
-`devices.clock_offset_seconds` is how far a device's clock is from the server's, read off
-each pushed punch (`DeviceClock`): the punch time minus the time it arrived. Pushes
-arrive seconds after the punch, so the gap is the clock error plus delivery delay.
+`devices.clock_offset_seconds` is how far a device's clock is from the server's, positive
+when the device runs ahead (`DeviceClock`). Two sources, which do not say the same thing:
 
-- A gap over an hour is ignored. That is a backlog uploaded after an outage, or a time
-  that is simply wrong.
-- **Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the
-  punch. Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
-  `DeviceTime::isInFuture` refuses it, but the clock reading is still taken first.
-- **Behind is shown, not flagged.** It cannot be told apart from a punch that arrived
-  late.
+- **A heartbeat** (Hikvision push: a notification that is not an access event, read before it
+  is answered `ignored`) is stamped with the terminal's clock when it is sent, so its time
+  against now is the clock error, whatever its size. Any offset is stored. A heartbeat with
+  no time leaves nothing stored and the page says *clock not measurable on this terminal*;
+  it is never shown as zero. A door event carries its own event time and may be buffered, so
+  only `eventType` `heartBeat` (or none) counts.
+- **A punch** can only prove a clock is **ahead**: one kept through an outage arrives late
+  and looks like a clock that is behind. A behind reading is never stored, and a punch never
+  overwrites a heartbeat reading taken in the last hour. The offset still goes on the punch
+  for the integrity check.
 
-The device page shows the reading as *in step*, *N min ahead* or *N min behind*. The fix
-is the `set_time` command, sent daily to every device that takes commands, or **Set clock
-now** on its Commands tab.
+**Ahead by more than two minutes raises a `device_clock_ahead` integrity flag** on the punch.
+Up to ten minutes ahead the punch is recorded and flagged. Beyond that,
+`DeviceTime::isInFuture` refuses it (`clock_ahead`, kept in quarantine), but the clock reading
+is still taken first.
 
+The device page shows the reading as *in step*, *N ahead* or *N behind*, with a warning
+beyond two minutes. Within 30 minutes of six hours it says the terminal is probably set to
+Ethiopian time of day (use the 24-hour clock, or NTP); a year or more out, that the date is
+probably set to the Ethiopian calendar. The fix is the `set_time` command, sent daily to every
+device that takes commands, or **Set clock now** on its Commands tab. The source of the
+reading is kept in the signals store (`device-clock:source:{id}`), not a column.
+
+## Terminals that only send (2026-11-21)
+
+`DeviceManager::receivesOnly()` is true for a Hikvision terminal with no address, every
+`zkteco_adms` device, and a ZKTeco or Suprema device with no address. Such a device is never
+pulled whatever its `auto_sync` says; `devices:sync` and every page that reads it only settle
+its status by `PushDeviceStatus`: `pending` (never heard), `online` (under 15 minutes),
+`quiet` (under 24 hours), `offline`. An ADMS terminal keeps its own adapter, its commands and
+the roster it last reported; `DeviceManager::hasNoRoster()` asks whether ETHR can read a
+roster by asking the terminal.
+
+Each device reports `today` (received, recorded, held, duplicate, quarantined, waiting) for
+the organisation's day (`DeviceDayCounts`). `POST /devices/{device}/allowlist` adds the
+address a refusal names (`device.update`, audited, idempotent, at most 20 entries).
+`GET /admin/devices/{devicePublicId}/capture` is the platform operator's redacted export of one
+terminal's last seven days and its last 20 heartbeat bodies (body only, never the token).
+
+## Silence notices for terminals that only send (2026-11-24)
+
+A terminal that only sends has no pull job, so nothing told anyone when it went quiet.
+`devices:watch-silence` (every 15 minutes, `withoutOverlapping`) sets each operational
+organisation as the current tenant, asks `DeviceSilence` which terminals are silent, and
+dispatches `DeviceSilent`; `NotifyDeviceSilent` tells the tenant and HR admins, at most once a
+day per device (key `device-notice:silent:{id}:{organisation's date}`). It adds no
+`withoutGlobalScope`. The dashboard's `silent` list comes from the same `DeviceSilence`, so the
+page and the notice cannot disagree.
+
+| Terminal | Evidence | Silent when |
+|---|---|---|
+| `zkteco_adms` | `last_sync_at`, stamped on every ping | `now - max(last_sync_at, start of today's working hours) >= 30 minutes`, inside working hours |
+| Hikvision push, ZKTeco or Suprema with no address | `device_inbound_punches` rows of today, not `last_sync_at` (a Hikvision heartbeat stamps it) | no punch since the start of the organisation's day, `>= 60 minutes` after the default shift began, inside working hours, while the device's branch (or the whole organisation, with no branch) has an active employee with a badge number |
+
+Working hours are the active default shift's days, start and end, minus the holidays of the
+terminal's branch; a shift that crosses midnight is measured from the day it starts. No
+default shift (crews on a default rotation) means no notice. Pulled terminals, terminals never
+heard from and terminals registered after the day began are left out.
+
+Settings live in `tenants.settings`, written by `PUT /settings` (`settings.manage`), so there is
+no migration: `device_silence_alerts` (default on), `device_silence_adms_minutes` (15 to 240,
+default 30), `device_silence_push_grace_minutes` (30 to 480, default 60), read through
+`DeviceSilenceRules`. The production scheduler is the GitHub Actions caller, often 10 to 20
+minutes late, and the setting's hint says so. Pinned in `tests/Feature/Device/DeviceSilenceWatchTest.php`.

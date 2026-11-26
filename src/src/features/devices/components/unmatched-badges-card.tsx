@@ -6,7 +6,10 @@ import { BadgeHelp, Download, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { EmployeeSelect } from "@/components/shared/employee-select";
+import {
+  EmployeeSearchSelect,
+  type PickedEmployee,
+} from "@/components/shared/employee-search-select";
 import {
   useDismissUnmatchedBadge,
   useUnmatchedBadges,
@@ -16,7 +19,10 @@ import { useBringInPunches } from "@/features/devices/bring-in";
 import { BringInProgress } from "@/features/devices/components/bring-in-progress";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
-import { matchReasonLabel } from "@/features/employees/likeness";
+import {
+  SuggestionLine,
+  type Suggested,
+} from "@/features/devices/components/suggestion-line";
 import { buildTemplate, XLSX_MIME } from "@/features/onboarding/v2/xlsx-grid";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
@@ -48,6 +54,16 @@ export function heldSinceDate(firstSeen: string, timeZone: string): string {
   return Number.isNaN(at.getTime())
     ? firstSeen.slice(0, 10)
     : todayIn(timeZone, at);
+}
+
+/**
+ * The first word of the name a terminal sent, to open the picker already
+ * searched. The given name alone, because the father's name is where
+ * spellings differ most, and the picker's search is one match on the text.
+ */
+export function givenName(name: string | null | undefined): string | undefined {
+  const first = name?.trim().split(/\s+/)[0];
+  return first ? first : undefined;
 }
 
 /**
@@ -135,6 +151,9 @@ export function UnmatchedBadgesCard() {
         <p className="text-sm text-muted-foreground">
           {t("devices_page.unmatched.description")}
         </p>
+        <p className="text-sm text-muted-foreground">
+          {t("devices_page.unmatched.number_help")}
+        </p>
         {canCreate && addable.length > 0 && (
           <div>
             <Button
@@ -184,7 +203,9 @@ function UnmatchedRow({
   const { t } = useT();
   const { formatDate } = useDateFormatters();
   const timeZone = useTenantTimezone();
-  const [employee, setEmployee] = useState("");
+  // Who the row will be assigned to, and the name its picker shows. A
+  // suggestion fills it without asking the server for anyone.
+  const [employee, setEmployee] = useState<PickedEmployee | null>(null);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const bringIn = useBringInPunches();
   const dismiss = useDismissUnmatchedBadge();
@@ -203,14 +224,42 @@ function UnmatchedRow({
           (c) => c.employee_public_id === match.employee_public_id,
         )
       : undefined;
-  // Who it may be: shown with the reasons, and a person decides.
-  const possible =
-    !holder && match && match.outcome !== "new" ? candidates : [];
+  // Who it may be: the resolver's people with their reasons, then the people
+  // the terminal's name fits that it did not name, each with who they are and
+  // what speaks against them. A person a person decides on, never the server.
+  const nameFits = !holder ? (row.name_matches ?? []) : [];
+  const possible: Suggested[] = [
+    ...(!holder && match && match.outcome !== "new" ? candidates : []).map(
+      (c): Suggested => {
+        const fit = nameFits.find(
+          (p) => p.employee_public_id === c.employee_public_id,
+        );
+        return {
+          public_id: c.employee_public_id,
+          name: c.employee_name,
+          score: c.score,
+          reasons: c.reasons,
+          fit: fit?.fit,
+          identity: c.identity ?? fit?.identity,
+        };
+      },
+    ),
+    ...nameFits
+      .filter(
+        (p) =>
+          !(match?.outcome !== "new" ? candidates : []).some(
+            (c) => c.employee_public_id === p.employee_public_id,
+          ),
+      )
+      .map((p): Suggested => ({
+        public_id: p.employee_public_id,
+        name: p.employee_name,
+        fit: p.fit ?? "same",
+        identity: p.identity,
+        department: p.department,
+      })),
+  ];
   const isNew = match?.outcome === "new";
-  // People the terminal's own name fits, other than those already listed.
-  const sameName = (!holder ? (row.name_matches ?? []) : []).filter(
-    (p) => !possible.some((c) => c.employee_public_id === p.employee_public_id),
-  );
   const canBeBadgeNumber = BADGE_NUMBER.test(row.badge);
 
   function onAssign(employeePublicId: string) {
@@ -270,54 +319,24 @@ function UnmatchedRow({
             })}
           </p>
         )}
-        {canManage && possible.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-muted-foreground">
-            {possible.map((c) => (
-              <li key={c.employee_public_id}>
-                <button
-                  type="button"
-                  className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() => setEmployee(c.employee_public_id)}
-                >
-                  {t("devices_page.unmatched.possibly", "Possibly :name", {
-                    name: c.employee_name,
-                  })}
-                </button>{" "}
-                · {Math.round(c.score * 100)}%
-                {c.reasons.length > 0 && (
-                  <span className="italic">
-                    {" "}
-                    ({c.reasons.map((r) => matchReasonLabel(r, t)).join(", ")})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+        {canManage && holder && row.recording_itself && (
+          <p className="text-xs text-muted-foreground">
+            {t("devices_page.unmatched.recording_itself")}
+          </p>
         )}
-        {canManage && sameName.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-muted-foreground">
-            {sameName.map((p) => (
-              <li key={p.employee_public_id}>
-                <button
-                  type="button"
-                  className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() => setEmployee(p.employee_public_id)}
-                >
-                  {t("devices_page.unmatched.possibly", "Possibly :name", {
-                    name: p.employee_name,
-                  })}
-                </button>
-                {p.department && <> · {p.department}</>}
-                <span className="italic">
-                  {" "}
-                  (
-                  {t(
-                    "devices_page.unmatched.same_name",
-                    "same name on the terminal",
-                  )}
-                  )
-                </span>
-              </li>
+        {canManage && possible.length > 0 && (
+          <ul className="space-y-1.5 text-xs text-muted-foreground">
+            {possible.map((person) => (
+              <SuggestionLine
+                key={person.public_id}
+                person={person}
+                onChoose={() =>
+                  setEmployee({
+                    public_id: person.public_id,
+                    name: person.name,
+                  })
+                }
+              />
             ))}
           </ul>
         )}
@@ -364,16 +383,17 @@ function UnmatchedRow({
                 </Button>
               )}
               <div className="w-full sm:w-64">
-                <EmployeeSelect
+                <EmployeeSearchSelect
                   id={`unmatched-${row.device_public_id}-${row.badge}`}
                   value={employee}
                   onChange={setEmployee}
+                  initialSearch={givenName(row.name_on_device)}
                 />
               </div>
               <Button
                 size="sm"
-                onClick={() => onAssign(employee)}
-                disabled={employee === "" || assigning || carrying}
+                onClick={() => employee && onAssign(employee.public_id)}
+                disabled={employee === null || assigning || carrying}
               >
                 {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 {t("devices_page.unmatched.assign")}

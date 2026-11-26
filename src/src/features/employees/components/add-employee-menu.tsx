@@ -6,6 +6,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   HardDrive,
+  History,
   Plus,
   UserRound,
 } from "lucide-react";
@@ -33,7 +34,8 @@ import { useT } from "@/lib/i18n/useT";
  *
  * `split` keeps the common case one click: the main half opens the form, the
  * caret opens the others. `others` is for the form itself, where "one person"
- * is the page already open.
+ * is the page already open. "Lists you added recently" opens the import page
+ * at the card that holds them, so it costs the Employees page no request.
  *
  * The device rows are asked for only by someone who may list devices, so a
  * person who can add employees but not see devices does not fire two refused
@@ -73,6 +75,12 @@ export function AddEmployeeMenu({
         <Link href="/employees/import">
           <FileSpreadsheet className="mr-2 h-4 w-4" aria-hidden="true" />
           {t("employees.add_menu.file", "From a file or pasted rows")}
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/employees/import#recent-lists">
+          <History className="mr-2 h-4 w-4" aria-hidden="true" />
+          {t("employees.add_menu.recent_lists", "Lists you added recently")}
         </Link>
       </DropdownMenuItem>
       {readableDevice && (

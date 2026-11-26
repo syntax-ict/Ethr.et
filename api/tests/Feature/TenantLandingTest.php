@@ -127,13 +127,18 @@ it('offers SSO on the sign-in page only once the organisation configured it', fu
     test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
         ->assertJsonPath('tenant.sign_in.sso', false);
 
-    SsoSetting::query()->create([
+    $sso = SsoSetting::query()->create([
         'tenant_id' => $tenant->id,
         'provider' => 'saml',
         'is_enabled' => true,
         'idp_entity_id' => 'https://idp.acme.et',
         'idp_sso_url' => 'https://idp.acme.et/sso',
     ]);
+
+    test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
+        ->assertJsonPath('tenant.sign_in.sso', false);
+
+    $sso->update(['idp_certificate' => 'cert-data']);
 
     test()->getJson(landingUrl($tenant, '/auth/tenant-context'))
         ->assertJsonPath('tenant.sign_in.sso', true);

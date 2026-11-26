@@ -130,4 +130,55 @@ describe("<EmergencyContactsTab>", () => {
     );
     expect(deletes).toBe(0);
   });
+
+  it("offers the relationship as a list, and keeps a typed one beside Other", async () => {
+    server.use(http.get(CONTACTS_URL, () => HttpResponse.json([])));
+    const bodies: Array<Record<string, unknown>> = [];
+    server.use(
+      http.post(CONTACTS_URL, async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(buildContact(), { status: 201 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderTab();
+
+    await user.click(await screen.findByRole("button", { name: /Add/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Name/), "Almaz Tesfaye");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Other" }));
+    await user.type(
+      within(dialog).getByPlaceholderText("Say how they are related"),
+      "Neighbour",
+    );
+    await user.type(within(dialog).getByLabelText(/Phone/), "0911223344");
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({
+      name: "Almaz Tesfaye",
+      relationship: "Neighbour",
+    });
+  });
+
+  it("names a stored relationship in the list's words, and shows free text as written", async () => {
+    server.use(
+      http.get(CONTACTS_URL, () =>
+        HttpResponse.json([
+          buildContact({ relationship: "spouse" }),
+          buildContact({
+            public_id: "01HZCONTACT00000000000002",
+            name: "Tigist Bekele",
+            relationship: "Uncle",
+          }),
+        ]),
+      ),
+    );
+    renderTab();
+
+    expect(await screen.findByText(/Spouse · /)).toBeInTheDocument();
+    expect(screen.getByText(/Uncle · /)).toBeInTheDocument();
+  });
 });

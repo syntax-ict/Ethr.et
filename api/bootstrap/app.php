@@ -7,6 +7,7 @@ use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
 use App\Exceptions\DeviceRosterUnavailable;
 use App\Exceptions\EmployeeAlreadyExists;
+use App\Exceptions\ImpersonationRestricted;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
@@ -75,7 +76,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // is outside the api group too. AdmsDeviceResolver authenticates
             // each request by serial and IP allowlist.
             Route::prefix('iclock')
-                ->middleware('throttle:adms')
+                ->middleware(['throttle:adms', RunBackgroundWorkAfterResponse::class])
                 ->group(function (): void {
                     foreach (['', '.aspx'] as $ext) {
                         Route::get('/cdata'.$ext, [AdmsController::class, 'handshake']);
@@ -226,6 +227,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // are unaffected. Payload scrubbing lives in config/sentry.php `before_send`.
         Integration::handles($exceptions);
 
+        // A refusal, not a fault: it records itself when rendered.
+        $exceptions->dontReport(ImpersonationRestricted::class);
+
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
         // Handle HTTP exceptions (4xx, 5xx)
@@ -330,6 +334,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             if ($e->employees !== []) {
                 $problem['employees'] = $e->employees;
             }
+            $problem += $e->extra;
 
             return response()->json($problem, 422, ['Content-Type' => 'application/problem+json']);
         });

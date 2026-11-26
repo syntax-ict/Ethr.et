@@ -380,7 +380,7 @@ Stated plainly, so nobody promises a customer what the product does not do.
 - **No sector-specific statutory rule is seeded.** The sector is recorded and the resolver would use a sector row, but none exists.
 - **Tax brackets and pension rules can be scoped to a kind. None are.** One ladder and the three scheme rates serve every kind.
 - **Pension coverage is unconfirmed** for the five kinds in situation 4 and for `public_enterprise` (research O1, O2 in [`STATUTORY-RULES-RESEARCH.md`](../payroll/STATUTORY-RULES-RESEARCH.md); row 11 of [`ACCOUNTANT-SIGN-OFF.md`](../payroll/ACCOUNTANT-SIGN-OFF.md)). The Hamle fiscal year for `government` and the working-days figure are conventions, not confirmed.
-- **Civil-service leave is not confirmed.** The setup wizard's review note for the public profile still cites Proclamation 1064/2017, which the research says 1353/2024 repealed (row 12 of the sign-off).
+- **Civil-service leave is not confirmed.** The setup wizard's review note for the public profile now cites Proclamation 1353/2024 (corrected 2026-11-23), but the values it proposes are still ETHR's general defaults, not taken from that law. Row 12 of the sign-off is still open.
 - **The Amharic names** of the ten inheriting kinds, and the Afaan Oromoo names of all sixteen, are drafts awaiting a native reader ([`AMHARIC-REVIEW.md`](../i18n/AMHARIC-REVIEW.md)).
 - **Impersonation refuses a change of kind and of the statutory settings, but not `POST /payroll/statutory-rules/use-law`**, which ends the organisation's own saved tax ladder and pension rates (situation 8).
 - **The fiscal year moves no amount** (section 3).

@@ -11,14 +11,15 @@ use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceCommand;
+use App\Models\DeviceInboundPunch;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\DeviceManager;
 use Carbon\Carbon;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
 /**
@@ -198,15 +199,16 @@ it('reads the device clock off a punch, and flags a device that runs ahead', fun
         ->toContain('device_clock_ahead');
 });
 
-it('shows a device behind without flagging it, and ignores a backlog', function () {
+it('never reads a clock as behind from a punch, which may only have been kept through an outage', function () {
     [, $device, $employee] = admsSetup();
 
+    // Three minutes old and a day old look the same as a clock that is behind.
     adms('POST', 'cdata', "1042\t2026-10-14 17:57:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG']);
-    expect($device->fresh()->clock_offset_seconds)->toBe(-180)
-        ->and(AttendanceIntegrityFlag::where('employee_id', $employee->id)->where('type', 'device_clock_ahead')->exists())->toBeFalse();
-
     adms('POST', 'cdata', "1042\t2026-10-13 09:00:00\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG']);
-    expect($device->fresh()->clock_offset_seconds)->toBe(-180);
+
+    expect($device->fresh()->clock_offset_seconds)->toBeNull()
+        ->and($device->fresh()->clock_checked_at)->toBeNull()
+        ->and(AttendanceIntegrityFlag::where('employee_id', $employee->id)->where('type', 'device_clock_ahead')->exists())->toBeFalse();
 });
 
 it('packs the time the way the firmware reads it', function () {
@@ -220,7 +222,11 @@ it('is online while it keeps checking in', function () {
     $status = app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh());
     expect($status['online'])->toBeTrue();
 
-    Carbon::setTestNow(now()->addMinutes(11));
+    // The shared push window (PushDeviceStatus): 15 minutes, as for every terminal that only sends.
+    Carbon::setTestNow(now()->addMinutes(14));
+    expect(app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh())['online'])->toBeTrue();
+
+    Carbon::setTestNow(now()->addMinutes(2));
     expect(app(DeviceManager::class)->adapter($device->fresh())->getStatus($device->fresh())['online'])->toBeFalse();
 });
 
@@ -313,17 +319,18 @@ describe('on the organisation\'s own address', function () {
 // already stored dedupe on their key); a refusal is still acknowledged, and
 // any other error is reported and skipped so one bad punch cannot block the
 // terminal's queue for good.
-it('asks the terminal to resend punches the database failed to store', function () {
+it('stores a punch before the engine runs, so a database failure there never loses it', function () {
+    Queue::fake();
     [, , $employee] = admsSetup();
-    AttendanceRecord::creating(function () {
-        throw new QueryException('mysql', 'insert into attendance_records', [], new PDOException('Lost connection'));
-    });
 
-    adms('POST', 'cdata', "1042\t2026-10-14 08:01:22\t0\t1\t0\t0\t0\n", ['table' => 'ATTLOG'])
-        ->assertStatus(503)
-        ->assertHeader('Retry-After');
+    // The engine's work is the queue's now (ProcessDeviceInboundPunchesJob);
+    // a failure there leaves the row pending and is retried (HikvisionInboxTest).
+    adms('POST', 'cdata', '1042	2026-10-14 08:01:22	0	1	0	0	0
+', ['table' => 'ATTLOG'])
+        ->assertOk()->assertSeeText('OK: 1');
 
-    expect(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
+    expect(DeviceInboundPunch::withoutGlobalScopes()->whereNull('processed_at')->count())->toBe(1)
+        ->and(AttendanceRecord::where('employee_id', $employee->id)->exists())->toBeFalse();
 });
 
 it('acknowledges a punch it refuses, and reports and skips one that fails otherwise', function () {

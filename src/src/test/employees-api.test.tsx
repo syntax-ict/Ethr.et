@@ -44,6 +44,7 @@ describe("employees api (MSW, generated OpenAPI types)", () => {
               code: null,
               description: null,
               is_active: true,
+              access_role: null,
               created_at: "2024-01-01T00:00:00Z",
               updated_at: "2024-01-01T00:00:00Z",
             },

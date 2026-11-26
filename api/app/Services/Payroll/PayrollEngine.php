@@ -9,6 +9,7 @@ use App\Enums\EmployeeStatus;
 use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Enums\OvertimeRequestStatus;
+use App\Exceptions\ImpersonationRestricted;
 use App\Exceptions\PayrollRunRefused;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -32,6 +33,7 @@ use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon as IlluminateCarbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +66,7 @@ final class PayrollEngine
         private readonly LoanService $loanService,
         private readonly CostSharingService $costSharingService,
         private readonly AllowanceService $allowanceService,
-        private readonly OvertimeClassifier $overtimeClassifier,
+        private readonly PeriodOvertime $periodOvertime,
         private readonly HolidayService $holidayService,
         private readonly LeaveDayCalculator $leaveDayCalculator,
         private readonly EthiopianCalendar $calendar,
@@ -207,7 +209,7 @@ final class PayrollEngine
             // and until 2026-10-15 that employee silently vanished from the run
             // (production QA, F1). Loaded here so the fallback costs no query
             // per employee.
-            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
             ->chunkById(100, function ($employees) use (
                 $run, $periodStart, $periodEnd,
                 $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules,
@@ -310,7 +312,7 @@ final class PayrollEngine
 
         $employees = $this->payableEmployees($tenantId, $periodStart, $periodEnd)
             ->when($afterEmployeeId !== null, fn ($query) => $query->where('employees.id', '>', $afterEmployeeId))
-            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0)])
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
             ->orderBy('employees.id')
             ->limit($limit + 1)
             ->get();
@@ -388,13 +390,43 @@ final class PayrollEngine
      * controller's status check apply the balances once, not twice. The
      * balance movements and the status change commit together or not at all.
      */
-    public function approve(PayrollRun $run, int $approvedBy): PayrollRun
+    public function approve(PayrollRun $run, int $approvedBy, int $acknowledgedPayDifferences = 0, ?float $deadline = null): PayrollRun
     {
-        return DB::transaction(function () use ($run, $approvedBy): PayrollRun {
+        ImpersonationRestricted::unlessOrganisation('PayrollEngine::approve');
+
+        return DB::transaction(function () use ($run, $approvedBy, $acknowledgedPayDifferences, $deadline): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'completed') {
                 throw PayrollRunRefused::notCompleted();
+            }
+
+            // Under the lock, so a salary moved after the run was calculated is
+            // refused here and not only in a request that raced past the check.
+            if ($this->inputsChangedSince($locked)) {
+                throw PayrollRunRefused::inputsChangedSinceProcessed();
+            }
+
+            // And attendance, in every reconciliation mode: overtime, lateness
+            // and leave that moved since the run was calculated are refused
+            // here, so a run is never approved at figures that are no longer
+            // true. `$deadline` is the request's own budget.
+            app(AttendanceInputsCheck::class)->assertUnchanged($this, $locked, $deadline);
+
+            // Pay differences are counted here too, under the lock: a change
+            // that committed after the controller counted them is not missed.
+            // Rows the organisation has not handled nag every approval.
+            $differences = fn (string $status): int => DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('status', $status)
+                ->count();
+            if ($differences('pending') > 0) {
+                throw PayrollRunRefused::payDifferencesPending();
+            }
+            $failed = $differences('failed');
+            $open = $differences('open') + $failed;
+            if ($open > 0 && $acknowledgedPayDifferences !== $open) {
+                throw PayrollRunRefused::payDifferencesUnacknowledged($open, $failed);
             }
 
             $movements = $this->balances->apply($locked);
@@ -404,6 +436,25 @@ final class PayrollEngine
                 'approved_by' => $approvedBy,
                 'approved_at' => now(),
             ]);
+
+            // A reprocess pays a month finance may already have settled by
+            // hand. Its people with a handled difference anywhere in the chain
+            // it replaced are flagged, so the double payment shows as an open
+            // overpayment instead of staying invisible.
+            if ($locked->reprocessed_from_id !== null) {
+                $recorder = app(PayDifferenceRecorder::class);
+                $chain = $recorder->chain($locked->tenant_id, $locked->id);
+                $handled = DB::table('payroll_pay_differences')
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->whereIn('payroll_run_id', $chain)
+                    ->whereIn('status', ['settled', 'dismissed'])
+                    ->distinct()
+                    ->orderBy('employee_id')
+                    ->pluck('employee_id');
+                foreach (Employee::withTrashed()->where('tenant_id', $locked->tenant_id)->whereIn('id', $handled)->orderBy('id')->get() as $person) {
+                    $recorder->flag($person, Carbon::parse($locked->period_start)->toDateString());
+                }
+            }
 
             if ($movements !== []) {
                 AuditLog::record('payroll.balances_applied', $locked, ['movements' => $movements]);
@@ -423,6 +474,8 @@ final class PayrollEngine
      */
     public function markPaid(PayrollRun $run, int $paidBy, string $paidOn, ?string $reference, ?string $note): PayrollRun
     {
+        ImpersonationRestricted::unlessOrganisation('PayrollEngine::markPaid');
+
         return DB::transaction(function () use ($run, $paidBy, $paidOn, $reference, $note): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
@@ -452,9 +505,9 @@ final class PayrollEngine
      * 2026-10-17 a void restored nothing and the reprocess that follows
      * deducted again.
      */
-    public function void(PayrollRun $run, int $voidedBy, string $reason): PayrollRun
+    public function void(PayrollRun $run, int $voidedBy, string $reason, int $acknowledgedSettledPayDifferences = 0): PayrollRun
     {
-        return DB::transaction(function () use ($run, $voidedBy, $reason): PayrollRun {
+        return DB::transaction(function () use ($run, $voidedBy, $reason, $acknowledgedSettledPayDifferences): PayrollRun {
             $locked = PayrollRun::query()->whereKey($run->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status === 'paid') {
@@ -465,6 +518,19 @@ final class PayrollEngine
                 throw PayrollRunRefused::cannotVoid();
             }
 
+            // Finance paid these differences by hand; a reprocess pays the new
+            // salary in full, so the void says it knows. Settled rows stay settled.
+            $settled = count(DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('payroll_run_id', $locked->id)
+                ->where('status', 'settled')
+                ->lockForUpdate()
+                ->pluck('id')
+                ->all());
+            if ($settled > 0 && $acknowledgedSettledPayDifferences !== $settled) {
+                throw PayrollRunRefused::settledPayDifferencesUnacknowledged($settled);
+            }
+
             $movements = $locked->status === 'approved' ? $this->balances->reverse($locked) : [];
 
             $locked->update([
@@ -473,6 +539,14 @@ final class PayrollEngine
                 'voided_by' => $voidedBy,
                 'void_reason' => $reason,
             ]);
+
+            // Differences recorded against this run's payslips go with it:
+            // the reprocess that follows pays from today's figures.
+            DB::table('payroll_pay_differences')
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('payroll_run_id', $locked->id)
+                ->whereIn('status', ['pending', 'open', 'failed'])
+                ->update(['status' => 'superseded', 'updated_at' => now()]);
 
             if ($movements !== []) {
                 AuditLog::record('payroll.balances_reversed', $locked, ['movements' => $movements]);
@@ -612,6 +686,351 @@ final class PayrollEngine
     }
 
     /**
+     * The salary a run for this period pays an employee, and where it came
+     * from. The one place that decides: computeEntry() calls it, and so does
+     * the approve check that compares a run's figures with today's.
+     *
+     * An employee with history rows is paid the row in force on the period's
+     * last day, or nothing when none is (an earlier month is not paid today's
+     * figure); only an employee with no rows at all reads the salary on the
+     * record. When that comes to nothing, the contract in force during the
+     * period states it (production QA 2026-10-15, F1).
+     *
+     * @return array{cents: int, source: array<string, string>}
+     */
+    public function salaryFor(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $cents = (int) $employee->salary_cents;
+        $source = ['salary_source' => 'employee'];
+
+        if (SalaryInForce::hasRows($employee)) {
+            $inForce = SalaryInForce::on($employee, $periodEnd);
+            $cents = $inForce !== null ? max(0, $inForce->salary_cents) : 0;
+            $source = $inForce === null ? [] : [
+                'salary_source' => 'history',
+                'salary_history_source' => $inForce->source,
+                'salary_effective_date' => $inForce->effective_date->toDateString(),
+            ];
+        }
+
+        if ($cents <= 0) {
+            $cents = $this->contractSalaryFor($employee, $periodStart, $periodEnd) ?? 0;
+            $source = ['salary_source' => 'contract'];
+        }
+
+        return ['cents' => $cents, 'source' => $source];
+    }
+
+    /**
+     * Whether any entry of the run would be paid a different basic salary if
+     * the run were calculated now. Compares figures, so it sees a salary that
+     * was added, changed or removed (a cancelled scheduled raise, a contract
+     * ended before it started) after the run was calculated. Entries whose
+     * log carries no basic salary input are skipped. Bounded: entries and
+     * their employees are read in chunks of 200, with history and contracts
+     * eager-loaded.
+     *
+     * It also says true when an entry's leaving date has moved so that the
+     * last day the person is paid for differs from the one logged (a date
+     * back-dated into the period, or before it so the person is no longer in
+     * the run at all), or the person is no longer among payableEmployees().
+     * A leaving date that moves from one day after the period to another
+     * changes nothing and is not a change. One extra query per chunk.
+     *
+     * It also says true when someone the run should have paid has no entry in
+     * it: a person hired or back-dated into the period after the run was
+     * calculated. That is judged against exactly the people a run pays
+     * (payableEmployees(), the whole organisation, no subset) and the one skip
+     * a run makes (a salary of nothing, through salaryFor()), and only for a
+     * run with at least one entry calculated at 1.9 or later, as an older run
+     * cannot be judged.
+     */
+    public function inputsChangedSince(PayrollRun $run): bool
+    {
+        $start = Carbon::parse($run->period_start);
+        $end = Carbon::parse($run->period_end);
+        $changed = false;
+        $judgeable = false;
+
+        PayrollEntry::query()
+            ->where('tenant_id', $run->tenant_id)
+            ->where('payroll_run_id', $run->id)
+            ->select(['id', 'employee_id', 'calculation_log'])
+            ->chunkById(200, function ($entries) use ($run, $start, $end, &$changed, &$judgeable): bool {
+                $employees = Employee::withTrashed()
+                    ->where('tenant_id', $run->tenant_id)
+                    ->whereIn('id', $entries->pluck('employee_id')->all())
+                    ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+                    ->get()
+                    ->keyBy('id');
+
+                $stillPayable = null;
+
+                foreach ($entries as $entry) {
+                    $log = $entry->getAttribute('calculation_log');
+                    $log = is_array($log) ? $log : [];
+                    $logged = $log['inputs']['basic_salary_cents'] ?? null;
+
+                    // A run calculated before 1.9 cannot be compared: the
+                    // backfill could not see a direct edit made before it.
+                    if (version_compare((string) ($log['version'] ?? '0'), '1.9', '<')) {
+                        continue;
+                    }
+                    $judgeable = true;
+                    $employee = $employees->get($entry->employee_id);
+
+                    if ($logged === null || $employee === null) {
+                        continue;
+                    }
+
+                    if ($this->salaryFor($employee, $start, $end)['cents'] !== (int) $logged) {
+                        $changed = true;
+
+                        return false;
+                    }
+
+                    $stillPayable ??= array_flip($this->payableEmployees($run->tenant_id, $start, $end)
+                        ->whereIn('id', $entries->pluck('employee_id')->all())
+                        ->pluck('id')
+                        ->all());
+                    $loggedLeaving = $log['inputs']['termination_date'] ?? null;
+                    $loggedLast = $this->lastPaidDay(
+                        is_string($loggedLeaving) ? Carbon::parse($loggedLeaving) : null,
+                        $start,
+                        $end,
+                    );
+
+                    if (! isset($stillPayable[$employee->id])
+                        || ! $loggedLast->equalTo($this->lastPaidDay($employee->termination_date, $start, $end))) {
+                        $changed = true;
+
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+        return $changed || ($judgeable && $this->payableEmployeeMissing($run, $start, $end));
+    }
+
+    /**
+     * The pay-moving figures attendance and leave give one person's entry, by
+     * the same methods computeEntry() calls: overtime minutes by type, the
+     * lateness minutes decided (only when `$withLateness`, as the entry logged
+     * them), unpaid leave days and the Art. 85 half-pay and unpaid sick days.
+     * What AttendanceInputsCheck compares with the entry's log at approval.
+     *
+     * @return array{overtime: array<string, int>, lateness_minutes: int|null, unpaid_leave_days: float, sick_half_days: float, sick_unpaid_days: float}
+     */
+    public function attendanceFigures(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules, bool $withLateness): array
+    {
+        $sick = $this->sickLeave->inPeriod($employee, $periodStart, $periodEnd, $rules->int('payroll.working_days_per_month'));
+
+        return [
+            'overtime' => $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules)['buckets'],
+            'lateness_minutes' => $withLateness ? $this->decidedLateness($employee, $periodStart, $periodEnd)['minutes'] : null,
+            'unpaid_leave_days' => $this->gatherUnpaidLeaveDays($employee, $periodStart, $periodEnd),
+            'sick_half_days' => $sick['half'],
+            'sick_unpaid_days' => $sick['unpaid'],
+        ];
+    }
+
+    /**
+     * The last day of the period a person is paid for: a leaving date counts
+     * only when it falls inside the period, otherwise the period's end. Shared
+     * by computeEntry() and inputsChangedSince() so both read the same rule.
+     */
+    private function lastPaidDay(?Carbon $terminationDate, Carbon $periodStart, Carbon $periodEnd): Carbon
+    {
+        $day = $terminationDate !== null && $terminationDate->between($periodStart, $periodEnd)
+            ? $terminationDate
+            : $periodEnd;
+
+        return $day->copy()->startOfDay();
+    }
+
+    /**
+     * Cost sharing under a logged rate: a percentage of the given gross, never
+     * above what was outstanding when the month was calculated. The same
+     * arithmetic as CostSharingService::calculateDeduction().
+     *
+     * @param  array{loan_cents: int, cost_sharing_rate: float|null, cost_sharing_outstanding_cents: int|null}  $override
+     */
+    private function overriddenCostSharing(array $override, int $grossCents): int
+    {
+        $rate = $override['cost_sharing_rate'];
+        $outstanding = $override['cost_sharing_outstanding_cents'];
+
+        if ($rate === null || $outstanding === null || $grossCents <= 0 || $outstanding <= 0) {
+            return 0;
+        }
+
+        return min(intdiv($grossCents * (int) round($rate * 100), 10_000), $outstanding);
+    }
+
+    /**
+     * What counterfactual() needs about a run that does not depend on the
+     * entry: the rules, pension rule, tax basis and pagume as a run resolves
+     * them. A caller working through many entries of one run keeps it.
+     *
+     * @return array<string, mixed>
+     */
+    public function prepareForEntry(PayrollEntry $entry): array
+    {
+        $run = PayrollRun::query()->where('tenant_id', $entry->tenant_id)->findOrFail($entry->payroll_run_id);
+
+        return $this->prepare($entry->tenant_id, Carbon::parse($run->period_start), Carbon::parse($run->period_end));
+    }
+
+    /**
+     * What a released entry paid and what the same entry would pay now, both
+     * worked out today with today's rules and data, differing only in salary
+     * and leaving date, so an allowance rule changed or a late punch cancels
+     * out. Loans and the cost-sharing rate are taken from the entry's log for
+     * both sides, so both deduct as that month did; an entry whose log lacks
+     * them falls back to today's rows and says so (`net_is_estimate`).
+     * Writes nothing: no entry, balance, audit row, event or history row. The
+     * rules, pension rule and tax basis come from prepare(), as in a run.
+     *
+     * The due side is the employee as now. A person is due for a past period
+     * when hired by its end and not left before its start, whatever their
+     * status is today; otherwise, or with no salary in force, nothing is due
+     * and the paid side is what the entry stored (the whole stored amount is
+     * overpaid, not a recalculation that today's loans could inflate).
+     *
+     * @param  array<string, mixed>|null  $prepared  prepareForEntry(), when the caller has it
+     * @return array{paid: array<string, mixed>, due: array<string, mixed>, net_is_estimate: bool}
+     */
+    public function counterfactual(PayrollEntry $entry, ?array $prepared = null): array
+    {
+        $run = PayrollRun::query()->where('tenant_id', $entry->tenant_id)->findOrFail($entry->payroll_run_id);
+        $start = Carbon::parse($run->period_start);
+        $end = Carbon::parse($run->period_end);
+        $employee = Employee::withTrashed()
+            ->where('tenant_id', $entry->tenant_id)
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+            ->findOrFail($entry->employee_id);
+
+        [
+            'rules' => $rules,
+            'pagumen_strategy' => $pagumenStrategy,
+            'fiscal_year_start_month' => $fiscalYearStartMonth,
+            'pension_rule' => $pensionRule,
+            'tax_basis' => $taxBasis,
+            'pagume' => $pagume,
+        ] = $prepared ?? $this->prepare($entry->tenant_id, $start, $end);
+
+        $log = $entry->getAttribute('calculation_log');
+        $log = is_array($log) ? $log : [];
+        $steps = [];
+        foreach ($log['steps'] ?? [] as $step) {
+            if (is_array($step) && isset($step['step'])) {
+                $steps[$step['step']] = $step;
+            }
+        }
+        $deductions = isset($steps['loan_deductions'], $steps['cost_sharing'])
+            ? [
+                'loan_cents' => (int) ($steps['loan_deductions']['loan_deduction_cents'] ?? 0),
+                'cost_sharing_rate' => isset($steps['cost_sharing']['rate_percent']) ? (float) $steps['cost_sharing']['rate_percent'] : null,
+                'cost_sharing_outstanding_cents' => isset($steps['cost_sharing']['outstanding_before_cents']) ? (int) $steps['cost_sharing']['outstanding_before_cents'] : null,
+            ]
+            : null;
+
+        $compute = fn (Employee $who, ?int $salary): ?array => $this->computeEntry(
+            $who, $start, $end, $pagumenStrategy, $pagume, $fiscalYearStartMonth, $pensionRule, $taxBasis, $rules, $salary, $deductions,
+        );
+        $summary = fn (?array $a, ?string $leaving, ?int $salary): array => [
+            'gross_cents' => (int) ($a['gross_cents'] ?? 0),
+            'net_cents' => (int) ($a['net_cents'] ?? 0),
+            'basic_cents' => (int) ($a['basic_salary_cents'] ?? 0),
+            'income_tax_cents' => (int) ($a['income_tax_cents'] ?? 0),
+            'employee_pension_cents' => (int) ($a['employee_pension_cents'] ?? 0),
+            'salary_cents' => $salary,
+            'termination_date' => $leaving,
+        ];
+        $stored = fn (?string $leaving): array => [
+            'gross_cents' => (int) $entry->gross_cents,
+            'net_cents' => (int) $entry->net_cents,
+            'basic_cents' => (int) $entry->basic_salary_cents,
+            'income_tax_cents' => (int) $entry->income_tax_cents,
+            'employee_pension_cents' => (int) $entry->employee_pension_cents,
+            'salary_cents' => null,
+            'termination_date' => $leaving,
+            'as_stored' => true,
+        ];
+
+        $loggedSalary = $log['inputs']['basic_salary_cents'] ?? null;
+        $loggedLeaving = $log['inputs']['termination_date'] ?? null;
+        $loggedLeaving = is_string($loggedLeaving) ? $loggedLeaving : null;
+
+        $nowSalary = $this->salaryFor($employee, $start, $end)['cents'];
+        $leavingNow = $employee->termination_date?->toDateString();
+        $payable = $employee->hire_date !== null
+            && ! $employee->hire_date->gt($end)
+            && ($employee->termination_date === null || ! $employee->termination_date->lt($start));
+
+        $nothingDue = false;
+        if ($payable && $nowSalary > 0) {
+            $due = $summary($compute($employee, null), $leavingNow, $nowSalary);
+            if ($loggedSalary === null) {
+                $paid = $stored($loggedLeaving);
+            } else {
+                $then = clone $employee;
+                $then->termination_date = $loggedLeaving !== null ? IlluminateCarbon::parse($loggedLeaving) : null;
+                $paid = $summary($compute($then, (int) $loggedSalary), $loggedLeaving, (int) $loggedSalary);
+            }
+        } else {
+            // Nothing was owed, so everything taken from the pay is to be
+            // recovered or reinstated: the net to recover leaves out the
+            // loan instalment and cost sharing that were drawn from pay the
+            // person was not owed, which are stated apart so finance can put
+            // those balances back.
+            $due = $summary(null, $leavingNow, $nowSalary);
+            $paid = $stored($loggedLeaving);
+            $paid['stored_net_cents'] = $paid['net_cents'];
+            $paid['net_cents'] = $paid['gross_cents'] - $paid['income_tax_cents'] - $paid['employee_pension_cents'];
+            $paid['loan_deductions_cents'] = isset($steps['loan_deductions']['loan_deduction_cents']) ? (int) $steps['loan_deductions']['loan_deduction_cents'] : null;
+            $paid['cost_sharing_cents'] = isset($steps['cost_sharing']['cost_sharing_cents']) ? (int) $steps['cost_sharing']['cost_sharing_cents'] : null;
+            $nothingDue = true;
+        }
+        $due['payable'] = $payable;
+
+        return ['paid' => $paid, 'due' => $due, 'net_is_estimate' => ! $nothingDue && $deductions === null];
+    }
+
+    /**
+     * Whether a person the run pays has no entry in it and would be paid a
+     * salary now. Reads the run's employee ids once and the payable people in
+     * chunks of 200, with history and contracts eager-loaded.
+     */
+    private function payableEmployeeMissing(PayrollRun $run, Carbon $start, Carbon $end): bool
+    {
+        $paid = array_flip(PayrollEntry::query()
+            ->where('tenant_id', $run->tenant_id)
+            ->where('payroll_run_id', $run->id)
+            ->pluck('employee_id')
+            ->all());
+        $missing = false;
+
+        $this->payableEmployees($run->tenant_id, $start, $end)
+            ->with(['contracts' => fn ($q) => $q->where('salary_cents', '>', 0), 'salaryHistory'])
+            ->chunkById(200, function ($employees) use ($paid, $start, $end, &$missing): bool {
+                foreach ($employees as $employee) {
+                    if (! isset($paid[$employee->id]) && $this->salaryFor($employee, $start, $end)['cents'] > 0) {
+                        $missing = true;
+
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+        return $missing;
+    }
+
+    /**
      * Writes one employee's entry for a run: exactly what computeEntry()
      * works out, with the run it belongs to.
      *
@@ -640,7 +1059,11 @@ final class PayrollEngine
      * attributes of the entry a run would create, `calculation_log` included.
      * Null for someone with no salary to pay. A run writes it; a preview
      * shows it. It reads and writes nothing else: no balance moves until a
-     * run is approved (PayrollBalanceService).
+     * run is approved (PayrollBalanceService). `$salaryOverride` is for
+     * counterfactual() alone: a figure to pay instead of the one in force.
+     * `$deductionOverride` (loan_cents, cost_sharing_rate, cost_sharing_outstanding_cents)
+     * likewise replaces today's loans and cost-sharing obligation with what
+     * an entry's log says the month deducted.
      *
      * @param  array<string, mixed>  $taxBasis
      * @param  array{days: int, ethiopian_year: int|null, pagume_length: int|null}  $pagume
@@ -656,26 +1079,28 @@ final class PayrollEngine
         PensionRuleSnapshot $pensionRule,
         array $taxBasis,
         StatutoryRuleSet $rules,
+        ?int $salaryOverride = null,
+        ?array $deductionOverride = null,
     ): ?array {
         $workingDaysPerMonth = $rules->int('payroll.working_days_per_month');
         $hoursPerDay = $rules->int('payroll.hours_per_day');
-        $basicSalary = $employee->salary_cents;
 
-        // An employee whose own salary is unset is paid what the contract in
-        // force during this period states. Writes to employees.salary_cents are
-        // kept in sync by EmployeeContractService for contracts effective at
-        // creation time; this covers the ones that became effective later, and
-        // rows from before the sync existed (production QA 2026-10-15, F1).
-        if ($basicSalary <= 0) {
-            $basicSalary = $this->contractSalaryFor($employee, $periodStart, $periodEnd) ?? 0;
-        }
+        // Since 1.9: the salary in force on the period's last day pays the
+        // whole period, whenever the run is calculated, so a month reprocessed
+        // later pays what it paid then and a raise dated inside it is paid.
+        // `salary_source` says where the figure came from and
+        // `salary_changed_in_period` that a change landed inside the period,
+        // which one salary per run does not split by days.
+        ['cents' => $basicSalary, 'source' => $salarySource] = $salaryOverride !== null
+            ? ['cents' => $salaryOverride, 'source' => ['salary_source' => 'override']]
+            : $this->salaryFor($employee, $periodStart, $periodEnd);
 
         if ($basicSalary <= 0) {
             return null;
         }
 
         $log = [
-            'version' => '1.8',
+            'version' => '1.10',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
@@ -691,6 +1116,8 @@ final class PayrollEngine
             'inputs' => [
                 'employee_id' => $employee->public_id,
                 'basic_salary_cents' => $basicSalary,
+                ...$salarySource,
+                'salary_changed_in_period' => SalaryInForce::changedWithin($employee, $periodStart, $periodEnd),
                 'period_start' => $periodStart->toDateString(),
                 'period_end' => $periodEnd->toDateString(),
                 'hire_date' => Carbon::parse($employee->hire_date)->toDateString(),
@@ -710,9 +1137,7 @@ final class PayrollEngine
         $hireDate = $employee->hire_date;
         $terminationDate = $employee->termination_date;
         $firstDay = $hireDate && $hireDate->gt($periodStart) ? $hireDate->copy()->startOfDay() : $periodStart->copy()->startOfDay();
-        $lastDay = $terminationDate && $terminationDate->between($periodStart, $periodEnd)
-            ? $terminationDate->copy()->startOfDay()
-            : $periodEnd->copy()->startOfDay();
+        $lastDay = $this->lastPaidDay($terminationDate, $periodStart, $periodEnd);
         $hireProrationFactor = 1.0;
         $workedDays = $totalPeriodDays;
         if ($firstDay->gt($periodStart) || $lastDay->lt($periodEnd->copy()->startOfDay())) {
@@ -832,11 +1257,13 @@ final class PayrollEngine
             // The share is `payroll.deduction_cap_ratio`, one third in law.
             $capRatio = $rules->list('payroll.deduction_cap_ratio');
             $third = intdiv($proratedBasic * (int) $capRatio['numerator'], (int) $capRatio['denominator']);
-            $otherDeductions = $this->loanService->calculateMonthlyDeduction($employee)
-                + $this->costSharingService->calculateDeduction(
-                    $this->costSharingService->getActiveObligation($employee),
-                    $proratedBasic,
-                );
+            $otherDeductions = $deductionOverride !== null
+                ? $deductionOverride['loan_cents'] + $this->overriddenCostSharing($deductionOverride, $proratedBasic)
+                : $this->loanService->calculateMonthlyDeduction($employee)
+                    + $this->costSharingService->calculateDeduction(
+                        $this->costSharingService->getActiveObligation($employee),
+                        $proratedBasic,
+                    );
             $cap = max(0, $third - $otherDeductions);
             $latenessDeduction = min($uncapped, $cap);
             $proratedBasic -= $latenessDeduction;
@@ -862,7 +1289,7 @@ final class PayrollEngine
             'unexplained_absence_days' => $this->unexplainedAbsences($employee, $periodStart, $periodEnd),
         ];
 
-        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
+        ['buckets' => $overtimeByType, 'by_day' => $overtimeByDay, 'skipped' => $overlappingSkipped] = $this->gatherOvertimeByType($employee, $periodStart, $periodEnd, $rules);
         $overtimeRates = $this->overtimeCalculator->ratesFor($employee->tenant_id, $periodStart);
 
         $overtimeAmount = 0;
@@ -900,6 +1327,8 @@ final class PayrollEngine
             'by_type' => $overtimeBreakdown,
             // Flagged for review, never capped: every minute above is paid.
             'limits' => $this->overtimeLimits($employee, $overtimeByDay, $periodStart, $periodEnd, $rules),
+            // Since 1.10: records passed over because another covers the same hours.
+            'overlapping_records_skipped' => $overlappingSkipped,
         ];
 
         $allowanceResult = $this->allowanceService->resolve($employee, $proratedBasic, $workedDays, $totalPeriodDays);
@@ -965,7 +1394,7 @@ final class PayrollEngine
         // exactly what this payslip withheld.
         $loanDeduction = 0;
         $loanLines = [];
-        foreach ($this->loanService->getActiveLoans($employee) as $loan) {
+        foreach ($deductionOverride !== null ? [] : $this->loanService->getActiveLoans($employee) as $loan) {
             $deduction = $this->loanService->deductionFor($loan);
             if ($deduction <= 0) {
                 continue;
@@ -981,6 +1410,10 @@ final class PayrollEngine
             ];
         }
 
+        if ($deductionOverride !== null) {
+            $loanDeduction = $deductionOverride['loan_cents'];
+        }
+
         $log['steps'][] = [
             'step' => 'loan_deductions',
             'loan_deduction_cents' => $loanDeduction,
@@ -992,9 +1425,13 @@ final class PayrollEngine
         // rate and both balances, not just the amount: convention #11 requires the
         // trace to explain *why* a figure is what it is, and a bare deduction
         // cannot be re-derived once the row's balance has moved on.
-        $costSharing = $this->costSharingService->getActiveObligation($employee);
-        $costSharingDeduction = $this->costSharingService->calculateDeduction($costSharing, $grossSalary);
-        $costSharingOutstandingBefore = $costSharing?->outstanding_cents;
+        $costSharing = $deductionOverride !== null ? null : $this->costSharingService->getActiveObligation($employee);
+        $costSharingDeduction = $deductionOverride !== null
+            ? $this->overriddenCostSharing($deductionOverride, $grossSalary)
+            : $this->costSharingService->calculateDeduction($costSharing, $grossSalary);
+        $costSharingOutstandingBefore = $deductionOverride !== null
+            ? $deductionOverride['cost_sharing_outstanding_cents']
+            : $costSharing?->outstanding_cents;
 
         $log['steps'][] = [
             'step' => 'cost_sharing',
@@ -1063,7 +1500,7 @@ final class PayrollEngine
      * (half-day aware) is used; a request spanning the period boundary is
      * clipped and recounted against holidays/weekends.
      */
-    private function gatherUnpaidLeaveDays(Employee $employee, Carbon $periodStart, Carbon $periodEnd): float
+    public function gatherUnpaidLeaveDays(Employee $employee, Carbon $periodStart, Carbon $periodEnd): float
     {
         $requests = LeaveRequest::query()
             ->withoutGlobalScope('tenant')
@@ -1202,7 +1639,7 @@ final class PayrollEngine
         return $absent;
     }
 
-    private function attendanceInUse(int $tenantId, string $first, string $last): bool
+    public function attendanceInUse(int $tenantId, string $first, string $last): bool
     {
         return $this->attendanceInUse["{$tenantId}|{$first}|{$last}"] ??= AttendanceRecord::query()
             ->where('tenant_id', $tenantId)
@@ -1223,19 +1660,17 @@ final class PayrollEngine
      * ends in the next is read whole, or twelve hours split across two runs
      * would never be flagged. Only the period's own days are paid.
      *
-     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>}
+     * Records whose punches overlap another record's pay once: the longest of
+     * the group, the lowest id on a tie (OverlappingAttendance). `skipped` lists
+     * the ones passed over on the period's own days. Overtime is never held back
+     * for being unapproved or over a limit; this only stops one shift paying twice.
+     *
+     * @return array{buckets: array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}, by_day: array<string, int>, by_day_type: array<string, array<string, int>>, skipped: list<array{record: string, kept: string, date: string}>}
      */
     public function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd, StatutoryRuleSet $rules): array
     {
-        $limitedTypes = $rules->list('overtime.limited_types');
-        $nightWindow = $rules->list('overtime.night_window');
-        $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
-        $byDay = [];
-
         $windowStart = $periodStart->copy()->startOfWeek(Carbon::MONDAY);
         $windowEnd = $periodEnd->copy()->endOfWeek(Carbon::SUNDAY);
-        $firstPaid = $periodStart->format('Y-m-d');
-        $lastPaid = $periodEnd->format('Y-m-d');
 
         $holidayDates = $this->holidayService->getHolidayDates(
             $employee->tenant_id,
@@ -1268,29 +1703,15 @@ final class PayrollEngine
         // normal day, and a Sunday at a six-day one as a rest day.
         $workingWeek = WorkingWeek::of(app(CurrentTenant::class)->tenantFor($employee->tenant_id));
 
-        foreach ($records as $record) {
-            $date = Carbon::parse($record->date);
-            $day = $date->format('Y-m-d');
-            $paid = $day >= $firstPaid && $day <= $lastPaid;
-            $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
-            $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
-                ?? ($record->shift !== null
-                    ? ! $record->shift->isWorkingDay($date)
-                    : ! in_array($date->dayOfWeekIso, $workingWeek, true));
-
-            foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay, $nightWindow) as $type => $minutes) {
-                if ($paid) {
-                    $buckets[$type] += $minutes;
-                }
-                if (in_array($type, $limitedTypes, true)) {
-                    $byDay[$day] = ($byDay[$day] ?? 0) + $minutes;
-                }
-            }
-        }
-
-        ksort($byDay);
-
-        return ['buckets' => $buckets, 'by_day' => $byDay];
+        return $this->periodOvertime->tally(
+            $records,
+            $holidayDates,
+            $rotationRestDays,
+            $workingWeek,
+            $periodStart,
+            $periodEnd,
+            $rules,
+        );
     }
 
     /**
@@ -1398,6 +1819,20 @@ final class PayrollEngine
             ->whereNotNull('metadata->pay_deduct_minutes')
             ->get(['metadata']);
 
+        return self::decidedLatenessOf($records);
+    }
+
+    /**
+     * The sum behind decidedLateness(), for records already read with that
+     * method's predicate (not voided, `metadata->pay_deduct_minutes` present).
+     * The monthly timesheet reads the whole organisation in one query and sums
+     * each person's with this, so it shows the minutes payroll will deduct.
+     *
+     * @param  Collection<int, AttendanceRecord>  $records
+     * @return array{minutes: int, corrections: list<string>}
+     */
+    public static function decidedLatenessOf(Collection $records): array
+    {
         $minutes = 0;
         $corrections = [];
         foreach ($records as $record) {

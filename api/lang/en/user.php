@@ -43,5 +43,9 @@ return [
         'employee_has_login' => 'This employee already has a login.',
         'cannot_reset_own_mfa' => 'Turn off your own two-factor authentication from your security settings.',
         'mfa_not_enabled' => 'This user does not have two-factor authentication turned on.',
+        'title_access_needs_users' => 'You need permission to manage users to change what access a position gives.',
+        'title_access_held' => 'You may not give that role, so the account was left as it was.',
+        'own_access_follows_title' => 'Your access follows your position. Ask your organisation admin to change it.',
+        'own_custom_role' => 'Another administrator has to change your own custom role.',
     ],
 ];

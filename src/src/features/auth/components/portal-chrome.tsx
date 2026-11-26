@@ -34,6 +34,7 @@ import {
 } from "@/lib/auth/landing-text";
 import { signInHref, withOrganisation } from "@/lib/auth/entry-organisation";
 import type { LandingFeed } from "@/features/auth/landing-feed";
+import { formatPhone, telHref } from "@/lib/phone";
 
 /**
  * Where the organisation's public pages lead: its portal (the sign-in page),
@@ -499,11 +500,8 @@ export function PortalFooter({
                     className="mt-0.5 h-4 w-4 shrink-0"
                     aria-hidden="true"
                   />
-                  <a
-                    href={`tel:${phone.replace(/[^0-9+]/g, "")}`}
-                    className={link}
-                  >
-                    {phone}
+                  <a href={telHref(phone)} className={link}>
+                    {formatPhone(phone)}
                   </a>
                 </li>
               )}

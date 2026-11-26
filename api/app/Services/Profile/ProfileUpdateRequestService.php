@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Profile;
 
 use App\Enums\ProfileUpdateStatus;
+use App\Exceptions\ImpersonationRestricted;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
@@ -135,6 +136,10 @@ class ProfileUpdateRequestService
             return $request;
         }
 
+        if (ProfileUpdateRequest::GATED_FIELDS[$request->field_name] === 'bank_detail') {
+            ImpersonationRestricted::unlessOrganisation('ProfileUpdateRequestService::approve', [$request->field_name]);
+        }
+
         // A chain with steps still to go records this one and stays pending.
         if (! $this->approvals->approve($request, $reviewer)) {
             return $request->refresh();
@@ -259,7 +264,9 @@ class ProfileUpdateRequestService
         $detail = $this->primaryBankDetail($employee);
 
         if ($detail instanceof EmployeeBankDetail) {
-            $detail->update([$column => $value]);
+            // A bank name changed here is typed text: the code beside it
+            // belonged to the name it replaces.
+            $detail->update($column === 'bank_name' ? ['bank_name' => $value, 'bank_code' => null] : [$column => $value]);
 
             return;
         }

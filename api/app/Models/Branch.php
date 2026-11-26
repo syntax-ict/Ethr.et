@@ -11,6 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * `region_code` and `town_code` name entries of the shared pick lists beside the
+ * `city` text; both stay null for a branch whose place was typed.
+ *
+ * @property string|null $region_code
+ * @property string|null $town_code
+ */
 class Branch extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
@@ -23,6 +30,8 @@ class Branch extends Model
         'code',
         'address',
         'city',
+        'region_code',
+        'town_code',
         'phone',
         'latitude',
         'longitude',

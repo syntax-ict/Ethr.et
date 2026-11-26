@@ -91,6 +91,8 @@ const stats = {
   events_today: 0,
   punches_today: { recorded: 0, held: 0, waiting: 0 },
   unmatched: { badges: 0, punches: 0 },
+  quarantined: { punches: 0, devices: [] },
+  silent: [],
   last_sync_at: null,
   sync_stats_24h: { success: 0, partial: 0, failed: 0, offline: 0 },
 };
@@ -144,6 +146,87 @@ describe("<DeviceDashboardPage> cards", () => {
     expect(within(card).getByText("Waiting to be worked")).toBeVisible();
     expect(within(card).getByText("7")).toBeVisible();
     expect(card).toHaveTextContent(/Last heard from a device:/);
+  });
+});
+
+describe("<DeviceDashboardPage> punches that need attention", () => {
+  it("says how many wait and links to the device that holds them", async () => {
+    serveStats({
+      quarantined: {
+        punches: 3,
+        devices: [{ device_public_id: "DEV9", name: "Main gate", punches: 3 }],
+      },
+    });
+    server.use(emptyList());
+    renderPage();
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("Punches that need attention");
+    expect(
+      within(banner).getByRole("link", { name: "Main gate, 3 punches" }),
+    ).toHaveAttribute("href", "/devices/DEV9#quarantine");
+  });
+});
+
+describe("<DeviceDashboardPage> one punch that needs attention", () => {
+  it("says 1 punch, not 1 punches", async () => {
+    serveStats({
+      quarantined: {
+        punches: 1,
+        devices: [{ device_public_id: "DEV9", name: "Main gate", punches: 1 }],
+      },
+    });
+    server.use(emptyList());
+    renderPage();
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("1 punch could not be recorded");
+    expect(
+      within(banner).getByRole("link", { name: "Main gate, 1 punch" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("<DeviceDashboardPage> silent terminals", () => {
+  it("names each silent terminal, says what kind of silence it is, and links to it", async () => {
+    serveStats({
+      silent: [
+        {
+          device_public_id: "DEV1",
+          name: "Reception ADMS",
+          kind: "adms",
+          since: "2026-11-24T07:00:00+00:00",
+        },
+        {
+          device_public_id: "DEV2",
+          name: "Main gate",
+          kind: "push",
+          since: "2026-11-24T05:30:00+00:00",
+        },
+      ],
+    });
+    server.use(emptyList());
+    renderPage();
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("Terminals gone silent");
+    expect(
+      within(banner).getByRole("link", {
+        name: /^Reception ADMS, silent since /,
+      }),
+    ).toHaveAttribute("href", "/devices/DEV1");
+    expect(
+      within(banner).getByRole("link", { name: "Main gate, no punches today" }),
+    ).toHaveAttribute("href", "/devices/DEV2");
+  });
+
+  it("shows no banner when nothing is silent", async () => {
+    serveStats();
+    server.use(emptyList());
+    renderPage();
+
+    await screen.findByText("Not connected yet");
+    expect(screen.queryByText("Terminals gone silent")).not.toBeInTheDocument();
   });
 });
 

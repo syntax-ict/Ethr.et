@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
+import { useSaveStatus } from "@/components/shared/save-status";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import {
@@ -36,6 +39,10 @@ export function OvertimeRatesCard() {
   // API also rejects anything below them; no copy of the law is kept here.
   const minimum = (key: RateKey): number => query.data?.defaults[key] ?? 0;
   const updateRates = useUpdateOvertimeRates();
+  const { announceSaved, announceError } = useSaveStatus();
+  // Reading the rates takes `payroll.viewConfig`; saving takes
+  // `payroll.manageConfig`.
+  const canManage = usePermissions().can.managePayrollConfig;
 
   const [form, setForm] = useState<Record<RateKey, string> | null>(null);
   const [errors, setErrors] = useState<Partial<Record<RateKey, string>>>({});
@@ -57,6 +64,14 @@ export function OvertimeRatesCard() {
       holiday_night: String(rates.holiday_night),
     });
   }
+
+  // Differs from the saved rates, not merely touched. A save refetches the
+  // rates, which reseeds the form above, so it is clean again afterwards.
+  useUnsavedChangesWarning(
+    form !== null &&
+      rates !== undefined &&
+      ORDER.some((key) => form[key] !== String(rates[key])),
+  );
 
   const labels: Record<RateKey, string> = {
     normal: t("payroll_config.ot_normal", "Ordinary day"),
@@ -111,15 +126,18 @@ export function OvertimeRatesCard() {
         holiday_night: Number(form.holiday_night),
       },
       {
-        onSuccess: () =>
-          toast.success(t("payroll_config.ot_saved", "Overtime rates updated")),
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t("payroll_config.ot_save_failed", "Could not save rates"),
-            ),
-          ),
+        onSuccess: () => {
+          toast.success(t("payroll_config.ot_saved", "Overtime rates updated"));
+          announceSaved(t("payroll_config.ot_saved", "Overtime rates updated"));
+        },
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t("payroll_config.ot_save_failed", "Could not save rates"),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }
@@ -205,27 +223,33 @@ export function OvertimeRatesCard() {
                           );
                         }}
                         className="mt-1 font-mono"
+                        disabled={!canManage}
                       />
                     </FormField>
                   ))}
                 </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={fillDefaults}
-                  >
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    {t("payroll_config.fill_defaults", "Fill in the defaults")}
-                  </Button>
-                  <Button type="submit" disabled={updateRates.isPending}>
-                    {updateRates.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {t("common.save", "Save")}
-                  </Button>
-                </div>
+                {canManage && (
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={fillDefaults}
+                    >
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      {t(
+                        "payroll_config.fill_defaults",
+                        "Fill in the defaults",
+                      )}
+                    </Button>
+                    <Button type="submit" disabled={updateRates.isPending}>
+                      {updateRates.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {t("common.save", "Save")}
+                    </Button>
+                  </div>
+                )}
               </form>
             )
           }

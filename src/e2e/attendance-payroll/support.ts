@@ -51,6 +51,7 @@ export const SESSIONS: Array<{ organisation: Organisation; login: string }> = [
   { organisation: "e2e-att", login: "emp3" },
   { organisation: "e2e-att", login: "emp4" },
   { organisation: "e2e-att", login: "emp5" },
+  { organisation: "e2e-att", login: "emp6" },
   { organisation: "e2e-pay", login: "admin" },
   { organisation: "e2e-pay", login: "finance" },
   { organisation: "e2e-other", login: "admin" },
@@ -160,7 +161,10 @@ export function minutesAgo(minutes: number): Date {
  * if the server stopped working that out (it did not, until 2026-11-10, and
  * every such punch was answered `processed` and lost).
  *
- * Returns how many punches the server took from the batch.
+ * Returns how many punches the server took into its inbox. They are recorded
+ * by the queue afterwards (device_inbound_punches, as for a Hikvision push), so
+ * a journey reads what was recorded with `recordsWhen` and needs `queue:work`
+ * running.
  */
 export async function devicePunch(
   request: APIRequestContext,
@@ -353,6 +357,34 @@ export async function recordsOf(
   expect(found.status, "attendance list").toBe(200);
 
   return found.data.data as AttendanceRow[];
+}
+
+/**
+ * The person's records once `ready` says the queue has worked what a terminal
+ * sent. A device punch is answered as soon as it is in the inbox and recorded
+ * afterwards, so reading the records straight after the answer races the
+ * worker.
+ */
+export async function recordsWhen(
+  page: Page,
+  employee: string,
+  from: string,
+  to: string,
+  ready: (rows: AttendanceRow[]) => boolean,
+): Promise<AttendanceRow[]> {
+  let rows: AttendanceRow[] = [];
+  await expect
+    .poll(
+      async () => {
+        rows = await recordsOf(page, employee, from, to);
+
+        return ready(rows);
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+
+  return rows;
 }
 
 export function live(rows: AttendanceRow[]): AttendanceRow[] {

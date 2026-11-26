@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Profile;
 
+use App\Enums\MaritalStatus;
+use App\Rules\Phone;
+use App\Support\EmployeeAddress;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateProfileRequest extends FormRequest
 {
@@ -13,19 +18,28 @@ class UpdateProfileRequest extends FormRequest
         return true;
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        EmployeeAddress::check($validator, $this->user()?->employee);
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $user = $this->user();
+        $stored = $user === null ? null : ($user->employee()->value('phone') ?? $user->phone);
+
         return [
             // Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS.
-            'phone' => ['nullable', 'string', 'max:20'],
-            'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()->unlessUnchanged(is_string($stored) ? $stored : null)],
+            'marital_status' => ['nullable', 'string', Rule::enum(MaritalStatus::class)],
             'nationality' => ['nullable', 'string', 'max:100'],
+            ...EmployeeAddress::rules(),
 
             // Shorthand for the primary emergency contact. The full list is managed
             // through /profile/emergency-contacts.
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
 
             // Gated fields — staged into profile_update_requests for HR review

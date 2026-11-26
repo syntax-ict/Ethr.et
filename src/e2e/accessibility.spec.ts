@@ -10,6 +10,7 @@
  */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { api, publicNewsPath, publishPublicStory } from './helpers';
 
 // Helper: run axe and assert no critical/serious violations.
 //
@@ -120,6 +121,63 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
       await assertNoA11yViolations(page);
     });
 
+    test('announcements page and its editor have no critical a11y violations', async ({ page }) => {
+      await page.goto('/announcements');
+      await page.waitForLoadState('networkidle');
+      await assertNoA11yViolations(page);
+
+      // The write form, which carries the file inputs and every select.
+      await page.getByRole('button', { name: /New Announcement|አዲስ/i }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await assertNoA11yViolations(page);
+    });
+
+    test('the announcement reading panel is reachable and closable by keyboard', async ({ page }) => {
+      // Everyone reads announcements, so the panel is one of the few dialogs a
+      // keyboard-only or screen-reader user meets on an ordinary day.
+      //
+      // A page first: `api()` runs its fetch inside the page, and on
+      // `about:blank` a relative address resolves nowhere and carries no cookies.
+      await page.goto('/dashboard');
+      const created = await api<{ public_id?: string; data?: { public_id: string } }>(
+        page,
+        'POST',
+        '/announcements',
+        {
+          title: 'Accessibility check notice',
+          body: 'A first paragraph.\n\nA second paragraph.',
+          priority: 'normal',
+          publish_now: true,
+        },
+      );
+      expect(created.status).toBe(201);
+      const publicId = created.data.public_id ?? created.data.data?.public_id ?? '';
+
+      try {
+        await page.goto('/announcements');
+        const title = page.getByRole('button', {
+          name: 'Accessibility check notice',
+          exact: true,
+        });
+        await title.focus();
+        await page.keyboard.press('Enter');
+
+        const pane = page.getByRole('dialog');
+        await expect(pane).toContainText('A second paragraph.', { timeout: 15000 });
+        await assertNoA11yViolations(page);
+
+        await page.keyboard.press('Escape');
+        await expect(pane).toBeHidden();
+        // Focus belongs back on the story that opened the panel, or the reader
+        // is returned to the top of the list and has to find their place again.
+        // The panel closes a step after the address changes, so the dialog's
+        // own restore runs too early and the page has to do it.
+        await expect(title).toBeFocused();
+      } finally {
+        if (publicId) await api(page, 'DELETE', `/announcements/${publicId}`);
+      }
+    });
+
     test('settings page has no critical a11y violations', async ({ page }) => {
       await page.goto('/settings');
       await page.waitForLoadState('networkidle');
@@ -201,6 +259,44 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
       );
       expect(insideMain, 'the Tab after the skip link stays inside main').toBe(true);
     });
+  });
+
+  // ── Public news pages ───────────────────────────────────────────────────────
+  //
+  // Read as a visitor reads them: signed out, in a context of their own, in
+  // English and in Amharic. A story is published first, so the list has a story
+  // card (a heading inside a link) and the article page exists.
+
+  test.describe('Public news pages', () => {
+    test.use({ storageState: 'e2e/.auth/hr.json' });
+
+    for (const locale of ['en', 'am']) {
+      test(`/news and a story have no critical a11y violations in ${locale}`, async ({
+        page,
+        browser,
+      }) => {
+        const publicId = await publishPublicStory(page, `QA news a11y ${locale} ${Date.now()}`);
+        const visitor = await browser.newContext();
+        try {
+          const reader = await visitor.newPage();
+          await reader.addInitScript((value) => localStorage.setItem('locale', value), locale);
+
+          await reader.goto(publicNewsPath());
+          await expect(reader.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15000 });
+          await expect(reader.getByRole('list').getByRole('heading', { level: 2 }).first()).toBeVisible({
+            timeout: 15000,
+          });
+          await assertNoA11yViolations(reader);
+
+          await reader.goto(publicNewsPath(publicId));
+          await expect(reader.getByRole('article')).toBeVisible({ timeout: 15000 });
+          await assertNoA11yViolations(reader);
+        } finally {
+          await visitor.close();
+          await api(page, 'DELETE', `/announcements/${publicId}`);
+        }
+      });
+    }
   });
 
   // ── Mobile a11y ──────────────────────────────────────────────────────────────

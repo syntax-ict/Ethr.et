@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Support\Locales;
 
 describe('PUT /api/v1/settings/organization', function () {
     it('writes the real tenant columns, not just the settings JSON', function () {
@@ -80,6 +81,30 @@ describe('PUT /api/v1/settings/organization', function () {
             ['locale' => 'fr']
         )->assertUnprocessable();
     });
+
+    it('rejects a language the product does not ship yet', function (string $code) {
+        $tenant = createTenant(['default_locale' => 'en']);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->putJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/settings/organization',
+            ['locale' => $code]
+        )->assertUnprocessable()->assertJsonValidationErrors(['locale']);
+
+        expect($tenant->fresh()->default_locale)->toBe('en');
+    })->with(['ti', 'so', 'sid']);
+
+    it('accepts every shipped language', function (string $code) {
+        $tenant = createTenant(['default_locale' => 'en']);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->putJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/settings/organization',
+            ['locale' => $code]
+        )->assertOk()->assertJsonPath('organization.locale', $code);
+
+        expect($tenant->fresh()->default_locale)->toBe($code);
+    })->with(Locales::SHIPPED);
 
     it('denies organization changes to non-admin roles', function () {
         $tenant = createTenant();

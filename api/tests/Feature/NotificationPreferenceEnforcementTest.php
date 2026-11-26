@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Contracts\SmsSender;
+use App\Enums\NotificationType;
 use App\Enums\UserRole;
 use App\Models\Employee;
+use App\Models\EmploymentLetterRequest;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\NotificationPreference;
 use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LetterDecidedNotification;
+use App\Notifications\LetterRequestedNotification;
 use App\Services\CurrentTenant;
 use Illuminate\Support\Facades\Notification;
 
@@ -146,4 +151,70 @@ test('in_app cannot be switched off through the endpoint', function () {
     ])->assertOk();
 
     expect((new LeaveApprovedNotification($lr))->via($user->fresh()))->toContain('database');
+});
+
+test('the preferences endpoint lists exactly the NotificationType cases, in order', function () {
+    [$tenant, , $user] = prefFixture();
+
+    test()->actingAs($user);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/notifications/preferences")->assertOk();
+
+    expect($response->json('notification_types'))->toBe(array_map(fn (NotificationType $t) => $t->value, NotificationType::cases()))
+        ->and(array_keys($response->json('preferences')))->toBe(NotificationType::values());
+});
+
+test('the preferences endpoint says which channels each type can reach, for every type', function () {
+    [$tenant, , $user] = prefFixture();
+
+    test()->actingAs($user);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/notifications/preferences")->assertOk();
+
+    expect($response->json('type_channels'))->toHaveCount(15)
+        ->and(array_keys($response->json('type_channels')))->toBe(NotificationType::values())
+        ->and($response->json('type_channels.letter'))->toBe(['in_app', 'email'])
+        ->and($response->json('type_channels.payroll_processed'))->toBe(['in_app']);
+});
+
+test('sms is not offered while no type can send it, even with a gateway on', function () {
+    [$tenant, , $user] = prefFixture();
+    app()->instance(SmsSender::class, new class implements SmsSender
+    {
+        public function send(string $to, string $message): bool
+        {
+            return true;
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    });
+
+    test()->actingAs($user);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/notifications/preferences")->assertOk();
+
+    expect($response->json('channel_availability.sms'))->toBeFalse()
+        ->and(collect($response->json('type_channels'))->flatten()->contains('sms'))->toBeFalse();
+});
+
+test('a user who switches off email for letters gets no letter email', function () {
+    [$tenant, $employee, $user] = prefFixture();
+    $letter = new EmploymentLetterRequest;
+
+    expect((new LetterDecidedNotification($letter))->via($user))->toBe(['database', 'mail'])
+        ->and((new LetterRequestedNotification($letter, 'Selam'))->via($user))->toBe(['database', 'mail']);
+
+    NotificationPreference::create([
+        'tenant_id' => $tenant->id,
+        'user_id' => $user->id,
+        'notification_type' => 'letter',
+        'channel' => 'email',
+        'enabled' => false,
+    ]);
+
+    expect((new LetterDecidedNotification($letter))->via($user))->toBe(['database'])
+        ->and((new LetterRequestedNotification($letter, 'Selam'))->via($user))->toBe(['database']);
 });

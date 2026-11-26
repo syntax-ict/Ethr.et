@@ -24,12 +24,14 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/useT";
 import { useConfirm } from "@/components/shared/use-confirm";
+import { AcceptDifferences } from "./accept-differences";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { toast } from "sonner";
 import { useDevices } from "@/features/devices/api";
 import { saveBlob, saveCsv } from "@/lib/utils/csv-export";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
 import { useDebounce } from "@/lib/hooks/useDebounce";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   CommitStalled,
   isNotFound,
@@ -52,7 +54,6 @@ import type {
   ColumnMatch,
   ListMode,
   MatchOutcome,
-  MigrationListInProgress,
   StagingAction,
 } from "../types";
 import {
@@ -88,10 +89,51 @@ import { MigrationListsInProgress } from "./migration-lists-in-progress";
 import { MigrationLogins } from "./migration-logins";
 import { MigrationReadiness } from "./migration-readiness";
 import { MigrationTerminals } from "./migration-terminals";
+import { MigrationUndoButton, MigrationUndoNote } from "./migration-undo";
 import { StagedChanges } from "./staged-changes";
 import { matchReasonLabel } from "@/features/employees/likeness";
+import { useArchiveReasonText } from "@/features/employees/use-archive-reasons";
 
-const ACTIONS: StagingAction[] = ["merge", "create", "skip", "defer"];
+const ACTIONS: StagingAction[] = [
+  "merge",
+  "create",
+  "restore",
+  "skip",
+  "defer",
+];
+
+/**
+ * The actions a row offers. A row matched to someone archived can bring them
+ * back when nothing stops it and the viewer may restore people; one that
+ * cannot be added as new (a held number, or an archived match) is not offered
+ * Create. A list that completes people adds and restores nobody.
+ */
+export function actionsFor(
+  row: {
+    action: StagingAction;
+    restore?: { possible: boolean; allowed: boolean } | null;
+    warnings?: { code: string }[] | null;
+  },
+  completing: boolean,
+): StagingAction[] {
+  return ACTIONS.filter((a) => {
+    if (a === "restore") {
+      return (
+        !completing &&
+        (row.action === "restore" ||
+          (row.restore?.possible === true && row.restore.allowed))
+      );
+    }
+    if (a === "create") {
+      return !completing && !numberHeld(row) && !row.restore;
+    }
+    return true;
+  });
+}
+
+// Another record holds the row's employee number, so it cannot be added as new.
+const numberHeld = (row: { warnings?: { code: string }[] | null }) =>
+  row.warnings?.some((w) => w.code === "number_held") === true;
 
 const reasonLabel = matchReasonLabel;
 
@@ -182,7 +224,9 @@ export function MigrationStep({
   description?: string;
 }) {
   const { t } = useT();
+  const archiveReasons = useArchiveReasonText();
   const { requestConfirm, confirmDialog } = useConfirm();
+  const { can } = usePermissions();
   const devicesQuery = useDevices();
   const stageDevice = useStageFromDevice();
   // How far a long list has been matched, while it is, and the list whose
@@ -223,6 +267,7 @@ export function MigrationStep({
   const [deviceId, setDeviceId] = useState<string>(initialDeviceId ?? "");
   const [csv, setCsv] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const pasteBox = useRef<HTMLTextAreaElement>(null);
 
   const batchQuery = useMigrationBatch(openedId);
   // A list that is gone, or is another organisation's, is let go quietly: the
@@ -742,12 +787,26 @@ export function MigrationStep({
    * is set and the screen for its state takes over. One still being read is
    * carried on first, by the same request a stopped staging uses.
    */
-  function openList(list: MigrationListInProgress) {
+  function openList(list: { public_id: string; status: string }) {
     if (list.status === "staging") {
       void carryOnStagingList(list.public_id);
       return;
     }
     setBatchId(list.public_id);
+  }
+
+  /**
+   * "Add a corrected file" on an undone list: a fresh list, so nothing open
+   * stays open, and the paste box in view. Nothing is carried over from the
+   * undone list.
+   */
+  function addCorrectedFile() {
+    startOver();
+    window.requestAnimationFrame(() => {
+      const box = pasteBox.current;
+      box?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      box?.focus({ preventScroll: true });
+    });
   }
 
   function startOver() {
@@ -810,10 +869,15 @@ export function MigrationStep({
             "setup2.complete_confirm_desc",
             "Blanks are filled in as the table shows. Nobody is added. This cannot be undone from here.",
           )
-        : t(
-            "setup2.commit_confirm_desc",
-            "Employees are created and merged as the table shows. This cannot be undone from here.",
-          ),
+        : can.deleteEmployees
+          ? t(
+              "setup2.commit_confirm_desc_undoable",
+              "Employees are created and merged as the table shows. The people this list adds can be archived again afterwards with Undo this list's additions. Changes to people who are already here cannot be undone from here.",
+            )
+          : t(
+              "setup2.commit_confirm_desc",
+              "Employees are created and merged as the table shows. This cannot be undone from here.",
+            ),
       confirmLabel: completing
         ? t("setup2.complete_confirm", "Fill them in")
         : t("setup2.commit_confirm", "Bring them in"),
@@ -834,15 +898,26 @@ export function MigrationStep({
                 skipped: result.totals.skipped ?? 0,
               },
             )
-          : t(
-              "setup2.migration_done",
-              "Migration complete: :created created, :merged merged, :updated updated",
-              {
-                created: result.totals.created ?? 0,
-                merged: result.totals.merged ?? 0,
-                updated: result.totals.updated ?? 0,
-              },
-            ),
+          : (result.totals.restored ?? 0) > 0
+            ? t(
+                "setup2.migration_done_restored",
+                "Migration complete: :created created, :restored brought back, :merged merged, :updated updated",
+                {
+                  created: result.totals.created ?? 0,
+                  restored: result.totals.restored ?? 0,
+                  merged: result.totals.merged ?? 0,
+                  updated: result.totals.updated ?? 0,
+                },
+              )
+            : t(
+                "setup2.migration_done",
+                "Migration complete: :created created, :merged merged, :updated updated",
+                {
+                  created: result.totals.created ?? 0,
+                  merged: result.totals.merged ?? 0,
+                  updated: result.totals.updated ?? 0,
+                },
+              ),
       );
     } catch (err) {
       toast.error(
@@ -881,6 +956,7 @@ export function MigrationStep({
           openingId={carryOn.isPending ? (carryOn.variables ?? null) : null}
           openingText={staging ? stagingText(staging) : null}
           disabled={stageDevice.isPending}
+          onAddCorrected={addCorrectedFile}
         />
       )}
 
@@ -1108,6 +1184,7 @@ export function MigrationStep({
                 </div>
               )}
               <textarea
+                ref={pasteBox}
                 value={csv}
                 onChange={(e) => {
                   setCsv(e.target.value);
@@ -1300,6 +1377,67 @@ export function MigrationStep({
                           )}
                     </p>
                   )}
+                  {(read?.calendar_hints ?? []).map((hint) => {
+                    const params = {
+                      line: hint.line,
+                      value: hint.value,
+                      column: columnLabel(hint.column, t),
+                    };
+                    const ethiopian = hint.calendar === "ethiopian";
+                    return (
+                      <p
+                        key={hint.column}
+                        className="flex flex-wrap items-center gap-2 text-warning-on-soft"
+                      >
+                        <span>
+                          {ethiopian
+                            ? t(
+                                "setup2.calendar_hint_ec",
+                                "Line :line has :value under :column, a date only the Ethiopian calendar has. These dates look Ethiopian (E.C.).",
+                                params,
+                              )
+                            : t(
+                                "setup2.calendar_hint_gc",
+                                "Line :line has :value under :column, a date the Ethiopian calendar does not have. These dates look Gregorian (G.C.).",
+                                params,
+                              )}
+                        </span>
+                        {hint.from_header ? (
+                          <span>
+                            {t(
+                              "setup2.calendar_hint_header",
+                              "The column name says the other calendar. Correct the column name in the file and bring it again.",
+                            )}
+                          </span>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setChosenCalendar(hint.calendar)}
+                            >
+                              {ethiopian
+                                ? t(
+                                    "setup2.calendar_hint_use_ec",
+                                    "Read the dates as Ethiopian (E.C.)",
+                                  )
+                                : t(
+                                    "setup2.calendar_hint_use_gc",
+                                    "Read the dates as Gregorian (G.C.)",
+                                  )}
+                            </Button>
+                            <span>
+                              {t(
+                                "setup2.calendar_hint_every_column",
+                                "This changes every date column whose name does not say (E.C.) or (G.C.). If only this column is in the other calendar, add that to its name in the file instead.",
+                              )}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    );
+                  })}
                   {(read?.without_hire_date ?? 0) > 0 &&
                     !(canComplete && mode === "complete") && (
                       <p className="text-warning-on-soft">
@@ -1568,6 +1706,12 @@ export function MigrationStep({
             </div>
           )}
 
+          <AcceptDifferences
+            batchId={batchId}
+            batch={batch}
+            onDone={() => batchQuery.refetch()}
+          />
+
           <div className="rounded-lg border">
             <SimpleTable
               caption={t("setup2.migration_review", "Migration review")}
@@ -1710,6 +1854,28 @@ export function MigrationStep({
                           )}
                         </Button>
                       )}
+                      {row.restore &&
+                        !row.processed_at &&
+                        (!row.restore.possible ||
+                          (row.action === "restore" &&
+                            batch.mode !== "complete")) && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {row.restore.possible
+                              ? t(
+                                  "setup2.restore_note",
+                                  "Archived. Adding this list brings them back with this line's details.",
+                                )
+                              : t(
+                                  "setup2.restore_blocked",
+                                  "Cannot be brought back from a list: :reasons. Restore them from the archived view if they should return.",
+                                  {
+                                    reasons: archiveReasons(
+                                      row.restore.reasons,
+                                    ),
+                                  },
+                                )}
+                          </p>
+                        )}
                       {(row.warnings ?? []).length > 0 && (
                         <ul className="space-y-0.5 text-[11px] text-warning-on-soft">
                           {row.warnings!.map((warning) => (
@@ -1758,14 +1924,13 @@ export function MigrationStep({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {(batch.mode === "complete"
-                            ? ACTIONS.filter((a) => a !== "create")
-                            : ACTIONS
-                          ).map((a) => (
-                            <SelectItem key={a} value={a}>
-                              {t(`setup2.action_${a}`, a)}
-                            </SelectItem>
-                          ))}
+                          {actionsFor(row, batch.mode === "complete").map(
+                            (a) => (
+                              <SelectItem key={a} value={a}>
+                                {t(`setup2.action_${a}`, a)}
+                              </SelectItem>
+                            ),
+                          )}
                         </SelectContent>
                       </Select>
                     ),
@@ -1875,7 +2040,11 @@ export function MigrationStep({
           </div>
 
           {batch.status === "committed" && (
-            <div className="flex justify-end border-t pt-4">
+            <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+              <MigrationUndoNote batch={batch} />
+              {batchId && (
+                <MigrationUndoButton batchId={batchId} batch={batch} />
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1904,6 +2073,7 @@ export function MigrationStep({
                 onContinue={onCommitted}
                 autoSend={inviteNow && commit.isSuccess}
                 inviteMarked={commit.isSuccess}
+                undone={Boolean(batch.undone_at)}
               />
             )}
 

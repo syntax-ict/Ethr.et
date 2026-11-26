@@ -52,3 +52,23 @@ export function segments(paragraph: string): Segment[] {
     out.push({ kind: "text", text: paragraph.slice(last) });
   return out;
 }
+
+/**
+ * A story's body as its readers get it: the server's rule, applied to the
+ * editor's preview so the preview shows what will be read. It removes an HTML
+ * comment, or a tag (`<`, an optional `/`, an ASCII letter, anything but `<`
+ * or `>`, then `>`), repeated until nothing changes, so removing one tag
+ * cannot leave another behind. A `<` that opens neither stays, as in
+ * "Budget<2000 birr". Never use it on what is saved: the server keeps the
+ * text as written and cleans it for each reader.
+ */
+export function withoutMarkup(text: string): string {
+  let before: string;
+  do {
+    before = text;
+    text = text
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/<\/?[a-zA-Z][^<>]*>/g, "");
+  } while (text !== before);
+  return text;
+}

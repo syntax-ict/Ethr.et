@@ -2629,6 +2629,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/timesheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a grid: a page of the people the viewer may
+         *     see, each with one cell a day and the figures payroll reads, the totals
+         *     over everyone matched, department subtotals, the overtime rate columns,
+         *     the rules applied and the period's status
+         */
+        get: operations["report.timesheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/timesheet/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a PDF: A4 landscape, the grid, the summary, the
+         *     totals, the legend, the rules applied and the signature lines, in the
+         *     reader's language and calendar. The same filters as the grid, and the
+         *     same people it shows; a list longer than a printed sheet holds is a 422
+         *     that says how to narrow it
+         */
+        get: operations["report.timesheetPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/export": {
         parameters: {
             query?: never;
@@ -2868,6 +2913,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/quarantine/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay quarantine */
+        post: operations["deviceQuarantine.replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/quarantine/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["deviceQuarantine.dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/sync-all": {
         parameters: {
             query?: never;
@@ -2953,6 +3032,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device}/allowlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add one address to the device's webhook allowlist */
+        post: operations["device.allowAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/{device}/sync-logs": {
         parameters: {
             query?: never;
@@ -2979,6 +3075,23 @@ export interface paths {
         };
         /** List events */
         get: operations["device.deviceEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quarantine devices */
+        get: operations["deviceQuarantine.index"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3271,6 +3384,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The public ids of everyone the employees list matches
+         * @description For "select all matching this filter". A read only: nothing is changed by
+         *     filter. The screen sends these ids to the bulk endpoints, which check each
+         *     person against the requester's reach again.
+         *
+         *     Takes the list's own `search` and `filter[...]` parameters, through the
+         *     same code (`EmployeeListFilters`) and the same org scope as
+         *     `GET /employees`. At most 2,000 ids come back; `total` is the full count
+         *     and `capped` is true when `ids` holds fewer than `total`.
+         */
+        get: operations["employeeBulk.ids"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/next-code": {
         parameters: {
             query?: never;
@@ -3377,16 +3517,79 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Move employees to a department or branch, or change their status
+         * Move employees to a department or branch, set their job title, team,
+         *     cost centre or supervisor, or change their status
          * @description The selection is all or nothing: an id outside the requester's org scope
          *     refuses the whole request with 422 before anything is written, with the
          *     message an id that exists nowhere gets. The changes are per employee: a
          *     status change goes through the same transition rules as
-         *     `POST /employees/{employee}/transition`, and `results` reports each id as
-         *     `updated`, `unchanged` (already in that status) or `failed`, with the
-         *     reason. One refused transition does not stop the others.
+         *     `POST /employees/{employee}/transition`, the job fields go through the
+         *     same `EmployeeUpdater` as `PUT /employees/{employee}` (so a job title
+         *     moves the account's access by the same rule, limited to what the person
+         *     making the change could do by hand), and `results` reports each id as
+         *     `updated`, `unchanged` (already as asked) or `failed`, with the reason.
+         *     A supervisor who is the person themselves, or who would make a loop, is
+         *     a `failed` for that person only. `access_held` says the person's login
+         *     follows its job title and could not be moved to the new title's role by
+         *     the person making the change, so it waits on the Users page. One refused
+         *     change does not stop the others.
          */
         post: operations["employeeBulk.bulkUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/bulk-archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive people who should not have a record: added by mistake, or twice
+         * @description Without `confirm` this only says what would happen and writes nothing.
+         *     With `confirm: true` it archives everyone who has no history, each in
+         *     their own transaction, asking again whether they have been used at that
+         *     moment. Someone with attendance, pay, leave, a sign-in or any other
+         *     history is kept, with the reasons, and leaves through a status change
+         *     instead. Nobody archives their own record (`self`). Anyone already
+         *     archived is reported as such, not refused, so the same request twice
+         *     changes nothing the second time.
+         *
+         *     An id outside the requester's org scope refuses the whole request with
+         *     the 422 an id that exists nowhere gets. Archived people can be brought
+         *     back with `POST /employees/bulk-restore`.
+         */
+        post: operations["employeeBulk.bulkArchive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/bulk-restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring archived people back, each as `POST /employees/{employee}/restore`
+         *     does: the plan's employee limit is counted under the seat lock, the
+         *     restore is audited and the webhook is sent. `results` reports each id as
+         *     `restored`, `unchanged` (not archived) or `failed`, with the reason, for
+         *     example that the plan has no seat left. One refusal does not stop the
+         *     others. A restore does not reopen a login that archiving closed
+         */
+        post: operations["employeeBulk.bulkRestore"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3625,6 +3828,23 @@ export interface paths {
         put?: never;
         /** End contracts */
         post: operations["employeeContract.end"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/paid-months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List paid months */
+        get: operations["employee.employeePaidMonths"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4828,6 +5048,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List lookups */
+        get: operations["lookup.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/marketing-content": {
         parameters: {
             query?: never;
@@ -4871,6 +5108,28 @@ export interface paths {
         };
         /** My shift attendance */
         get: operations["attendance.myShift"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/navigation/badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Navigation badge counts
+         * @description Pending approvals and attendance punches waiting for review, the two
+         *     numbers the sidebar and the phone tab bar draw. Each is null when the
+         *     caller may not see that queue.
+         */
+        get: operations["navigation.navigationBadges"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5371,6 +5630,12 @@ export interface paths {
          *     null when whoever started it has gone, and `mine` says the viewer
          *     started it. Any member of the organisation who may view employees can
          *     open any of these, as `/migration/batches/{batch}` already allows.
+         *
+         *     `added` is the lists that have been added, newest first, at most
+         *     twenty, for the screen that undoes a list's additions: `rows` is how many
+         *     lines it held, `created` how many people it made, `committed_at` when it
+         *     was added and `undone_at` when an undo of it last finished (null when
+         *     none has). They are not in `data`.
          */
         get: operations["migration.index"];
         put?: never;
@@ -5470,6 +5735,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding/migration/batches/{batch}/accept-differences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept the differences of the named `fields` for every row set to merge
+         *     that may take them, as much as fits in one request
+         * @description A person who corrected a list would otherwise open each row. Only the
+         *     fields named are accepted, so a name, a number or a salary is never
+         *     accepted by default. A row that may be someone else
+         *     (`maybe_other_person`) is left for the reviewer and counted in `held`;
+         *     a person the viewer may not edit is counted in `out_of_reach`; a row
+         *     whose TIN or salary the viewer may not change keeps the rest and is
+         *     counted in `pay_refused`.
+         *
+         *     While `done` is false the same request is sent again with the `cursor`
+         *     it answered. Every count is for this request alone; `rows` is how many
+         *     rows had something accepted and `by_field` says how many for each
+         *     field. Nothing is written to any employee until the list is added.
+         */
+        post: operations["migration.acceptDifferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding/migration/batches/{batch}/commit": {
         parameters: {
             query?: never;
@@ -5493,6 +5790,54 @@ export interface paths {
          *     list begins to be added; a later request cannot change it.
          */
         post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What undoing a list's additions would do, without doing it
+         * @description Only a list that has been added can be undone, and only by someone who
+         *     may delete employees. The people the list itself made are archived (the
+         *     ordinary delete: each can be restored with `POST /employees/{employee}/restore`) unless
+         *     they have been used since, and nobody else is touched: not someone the
+         *     list only matched, and not a change a match made to their record.
+         *
+         *     `archive` is who would be archived and `keep` who would be left alone,
+         *     each with why (`reasons`: `attendance`, `signed_in`, `payroll`, `leave`,
+         *     `overtime`, `documents`, `hr_records`, `in_charge`, `assigned`, or
+         *     `unsure_origin`), the first two hundred by name; `archive_count` and
+         *     `keep_count` are the whole. People the viewer has no reach over are
+         *     counted in `out_of_reach` and never named. `already_archived` is how many
+         *     the list made who are archived now.
+         *
+         *     `origin` is `recorded` when the list noted what each of its lines did and
+         *     `derived` when it was added before it did. `exact` is false when some
+         *     people cannot be told from ones the list only matched: they are all kept.
+         *     `added` is how many people the list made.
+         */
+        get: operations["migration.undoPreview"];
+        put?: never;
+        /**
+         * Undo a list's additions, as much as fits in one request
+         * @description Send `confirm` as true: this is the second, explicit call after the
+         *     preview. A long list is archived a slice at a time; while `done` is
+         *     false, `remaining` people are still to be dealt with and the same request
+         *     is sent again. `archived` is how many have been archived so far in this
+         *     undo, and once it is done, how many the one audit entry for it records.
+         *     Pressing it again archives nobody and records nothing: `done` is true and
+         *     `archived` is 0. `kept` is how many are left alone for being used, and
+         *     `out_of_reach` how many the person asking has no reach over.
+         */
+        post: operations["migration.undo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6110,6 +6455,57 @@ export interface paths {
         put?: never;
         /** Transfer ownership */
         post: operations["ownership.transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List pay differences */
+        get: operations["payDifference.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle pay differences */
+        post: operations["payDifference.settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/pay-differences/{payDifference}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create dismiss */
+        post: operations["payDifference.dismiss"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8879,6 +9275,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/assignable-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The custom roles the signed-in person may give, for the Users page's
+         *     picker. Settings > Roles needs `settings.manage`, which an HR admin does
+         *     not hold, so this is the read for someone who may only assign
+         */
+        get: operations["user.assignableRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}": {
         parameters: {
             query?: never;
@@ -8908,6 +9325,26 @@ export interface paths {
         put?: never;
         /** Resend invite users */
         post: operations["user.resendInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user}/title-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bring an account's role to the one its job title gives, now, as the
+         *     signed-in person. Refused with 422 when they may not give that role
+         */
+        post: operations["user.titleAccess"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9246,6 +9683,16 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AcceptDifferencesRequest
+         * @description Accepting the differences of the named fields for many rows at once. The
+         *     fields are the ones a reviewer may accept on one row, from the same list.
+         *     Nothing is accepted that is not named.
+         */
+        AcceptDifferencesRequest: {
+            fields: ("name" | "email" | "phone" | "employee_code" | "badge_number" | "national_id" | "tin" | "hire_date" | "department" | "salary_cents" | "name_am" | "gender" | "date_of_birth" | "marital_status" | "nationality" | "nationality_status")[];
+            cursor?: number | null;
+        };
+        /**
          * AccrualType
          * @enum {string}
          */
@@ -9341,36 +9788,69 @@ export interface components {
             last_activity_at: string | null;
             journey_computed_at: string | null;
         };
+        /**
+         * AllowDeviceAddressRequest
+         * @description One address to add to a device's webhook allowlist: the one its refused
+         *     call came from. A single address, not a range; a range is set on the
+         *     device's own form, where its width can be thought about.
+         */
+        AllowDeviceAddressRequest: {
+            ip: string;
+        };
+        /**
+         * AnnouncementCategory
+         * @description What a public reader can filter the organisation's news by: a fixed list rather than free text, so the filter is short, translated and the same for every organisation.
+         * @enum {string}
+         */
+        AnnouncementCategory: "news" | "notice" | "event" | "deadline";
+        /**
+         * AnnouncementPriority
+         * @description How much an announcement matters; it decides where a story sorts.
+         * @enum {string}
+         */
+        AnnouncementPriority: "low" | "normal" | "high" | "urgent";
         /** AnnouncementResource */
         AnnouncementResource: {
             public_id: string;
             title: string;
-            body: string;
+            excerpt: string;
             category: string | null;
-            priority: string;
-            target_type: string;
-            status: string;
-            /** Format: date-time */
-            published_at: string | null;
-            /** Format: date-time */
-            expires_at: string | null;
-            show_on_landing: boolean;
             featured: boolean;
+            priority: string;
+            published_at: string | null;
             cover: {
                 url: string;
                 srcset: string;
                 width: number;
                 height: number;
             } | null;
+            body: string;
+            body_source: string | null;
+            target_type: string;
+            status: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            show_on_landing: boolean;
             attachments: {
                 id: string;
                 name: string;
                 size: number;
                 url: string | null;
             }[];
+            author: {
+                name: string;
+            } | null;
             /** Format: date-time */
             created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
         };
+        /**
+         * AnnouncementTarget
+         * @description Who an announcement is addressed to: everyone, or one department or branch.
+         * @enum {string}
+         */
+        AnnouncementTarget: "all" | "department" | "branch";
         /**
          * ApplyConfigurationRequest
          * @description Accepts a (possibly edited) configuration plan for provisioning. Item shapes
@@ -9467,6 +9947,7 @@ export interface components {
          */
         ApprovePayrollRunRequest: {
             acknowledged_pension_exemptions?: number | null;
+            acknowledged_pay_differences?: number | null;
         };
         /**
          * ApproverKind
@@ -9852,6 +10333,7 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
+            bank_code: string | null;
             branch_name: string | null;
             account_number_masked: string;
             is_primary: boolean;
@@ -9875,6 +10357,8 @@ export interface components {
             code: string | null;
             address: string | null;
             city: string | null;
+            region_code: string | null;
+            town_code: string | null;
             phone: string | null;
             latitude: string | null;
             longitude: string | null;
@@ -9887,11 +10371,24 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** BulkArchiveRequest */
+        BulkArchiveRequest: {
+            employee_ids: string[];
+            confirm?: boolean | null;
+        };
+        /** BulkRestoreRequest */
+        BulkRestoreRequest: {
+            employee_ids: string[];
+        };
         /** BulkUpdateRequest */
         BulkUpdateRequest: {
             employee_ids: string[];
             department_id?: string | null;
             branch_id?: string | null;
+            position_id?: string | null;
+            team_id?: string | null;
+            cost_center_id?: string | null;
+            supervisor_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             effective_date?: string | null;
@@ -10161,14 +10658,33 @@ export interface components {
             commands_enabled: boolean;
             accepts_commands: boolean;
             receives_only: boolean;
+            pulled: boolean;
+            /** @enum {string} */
+            connection_mode: "push" | "pull" | "adms";
+            uses_webhook_token: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
+            has_webhook_token?: boolean;
+            webhook_token_prefix?: string | null;
+            webhook_url_masked?: string | null;
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
             clock_offset_seconds: number | null;
             clock_checked_at: string | null;
+            /** @enum {string|null} */
+            clock_source: "heartbeat" | "punch" | "heartbeat_no_time" | null;
+            clock_measurable: boolean | null;
+            today: {
+                day: string;
+                received: number;
+                recorded: number;
+                held: number;
+                duplicate: number;
+                quarantined: number;
+                waiting: number;
+            } | null;
             adms?: {
                 server: string;
                 last_rejected: {
@@ -10186,6 +10702,7 @@ export interface components {
             branch_public_id: string | null;
             attendance_records_count?: number;
             sync_logs_count?: number;
+            quarantined_count?: number;
             latest_sync_log?: components["schemas"]["DeviceSyncLogResource"];
             /** Format: date-time */
             created_at: string | null;
@@ -10278,16 +10795,30 @@ export interface components {
             signature: string;
             snooze_days?: number | null;
         };
+        /**
+         * DismissPayDifferenceRequest
+         * @description Why the difference needs no payment.
+         */
+        DismissPayDifferenceRequest: {
+            note: string;
+        };
         /** DismissUnmatchedBadgeRequest */
         DismissUnmatchedBadgeRequest: {
             device_public_id: string;
             badge: string;
         };
+        /**
+         * EducationLevel
+         * @description The level of an education record, from the Ethiopian school ladder. `degree` stays the free-text title ("BSc Accounting"); this is the level it sits at, so a report can count graduates without parsing titles.
+         * @enum {string}
+         */
+        EducationLevel: "primary" | "secondary" | "preparatory" | "certificate" | "diploma" | "bachelor" | "master" | "doctorate" | "other";
         /** EducationResource */
         EducationResource: {
             public_id: string;
             institution: string;
             degree: string;
+            level: string | null;
             field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;
@@ -10422,11 +10953,22 @@ export interface components {
             nationality_status: string;
             nationality_needs_review: boolean;
             marital_status: string | null;
+            address_region_code: string | null;
+            address_region_text: string | null;
+            address_sub_city_code: string | null;
+            address_zone_or_sub_city_text: string | null;
+            address_town_code: string | null;
+            address_town_text: string | null;
+            address_woreda: string | null;
+            address_kebele: string | null;
+            address_house_number: string | null;
             status: string;
             hire_date: string | null;
             probation_end_date: string | null;
             confirmation_date: string | null;
             termination_date: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number;
             /** @enum {string|null} */
             sign_in?: "none" | "invited" | "active" | "inactive" | "suspended" | null;
@@ -10444,6 +10986,8 @@ export interface components {
             bank_details?: components["schemas"]["BankDetailResource"][];
             education?: components["schemas"]["EducationResource"][];
             transitions?: components["schemas"]["EmployeeTransitionResource"][];
+            /** Format: date-time */
+            archived_at: string | null;
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
@@ -10474,6 +11018,12 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * EmploymentFramework
+         * @description The body of employment law an organisation's staff are governed by, held as the `employment.framework` rule of the employment domain (docs/payroll/STATUTORY-PARAMETERS.md, "Domains"). LABOUR_PROCLAMATION is the private-sector Labour Proclamation, FEDERAL_CIVIL_SERVICE the Federal Civil Servants Proclamation, REGIONAL_CIVIL_SERVICE the civil service law of each region, and UNSPECIFIED a kind whose governing law has not been read.  The codes carry no proclamation number because laws are replaced; the number lives in the rule's legal reference, which a new row can change.
+         * @enum {string}
+         */
+        EmploymentFramework: "labour_proclamation" | "federal_civil_service" | "regional_civil_service" | "unspecified";
         /** EnableMfaRequest */
         EnableMfaRequest: {
             secret: string;
@@ -10576,6 +11126,12 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        /**
+         * Gender
+         * @description The genders the employee record stores. Two, because leave rules (`gender_restriction`) and the statutory reports branch on them; an employee whose gender was never recorded has none, not a third value.
+         * @enum {string}
+         */
+        Gender: "male" | "female";
         /** GenerateReportRequest */
         GenerateReportRequest: {
             /** @enum {string} */
@@ -11068,6 +11624,12 @@ export interface components {
             check_out?: string | null;
             reason: string;
         };
+        /**
+         * MaritalStatus
+         * @description The marital statuses the employee record stores.
+         * @enum {string}
+         */
+        MaritalStatus: "single" | "married" | "divorced" | "widowed";
         /** MarkPayrollRunPaidRequest */
         MarkPayrollRunPaidRequest: {
             /** Format: date */
@@ -11265,6 +11827,12 @@ export interface components {
             /** Format: date-time */
             created_at: string | null;
         };
+        /**
+         * NotificationType
+         * @description The notification types a user can set per-channel preferences for.
+         * @enum {string}
+         */
+        NotificationType: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "attendance_correction" | "overtime_request" | "attendance_anomaly" | "payslip_available" | "payroll_processed" | "announcement" | "approval_reminder" | "expiry_reminder" | "profile_update" | "employee_voice" | "letter";
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
             records: {
@@ -11369,6 +11937,33 @@ export interface components {
             other_deductions_cents: number;
             net_cents: number;
             calculation_log?: unknown[] | null;
+        };
+        /** PayrollPayDifferenceResource */
+        PayrollPayDifferenceResource: {
+            public_id: string;
+            employee_public_id: string | null;
+            employee_name: string | null;
+            run_public_id: string | null;
+            period_label: string | null;
+            period_start: string | null;
+            period_end: string | null;
+            kind: string | null;
+            gross_cents: number | null;
+            net_cents: number | null;
+            paid_gross_cents: number | null;
+            paid_net_cents: number | null;
+            due_gross_cents: number | null;
+            due_net_cents: number | null;
+            status: string;
+            changed_from: string;
+            trail_rebuilt_at_release: boolean;
+            net_is_estimate: boolean;
+            error: string | null;
+            note: string | null;
+            /** Format: date-time */
+            settled_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
         };
         /** PayrollRuleResource */
         PayrollRuleResource: {
@@ -11526,6 +12121,7 @@ export interface components {
         PlatformSettingResource: {
             public_id: string;
             bank_name: string | null;
+            bank_code: string | null;
             bank_account_number: string | null;
             bank_account_name: string | null;
             payment_instructions: string | null;
@@ -11584,6 +12180,7 @@ export interface components {
             code: string | null;
             description: string | null;
             is_active: boolean;
+            access_role: string | null;
             employees_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -11696,6 +12293,13 @@ export interface components {
                 };
             };
         };
+        /**
+         * QuarantineRowsRequest
+         * @description The punches in quarantine a person is replaying or dismissing, by public id.
+         */
+        QuarantineRowsRequest: {
+            ids: string[];
+        };
         /** ReadPeopleRequest */
         ReadPeopleRequest: {
             /** @enum {string} */
@@ -11750,6 +12354,16 @@ export interface components {
             code: string;
             password: string;
             password_confirmation: string;
+        };
+        /**
+         * RegenerateDeviceTokenRequest
+         * @description Why a terminal's address is being replaced. A request with no reason is
+         *     read as `lost`, the one that closes the old address at once: a cached page
+         *     that still posts nothing must not leave a stolen address open.
+         */
+        RegenerateDeviceTokenRequest: {
+            /** @enum {string|null} */
+            reason?: "lost" | "moving" | null;
         };
         /**
          * RegisterAttendanceDeviceRequest
@@ -12095,6 +12709,13 @@ export interface components {
             /** @enum {string} */
             scope?: "not_activated";
         };
+        /**
+         * SettlePayDifferenceRequest
+         * @description What finance did about the difference: a reference or a few words.
+         */
+        SettlePayDifferenceRequest: {
+            note: string;
+        };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
             public_id: string;
@@ -12302,13 +12923,10 @@ export interface components {
         StoreAnnouncementRequest: {
             title: string;
             body: string;
-            /** @enum {string} */
-            priority?: "low" | "normal" | "high" | "urgent";
-            /** @enum {string} */
-            target_type?: "all" | "department" | "branch";
+            priority?: components["schemas"]["AnnouncementPriority"];
+            target_type?: components["schemas"]["AnnouncementTarget"];
             target_id?: string | null;
-            /** @enum {string|null} */
-            category?: "news" | "notice" | "event" | "deadline" | null;
+            category?: components["schemas"]["AnnouncementCategory"] | null;
             publish_now?: boolean;
             /** Format: date-time */
             published_at?: string | null;
@@ -12383,6 +13001,7 @@ export interface components {
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
             bank_name: string;
+            bank_code?: string | null;
             branch_name?: string | null;
             account_number: string;
             is_primary?: boolean | null;
@@ -12394,6 +13013,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -12520,6 +13141,7 @@ export interface components {
         StoreEducationRequest: {
             institution: string;
             degree: string;
+            level?: components["schemas"]["EducationLevel"] | null;
             field_of_study?: string | null;
             /** Format: date-time */
             start_date?: string | null;
@@ -12556,8 +13178,7 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
@@ -12567,13 +13188,23 @@ export interface components {
              *     import and device sync (see IDENTITY_RESOLUTION.md).
              */
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             hire_date: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
             tin?: string | null;
             department_id?: string | null;
@@ -12657,8 +13288,7 @@ export interface components {
             min_notice_days?: number | null;
             max_consecutive?: number | null;
             is_paid?: boolean | null;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number | null;
         };
         /** StoreLetterRequest */
@@ -12832,6 +13462,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** StoreProfileEmergencyContactRequest */
         StoreProfileEmergencyContactRequest: {
@@ -13079,6 +13711,15 @@ export interface components {
             logo_url: string | null;
             url: string;
         };
+        /**
+         * UndoMigrationRequest
+         * @description Undoing what a list added: the second, explicit call after the preview.
+         *     Archiving people is not done by a request that does not say so.
+         */
+        UndoMigrationRequest: {
+            /** @enum {unknown} */
+            confirm: "yes" | "on" | "1" | 1 | "true" | true;
+        };
         /** UnregisteredEmployeeResource */
         UnregisteredEmployeeResource: {
             public_id: string;
@@ -13119,13 +13760,10 @@ export interface components {
         UpdateAnnouncementRequest: {
             title?: string;
             body?: string;
-            /** @enum {string} */
-            priority?: "low" | "normal" | "high" | "urgent";
-            /** @enum {string} */
-            target_type?: "all" | "department" | "branch";
+            priority?: components["schemas"]["AnnouncementPriority"];
+            target_type?: components["schemas"]["AnnouncementTarget"];
             target_id?: string | null;
-            /** @enum {string|null} */
-            category?: "news" | "notice" | "event" | "deadline" | null;
+            category?: components["schemas"]["AnnouncementCategory"] | null;
             /** Format: date-time */
             published_at?: string | null;
             /** Format: date-time */
@@ -13241,6 +13879,8 @@ export interface components {
             code?: string | null;
             address?: string | null;
             city?: string | null;
+            region_code?: string | null;
+            town_code?: string | null;
             phone?: string | null;
             latitude?: number | null;
             longitude?: number | null;
@@ -13345,20 +13985,31 @@ export interface components {
             phone?: string | null;
             employee_code?: string | null;
             badge_number?: string | null;
-            /** @enum {string|null} */
-            gender?: "male" | "female" | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
             nationality_status?: components["schemas"]["NationalityStatus"] | null;
             national_id?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             /** Format: date-time */
             hire_date?: string;
             /** Format: date-time */
             probation_end_date?: string | null;
+            outside_employment_framework?: boolean;
+            employment_framework_note?: string | null;
             salary_cents?: number | null;
+            /** Format: date-time */
+            salary_effective_date?: string | null;
             tin?: string | null;
             department_id?: string | null;
             branch_id?: string | null;
@@ -13554,8 +14205,7 @@ export interface components {
             max_consecutive?: number | null;
             is_paid?: boolean;
             is_active?: boolean;
-            /** @enum {string|null} */
-            gender_restriction?: "male" | "female" | null;
+            gender_restriction?: components["schemas"]["Gender"] | null;
             sort_order?: number;
         };
         /**
@@ -13595,8 +14245,10 @@ export interface components {
         UpdateNotificationTemplateRequest: {
             subject_en?: string | null;
             subject_am?: string | null;
+            subject_om?: string | null;
             body_en?: string | null;
             body_am?: string | null;
+            body_om?: string | null;
         };
         /** UpdateOrganizationRequest */
         UpdateOrganizationRequest: {
@@ -13608,7 +14260,8 @@ export interface components {
             cancel_pending_organization_type?: boolean;
             timezone?: string;
             /** @enum {string} */
-            locale?: "en" | "am" | "om" | "ti" | "so";
+            locale?: "en" | "am" | "om";
+            employment_framework?: components["schemas"]["EmploymentFramework"] | null;
         };
         /**
          * UpdateOvertimeRatesRequest
@@ -13648,6 +14301,7 @@ export interface components {
         /** UpdatePlatformSettingsRequest */
         UpdatePlatformSettingsRequest: {
             bank_name?: string | null;
+            bank_code?: string | null;
             /**
              * @description Ethiopian bank account numbers are digits, commonly written with
              *     spaces or dashes for readability. Anything else is a typo on a field
@@ -13709,6 +14363,8 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+            /** @enum {string|null} */
+            access_role?: "supervisor" | "dept_admin" | "hr_admin" | "finance_admin" | null;
         };
         /** UpdatePreferencesRequest */
         UpdatePreferencesRequest: {
@@ -13738,9 +14394,17 @@ export interface components {
         UpdateProfileRequest: {
             /** @description Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS. */
             phone?: string | null;
-            /** @enum {string|null} */
-            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            marital_status?: components["schemas"]["MaritalStatus"] | null;
             nationality?: string | null;
+            address_region_code?: string | null;
+            address_region_text?: string | null;
+            address_sub_city_code?: string | null;
+            address_zone_or_sub_city_text?: string | null;
+            address_town_code?: string | null;
+            address_town_text?: string | null;
+            address_woreda?: string | null;
+            address_kebele?: string | null;
+            address_house_number?: string | null;
             /**
              * @description Shorthand for the primary emergency contact. The full list is managed
              *     through /profile/emergency-contacts.
@@ -13784,6 +14448,14 @@ export interface components {
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
+                password_policy?: {
+                    min_length: number;
+                    require_uppercase: boolean;
+                    require_lowercase: boolean;
+                    require_number: boolean;
+                    require_symbol: boolean;
+                };
+                activation_code_hours?: number;
                 /** @enum {string} */
                 calendar?: "ethiopian" | "gregorian";
                 /** @enum {string} */
@@ -13796,10 +14468,16 @@ export interface components {
                 /** @enum {string|null} */
                 payout_method?: "bank" | "cash" | null;
                 employer_bank_name?: string | null;
+                employer_bank_code?: string | null;
+                pay_change_alert_percent?: number;
+                pay_change_alert_min_cents?: number;
                 letterhead_address?: string | null;
                 letterhead_phone?: string | null;
                 /** Format: email */
                 letterhead_email?: string | null;
+                device_silence_alerts?: boolean;
+                device_silence_adms_minutes?: number;
+                device_silence_push_grace_minutes?: number;
                 letterhead_po_box?: string | null;
             };
         };
@@ -13836,18 +14514,15 @@ export interface components {
             idp_entity_id?: string | null;
             /** Format: uri */
             idp_sso_url?: string | null;
-            /** Format: uri */
-            idp_slo_url?: string | null;
             idp_certificate?: string | null;
             /** @enum {string|null} */
             default_role?: "employee" | "supervisor" | "dept_admin" | "hr_admin" | null;
             auto_provision?: boolean;
-            attribute_mapping?: string[] | null;
         };
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
             /** @enum {string} */
-            action: "merge" | "create" | "skip" | "defer";
+            action: "merge" | "create" | "skip" | "defer" | "restore";
             /**
              * @description Lets a reviewer pick which candidate an "ambiguous" row merges
              *     with — resolved tenant-scoped in the controller, same as every
@@ -13924,6 +14599,7 @@ export interface components {
             /** @description Unique per tenant, ignoring this user's own row so a no-op save passes. */
             username?: string | null;
             role?: components["schemas"]["UserRole"];
+            role_follows_position?: boolean;
             /** @enum {string} */
             status?: "active" | "inactive" | "suspended";
             custom_role_id?: string | null;
@@ -14042,6 +14718,13 @@ export interface components {
             username: string | null;
             phone: string | null;
             role: components["schemas"]["UserRole"];
+            role_follows_position: boolean;
+            title_role: string | null;
+            title_preview: {
+                role: string;
+                position: string | null;
+                applies: boolean;
+            } | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -14054,6 +14737,7 @@ export interface components {
             custom_role?: {
                 public_id: string;
                 name: string;
+                is_active: boolean;
             } | null;
             employee?: {
                 public_id: string;
@@ -14152,6 +14836,7 @@ export interface components {
         /** VoidPayrollRunRequest */
         VoidPayrollRunRequest: {
             reason: string;
+            acknowledged_settled_pay_differences?: number | null;
         };
     };
     responses: {
@@ -15110,40 +15795,48 @@ export interface operations {
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be recorded. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 detail: string;
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Invalid employee PIN.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Too many wrong PINs for this employee. Try again in 15 minutes or ask HR.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Employee not found with the given code.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This number matches more than one person. Type your full code with the ABC key.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "Kiosk check-in is switched off, and this offline punch cannot be shown to have been made before it was. Ask HR to enter it.";
+                                final: boolean;
                             } | {
                                 /** @constant */
                                 status: "error";
                                 /** @constant */
                                 detail: "This offline punch could not be read. Punch again.";
+                                final: boolean;
                             };
                         }[];
                     };
@@ -16277,19 +16970,22 @@ export interface operations {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            /** @constant */
-                            detail: "You can only sync your own attendance.";
+                            detail: string;
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
-                            detail: string;
+                            /** @constant */
+                            detail: "You can only sync your own attendance.";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @constant */
                             status: "error";
                             /** @constant */
                             detail: "Employee not found";
+                            final: boolean;
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */
@@ -21671,7 +22367,22 @@ export interface operations {
                                     "leave_days",
                                     "holiday_days",
                                     "worked_hours",
-                                    "overtime_hours"
+                                    "overtime_hours",
+                                    "rest_days",
+                                    "missing_days",
+                                    "early_days",
+                                    "late_minutes",
+                                    "early_minutes",
+                                    "lateness_deduct_minutes",
+                                    "scheduled_hours",
+                                    "short_hours",
+                                    "overtime_normal_hours",
+                                    "overtime_night_hours",
+                                    "overtime_rest_day_hours",
+                                    "overtime_holiday_hours",
+                                    "overtime_holiday_night_hours",
+                                    "overtime_unapproved_hours",
+                                    "overtime_limit_days"
                                 ];
                                 filters: [
                                     "period",
@@ -21834,6 +22545,164 @@ export interface operations {
                             complete?: boolean;
                         };
                     };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheet": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: {
+                            from: string;
+                            to: string;
+                        } | null;
+                        days: {
+                            date: string;
+                            iso_weekday: number;
+                        }[];
+                        data: {
+                            public_id: string;
+                            employee_code: string | null;
+                            name: string;
+                            name_am: string | null;
+                            badge_number: string | null;
+                            position: string | null;
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            shift: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            cells: {
+                                date: string;
+                                code: string | null;
+                                short: string | null;
+                                kind: string;
+                                worked: boolean;
+                                late: boolean;
+                                early: boolean;
+                                worked_minutes: number;
+                                scheduled_minutes: number;
+                                late_minutes: number;
+                                early_minutes: number;
+                                overtime: {
+                                    [key: string]: number;
+                                };
+                                records: string[];
+                                locked: boolean;
+                                exception: {
+                                    type: string;
+                                    state: string;
+                                } | null;
+                            }[];
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                            check_ok: boolean;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        links: {
+                            next: string | null;
+                            prev: string | null;
+                        };
+                        complete: boolean;
+                        max_people: number;
+                        totals: {
+                            [key: string]: unknown;
+                        } | null;
+                        department_subtotals: {
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            employees: number;
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        rate_columns: {
+                            rate: number;
+                            types: string[];
+                        }[];
+                        rules_applied: {
+                            [key: string]: unknown;
+                        };
+                        status: {
+                            code: string;
+                            blocking: number;
+                            locked_days: number;
+                            employed_days: number;
+                        } | null;
+                        with_pay: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheetPdf": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -22347,6 +23216,20 @@ export interface operations {
                             held: number;
                             waiting: number;
                         };
+                        quarantined: {
+                            punches: number;
+                            devices: {
+                                device_public_id: string;
+                                name: string;
+                                punches: number;
+                            }[];
+                        };
+                        silent: {
+                            device_public_id: string;
+                            name: string;
+                            kind: string;
+                            since: string;
+                        }[];
                         unmatched: {
                             badges: number;
                             punches: number;
@@ -22363,6 +23246,63 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "deviceQuarantine.replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        replayed: number;
+                        skipped: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deviceQuarantine.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuarantineRowsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dismissed: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.syncAll": {
@@ -22412,8 +23352,8 @@ export interface operations {
                         status: "quiet" | "offline" | "online" | "pending";
                         /** @enum {string|null} */
                         error_code: "other" | "auth" | "http" | "sdk_port" | "refused" | "timeout" | "dns" | "unreachable" | null;
-                        details: unknown[];
-                        device_info: unknown[];
+                        details: string | unknown[];
+                        device_info: string | unknown[];
                     };
                 };
             };
@@ -22497,7 +23437,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegenerateDeviceTokenRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -22506,6 +23450,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         webhook_token: string | null;
+                        webhook_url: string | null;
+                        reason: string;
+                        previous_token_expires_at: string | null;
                         /** @constant */
                         message: "Webhook token regenerated";
                     };
@@ -22514,6 +23461,40 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "device.allowAddress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllowDeviceAddressRequest"];
+            };
+        };
+        responses: {
+            /** @description `DeviceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.syncLogs": {
@@ -22597,6 +23578,35 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceQuarantine.index": {
+        parameters: {
+            query?: {
+                per_page?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LengthAwarePaginator"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deviceEnrollment.index": {
@@ -23353,6 +24363,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "employeeBulk.ids": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                "filter[status]"?: string | null;
+                "filter[archived]"?: boolean | null;
+                "filter[nationality_needs_review]"?: boolean | null;
+                "filter[missing]"?: string | null;
+                "filter[department_id]"?: string | null;
+                "filter[branch_id]"?: string | null;
+                "filter[position_id]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ids: string[];
+                        total: number;
+                        capped: boolean;
+                        /** @constant */
+                        cap: 2000;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "employee.nextCode": {
         parameters: {
             query?: never;
@@ -23521,18 +24568,141 @@ export interface operations {
                         failed: number;
                         results: ({
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "updated";
                             error: null;
+                            access_held: boolean;
                         } | {
                             employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "failed";
+                            error: string;
+                            access_held: boolean;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "unchanged";
+                            error: null;
+                            access_held: boolean;
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeBulk.bulkArchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkArchiveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        confirmed: boolean;
+                        archive_count: number;
+                        keep_count: number;
+                        already_archived: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "already_archived";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @enum {string} */
+                            outcome: "kept" | "keep";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "archive";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "failed";
+                            reasons: string[];
+                            error: string;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "archived";
+                            reasons: string[];
+                            error: null;
+                        } | {
+                            employee_id: string;
+                            name: string;
+                            /** @constant */
+                            outcome: "kept";
+                            reasons: string[];
+                            error: null;
+                        })[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeBulk.bulkRestore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkRestoreRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        restored: number;
+                        failed: number;
+                        results: ({
+                            employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "failed";
                             error: string;
                         } | {
                             employee_id: string;
-                            /** @constant */
-                            outcome: "unchanged";
+                            name: string;
+                            /** @enum {string} */
+                            outcome: "restored" | "unchanged";
                             error: null;
                         })[];
                     };
@@ -24104,6 +25274,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employee.employeePaidMonths": {
+        parameters: {
+            query: {
+                from: string;
+            };
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            count: number;
+                            earliest_period_start: string | null;
+                            latest_period_end: string | null;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -26503,7 +27707,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
-                category?: "news" | "notice" | "event" | "deadline" | null;
+                category?: components["schemas"]["AnnouncementCategory"] | null;
                 page?: number | null;
             };
             header?: never;
@@ -27610,6 +28814,69 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "lookup.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        version: string;
+                        items: {
+                            region: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            sub_city: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            town: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                            bank: {
+                                code: string;
+                                parent_code: string | null;
+                                name: string;
+                                name_am: string;
+                                name_om: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
     "marketingContent.index": {
         parameters: {
             query?: never;
@@ -27799,6 +29066,29 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    "navigation.navigationBadges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approvals: number | null;
+                        attendance_integrity: number | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "announcement.index": {
@@ -28192,22 +29482,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: components["schemas"]["NotificationType"][];
                         channels: [
                             "in_app",
                             "email",
@@ -28227,6 +29502,9 @@ export interface operations {
                             in_app: boolean;
                             email: boolean;
                             sms: boolean;
+                        };
+                        type_channels: {
+                            [key: string]: string[];
                         };
                     };
                 };
@@ -28253,22 +29531,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        notification_types: [
-                            "leave_requested",
-                            "leave_approved",
-                            "leave_rejected",
-                            "leave_changed",
-                            "attendance_correction",
-                            "overtime_request",
-                            "attendance_anomaly",
-                            "payslip_available",
-                            "payroll_processed",
-                            "announcement",
-                            "approval_reminder",
-                            "expiry_reminder",
-                            "profile_update",
-                            "employee_voice"
-                        ];
+                        notification_types: components["schemas"]["NotificationType"][];
                         channels: [
                             "in_app",
                             "email",
@@ -28288,6 +29551,9 @@ export interface operations {
                             in_app: boolean;
                             email: boolean;
                             sms: boolean;
+                        };
+                        type_channels: {
+                            [key: string]: string[];
                         };
                     };
                 };
@@ -28742,6 +30008,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -28785,6 +30053,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -28823,6 +30096,14 @@ export interface operations {
                         ignored: string[];
                         calendar: string;
                         calendar_from_header: boolean;
+                        calendar_hints: {
+                            column: string;
+                            /** @enum {string} */
+                            calendar: "ethiopian" | "gregorian";
+                            value: string;
+                            line: number;
+                            from_header: boolean;
+                        }[];
                         without_hire_date: number;
                         problems: {
                             line: number;
@@ -28880,6 +30161,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -28923,6 +30206,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -29096,6 +30384,17 @@ export interface operations {
                             created_by_name: string | null;
                             mine: boolean;
                         }[];
+                        added: {
+                            public_id: string;
+                            mode: string;
+                            source_type: string;
+                            rows: number;
+                            created: number;
+                            committed_at: string | null;
+                            created_by_name: string | null;
+                            mine: boolean;
+                            undone_at: string | null;
+                        }[];
                     };
                 };
             };
@@ -29129,6 +30428,8 @@ export interface operations {
                         mode: "complete" | "add";
                         arrival_status: string | null;
                         totals: unknown[] | null;
+                        undone_at: string | null;
+                        undo_archived: number;
                         summary: {
                             [key: string]: number;
                         };
@@ -29172,6 +30473,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -29255,6 +30561,11 @@ export interface operations {
                             taken: boolean;
                         }[];
                         warnings: unknown[];
+                        restore: {
+                            possible: boolean;
+                            allowed: boolean;
+                            reasons: string[];
+                        } | null;
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;
@@ -29374,6 +30685,71 @@ export interface operations {
             };
         };
     };
+    "migration.acceptDifferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptDifferencesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: boolean;
+                        cursor: number;
+                        rows: number;
+                        by_field: {
+                            [key: string]: number;
+                        };
+                        out_of_reach: number;
+                        pay_refused: number;
+                        held: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /**
+             * @description An error
+             *
+             *     An error
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    } | {
+                        /**
+                         * @description Error overview.
+                         * @example This list is already being added. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "migration.commit": {
         parameters: {
             query?: never;
@@ -29401,6 +30777,7 @@ export interface operations {
                             created: number;
                             merged: number;
                             updated: number;
+                            restored: number;
                             skipped: number;
                             deferred: number;
                         };
@@ -29433,6 +30810,118 @@ export interface operations {
                         /**
                          * @description Error overview.
                          * @example This list is still being matched. Wait for it to finish.
+                         */
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.undoPreview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        origin: string;
+                        exact: boolean;
+                        added: number;
+                        already_archived: number;
+                        matched: number;
+                        archive_count: number;
+                        archive: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                        }[];
+                        keep_count: number;
+                        keep: {
+                            employee_public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                            reasons: string[];
+                        }[];
+                        out_of_reach: number;
+                        undone_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
+                         */
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    "migration.undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoMigrationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        done: boolean;
+                        archived: number;
+                        remaining: number;
+                        kept: number;
+                        out_of_reach: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            /** @description An error */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example Only a list that has been added can be undone.
                          */
                         message: string;
                     };
@@ -31474,6 +32963,123 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "payDifference.index": {
+        parameters: {
+            query?: {
+                status?: "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded" | null;
+                employee?: string | null;
+                for_run?: string | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PayrollPayDifferenceResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlePayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payDifference.dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The pay difference public id */
+                payDifference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissPayDifferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollPayDifferenceResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPayDifferenceResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "payroll.process": {
         parameters: {
             query?: never;
@@ -31959,6 +33565,46 @@ export interface operations {
                                 deducted_cents: number;
                             }[];
                         };
+                        pay_changes: {
+                            count: number;
+                            previous_period: string | null;
+                            first_payslip: number;
+                            percent: number | null;
+                            min_cents: number | null;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string;
+                                previous_net_cents: number;
+                                net_cents: number;
+                                change_cents: string;
+                                change_percent: number | null;
+                                reasons: unknown[];
+                            }[];
+                        };
+                        shared_bank_accounts: {
+                            count: number;
+                            pending_hashes: number;
+                            support_session: boolean;
+                            groups: {
+                                banks: unknown[];
+                                employees: unknown[];
+                            }[];
+                        };
+                        missing_tin: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string;
+                                employee_name: string;
+                            }[];
+                        };
+                        no_attendance: {
+                            count: number;
+                            employees: {
+                                employee_public_id: string | null;
+                                employee_name: string;
+                                days: number;
+                            }[];
+                        };
                         reconciliation: {
                             mode: string;
                             lateness_deduction_enabled: boolean;
@@ -32094,6 +33740,10 @@ export interface operations {
                             period: string;
                             /** @enum {string} */
                             status: "Approved and paid" | "Approved" | "NOT APPROVED — draft figures";
+                            /**
+                             * @description A user with no token at all (an actingAs() test, a console) reads as
+                             *     no abilities: the `??` is on a property of null, which is safe.
+                             */
                             approved: boolean;
                             basis: string;
                             notice: string | "Layout prepared by ETHR; to be confirmed with the agency before filing (owner action O3).";
@@ -35788,6 +37438,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                         address: {
                             mode: string;
@@ -35925,6 +37584,9 @@ export interface operations {
                             pension_registration_number: string | null;
                             payout_method: string | null;
                             employer_bank_name: string | null;
+                            employer_bank_code: string | null;
+                            pay_change_alert_percent: number | null;
+                            pay_change_alert_min_cents: number | null;
                         };
                         documents: {
                             letterhead_address: string | null;
@@ -35935,6 +37597,14 @@ export interface operations {
                         security: {
                             mfa_policy: string;
                             session_timeout_minutes: number;
+                            password_policy: {
+                                min_length: number;
+                                require_uppercase: boolean;
+                                require_lowercase: boolean;
+                                require_number: boolean;
+                                require_symbol: boolean;
+                            };
+                            activation_code_hours: number;
                         };
                         display: {
                             /** @enum {string} */
@@ -35946,6 +37616,11 @@ export interface operations {
                             next_code: string;
                             invitation_reminders: boolean;
                         };
+                        devices: {
+                            silence_alerts: boolean;
+                            silence_adms_minutes: number | null;
+                            silence_push_grace_minutes: number | null;
+                        };
                         sso: {
                             is_enabled: boolean;
                             provider: string;
@@ -35954,6 +37629,8 @@ export interface operations {
                             default_role: string;
                             auto_provision: boolean;
                             metadata_url: string;
+                            configured: boolean;
+                            has_certificate: boolean;
                         } | {
                             is_enabled: boolean;
                             /** @constant */
@@ -35964,6 +37641,8 @@ export interface operations {
                             default_role: "employee";
                             auto_provision: boolean;
                             metadata_url: null;
+                            configured: boolean;
+                            has_certificate: boolean;
                         };
                     };
                 };
@@ -36036,6 +37715,15 @@ export interface operations {
                                 effective_from: string;
                             } | null;
                             organization_type_earliest_change: string | null;
+                            employment_framework: {
+                                framework: string | null;
+                                confirmed: boolean;
+                                /** @enum {string|null} */
+                                source: "organisation" | "ethr" | null;
+                                legal_reference: string | null;
+                                has_statutory_rules: boolean;
+                                ethr_reading: string | null;
+                            };
                         };
                     };
                 };
@@ -36356,6 +38044,8 @@ export interface operations {
                             default_role: string;
                             auto_provision: boolean;
                             metadata_url: string;
+                            configured: boolean;
+                            has_certificate: boolean;
                         } | {
                             is_enabled: boolean;
                             /** @constant */
@@ -36366,6 +38056,8 @@ export interface operations {
                             default_role: "employee";
                             auto_provision: boolean;
                             metadata_url: null;
+                            configured: boolean;
+                            has_certificate: boolean;
                         };
                     };
                 };
@@ -36427,8 +38119,10 @@ export interface operations {
                             type: "leave_requested" | "leave_approved" | "leave_rejected" | "leave_changed" | "payslip_available" | "missing_punch" | "trial_expiring";
                             subject_en: string;
                             subject_am: string;
+                            subject_om: string;
                             body_en: string;
                             body_am: string;
+                            body_om: string;
                             is_customized: boolean;
                             variables: string[];
                         }[];
@@ -37608,6 +39302,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -37635,6 +39336,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -37698,6 +39406,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -37725,6 +39440,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -37791,6 +39513,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -37818,6 +39547,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -37880,6 +39616,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                         secondary: {
                             slot: string;
@@ -37907,6 +39650,13 @@ export interface operations {
                             last_test_ok: boolean | null;
                             last_test_status: number | null;
                             last_test_response: string | null;
+                            consecutive_failures: number;
+                            paused: boolean;
+                            paused_until: string | null;
+                            last_success_at: string | null;
+                            last_failure_at: string | null;
+                            last_failure_status: number | null;
+                            last_failure_response: string | null;
                         } | null;
                     };
                 };
@@ -38887,12 +40637,38 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
-                            match: unknown;
+                            match: {
+                                [key: string]: unknown;
+                            } | null;
+                            recording_itself: boolean;
                             name_on_device: string | null;
                             name_matches: {
                                 employee_public_id: string;
                                 employee_name: string;
-                                department: string | null;
+                                department: string;
+                                fit: string;
+                                identity: {
+                                    employee_code: string | null;
+                                    department: string | null;
+                                    position: string | null;
+                                    branch: string | null;
+                                    hire_date: string;
+                                    status: string;
+                                    badge_number: string | null;
+                                    warnings: ({
+                                        /** @constant */
+                                        code: "other_badge";
+                                        value: string;
+                                    } | {
+                                        /** @constant */
+                                        code: "hired_after";
+                                        value: Record<string, never> | null;
+                                    } | {
+                                        /** @constant */
+                                        code: "own_attendance";
+                                        value: number;
+                                    })[];
+                                } | null;
                             }[];
                         }[];
                     };
@@ -38967,6 +40743,11 @@ export interface operations {
                 search?: string;
                 "filter[role]"?: string;
                 "filter[status]"?: string;
+                /**
+                 * @description A public id, read through the tenant scope: another organisation's
+                 *      role finds no one rather than raising an error.
+                 */
+                "filter[custom_role]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -38983,6 +40764,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: (components["schemas"]["UserResource"] & {
+                            custom_role: {
+                                public_id: string;
+                                name: string;
+                                is_active: boolean;
+                            } | null;
                             employee: {
                                 public_id: string;
                                 name: string;
@@ -39063,6 +40849,35 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "user.assignableRoles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            name: string;
+                            description: string;
+                            org_scope: string;
+                            permissions_count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "user.destroy": {
         parameters: {
             query?: never;
@@ -39136,6 +40951,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;
@@ -39190,6 +41010,59 @@ export interface operations {
                         status: 422;
                         /** @constant */
                         detail: "This user is not pending activation.";
+                    };
+                };
+            };
+        };
+    };
+    "user.titleAccess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "You may not give that role, so the account was left as it was.";
                     };
                 };
             };
@@ -39407,6 +41280,15 @@ export interface operations {
                             date_of_birth: string | null;
                             nationality: string | null;
                             marital_status: string | null;
+                            address_region_code: string | null;
+                            address_region_text: string | null;
+                            address_sub_city_code: string | null;
+                            address_zone_or_sub_city_text: string | null;
+                            address_town_code: string | null;
+                            address_town_text: string | null;
+                            address_woreda: string | null;
+                            address_kebele: string | null;
+                            address_house_number: string | null;
                             hire_date: string | null;
                             /**
                              * @description Cast to EmployeeStatus on the model; a backed enum serialises to
@@ -39468,7 +41350,16 @@ export interface operations {
                             self: [
                                 "phone",
                                 "marital_status",
-                                "nationality"
+                                "nationality",
+                                "address_region_code",
+                                "address_region_text",
+                                "address_sub_city_code",
+                                "address_zone_or_sub_city_text",
+                                "address_town_code",
+                                "address_town_text",
+                                "address_woreda",
+                                "address_kebele",
+                                "address_house_number"
                             ];
                             gated: string[];
                         };

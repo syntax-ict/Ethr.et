@@ -59,11 +59,12 @@ export function useManagerDashboard(enabled = true) {
       return data;
     },
     staleTime: 5 * 60 * 1000,
-    // The Approvals badge and team attendance are read from here, and both
-    // move while the page is open: refreshed every minute while the tab is
-    // visible, and on every decision (["dashboard"] is invalidated by each
-    // approval mutation). Neither happened, so the badge kept counting
-    // requests already decided until a reload (audit N80).
+    // Team attendance and the pending-approvals card are read from here, and
+    // both move while the page is open: refreshed every minute while the tab
+    // is visible, and on every decision (["dashboard"] is invalidated by each
+    // approval mutation), so the card does not keep counting requests already
+    // decided until a reload (audit N80). The sidebar and tab-bar badges no
+    // longer read this payload: they use useNavigationBadges.
     refetchInterval: 60 * 1000,
     enabled,
   });

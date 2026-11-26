@@ -26,11 +26,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAppLayout } from "./layout-context";
-import {
-  useCurrentUser,
-  useCurrentTenant,
-  useLogout,
-} from "@/features/auth/api";
+import { useGuardedSignOut } from "@/features/auth/components/sign-out-guard";
+import { useCurrentUser, useCurrentTenant } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { SITE_URL } from "@/lib/site-url";
 import { useProductMark } from "@/features/marketing/site-content";
@@ -86,57 +83,60 @@ function WorkspaceMenu({
 }) {
   const { t } = useT();
   const { can, isTenantAdmin } = usePermissions();
-  const logout = useLogout();
+  const { requestSignOut, signOutDialog } = useGuardedSignOut();
   const hasAdminLinks = can.manageSettings || isTenantAdmin;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent align={align} sideOffset={8} className="w-60">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex items-center gap-2.5">
-            <TenantLogoBadge showName={false} surface="dark" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{tenantName}</p>
-              {roleName && (
-                <p className="truncate text-xs capitalize text-muted-foreground">
-                  {roleName}
-                </p>
-              )}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+        <DropdownMenuContent align={align} sideOffset={8} className="w-60">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex items-center gap-2.5">
+              <TenantLogoBadge showName={false} surface="dark" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{tenantName}</p>
+                {roleName && (
+                  <p className="truncate text-xs capitalize text-muted-foreground">
+                    {roleName}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
-        {hasAdminLinks && (
-          <>
-            <DropdownMenuSeparator />
-            {can.manageSettings && (
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="cursor-pointer gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  {t("nav.workspace_settings", "Workspace settings")}
-                </Link>
-              </DropdownMenuItem>
-            )}
-            {isTenantAdmin && (
-              <DropdownMenuItem asChild>
-                <Link href="/billing" className="cursor-pointer gap-2">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  {t("nav.billing", "Billing")}
-                </Link>
-              </DropdownMenuItem>
-            )}
-          </>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onClick={() => logout.mutate()}
-        >
-          <LogOut className="h-4 w-4" />
-          {t("common.logout", "Log Out")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuLabel>
+          {hasAdminLinks && (
+            <>
+              <DropdownMenuSeparator />
+              {can.manageSettings && (
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer gap-2">
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    {t("nav.workspace_settings", "Workspace settings")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {isTenantAdmin && (
+                <DropdownMenuItem asChild>
+                  <Link href="/billing" className="cursor-pointer gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    {t("nav.billing", "Billing")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+            onClick={requestSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {t("common.logout", "Log Out")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {signOutDialog}
+    </>
   );
 }
 

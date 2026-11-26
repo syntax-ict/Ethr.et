@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Api\V1\Device;
 use App\Enums\AttendanceSource;
 use App\Enums\Feature;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Device\AllowDeviceAddressRequest;
 use App\Http\Requests\Device\ImportHistoryRequest;
+use App\Http\Requests\Device\RegenerateDeviceTokenRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Http\Resources\DeviceResource;
@@ -24,11 +26,17 @@ use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
 use App\Rules\DeviceConnectionConfig;
 use App\Services\CurrentTenant;
+use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\DeviceCommandQueue;
+use App\Services\Device\DeviceDayCounts;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\DevicePunchKey;
 use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\DeviceSilence;
+use App\Services\Device\HeartbeatCapture;
 use App\Services\Device\HikvisionEvent;
 use App\Services\Device\HikvisionPushAdapter;
+use App\Services\Device\PushDeviceStatus;
 use App\Services\Device\TerminalKeepAlive;
 use App\Services\Device\TerminalNames;
 use App\Services\Device\WebhookRejections;
@@ -36,23 +44,24 @@ use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureDecision;
 use App\Services\Features\FeatureGate;
 use App\Services\PlanLimitService;
+use App\Support\DeviceClock;
 use App\Support\DeviceErrorCode;
+use App\Support\DeviceTime;
 use App\Support\FeatureUnavailable;
 use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class DeviceController extends Controller
 {
     public function __construct(
         private readonly DeviceManager $deviceManager,
-        private readonly DevicePunchRecorder $punches,
         private readonly TerminalNames $terminalNames,
     ) {}
 
@@ -94,9 +103,15 @@ class DeviceController extends Controller
 
         $query->orderBy('name');
 
-        return DeviceResource::collection(
-            $query->paginate($request->integer('per_page', 25))
-        );
+        $page = $query->paginate($request->integer('per_page', 25));
+
+        // One grouped query for the page, not one per device (DeviceResource).
+        $tenant = app(CurrentTenant::class)->get();
+        if ($tenant !== null) {
+            $request->attributes->set(DeviceResource::COUNTS_ATTRIBUTE, DeviceDayCounts::forDevices($tenant->id, $page->getCollection()));
+        }
+
+        return DeviceResource::collection($page);
     }
 
     public function store(StoreDeviceRequest $request, PlanLimitService $planLimits): JsonResponse
@@ -147,11 +162,11 @@ class DeviceController extends Controller
         Gate::authorize('device.view');
 
         if (DeviceManager::receivesOnly($device)) {
-            HikvisionPushAdapter::settleStatus($device);
+            PushDeviceStatus::settle($device);
         }
 
         $device->load('branch');
-        $device->loadCount(['attendanceRecords', 'syncLogs']);
+        $device->loadCount(['attendanceRecords', 'syncLogs', 'quarantinedPunches']);
 
         return new DeviceResource($device);
     }
@@ -237,7 +252,7 @@ class DeviceController extends Controller
     private function settleSendingTerminals(): void
     {
         $devices = Device::query()
-            ->where('adapter_type', 'hikvision')
+            ->whereIn('adapter_type', ['hikvision', 'zkteco', 'suprema', AdmsDeviceResolver::ADAPTER])
             ->whereIn('status', ['online', 'quiet'])
             ->get();
 
@@ -245,7 +260,7 @@ class DeviceController extends Controller
             // One device whose config will not decrypt must not break the page.
             try {
                 if (DeviceManager::receivesOnly($device)) {
-                    HikvisionPushAdapter::settleStatus($device);
+                    PushDeviceStatus::settle($device);
                 }
             } catch (Throwable $e) {
                 report($e);
@@ -257,7 +272,14 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.view');
 
-        $adapter = $this->deviceManager->adapter($device);
+        // A terminal that only sends is not probed: it answers from when it
+        // was last heard, and "never heard" is its own state, not offline.
+        // Decided first, so a terminal with no address is never called.
+        $sendsOnly = DeviceManager::receivesOnly($device);
+
+        $adapter = $sendsOnly && $device->adapter_type !== AdmsDeviceResolver::ADAPTER && $device->adapter_type !== 'hikvision'
+            ? app(HikvisionPushAdapter::class)
+            : $this->deviceManager->adapter($device);
         $status = $adapter->getStatus($device);
         $online = $status['online'] ?? false;
 
@@ -265,13 +287,9 @@ class DeviceController extends Controller
         // offline device a second time doubles the wait on the connect timeout and blocks
         // the request (and worker) for no useful data.
         $info = $online ? $adapter->getDeviceInfo($device) : [];
-
-        // A terminal that only sends was not probed: it answers from when it
-        // was last heard, and "never heard" is its own state, not offline.
-        $sendsOnly = DeviceManager::receivesOnly($device);
         /** @var 'pending'|'online'|'quiet'|'offline' $newStatus */
         $newStatus = $sendsOnly
-            ? HikvisionPushAdapter::settleStatus($device)
+            ? PushDeviceStatus::settle($device)
             : ($online ? 'online' : 'offline');
         if (! $sendsOnly && $device->status !== $newStatus) {
             $device->update(['status' => $newStatus]);
@@ -302,7 +320,7 @@ class DeviceController extends Controller
             if (! $wasPush && $device->last_sync_at !== null) {
                 $device->update(['last_sync_at' => null]);
             }
-            HikvisionPushAdapter::settleStatus($device);
+            PushDeviceStatus::settle($device);
         } elseif ($wasPush && $device->status !== 'pending') {
             $device->update(['status' => 'pending']);
         }
@@ -311,6 +329,7 @@ class DeviceController extends Controller
     public function pull(Request $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         PullDeviceEventsJob::dispatch($device->id, $device->tenant_id, 'manual');
 
@@ -320,9 +339,18 @@ class DeviceController extends Controller
         ]);
     }
 
+    /** A terminal that only sends is never pulled: a job queued for it would do nothing. */
+    private function refuseWhenNothingToPull(Device $device): void
+    {
+        if (DeviceManager::receivesOnly($device)) {
+            throw ValidationException::withMessages(['device' => __('device.not_pulled')]);
+        }
+    }
+
     public function importHistory(ImportHistoryRequest $request, Device $device): JsonResponse
     {
         Gate::authorize('device.update');
+        $this->refuseWhenNothingToPull($device);
 
         // Resolve the backfill start. `full` passes no `since`, letting the
         // adapter return the earliest history it retains.
@@ -370,18 +398,81 @@ class DeviceController extends Controller
         ]);
     }
 
-    public function regenerateToken(Device $device): JsonResponse
+    /** Add one address to the device's webhook allowlist. */
+    public function allowAddress(AllowDeviceAddressRequest $request, Device $device): DeviceResource
     {
         Gate::authorize('device.update');
 
-        $retired = $device->webhook_token;
-        $device->update(['webhook_token' => Device::generateWebhookToken()]);
-        WebhookRejections::retire($device, $retired);
+        // The device page offers this beside "tried to connect from ...", so
+        // the fix is one click rather than a typed address. A single address;
+        // one already there changes nothing and writes no audit entry.
 
-        AuditLog::record('device.token_regenerated', $device);
+        $ip = (string) $request->validated('ip');
+        $list = array_values(array_filter((array) ($device->webhook_ip_allowlist ?? []), 'is_string'));
+
+        if (! in_array($ip, $list, true)) {
+            if (count($list) >= self::ALLOWLIST_MAX) {
+                throw ValidationException::withMessages(['ip' => __('device.allowlist_full')]);
+            }
+
+            $list[] = $ip;
+            $device->update(['webhook_ip_allowlist' => $list]);
+            WebhookRejections::forget($device);
+            AdmsDeviceResolver::forgetRejection($device);
+
+            AuditLog::record('device.allowlist_address_added', $device, [
+                'device' => $device->public_id,
+                'address' => $ip,
+            ]);
+        }
+
+        $device->load('branch');
+        $device->loadCount(['attendanceRecords', 'syncLogs']);
+
+        return new DeviceResource($device);
+    }
+
+    /** The most addresses an allowlist holds (StoreDeviceRequest). */
+    private const ALLOWLIST_MAX = 20;
+
+    /** How long a "moving" regeneration keeps the old address working. */
+    private const MOVING_GRACE_HOURS = 24;
+
+    public function regenerateToken(RegenerateDeviceTokenRequest $request, Device $device): JsonResponse
+    {
+        Gate::authorize('device.update');
+
+        $reason = $request->reason();
+        $retiredHash = $device->webhook_token_hash;
+        $retiredPreviousHash = $device->webhook_token_previous_hash;
+
+        $device->webhook_token = Device::generateWebhookToken();
+
+        if ($reason === RegenerateDeviceTokenRequest::MOVING && $retiredHash !== null) {
+            $device->forceFill([
+                'webhook_token_previous_hash' => $retiredHash,
+                'webhook_token_previous_expires_at' => now()->addHours(self::MOVING_GRACE_HOURS),
+            ]);
+        } else {
+            $device->forceFill([
+                'webhook_token_previous_hash' => null,
+                'webhook_token_previous_expires_at' => null,
+            ]);
+        }
+
+        $device->save();
+        WebhookRejections::retire($device, $retiredHash);
+        if ($reason === RegenerateDeviceTokenRequest::LOST || $retiredHash === null) {
+            WebhookRejections::retire($device, $retiredPreviousHash);
+        }
+
+        AuditLog::record('device.token_regenerated', $device, ['reason' => $reason]);
 
         return response()->json([
-            'webhook_token' => $device->webhook_token,
+            'webhook_token' => $device->issuedWebhookToken,
+            'webhook_url' => $device->webhookUrlFor((string) $device->issuedWebhookToken),
+            'reason' => $reason,
+            'previous_token_expires_at' => $device->webhook_token_previous_expires_at?->toIso8601String(),
             'message' => 'Webhook token regenerated',
         ]);
     }
@@ -484,6 +575,17 @@ class DeviceController extends Controller
         $unmatchedPunches = (int) (clone $pendingHeld)->count();
         $unmatchedBadges = count($pendingHeld->select('device_id', 'badge')->distinct()->get());
 
+        $quarantined = DeviceInboundPunch::query()
+            ->whereIn('device_id', $deviceIds)
+            ->whereNotNull('failed_at')
+            ->whereNull('dismissed_at')
+            ->selectRaw('device_id, COUNT(*) as punches')
+            ->groupBy('device_id')
+            ->pluck('punches', 'device_id');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $silent = $tenant === null ? [] : app(DeviceSilence::class)->silentDevices($tenant);
+
         return response()->json([
             'total' => $devices->count(),
             'online' => $devices->where('status', 'online')->count(),
@@ -498,6 +600,18 @@ class DeviceController extends Controller
                 'held' => $heldToday,
                 'waiting' => $waiting,
             ],
+            'quarantined' => [
+                'punches' => (int) $quarantined->sum(),
+                'devices' => $devices
+                    ->filter(fn (Device $d) => (int) $quarantined->get($d->id, 0) > 0)
+                    ->map(fn (Device $d) => ['device_public_id' => (string) $d->public_id, 'name' => (string) $d->name, 'punches' => (int) $quarantined->get($d->id)])
+                    ->values()
+                    ->all(),
+            ],
+            'silent' => collect($silent)
+                ->map(fn (array $found) => ['device_public_id' => (string) $found['device']->public_id, 'name' => (string) $found['device']->name, 'kind' => (string) $found['kind'], 'since' => $found['since']->toIso8601String()])
+                ->values()
+                ->all(),
             'unmatched' => [
                 'badges' => $unmatchedBadges,
                 'punches' => $unmatchedPunches,
@@ -552,11 +666,16 @@ class DeviceController extends Controller
                 TerminalKeepAlive::note($device);
             }
 
+            $this->readHeartbeat($device, $request);
+
             return response()->json(['status' => 'ignored'], 200);
         }
 
+        HeartbeatCapture::noteEvent($device, $request);
+
         $badge = HikvisionEvent::badge($event);
-        $timestamp = $event['time'] ?? now()->toIso8601String();
+        $timestamp = $event['time'] ?? null;
+        $timestamp = is_scalar($timestamp) ? trim((string) $timestamp) : '';
 
         if ($badge === null) {
             return response()->json(['status' => 'no_badge'], 200);
@@ -571,16 +690,42 @@ class DeviceController extends Controller
         // work is done by ProcessDeviceInboundPunchesJob, in arrival order.
         // The key is the one the punch is recorded under, so a re-sent event
         // is one row, and the job is queued only for a row that is new.
-        $queued = DB::table('device_inbound_punches')->insertOrIgnore([
+        $raw = DeviceInboundPunch::capRaw($event);
+
+        // An event with no time is never dated now(): a resend would get a
+        // new key and record twice. It goes to quarantine at once, keyed by
+        // what it said, so a resend is the same row.
+        if ($timestamp === '') {
+            $undated = DeviceInboundPunch::stash([[
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
+                'occurred_raw' => '',
+                'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                'raw' => $raw,
+                'processed_at' => now(),
+                'failed_at' => now(),
+                'failure' => 'no_time',
+                'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+            ]]);
+
+            DeviceDayCounts::notePush($device, 1, $undated);
+
+            return response()->json(['status' => 'accepted'], 200);
+        }
+
+        $queued = DeviceInboundPunch::stash([[
             'tenant_id' => $device->tenant_id,
             'device_id' => $device->id,
             'badge' => mb_substr($badge, 0, 64),
             'punch_type' => mb_substr(HikvisionEvent::direction($event), 0, 20),
-            'occurred_raw' => mb_substr((string) $timestamp, 0, 64),
-            'idempotency_key' => mb_substr("webhook:hik:{$device->id}:{$badge}:{$timestamp}", 0, 191),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            'occurred_raw' => mb_substr($timestamp, 0, 64),
+            'idempotency_key' => DevicePunchKey::fit("webhook:hik:{$device->id}:{$badge}:{$timestamp}"),
+            'raw' => $raw,
+        ]]);
+
+        DeviceDayCounts::notePush($device, 1, $queued);
 
         if ($queued === 1) {
             ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
@@ -604,17 +749,22 @@ class DeviceController extends Controller
         $payload = $request->all();
         $records = $payload['records'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($records as $record) {
-            $badge = (string) ($record['pin'] ?? $record['user_id'] ?? '');
-            $timestamp = $record['timestamp'] ?? $record['datetime'] ?? now()->toIso8601String();
-            $punchType = ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null);
-
-            if ($this->punches->recordBatched($device, 'zk', $badge, $timestamp, $punchType)) {
-                $processed++;
+        foreach (is_array($records) ? $records : [] as $record) {
+            if (! is_array($record)) {
+                continue;
             }
+
+            $rows[] = [
+                'badge' => (string) ($record['pin'] ?? $record['user_id'] ?? ''),
+                'time' => $record['timestamp'] ?? $record['datetime'] ?? null,
+                'type' => ZktecoAdapter::directionFor($record['punch'] ?? $record['status'] ?? null),
+                'raw' => $record,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'zk', $rows);
 
         $this->markWebhookReceived($device);
 
@@ -636,22 +786,96 @@ class DeviceController extends Controller
         $payload = $request->all();
         $events = $payload['EventCollection'] ?? $payload['events'] ?? [$payload];
 
-        $processed = 0;
+        $rows = [];
 
-        foreach ($events as $event) {
-            $badge = (string) ($event['user_id'] ?? $event['user']['user_id'] ?? '');
-            $timestamp = $event['datetime'] ?? $event['timestamp'] ?? now()->toIso8601String();
-            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
-            $type = ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in';
-
-            if ($this->punches->recordBatched($device, 'sup', $badge, $timestamp, $type)) {
-                $processed++;
+        foreach (is_array($events) ? $events : [] as $event) {
+            if (! is_array($event)) {
+                continue;
             }
+
+            $eventTypeId = (int) ($event['event_type_id'] ?? 0);
+
+            $rows[] = [
+                'badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
+                'time' => $event['datetime'] ?? $event['timestamp'] ?? null,
+                'type' => ($eventTypeId >= 0x2000 && $eventTypeId < 0x3000) ? 'check_out' : 'check_in',
+                'raw' => $event,
+            ];
         }
+
+        $processed = $this->stashPushed($device, 'sup', $rows);
 
         $this->markWebhookReceived($device);
 
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
+    }
+
+    /**
+     * Put the punches of a JSON push in the inbox and queue the work: one
+     * insert per 500, no engine call in the request. The key is the one
+     * `webhook:<vendor>:<device id>:<badge>:<time>` always was, so a punch
+     * recorded before this change still dedupes a resend. A database failure
+     * is thrown, so the terminal is answered an error and sends it again.
+     *
+     * @param  list<array{badge: string, time: mixed, type: string, raw: mixed}>  $punches
+     * @return int how many punches were accepted (those that name a badge)
+     */
+    private function stashPushed(Device $device, string $vendor, array $punches): int
+    {
+        $rows = [];
+        $undated = [];
+
+        foreach ($punches as $punch) {
+            $badge = $punch['badge'];
+            if ($badge === '') {
+                continue;
+            }
+
+            $time = is_scalar($punch['time']) ? trim((string) $punch['time']) : '';
+
+            // A punch with no time is never dated now(): a resend would get a
+            // new key and record twice. It is kept in quarantine at once,
+            // keyed by what it said, so a resend is the same row.
+            if ($time === '') {
+                $raw = DeviceInboundPunch::capRaw($punch['raw']);
+                $undated[] = [
+                    'tenant_id' => $device->tenant_id,
+                    'device_id' => $device->id,
+                    'badge' => mb_substr($badge, 0, 64),
+                    'punch_type' => mb_substr($punch['type'], 0, 20),
+                    'occurred_raw' => '',
+                    'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:nt:".sha1((string) $raw)),
+                    'raw' => $raw,
+                    'processed_at' => now(),
+                    'failed_at' => now(),
+                    'failure' => 'no_time',
+                    'error' => DeviceInboundPunch::scrub(__('attendance.device_clock_invalid')),
+                ];
+
+                continue;
+            }
+
+            $rows[] = [
+                'tenant_id' => $device->tenant_id,
+                'device_id' => $device->id,
+                'badge' => mb_substr($badge, 0, 64),
+                'punch_type' => mb_substr($punch['type'], 0, 20),
+                'occurred_raw' => mb_substr($time, 0, 64),
+                'idempotency_key' => DevicePunchKey::fit("webhook:{$vendor}:{$device->id}:{$badge}:{$time}"),
+                'raw' => DeviceInboundPunch::capRaw($punch['raw']),
+            ];
+        }
+
+        $newUndated = DeviceInboundPunch::stash($undated);
+        $new = DeviceInboundPunch::stash($rows);
+
+        DeviceDayCounts::notePush($device, count($rows) + count($undated), $new + $newUndated);
+
+        if ($new > 0) {
+            ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
+        }
+
+        return count($rows) + count($undated);
     }
 
     /**
@@ -667,6 +891,28 @@ class DeviceController extends Controller
         $tenant = app(CurrentTenant::class)->get() ?? Tenant::query()->find($device->tenant_id);
 
         return $tenant === null ? null : app(FeatureGate::class)->decide($tenant, Feature::DeviceWebhooksInbound);
+    }
+
+    /**
+     * A notification that is not an access event: if it is a heartbeat, what
+     * it says of the terminal's clock (DeviceClock::observeHeartbeat), and the
+     * body kept for a fixture (HeartbeatCapture). Never fails the answer.
+     */
+    private function readHeartbeat(Device $device, Request $request): void
+    {
+        try {
+            $heartbeat = HikvisionEvent::heartbeat($request->all());
+            if ($heartbeat === null) {
+                return;
+            }
+
+            HeartbeatCapture::note($device, $request);
+
+            $moment = $heartbeat['time'] === null ? null : DeviceTime::normalize($heartbeat['time'], $device);
+            DeviceClock::observeHeartbeat($device, $moment);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /** A device heard from this recently is not stamped again. */
@@ -730,10 +976,7 @@ class DeviceController extends Controller
         $token = $request->query('token') ?? $request->header('X-Webhook-Token');
 
         if ($token) {
-            $device = is_string($token) ? Device::withoutGlobalScope('tenant')
-                ->where('webhook_token', $token)
-                ->where('adapter_type', $adapterType)
-                ->first() : null;
+            $device = is_string($token) ? $this->deviceForToken($token, $adapterType) : null;
 
             if ($device === null && is_string($token)) {
                 WebhookRejections::traceToken($adapterType, $token, $request->ip());
@@ -780,7 +1023,7 @@ class DeviceController extends Controller
 
         // A device that has a token must use it — a serial-only call cannot
         // stand in for the token it was issued.
-        if (! empty($device->webhook_token)) {
+        if ($device->hasWebhookToken()) {
             $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'token_required');
             WebhookRejections::record($device, 'token_missing', $request->ip());
 
@@ -796,6 +1039,32 @@ class DeviceController extends Controller
         }
 
         return $device;
+    }
+
+    /**
+     * The device a presented token belongs to: its current token, or the one a
+     * "moving" regeneration is still keeping alive. Hashed here, so the stored
+     * value is never compared in clear. Two matches authenticate nobody, as an
+     * ambiguous serial does; the unique indexes make two unrepresentable, and
+     * this does not rely on them.
+     */
+    private function deviceForToken(string $token, string $adapterType): ?Device
+    {
+        $hash = Device::hashToken($token);
+
+        $candidates = Device::withoutGlobalScope('tenant')
+            ->where('adapter_type', $adapterType)
+            ->where(function ($query) use ($hash): void {
+                $query->where('webhook_token_hash', $hash)
+                    ->orWhere(function ($previous) use ($hash): void {
+                        $previous->where('webhook_token_previous_hash', $hash)
+                            ->where('webhook_token_previous_expires_at', '>', now());
+                    });
+            })
+            ->limit(2)
+            ->get();
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
     }
 
     private function logWebhookRejection(string $adapterType, string $serial, ?string $ip, string $reason): void

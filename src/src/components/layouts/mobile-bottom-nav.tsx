@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useManagerDashboard } from "@/features/dashboard/api";
+import { useNavigationBadges } from "@/features/navigation/api";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
@@ -42,10 +42,8 @@ export function MobileBottomNav() {
   const onboarding = useOnboardingStatus(isTenantAdmin && !isSuperAdmin);
   // Same guard as the sidebar's badge: only approvers fetch the queue, and
   // never a super admin, who clears the level check with no tenant to count.
-  const { data: managerData } = useManagerDashboard(
-    isSupervisor && !isSuperAdmin,
-  );
-  const approvalCount = managerData?.pending_approvals?.total ?? 0;
+  const { data: badges } = useNavigationBadges(isSupervisor && !isSuperAdmin);
+  const approvalCount = badges?.approvals ?? 0;
   const [moreOpen, setMoreOpen] = useState(false);
 
   const showSetupDot =

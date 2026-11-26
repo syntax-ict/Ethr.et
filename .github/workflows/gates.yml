@@ -719,7 +719,8 @@ jobs:
   backend-coverage:
     name: Backend coverage (PCOV)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # On main this job passed 25 minutes on 2026-11-21 and the cancel blocked release.yml.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v7

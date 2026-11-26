@@ -25,6 +25,8 @@ class PayrollRunRefused extends RuntimeException
         public readonly string $title,
         string $detail,
         public readonly array $employees = [],
+        /** @var array<string, int> */
+        public readonly array $extra = [],
     ) {
         parent::__construct($detail);
     }
@@ -87,6 +89,71 @@ class PayrollRunRefused extends RuntimeException
             'https://ethr.et/errors/reconciliation-moved',
             'Attendance changed since processing',
             __('payroll.reconciliation_moved'),
+        );
+    }
+
+    /** A salary dated inside the period was recorded after the run was calculated. */
+    public static function inputsChangedSinceProcessed(): self
+    {
+        return new self(
+            'https://ethr.et/errors/inputs-changed-since-processed',
+            'Salary changed since processing',
+            __('payroll.inputs_changed_since_processed'),
+        );
+    }
+
+    /** Overtime, lateness or leave moved for some people after the run was calculated, whatever the reconciliation mode. */
+    public static function attendanceChangedSinceProcessed(int $people): self
+    {
+        return new self(
+            'https://ethr.et/errors/attendance-changed-since-processed',
+            'Attendance changed since processing',
+            __('payroll.attendance_changed_since_processed', ['count' => $people]),
+        );
+    }
+
+    /** The request ran out of time before every changed person was checked, so nothing is approved unchecked. */
+    public static function attendanceCheckTimedOut(): self
+    {
+        return new self(
+            'https://ethr.et/errors/attendance-check-timed-out',
+            'Attendance check not finished',
+            __('payroll.attendance_check_timed_out'),
+        );
+    }
+
+    /** Pay differences are still being worked out, so approval cannot count them. */
+    public static function payDifferencesPending(): self
+    {
+        return new self(
+            'https://ethr.et/errors/pay-differences-pending',
+            'Pay differences still being worked out',
+            __('payroll.pay_differences_pending'),
+        );
+    }
+
+    /** The organisation has open pay differences the approver has not acknowledged by count. */
+    public static function payDifferencesUnacknowledged(int $count, int $failed = 0): self
+    {
+        return new self(
+            'https://ethr.et/errors/pay-differences-unacknowledged',
+            'Pay differences not acknowledged',
+            __('payroll.pay_differences_unacknowledged', ['count' => $count])
+                .($failed > 0 ? ' '.__('payroll.pay_differences_failed_note', ['failed' => $failed]) : ''),
+            [],
+            ['pay_differences' => $count, 'pay_differences_failed' => $failed],
+        );
+    }
+
+    /** Voiding would reprocess a month whose difference finance has already settled by hand. */
+    public static function settledPayDifferencesUnacknowledged(int $count): self
+    {
+        return new self(
+            'https://ethr.et/errors/settled-pay-differences-unacknowledged',
+            'Settled pay differences not acknowledged',
+            __('payroll.settled_pay_differences_unacknowledged', ['count' => $count]),
+            [],
+            ['settled_pay_differences' => $count],
         );
     }
 

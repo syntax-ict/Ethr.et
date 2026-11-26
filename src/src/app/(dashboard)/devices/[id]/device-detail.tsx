@@ -9,7 +9,6 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  Copy,
   RotateCw,
   CheckCircle,
   XCircle,
@@ -24,31 +23,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { QuarantineCard } from "@/features/devices/components/quarantine-card";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { SimpleTable } from "@/components/shared/simple-table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
 
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RoleGate } from "@/components/shared/role-gate";
 import { DeviceCommandsTab } from "@/features/devices/components/device-commands-tab";
 import { AdmsSetupCard } from "@/features/devices/components/adms-setup-card";
+import {
+  DeviceClockNote,
+  clockValue,
+} from "@/features/devices/components/device-clock-note";
+import { DeviceTodayCard } from "@/features/devices/components/device-today";
+import { clockFinding } from "@/features/devices/clock";
 import {
   DeviceHeardLine,
   DeviceKeepAliveLine,
@@ -56,24 +43,24 @@ import {
   SyncErrorHint,
   syncErrorHintKeys,
 } from "@/features/devices/components/device-heard";
-import {
-  buildDevicePayload,
-  canSendToEthr,
-  EMPTY_DEVICE_FORM,
-} from "@/features/devices/payload";
+import { DeviceFormDialog } from "@/features/devices/components/device-form";
+import { branchesApi } from "@/features/organization/api";
+import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
+import { PushSetup } from "@/features/devices/components/push-setup";
+import { RegenerateTokenDialog } from "@/features/devices/components/regenerate-token-dialog";
 import {
   useDeleteDevice,
   useDevice,
   useDeviceEvents,
   useDeviceSyncLogs,
   usePullDeviceEvents,
-  useRegenerateDeviceToken,
   useTestDeviceConnection,
   useUpdateDevice,
   type Device,
   type DeviceEvent,
   type DeviceSyncLog,
   type DeviceUpdate,
+  isPulled,
 } from "@/features/devices/api";
 import {
   deviceStatusBadgeClass,
@@ -95,9 +82,6 @@ function isNotFound(error: unknown): boolean {
     404
   );
 }
-
-// Mirrors Device::MIN_SYNC_INTERVAL_MINUTES on the API.
-const MIN_SYNC_INTERVAL_MINUTES = 5;
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -156,7 +140,6 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
 
   const pullMutation = usePullDeviceEvents();
   const testMutation = useTestDeviceConnection();
-  const regenTokenMutation = useRegenerateDeviceToken();
   const deleteMutation = useDeleteDevice();
   const updateMutation = useUpdateDevice();
 
@@ -195,23 +178,8 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const canUpdate = hasPermission("device.update");
   const canDelete = hasPermission("device.delete");
 
-  // Regenerating changes the address the terminal posts to, so it asks first.
+  // Regenerating changes the address the terminal posts to, so it asks why first.
   const [confirmRegen, setConfirmRegen] = useState(false);
-
-  function regenerateToken() {
-    regenTokenMutation.mutate(id, {
-      onSuccess: () => {
-        toast.success(t("device_detail_page.token_regenerated"));
-        setConfirmRegen(false);
-      },
-      onError: (err) => {
-        toast.error(
-          apiErrorMessage(err, t("device_detail_page.regenerate_failed")),
-        );
-        setConfirmRegen(false);
-      },
-    });
-  }
 
   function remove() {
     deleteMutation.mutate(id, {
@@ -272,6 +240,12 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const isOnline = device.status === "online";
   // Never called, so nothing to test or pull: see DeviceHeardLine.
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
+  const finding = clockFinding(
+    device.clock_offset_seconds ?? null,
+    device.clock_measurable ?? null,
+  );
+  const showClock = finding.kind !== "unknown";
   const syncLogItems: DeviceSyncLog[] = syncLogs?.data ?? [];
   const eventItems: DeviceEvent[] = events?.data ?? [];
   const syncLogPages = syncLogs?.meta.last_page ?? 1;
@@ -304,7 +278,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 ` · ${device.location_description}`}
               {device.branch?.name && ` · ${device.branch.name}`}
             </p>
-            {sendsOnly && (
+            {!pulled && (
               <div className="mt-2 text-sm text-muted-foreground">
                 <DeviceHeardLine device={device} />
                 <DeviceKeepAliveLine
@@ -312,7 +286,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 />
               </div>
             )}
-            <WebhookRejectedLine rejected={device.webhook_rejected} />
+            <WebhookRejectedLine
+              rejected={device.webhook_rejected}
+              devicePublicId={device.public_id}
+            />
           </div>
           <div className="flex items-center gap-2">
             {!sendsOnly && (
@@ -331,23 +308,21 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </Button>
             )}
             {/* A terminal that pushes its punches (ADMS, or a Hikvision on the office network) has nothing to pull. */}
-            {canUpdate &&
-              device.adapter_type !== "zkteco_adms" &&
-              !sendsOnly && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={pull}
-                  disabled={pullMutation.isPending}
-                >
-                  {pullMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  {t("devices_page.pull")}
-                </Button>
-              )}
+            {canUpdate && pulled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={pull}
+                disabled={pullMutation.isPending}
+              >
+                {pullMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {t("devices_page.pull")}
+              </Button>
+            )}
             {canUpdate && (
               <Button
                 variant="outline"
@@ -372,7 +347,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
         {/* Info Cards */}
         <div
           className={
-            device.clock_checked_at
+            showClock
               ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
               : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           }
@@ -400,7 +375,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                 : t("devices_page.never")
             }
           />
-          {!sendsOnly && (
+          {pulled && (
             <InfoCard
               icon={isOnline ? Wifi : WifiOff}
               label={t("device_detail_page.auto_sync")}
@@ -417,79 +392,64 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               }
             />
           )}
-          {device.clock_checked_at && (
+          {showClock && (
             <InfoCard
               icon={Clock}
               label={t("device_clock.label")}
-              value={clockLabel(device.clock_offset_seconds, t)}
+              value={clockValue(finding, t)}
             />
           )}
         </div>
 
+        <DeviceClockNote device={device} />
+
+        <DeviceTodayCard today={device.today} />
+
         <AdmsSetupCard device={device} />
 
         {/* Webhook URL */}
-        {device.webhook_token &&
-          device.adapter_type !== "mock" &&
-          device.adapter_type !== "zkteco_adms" && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">
-                  {t("device_detail_page.webhook_config")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {device.receives_only && device.webhook_url && (
-                    <PushSetup url={device.webhook_url} />
-                  )}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      {t("device_detail_page.webhook_url_hint")}
-                    </Label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <code className="flex-1 rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all">
-                        {device.webhook_url ?? t("common.none", "None")}
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        // Icon-only, so the Copy glyph is the entire content and
-                        // a screen reader announced an unnamed "button".
-                        aria-label={t(
-                          "device_detail_page.copy_webhook_url",
-                          "Copy webhook URL",
-                        )}
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            device.webhook_url ?? "",
-                          );
-                          toast.success(t("attendance.kiosks_page.copied"));
-                        }}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfirmRegen(true)}
-                      disabled={regenTokenMutation.isPending}
-                    >
-                      <RotateCw className="mr-2 h-3 w-3" />
-                      {t("device_detail_page.regenerate_token")}
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      {t("device_detail_page.regenerate_hint")}
-                    </span>
-                  </div>
+        {device.has_webhook_token && device.uses_webhook_token && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">
+                {t("device_detail_page.webhook_config")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {device.receives_only && device.webhook_url_masked && (
+                  <PushSetup url={device.webhook_url_masked} masked />
+                )}
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {t("device_token.masked_label")}
+                  </Label>
+                  <code
+                    data-testid="masked-address"
+                    className="mt-1 block rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all"
+                  >
+                    {device.webhook_url_masked ?? t("common.none", "None")}
+                  </code>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("device_token.masked_hint")}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmRegen(true)}
+                  >
+                    <RotateCw className="mr-2 h-3 w-3" />
+                    {t("device_token.regenerate_to_see")}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <QuarantineCard deviceId={device.public_id} canUpdate={canUpdate} />
 
         {/* Tabs: Sync History + Events */}
         <Tabs defaultValue="syncs">
@@ -729,57 +689,29 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           </TabsContent>
         </Tabs>
 
-        {/* Edit Dialog */}
+        {/* Edit: the same form as the list's Edit and Register */}
         {editOpen && device && (
           <EditDeviceDialog
             device={device}
-            open={editOpen}
             onOpenChange={setEditOpen}
             onSubmit={update}
             isPending={updateMutation.isPending}
           />
         )}
 
-        {/* Regenerate token confirmation */}
-        <ConfirmDialog
+        {/* Regenerate token: asks why, then shows the new address once */}
+        <RegenerateTokenDialog
+          devicePublicId={device.public_id}
           open={confirmRegen}
           onOpenChange={setConfirmRegen}
-          title={t("devices_page.regenerate_confirm_title")}
-          description={t("devices_page.regenerate_confirm_desc")}
-          confirmLabel={t("device_detail_page.regenerate_token")}
-          variant="destructive"
-          loading={regenTokenMutation.isPending}
-          onConfirm={regenerateToken}
         />
 
-        {/* Delete Confirmation */}
-        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
-              <DialogDescription>
-                {t("devices_page.delete_confirm_prefix")}{" "}
-                <strong>{device.name}</strong>?{" "}
-                {t("device_detail_page.delete_desc_suffix")}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={remove}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("common.delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteDeviceDialog
+          deviceName={deleteOpen ? device.name : null}
+          pending={deleteMutation.isPending}
+          onConfirm={remove}
+          onClose={() => setDeleteOpen(false)}
+        />
       </div>
     </RoleGate>
   );
@@ -807,374 +739,33 @@ function InfoCard({
   );
 }
 
+/** The shared device form, with the organisation's branches read only while it is open. */
 function EditDeviceDialog({
   device,
-  open,
   onOpenChange,
   onSubmit,
   isPending,
 }: {
   device: Device;
-  open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: DeviceUpdate) => void;
+  onSubmit: (payload: DeviceUpdate) => void;
   isPending: boolean;
 }) {
   const { t } = useT();
-  const [form, setForm] = useState({
-    name: device.name,
-    location_description: device.location_description ?? "",
-    serial_number: device.serial_number ?? "",
-    auto_sync: device.auto_sync,
-    commands_enabled: device.commands_enabled,
-    sync_interval_minutes: String(
-      Math.max(MIN_SYNC_INTERVAL_MINUTES, device.sync_interval_minutes),
-    ),
-    timezone: device.timezone ?? "",
-    webhook_ip_allowlist: (device.webhook_ip_allowlist ?? []).join("\n"),
-    // How the terminal reaches ETHR. The stored address is never returned (it
-    // sits beside credentials), so the fields start blank: blank keeps it.
-    sends_to_ethr: device.receives_only === true,
-    ip: "",
-    port: "",
-    username: "",
-    password: "",
-  });
-
-  const set = (key: string, value: string | boolean) =>
-    setForm((p) => ({ ...p, [key]: value }));
-
-  const hasConnectionChoice = canSendToEthr(device.adapter_type);
-  const sendsToEthr = hasConnectionChoice && form.sends_to_ethr;
-  // A terminal switched back to an address has none stored that is usable.
-  const addressRequired = device.receives_only === true && !sendsToEthr;
+  const { data: branches } = branchesApi.useList();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("devices_page.edit_device")}</DialogTitle>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const connection = hasConnectionChoice
-              ? buildDevicePayload(
-                  {
-                    ...EMPTY_DEVICE_FORM,
-                    adapter_type: device.adapter_type,
-                    ip: form.ip,
-                    port: form.port,
-                    username: form.username,
-                    password: form.password,
-                    sends_to_ethr: form.sends_to_ethr,
-                  },
-                  "edit",
-                )
-              : null;
-            onSubmit({
-              name: form.name,
-              location_description: form.location_description || null,
-              serial_number: form.serial_number || null,
-              auto_sync: sendsToEthr ? false : form.auto_sync,
-              ...(connection?.connection_config && {
-                connection_config: connection.connection_config,
-              }),
-              ...(device.accepts_commands && {
-                commands_enabled: form.commands_enabled,
-              }),
-              sync_interval_minutes: Math.max(
-                MIN_SYNC_INTERVAL_MINUTES,
-                parseInt(form.sync_interval_minutes, 10) ||
-                  MIN_SYNC_INTERVAL_MINUTES,
-              ),
-              timezone: form.timezone || null,
-              webhook_ip_allowlist: form.webhook_ip_allowlist
-                .split(/[\s,]+/)
-                .map((ip) => ip.trim())
-                .filter(Boolean),
-            });
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <Label htmlFor="device-name">{t("devices_page.device_name")}</Label>
-            <Input
-              id="device-name"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              required
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="location-description">
-              {t("device_detail_page.location_description")}
-            </Label>
-            <Input
-              id="location-description"
-              value={form.location_description}
-              onChange={(e) => set("location_description", e.target.value)}
-              placeholder={t("device_detail_page.location_placeholder")}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="serial-number">
-              {t("devices_page.serial_number")}
-            </Label>
-            <Input
-              id="serial-number"
-              value={form.serial_number}
-              onChange={(e) => set("serial_number", e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          {hasConnectionChoice && (
-            <div className="space-y-3 rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">
-                    {t(
-                      "devices_page.sends_to_ethr",
-                      "The terminal is on our office network",
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(
-                      "devices_page.sends_to_ethr_hint",
-                      "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
-                    )}
-                  </p>
-                </div>
-                <Switch
-                  aria-label={t(
-                    "devices_page.sends_to_ethr",
-                    "The terminal is on our office network",
-                  )}
-                  checked={form.sends_to_ethr}
-                  onCheckedChange={(v) => set("sends_to_ethr", v)}
-                />
-              </div>
-              {!sendsToEthr && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t(
-                      "devices_page.public_address_hint",
-                      "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
-                    )}
-                  </p>
-                  {!addressRequired && (
-                    <p className="text-sm text-muted-foreground">
-                      {t("devices_page.keep_connection_hint")}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <Label htmlFor="edit-ip-address">
-                        {t("devices_page.ip_address")}
-                      </Label>
-                      <Input
-                        id="edit-ip-address"
-                        value={form.ip}
-                        onChange={(e) => set("ip", e.target.value)}
-                        required={addressRequired}
-                        placeholder="203.0.113.10"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-port">
-                        {t("devices_page.port")}
-                      </Label>
-                      <Input
-                        id="edit-port"
-                        value={form.port}
-                        onChange={(e) => set("port", e.target.value)}
-                        required={addressRequired || form.ip.trim() !== ""}
-                        type="number"
-                        min={1}
-                        max={65535}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="edit-username">
-                        {t("devices_page.username")}
-                      </Label>
-                      <Input
-                        id="edit-username"
-                        value={form.username}
-                        onChange={(e) => set("username", e.target.value)}
-                        placeholder={t("leave_page.optional")}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-password">
-                        {t("auth.password")}
-                      </Label>
-                      <Input
-                        id="edit-password"
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => set("password", e.target.value)}
-                        placeholder={t("leave_page.optional")}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <div>
-            <Label htmlFor="device-timezone">
-              {t("device_detail_page.clock_zone", "Device clock time zone")}
-            </Label>
-            <Select
-              value={form.timezone || "__org__"}
-              onValueChange={(v) => set("timezone", v === "__org__" ? "" : v)}
-            >
-              <SelectTrigger id="device-timezone" className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__org__">
-                  {t(
-                    "device_detail_page.clock_zone_org",
-                    "Same as the organisation",
-                  )}
-                </SelectItem>
-                <SelectItem value="Africa/Addis_Ababa">
-                  Africa/Addis_Ababa (EAT)
-                </SelectItem>
-                <SelectItem value="UTC">UTC</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "device_detail_page.clock_zone_hint",
-                "The zone the device's own clock is set to. Its punch times are read in it.",
-              )}
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="device-allowlist">
-              {t(
-                "device_detail_page.ip_allowlist",
-                "Webhook allowed IP addresses",
-              )}
-            </Label>
-            <Textarea
-              id="device-allowlist"
-              value={form.webhook_ip_allowlist}
-              onChange={(e) => set("webhook_ip_allowlist", e.target.value)}
-              rows={2}
-              placeholder="203.0.113.7"
-              className="mt-1 font-mono"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "device_detail_page.ip_allowlist_hint",
-                "One per line. A device without a webhook token is accepted only from these addresses.",
-              )}
-            </p>
-          </div>
-          <div
-            className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr}
-          >
-            <div>
-              <p className="text-sm font-medium">
-                {t("device_detail_page.auto_sync")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("device_detail_page.auto_sync_hint")}
-              </p>
-            </div>
-            <Switch
-              aria-label={t("device_detail_page.auto_sync")}
-              checked={form.auto_sync}
-              onCheckedChange={(v) => set("auto_sync", v)}
-            />
-          </div>
-          {device.accepts_commands && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("device_commands.enable")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("device_commands.enable_hint")}
-                </p>
-              </div>
-              <Switch
-                aria-label={t("device_commands.enable")}
-                checked={form.commands_enabled}
-                onCheckedChange={(v) => set("commands_enabled", v)}
-              />
-            </div>
-          )}
-          {form.auto_sync && !sendsToEthr && (
-            <div>
-              <Label htmlFor="sync-interval">
-                {t("device_detail_page.sync_interval")}
-              </Label>
-              <Select
-                value={form.sync_interval_minutes}
-                onValueChange={(v) => set("sync_interval_minutes", v)}
-              >
-                <SelectTrigger id="sync-interval" className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">
-                    {t("device_detail_page.every_5_min")}
-                  </SelectItem>
-                  <SelectItem value="10">
-                    {t("device_detail_page.every_10_min")}
-                  </SelectItem>
-                  <SelectItem value="15">
-                    {t("device_detail_page.every_15_min")}
-                  </SelectItem>
-                  <SelectItem value="30">
-                    {t("device_detail_page.every_30_min")}
-                  </SelectItem>
-                  <SelectItem value="60">
-                    {t("device_detail_page.every_1_hour")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t(
-                  "device_detail_page.sync_interval_hint",
-                  "ETHR pulls from this terminal when its scheduler runs, at most this often, and sometimes later. A late pull loses nothing: each punch keeps the time it happened. Use :action when you need them at once.",
-                  {
-                    action: t("devices_page.pull"),
-                  },
-                )}
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("leave_types_page.save_changes")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <DeviceFormDialog
+      open
+      onOpenChange={onOpenChange}
+      title={t("devices_page.edit_device")}
+      mode="edit"
+      device={device}
+      branches={branches?.data ?? []}
+      onSubmit={onSubmit}
+      isPending={isPending}
+      submitLabel={t("leave_types_page.save_changes")}
+    />
   );
 }
 
@@ -1201,76 +792,7 @@ function syncStatusLabel(
 }
 
 /**
- * The device clock as last read off a pushed punch (DeviceClock). Within two
- * minutes is in step: delivery delay and rounding.
- */
-function clockLabel(
-  offset: number | null,
-  t: ReturnType<typeof useT>["t"],
-): string {
-  if (offset === null) return "—";
-  const minutes = Math.round(Math.abs(offset) / 60);
-  if (Math.abs(offset) <= 120) return t("device_clock.in_step");
-  return offset > 0
-    ? t("device_clock.ahead", undefined, { minutes })
-    : t("device_clock.behind", undefined, { minutes });
-}
-
-/**
  * What to type on a terminal that sends to ETHR. Its HTTP listening screen
  * asks for the address in parts (server, port, protocol, path), not as one
  * URL, so the URL is shown the way the terminal wants it.
  */
-function PushSetup({ url }: { url: string }) {
-  const { t } = useT();
-  let parts: { label: string; value: string }[] = [];
-  try {
-    const parsed = new URL(url);
-    const https = parsed.protocol === "https:";
-    parts = [
-      {
-        label: t("device_detail_page.push_host", "Server address"),
-        value: parsed.hostname,
-      },
-      {
-        label: t("device_detail_page.push_port", "Port"),
-        value: parsed.port || (https ? "443" : "80"),
-      },
-      {
-        label: t("device_detail_page.push_protocol", "Protocol"),
-        value: https ? "HTTPS" : "HTTP",
-      },
-      {
-        label: t("device_detail_page.push_path", "Path (URL)"),
-        value: parsed.pathname + parsed.search,
-      },
-    ];
-  } catch {
-    return null;
-  }
-
-  return (
-    <div className="space-y-2 rounded-lg border p-3">
-      <p className="text-sm font-medium">
-        {t(
-          "device_detail_page.push_setup_title",
-          "Enter these on the terminal",
-        )}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        {t(
-          "device_detail_page.push_setup_intro",
-          "On the terminal's own web page, open Network, then HTTP listening (some firmware calls it Event alarm or Alarm host), and enter the four values below. The terminal needs internet access and must support HTTPS. ETHR shows it as online once the first punch arrives.",
-        )}
-      </p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        {parts.map((part) => (
-          <div key={part.label} className="contents">
-            <dt className="text-muted-foreground">{part.label}</dt>
-            <dd className="font-mono break-all">{part.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}

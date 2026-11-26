@@ -43,11 +43,20 @@ vi.mock("@/features/onboarding/v2/xlsx-grid", async (original) => ({
   },
 }));
 
-vi.mock("@/components/shared/employee-select", () => ({
-  EmployeeSelect: ({ onChange }: { onChange: (id: string) => void }) => (
+vi.mock("@/components/shared/employee-search-select", () => ({
+  EmployeeSearchSelect: ({
+    onChange,
+    initialSearch,
+  }: {
+    onChange: (picked: { public_id: string; name: string }) => void;
+    initialSearch?: string;
+  }) => (
     <button
       type="button"
-      onClick={() => onChange("01HZEMP0000000000000000001")}
+      data-initial-search={initialSearch ?? ""}
+      onClick={() =>
+        onChange({ public_id: "01HZEMP0000000000000000001", name: "Selam" })
+      }
     >
       Pick Selam
     </button>
@@ -666,6 +675,35 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
     );
   });
 
+  it("says a badge matched by number is being recorded by itself, and keeps Assign", async () => {
+    const matched = {
+      outcome: "matched",
+      employee_public_id: SELAM.employee_public_id,
+      confidence: 1,
+      candidates: [SELAM],
+    };
+    renderCard([{ ...ROW, match: matched, recording_itself: true }], () => {});
+
+    expect(
+      await screen.findByText(
+        "Matched by its number and the name on the terminal. The held punches are being recorded.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Write this number in a person's Badge number/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Assign and replay 2 punches" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing of recording itself for a badge matched by name or not at all", async () => {
+    renderCard([{ ...ROW, match: NEW, recording_itself: false }], () => {});
+
+    expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
+    expect(screen.queryByText(/are being recorded/)).not.toBeInTheDocument();
+  });
+
   it("shows nothing about a name when the server sent none", async () => {
     renderCard(
       [{ ...ROW, match: NEW, name_on_device: null, name_matches: [] }],
@@ -691,5 +729,151 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
     expect(
       screen.queryByRole("button", { name: /Possibly/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("<UnmatchedBadgesCard> the identity line and the warnings", () => {
+  const SEBLE = {
+    employee_public_id: "01HZEMP0000000000000000077",
+    employee_name: "Seblewengel Mekonen Tesfaye",
+    department: "Land Office",
+    fit: "similar" as const,
+    identity: {
+      employee_code: "WOR-0042",
+      department: "Land Office",
+      position: "Surveyor",
+      branch: "Habru Branch",
+      hire_date: "2026-11-11",
+      status: "confirmed",
+      badge_number: "W-77",
+      warnings: [
+        { code: "other_badge", value: "W-77" },
+        { code: "hired_after", value: "2026-11-10" },
+        { code: "own_attendance", value: 2 },
+      ],
+    },
+  };
+  const NEW = {
+    outcome: "new",
+    employee_public_id: null,
+    confidence: 0,
+    candidates: [],
+  };
+
+  beforeEach(() => {
+    granted.list = ["attendance.manage"];
+  });
+
+  it("shows who a similar-name person is, with the label and each warning", async () => {
+    renderCard(
+      [
+        {
+          ...ROW,
+          match: NEW,
+          name_on_device: "Seblewongel Mekonnen",
+          name_matches: [SEBLE],
+        },
+      ],
+      () => {},
+    );
+
+    await screen.findByRole("button", {
+      name: "Possibly Seblewengel Mekonen Tesfaye",
+    });
+    expect(
+      screen.getByText(/similar name on the terminal/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No\. WOR-0042 · Land Office · Surveyor · Habru Branch/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Already has badge number W-77"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Hired after this badge's first punch on/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Already has attendance of their own on 2 of the days this badge punched",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("gives the resolver's possible people the same line", async () => {
+    renderCard(
+      [
+        {
+          ...ROW,
+          match: {
+            outcome: "probable",
+            employee_public_id: SEBLE.employee_public_id,
+            confidence: 0.7,
+            candidates: [
+              {
+                employee_public_id: SEBLE.employee_public_id,
+                employee_name: SEBLE.employee_name,
+                score: 0.7,
+                reasons: ["badge_number"],
+                identity: { ...SEBLE.identity, warnings: [] },
+              },
+            ],
+          },
+        },
+      ],
+      () => {},
+    );
+
+    await screen.findByRole("button", {
+      name: "Possibly Seblewengel Mekonen Tesfaye",
+    });
+    expect(screen.getByText(/No\. WOR-0042/)).toBeInTheDocument();
+    expect(screen.getByText(/70%/)).toBeInTheDocument();
+    expect(screen.queryByText(/Already has/)).not.toBeInTheDocument();
+  });
+
+  it("shows no warning for a person with none, and an exact name keeps its old label", async () => {
+    renderCard(
+      [
+        {
+          ...ROW,
+          match: NEW,
+          name_on_device: "Seblewengel Mekonen",
+          name_matches: [
+            {
+              ...SEBLE,
+              fit: "same" as const,
+              identity: { ...SEBLE.identity, badge_number: null, warnings: [] },
+            },
+          ],
+        },
+      ],
+      () => {},
+    );
+
+    await screen.findByRole("button", {
+      name: "Possibly Seblewengel Mekonen Tesfaye",
+    });
+    expect(screen.getByText(/same name on the terminal/)).toBeInTheDocument();
+    expect(screen.queryByText(/similar name/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Already has/)).not.toBeInTheDocument();
+  });
+
+  it("opens the picker already searched by the given name the terminal sent", async () => {
+    const { container } = renderCard(
+      [{ ...ROW, match: NEW, name_on_device: "Seblewongel Mekonnen" }],
+      () => {},
+    );
+
+    await screen.findByText("Badge 7777");
+    expect(
+      container.querySelector("[data-initial-search='Seblewongel']"),
+    ).not.toBeNull();
+  });
+
+  it("seeds nothing when the terminal sent no name", async () => {
+    const { container } = renderCard([{ ...ROW, match: NEW }], () => {});
+
+    await screen.findByText("Badge 7777");
+    expect(container.querySelector("[data-initial-search='']")).not.toBeNull();
   });
 });

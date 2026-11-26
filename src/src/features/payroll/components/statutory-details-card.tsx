@@ -17,8 +17,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { ErrorState } from "@/components/shared/error-state";
+import { ReferenceSelect } from "@/components/shared/reference-select";
 
 interface StatutoryForm {
   employer_tin: string;
@@ -27,6 +30,8 @@ interface StatutoryForm {
   pension_registration_number: string;
   payout_method: "" | "bank" | "cash";
   employer_bank_name: string;
+  /** The list entry the name came from; empty when the bank was typed. */
+  employer_bank_code: string;
 }
 
 /**
@@ -38,6 +43,7 @@ export function StatutoryDetailsCard() {
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const persisted: StatutoryForm = {
     employer_tin: data?.payroll?.employer_tin ?? "",
@@ -55,6 +61,7 @@ export function StatutoryDetailsCard() {
         ? data.payroll.payout_method
         : "",
     employer_bank_name: data?.payroll?.employer_bank_name ?? "",
+    employer_bank_code: data?.payroll?.employer_bank_code ?? "",
   };
   const [edits, setEdits] = useState<StatutoryForm | null>(null);
   const form = edits ?? persisted;
@@ -63,6 +70,7 @@ export function StatutoryDetailsCard() {
     (Object.keys(form) as (keyof StatutoryForm)[]).some(
       (k) => form[k] !== persisted[k],
     );
+  useUnsavedChangesWarning(isDirty);
 
   function update<K extends keyof StatutoryForm>(
     key: K,
@@ -88,14 +96,22 @@ export function StatutoryDetailsCard() {
           form.payout_method === "bank"
             ? form.employer_bank_name.trim() || null
             : null,
+        employer_bank_code:
+          form.payout_method === "bank" && form.employer_bank_code !== ""
+            ? form.employer_bank_code
+            : null,
       },
       {
         onSuccess: () => {
           setEdits(null);
           toast.success(t("statutory.saved"));
+          announceSaved(t("statutory.saved"));
         },
-        onError: (err) =>
-          toast.error(apiErrorMessage(err, t("statutory.save_failed"))),
+        onError: (err) => {
+          const message = apiErrorMessage(err, t("statutory.save_failed"));
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }
@@ -268,12 +284,21 @@ export function StatutoryDetailsCard() {
                 <Label htmlFor="employer_bank_name">
                   {t("statutory.employer_bank_name", "Bank you pay from")}
                 </Label>
-                <Input
+                <ReferenceSelect
                   id="employer_bank_name"
-                  maxLength={120}
-                  value={form.employer_bank_name}
-                  onChange={(e) => update("employer_bank_name", e.target.value)}
+                  kind="bank"
                   className="mt-1"
+                  value={{
+                    code: form.employer_bank_code || null,
+                    text: form.employer_bank_name,
+                  }}
+                  onChange={(next) =>
+                    setEdits({
+                      ...form,
+                      employer_bank_name: next.text,
+                      employer_bank_code: next.code ?? "",
+                    })
+                  }
                 />
               </div>
             )}

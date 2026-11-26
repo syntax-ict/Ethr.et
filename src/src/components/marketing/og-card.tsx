@@ -102,7 +102,7 @@ export async function renderOgCard() {
           color: "#94a3b8",
         }}
       >
-        Attendance · Payroll · Leave — works offline
+        Attendance · Payroll · Leave
       </div>
     </div>,
     OG_IMAGE_SIZE,

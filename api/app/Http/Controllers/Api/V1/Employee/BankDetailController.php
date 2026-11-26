@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Employee;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\StoreBankDetailRequest;
 use App\Http\Resources\BankDetailResource;
@@ -39,6 +40,7 @@ class BankDetailController extends Controller
     public function update(StoreBankDetailRequest $request, Employee $employee, EmployeeBankDetail $bankDetail): BankDetailResource
     {
         $this->authorize('updateFinancial', $employee);
+        ImpersonationRestricted::unlessOrganisation('BankDetailController::update');
 
         $data = $request->validated();
 
@@ -46,7 +48,9 @@ class BankDetailController extends Controller
             $employee->bankDetails()->where('id', '!=', $bankDetail->id)->update(['is_primary' => false]);
         }
 
-        $bankDetail->update($data);
+        // A bank sent without a code is typed text: the code it had before
+        // belonged to the old name.
+        $bankDetail->update($data + ['bank_code' => null]);
 
         AuditLog::record('employee.bank_detail.updated', $employee);
 

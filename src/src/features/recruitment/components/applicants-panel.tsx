@@ -18,6 +18,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -286,12 +287,11 @@ function AddApplicantForm({
           <Label htmlFor="applicant-phone">
             {t("recruitment.phone", "Phone")}
           </Label>
-          <Input
+          <PhoneInput
             id="applicant-phone"
-            type="tel"
-            maxLength={20}
+            international
             value={form.phone ?? ""}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(v) => setForm({ ...form, phone: v })}
           />
         </div>
       </div>

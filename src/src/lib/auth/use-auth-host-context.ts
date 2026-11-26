@@ -311,6 +311,9 @@ export function useAuthHostContext() {
       (context === "tenant" && (query.isLoading || hostQuery.isLoading)) ||
       (onLanding && entryQuery.isLoading),
     tenantLookupError,
+    /** The server is still being asked who owns a host this build cannot classify. */
+    hostLookupPending:
+      classified === "unknown" && !!host && hostQuery.isLoading,
     /**
      * Manual organization-subdomain field stays only where the hostname
      * doesn't already identify the organization: the apex (routes onward to

@@ -724,8 +724,8 @@ fi
 
 # The attendance-to-payslip journeys (src/e2e/attendance-payroll): punches by
 # several methods, driven through the real stack and read back from the API.
-# A scope of its own because it is meant to block a merge while `e2e` stays
-# advisory, and because it signs in to organisations of its own.
+# A scope of its own because it blocks a merge on its own account (required on
+# `main` since 2026-11-23), and because it signs in to organisations of its own.
 #
 # It seeds those organisations first (E2eAttendanceSeeder, local and testing
 # only), into whichever database DB_* names, so every run starts with nobody

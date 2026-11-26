@@ -10,7 +10,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { Workbook } from "exceljs";
 import { server } from "./msw/server";
-import { MigrationStep } from "@/features/onboarding/v2/components/migration-step";
+import {
+  MigrationStep,
+  actionsFor,
+} from "@/features/onboarding/v2/components/migration-step";
 import { readWorkbook } from "@/features/onboarding/v2/xlsx-grid";
 import type {
   MigrationBatch,
@@ -852,6 +855,130 @@ describe("<MigrationStep>", () => {
       ["Abebe Kebede", "2011-10-30"],
       ["Hanna Girma", ""],
     ]);
+  });
+
+  // Dates real in one calendar only (2026-11-22): the reader is told which
+  // line says so and chooses; nothing is switched for them.
+  it("says when the dates look like the other calendar and lets the reader switch", async () => {
+    const asked = reads({
+      people: 1,
+      calendar_hints: [
+        {
+          column: "hire_date",
+          calendar: "ethiopian",
+          value: "2016-13-03",
+          line: 3,
+          from_header: false,
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\tHire date\nAbebe Kebede\t2016-13-03" },
+    });
+
+    expect(
+      await screen.findByText(/a date only the Ethiopian calendar has/),
+    ).toHaveTextContent("Line 3 has 2016-13-03");
+    expect(asked[asked.length - 1].calendar).toBe("gregorian");
+
+    fireEvent.click(screen.getByText("Read the dates as Ethiopian (E.C.)"));
+    await waitFor(() =>
+      expect(asked[asked.length - 1].calendar).toBe("ethiopian"),
+    );
+  });
+
+  it("says the column name decides when it set the calendar the dates disagree with", async () => {
+    reads({
+      people: 1,
+      calendar_hints: [
+        {
+          column: "hire_date",
+          calendar: "gregorian",
+          value: "2019-01-31",
+          line: 2,
+          from_header: true,
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\tHire date (E.C.)\nAbebe Kebede\t2019-01-31" },
+    });
+
+    expect(
+      await screen.findByText(/The column name says the other calendar/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Read the dates as Gregorian (G.C.)"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the lines of each repeated name together", async () => {
+    reads({
+      people: 4,
+      warnings: [
+        {
+          line: 2,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 3,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
+        {
+          line: 4,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Abebe" is on more than one line.',
+        },
+        {
+          line: 5,
+          column: "name",
+          code: "same_name_in_list",
+          message: 'The name "Hanna" is on more than one line.',
+        },
+      ],
+    });
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: { value: "Name\nAbebe\nHanna\nAbebe\nHanna" },
+    });
+
+    const abebe = await screen.findByText(
+      'The name "Abebe" is on more than one line.',
+    );
+    expect(abebe.closest("tr")).toHaveTextContent("2, 4");
+    expect(
+      screen
+        .getByText('The name "Hanna" is on more than one line.')
+        .closest("tr"),
+    ).toHaveTextContent("3, 5");
   });
 
   it("shows the lines a staging was refused for, until the list changes", async () => {
@@ -1750,5 +1877,228 @@ describe("what the terminals hold, after a list is added", () => {
       await screen.findByText("At the attendance terminals"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Give them a way to sign in")).toBeNull();
+  });
+});
+
+describe("the confirmation before a list is added", () => {
+  const NEW_ROW: MigrationBatch = {
+    ...AMBIGUOUS_BATCH,
+    summary: { new: 1 },
+    rows: [
+      {
+        ...AMBIGUOUS_BATCH.rows[0],
+        match_outcome: "new",
+        match_confidence: null,
+        candidates: [],
+        action: "create",
+      },
+    ],
+  };
+
+  async function openConfirm(permissions: string[]) {
+    server.use(
+      http.get("*/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6R80", role: "hr_admin" },
+          permissions,
+          tenant: null,
+        }),
+      ),
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(NEW_ROW, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(NEW_ROW),
+      ),
+    );
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(container.querySelector("textarea")!, {
+      target: { value: "Abebe Kebede" },
+    });
+    fireEvent.click(screen.getByText("Stage for review"));
+    fireEvent.click(await screen.findByText("Commit migration"));
+  }
+
+  it("says the additions can be undone to someone who may archive employees", async () => {
+    await openConfirm(["employee.delete"]);
+
+    expect(
+      await screen.findByText(
+        /can be archived again afterwards with Undo this list's additions/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/This cannot be undone from here\./),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the old sentence for someone who may not", async () => {
+    await openConfirm(["employee.create"]);
+
+    expect(
+      await screen.findByText(
+        "Employees are created and merged as the table shows. This cannot be undone from here.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/can be archived again afterwards/),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("a row matched to someone archived", () => {
+  const row = (
+    id: string,
+    restore: NonNullable<MigrationBatch["rows"][number]["restore"]>,
+    action: MigrationBatch["rows"][number]["action"],
+  ) => ({
+    ...AMBIGUOUS_BATCH.rows[0],
+    public_id: id,
+    display_name: `Person ${id}`,
+    match_outcome: "archived" as const,
+    candidates: [],
+    resolved_employee_public_id: null,
+    action,
+    restore,
+  });
+
+  it("offers bringing them back only where nothing stops it, and never as a new person", () => {
+    const free = row(
+      "A",
+      { possible: true, allowed: true, reasons: [] },
+      "restore",
+    );
+    const used = row(
+      "B",
+      { possible: false, allowed: true, reasons: ["attendance"] },
+      "defer",
+    );
+    const barred = row(
+      "C",
+      { possible: true, allowed: false, reasons: [] },
+      "defer",
+    );
+
+    expect(actionsFor(free, false)).toEqual([
+      "merge",
+      "restore",
+      "skip",
+      "defer",
+    ]);
+    expect(actionsFor(used, false)).toEqual(["merge", "skip", "defer"]);
+    expect(actionsFor(barred, false)).toEqual(["merge", "skip", "defer"]);
+    // A list that completes people adds and restores nobody.
+    expect(actionsFor(free, true)).toEqual(["merge", "skip", "defer"]);
+    // A row with no archived match keeps Create.
+    expect(actionsFor({ action: "create" }, false)).toEqual([
+      "merge",
+      "create",
+      "skip",
+      "defer",
+    ]);
+  });
+
+  it("says what bringing them back does, and why a person cannot be brought back", async () => {
+    const batch: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      summary: { archived: 2 },
+      rows: [
+        row("A", { possible: true, allowed: true, reasons: [] }, "restore"),
+        row(
+          "B",
+          { possible: false, allowed: true, reasons: ["attendance"] },
+          "defer",
+        ),
+      ],
+    };
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Abebe Kebede" },
+      },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+
+    expect(
+      await screen.findByText(
+        "Archived. Adding this list brings them back with this line's details.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Cannot be brought back from a list: Has attendance records. Restore them from the archived view if they should return.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  async function reviewBatch(batch: MigrationBatch) {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      { target: { value: "Abebe Kebede" } },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+  }
+
+  const BRINGS_BACK =
+    "Archived. Adding this list brings them back with this line's details.";
+
+  it("promises the return only on a row whose action is restore", async () => {
+    const possible = { possible: true, allowed: true, reasons: [] };
+
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      summary: { archived: 3 },
+      rows: [
+        row("A", possible, "defer"),
+        row("B", possible, "skip"),
+        row("C", possible, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText(BRINGS_BACK)).toBeInTheDocument();
+    expect(screen.getAllByText(BRINGS_BACK)).toHaveLength(1);
+  });
+
+  it("promises nothing on a list that completes people, whatever a row says", async () => {
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { archived: 1 },
+      rows: [
+        row("A", { possible: true, allowed: true, reasons: [] }, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText("Person A")).toBeInTheDocument();
+    expect(screen.queryByText(BRINGS_BACK)).not.toBeInTheDocument();
   });
 });

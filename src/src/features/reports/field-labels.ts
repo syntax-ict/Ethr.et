@@ -1,5 +1,6 @@
 import type { useT } from "@/lib/i18n/useT";
 import { formatETB } from "@/lib/utils/currency";
+import { GENDERS, genderOptionLabel } from "@/lib/options/gender";
 
 type T = ReturnType<typeof useT>["t"];
 
@@ -59,6 +60,41 @@ const LABELS: Record<string, (t: T) => string> = {
   worked_hours: (t) => t("reports_page.fields.worked_hours", "Worked hours"),
   overtime_hours: (t) =>
     t("reports_page.fields.overtime_hours", "Overtime hours"),
+  rest_days: (t) => t("reports_page.fields.rest_days", "Rest days"),
+  missing_days: (t) =>
+    t("reports_page.fields.missing_days", "Missing punch days"),
+  early_days: (t) => t("reports_page.fields.early_days", "Days left early"),
+  late_minutes: (t) => t("reports_page.fields.late_minutes", "Late minutes"),
+  early_minutes: (t) =>
+    t("reports_page.fields.early_minutes", "Early leave minutes"),
+  lateness_deduct_minutes: (t) =>
+    t("reports_page.fields.lateness_deduct_minutes", "Late minutes to deduct"),
+  scheduled_hours: (t) =>
+    t("reports_page.fields.scheduled_hours", "Scheduled hours"),
+  short_hours: (t) => t("reports_page.fields.short_hours", "Short hours"),
+  overtime_normal_hours: (t) =>
+    t("reports_page.fields.overtime_normal_hours", "Overtime, day"),
+  overtime_night_hours: (t) =>
+    t("reports_page.fields.overtime_night_hours", "Overtime, night"),
+  overtime_rest_day_hours: (t) =>
+    t("reports_page.fields.overtime_rest_day_hours", "Overtime, rest day"),
+  overtime_holiday_hours: (t) =>
+    t("reports_page.fields.overtime_holiday_hours", "Overtime, holiday"),
+  overtime_holiday_night_hours: (t) =>
+    t(
+      "reports_page.fields.overtime_holiday_night_hours",
+      "Overtime, holiday night",
+    ),
+  overtime_unapproved_hours: (t) =>
+    t(
+      "reports_page.fields.overtime_unapproved_hours",
+      "Unapproved overtime hours",
+    ),
+  overtime_limit_days: (t) =>
+    t(
+      "reports_page.fields.overtime_limit_days",
+      "Days over the overtime limit",
+    ),
   overtime_cents: (t) => t("reports_page.fields.overtime_pay", "Overtime pay"),
   allowances_cents: (t) => t("reports_page.fields.allowances", "Allowances"),
   employer_pension_cents: (t) =>
@@ -103,9 +139,9 @@ export function reportValueLabel(t: T, field: string, value: unknown): unknown {
       return t(`status.${value}`, value);
     case "gender": {
       const gender = value.toLowerCase();
-      if (gender === "male") return t("common.male", "Male");
-      if (gender === "female") return t("common.female", "Female");
-      return value;
+      return (GENDERS as readonly string[]).includes(gender)
+        ? genderOptionLabel(t, gender)
+        : value;
     }
     case "source":
       return t(

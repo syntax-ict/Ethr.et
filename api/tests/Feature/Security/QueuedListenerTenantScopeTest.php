@@ -226,3 +226,39 @@ it('gives the offline alert a real subject line too', function () {
     expect($subject)->not->toStartWith('notification.');
     expect($subject)->not->toBe('notification.device_offline_subject');
 });
+
+/**
+ * The device listeners once skipped the `status = 'active'` filter the payroll ones
+ * had, so a deactivated admin was still told. They now share `TenantRecipients`.
+ */
+it('does not notify a deactivated admin of a device going offline or failing to sync', function () {
+    Notification::fake();
+
+    $tenant = Tenant::factory()->create(['subdomain' => 'inactive-admin']);
+    app(CurrentTenant::class)->set($tenant);
+
+    $active = User::factory()->create([
+        'tenant_id' => $tenant->id,
+        'role' => UserRole::TENANT_ADMIN->value,
+    ]);
+    $suspended = User::factory()->create([
+        'tenant_id' => $tenant->id,
+        'role' => UserRole::HR_ADMIN->value,
+        'status' => 'suspended',
+    ]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+    ]);
+
+    app(CurrentTenant::class)->forget();
+
+    (new NotifyDeviceOffline)->handle(new DeviceOffline($device));
+    (new NotifyDeviceSyncFailed)->handle(new DeviceSyncFailed($device, 'adapter timed out'));
+
+    Notification::assertSentTo($active, DeviceOfflineNotification::class);
+    Notification::assertSentTo($active, DeviceSyncFailedNotification::class);
+    Notification::assertNotSentTo($suspended, DeviceOfflineNotification::class);
+    Notification::assertNotSentTo($suspended, DeviceSyncFailedNotification::class);
+});

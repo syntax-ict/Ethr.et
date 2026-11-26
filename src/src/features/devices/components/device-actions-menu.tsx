@@ -4,7 +4,6 @@ import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Clock,
-  Copy,
   Eye,
   History,
   MoreVertical,
@@ -25,14 +24,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { RegenerateTokenDialog } from "@/features/devices/components/regenerate-token-dialog";
 import {
   usePullDeviceEvents,
-  useRegenerateDeviceToken,
   useSendStaffToDevice,
   useSetDeviceTime,
   useTestDeviceConnection,
   type Device,
+  isPulled,
 } from "@/features/devices/api";
 import { syncErrorHintKeys } from "@/features/devices/components/device-heard";
 import { apiErrorMessage } from "@/lib/api/error-message";
@@ -87,13 +86,13 @@ export function DeviceActionsMenu({
 
   const testMutation = useTestDeviceConnection();
   const pullMutation = usePullDeviceEvents();
-  const regenMutation = useRegenerateDeviceToken();
   const setTime = useSetDeviceTime();
   const sendStaff = useSendStaffToDevice();
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   const id = device.public_id;
   const sendsOnly = device.receives_only === true;
+  const pulled = isPulled(device);
   const takesCommands =
     device.accepts_commands === true && device.commands_enabled === true;
 
@@ -123,30 +122,6 @@ export function DeviceActionsMenu({
       onSuccess: () => toast.success(t("devices_page.pull_initiated")),
       onError: (err) =>
         toast.error(apiErrorMessage(err, t("devices_page.pull_failed"))),
-    });
-  }
-
-  async function copyAddress() {
-    try {
-      await navigator.clipboard.writeText(device.webhook_url ?? "");
-      toast.success(t("attendance.kiosks_page.copied"));
-    } catch {
-      toast.error(t("devices_page.copy_failed"));
-    }
-  }
-
-  function regenerate() {
-    regenMutation.mutate(id, {
-      onSuccess: () => {
-        toast.success(t("device_detail_page.token_regenerated"));
-        setConfirmRegen(false);
-      },
-      onError: (err) => {
-        toast.error(
-          apiErrorMessage(err, t("device_detail_page.regenerate_failed")),
-        );
-        setConfirmRegen(false);
-      },
     });
   }
 
@@ -183,7 +158,7 @@ export function DeviceActionsMenu({
         {t("devices_page.test_connection")}
       </DropdownMenuItem>
     ),
-    !sendsOnly && canUpdate && (
+    pulled && canUpdate && (
       <DropdownMenuItem
         key="pull"
         onSelect={onPull ?? ownPull}
@@ -196,22 +171,14 @@ export function DeviceActionsMenu({
   ]);
 
   add("address", t("devices_page.actions_group_address"), [
-    Boolean(device.webhook_url) && (
-      <DropdownMenuItem key="copy" onSelect={() => void copyAddress()}>
-        <Copy className={icon} aria-hidden="true" />
-        {t("device_detail_page.copy_webhook_url", "Copy webhook URL")}
-      </DropdownMenuItem>
-    ),
-    Boolean(device.webhook_url) && canUpdate && (
-      <DropdownMenuItem
-        key="regen"
-        onSelect={() => setConfirmRegen(true)}
-        disabled={regenMutation.isPending}
-      >
-        <RotateCw className={icon} aria-hidden="true" />
-        {t("device_detail_page.regenerate_token")}
-      </DropdownMenuItem>
-    ),
+    device.has_webhook_token === true &&
+      device.uses_webhook_token === true &&
+      canUpdate && (
+        <DropdownMenuItem key="regen" onSelect={() => setConfirmRegen(true)}>
+          <RotateCw className={icon} aria-hidden="true" />
+          {t("device_detail_page.regenerate_token")}
+        </DropdownMenuItem>
+      ),
   ]);
 
   add("staff", t("devices_page.actions_group_staff"), [
@@ -221,7 +188,7 @@ export function DeviceActionsMenu({
         {t("devices_page.discover_users", "Discover enrolled users")}
       </DropdownMenuItem>
     ),
-    !sendsOnly && canUpdate && onImportHistory && (
+    pulled && canUpdate && onImportHistory && (
       <DropdownMenuItem key="history" onSelect={onImportHistory}>
         <History className={icon} aria-hidden="true" />
         {t("devices_page.import_history", "Import attendance history")}
@@ -326,15 +293,10 @@ export function DeviceActionsMenu({
       </DropdownMenu>
 
       {/* Outside the menu content, so closing the menu does not unmount it. */}
-      <ConfirmDialog
+      <RegenerateTokenDialog
+        devicePublicId={id}
         open={confirmRegen}
         onOpenChange={setConfirmRegen}
-        title={t("devices_page.regenerate_confirm_title")}
-        description={t("devices_page.regenerate_confirm_desc")}
-        confirmLabel={t("device_detail_page.regenerate_token")}
-        variant="destructive"
-        loading={regenMutation.isPending}
-        onConfirm={regenerate}
       />
     </>
   );

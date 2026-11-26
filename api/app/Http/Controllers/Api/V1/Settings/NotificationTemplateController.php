@@ -27,8 +27,10 @@ class NotificationTemplateController extends Controller
                 'type' => $type,
                 'subject_en' => $custom['subject_en'] ?? $default['subject_en'],
                 'subject_am' => $custom['subject_am'] ?? $default['subject_am'],
+                'subject_om' => $custom['subject_om'] ?? $default['subject_om'],
                 'body_en' => $custom['body_en'] ?? $default['body_en'],
                 'body_am' => $custom['body_am'] ?? $default['body_am'],
+                'body_om' => $custom['body_om'] ?? $default['body_om'],
                 'is_customized' => ! empty($custom),
                 'variables' => NotificationTemplates::variables($type),
             ];

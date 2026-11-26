@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Feature;
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminDeviceCaptureController;
 use App\Http\Controllers\Api\V1\Admin\AdminFeatureController;
 use App\Http\Controllers\Api\V1\Admin\AdminMarketingController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
@@ -75,6 +76,7 @@ use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\Device\DeviceCommandController;
 use App\Http\Controllers\Api\V1\Device\DeviceController;
 use App\Http\Controllers\Api\V1\Device\DeviceEnrollmentController;
+use App\Http\Controllers\Api\V1\Device\DeviceQuarantineController;
 use App\Http\Controllers\Api\V1\Device\UnmatchedPunchController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
 use App\Http\Controllers\Api\V1\Employee\BankDetailController;
@@ -88,6 +90,7 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeIdentityController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
+use App\Http\Controllers\Api\V1\Employee\EmployeePaidMonthsController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
 use App\Http\Controllers\Api\V1\Employee\LetterRequestController;
 use App\Http\Controllers\Api\V1\Employee\PersonnelActionController;
@@ -104,7 +107,9 @@ use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSyncController;
 use App\Http\Controllers\Api\V1\Leave\LeaveRequestController;
 use App\Http\Controllers\Api\V1\Leave\LeaveTypeController;
+use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\MarketingContentController;
+use App\Http\Controllers\Api\V1\Navigation\NavigationBadgesController;
 use App\Http\Controllers\Api\V1\NextSteps\NextStepsController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
 use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
@@ -127,6 +132,7 @@ use App\Http\Controllers\Api\V1\OrganizationTypeController;
 use App\Http\Controllers\Api\V1\Payroll\CostSharingController;
 use App\Http\Controllers\Api\V1\Payroll\LoanController;
 use App\Http\Controllers\Api\V1\Payroll\OvertimeRateController;
+use App\Http\Controllers\Api\V1\Payroll\PayDifferenceController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollPreviewController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
@@ -243,6 +249,8 @@ Route::get('/marketing-content', [MarketingContentController::class, 'index'])->
 Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
 // The kinds of organisation statutory rules are scoped by (OrganizationTypeController).
 Route::get('/organization-types', [OrganizationTypeController::class, 'index'])->middleware('throttle:public-catalogue');
+// The pick lists forms offer: regions, sub-cities, towns, banks (LookupController).
+Route::get('/lookups', [LookupController::class, 'index'])->middleware('throttle:public-catalogue');
 Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
@@ -435,7 +443,10 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::patch('/migration/rows/{row}', [MigrationController::class, 'updateRow']);
         Route::post('/migration/batches/{batch}/stage', [MigrationController::class, 'stage'])->middleware('throttle:migration-commit');
         Route::post('/migration/batches/{batch}/confirm-same-name', [MigrationController::class, 'confirmSameName']);
+        Route::post('/migration/batches/{batch}/accept-differences', [MigrationController::class, 'acceptDifferences'])->middleware('throttle:migration-commit');
         Route::post('/migration/batches/{batch}/commit', [MigrationController::class, 'commit'])->middleware('throttle:migration-commit');
+        Route::get('/migration/batches/{batch}/undo', [MigrationController::class, 'undoPreview']);
+        Route::post('/migration/batches/{batch}/undo', [MigrationController::class, 'undo'])->middleware('throttle:migration-commit');
         Route::get('/migration/batches/{batch}/logins', [MigrationController::class, 'logins']);
         Route::get('/migration/batches/{batch}/terminals', [MigrationController::class, 'terminals']);
     });
@@ -451,10 +462,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::get('/assignable-roles', [UserController::class, 'assignableRoles']);
         Route::post('/invitations', [InvitationController::class, 'store']);
         Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
         Route::post('/{user}/resend-invite', [UserController::class, 'resendInvite']);
+        Route::post('/{user}/title-access', [UserController::class, 'titleAccess']);
         Route::post('/{user}/mfa/reset', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
@@ -582,6 +595,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Employees
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/export', [EmployeeBulkController::class, 'export']);
+    Route::get('/employees/ids', [EmployeeBulkController::class, 'ids']);
     Route::get('/employees/next-code', [EmployeeController::class, 'nextCode']);
 
     // Tenant-wide expiring-document watchlist. Declared before the
@@ -597,6 +611,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Recover the outcome of a committed import when the client lost the response.
     Route::get('/employees/import/status/{key}', [EmployeeImportController::class, 'status']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
+    Route::post('/employees/bulk-archive', [EmployeeBulkController::class, 'bulkArchive']);
+    Route::post('/employees/bulk-restore', [EmployeeBulkController::class, 'bulkRestore']);
     Route::get('/employees/possible-duplicates', PossibleDuplicatesController::class);
     Route::post('/employees/logins', [EmployeeLoginController::class, 'store']);
     Route::post('/employees/starting-password', [StartingPasswordController::class, 'store']);
@@ -646,6 +662,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/contracts/{contract}/renew', [EmployeeContractController::class, 'renew']);
         Route::post('/contracts/{contract}/end', [EmployeeContractController::class, 'end']);
         Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
+        Route::get('/paid-months', EmployeePaidMonthsController::class);
         Route::put('/kiosk-pin', EmployeeKioskPinController::class);
         Route::get('/identities', [EmployeeIdentityController::class, 'index']);
         Route::post('/identities/{identity}/verify', [EmployeeIdentityController::class, 'verify']);
@@ -699,13 +716,17 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
         Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
         Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
+        Route::post('/quarantine/replay', [DeviceQuarantineController::class, 'replay']);
+        Route::post('/quarantine/dismiss', [DeviceQuarantineController::class, 'dismiss']);
         Route::post('/sync-all', [DeviceController::class, 'syncAll']);
         Route::get('/{device}/status', [DeviceController::class, 'status']);
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);
         Route::post('/{device}/import-history', [DeviceController::class, 'importHistory']);
         Route::post('/{device}/regenerate-token', [DeviceController::class, 'regenerateToken']);
+        Route::post('/{device}/allowlist', [DeviceController::class, 'allowAddress']);
         Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
         Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
+        Route::get('/{device}/quarantine', [DeviceQuarantineController::class, 'index']);
         Route::get('/{device}/enrollments', [DeviceEnrollmentController::class, 'index']);
         Route::post('/{device}/enrollments/request', [DeviceEnrollmentController::class, 'request']);
         Route::get('/{device}/commands', [DeviceCommandController::class, 'index']);
@@ -744,6 +765,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::post('/preview', PayrollPreviewController::class)
             ->middleware([RequiresFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
+        Route::get('/pay-differences', [PayDifferenceController::class, 'index']);
+        Route::post('/pay-differences/{payDifference}/settle', [PayDifferenceController::class, 'settle']);
+        Route::post('/pay-differences/{payDifference}/dismiss', [PayDifferenceController::class, 'dismiss']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])
             ->middleware(RequiresFeature::class.':payroll');
@@ -829,6 +853,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/sources', [ReportController::class, 'sources']);
         Route::get('/presets', [ReportController::class, 'presets']);
         Route::post('/generate', [ReportController::class, 'generate'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet', [ReportController::class, 'timesheet'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet/pdf', [ReportController::class, 'timesheetPdf'])
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])
@@ -972,6 +1002,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::delete('/subscriptions', [PushSubscriptionController::class, 'destroy']);
     });
 
+    // Sidebar and tab-bar badge counts: two numbers, not the manager dashboard
+    Route::get('/navigation/badges', NavigationBadgesController::class);
+
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
@@ -1061,6 +1094,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
                 ->whereIn('key', $featureKeys);
             Route::delete('/tenants/{publicId}/features/{key}', [AdminTenantController::class, 'removeFeature'])
                 ->whereIn('key', $featureKeys);
+
+            // What one terminal really sent, redacted, to write a fixture from.
+            Route::get('/devices/{devicePublicId}/capture', [AdminDeviceCaptureController::class, 'show']);
 
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);

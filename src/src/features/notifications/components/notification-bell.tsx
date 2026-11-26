@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,26 +13,19 @@ import { Separator } from "@/components/ui/separator";
 import {
   useNotifications,
   useUnreadCount,
-  useMarkAsRead,
   useMarkAllAsRead,
-  notificationText,
-  notificationLink,
   type Notification,
 } from "../api";
-import { cn } from "@/lib/utils";
+import { NotificationItem } from "./notification-item";
 import { useT } from "@/lib/i18n/useT";
-import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 export function NotificationBell() {
   const { t } = useT();
-  const { timeAgo } = useDateFormatters();
   const [open, setOpen] = useState(false);
   const { data: unread } = useUnreadCount();
   // The badge needs only the count; the list is fetched when the popover
   // opens, and stays cached for the next time.
   const { data: notifData } = useNotifications({ page: 1 }, open);
-  const markRead = useMarkAsRead();
-  const router = useRouter();
   const markAllRead = useMarkAllAsRead();
 
   const notifications = (notifData?.data ?? []).slice(0, 5);
@@ -50,7 +42,7 @@ export function NotificationBell() {
           <Bell className="h-4 w-4" aria-hidden />
           {count > 0 && (
             <span
-              aria-hidden="true"
+              aria-hidden
               className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground"
             >
               {count > 99 ? "99+" : count}
@@ -59,8 +51,8 @@ export function NotificationBell() {
           <span className="sr-only">
             {count > 0
               ? t(
-                  "notifications.bell_label_count",
-                  ":count unread notifications",
+                  "common.notifications_unread",
+                  "Notifications, :count unread",
                   {
                     count,
                   },
@@ -97,39 +89,7 @@ export function NotificationBell() {
         ) : (
           <div className="max-h-80 overflow-y-auto">
             {notifications.map((n: Notification) => (
-              <button
-                key={n.id}
-                className={cn(
-                  "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                  !n.read_at && "bg-primary/5",
-                )}
-                onClick={() => {
-                  if (!n.read_at) markRead.mutate(n.id);
-                  const link = notificationLink(n);
-                  if (link) router.push(link);
-                }}
-              >
-                <div
-                  className={cn(
-                    "mt-0.5 h-2 w-2 shrink-0 rounded-full",
-                    n.read_at ? "bg-transparent" : "bg-primary",
-                  )}
-                />
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "text-sm leading-snug",
-                      !n.read_at && "font-medium",
-                    )}
-                  >
-                    {notificationText(n) ??
-                      t("common.new_notification", "New notification")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {timeAgo(n.created_at)}
-                  </p>
-                </div>
-              </button>
+              <NotificationItem key={n.id} notification={n} />
             ))}
           </div>
         )}

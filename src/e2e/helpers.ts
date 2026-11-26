@@ -199,6 +199,38 @@ export async function logout(page: Page) {
 }
 
 /**
+ * Publish a story for the organisation's public news page, as its publisher
+ * would, and return its id. Specs that read the public pages need one to read;
+ * remove it afterwards with `api(page, 'DELETE', `/announcements/${id}`)`.
+ * Opens an app page first, which `api` needs (see below).
+ */
+export async function publishPublicStory(
+  page: Page,
+  title: string,
+  extra: Record<string, unknown> = {},
+): Promise<string> {
+  await page.goto('/dashboard');
+  const created = await api(page, 'POST', '/announcements', {
+    title,
+    body: 'Plain words.\n\nA second paragraph.',
+    priority: 'high',
+    category: 'notice',
+    show_on_landing: true,
+    publish_now: true,
+    ...extra,
+  });
+  if (created.status !== 201) {
+    throw new Error(`The story could not be published: HTTP ${created.status}`);
+  }
+  return (created.data.data ?? created.data).public_id;
+}
+
+/** The organisation's public news list, or one story of it, as a visitor opens it. */
+export function publicNewsPath(publicId?: string): string {
+  return `/news${publicId ? `/${publicId}` : ''}?org=${DEMO_TENANT}`;
+}
+
+/**
  * Call the API from inside the app page, as its own client does: same origin,
  * the session cookie, the XSRF header Sanctum checks on a stateful request,
  * and X-Tenant when the session names one. Specs use it to set up data the

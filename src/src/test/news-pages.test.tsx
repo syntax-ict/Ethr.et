@@ -293,6 +293,85 @@ describe("<NewsListing>", () => {
   });
 });
 
+describe("the news pages' state", () => {
+  it("titles the tab with the page and the organisation, with a middle dot", async () => {
+    server.use(
+      http.get("*/auth/tenant-landing/news", () =>
+        HttpResponse.json(newsPage([story("A1", "Open day")])),
+      ),
+      http.get("*/auth/tenant-landing/announcements/A1", () =>
+        HttpResponse.json({
+          ...story("A1", "Open day"),
+          attachments: [],
+          body: "Come.",
+          related: [],
+        }),
+      ),
+    );
+    const list = renderWith(<NewsListing />);
+    await screen.findByText("Open day");
+    await waitFor(() =>
+      expect(document.title).toBe("News \u00b7 Acme Manufacturing"),
+    );
+    list.unmount();
+
+    renderWith(<NewsArticle routeId="__id__" />);
+    await screen.findByRole("heading", { level: 1, name: "Open day" });
+    await waitFor(() =>
+      expect(document.title).toBe("Open day \u00b7 Acme Manufacturing"),
+    );
+  });
+
+  it("keeps the stories on screen when a later refetch fails", async () => {
+    let calls = 0;
+    server.use(
+      http.get("*/auth/tenant-landing/news", () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(newsPage([story("A1", "Open day")]))
+          : new HttpResponse(null, { status: 500 });
+      }),
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <NewsListing />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Open day");
+
+    await client.refetchQueries({ queryKey: ["auth", "landing-news"] });
+    await waitFor(() => expect(calls).toBe(2));
+
+    expect(screen.getByText("Open day")).toBeInTheDocument();
+    expect(screen.queryByText("News could not be loaded")).toBeNull();
+  });
+
+  it("steps a stale page back to the last one", async () => {
+    window.history.replaceState(null, "", "/news?org=acme&page=9");
+    server.use(
+      http.get("*/auth/tenant-landing/news", ({ request }) => {
+        const wanted = new URL(request.url).searchParams.get("page");
+        return HttpResponse.json(
+          wanted === "2"
+            ? newsPage([story("A1", "Open day")], {
+                current_page: 2,
+                last_page: 2,
+              })
+            : newsPage([], { current_page: 9, last_page: 2 }),
+        );
+      }),
+    );
+    renderWith(<NewsListing />);
+
+    expect(await screen.findByText("Open day")).toBeInTheDocument();
+    expect(window.location.search).toContain("page=2");
+    expect(window.location.search).toContain("org=acme");
+  });
+});
+
 describe("<NewsArticle>", () => {
   it("reads the story with its paragraphs and live https links, and lists related news", async () => {
     server.use(

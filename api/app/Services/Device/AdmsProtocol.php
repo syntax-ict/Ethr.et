@@ -63,7 +63,9 @@ final class AdmsProtocol
     }
 
     /**
-     * @return list<array{pin: string, time: string, status: string|null}>
+     * `line` is the terminal's own line, as it sent it, kept as the raw copy.
+     *
+     * @return list<array{pin: string, time: string, status: string|null, line: string}>
      */
     public static function attendanceLines(string $body): array
     {
@@ -74,10 +76,33 @@ final class AdmsProtocol
                 continue;
             }
 
-            $punches[] = ['pin' => $fields[0], 'time' => $fields[1], 'status' => $fields[2] ?? null];
+            $punches[] = ['pin' => $fields[0], 'time' => $fields[1], 'status' => $fields[2] ?? null, 'line' => mb_substr(trim($line), 0, 500)];
         }
 
         return $punches;
+    }
+
+    /**
+     * The non-blank lines of an ATTLOG upload that are not a punch, so they
+     * can be kept rather than dropped.
+     *
+     * @return list<string>
+     */
+    public static function unreadableAttendanceLines(string $body): array
+    {
+        $bad = [];
+        foreach (preg_split('/\r\n|\n|\r/', $body) ?: [] as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $fields = explode("\t", trim($line));
+            if (count($fields) < 2 || $fields[0] === '' || ! preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $fields[1])) {
+                $bad[] = mb_substr($line, 0, 500);
+            }
+        }
+
+        return $bad;
     }
 
     /**

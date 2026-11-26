@@ -14,13 +14,11 @@ use App\Http\Requests\Employee\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeReportingNodeResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\AuditLog;
-use App\Models\Branch;
-use App\Models\Department;
 use App\Models\Employee;
-use App\Models\Position;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Employees\EmployeeRestorer;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentitySignals;
@@ -28,10 +26,11 @@ use App\Services\Identity\IntakeResult;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
-use App\Support\EmployeeGaps;
+use App\Support\EmployeeListFilters;
 use App\Support\EmployeeRelations;
 use App\Support\EmployeeSignIn;
 use App\Support\EthiopianPhone;
+use App\Support\FrameworkExemption;
 use App\Support\RoleAssignment;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
@@ -81,48 +80,27 @@ class EmployeeController extends Controller
 
         $request->user()->scopeAccessibleEmployees($query);
 
-        if ($request->filled('search')) {
-            $query->search($request->input('search'));
-        }
-
-        if ($request->has('filter.status')) {
-            $query->where('status', $request->input('filter.status'));
-        }
-
-        // The "check nationality" list: employees the 2026-10-14 backfill
-        // mapped to foreign from a free-text value nobody has confirmed.
-        if ($request->boolean('filter.nationality_needs_review')) {
-            $query->where('nationality_needs_review', true);
-        }
+        $search = $request->input('search');
+        $status = $request->input('filter.status');
 
         // The "records to fix" list a Next Steps row opens. It is the set the
         // row counted, through EmployeeGaps.
         // Pay data needs the permission that edits pay data, so the list
         // cannot be used to learn who has no TIN or bank account.
         $missing = $request->input('filter.missing');
-        EmployeeGaps::restrict($query, $missing);
+
+        // The list's narrowing is shared with the ids endpoint
+        // (EmployeeListFilters); the values are read here, where the contract
+        // is derived from.
+        EmployeeListFilters::apply($query, $request, [
+            'search' => $search,
+            'status' => $status,
+            'missing' => $missing,
+            'department_id' => $request->input('filter.department_id'),
+            'branch_id' => $request->input('filter.branch_id'),
+            'position_id' => $request->input('filter.position_id'),
+        ]);
         EmployeeSignIn::withState($query);
-
-        if ($request->has('filter.department_id')) {
-            $dept = Department::where('public_id', $request->input('filter.department_id'))->first();
-            if ($dept) {
-                $query->where('department_id', $dept->id);
-            }
-        }
-
-        if ($request->has('filter.branch_id')) {
-            $branch = Branch::where('public_id', $request->input('filter.branch_id'))->first();
-            if ($branch) {
-                $query->where('branch_id', $branch->id);
-            }
-        }
-
-        if ($request->has('filter.position_id')) {
-            $position = Position::where('public_id', $request->input('filter.position_id'))->first();
-            if ($position) {
-                $query->where('position_id', $position->id);
-            }
-        }
 
         $sortField = $request->input('sort', 'name');
         $sortDir = str_starts_with($sortField, '-') ? 'desc' : 'asc';
@@ -190,6 +168,9 @@ class EmployeeController extends Controller
         $confirmedNew = (bool) ($data['confirm_new'] ?? false);
         unset($data['create_login'], $data['user_role'], $data['confirm_new']);
 
+        $data = FrameworkExemption::normalise($data, false);
+        $data['outside_employment_framework'] ??= false;
+        $data['employment_framework_note'] ??= null;
         $data = $this->resolveRelationIds($data);
         $data['status'] ??= EmployeeStatus::HIRED->value;
         // Unset means the column default, Ethiopian — never a null.
@@ -244,6 +225,7 @@ class EmployeeController extends Controller
                 role: $this->resolveAssignableRole($request->user(), $requestedRole),
                 employee: $employee,
                 invitedBy: $request->user()->id,
+                followsPosition: $requestedRole === null || $requestedRole === UserRole::EMPLOYEE->value,
             ) !== null;
 
             if (! $loginInvited) {
@@ -283,7 +265,7 @@ class EmployeeController extends Controller
 
         // Resources render flat (withoutWrapping). Merge the provisioning result
         // as a top-level `meta` key without re-introducing a `data` wrapper.
-        $response = (new EmployeeResource($employee))->response()->setStatusCode(201);
+        $response = (new EmployeeResource($employee))->withEmploymentLaw()->response()->setStatusCode(201);
         $payload = $response->getData(true);
         $payload['meta'] = ['login_invited' => $loginInvited, 'activation_code_pending' => $activationCodePending];
         $response->setData($payload);
@@ -348,7 +330,7 @@ class EmployeeController extends Controller
             'emergencyContacts', 'bankDetails', 'education', 'transitions',
         ]);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee, EmployeeUpdater $updater): EmployeeResource
@@ -363,7 +345,7 @@ class EmployeeController extends Controller
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
-        return new EmployeeResource($employee);
+        return (new EmployeeResource($employee))->withEmploymentLaw();
     }
 
     public function destroy(Employee $employee): JsonResponse
@@ -385,26 +367,15 @@ class EmployeeController extends Controller
      * employees. The person takes a seat again, so the plan's employee limit
      * applies. An employee who is not deleted is returned unchanged.
      */
-    public function restore(Employee $employee, PlanLimitService $planLimits): EmployeeResource
+    public function restore(Employee $employee, EmployeeRestorer $restorer): EmployeeResource
     {
         // Whoever may delete may undo it. This is the other answer to the 409
         // EmployeeIntake gives when the person being added is one whose
-        // record was deleted. Counted under the seat lock, as a new employee is.
+        // record was deleted. The seat is counted under the seat lock, as a
+        // new employee is, by the restorer the bulk restore shares.
         $this->authorize('delete', $employee);
 
-        if ($employee->trashed()) {
-            $tenant = app(CurrentTenant::class)->get();
-            $seats = $planLimits->lock($tenant, 'employees');
-            try {
-                $planLimits->assertCanAdd($tenant, 'employees');
-                $employee->restore();
-            } finally {
-                $seats->release();
-            }
-
-            AuditLog::record('employee.restored', $employee);
-            $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
-        }
+        $restorer->restore($employee);
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 

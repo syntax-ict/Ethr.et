@@ -29,8 +29,12 @@ const CONTRACT = {
   created_at: "2026-10-01T06:00:00Z",
 };
 
-function renderPage(docs: unknown[]) {
+function renderPage(docs: unknown[], employee: unknown = { public_id: "E1" }) {
   server.use(
+    http.get("*/api/v1/profile", () =>
+      HttpResponse.json({ user: { public_id: "U1" }, employee }),
+    ),
+    http.get("*/api/v1/profile/letters", () => HttpResponse.json({ data: [] })),
     http.get("*/api/v1/profile/documents", () =>
       HttpResponse.json({ data: docs }),
     ),
@@ -90,5 +94,23 @@ describe("<ProfileDocumentsPage>", () => {
     renderPage([]);
 
     expect(await screen.findByText("No documents yet")).toBeInTheDocument();
+  });
+
+  it("shows one message, and asks for nothing, when the account has no employee record", async () => {
+    let asked = false;
+    renderPage([], null);
+    server.use(
+      http.get("*/api/v1/profile/documents", () => {
+        asked = true;
+        return HttpResponse.json({ message: "Not found" }, { status: 404 });
+      }),
+    );
+
+    expect(
+      await screen.findByText(/not linked to an employee record/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/could not load/i)).toBeNull();
+    expect(screen.queryByText("Employment letters")).toBeNull();
+    expect(asked).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ namespace App\Http\Requests\Employee\Concerns;
 
 use App\Models\Employee;
 use App\Support\EmployeeRelations;
+use App\Support\SupervisorChain;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -73,7 +74,7 @@ trait ValidatesRelationTenancy
 
     /**
      * Which of the seven fields this request accepts — all of them for create and
-     * update. `BulkUpdateRequest` narrows it to the two it writes, so a field it
+     * update. `BulkUpdateRequest` narrows it to the six it writes (not the grade), so a field it
      * would ignore anyway is not validated either.
      *
      * @return array<string, class-string>
@@ -128,31 +129,17 @@ trait ValidatesRelationTenancy
                 ]));
             }
 
-            // No one supervises themselves: it would put a loop in the
-            // reporting tree. Reachable since supervisor became editable on
-            // screen (audit N73); only on update, where the employee exists.
+            // The reporting-tree rule, shared with the bulk change
+            // (SupervisorChain): no one is their own supervisor, nor the
+            // supervisor of someone who supervises them further up. Only on
+            // update, where the employee exists.
             $employee = $this->route('employee');
-            if ($employee instanceof Employee
-                && $this->input('supervisor_id') === $employee->public_id
-                && ! $validator->errors()->has('supervisor_id')) {
-                $validator->errors()->add('supervisor_id', __('employee.supervisor_self'));
-            }
-
-            // Nor, further up, by someone they supervise: A over B and B over
-            // A took both out of the reporting tree and made each the other's
-            // approver (A-Z review C-08). The chain is walked from the new
-            // supervisor upwards; it is bounded, as a chain already broken
-            // must not hang the request.
             if ($employee instanceof Employee
                 && is_string($this->input('supervisor_id'))
                 && ! $validator->errors()->has('supervisor_id')) {
-                $next = Employee::query()->where('public_id', $this->input('supervisor_id'))->value('supervisor_id');
-                for ($depth = 0; $next !== null && $depth < 100; $depth++) {
-                    if ((int) $next === $employee->id) {
-                        $validator->errors()->add('supervisor_id', __('employee.supervisor_loop'));
-                        break;
-                    }
-                    $next = Employee::query()->whereKey($next)->value('supervisor_id');
+                $refusal = SupervisorChain::refusal($employee, $this->input('supervisor_id'));
+                if ($refusal !== null) {
+                    $validator->errors()->add('supervisor_id', __($refusal));
                 }
             }
         });

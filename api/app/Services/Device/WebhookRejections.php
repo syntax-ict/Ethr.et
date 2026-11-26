@@ -46,16 +46,17 @@ final class WebhookRejections
 
     /**
      * Remember a token a device no longer accepts, so a terminal still sending
-     * it can be named. Called when the token is regenerated.
+     * it can be named. Called when the token is regenerated, with the old
+     * token's sha256 (the device stores no token in clear).
      */
-    public static function retire(Device $device, ?string $oldToken): void
+    public static function retire(Device $device, ?string $oldHash): void
     {
-        if ($oldToken === null || $oldToken === '') {
+        if ($oldHash === null || $oldHash === '') {
             return;
         }
 
         try {
-            Cache::put(self::retiredKey($oldToken), $device->id, now()->addDays(self::TTL_DAYS));
+            Cache::put(self::retiredKey($oldHash), $device->id, now()->addDays(self::TTL_DAYS));
         } catch (\Throwable) {
             // The rotation itself must not fail because the trace could not be kept.
         }
@@ -127,9 +128,19 @@ final class WebhookRejections
         return ['reason' => (string) $value['reason'], 'ip' => $value['ip'] ?? null, 'at' => (string) $value['at']];
     }
 
+    /** The refusal is fixed: stop saying it. */
+    public static function forget(Device $device): void
+    {
+        try {
+            Cache::forget(self::rejectionKey($device));
+        } catch (\Throwable) {
+            // A downed cache must not fail the change that fixed it.
+        }
+    }
+
     private static function retiredFor(string $adapterType, string $token): ?Device
     {
-        $id = Cache::get(self::retiredKey($token));
+        $id = Cache::get(self::retiredKey(Device::hashToken($token)));
         if (! is_int($id)) {
             return null;
         }
@@ -149,19 +160,20 @@ final class WebhookRejections
             return null;
         }
 
-        // Hex only, checked above, so the prefix carries no LIKE wildcard.
+        // The device keeps a hash of its token's first 16 characters, which
+        // every cut-off address at least that long still carries.
         $candidates = Device::withoutGlobalScope('tenant')
             ->where('adapter_type', $adapterType)
-            ->where('webhook_token', 'like', $token.'%')
+            ->where('webhook_token_head_hash', Device::hashToken(substr($token, 0, Device::HEAD_LENGTH)))
             ->limit(2)
             ->get();
 
         return $candidates->count() === 1 ? $candidates->first() : null;
     }
 
-    private static function retiredKey(string $token): string
+    private static function retiredKey(string $hash): string
     {
-        return 'device-webhook:retired:'.hash('sha256', $token);
+        return 'device-webhook:retired:'.$hash;
     }
 
     private static function rejectionKey(Device $device): string

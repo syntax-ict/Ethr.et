@@ -118,6 +118,9 @@ describe("<AddEmployeeMenu>", () => {
       screen.getByRole("menuitem", { name: "From a file or pasted rows" }),
     ).toHaveAttribute("href", "/employees/import");
     expect(
+      screen.getByRole("menuitem", { name: "Lists you added recently" }),
+    ).toHaveAttribute("href", "/employees/import#recent-lists");
+    expect(
       screen.getByRole("menuitem", { name: "From an attendance terminal" }),
     ).toHaveAttribute("href", "/employees/from-device");
     expect(

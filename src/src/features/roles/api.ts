@@ -53,6 +53,10 @@ export function useCreateCustomRole() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-roles"] });
+      // The Users page offers these roles, shows them on rows and counts who
+      // holds them: a list read a minute ago would offer a role the server
+      // now refuses.
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }
@@ -67,6 +71,10 @@ export function useUpdateCustomRole(publicId: string) {
     },
     onSuccess: (_data, payload) => {
       queryClient.invalidateQueries({ queryKey: ["custom-roles"] });
+      // The Users page offers these roles, shows them on rows and counts who
+      // holds them: a list read a minute ago would offer a role the server
+      // now refuses.
+      queryClient.invalidateQueries({ queryKey: ["users"] });
 
       // A change to the role's abilities may be a change to *mine*, if I hold
       // it. `/auth/me` returns the resolved permission set but not which custom
@@ -92,6 +100,10 @@ export function useDeleteCustomRole() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-roles"] });
+      // The Users page offers these roles, shows them on rows and counts who
+      // holds them: a list read a minute ago would offer a role the server
+      // now refuses.
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

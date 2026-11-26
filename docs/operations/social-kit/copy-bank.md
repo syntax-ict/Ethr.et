@@ -38,7 +38,7 @@ Links: English posts go to `www.ethr.et/en/...`, Amharic posts to `www.ethr.et/a
 
 **Facebook and Telegram**
 
-> **ከመስመር ውጭ መስራቱን ይቀጥላል**
+> **ኢንተርኔት ባይኖርም መስራቱን ይቀጥላል**
 >
 > አንድ የክልል ቅርንጫፍ ለአንድ ከሰዓት አውታረ መረብ ያጣል፤ ከእሱም ጋር የዕለቱን መዝገቦች። መግቢያዎች በመሣሪያው ላይ ይሰለፋሉ፣ ግንኙነቱ እንደተመለሰ ራሳቸው ይላካሉ። ምንም ሁለት ጊዜ አይተየብም።
 >
@@ -49,7 +49,7 @@ Links: English posts go to `www.ethr.et/en/...`, Amharic posts to `www.ethr.et/a
 
 **Instagram**
 
-> ከመስመር ውጭ መስራቱን ይቀጥላል. Keeps working offline: check-ins queue on the phone and upload when the network returns. Link in bio.
+> ኢንተርኔት ባይኖርም መስራቱን ይቀጥላል. Keeps working offline: check-ins queue on the phone and upload when the network returns. Link in bio.
 >
 > #ETHR #Attendance #Ethiopia #HR
 

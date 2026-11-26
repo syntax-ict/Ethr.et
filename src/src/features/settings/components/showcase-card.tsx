@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useSaveStatus } from "@/components/shared/save-status";
 import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import {
@@ -26,35 +27,38 @@ export function ShowcaseCard() {
   const { formatDate } = useCalendar();
   const { data, isLoading, isError, refetch } = useShowcaseConsent();
   const update = useUpdateShowcaseConsent();
+  const { announceSaved, announceError } = useSaveStatus();
 
   function toggle(listed: boolean) {
     update.mutate(listed, {
-      onSuccess: () =>
-        toast.success(
-          listed
-            ? t(
-                "settings.showcase.agreed",
-                "Thank you. Your organisation can now appear on the ETHR website.",
-              )
-            : t(
-                "settings.showcase.withdrawn",
-                "Your organisation will no longer appear on the ETHR website.",
-              ),
-        ),
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t("settings.showcase.failed", "Your choice could not be saved."),
-          ),
-        ),
+      onSuccess: () => {
+        const message = listed
+          ? t(
+              "settings.showcase.agreed",
+              "Thank you. Your organisation can now appear on the ETHR website.",
+            )
+          : t(
+              "settings.showcase.withdrawn",
+              "Your organisation will no longer appear on the ETHR website.",
+            );
+        toast.success(message);
+        announceSaved(message);
+      },
+      onError: (err) => {
+        const fallback = t(
+          "settings.showcase.failed",
+          "Your choice could not be saved.",
+        );
+        toast.error(apiErrorMessage(err, fallback));
+        announceError(err, fallback);
+      },
     });
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle as="h2" className="flex items-center gap-2 text-base">
           <Globe2 className="h-4 w-4" aria-hidden />
           {t("settings.showcase.title", "ETHR website")}
         </CardTitle>

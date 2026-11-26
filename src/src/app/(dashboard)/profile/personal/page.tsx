@@ -10,14 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { OptionSelect } from "@/components/shared/option-select";
 import { PhoneInput } from "@/components/shared/phone-input";
+import {
+  AddressForm,
+  addressFromRecord,
+  addressToPayload,
+  type AddressFields,
+} from "@/components/shared/address-fields";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
@@ -31,17 +31,16 @@ import {
   type UpdateProfilePayload,
 } from "@/features/profile/api";
 import { useT } from "@/lib/i18n/useT";
+import {
+  MARITAL_STATUSES,
+  useMaritalStatusLabel,
+} from "@/lib/options/marital-status";
+import {
+  RELATIONSHIPS,
+  useRelationshipLabel,
+} from "@/lib/options/relationship";
 import { toast } from "sonner";
 
-const MARITAL_STATUSES = ["single", "married", "divorced", "widowed"] as const;
-const RELATIONSHIPS = [
-  "spouse",
-  "parent",
-  "sibling",
-  "child",
-  "friend",
-  "other",
-] as const;
 /** Server-side cap; kept here so the Add button disables instead of 422-ing. */
 const MAX_CONTACTS = 5;
 
@@ -64,6 +63,7 @@ export default function PersonalDetailsPage() {
 
 function PersonalDetails({ profile }: { profile: ProfileResponse }) {
   const { t } = useT();
+  const maritalLabel = useMaritalStatusLabel();
   const updateProfile = useUpdateProfile();
   const employee = profile.employee;
 
@@ -82,6 +82,23 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
       nationality: employee?.nationality ?? "",
     },
   });
+
+  // The address is kept beside the form, as its parts are not all plain text.
+  // `draft` holds only what the person has changed; until they change
+  // something the saved address shows, so a refetch is never overwritten by a
+  // stale copy. It is sent only when it differs, so saving a phone never
+  // touches it.
+  const savedAddress = addressFromRecord(employee);
+  const [draft, setDraft] = useState<AddressFields | null>(null);
+  // Bumped by Cancel, so a box left in "Other, type it" returns to the list.
+  const [addressResets, setAddressResets] = useState(0);
+  const address = draft ?? savedAddress;
+  const [addressErrors, setAddressErrors] = useState<
+    Partial<Record<keyof AddressFields, string>>
+  >({});
+  const addressDirty =
+    JSON.stringify(addressToPayload(address)) !==
+    JSON.stringify(addressToPayload(savedAddress));
 
   // The form used to open blank and overwrite whatever was on record with it.
   // Re-seeding from the server keeps "save" meaning "save my edits".
@@ -107,7 +124,10 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
         marital_status: (values.marital_status ||
           undefined) as UpdateProfilePayload["marital_status"],
         nationality: values.nationality || undefined,
+        ...(addressDirty ? addressToPayload(address) : {}),
       });
+      setAddressErrors({});
+      setDraft(null);
       toast.success(t("profile.updated", "Profile updated successfully."));
     } catch (err) {
       // A bare `catch {}` threw away the server's RFC-7807 `errors` map, so a
@@ -116,9 +136,15 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
       // back through `setError` puts each message under its own input, reusing
       // the same `errors` rendering the client-side zod schema already drives.
       const fields = fieldErrors(err);
+      const forAddress: Partial<Record<keyof AddressFields, string>> = {};
       for (const [name, message] of Object.entries(fields)) {
-        setError(name as keyof PersonalForm, { type: "server", message });
+        if (name.startsWith("address_")) {
+          forAddress[name as keyof AddressFields] = message;
+        } else {
+          setError(name as keyof PersonalForm, { type: "server", message });
+        }
       }
+      setAddressErrors(forAddress);
       if (Object.keys(fields).length === 0) {
         toast.error(
           t(
@@ -164,6 +190,7 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                   render={({ field }) => (
                     <PhoneInput
                       id="phone"
+                      international
                       value={field.value ?? ""}
                       onChange={field.onChange}
                     />
@@ -184,23 +211,13 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                   control={control}
                   name="marital_status"
                   render={({ field }) => (
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger id="marital_status">
-                        <SelectValue
-                          placeholder={t("common.select", "Select")}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MARITAL_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {t(`marital_status.${status}`, status)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <OptionSelect
+                      id="marital_status"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={MARITAL_STATUSES}
+                      getLabel={maritalLabel}
+                    />
                   )}
                 />
               </div>
@@ -220,6 +237,21 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
               </div>
             </div>
 
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">
+                {t("address.title", "Address")}
+              </legend>
+              <AddressForm
+                key={addressResets}
+                value={address}
+                onChange={(next) => {
+                  setDraft(next);
+                  setAddressErrors({});
+                }}
+                errors={addressErrors}
+              />
+            </fieldset>
+
             <p className="text-xs text-muted-foreground">
               {t(
                 "profile.gated_fields_note",
@@ -232,8 +264,15 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={!isDirty || updateProfile.isPending}
-                onClick={() => reset()}
+                disabled={
+                  (!isDirty && !addressDirty) || updateProfile.isPending
+                }
+                onClick={() => {
+                  reset();
+                  setDraft(null);
+                  setAddressResets((n) => n + 1);
+                  setAddressErrors({});
+                }}
               >
                 <X className="mr-1 h-3 w-3" />
                 {t("common.cancel", "Cancel")}
@@ -262,6 +301,7 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
 
 function EmergencyContactsCard({ contacts }: { contacts: EmergencyContact[] }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const [editing, setEditing] = useState<EmergencyContact | "new" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<EmergencyContact | null>(
     null,
@@ -327,11 +367,8 @@ function EmergencyContactsCard({ contacts }: { contacts: EmergencyContact[] }) {
                   {contact.name}
                 </p>
                 <p className="text-sm capitalize text-muted-foreground">
-                  {t(
-                    `relationship.${contact.relationship}`,
-                    contact.relationship,
-                  )}{" "}
-                  · <span className="tabular-nums">{contact.phone}</span>
+                  {relationshipText(contact.relationship)} ·{" "}
+                  <span className="tabular-nums">{contact.phone}</span>
                 </p>
               </div>
               <div className="flex gap-1">
@@ -391,6 +428,7 @@ function ContactForm({
   onDone: () => void;
 }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const create = useCreateEmergencyContact();
   const update = useUpdateEmergencyContact();
   const saving = create.isPending || update.isPending;
@@ -468,21 +506,18 @@ function ContactForm({
             control={control}
             name="relationship"
             render={({ field }) => (
-              <Select
-                value={field.value || undefined}
-                onValueChange={field.onChange}
-              >
-                <SelectTrigger id="contact_relationship">
-                  <SelectValue placeholder={t("common.select", "Select")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {RELATIONSHIPS.map((rel) => (
-                    <SelectItem key={rel} value={rel}>
-                      {t(`relationship.${rel}`, rel)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <OptionSelect
+                id="contact_relationship"
+                value={field.value}
+                onChange={field.onChange}
+                options={RELATIONSHIPS}
+                getLabel={relationshipText}
+                otherValue="other"
+                otherLabel={t(
+                  "relationship.other_specify",
+                  "Say how they are related",
+                )}
+              />
             )}
           />
           {errors.relationship && (
@@ -502,6 +537,7 @@ function ContactForm({
             render={({ field }) => (
               <PhoneInput
                 id="contact_phone"
+                international
                 value={field.value ?? ""}
                 onChange={field.onChange}
               />

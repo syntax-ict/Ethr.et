@@ -153,6 +153,21 @@ it('writes the letter in Amharic when asked', function () {
         ->and(strlen($letters->pdf($letter)))->toBeGreaterThan(1000);
 });
 
+it('does not double the Amharic "ለ" when the purpose already starts with one', function () {
+    [, $employee, , $hr] = letterSetup();
+    $letters = app(EmploymentLetters::class);
+    $letter = $letters->issue($letters->request($employee, ['purpose' => 'ለባንክ ብድር', 'language' => 'am']), $hr);
+
+    $html = view('letters.employment', [
+        'locale' => 'am', 'letterhead' => ['name' => 'Syntax Technology', 'logo' => null, 'lines' => []], 'issuer_position' => '', 'organisation' => 'Syntax Technology', 'reference' => $letter->reference, 'issued_on' => '',
+        'addressed_to' => null, 'name' => 'Selam Tesfaye', 'code' => 'E-007', 'hired_on' => '', 'left_on' => null,
+        'position' => '', 'department' => '', 'salary' => null, 'purpose' => $letter->purpose, 'issuer' => '',
+    ])->render();
+
+    expect(__('letters.purpose', ['purpose' => 'ለባንክ ብድር'], 'am'))->not->toContain('ለለ')
+        ->and($html)->toContain('ለባንክ ብድር')->not->toContain('ለለ');
+});
+
 // An issued letter is a document a bank or an embassy relies on: it prints
 // what it said on the day it was issued, whatever the record says afterwards.
 

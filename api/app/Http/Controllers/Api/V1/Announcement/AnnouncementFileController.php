@@ -62,15 +62,9 @@ class AnnouncementFileController extends Controller
      */
     public function download(Request $request, Announcement $announcement, string $file): Response
     {
-        $visible = Announcement::query()
-            ->published()
-            ->notExpired()
-            ->visibleTo($request->user())
-            ->whereKey($announcement->getKey())
-            ->exists();
         $canManage = $request->user()?->hasPermission('announcement.manage') ?? false;
 
-        if (! $visible && ! $canManage) {
+        if (! $canManage && ! $announcement->isReadableBy($request->user())) {
             throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement->public_id]);
         }
 

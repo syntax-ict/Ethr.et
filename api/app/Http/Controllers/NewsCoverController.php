@@ -31,11 +31,9 @@ class NewsCoverController extends Controller
     #[ExcludeRouteFromDocs]
     public function __invoke(FileStorageService $storage, string $publicId, string $story, string $size, string $version): Response
     {
-        $width = match ($size) {
-            'cover-1280' => 1280,
-            'cover-640' => 640,
-            default => null,
-        };
+        // The full image is `cover`; a name that is not one of the stored
+        // widths is the full image too, as it always was.
+        $width = collect(FileStorageService::COVER_VARIANT_WIDTHS)->first(fn (int $w): bool => $size === 'cover-'.$w);
 
         $tenant = Tenant::query()->where('public_id', $publicId)->first();
         $bytes = $tenant !== null && $tenant->isActive()

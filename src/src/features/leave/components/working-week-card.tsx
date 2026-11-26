@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -38,6 +40,7 @@ export function WorkingWeekCard() {
   const { can } = usePermissions();
   const { data, isLoading, isError, refetch } = useSettings();
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const persisted = data?.leave?.working_days ?? [1, 2, 3, 4, 5];
   const [edits, setEdits] = useState<number[] | null>(null);
@@ -45,6 +48,7 @@ export function WorkingWeekCard() {
   const isDirty =
     edits !== null &&
     [...edits].sort().join(",") !== [...persisted].sort().join(",");
+  useUnsavedChangesWarning(isDirty);
 
   function toggle(day: number) {
     const next = days.includes(day)
@@ -61,17 +65,19 @@ export function WorkingWeekCard() {
         onSuccess: () => {
           setEdits(null);
           toast.success(t("leave_types_page.week_saved", "Working week saved"));
+          announceSaved(t("leave_types_page.week_saved", "Working week saved"));
         },
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "leave_types_page.week_save_failed",
-                "Couldn't save the working week",
-              ),
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "leave_types_page.week_save_failed",
+              "Couldn't save the working week",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }

@@ -16,6 +16,7 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceCommandQueue;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\DevicePunchKey;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
@@ -458,7 +459,7 @@ class PullDeviceEventsJob implements ShouldQueue
             if (! $match->isActionable()) {
                 $failed++;
                 // Held, not dropped: replayed once someone says whose badge it is.
-                app(UnmatchedPunches::class)->hold($this->device, (string) $badge, (string) $event['type'], "device:{$this->device->id}:{$badge}:{$event['timestamp']}", (string) $event['timestamp']);
+                app(UnmatchedPunches::class)->hold($this->device, (string) $badge, (string) $event['type'], DevicePunchKey::fit("device:{$this->device->id}:{$badge}:{$event['timestamp']}"), (string) $event['timestamp']);
                 Log::info('Device event: no confident employee match', [
                     'device_id' => $this->device->id,
                     'badge' => $badge,
@@ -475,7 +476,7 @@ class PullDeviceEventsJob implements ShouldQueue
             // one lookup. Auto-links stay unverified for later admin review.
             $resolver->link($employee, $signals, $match->confidence);
 
-            $idempotencyKey = "device:{$this->device->id}:{$badge}:{$event['timestamp']}";
+            $idempotencyKey = DevicePunchKey::fit("device:{$this->device->id}:{$badge}:{$event['timestamp']}");
 
             // The device's wall clock, read in its zone (DeviceTime). The key
             // above keeps the raw string so events already ingested still
