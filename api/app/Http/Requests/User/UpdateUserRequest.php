@@ -87,6 +87,17 @@ class UpdateUserRequest extends FormRequest
                 return;
             }
 
+            // Your own custom role is another administrator's to change: a
+            // custom role replaces every permission you hold, so a second
+            // tenant admin could give themselves a narrow one and lose the
+            // settings that would let them take it back.
+            if ($changesCustomRole && $target instanceof User && $actor !== null
+                && $target->id === $actor->id && ! $actor->isSuperAdmin()) {
+                $v->errors()->add('custom_role_id', __('user.errors.own_custom_role'));
+
+                return;
+            }
+
             // The owner stays an active administrator until ownership is
             // handed on: ETHR's support calls them, and only they may give
             // it away (OrganisationOwnership). A custom role replaces their

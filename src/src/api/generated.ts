@@ -9252,6 +9252,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/assignable-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The custom roles the signed-in person may give, for the Users page's
+         *     picker. Settings > Roles needs `settings.manage`, which an HR admin does
+         *     not hold, so this is the read for someone who may only assign
+         */
+        get: operations["user.assignableRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}": {
         parameters: {
             query?: never;
@@ -40656,6 +40677,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: (components["schemas"]["UserResource"] & {
+                            custom_role: {
+                                public_id: string;
+                                name: string;
+                            } | null;
                             employee: {
                                 public_id: string;
                                 name: string;
@@ -40736,6 +40761,35 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "user.assignableRoles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            name: string;
+                            description: string;
+                            org_scope: string;
+                            permissions_count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "user.destroy": {
         parameters: {
             query?: never;
@@ -40809,6 +40863,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;
@@ -40887,6 +40945,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;

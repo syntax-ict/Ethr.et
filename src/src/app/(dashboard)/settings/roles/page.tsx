@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ShieldCheck,
   Plus,
@@ -239,14 +240,22 @@ function RoleCard({
                 count: role.permissions.length,
               })}
             </span>
-            <span className="flex items-center gap-1">
+            <Link
+              href={`/settings/users?custom_role=${role.public_id}`}
+              className="flex items-center gap-1 underline-offset-2 hover:underline"
+              aria-label={t(
+                "roles_page.show_users",
+                "Show the users who hold :name",
+                { name: role.name },
+              )}
+            >
               <Users className="h-3 w-3" />
               {(role.users_count ?? 0) === 1
                 ? t("roles_page.users_count_one", "1 user")
                 : t("roles_page.users_count", ":count users", {
                     count: role.users_count ?? 0,
                   })}
-            </span>
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-1">
