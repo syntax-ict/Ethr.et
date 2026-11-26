@@ -529,6 +529,26 @@ export function useEnrolEmployeeOnDevices() {
 // ── Unrecognised badges (UnmatchedPunchController) ─────────────────────────
 
 /**
+ * Who a suggested person is, and what speaks against choosing them. The
+ * server computes the warnings for the whole page at once:
+ * `other_badge` (they already carry another badge number, the value),
+ * `hired_after` (hired after the first day this badge punched, the value is
+ * that day) and `own_attendance` (they already have attendance of their own on
+ * that many of the badge's days).
+ */
+export interface SuggestionIdentity {
+  employee_code: string | null;
+  department: string | null;
+  position: string | null;
+  branch: string | null;
+  hire_date: string | null;
+  /** An employment status, or `archived`. */
+  status: string;
+  badge_number: string | null;
+  warnings: { code: string; value: string | number | null }[];
+}
+
+/**
  * Who a held badge may be, as the resolver sees it now. Sent only to
  * attendance managers, and naming only people they may open; `null` for the
  * badges past the server's resolve limit.
@@ -542,6 +562,7 @@ export interface UnmatchedBadgeMatch {
     employee_name: string;
     score: number;
     reasons: string[];
+    identity?: SuggestionIdentity | null;
   }[];
 }
 
@@ -557,11 +578,16 @@ export interface UnmatchedBadge {
   name_on_device?: string | null;
   /** True when the badge matches one person by number and its held punches are being recorded by themselves. */
   recording_itself?: boolean;
-  /** Employees that name could be, never when the badge is already matched. */
+  /**
+   * Employees that name could be, never when the badge is already matched.
+   * `same` is the exact name, `similar` a spelling that differs a little.
+   */
   name_matches?: {
     employee_public_id: string;
     employee_name: string;
     department: string | null;
+    fit?: "same" | "similar";
+    identity?: SuggestionIdentity | null;
   }[];
 }
 
