@@ -100,6 +100,37 @@ final class PersonName
         return $text !== null && preg_match('/\p{Ethiopic}/u', $text) === 1;
     }
 
+    /**
+     * A word as the spellings of Ethiopian names are compared loosely: an
+     * Ethiopic word written in Latin letters (EthiopicLatin), then the common
+     * variants folded to one form. "Mekonnen", "Mekonen" and "Makonnen" fold
+     * to the same word, as do "Seblewongel" and "Seblewengel" once the one
+     * letter between them is forgiven by `foldedWordsFit()`.
+     *
+     * The fold: ph is f, q and ck are k, kh is h, th is t, ou and oo are u, ee
+     * is i, a doubled letter is one, and a, e and i are one vowel. It makes
+     * "Haile" and "Hayile" closer, and "Ali" and "Ale" the same word; that is
+     * the price of a forgiving comparison, so it is for suggestions a person
+     * reads, never for anything that assigns.
+     */
+    public static function fold(string $word): string
+    {
+        $word = mb_strtolower(EthiopicLatin::toLatin($word));
+        $word = strtr($word, ['ph' => 'f', 'ck' => 'k', 'q' => 'k', 'kh' => 'h', 'th' => 't', 'ou' => 'u', 'oo' => 'u', 'ee' => 'i']);
+        $word = preg_replace('/(\p{L})\1+/u', '$1', $word) ?? $word;
+
+        return strtr($word, ['a' => 'e', 'i' => 'e']);
+    }
+
+    /**
+     * Two words already passed through `fold()` fit: equal, one the start of
+     * the other, or within the closeness `sameWord()` allows.
+     */
+    public static function foldedWordsFit(string $a, string $b): bool
+    {
+        return self::sameWord($a, $b);
+    }
+
     /** Equal, an initial or truncation of the other, or one transliteration apart. */
     private static function sameWord(string $a, string $b): bool
     {
@@ -108,6 +139,13 @@ final class PersonName
         }
 
         if (mb_strlen($a) < 4 || mb_strlen($b) < 4) {
+            return false;
+        }
+
+        // similar_text() scores over bytes, and its score cannot exceed twice
+        // the shorter word over the two lengths. A pair too uneven to reach
+        // 80% is refused without the cubic search.
+        if (min(strlen($a), strlen($b)) * 2 < 0.8 * (strlen($a) + strlen($b))) {
             return false;
         }
 

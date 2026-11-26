@@ -308,7 +308,7 @@ export default function UsersSettingsPage() {
 
   const roleLabel = (r: string) => t(`role.${r}`, r.replace(/_/g, " "));
 
-  // Switching an account on to its job title applies at once, so when that
+  // Switching an account on to its position applies at once, so when that
   // would change its role the person is asked first.
   function savePressed() {
     const preview = editUser?.title_preview;
@@ -371,7 +371,7 @@ export default function UsersSettingsPage() {
     try {
       await applyTitle.mutateAsync(u.public_id);
       toast.success(
-        t("users_page.title_applied", "Role updated from the job title"),
+        t("users_page.title_applied", "Role updated from the position"),
       );
     } catch (e) {
       toastError(e, t("common.error", "Something went wrong"));
@@ -450,7 +450,7 @@ export default function UsersSettingsPage() {
               setPage(1);
             }}
           >
-            {t("users_page.differs_from_title", "Differs from job title")}
+            {t("users_page.differs_from_title", "Differs from position")}
           </Button>
           {(customRoles.length > 0 || roleFilter !== "") && (
             <Select
@@ -570,7 +570,7 @@ export default function UsersSettingsPage() {
                       </span>
                       {u.role_follows_position && (
                         <span className="block text-xs text-muted-foreground">
-                          {t("users_page.from_title", "From job title")}
+                          {t("users_page.from_title", "From position")}
                         </span>
                       )}
                       {u.custom_role && (
@@ -602,7 +602,7 @@ export default function UsersSettingsPage() {
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {t(
                             "users_page.title_gives",
-                            "Job title gives :role. Waiting for someone who may give that role.",
+                            "Position gives :role. Waiting for someone who may give that role.",
                             {
                               role: t(
                                 `role.${u.title_role}`,
@@ -861,7 +861,7 @@ export default function UsersSettingsPage() {
                         onClick={() => setEditForm({ ...editForm, follows })}
                       >
                         {follows
-                          ? t("users_page.follows_title", "Follows job title")
+                          ? t("users_page.follows_title", "Follows position")
                           : t("users_page.set_by_hand", "Set by hand")}
                       </Button>
                     ))}
@@ -871,7 +871,7 @@ export default function UsersSettingsPage() {
                       {editUser.title_preview.position
                         ? t(
                             "users_page.title_preview",
-                            "Job title :title gives :role",
+                            "Position :title gives :role",
                             {
                               title: editUser.title_preview.position,
                               role: roleLabel(editUser.title_preview.role),
@@ -879,7 +879,7 @@ export default function UsersSettingsPage() {
                           )
                         : t(
                             "users_page.title_preview_none",
-                            "No job title, so this gives :role",
+                            "No position, so this gives :role",
                             { role: roleLabel(editUser.title_preview.role) },
                           )}
                     </p>
@@ -973,7 +973,7 @@ export default function UsersSettingsPage() {
                         : editForm.follows
                           ? t(
                               "users_page.custom_role_note_follows",
-                              "The custom role's permissions replace the built-in role's. While it is set, the job title does not change the built-in role. Remove the custom role to have the title apply again.",
+                              "The custom role's permissions replace the built-in role's. While it is set, the position does not change the built-in role. Remove the custom role to have the position apply again.",
                             )
                           : t(
                               "users_page.custom_role_note",
@@ -1021,11 +1021,11 @@ export default function UsersSettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Following the job title would change this role: say how, first */}
+        {/* Following the position would change this role: say how, first */}
         <ConfirmDialog
           open={confirmFollow && !!editUser?.title_preview}
           onOpenChange={setConfirmFollow}
-          title={t("users_page.follow_confirm_title", "Follow the job title?")}
+          title={t("users_page.follow_confirm_title", "Follow the position?")}
           description={
             editUser?.title_preview
               ? t(
@@ -1034,7 +1034,7 @@ export default function UsersSettingsPage() {
                     : "users_page.follow_confirm_held",
                   editUser.title_preview.applies
                     ? ":name's role changes from :from to :to."
-                    : ":name keeps :from until someone who may give :to applies it. It will show under Differs from job title.",
+                    : ":name keeps :from until someone who may give :to applies it. It will show under Differs from position.",
                   {
                     name:
                       editUser.employee?.name ??
@@ -1050,7 +1050,7 @@ export default function UsersSettingsPage() {
           confirmLabel={
             editUser?.title_preview?.applies
               ? t("users_page.follow_confirm_change", "Change role")
-              : t("users_page.follow_confirm_follow", "Follow job title")
+              : t("users_page.follow_confirm_follow", "Follow the position")
           }
           cancelLabel={t("users_page.keep_editing", "Keep editing")}
           loading={update.isPending}
