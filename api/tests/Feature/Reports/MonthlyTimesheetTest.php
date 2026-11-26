@@ -480,3 +480,46 @@ test('the letters the server prints are the ones the grid\'s legend lists, in th
     // src/src/test/reports-timesheet-screen.test.tsx pins its side of this.
     expect($letters)->toBe(['P', 'L', 'E', 'M', 'A', 'AL', 'SL', 'ML', 'OL', 'FD', '½', 'H', 'R']);
 });
+
+test('the four related reports are standard, and each runs as written', function (string $key) {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $presets = test()->getJson(mtUrl($tenant, 'presets'))->assertOk()->json('presets');
+    $preset = collect($presets)->firstWhere('key', $key);
+
+    expect($preset)->not->toBeNull()
+        ->and($preset['standard'])->toBeTrue()
+        ->and($preset['source'])->toBe('timesheet');
+
+    // Run exactly what the Quick reports card runs, for the fortnight.
+    $config = [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']];
+    $response = test()->postJson(mtUrl($tenant, 'generate'), $config)->assertOk();
+
+    expect($response->json('total'))->toBeGreaterThan(0)
+        ->and(array_keys($response->json('data.0')))->each->toBeIn($config['columns'] ?? array_keys($response->json('data.0')));
+})->with(['late_and_early', 'overtime_by_rate', 'missing_punches', 'attendance_by_department']);
+
+test('the late and early report orders by the minutes and carries the deduction beside them', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $preset = collect(test()->getJson(mtUrl($tenant, 'presets'))->json('presets'))->firstWhere('key', 'late_and_early');
+    $row = test()->postJson(mtUrl($tenant, 'generate'), [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']])
+        ->assertOk()->json('data.0');
+
+    expect($row)->toMatchArray(['late_days' => 1, 'late_minutes' => 40, 'early_days' => 1, 'early_minutes' => 90, 'lateness_deduct_minutes' => 0]);
+});
+
+test('the overtime by rate report separates the rates payroll pays', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $preset = collect(test()->getJson(mtUrl($tenant, 'presets'))->json('presets'))->firstWhere('key', 'overtime_by_rate');
+    $row = test()->postJson(mtUrl($tenant, 'generate'), [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']])
+        ->assertOk()->json('data.0');
+
+    expect($row['overtime_normal_hours'])->toEqual(2.6)
+        ->and($row['overtime_rest_day_hours'])->toEqual(3)
+        ->and($row['overtime_holiday_hours'])->toEqual(0);
+});
