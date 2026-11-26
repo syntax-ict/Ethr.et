@@ -46,10 +46,17 @@ export function EmployeeSearchSelect({
   id,
   value,
   onChange,
+  initialSearch,
 }: {
   id?: string;
   value: PickedEmployee | null;
   onChange: (picked: PickedEmployee) => void;
+  /**
+   * What the search box holds when the picker opens, for a screen that knows
+   * who is being looked for. Read when the list mounts, so a closed picker
+   * still asks for nothing.
+   */
+  initialSearch?: string;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -80,6 +87,7 @@ export function EmployeeSearchSelect({
       >
         <EmployeeSearchList
           selected={value?.public_id ?? null}
+          initialSearch={initialSearch}
           onPick={(picked) => {
             onChange(picked);
             setOpen(false);
@@ -94,12 +102,14 @@ export function EmployeeSearchSelect({
 function EmployeeSearchList({
   selected,
   onPick,
+  initialSearch,
 }: {
   selected: string | null;
   onPick: (picked: PickedEmployee) => void;
+  initialSearch?: string;
 }) {
   const { t } = useT();
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(initialSearch ?? "");
   const search = useDebounce(term.trim(), 250);
   const { data, isLoading, isError, refetch } = useEmployees({
     search: search || undefined,
@@ -148,11 +158,13 @@ function EmployeeSearchList({
               aria-hidden="true"
             />
             <span className="truncate">{e.name}</span>
-            {e.employee_code && (
+            {(e.employee_code || e.department?.name) && (
               <>
                 {/* So the option reads "name code", not "namecode". */}{" "}
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {e.employee_code}
+                <span className="ml-auto truncate pl-2 text-xs text-muted-foreground">
+                  {[e.employee_code, e.department?.name]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </>
             )}
