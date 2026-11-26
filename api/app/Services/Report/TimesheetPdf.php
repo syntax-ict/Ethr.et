@@ -262,7 +262,7 @@ final class TimesheetPdf
             if (is_string($id) && $id !== '') {
                 $name = $model::query()->where('tenant_id', $tenant->id)->where('public_id', $id)->value('name');
                 if ($name !== null) {
-                    $lines[] = ($label === 'shift' ? (string) __('report.timesheet.shift', [], $locale) : self::label($label, $locale)).': '.$name;
+                    $lines[] = ($label === 'shift' ? (string) __('report.fields.shift', [], $locale) : self::label($label, $locale)).': '.$name;
                 }
             }
         }

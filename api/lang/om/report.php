@@ -133,7 +133,7 @@ return [
             'open' => 'Banaa',
         ],
         'no' => 'Lakk.',
-        'id' => 'ID',
+        'id' => 'Eenyummaa',
         'name' => 'Maqaa',
         'department' => 'Damee',
         'position' => 'Iddoo hojii',
