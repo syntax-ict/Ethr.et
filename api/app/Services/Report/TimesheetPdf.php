@@ -34,7 +34,7 @@ use Illuminate\Validation\ValidationException;
  */
 final class TimesheetPdf
 {
-    /** People on one printed timesheet; measured in BASELINE 25bb. */
+    /** People on one printed timesheet; measured in BASELINE 25bg. */
     public const MAX_PEOPLE = 50;
 
     /** Print-safe tints: a code is a letter first, a tint second. */
