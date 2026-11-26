@@ -14,9 +14,11 @@ use App\Models\User;
  *
  * The validation of an assignment (`ValidatesCustomRoleAssignment`) and the
  * list the Users page offers (`GET /users/assignable-roles`) both ask here,
- * so the screen can never offer a role the server then refuses (audit N87,
- * N89). A super admin may give any role. Anyone else may give a role only if
- * they hold every permission it grants and do not reach less far than it.
+ * so the two cannot disagree about the role itself (audit N87, N89). Whether
+ * the person receiving it may be changed by this actor is a separate check, on
+ * the built-in role levels. A super admin may give any role. Anyone else may
+ * give a role only if they hold every permission it grants and do not reach
+ * less far than it.
  */
 final class CustomRoleAssignment
 {

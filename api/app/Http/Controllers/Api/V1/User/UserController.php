@@ -53,9 +53,10 @@ class UserController extends Controller
 
         // A public id, read through the tenant scope: another organisation's
         // role finds no one rather than raising an error.
-        if ($request->filled('filter.custom_role')) {
-            $role = CustomRole::where('public_id', (string) $request->input('filter.custom_role'))->first();
-            $query->where('custom_role_id', $role?->id ?? 0);
+        $customRoleFilter = $request->input('filter.custom_role');
+
+        if (is_string($customRoleFilter) && $customRoleFilter !== '') {
+            $query->where('custom_role_id', CustomRole::where('public_id', $customRoleFilter)->value('id') ?? 0);
         }
 
         if ($request->input('filter.title_access') === 'held') {
@@ -80,8 +81,15 @@ class UserController extends Controller
 
         $actor = $request->user();
 
+        // Below an organisation admin, a role can be given only to someone at a
+        // lower built-in level (a peer is refused, a senior gets a 403). The
+        // lowest level has no one below it, so it is offered nothing rather
+        // than a picker whose every save is refused.
+        $nobodyBelow = ! $actor->isSuperAdmin() && $actor->role->level() <= UserRole::EMPLOYEE->level();
+
         $roles = CustomRole::query()
             ->where('is_active', true)
+            ->when($nobodyBelow, fn ($query) => $query->whereKey([]))
             ->withCount('permissions')
             ->orderBy('name')
             ->get()

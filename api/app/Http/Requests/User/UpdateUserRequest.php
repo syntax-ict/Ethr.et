@@ -9,6 +9,7 @@ use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationOwnership;
+use App\Support\CustomRoleAssignment;
 use App\Support\Locales;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
@@ -91,11 +92,26 @@ class UpdateUserRequest extends FormRequest
             // custom role replaces every permission you hold, so a second
             // tenant admin could give themselves a narrow one and lose the
             // settings that would let them take it back.
-            if ($changesCustomRole && $target instanceof User && $actor !== null
+            if ($changesCustomRole && $actor !== null
                 && $target->id === $actor->id && ! $actor->isSuperAdmin()) {
                 $v->errors()->add('custom_role_id', __('user.errors.own_custom_role'));
 
                 return;
+            }
+
+            // Taking a custom role away, or swapping it, changes what its
+            // holder may do. When the role they hold now is one this actor
+            // could not give, the holder outranks them in everything the level
+            // checks below cannot see: those compare the built-in role only.
+            // An inactive role grants nothing, so removing it is allowed.
+            if ($changesCustomRole && $actor !== null && ! $actor->isSuperAdmin()) {
+                $held = $target->customRole;
+
+                if ($held !== null && $held->is_active && ! CustomRoleAssignment::mayAssign($actor, $held)) {
+                    $v->errors()->add('custom_role_id', __('user.errors.cannot_modify_higher'));
+
+                    return;
+                }
             }
 
             // The owner stays an active administrator until ownership is

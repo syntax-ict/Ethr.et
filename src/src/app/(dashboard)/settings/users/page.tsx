@@ -575,14 +575,27 @@ export default function UsersSettingsPage() {
                       )}
                       {u.custom_role && (
                         <Badge
-                          variant="secondary"
+                          variant={
+                            u.custom_role.is_active === false
+                              ? "outline"
+                              : "secondary"
+                          }
                           className="mt-1 block w-fit max-w-full truncate text-caption"
-                          title={t(
-                            "users_page.custom_role_badge_title",
-                            "Custom role: its permissions replace the built-in role's",
-                          )}
+                          title={
+                            u.custom_role.is_active === false
+                              ? t(
+                                  "users_page.custom_role_off_title",
+                                  "Inactive custom role: it grants nothing, so the built-in role applies",
+                                )
+                              : t(
+                                  "users_page.custom_role_badge_title",
+                                  "Custom role: its permissions replace the built-in role's",
+                                )
+                          }
                         >
                           {u.custom_role.name}
+                          {u.custom_role.is_active === false &&
+                            ` (${t("roles_page.inactive", "Inactive")})`}
                         </Badge>
                       )}
                       {u.title_role && u.title_role !== u.role && (
@@ -925,11 +938,17 @@ export default function UsersSettingsPage() {
                               r.public_id === editUser.custom_role?.public_id,
                           ) && (
                             <SelectItem value={editUser.custom_role.public_id}>
-                              {t(
-                                "users_page.custom_role_current",
-                                ":name (current, not available to give)",
-                                { name: editUser.custom_role.name },
-                              )}
+                              {editUser.custom_role.is_active === false
+                                ? t(
+                                    "users_page.custom_role_current_off",
+                                    ":name (inactive, grants nothing)",
+                                    { name: editUser.custom_role.name },
+                                  )
+                                : t(
+                                    "users_page.custom_role_current",
+                                    ":name (current, not available to give)",
+                                    { name: editUser.custom_role.name },
+                                  )}
                             </SelectItem>
                           )}
                         {customRoles.map((r) => (
@@ -945,15 +964,21 @@ export default function UsersSettingsPage() {
                   </Select>
                   {editForm.customRole !== NO_CUSTOM_ROLE && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {editForm.follows
+                      {editUser?.custom_role?.is_active === false &&
+                      editForm.customRole === editUser.custom_role.public_id
                         ? t(
-                            "users_page.custom_role_note_follows",
-                            "The custom role's permissions replace the built-in role's. The job title still sets the built-in role, but the custom role decides access while it is set.",
+                            "users_page.custom_role_note_off",
+                            "This custom role is inactive, so it grants nothing and the built-in role applies.",
                           )
-                        : t(
-                            "users_page.custom_role_note",
-                            "The custom role's permissions replace the built-in role's while it is set.",
-                          )}
+                        : editForm.follows
+                          ? t(
+                              "users_page.custom_role_note_follows",
+                              "The custom role's permissions replace the built-in role's. While it is set, the job title does not change the built-in role. Remove the custom role to have the title apply again.",
+                            )
+                          : t(
+                              "users_page.custom_role_note",
+                              "The custom role's permissions replace the built-in role's while it is set.",
+                            )}
                     </p>
                   )}
                 </div>

@@ -14714,6 +14714,7 @@ export interface components {
             custom_role?: {
                 public_id: string;
                 name: string;
+                is_active: boolean;
             } | null;
             employee?: {
                 public_id: string;
@@ -40661,6 +40662,11 @@ export interface operations {
                 search?: string;
                 "filter[role]"?: string;
                 "filter[status]"?: string;
+                /**
+                 * @description A public id, read through the tenant scope: another organisation's
+                 *      role finds no one rather than raising an error.
+                 */
+                "filter[custom_role]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -40680,6 +40686,7 @@ export interface operations {
                             custom_role: {
                                 public_id: string;
                                 name: string;
+                                is_active: boolean;
                             } | null;
                             employee: {
                                 public_id: string;
@@ -40866,6 +40873,7 @@ export interface operations {
                         custom_role: {
                             public_id: string;
                             name: string;
+                            is_active: boolean;
                         } | null;
                         employee: {
                             public_id: string;
@@ -40948,6 +40956,7 @@ export interface operations {
                         custom_role: {
                             public_id: string;
                             name: string;
+                            is_active: boolean;
                         } | null;
                         employee: {
                             public_id: string;

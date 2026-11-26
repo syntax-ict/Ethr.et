@@ -24,15 +24,28 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 const SELF = "01HZUSER000000000000000009";
 const OTHER = "01HZUSER000000000000000001";
 const DESK = { public_id: "01HZROLE000000000000000001", name: "Leave desk" };
+const OFF = {
+  public_id: "01HZROLE000000000000000002",
+  name: "Old role",
+  is_active: false,
+};
 
-function person(publicId: string, customRole: typeof DESK | null = null) {
+function person(
+  publicId: string,
+  customRole: {
+    public_id: string;
+    name: string;
+    is_active?: boolean;
+  } | null = null,
+  follows = false,
+) {
   return {
     public_id: publicId,
     email: publicId === SELF ? "me@acme.et" : "selam@acme.et",
     username: null,
     phone: null,
     role: "employee",
-    role_follows_position: false,
+    role_follows_position: follows,
     status: "active",
     locale: "en",
     mfa_enabled: false,
@@ -170,5 +183,33 @@ describe("Users: giving a custom role", () => {
     expect((await screen.findAllByText("Leave desk")).length).toBeGreaterThan(
       0,
     );
+  });
+
+  it("marks a custom role that is switched off, on the row and in the dialog", async () => {
+    serve([person(OTHER, OFF)]);
+    const ui = userEvent.setup();
+    renderPage();
+
+    expect(
+      await screen.findByText(/Old role \(Inactive\)/),
+    ).toBeInTheDocument();
+
+    await ui.click(await screen.findByRole("button", { name: /^Edit / }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/This custom role is inactive/),
+    ).toBeInTheDocument();
+  });
+
+  it("says the job title does not change the built-in role while a custom role is set", async () => {
+    serve([person(OTHER, DESK, true)]);
+    const ui = userEvent.setup();
+    renderPage();
+
+    await ui.click(await screen.findByRole("button", { name: /^Edit / }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/job title does not change the built-in role/),
+    ).toBeInTheDocument();
   });
 });
