@@ -1561,6 +1561,10 @@ export const SHOTS = [
     markers: [
       {
         target: (page) =>
+          page.getByText("ጸጥ ያሉ መሣሪያዎች", { exact: true }).first(),
+      },
+      {
+        target: (page) =>
           page.getByText("ጠቅላላ መሣሪያዎች", { exact: true }).first(),
       },
       {
