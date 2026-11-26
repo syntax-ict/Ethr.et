@@ -40637,13 +40637,38 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
-                            match: unknown;
+                            match: {
+                                [key: string]: unknown;
+                            } | null;
                             recording_itself: boolean;
                             name_on_device: string | null;
                             name_matches: {
                                 employee_public_id: string;
                                 employee_name: string;
-                                department: string | null;
+                                department: string;
+                                fit: string;
+                                identity: {
+                                    employee_code: string | null;
+                                    department: string | null;
+                                    position: string | null;
+                                    branch: string | null;
+                                    hire_date: string;
+                                    status: string;
+                                    badge_number: string | null;
+                                    warnings: ({
+                                        /** @constant */
+                                        code: "other_badge";
+                                        value: string;
+                                    } | {
+                                        /** @constant */
+                                        code: "hired_after";
+                                        value: Record<string, never> | null;
+                                    } | {
+                                        /** @constant */
+                                        code: "own_attendance";
+                                        value: number;
+                                    })[];
+                                } | null;
                             }[];
                         }[];
                     };

@@ -30,6 +30,7 @@ const EMPLOYEES = Array.from({ length: 4000 }, (_, i) => ({
   public_id: `01HZEMP${String(i).padStart(19, "0")}`,
   name: i === 1234 ? "Selam Tesfaye" : `Employee ${String(i).padStart(4, "0")}`,
   employee_code: `E-${String(i).padStart(4, "0")}`,
+  department: { public_id: "01HZDEP0000000000000000001", name: "Land Office" },
 }));
 
 const ROWS = Array.from({ length: 80 }, (_, i) => ({
@@ -175,6 +176,24 @@ describe("<UnmatchedBadgesCard> with 80 badges and 4,000 employees", () => {
           employee_public_id: EMPLOYEES[1234].public_id,
         }),
       ]),
+    );
+  }, 30_000);
+
+  it("opens a row's picker already searched by the terminal's given name, with each option's number and department", async () => {
+    const user = userEvent.setup();
+    renderCard();
+    const row = await vi.waitFor(() => rowOf("9001"));
+
+    await user.click(within(row).getByRole("combobox"));
+    await screen.findAllByRole("option");
+
+    expect(employeeCalls).toHaveLength(1);
+    expect(employeeCalls[0].searchParams.get("search")).toBe("Employee");
+    expect(
+      screen.getByPlaceholderText("Search by name, email, or code..."),
+    ).toHaveValue("Employee");
+    expect(screen.getAllByRole("option")[0]).toHaveTextContent(
+      /E-0000 · Land Office/,
     );
   }, 30_000);
 

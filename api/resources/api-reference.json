@@ -13722,7 +13722,13 @@
                                                     "last_seen": {
                                                         "type": "string"
                                                     },
-                                                    "match": [],
+                                                    "match": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "additionalProperties": []
+                                                    },
                                                     "recording_itself": {
                                                         "type": "boolean"
                                                     },
@@ -13744,16 +13750,130 @@
                                                                     "type": "string"
                                                                 },
                                                                 "department": {
+                                                                    "type": "string"
+                                                                },
+                                                                "fit": {
+                                                                    "type": "string"
+                                                                },
+                                                                "identity": {
                                                                     "type": [
-                                                                        "string",
+                                                                        "object",
                                                                         "null"
+                                                                    ],
+                                                                    "properties": {
+                                                                        "employee_code": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "department": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "position": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "branch": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "hire_date": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "status": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "badge_number": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "warnings": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "other_badge"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    },
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "hired_after"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": [
+                                                                                                    "object",
+                                                                                                    "null"
+                                                                                                ]
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    },
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "own_attendance"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": "integer"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "employee_code",
+                                                                        "department",
+                                                                        "position",
+                                                                        "branch",
+                                                                        "hire_date",
+                                                                        "status",
+                                                                        "badge_number",
+                                                                        "warnings"
                                                                     ]
                                                                 }
                                                             },
                                                             "required": [
                                                                 "employee_public_id",
                                                                 "employee_name",
-                                                                "department"
+                                                                "department",
+                                                                "fit",
+                                                                "identity"
                                                             ]
                                                         }
                                                     }
