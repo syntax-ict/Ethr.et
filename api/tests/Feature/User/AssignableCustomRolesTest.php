@@ -187,6 +187,68 @@ describe('the review of the first version', function () {
     });
 });
 
+describe('whoever can edit roles may give any of them', function () {
+    it('offers an organisation admin, and lets them give, a role that carries an ability no built-in role holds', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $regional = assignableRole($tenant->id, ['employee.view', 'dashboard.regional'], 'Regional manager', 'branch');
+        $target = createUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $ids = collect($this->getJson('/api/v1/users/assignable-roles')->assertOk()->json('data'))->pluck('public_id')->all();
+        expect($ids)->toBe([$regional->public_id]);
+
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $regional->public_id])->assertOk();
+        expect($target->fresh()->custom_role_id)->toBe($regional->id);
+    });
+
+    it('still refuses an hr admin that role, which they do not hold', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $regional = assignableRole($tenant->id, ['employee.view', 'dashboard.regional'], 'Regional manager', 'branch');
+        $target = createUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $this->getJson('/api/v1/users/assignable-roles')->assertOk()->assertJsonCount(0, 'data');
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $regional->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+        expect($target->fresh()->custom_role_id)->toBeNull();
+    });
+
+    it('keeps the subset rule for an organisation admin whose own custom role has no settings.manage', function () {
+        $tenant = createTenant();
+        $narrow = assignableRole($tenant->id, ['users.update', 'employee.view'], 'Narrow admin', 'all');
+        actingAsUser(['role' => UserRole::TENANT_ADMIN, 'custom_role_id' => $narrow->id], $tenant);
+        assignableRole($tenant->id, ['employee.view'], 'Viewer', 'all');
+        assignableRole($tenant->id, ['employee.view', 'payroll.approve'], 'Payroll approver', 'all');
+
+        $names = collect($this->getJson('/api/v1/users/assignable-roles')->assertOk()->json('data'))->pluck('name')->all();
+        expect($names)->toContain('Viewer')->and($names)->not->toContain('Payroll approver');
+    });
+
+    it('lets a custom role that holds settings.manage give a role with a wider reach than its own', function () {
+        $tenant = createTenant();
+        $manager = assignableRole($tenant->id, ['users.update', 'settings.manage', 'employee.view'], 'Role manager', 'team');
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'custom_role_id' => $manager->id], $tenant);
+        $wide = assignableRole($tenant->id, ['employee.view', 'payroll.approve'], 'Wide approver', 'all');
+        $target = createUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $ids = collect($this->getJson('/api/v1/users/assignable-roles')->assertOk()->json('data'))->pluck('public_id')->all();
+        expect($ids)->toContain($wide->public_id);
+
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $wide->public_id])->assertOk();
+    });
+
+    it('still never lists or accepts another organisations role', function () {
+        $foreign = assignableRole(createTenant()->id, ['employee.view', 'dashboard.regional'], 'Foreign', 'all');
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $target = createUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $this->getJson('/api/v1/users/assignable-roles')->assertOk()->assertJsonCount(0, 'data');
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $foreign->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+    });
+});
+
 describe('your own custom role', function () {
     it('is not yours to change unless you are the platform', function () {
         $tenant = createTenant();
