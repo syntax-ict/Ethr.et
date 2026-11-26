@@ -268,7 +268,10 @@ test('totals and department subtotals cover everyone matched, not the page', fun
 test('the shift and employment status filters narrow the people, and the totals with them', function () {
     ['tenant' => $tenant, 'employee' => $employee, 'shift' => $shift] = mtFortnight();
     $other = Shift::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Late Shift', 'start_time' => '14:00', 'end_time' => '22:00']);
-    $left = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'status' => EmployeeStatus::CONFIRMED]);
+    // Named rather than left to the factory. The report orders by name and the
+    // assertion below reads the first row, so a faker name sorting before
+    // "Abebe Kebede" put the other person there and failed the run.
+    $left = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Zenebe Tadesse', 'status' => EmployeeStatus::CONFIRMED]);
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $morning = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25&shift='.$shift->public_id))->assertOk();
