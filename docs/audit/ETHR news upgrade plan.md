@@ -255,6 +255,23 @@ Each is merged and released before the next is cut. Each starts from `origin/mai
 - `StorySingleSourceTest`.
 - **No migration. No queued constructor changes. The bypass inventory stays at 208 across 83.**
 
+**Implementation brief (written 2026-11-23, after N3a; starts only once #862 is merged, because both touch `Announcement.php` and `LandingFeedController.php` and stacked PRs conflict after a squash merge).** Cut from `origin/main` in a worktree of its own. Already done by N3a and not to be redone: `scopeNewsOrder()` and `NEWS_PER_PAGE` on the model.
+
+1. **Contract first, so the API's shape is pinned before anything moves.** Add a Pest test that records, for one fixture story, the exact JSON of `GET /auth/tenant-landing/news`, `/auth/tenant-landing/announcements/{id}`, `/auth/tenant-landing/feed` and `GET /announcements/{id}`. Every later step must leave the three public responses byte-identical. The in-app one may change only as listed in step 2.
+2. **`App\Support\Story`.** `summary(Announcement, string $tenantPublicId): array` returns exactly today's public summary keys. `body(Announcement): string` is `PlainExcerpt::of($body, BODY_MAX)`. The constants are `TITLE_MAX = 150`, `EXCERPT_MAX = 280` and `BODY_MAX = 10000`. `LandingFeedController::newsSummary()` and its body line call it. `AnnouncementResource` takes `excerpt` from it and **`body` from `Story::body()`**. That is the one in-app change (A2): markup is stripped for the reader, as the public article already does. The editor needs the raw text to edit, so the resource keeps it as `body_source`, returned only to `announcement.manage`. Check first: if `select count(*) from announcements where body regexp '<[a-z/]'` is zero on production (ask the owner, or read it from a backup), skip `body_source` and record why.
+3. **`Announcement::scopeReadableBy(?User)`** = `published()->notExpired()->visibleTo($user)`, or no constraint for a manager. `AnnouncementController::index()`, `show()` and `AnnouncementFileController::download()` use it. **`scopeReadingOrder()`** takes the in-app `CASE` (urgent, high, normal, low). The two orders stay different on purpose: the public page leads with featured stories, the in-app list does not. The docblock says so, so the next reader does not merge them.
+4. **`TenantLanding::showsNews(Tenant): bool`.** The six `publicSections(...)['announcements']` reads in `LandingFeedController`, `PortalPage`, `NewsFileController` and `OrganisationSitemapController` call it.
+5. **Enums, in the #817 pattern** (`api/app/Enums/MaritalStatus.php`, `src/src/lib/options/marital-status.ts`, `lib/options/contract.ts`, `src/test/option-lists.test.ts`):
+   - `AnnouncementPriority` (`low`, `normal`, `high`, `urgent`), `AnnouncementCategory` (the four in `Announcement::CATEGORIES`, which then reads the enum), and `AnnouncementTarget` (`all`, `department`, `branch`).
+   - Validated with `Rule::enum()` in `StoreAnnouncementRequest`, `UpdateAnnouncementRequest` and `LandingNewsRequest`.
+   - `src/src/lib/options/announcement.ts` takes the lists and one label function per list, reusing the existing reviewed keys (`common.low`, `common.normal`, `landing.important`, `landing.urgent`, `news.category_*`). No new strings.
+   - `NEWS_CATEGORIES` in `landing-feed.ts` and the editor's priority and category `<SelectItem>`s read the module.
+   - `contract.ts` gains three lines. `generated.ts` will change: the schema names for the three enums appear. That change is expected; regenerate it and commit it.
+6. **The two small ones.** The public article answers with `LandingFeedController::CACHE` and `Vary: Host, X-Tenant`, as the list does. `NewsCoverController` derives its accepted sizes from `FileStorageService::COVER_VARIANT_WIDTHS`.
+7. **`StorySingleSourceTest`** (Pest, tokenised like `TenantScopeBypassInventoryTest`). It fails when a `CASE priority` appears outside `Announcement.php`, when `publicSections(` is indexed with `'announcements'` outside `TenantLanding.php`, or when `in:low,normal,high,urgent` or `in:all,department,branch` appears anywhere in `app/`.
+
+**Proof.** The step 1 contract test is green unchanged at the end, apart from the in-app `body`. Run `gates.sh backend` and `gates.sh frontend`, because the options module and `generated.ts` move. Run one Playwright check: the editor still saves a story with each priority, and the public article reads the same as before. N1 touches tenant-scoped reads, so its review is `/code-review` at high effort or an Opus review agent.
+
 ### N2. One story on the screen (frontend refactor)
 
 *Closes A11 to A18, B6, B8.*
