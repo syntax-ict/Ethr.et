@@ -1973,6 +1973,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\ClockPreference' => __DIR__ . '/../..' . '/app/Support/ClockPreference.php',
         'App\\Support\\CopyName' => __DIR__ . '/../..' . '/app/Support/CopyName.php',
         'App\\Support\\Csv' => __DIR__ . '/../..' . '/app/Support/Csv.php',
+        'App\\Support\\CustomRoleAssignment' => __DIR__ . '/../..' . '/app/Support/CustomRoleAssignment.php',
         'App\\Support\\DateColumnCalendar' => __DIR__ . '/../..' . '/app/Support/DateColumnCalendar.php',
         'App\\Support\\DepartmentMatch' => __DIR__ . '/../..' . '/app/Support/DepartmentMatch.php',
         'App\\Support\\DeviceClock' => __DIR__ . '/../..' . '/app/Support/DeviceClock.php',

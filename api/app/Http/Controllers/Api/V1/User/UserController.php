@@ -18,6 +18,7 @@ use App\Services\CurrentTenant;
 use App\Services\MfaService;
 use App\Services\Tenancy\OrganisationOwnership;
 use App\Services\UserProvisioningService;
+use App\Support\CustomRoleAssignment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -35,7 +36,7 @@ class UserController extends Controller
     {
         Gate::authorize('users.viewAny');
 
-        $query = User::query()->with(['employee.position', 'latestInvitation']);
+        $query = User::query()->with(['employee.position', 'latestInvitation', 'customRole']);
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -50,6 +51,14 @@ class UserController extends Controller
             $query->where('status', $request->input('filter.status'));
         }
 
+        // A public id, read through the tenant scope: another organisation's
+        // role finds no one rather than raising an error.
+        $customRoleFilter = $request->input('filter.custom_role');
+
+        if (is_string($customRoleFilter) && $customRoleFilter !== '') {
+            $query->where('custom_role_id', CustomRole::where('public_id', $customRoleFilter)->value('id') ?? 0);
+        }
+
         if ($request->input('filter.title_access') === 'held') {
             $query->whereIn('id', $this->positionAccess->heldQuery()->select('users.id'));
         }
@@ -59,6 +68,42 @@ class UserController extends Controller
         return UserResource::collection(
             $query->paginate($request->integer('per_page', 25))
         );
+    }
+
+    /**
+     * The custom roles the signed-in person may give, for the Users page's
+     * picker. Settings > Roles needs `settings.manage`, which an HR admin does
+     * not hold, so this is the read for someone who may only assign.
+     */
+    public function assignableRoles(Request $request): JsonResponse
+    {
+        Gate::authorize('users.update');
+
+        $actor = $request->user();
+
+        // Below an organisation admin, a role can be given only to someone at a
+        // lower built-in level (a peer is refused, a senior gets a 403). The
+        // lowest level has no one below it, so it is offered nothing rather
+        // than a picker whose every save is refused.
+        $nobodyBelow = ! $actor->isSuperAdmin() && $actor->role->level() <= UserRole::EMPLOYEE->level();
+
+        $roles = CustomRole::query()
+            ->where('is_active', true)
+            ->when($nobodyBelow, fn ($query) => $query->whereKey([]))
+            ->withCount('permissions')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (CustomRole $role): bool => CustomRoleAssignment::mayAssign($actor, $role))
+            ->values()
+            ->map(fn (CustomRole $role): array => [
+                'public_id' => $role->public_id,
+                'name' => $role->name,
+                'description' => $role->description,
+                'org_scope' => $role->org_scope,
+                'permissions_count' => (int) $role->permissions_count,
+            ]);
+
+        return response()->json(['data' => $roles]);
     }
 
     public function store(StoreUserRequest $request): JsonResponse
@@ -142,7 +187,7 @@ class UserController extends Controller
             'after' => $user->only($audited),
         ]);
 
-        return new UserResource($user->load('employee.position'));
+        return new UserResource($user->load(['employee.position', 'customRole']));
     }
 
     /**
@@ -160,7 +205,7 @@ class UserController extends Controller
             return $this->problem(422, __('user.errors.title_access_held'));
         }
 
-        return new UserResource($user->load('employee.position'));
+        return new UserResource($user->load(['employee.position', 'customRole']));
     }
 
     public function resendInvite(Request $request, User $user): JsonResponse

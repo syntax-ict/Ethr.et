@@ -1239,6 +1239,7 @@ return array(
     'App\\Support\\ClockPreference' => $baseDir . '/app/Support/ClockPreference.php',
     'App\\Support\\CopyName' => $baseDir . '/app/Support/CopyName.php',
     'App\\Support\\Csv' => $baseDir . '/app/Support/Csv.php',
+    'App\\Support\\CustomRoleAssignment' => $baseDir . '/app/Support/CustomRoleAssignment.php',
     'App\\Support\\DateColumnCalendar' => $baseDir . '/app/Support/DateColumnCalendar.php',
     'App\\Support\\DepartmentMatch' => $baseDir . '/app/Support/DepartmentMatch.php',
     'App\\Support\\DeviceClock' => $baseDir . '/app/Support/DeviceClock.php',
