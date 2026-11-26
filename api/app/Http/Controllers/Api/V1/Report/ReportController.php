@@ -20,6 +20,7 @@ use App\Models\Shift;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
+use App\Services\Report\TimesheetPdf;
 use App\Services\Report\TimesheetReport;
 use App\Support\Csv;
 use App\Support\Letterhead;
@@ -113,6 +114,28 @@ class ReportController extends Controller
             'rules_applied' => $grid['rules_applied'] ?? [],
             'status' => $grid['status'] ?? null,
             'with_pay' => $grid['with_pay'] ?? false,
+        ]);
+    }
+
+    /**
+     * The monthly timesheet as a PDF: A4 landscape, the grid, the summary, the
+     * totals, the legend, the rules applied and the signature lines, in the
+     * reader's language and calendar. The same filters as the grid, and the
+     * same people it shows; a list longer than a printed sheet holds is a 422
+     * that says how to narrow it.
+     */
+    public function timesheetPdf(TimesheetRequest $request, TimesheetPdf $timesheet): Response
+    {
+        Gate::authorize('report.generate');
+
+        $tenant = app(CurrentTenant::class)->get() ?? throw new TenantRequired;
+        $reader = ReaderDates::for($request->user());
+
+        $bytes = $timesheet->render($tenant, $request->user(), $request->validated(), $reader, Gate::allows('payroll.viewAll'));
+
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="timesheet-'.now()->format('Y-m-d-His').'.pdf"',
         ]);
     }
 
