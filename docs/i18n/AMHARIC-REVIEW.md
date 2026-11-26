@@ -763,3 +763,18 @@ The Amharic drafts:
 - `employees.add_menu.recent_lists`: በቅርቡ የጨመሯቸው ዝርዝሮች
 
 What to check first: that "የተስተካከለ ፋይል" ("a corrected file") reads as the file after fixing, not as a file that was edited by the system, and that "ያክሉ" matches the verb already used on the import screen for adding a list. The Afaan Oromoo lines are drafts and unread.
+
+### One word for an archived person on the import review screen (2026-11-26)
+
+| What | Where | Strings |
+|---|---|---|
+| The match line for a person who was archived earlier, which said "deleted" beside a sentence that said "archived" | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.outcome_archived` | 1 each |
+
+The drafts:
+
+- `setup2.outcome_archived` (am): ቀደም ብሎ ወደ ማህደር የተወሰደ (was ቀደም ብሎ የተሰረዘ)
+- `setup2.outcome_archived` (om): duraan kuufame (was duraan haqame)
+
+Both come from the existing archive vocabulary (`employees.archive.col_archived`, `employees.archive.done_one`).
+
+What to check first: that "ወደ ማህደር የተወሰደ" reads as "moved to the archive, can be brought back", not as removed for good, and that "kuufame" is the word the Archived view already uses. The Afaan Oromoo line is a draft and unread.
