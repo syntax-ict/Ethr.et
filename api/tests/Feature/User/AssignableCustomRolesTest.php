@@ -209,7 +209,8 @@ describe('whoever can edit roles may give any of them', function () {
 
         $this->getJson('/api/v1/users/assignable-roles')->assertOk()->assertJsonCount(0, 'data');
         $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $regional->public_id])
-            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['custom_role_id' => __('user.errors.role_above_your_level')]);
         expect($target->fresh()->custom_role_id)->toBeNull();
     });
 
@@ -235,6 +236,7 @@ describe('whoever can edit roles may give any of them', function () {
         expect($ids)->toContain($wide->public_id);
 
         $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $wide->public_id])->assertOk();
+        expect($target->fresh()->custom_role_id)->toBe($wide->id);
     });
 
     it('still never lists or accepts another organisations role', function () {
